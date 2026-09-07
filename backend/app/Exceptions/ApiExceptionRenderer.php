@@ -2,7 +2,6 @@
 
 namespace App\Exceptions;
 
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -43,16 +42,16 @@ class ApiExceptionRenderer
                 'The given data was invalid.',
                 ['errors' => $e->errors()],
             ],
+            $e instanceof AccountInactiveException => [
+                403,
+                'ACCOUNT_INACTIVE',
+                $e->getMessage(),
+                [],
+            ],
             $e instanceof AuthenticationException => [
                 401,
                 'UNAUTHENTICATED',
                 'Authentication is required to access this resource.',
-                [],
-            ],
-            $e instanceof AuthorizationException => [
-                403,
-                'FORBIDDEN',
-                'You are not authorized to perform this action.',
                 [],
             ],
             $e instanceof ModelNotFoundException, $e instanceof NotFoundHttpException => [
@@ -65,6 +64,15 @@ class ApiExceptionRenderer
                 429,
                 'TOO_MANY_REQUESTS',
                 'Too many requests. Please try again later.',
+                [],
+            ],
+            // Laravel's own exception handling converts AuthorizationException
+            // into a plain 403 HttpException before this renders, so it's
+            // caught here by status code rather than by an `instanceof` check.
+            $e instanceof HttpExceptionInterface && $e->getStatusCode() === 403 => [
+                403,
+                'FORBIDDEN',
+                'You are not authorized to perform this action.',
                 [],
             ],
             $e instanceof HttpExceptionInterface => [

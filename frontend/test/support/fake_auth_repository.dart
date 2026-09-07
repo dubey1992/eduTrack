@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 
@@ -28,11 +29,26 @@ class FakeAuthRepository implements AuthRepository {
   Future<AuthenticatedUser> login({required String email, required String password}) async {
     if (loginGate != null) await loginGate!.future;
     if (failLoginWith != null) throw failLoginWith!;
-    return const AuthenticatedUser(id: 1, name: 'Test User', email: 'test@example.com');
+    return const AuthenticatedUser(
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      role: UserRole.superAdmin,
+    );
   }
 
   @override
   Future<void> logout() async {
     loggedOutCalled = true;
   }
+
+  @override
+  Future<void> forgotPassword(String email) async {}
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String token,
+    required String password,
+  }) async {}
 }

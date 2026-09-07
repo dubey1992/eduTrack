@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/models/user_role.dart';
 import '../../auth/application/auth_notifier.dart';
 
 /// Placeholder landing screen proving the auth pipe works end to end.
-/// Phase 4+ replaces this with the real dashboard (KPIs, quick actions)
-/// from the prototype.
+/// Phase 18 replaces this with the real dashboard (KPIs, quick actions,
+/// the full sidebar) from the prototype.
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -25,9 +27,22 @@ class DashboardScreen extends ConsumerWidget {
         ],
       ),
       body: Center(
-        child: Text(
-          user == null ? 'Welcome' : 'Welcome, ${user.name}',
-          style: Theme.of(context).textTheme.headlineSmall,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              user == null ? 'Welcome' : 'Welcome, ${user.name}',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            if (user?.role == UserRole.superAdmin) ...[
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () => context.push('/users'),
+                icon: const Icon(Icons.group_outlined),
+                label: const Text('Manage Users'),
+              ),
+            ],
+          ],
         ),
       ),
     );

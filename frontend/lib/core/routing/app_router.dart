@@ -3,9 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/users/presentation/user_list_screen.dart';
+import '../models/user_role.dart';
 import '../widgets/splash_screen.dart';
+
+/// Routes reachable without an active session.
+const _publicPaths = {'/login', '/forgot-password', '/reset-password'};
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _AuthRefreshNotifier(ref);
@@ -17,7 +24,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => ResetPasswordScreen(
+          email: state.uri.queryParameters['email'] ?? '',
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
+      ),
       GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
+      GoRoute(path: '/users', builder: (context, state) => const UserListScreen()),
     ],
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
@@ -27,13 +43,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         return location == '/splash' ? null : '/splash';
       }
 
-      final isLoggedIn = authState.value != null;
+      final user = authState.value;
+      final isLoggedIn = user != null;
 
       if (!isLoggedIn) {
-        return location == '/login' ? null : '/login';
+        return _publicPaths.contains(location) ? null : '/login';
       }
 
       if (location == '/login' || location == '/splash') {
+        return '/';
+      }
+
+      if (location == '/users' && user.role != UserRole.superAdmin) {
         return '/';
       }
 

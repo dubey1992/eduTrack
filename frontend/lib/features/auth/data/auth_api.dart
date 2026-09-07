@@ -25,6 +25,12 @@ class AuthApi {
 
   Future<void> logout() => _dio.post('/auth/logout');
 
+  Future<void> forgotPassword(String email) => _dio.post('/auth/forgot-password', data: {'email': email});
+
+  Future<void> resetPassword({required String email, required String token, required String password}) {
+    return _dio.post('/auth/reset-password', data: {'email': email, 'token': token, 'password': password});
+  }
+
   Future<AuthenticatedUser> me() async {
     final response = await _dio.get('/me');
     return AuthenticatedUser.fromJson(response.data as Map<String, dynamic>);

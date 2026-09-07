@@ -86,4 +86,27 @@ class AuthTest extends TestCase
             ->getJson('/api/v1/me')
             ->assertUnauthorized();
     }
+
+    public function test_a_deactivated_user_cannot_log_in(): void
+    {
+        $user = User::factory()->inactive()->create(['password' => 'correct-password']);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'correct-password',
+        ]);
+
+        $response->assertForbidden()
+            ->assertJsonPath('code', 'ACCOUNT_INACTIVE');
+    }
+
+    public function test_an_expired_token_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('api-token', ['*'], now()->subMinute())->plainTextToken;
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/v1/me')
+            ->assertUnauthorized();
+    }
 }

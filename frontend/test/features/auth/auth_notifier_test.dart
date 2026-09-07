@@ -1,4 +1,5 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/features/auth/application/auth_notifier.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
@@ -22,7 +23,12 @@ void main() {
   });
 
   test('build() restores the existing session when a valid token is stored', () async {
-    const user = AuthenticatedUser(id: 7, name: 'Priya Sharma', email: 'priya@example.com');
+    const user = AuthenticatedUser(
+      id: 7,
+      name: 'Priya Sharma',
+      email: 'priya@example.com',
+      role: UserRole.teacher,
+    );
     final container = makeContainer(FakeAuthRepository(sessionOnRestore: user));
     addTearDown(container.dispose);
 
@@ -61,7 +67,12 @@ void main() {
   });
 
   test('logout() clears the session and calls the repository', () async {
-    const user = AuthenticatedUser(id: 1, name: 'Test User', email: 'test@example.com');
+    const user = AuthenticatedUser(
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      role: UserRole.superAdmin,
+    );
     final fake = FakeAuthRepository(sessionOnRestore: user);
     final container = makeContainer(fake);
     addTearDown(container.dispose);

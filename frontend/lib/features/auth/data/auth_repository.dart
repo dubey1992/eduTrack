@@ -53,4 +53,20 @@ class AuthRepository {
       return null;
     }
   }
+
+  Future<void> forgotPassword(String email) async {
+    try {
+      await _api.forgotPassword(email);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<void> resetPassword({required String email, required String token, required String password}) async {
+    try {
+      await _api.resetPassword(email: email, token: token, password: password);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
 }
