@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\UserRole;
+use App\Models\School;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -14,6 +15,7 @@ class UserManagementTest extends TestCase
     public function test_super_admin_can_create_a_user(): void
     {
         $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create();
 
         $response = $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/users', [
             'first_name' => 'Priya',
@@ -22,6 +24,7 @@ class UserManagementTest extends TestCase
             'mobile' => '9876543210',
             'password' => 'password123',
             'role' => 'TEACHER',
+            'school_id' => $school->id,
         ]);
 
         $response->assertCreated();

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/status_badge.dart';
 import '../application/user_list_notifier.dart';
 import '../data/models/app_user.dart';
 import 'add_user_dialog.dart';
@@ -56,11 +56,21 @@ class _UserListMobile extends StatelessWidget {
       itemBuilder: (context, index) {
         final user = users[index];
         return Card(
-          child: ListTile(
-            title: Text(user.name),
-            subtitle: Text('${user.email}\n${user.role.label}'),
-            isThreeLine: true,
-            trailing: _StatusToggle(user: user),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: ListTile(
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(child: Text(user.name, overflow: TextOverflow.ellipsis)),
+                  const SizedBox(width: 8),
+                  _StatusBadge(status: user.status),
+                ],
+              ),
+              subtitle: Text('${user.email}\n${user.role.label}'),
+              isThreeLine: true,
+              trailing: _StatusToggle(user: user),
+            ),
           ),
         );
       },
@@ -117,20 +127,10 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isActive = status == UserStatus.active;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isActive ? AppTheme.success.withValues(alpha: 0.12) : AppTheme.danger.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        isActive ? 'Active' : 'Inactive',
-        style: TextStyle(
-          color: isActive ? AppTheme.success : AppTheme.danger,
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
-        ),
-      ),
+
+    return StatusBadge(
+      label: isActive ? 'Active' : 'Inactive',
+      tone: isActive ? BadgeTone.success : BadgeTone.danger,
     );
   }
 }

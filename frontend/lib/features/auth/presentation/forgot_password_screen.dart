@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/theme/app_colors.dart';
 import '../data/auth_repository.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -88,7 +89,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           const Text('Enter your email and we will send you a password reset link.'),
           const SizedBox(height: 18),
           if (_errorMessage != null) ...[
-            Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+            Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
             const SizedBox(height: 12),
           ],
           TextFormField(

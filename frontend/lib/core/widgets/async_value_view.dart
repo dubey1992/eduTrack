@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../errors/failure.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 /// Renders an [AsyncValue] with the app's standard loading / error / data
 /// states, so every API-driven screen behaves consistently (see backend
@@ -50,18 +50,20 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: AppTheme.danger, size: 36),
+            Icon(Icons.error_outline, color: colors.danger, size: 36),
             const SizedBox(height: 12),
             Text(
               failure.message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppTheme.textMuted),
+              style: TextStyle(color: colors.muted),
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 16),

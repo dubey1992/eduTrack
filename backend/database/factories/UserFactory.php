@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Models\School;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -57,5 +58,10 @@ class UserFactory extends Factory
     public function inactive(): static
     {
         return $this->state(fn (array $attributes) => ['status' => UserStatus::Inactive]);
+    }
+
+    public function forSchool(School $school): static
+    {
+        return $this->state(fn (array $attributes) => ['school_id' => $school->id]);
     }
 }

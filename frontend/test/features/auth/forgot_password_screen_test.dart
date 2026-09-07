@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/presentation/forgot_password_screen.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +10,7 @@ import '../../support/fake_auth_repository.dart';
 Widget wrap(FakeAuthRepository fake) {
   return ProviderScope(
     overrides: [authRepositoryProvider.overrideWithValue(fake)],
-    child: const MaterialApp(home: ForgotPasswordScreen()),
+    child: MaterialApp(theme: AppTheme.light(), home: const ForgotPasswordScreen()),
   );
 }
 

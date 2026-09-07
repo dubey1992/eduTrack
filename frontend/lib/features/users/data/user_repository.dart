@@ -29,6 +29,7 @@ class UserRepository {
     String? mobile,
     required String password,
     required UserRole role,
+    int? schoolId,
   }) async {
     try {
       return await _api.create(
@@ -38,6 +39,7 @@ class UserRepository {
         mobile: mobile,
         password: password,
         role: role,
+        schoolId: schoolId,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);

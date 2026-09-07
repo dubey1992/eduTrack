@@ -25,6 +25,7 @@ class UserApi {
     String? mobile,
     required String password,
     required UserRole role,
+    int? schoolId,
   }) async {
     final response = await _dio.post(
       '/users',
@@ -35,6 +36,7 @@ class UserApi {
         'mobile': mobile,
         'password': password,
         'role': role.apiValue,
+        'school_id': schoolId,
       },
     );
 

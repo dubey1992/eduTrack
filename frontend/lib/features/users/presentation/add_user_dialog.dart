@@ -3,7 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/async_value_view.dart';
+import '../../auth/application/auth_notifier.dart';
+import '../../schools/application/school_list_notifier.dart';
+import '../../schools/data/models/school.dart';
 import '../application/user_list_notifier.dart';
+
+/// Roles a SCHOOL_ADMIN may assign - mirrors the backend's
+/// StoreUserRequest::SCHOOL_ADMIN_ASSIGNABLE_ROLES.
+const _schoolAdminAssignableRoles = [
+  UserRole.hod,
+  UserRole.teacher,
+  UserRole.staff,
+  UserRole.transportManager,
+];
 
 class AddUserDialog extends ConsumerStatefulWidget {
   const AddUserDialog({super.key});
@@ -19,7 +33,8 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
   final _emailController = TextEditingController();
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
-  UserRole _role = UserRole.teacher;
+  UserRole? _role;
+  int? _schoolId;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -51,7 +66,10 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
             email: _emailController.text.trim(),
             mobile: _mobileController.text.trim().isEmpty ? null : _mobileController.text.trim(),
             password: _passwordController.text,
-            role: _role,
+            role: _role!,
+            // Ignored server-side for a SCHOOL_ADMIN actor (always forced to
+            // their own school) - only meaningful when a SUPER_ADMIN picks one.
+            schoolId: _schoolId,
           );
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
@@ -64,60 +82,76 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
+    final assignableRoles = isSuperAdmin ? UserRole.values : _schoolAdminAssignableRoles;
+    // Default to Teacher, not the first enum value - creating another
+    // SUPER_ADMIN should be a deliberate choice, never the pre-selected one.
+    _role ??= UserRole.teacher;
+
     return AlertDialog(
       title: const Text('Add User'),
       content: SizedBox(
         width: 420,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_errorMessage != null) ...[
-                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-                const SizedBox(height: 12),
-              ],
-              TextFormField(
-                controller: _firstNameController,
-                decoration: const InputDecoration(labelText: 'First name'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'First name is required' : null,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _lastNameController,
-                decoration: const InputDecoration(labelText: 'Last name'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Last name is required' : null,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
-                validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _mobileController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Mobile (optional)'),
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password'),
-                validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<UserRole>(
-                initialValue: _role,
-                decoration: const InputDecoration(labelText: 'Role'),
-                items: [
-                  for (final role in UserRole.values) DropdownMenuItem(value: role, child: Text(role.label)),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_errorMessage != null) ...[
+                  Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
+                  const SizedBox(height: 12),
                 ],
-                onChanged: (value) => setState(() => _role = value!),
-              ),
-            ],
+                TextFormField(
+                  controller: _firstNameController,
+                  decoration: const InputDecoration(labelText: 'First name'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'First name is required' : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _lastNameController,
+                  decoration: const InputDecoration(labelText: 'Last name'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Last name is required' : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _mobileController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Mobile (optional)'),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Password'),
+                  validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<UserRole>(
+                  initialValue: _role,
+                  decoration: const InputDecoration(labelText: 'Role'),
+                  items: [
+                    for (final role in assignableRoles)
+                      DropdownMenuItem(value: role, child: Text(role.label)),
+                  ],
+                  onChanged: (value) => setState(() => _role = value),
+                ),
+                // A SCHOOL_ADMIN's users always belong to their own school -
+                // no picker needed. A SUPER_ADMIN must choose one (unless
+                // creating another SUPER_ADMIN, which has no school).
+                if (isSuperAdmin && _role != UserRole.superAdmin) ...[
+                  const SizedBox(height: 10),
+                  _SchoolPicker(selected: _schoolId, onChanged: (value) => setState(() => _schoolId = value)),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -134,6 +168,31 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
               : const Text('Create'),
         ),
       ],
+    );
+  }
+}
+
+class _SchoolPicker extends ConsumerWidget {
+  const _SchoolPicker({required this.selected, required this.onChanged});
+
+  final int? selected;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final schoolsState = ref.watch(schoolListNotifierProvider);
+
+    return AsyncValueView<List<School>>(
+      value: schoolsState,
+      data: (context, schools) {
+        return DropdownButtonFormField<int>(
+          initialValue: selected,
+          decoration: const InputDecoration(labelText: 'School'),
+          items: [for (final school in schools) DropdownMenuItem(value: school.id, child: Text(school.name))],
+          onChanged: onChanged,
+          validator: (v) => v == null ? 'School is required' : null,
+        );
+      },
     );
   }
 }

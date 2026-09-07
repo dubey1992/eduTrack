@@ -24,6 +24,7 @@ class UserListNotifier extends AsyncNotifier<List<AppUser>> {
     String? mobile,
     required String password,
     required UserRole role,
+    int? schoolId,
   }) async {
     await ref
         .read(userRepositoryProvider)
@@ -34,6 +35,7 @@ class UserListNotifier extends AsyncNotifier<List<AppUser>> {
           mobile: mobile,
           password: password,
           role: role,
+          schoolId: schoolId,
         );
     await refresh();
   }

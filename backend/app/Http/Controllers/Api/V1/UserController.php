@@ -21,14 +21,14 @@ class UserController extends Controller
     {
         Gate::authorize('viewAny', User::class);
 
-        $users = $this->userService->paginate($request->only(['role', 'status']));
+        $users = $this->userService->paginate($request->user(), $request->only(['role', 'status']));
 
         return UserResource::collection($users);
     }
 
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $user = $this->userService->create($request->validated());
+        $user = $this->userService->create($request->user(), $request->validated());
 
         return (new UserResource($user))->response()->setStatusCode(201);
     }

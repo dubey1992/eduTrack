@@ -19,6 +19,8 @@ class EduTrackApp extends ConsumerWidget {
       title: 'EduTrack School',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

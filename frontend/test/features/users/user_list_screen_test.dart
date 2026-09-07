@@ -1,4 +1,5 @@
 import 'package:edutrack_app/core/models/user_role.dart';
+import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/users/data/models/app_user.dart';
 import 'package:edutrack_app/features/users/data/user_repository.dart';
 import 'package:edutrack_app/features/users/presentation/user_list_screen.dart';
@@ -22,7 +23,7 @@ const _teacher = AppUser(
 Widget wrap(FakeUserRepository fake) {
   return ProviderScope(
     overrides: [userRepositoryProvider.overrideWithValue(fake)],
-    child: const MaterialApp(home: UserListScreen()),
+    child: MaterialApp(theme: AppTheme.light(), home: const UserListScreen()),
   );
 }
 

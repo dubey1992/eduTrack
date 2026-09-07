@@ -34,12 +34,20 @@ class DashboardScreen extends ConsumerWidget {
               user == null ? 'Welcome' : 'Welcome, ${user.name}',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
-            if (user?.role == UserRole.superAdmin) ...[
+            if (user?.role == UserRole.superAdmin || user?.role == UserRole.schoolAdmin) ...[
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () => context.push('/users'),
                 icon: const Icon(Icons.group_outlined),
                 label: const Text('Manage Users'),
+              ),
+            ],
+            if (user?.role == UserRole.superAdmin) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => context.push('/schools'),
+                icon: const Icon(Icons.apartment_outlined),
+                label: const Text('Manage Schools'),
               ),
             ],
           ],

@@ -20,6 +20,7 @@ class FakeUserRepository implements UserRepository {
     String? mobile,
     required String password,
     required UserRole role,
+    int? schoolId,
   }) async {
     if (failCreateWith != null) throw failCreateWith!;
 

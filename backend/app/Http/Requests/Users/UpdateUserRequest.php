@@ -3,12 +3,17 @@
 namespace App\Http\Requests\Users;
 
 use App\Enums\UserRole;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 
 class UpdateUserRequest extends FormRequest
 {
+    private const SCHOOL_ADMIN_ASSIGNABLE_ROLES = [
+        UserRole::Hod, UserRole::Teacher, UserRole::Staff, UserRole::TransportManager,
+    ];
+
     public function authorize(): bool
     {
         return $this->user()->can('update', $this->route('user'));
@@ -20,6 +25,7 @@ class UpdateUserRequest extends FormRequest
     public function rules(): array
     {
         $userId = $this->route('user')->id;
+        $actor = $this->user();
 
         return [
             'first_name' => ['sometimes', 'required', 'string', 'max:100'],
@@ -27,7 +33,19 @@ class UpdateUserRequest extends FormRequest
             'email' => ['sometimes', 'required', 'email', Rule::unique('users', 'email')->ignore($userId)],
             'mobile' => ['nullable', 'string', 'max:20'],
             'password' => ['sometimes', 'required', 'string', 'min:8'],
-            'role' => ['sometimes', 'required', new Enum(UserRole::class)],
+            'role' => [
+                'sometimes', 'required', new Enum(UserRole::class),
+                function (string $attribute, mixed $value, Closure $fail) use ($actor) {
+                    if (
+                        $actor->role === UserRole::SchoolAdmin
+                        && ! in_array($value, array_column(self::SCHOOL_ADMIN_ASSIGNABLE_ROLES, 'value'), true)
+                    ) {
+                        $fail('A school admin can only assign the HOD, Teacher, Staff, or Transport Manager role.');
+                    }
+                },
+            ],
+            // Moving a user between schools isn't a feature yet - school_id
+            // is deliberately not editable through this endpoint.
         ];
     }
 }

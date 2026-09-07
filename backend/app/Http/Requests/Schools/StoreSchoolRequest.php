@@ -1,0 +1,35 @@
+<?php
+
+namespace App\Http\Requests\Schools;
+
+use App\Models\School;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class StoreSchoolRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()->can('create', School::class);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'registration_number' => ['nullable', 'string', 'max:100'],
+            'email' => ['required', 'email', Rule::unique('schools', 'email')],
+            'phone' => ['required', 'string', 'max:20'],
+            'address' => ['required', 'string', 'max:255'],
+            'city' => ['required', 'string', 'max:100'],
+            'state' => ['required', 'string', 'max:100'],
+            'country' => ['required', 'string', 'max:100'],
+            'postal_code' => ['required', 'string', 'max:20'],
+            'currency_code' => ['required', 'string', 'regex:/^[A-Z]{3}$/'],
+            'logo_url' => ['nullable', 'url', 'max:2048'],
+        ];
+    }
+}

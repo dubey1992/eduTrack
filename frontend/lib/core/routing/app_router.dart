@@ -7,6 +7,7 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/schools/presentation/school_list_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
 import '../models/user_role.dart';
 import '../widgets/splash_screen.dart';
@@ -34,6 +35,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
       GoRoute(path: '/users', builder: (context, state) => const UserListScreen()),
+      GoRoute(path: '/schools', builder: (context, state) => const SchoolListScreen()),
     ],
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
@@ -54,7 +56,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/';
       }
 
-      if (location == '/users' && user.role != UserRole.superAdmin) {
+      const usersAllowedRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+      if (location == '/users' && !usersAllowedRoles.contains(user.role)) {
+        return '/';
+      }
+
+      if (location == '/schools' && user.role != UserRole.superAdmin) {
         return '/';
       }
 
