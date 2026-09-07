@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EduTrack School Management</title>
+<style>
+/* ---------- Theme tokens ---------- */
+:root{
+  --bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#6b7280;--primary:#2563eb;--primary-ink:#fff;
+  --primary-soft:#e8f0ff;--border:#e5e7eb;--success:#16a34a;--danger:#dc2626;
+  --warning:#d97706;--sidebar:#111827;--sidebar-text:#cbd5e1;--sidebar-sub:#94a3b8;--sidebar-group:#64748b;--sidebar-hover:#1f2937;--sidebar-active-text:#fff;
+  --purple:#7c3aed;--shadow:0 7px 24px rgba(15,23,42,.06);
+  --surface-2:#f8fafc;--th-text:#475569;--neutral-btn:#f1f5f9;--neutral-btn-text:#334155;
+  --quick-hover-border:#bfdbfe;--quick-hover-bg:#f8fbff;--track:#e5e7eb;
+  --callout-bg:#eff6ff;--role-border:#cbd5e1;--role-text:#475569;
+  --toast-bg:#111827;--toast-text:#fff;--overlay:rgba(15,23,42,.54);
+  --green-bg:#dcfce7;--green-text:#166534;--green-border:#86efac;
+  --red-bg:#fee2e2;--red-text:#991b1b;--red-border:#fca5a5;
+  --blue-bg:#dbeafe;--blue-text:#1d4ed8;
+  --amber-bg:#fef3c7;--amber-text:#92400e;--amber-border:#fcd34d;
+  --purple-bg:#ede9fe;--purple-text:#6d28d9;
+  --gray-bg:#f1f5f9;--gray-text:#475569;
+  --map-ground:#e2f2e7;--map-grid:#d1d5db;--map-road:#94a3b8;--bus-bg:#f59e0b;--bus-text:#172033;
+  --font:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --radius-card:16px;--radius-btn:10px;
+}
+
+
+/* AttendancePay: reference from attendancepay.com - deep brand blue #1e40af, light nav, clean SaaS grounds */
+[data-theme="attendancepay"]{
+  --bg:#f5f8fc;--card:#fff;--text:#0f172a;--muted:#64748b;--primary:#1e40af;--primary-ink:#fff;
+  --primary-soft:#e0e9ff;--border:#dfe6f2;
+  --sidebar:#ffffff;--sidebar-text:#334155;--sidebar-sub:#64748b;--sidebar-group:#94a3b8;--sidebar-hover:#1e40af;--sidebar-active-text:#fff;
+  --shadow:0 4px 18px rgba(30,64,175,.07);
+  --surface-2:#f1f5fb;--th-text:#475569;--neutral-btn:#e9eef7;--neutral-btn-text:#1e293b;
+  --quick-hover-border:#93a8ea;--quick-hover-bg:#f3f6ff;--track:#dfe6f2;
+  --callout-bg:#e8eeff;--role-border:#b6c4e6;--role-text:#3b4a6b;
+  --toast-bg:#1e3a8a;--toast-text:#fff;--overlay:rgba(15,23,42,.55);
+  --blue-bg:#dbe4ff;--blue-text:#1e40af;
+  --purple-bg:#ede9fe;--purple-text:#5b21b6;
+  --gray-bg:#e9eef7;--gray-text:#475569;
+  --map-ground:#e6efe9;--map-grid:#cfdbe8;--map-road:#8fa1bd;--bus-bg:#f59e0b;--bus-text:#0f172a;
+}
+[data-theme="attendancepay"] .sidebar{border-right:1px solid var(--border)}
+[data-theme="attendancepay"] .brand{color:#1e40af}
+[data-theme="attendancepay"] .nav button:hover{background:var(--primary-soft);color:var(--primary)}
+[data-theme="attendancepay"] .nav button.active{background:var(--primary);color:#fff}
+[data-theme="attendancepay"] .topbar-left h1{color:#1e3a8a}
+
+/* Midnight: dark, low-glare, same blue accent lifted for contrast */
+[data-theme="midnight"]{
+  --bg:#0b1220;--card:#131c2e;--text:#e6ebf5;--muted:#93a0b8;--primary:#60a5fa;--primary-ink:#0b1220;
+  --primary-soft:#1b2a47;--border:#24304a;--border:#24304a;
+  --sidebar:#070c17;--sidebar-text:#aab6cc;--sidebar-sub:#6f7d97;--sidebar-group:#55627c;--sidebar-hover:#16203a;--sidebar-active-text:#fff;
+  --shadow:0 7px 24px rgba(0,0,0,.35);
+  --surface-2:#182337;--th-text:#a7b3c9;--neutral-btn:#1f2a40;--neutral-btn-text:#d3dbea;
+  --quick-hover-border:#3b5486;--quick-hover-bg:#172540;--track:#24304a;
+  --callout-bg:#16223a;--role-border:#34415d;--role-text:#b4c0d6;
+  --toast-bg:#e6ebf5;--toast-text:#0b1220;--overlay:rgba(0,0,0,.65);
+  --green-bg:#0f3a25;--green-text:#86efac;--green-border:#1f7a48;
+  --red-bg:#4a1717;--red-text:#fca5a5;--red-border:#9b2c2c;
+  --blue-bg:#1b2f5a;--blue-text:#93c5fd;
+  --amber-bg:#4a3208;--amber-text:#fcd34d;--amber-border:#b7791f;
+  --purple-bg:#33205e;--purple-text:#c4b5fd;
+  --gray-bg:#1f2a40;--gray-text:#c2cbdc;
+  --map-ground:#12261c;--map-grid:#233549;--map-road:#4b5b75;--bus-bg:#f59e0b;--bus-text:#0b1220;
+}
+
+/* Forest: deep green sidebar, sage grounds, warm neutrals */
+[data-theme="forest"]{
+  --bg:#f3f6f1;--card:#fff;--text:#1a2a1f;--muted:#5f7066;--primary:#1f7a4d;--primary-ink:#fff;
+  --primary-soft:#e2f2e9;--border:#dfe6dd;
+  --sidebar:#10291a;--sidebar-text:#bfd4c5;--sidebar-sub:#86a591;--sidebar-group:#6b8a76;--sidebar-hover:#1c3d29;--sidebar-active-text:#fff;
+  --shadow:0 7px 24px rgba(20,40,28,.07);
+  --surface-2:#f4f8f3;--th-text:#4b5f52;--neutral-btn:#e9efe7;--neutral-btn-text:#2f4036;
+  --quick-hover-border:#a7d4b8;--quick-hover-bg:#f2faf5;--track:#dfe6dd;
+  --callout-bg:#ecf6ef;--role-border:#b9c9bd;--role-text:#3f5346;
+  --toast-bg:#10291a;--toast-text:#fff;--overlay:rgba(16,41,26,.55);
+  --blue-bg:#dbeee3;--blue-text:#1f6b45;
+  --purple-bg:#e8e6d6;--purple-text:#5c5327;
+  --gray-bg:#e9efe7;--gray-text:#4b5f52;
+  --map-ground:#e6f0dc;--map-grid:#c9d6c2;--map-road:#7f8f83;--bus-bg:#f2b134;--bus-text:#1a2a1f;
+}
+
+/* Sunset: warm amber/coral accent, cream grounds, plum sidebar */
+[data-theme="sunset"]{
+  --bg:#fbf6f0;--card:#fffdfa;--text:#2a1d1a;--muted:#7d6a63;--primary:#d9531e;--primary-ink:#fff;
+  --primary-soft:#fde9df;--border:#eddfd4;
+  --sidebar:#3b1f2b;--sidebar-text:#e6cfd6;--sidebar-sub:#b48e9c;--sidebar-group:#9a7583;--sidebar-hover:#4f2a39;--sidebar-active-text:#fff;
+  --shadow:0 7px 24px rgba(80,40,20,.08);
+  --surface-2:#fbf3ec;--th-text:#6b544a;--neutral-btn:#f3e8df;--neutral-btn-text:#4a352c;
+  --quick-hover-border:#f3b89c;--quick-hover-bg:#fff5ee;--track:#eddfd4;
+  --callout-bg:#fff1e8;--role-border:#d9c3b5;--role-text:#5e463b;
+  --toast-bg:#3b1f2b;--toast-text:#fff;--overlay:rgba(59,31,43,.55);
+  --blue-bg:#fde3d5;--blue-text:#b03f12;
+  --purple-bg:#f3e0ea;--purple-text:#7d2f5a;
+  --gray-bg:#f3e8df;--gray-text:#6b544a;
+  --map-ground:#f3ead9;--map-grid:#e1d2c0;--map-road:#a89a8d;--bus-bg:#f5a524;--bus-text:#2a1d1a;
+}
+
+/* Royal: indigo/violet accent, cool lavender grounds */
+[data-theme="royal"]{
+  --bg:#f4f3fb;--card:#fff;--text:#1c1a33;--muted:#6c6a8a;--primary:#5b3fd6;--primary-ink:#fff;
+  --primary-soft:#ebe6ff;--border:#e3e0f0;
+  --sidebar:#1a1440;--sidebar-text:#cdc6f0;--sidebar-sub:#9a90d0;--sidebar-group:#7d73b8;--sidebar-hover:#292060;--sidebar-active-text:#fff;
+  --shadow:0 7px 24px rgba(40,30,90,.08);
+  --surface-2:#f7f6fd;--th-text:#544f7a;--neutral-btn:#edebf7;--neutral-btn-text:#3a3560;
+  --quick-hover-border:#c3b6f5;--quick-hover-bg:#f8f6ff;--track:#e3e0f0;
+  --callout-bg:#f1edff;--role-border:#c6c0e6;--role-text:#4c4670;
+  --toast-bg:#1a1440;--toast-text:#fff;--overlay:rgba(26,20,64,.55);
+  --blue-bg:#e4ddff;--blue-text:#4c2fc4;
+  --purple-bg:#fbe0ef;--purple-text:#9d2468;
+  --gray-bg:#edebf7;--gray-text:#544f7a;
+  --map-ground:#e7ecf7;--map-grid:#cfd3e6;--map-road:#8f93b5;--bus-bg:#f5a524;--bus-text:#1c1a33;
+}
+
+
+/* Teal: classic admin-panel look, white sidebar with teal accent */
+[data-theme="teal"]{
+  --bg:#f2f7f7;--card:#fff;--text:#12292b;--muted:#5d7476;--primary:#0f766e;--primary-ink:#fff;
+  --primary-soft:#dcf3f0;--border:#d9e5e5;
+  --sidebar:#ffffff;--sidebar-text:#3a5254;--sidebar-sub:#6f8688;--sidebar-group:#87999b;--sidebar-hover:#0f766e;--sidebar-active-text:#fff;
+  --shadow:0 4px 16px rgba(15,60,60,.06);
+  --surface-2:#f2f7f7;--th-text:#3f5658;--neutral-btn:#e6efef;--neutral-btn-text:#284042;
+  --quick-hover-border:#7fd1c7;--quick-hover-bg:#f0fbf9;--track:#d9e5e5;
+  --callout-bg:#e8f6f4;--role-border:#a9c4c4;--role-text:#3f5658;
+  --toast-bg:#12292b;--toast-text:#fff;--overlay:rgba(18,41,43,.55);
+  --blue-bg:#d3efec;--blue-text:#0b5f59;
+  --purple-bg:#e3e6f7;--purple-text:#3d4a9c;
+  --gray-bg:#e6efef;--gray-text:#3f5658;
+  --map-ground:#e4f1ea;--map-grid:#c9dbd6;--map-road:#7f9a97;--bus-bg:#f2b134;--bus-text:#12292b;
+}
+[data-theme="teal"] .sidebar{border-right:1px solid var(--border)}
+[data-theme="teal"] .brand{color:#0f766e}
+[data-theme="teal"] .nav button:hover{background:var(--primary-soft);color:var(--primary)}
+[data-theme="teal"] .nav button.active{background:var(--primary);color:#fff}
+
+/* Slate: near-monochrome, high-contrast, print-like */
+[data-theme="slate"]{
+  --bg:#ffffff;--card:#fff;--text:#0f172a;--muted:#5b6472;--primary:#0f172a;--primary-ink:#fff;
+  --primary-soft:#e9ecf1;--border:#cfd5de;
+  --sidebar:#f3f5f8;--sidebar-text:#334155;--sidebar-sub:#64748b;--sidebar-group:#7b8797;--sidebar-hover:#0f172a;--sidebar-active-text:#fff;
+  --shadow:none;--radius-card:8px;--radius-btn:6px;
+  --surface-2:#f3f5f8;--th-text:#334155;--neutral-btn:#e9ecf1;--neutral-btn-text:#1e293b;
+  --quick-hover-border:#0f172a;--quick-hover-bg:#f8fafc;--track:#e2e6ec;
+  --callout-bg:#f3f5f8;--role-border:#94a3b8;--role-text:#334155;
+  --toast-bg:#0f172a;--toast-text:#fff;--overlay:rgba(15,23,42,.5);
+  --blue-bg:#e2e8f0;--blue-text:#1e293b;
+  --purple-bg:#e2e8f0;--purple-text:#1e293b;
+  --gray-bg:#e9ecf1;--gray-text:#334155;
+  --map-ground:#eef1f4;--map-grid:#d5dae2;--map-road:#7d8796;--bus-bg:#0f172a;--bus-text:#fff;
+}
+[data-theme="slate"] .sidebar{border-right:1px solid var(--border)}
+[data-theme="slate"] .brand{color:#0f172a}
+
+/* ---------- Base ---------- */
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text)}
+button,input,select,textarea{font:inherit}
+.app{display:grid;grid-template-columns:255px 1fr;min-height:100vh;background:var(--bg);color:var(--text);transition:background .25s,color .25s}
+.sidebar{background:var(--sidebar);color:var(--sidebar-active-text);padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto;transition:background .25s}
+.brand{font-size:20px;font-weight:850;padding:10px 12px 4px}
+.brand-sub{font-size:12px;color:var(--sidebar-sub);padding:0 12px 18px}
+.nav-group{font-size:10px;color:var(--sidebar-group);text-transform:uppercase;letter-spacing:.12em;padding:16px 12px 5px}
+.nav button{width:100%;border:0;background:transparent;color:var(--sidebar-text);text-align:left;padding:11px 12px;border-radius:10px;margin:2px 0;cursor:pointer;font-size:13px;display:flex;gap:9px;align-items:center}
+.nav button:hover,.nav button.active{background:var(--sidebar-hover);color:var(--sidebar-active-text)}
+.main{padding:22px;min-width:0}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}
+.topbar-left h1{font-size:25px;margin:0}
+.topbar-left p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.user-area{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.user-pill{background:var(--card);border:1px solid var(--border);padding:9px 12px;border-radius:12px;font-size:13px}
+.page{display:none}.page.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.two{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-card);padding:18px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 12px}
+.stat .label{font-size:12px;color:var(--muted)}
+.stat .value{font-size:28px;font-weight:850;margin-top:5px;font-variant-numeric:tabular-nums}
+.stat .trend{font-size:12px;margin-top:5px}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:20px 0 12px}
+.section-title h2{font-size:18px;margin:0}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:var(--radius-btn);padding:9px 13px;cursor:pointer;font-weight:750;font-size:13px}
+.btn:focus-visible,.nav button:focus-visible,.tab:focus-visible,.quick:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.btn-primary{background:var(--primary);color:var(--primary-ink)}
+.btn-soft{background:var(--primary-soft);color:var(--primary)}
+.btn-success{background:var(--green-bg);color:var(--green-text)}
+.btn-danger{background:var(--red-bg);color:var(--red-text)}
+.btn-neutral{background:var(--neutral-btn);color:var(--neutral-btn-text)}
+input,select,textarea{padding:10px 11px;border:1px solid var(--border);border-radius:var(--radius-btn);background:var(--card);color:var(--text)}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+textarea{min-height:85px;resize:vertical}
+table{width:100%;border-collapse:collapse;background:var(--card)}
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:13px}
+th,td{padding:11px 13px;border-bottom:1px solid var(--border);font-size:13px;text-align:left;white-space:nowrap}
+th{background:var(--surface-2);color:var(--th-text);font-size:12px}
+tr:last-child td{border-bottom:0}
+.badge{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800}
+.green{background:var(--green-bg);color:var(--green-text)}.red{background:var(--red-bg);color:var(--red-text)}
+.blue{background:var(--blue-bg);color:var(--blue-text)}.amber{background:var(--amber-bg);color:var(--amber-text)}
+.purple{background:var(--purple-bg);color:var(--purple-text)}.gray{background:var(--gray-bg);color:var(--gray-text)}
+.muted{color:var(--muted)}.small{font-size:12px}
+.quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.quick{border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--card);cursor:pointer}
+.quick:hover{border-color:var(--quick-hover-border);background:var(--quick-hover-bg)}
+.quick strong{display:block;font-size:13px}.quick span{font-size:11px;color:var(--muted)}
+.progress{height:8px;border-radius:99px;background:var(--track);overflow:hidden}
+.progress>span{display:block;height:100%;background:var(--primary);border-radius:99px}
+.list{display:grid;gap:9px}
+.list-item{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.list-item:last-child{border-bottom:0}
+.attendance-row{display:grid;grid-template-columns:1fr 145px 110px;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--border)}
+.status-toggle{display:flex;gap:6px}
+.status-toggle button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--card);color:var(--text)}
+.status-toggle .present.active{background:var(--green-bg);color:var(--green-text);border-color:var(--green-border)}
+.status-toggle .absent.active{background:var(--red-bg);color:var(--red-text);border-color:var(--red-border)}
+.status-toggle .leave.active{background:var(--amber-bg);color:var(--amber-text);border-color:var(--amber-border)}
+.map{height:330px;border-radius:var(--radius-card);position:relative;overflow:hidden;background:
+linear-gradient(90deg,transparent 48%,var(--map-grid) 49%,var(--map-grid) 51%,transparent 52%),
+linear-gradient(transparent 48%,var(--map-grid) 49%,var(--map-grid) 51%,transparent 52%),
+var(--map-ground);background-size:110px 110px}
+.road{position:absolute;background:var(--map-road);border-radius:20px;opacity:.85}
+.r1{width:88%;height:17px;left:6%;top:48%;transform:rotate(-8deg)}
+.r2{height:92%;width:17px;left:58%;top:4%;transform:rotate(8deg)}
+.bus{position:absolute;left:38%;top:44%;background:var(--bus-bg);color:var(--bus-text);padding:8px 10px;border-radius:10px;font-weight:850;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.stop{position:absolute;background:var(--card);border:3px solid var(--primary);width:19px;height:19px;border-radius:50%}
+.s1{left:18%;top:50%}.s2{left:50%;top:43%}.s3{left:72%;top:34%}
+.timeline{list-style:none;padding:0;margin:0}.timeline li{padding:11px 0;border-bottom:1px solid var(--border)}
+.modal{position:fixed;inset:0;background:var(--overlay);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
+.modal .box{background:var(--card);color:var(--text);width:min(640px,100%);border-radius:18px;padding:22px;max-height:92vh;overflow:auto}
+.modal h3{margin-top:0}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.form-grid .full{grid-column:1/-1}
+.toast{position:fixed;right:24px;bottom:24px;background:var(--toast-bg);color:var(--toast-text);padding:13px 17px;border-radius:12px;display:none;max-width:380px;z-index:50}
+.role-note{background:var(--surface-2);border:1px dashed var(--role-border);border-radius:12px;padding:12px;font-size:12px;color:var(--role-text)}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+.kpi strong{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:7px;flex-wrap:wrap}
+.tab{padding:8px 11px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:12px}
+.tab.active{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.callout{border-left:4px solid var(--primary);padding:12px 14px;background:var(--callout-bg);border-radius:8px;font-size:12px}
+
+/* ---------- Theme switcher ---------- */
+.theme-pill{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);padding:5px 6px 5px 10px;border-radius:12px;font-size:13px}
+.theme-pill label{color:var(--muted);font-size:12px}
+.theme-pill select{padding:5px 8px;border-radius:8px}
+.swatches{display:flex;gap:6px}
+.swatch{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 2px var(--card)}
+.swatch.active{border-color:var(--text)}
+.swatch:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+@media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:1fr 1fr}.two{grid-template-columns:1fr}.quick-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:820px){.app{grid-template-columns:1fr}.sidebar{height:auto;position:relative}.nav{display:flex;overflow:auto;gap:4px}.nav-group{display:none}.nav button{min-width:max-content}.main{padding:14px}.topbar{align-items:flex-start}.topbar{flex-direction:column}.user-area{justify-content:flex-start}.kpi-row{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.grid,.grid-3,.quick-grid,.kpi-row{grid-template-columns:1fr}.attendance-row{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:auto}.section-title{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.app,.sidebar{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">EduTrack School</div>
+    <div class="brand-sub">School Management • V3 Prototype</div>
+    <div class="nav">
+      <div class="nav-group">Overview</div>
+      <button class="active" data-page="dashboard">🏠 Dashboard</button>
+
+      <div class="nav-group">Master Data</div>
+      <button data-page="students">🎓 Students</button>
+      <button data-page="teachers">👩‍🏫 Teachers & Staff</button>
+      <button data-page="classes">🏫 Classes & Sections</button>
+      <button data-page="subjects">📚 Subjects & Departments</button>
+
+      <div class="nav-group">Attendance & HR</div>
+      <button data-page="attendance">✅ Student Attendance</button>
+      <button data-page="staff-attendance">🕒 Staff Attendance</button>
+      <button data-page="staff-leave">🗓️ Staff Leave</button>
+
+      <div class="nav-group">Academics</div>
+      <button data-page="timetable">🧭 Timetable</button>
+      <button data-page="teaching-report">📝 Daily Teaching Report</button>
+      <button data-page="staff-reports">📊 HOD / Staff Reports</button>
+
+      <div class="nav-group">Operations</div>
+      <button data-page="transport">🚌 Transport</button>
+      <button data-page="sms">💬 Communication</button>
+      <button data-page="settings">⚙️ School Settings</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1 id="pageTitle">Dashboard</h1>
+        <p id="pageSub">Daily school operations overview</p>
+      </div>
+      <div class="user-area">
+        <div class="theme-pill" title="Switch visual theme">
+          <label for="themeSwitcher">🎨 Theme</label>
+          <select id="themeSwitcher" onchange="setTheme(this.value)">
+            <option value="attendancepay">AttendancePay</option>
+            <option value="classic">Classic Blue</option>
+            <option value="midnight">Midnight</option>
+            <option value="forest">Forest</option>
+            <option value="sunset">Sunset</option>
+            <option value="royal">Royal</option>
+            <option value="teal">Teal</option>
+            <option value="slate">Slate</option>
+          </select>
+          <div class="swatches" id="swatches"></div>
+        </div>
+        <select id="roleSwitcher" onchange="switchRole(this.value)">
+          <option value="Admin">Admin View</option>
+          <option value="HOD">HOD View</option>
+          <option value="Teacher">Teacher View</option>
+          <option value="Transport">Transport View</option>
+        </select>
+        <div class="user-pill">Sunrise Public School • 2026–27</div>
+        <div class="user-pill">👤 <span id="roleLabel">Admin</span></div>
+      </div>
+    </div>
+
+    <section id="dashboard" class="page active">
+      <div id="roleBanner" class="role-note" style="margin-bottom:14px">
+        Admin dashboard shows school-wide student, staff, teaching, communication and transport status.
+      </div>
+
+      <div class="grid">
+        <div class="card stat"><div class="label">Students</div><div class="value">842</div><div class="trend"><span class="badge blue">+24 this year</span></div></div>
+        <div class="card stat"><div class="label">Teachers & Staff</div><div class="value">68</div><div class="trend"><span class="badge green">65 active today</span></div></div>
+        <div class="card stat"><div class="label">Student Attendance</div><div class="value">94.8%</div><div class="trend"><span class="badge green">798 present</span></div></div>
+        <div class="card stat"><div class="label">Active Buses</div><div class="value">12</div><div class="trend"><span class="badge amber">10 on route</span></div></div>
+      </div>
+
+      <div class="two" style="margin-top:16px">
+        <div class="card">
+          <h3>Today at a Glance</h3>
+          <div class="table-wrap">
+            <table>
+              <tr><th>Area</th><th>Status</th><th>Action</th></tr>
+              <tr><td>Grade 8A Attendance</td><td><span class="badge green">Submitted</span></td><td>8:42 AM</td></tr>
+              <tr><td>Grade 7B Attendance</td><td><span class="badge amber">Pending</span></td><td><button class="btn btn-soft" onclick="go('attendance')">Open</button></td></tr>
+              <tr><td>Teaching Reports</td><td><span class="badge amber">5 Pending</span></td><td><button class="btn btn-soft" onclick="go('teaching-report')">Review</button></td></tr>
+              <tr><td>Staff Leave Requests</td><td><span class="badge amber">3 Pending</span></td><td><button class="btn btn-soft" onclick="go('staff-leave')">Review</button></td></tr>
+              <tr><td>Bus 04 - Green Park</td><td><span class="badge blue">En Route</span></td><td><button class="btn btn-soft" onclick="go('transport')">Track</button></td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Quick Actions</h3>
+          <div class="quick-grid">
+            <div class="quick" onclick="go('attendance')"><strong>Mark Attendance</strong><span>Open class register</span></div>
+            <div class="quick" onclick="openModal('studentModal')"><strong>Add Student</strong><span>Create admission record</span></div>
+            <div class="quick" onclick="go('staff-leave')"><strong>Review Leave</strong><span>Pending requests</span></div>
+            <div class="quick" onclick="go('teaching-report')"><strong>Teaching Reports</strong><span>Review daily activity</span></div>
+            <div class="quick" onclick="go('transport')"><strong>Track Buses</strong><span>Live trip status</span></div>
+            <div class="quick" onclick="go('sms')"><strong>Communication</strong><span>SMS & alerts</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="students" class="page">
+      <div class="section-title">
+        <h2>Student Management</h2>
+        <button class="btn btn-primary" onclick="openModal('studentModal')">+ Add Student</button>
+      </div>
+      <div class="card">
+        <div class="controls" style="margin-bottom:12px">
+          <input id="studentSearch" placeholder="Search by name / admission ID..." oninput="filterStudents()" />
+          <select><option>All Classes</option><option>Grade 8A</option><option>Grade 8B</option><option>Grade 7B</option></select>
+          <select><option>All Status</option><option>Active</option><option>Inactive</option></select>
+          <button class="btn btn-neutral" onclick="toast('CSV import would be available in production')">Import CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table id="studentTable">
+            <thead><tr><th>ID</th><th>Name</th><th>Class</th><th>Parent</th><th>Transport</th><th>Attendance</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>STU-0042</td><td>Arjun Kumar</td><td>Grade 8A</td><td>Raj Kumar</td><td>Bus 04</td><td>96%</td><td><span class="badge green">Active</span></td><td><button class="btn btn-soft" onclick="toast('Student profile opened')">View</button></td></tr>
+              <tr><td>STU-0043</td><td>Aarav Mehta</td><td>Grade 8A</td><td>Neha Mehta</td><td>Bus 04</td><td>93%</td><td><span class="badge green">Active</span></td><td><button class="btn btn-soft" onclick="toast('Student profile opened')">View</button></td></tr>
+              <tr><td>STU-0044</td><td>Sara Ali</td><td>Grade 8B</td><td>Imran Ali</td><td>No</td><td>89%</td><td><span class="badge green">Active</span></td><td><button class="btn btn-soft" onclick="toast('Student profile opened')">View</button></td></tr>
+              <tr><td>STU-0045</td><td>Meera Singh</td><td>Grade 7B</td><td>Rohit Singh</td><td>Bus 02</td><td>97%</td><td><span class="badge green">Active</span></td><td><button class="btn btn-soft" onclick="toast('Student profile opened')">View</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="teachers" class="page">
+      <div class="section-title">
+        <h2>Teachers & Staff</h2>
+        <button class="btn btn-primary" onclick="openModal('teacherModal')">+ Add Employee</button>
+      </div>
+      <div class="grid" style="margin-bottom:14px">
+        <div class="card stat"><div class="label">Teachers</div><div class="value">54</div></div>
+        <div class="card stat"><div class="label">Non-Teaching Staff</div><div class="value">14</div></div>
+        <div class="card stat"><div class="label">HODs</div><div class="value">7</div></div>
+        <div class="card stat"><div class="label">Active Today</div><div class="value">65</div></div>
+      </div>
+      <div class="card">
+        <div class="controls" style="margin-bottom:12px">
+          <input placeholder="Search employee..." />
+          <select><option>All Departments</option><option>Mathematics</option><option>Science</option><option>English</option><option>Administration</option></select>
+          <select><option>All Roles</option><option>Teacher</option><option>HOD</option><option>Staff</option></select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <tr><th>ID</th><th>Name</th><th>Department</th><th>Subject</th><th>Assigned Classes</th><th>Role</th><th>Status</th></tr>
+            <tr><td>TCH-012</td><td>Priya Sharma</td><td>Mathematics</td><td>Mathematics</td><td>8A, 8B, 9A</td><td><span class="badge blue">Class Teacher 8A</span></td><td><span class="badge green">Active</span></td></tr>
+            <tr><td>TCH-018</td><td>Rahul Verma</td><td>Science</td><td>Science</td><td>7A, 7B, 8A</td><td>Teacher</td><td><span class="badge green">Active</span></td></tr>
+            <tr><td>TCH-021</td><td>Anita Rao</td><td>English</td><td>English</td><td>8A, 8B</td><td>Teacher</td><td><span class="badge green">Active</span></td></tr>
+            <tr><td>STF-006</td><td>Kavita Nair</td><td>Administration</td><td>-</td><td>-</td><td>Office Staff</td><td><span class="badge green">Active</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="classes" class="page">
+      <div class="section-title"><h2>Classes & Sections</h2><button class="btn btn-primary" onclick="openModal('classModal')">+ Add Class</button></div>
+      <div class="grid">
+        <div class="card"><h3>Grade 8A</h3><p>32 Students</p><p>Class Teacher: Priya Sharma</p><p class="muted small">Room 204 • 7 Subjects</p><button class="btn btn-soft" onclick="toast('Class details opened')">Manage</button></div>
+        <div class="card"><h3>Grade 8B</h3><p>29 Students</p><p>Class Teacher: Anita Rao</p><p class="muted small">Room 205 • 7 Subjects</p><button class="btn btn-soft" onclick="toast('Class details opened')">Manage</button></div>
+        <div class="card"><h3>Grade 7B</h3><p>31 Students</p><p>Class Teacher: Rahul Verma</p><p class="muted small">Room 112 • 7 Subjects</p><button class="btn btn-soft" onclick="toast('Class details opened')">Manage</button></div>
+        <div class="card"><h3>Grade 9A</h3><p>35 Students</p><p>Class Teacher: Sneha Iyer</p><p class="muted small">Room 302 • 8 Subjects</p><button class="btn btn-soft" onclick="toast('Class details opened')">Manage</button></div>
+      </div>
+    </section>
+
+    <section id="subjects" class="page">
+      <div class="section-title"><h2>Subjects & Departments</h2><div class="controls"><button class="btn btn-soft" onclick="toast('Department form opened')">+ Department</button><button class="btn btn-primary" onclick="toast('Subject form opened')">+ Subject</button></div></div>
+      <div class="two">
+        <div class="card">
+          <h3>Subjects</h3>
+          <div class="table-wrap">
+            <table>
+              <tr><th>Code</th><th>Subject</th><th>Department</th><th>Classes</th><th>Lead Teacher</th></tr>
+              <tr><td>MAT</td><td>Mathematics</td><td>Mathematics</td><td>7–10</td><td>Priya Sharma</td></tr>
+              <tr><td>SCI</td><td>Science</td><td>Science</td><td>6–10</td><td>Rahul Verma</td></tr>
+              <tr><td>ENG</td><td>English</td><td>English</td><td>1–10</td><td>Anita Rao</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Departments</h3>
+          <div class="list">
+            <div class="list-item"><span><strong>Mathematics</strong><br><span class="small muted">8 teachers</span></span><span class="badge purple">HOD: P. Sharma</span></div>
+            <div class="list-item"><span><strong>Science</strong><br><span class="small muted">9 teachers</span></span><span class="badge purple">HOD: R. Mehra</span></div>
+            <div class="list-item"><span><strong>English</strong><br><span class="small muted">7 teachers</span></span><span class="badge purple">HOD: S. Iyer</span></div>
+            <div class="list-item"><span><strong>Administration</strong><br><span class="small muted">10 staff</span></span><span class="badge gray">Admin</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="attendance" class="page">
+      <div class="section-title">
+        <h2>Student Attendance</h2>
+        <div class="controls">
+          <input type="date" value="2026-09-02" />
+          <select><option>Grade 8A</option><option>Grade 8B</option><option>Grade 7B</option></select>
+          <button class="btn btn-neutral" onclick="markAllPresent()">Mark All Present</button>
+          <button class="btn btn-primary" onclick="submitAttendance()">Submit Attendance</button>
+        </div>
+      </div>
+      <div class="two">
+        <div class="card" id="attendanceList">
+          <div class="attendance-row" data-name="Arjun Kumar" data-status="P">
+            <div><strong>Arjun Kumar</strong><div class="small muted">STU-0042 • Parent: Raj Kumar</div></div>
+            <div class="status-toggle"><button class="present active" onclick="mark(this,'P')">P</button><button class="absent" onclick="mark(this,'A')">A</button><button class="leave" onclick="mark(this,'L')">L</button></div>
+            <div><span class="badge green status-badge">Present</span></div>
+          </div>
+          <div class="attendance-row" data-name="Aarav Mehta" data-status="P">
+            <div><strong>Aarav Mehta</strong><div class="small muted">STU-0043 • Parent: Neha Mehta</div></div>
+            <div class="status-toggle"><button class="present active" onclick="mark(this,'P')">P</button><button class="absent" onclick="mark(this,'A')">A</button><button class="leave" onclick="mark(this,'L')">L</button></div>
+            <div><span class="badge green status-badge">Present</span></div>
+          </div>
+          <div class="attendance-row" data-name="Sara Ali" data-status="A">
+            <div><strong>Sara Ali</strong><div class="small muted">STU-0044 • Parent: Imran Ali</div></div>
+            <div class="status-toggle"><button class="present" onclick="mark(this,'P')">P</button><button class="absent active" onclick="mark(this,'A')">A</button><button class="leave" onclick="mark(this,'L')">L</button></div>
+            <div><span class="badge red status-badge">Absent</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Attendance Notifications</h3>
+          <label><input type="checkbox" id="smsEnabled" checked /> Enable parent SMS</label><br><br>
+          <label>Send for
+            <select id="smsMode">
+              <option value="both">Present + Absent</option>
+              <option value="absent">Absent only</option>
+            </select>
+          </label>
+          <p class="small muted">Production version can support SMS, push notifications and configurable templates.</p>
+          <div id="attendanceSummary" class="callout">Attendance has not been submitted for this demo date.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="staff-attendance" class="page">
+      <div class="section-title">
+        <h2>Teacher / Staff Attendance</h2>
+        <div class="controls">
+          <input type="date" value="2026-09-02" />
+          <select><option>All Departments</option><option>Mathematics</option><option>Science</option><option>Administration</option></select>
+          <button class="btn btn-primary" onclick="toast('Staff attendance saved')">Save Attendance</button>
+        </div>
+      </div>
+      <div class="grid" style="margin-bottom:14px">
+        <div class="card stat"><div class="label">Present</div><div class="value">61</div></div>
+        <div class="card stat"><div class="label">Absent</div><div class="value">2</div></div>
+        <div class="card stat"><div class="label">On Leave</div><div class="value">3</div></div>
+        <div class="card stat"><div class="label">Late Today</div><div class="value">6</div></div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Department</th><th>Status</th><th>Check In</th><th>Check Out</th><th>Working Hours</th><th>Remarks</th></tr></thead>
+            <tbody>
+              <tr><td>TCH-012</td><td>Priya Sharma</td><td>Mathematics</td><td><select><option>Present</option><option>Absent</option><option>Leave</option><option>Half Day</option></select></td><td>08:05</td><td>15:30</td><td>7h 25m</td><td>-</td></tr>
+              <tr><td>TCH-018</td><td>Rahul Verma</td><td>Science</td><td><select><option>Present</option><option>Absent</option><option>Leave</option><option>Half Day</option></select></td><td>08:18</td><td>15:30</td><td>7h 12m</td><td>Late arrival</td></tr>
+              <tr><td>STF-006</td><td>Kavita Nair</td><td>Administration</td><td><select><option>Present</option><option>Absent</option><option selected>Leave</option><option>Half Day</option></select></td><td>-</td><td>-</td><td>-</td><td>Approved leave</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="staff-leave" class="page">
+      <div class="section-title"><h2>Staff Leave Management</h2><button class="btn btn-primary" onclick="openModal('leaveModal')">+ Apply Leave</button></div>
+      <div class="grid" style="margin-bottom:14px">
+        <div class="card stat"><div class="label">Pending</div><div class="value">3</div></div>
+        <div class="card stat"><div class="label">Approved This Month</div><div class="value">11</div></div>
+        <div class="card stat"><div class="label">Rejected</div><div class="value">2</div></div>
+        <div class="card stat"><div class="label">Employees on Leave Today</div><div class="value">3</div></div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="leaveTable">
+            <thead><tr><th>Staff</th><th>Department</th><th>Leave Type</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>Priya Sharma</td><td>Mathematics</td><td>Casual Leave</td><td>04 Sep 2026</td><td>04 Sep 2026</td><td>Personal work</td><td><span class="badge amber">Pending</span></td><td><button class="btn btn-success" onclick="approveLeave(this)">Approve</button> <button class="btn btn-danger" onclick="rejectLeave(this)">Reject</button></td></tr>
+              <tr><td>Rahul Verma</td><td>Science</td><td>Medical Leave</td><td>25 Aug 2026</td><td>26 Aug 2026</td><td>Medical</td><td><span class="badge green">Approved</span></td><td>-</td></tr>
+              <tr><td>Kavita Nair</td><td>Administration</td><td>Earned Leave</td><td>02 Sep 2026</td><td>02 Sep 2026</td><td>Family event</td><td><span class="badge green">Approved</span></td><td>-</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="timetable" class="page">
+      <div class="section-title"><h2>Timetable & Period Management</h2><div class="controls"><select><option>Grade 8A</option><option>Grade 8B</option></select><button class="btn btn-primary" onclick="toast('Timetable editor opened')">Edit Timetable</button></div></div>
+      <div class="callout" style="margin-bottom:14px">This module is added because Daily Teaching Reports depend on scheduled classes and periods.</div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <tr><th>Period</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr>
+            <tr><td>1 • 08:30</td><td>Math • Priya</td><td>English • Anita</td><td>Math • Priya</td><td>Science • Rahul</td><td>Math • Priya</td></tr>
+            <tr><td>2 • 09:20</td><td>Science • Rahul</td><td>Math • Priya</td><td>English • Anita</td><td>Math • Priya</td><td>Science • Rahul</td></tr>
+            <tr><td>3 • 10:10</td><td>English • Anita</td><td>Science • Rahul</td><td>Computer • Amit</td><td>English • Anita</td><td>Social Sci. • Neha</td></tr>
+            <tr><td>4 • 11:20</td><td>Social Sci. • Neha</td><td>Computer • Amit</td><td>Science • Rahul</td><td>PE • Karan</td><td>English • Anita</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="teaching-report" class="page">
+      <div class="section-title">
+        <h2>Daily Class Teaching Report</h2>
+        <div class="controls"><input type="date" value="2026-09-02" /><select><option>All Teachers</option><option>Priya Sharma</option><option>Rahul Verma</option></select><button class="btn btn-primary" onclick="openModal('teachingModal')">+ Add Report</button></div>
+      </div>
+      <div class="kpi-row" style="margin-bottom:14px">
+        <div class="kpi"><span class="small muted">Scheduled</span><strong>146</strong></div>
+        <div class="kpi"><span class="small muted">Conducted</span><strong>141</strong></div>
+        <div class="kpi"><span class="small muted">Reports Submitted</span><strong>136</strong></div>
+        <div class="kpi"><span class="small muted">Pending</span><strong>5</strong></div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Teacher</th><th>Period</th><th>Class</th><th>Subject</th><th>Topic Taught</th><th>Homework</th><th>Completion</th><th>HOD Review</th></tr></thead>
+            <tbody>
+              <tr><td>Priya Sharma</td><td>1</td><td>8A</td><td>Mathematics</td><td>Linear Equations</td><td>Exercise 4.2</td><td><span class="badge green">Completed</span></td><td><span class="badge green">Reviewed</span></td></tr>
+              <tr><td>Priya Sharma</td><td>3</td><td>8B</td><td>Mathematics</td><td>Linear Equations - Examples</td><td>Q1-Q10</td><td><span class="badge green">Completed</span></td><td><button class="btn btn-soft" onclick="reviewReport(this)">Review</button></td></tr>
+              <tr><td>Rahul Verma</td><td>2</td><td>8A</td><td>Science</td><td>Force and Pressure</td><td>Read Chapter 8</td><td><span class="badge green">Completed</span></td><td><span class="badge green">Reviewed</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="staff-reports" class="page">
+      <div class="section-title">
+        <h2>HOD / Staff Reports</h2>
+        <div class="controls"><select><option>Admin View</option><option>HOD View - Mathematics</option><option>HOD View - Science</option></select><input type="month" value="2026-09" /><button class="btn btn-primary" onclick="toast('Report generated')">Generate</button></div>
+      </div>
+      <div class="grid" style="margin-bottom:14px">
+        <div class="card stat"><div class="label">Working Days</div><div class="value">22</div></div>
+        <div class="card stat"><div class="label">Avg. Attendance</div><div class="value">95.6%</div></div>
+        <div class="card stat"><div class="label">Leave Days</div><div class="value">17</div></div>
+        <div class="card stat"><div class="label">Late Marks</div><div class="value">21</div></div>
+      </div>
+      <div class="card">
+        <h3>Teacher Performance & Attendance</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Teacher</th><th>Department</th><th>Attendance</th><th>Leave</th><th>Classes Assigned</th><th>Classes Taught</th><th>Reports</th><th>Syllabus</th><th>HOD Status</th></tr></thead>
+            <tbody>
+              <tr><td>Priya Sharma</td><td>Mathematics</td><td>97%</td><td>1 day</td><td>72</td><td>70</td><td>70</td><td>68%</td><td><span class="badge green">On Track</span></td></tr>
+              <tr><td>Rakesh Joshi</td><td>Mathematics</td><td>94%</td><td>2 days</td><td>68</td><td>64</td><td>63</td><td>61%</td><td><span class="badge amber">Review</span></td></tr>
+              <tr><td>Rahul Verma</td><td>Science</td><td>96%</td><td>2 days</td><td>70</td><td>67</td><td>67</td><td>72%</td><td><span class="badge green">On Track</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="transport" class="page">
+      <div class="section-title"><h2>School Transport</h2><div class="controls"><select><option>Bus 04 - Green Park</option><option>Bus 02 - Lake Road</option></select><button class="btn btn-primary" onclick="toast('Demo trip started')">Start Demo Trip</button></div></div>
+      <div class="two">
+        <div class="card">
+          <h3>Live Tracking - Bus 04</h3>
+          <div class="map"><div class="road r1"></div><div class="road r2"></div><div class="stop s1"></div><div class="stop s2"></div><div class="stop s3"></div><div class="bus">🚌 Bus 04</div></div>
+          <p><strong>Green Park Route</strong> • Driver: Sanjay Patel • <span class="badge blue">En Route</span></p>
+          <div class="kpi-row">
+            <div class="kpi"><span class="small muted">ETA</span><strong>5 min</strong></div>
+            <div class="kpi"><span class="small muted">Students</span><strong>24</strong></div>
+            <div class="kpi"><span class="small muted">Boarded</span><strong>18</strong></div>
+            <div class="kpi"><span class="small muted">Stops Left</span><strong>4</strong></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Trip Timeline</h3>
+          <ul class="timeline">
+            <li><strong>7:32 AM</strong><br><span class="muted">Trip started from school depot</span></li>
+            <li><strong>7:42 AM</strong><br><span class="muted">Aarav boarded at Lake View Stop</span></li>
+            <li><strong>7:47 AM</strong><br><span class="muted">Arjun boarded at Central Park Stop</span></li>
+            <li><strong>7:52 AM</strong><br><span class="muted">Bus passed Sector 12 checkpoint</span></li>
+          </ul>
+          <h3 style="margin-top:18px">Students on Bus</h3>
+          <div class="table-wrap">
+            <table><tr><th>Student</th><th>Pickup</th><th>Drop</th></tr><tr><td>Arjun Kumar</td><td><span class="badge green">Boarded</span></td><td><span class="badge amber">Pending</span></td></tr><tr><td>Aarav Mehta</td><td><span class="badge green">Boarded</span></td><td><span class="badge amber">Pending</span></td></tr></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sms" class="page">
+      <div class="section-title"><h2>Communication Center</h2><div class="controls"><button class="btn btn-soft" onclick="toast('Template manager opened')">Message Templates</button><button class="btn btn-primary" onclick="openModal('announcementModal')">+ New Announcement</button></div></div>
+      <div class="grid" style="margin-bottom:14px">
+        <div class="card stat"><div class="label">SMS Sent Today</div><div class="value">624</div></div>
+        <div class="card stat"><div class="label">Delivery Rate</div><div class="value">98.7%</div></div>
+        <div class="card stat"><div class="label">Failed</div><div class="value">8</div></div>
+        <div class="card stat"><div class="label">Announcements</div><div class="value">3</div></div>
+      </div>
+      <div class="card">
+        <div class="tabs"><button class="tab active">All</button><button class="tab">Attendance</button><button class="tab">Transport</button><button class="tab">Announcements</button></div>
+        <div class="table-wrap" style="margin-top:12px">
+          <table id="smsLog">
+            <thead><tr><th>Time</th><th>Recipient</th><th>Student</th><th>Type</th><th>Message</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>8:42 AM</td><td>Raj Kumar</td><td>Arjun Kumar</td><td>Attendance</td><td>Arjun Kumar was marked PRESENT.</td><td><span class="badge green">Delivered</span></td></tr>
+              <tr><td>7:42 AM</td><td>Neha Mehta</td><td>Aarav Mehta</td><td>Transport</td><td>Aarav boarded School Bus 04.</td><td><span class="badge green">Delivered</span></td></tr>
+              <tr><td>7:30 AM</td><td>All Grade 8 Parents</td><td>-</td><td>Announcement</td><td>Parent meeting scheduled Friday at 3 PM.</td><td><span class="badge green">Delivered</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="settings" class="page">
+      <div class="section-title"><h2>School Settings</h2><button class="btn btn-primary" onclick="toast('School settings saved')">Save Changes</button></div>
+      <div class="grid-3">
+        <div class="card">
+          <h3>School Profile</h3>
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <input value="Sunrise Public School" />
+            <input value="+91 98765 43210" />
+            <input value="admin@sunriseschool.edu" />
+            <textarea>12 School Road, New Delhi</textarea>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Academic Year</h3>
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <select><option>2026–27 (Current)</option><option>2025–26</option></select>
+            <input type="date" value="2026-04-01" />
+            <input type="date" value="2027-03-31" />
+            <label class="small"><input type="checkbox" checked /> Current academic year</label>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Attendance & Communication</h3>
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <label class="small"><input type="checkbox" checked /> Send parent SMS on absence</label>
+            <label class="small"><input type="checkbox" checked /> Allow HOD teaching review</label>
+            <label class="small"><input type="checkbox" checked /> Track late staff check-in</label>
+            <select><option>SMS Provider: Demo Gateway</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>Roles & Permissions</h3>
+        <div class="table-wrap">
+          <table>
+            <tr><th>Module</th><th>Admin</th><th>HOD</th><th>Teacher</th><th>Transport</th></tr>
+            <tr><td>Students</td><td>Full</td><td>View</td><td>Assigned Classes</td><td>Transport Students</td></tr>
+            <tr><td>Attendance</td><td>Full</td><td>Department</td><td>Assigned Classes</td><td>-</td></tr>
+            <tr><td>Staff Leave</td><td>Approve</td><td>Review Department</td><td>Apply / View Own</td><td>Apply / View Own</td></tr>
+            <tr><td>Teaching Reports</td><td>View All</td><td>Review Department</td><td>Create / Own</td><td>-</td></tr>
+            <tr><td>Transport</td><td>Full</td><td>View</td><td>View</td><td>Manage Trips</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="studentModal"><div class="box">
+  <h3>Add Student</h3>
+  <div class="form-grid">
+    <input id="newName" placeholder="Student name" />
+    <input placeholder="Admission ID" />
+    <select><option>Grade 8A</option><option>Grade 8B</option><option>Grade 7B</option></select>
+    <input placeholder="Roll number" />
+    <input placeholder="Parent / Guardian" />
+    <input placeholder="Parent mobile" />
+    <select><option>No Transport</option><option>Bus 04 - Green Park</option><option>Bus 02 - Lake Road</option></select>
+    <select><option>Active</option><option>Inactive</option></select>
+    <textarea class="full" placeholder="Address"></textarea>
+  </div>
+  <div class="controls" style="margin-top:16px;justify-content:flex-end"><button class="btn btn-neutral" onclick="closeModal('studentModal')">Cancel</button><button class="btn btn-primary" onclick="saveAndClose('studentModal','Student added in prototype')">Save Student</button></div>
+</div></div>
+
+<div class="modal" id="teacherModal"><div class="box">
+  <h3>Add Teacher / Staff</h3>
+  <div class="form-grid">
+    <input placeholder="Employee name" /><input placeholder="Employee ID" />
+    <select><option>Teacher</option><option>HOD</option><option>Staff</option></select>
+    <select><option>Mathematics</option><option>Science</option><option>English</option><option>Administration</option></select>
+    <input placeholder="Mobile" /><input placeholder="Email" />
+    <input type="date" /><select><option>Active</option><option>Inactive</option></select>
+    <textarea class="full" placeholder="Address"></textarea>
+  </div>
+  <div class="controls" style="margin-top:16px;justify-content:flex-end"><button class="btn btn-neutral" onclick="closeModal('teacherModal')">Cancel</button><button class="btn btn-primary" onclick="saveAndClose('teacherModal','Employee added in prototype')">Save</button></div>
+</div></div>
+
+<div class="modal" id="classModal"><div class="box">
+  <h3>Add Class / Section</h3>
+  <div class="form-grid">
+    <input placeholder="Grade / Class" /><input placeholder="Section" />
+    <input placeholder="Room number" /><select><option>Assign class teacher</option><option>Priya Sharma</option><option>Rahul Verma</option></select>
+  </div>
+  <div class="controls" style="margin-top:16px;justify-content:flex-end"><button class="btn btn-neutral" onclick="closeModal('classModal')">Cancel</button><button class="btn btn-primary" onclick="saveAndClose('classModal','Class created in prototype')">Create Class</button></div>
+</div></div>
+
+<div class="modal" id="leaveModal"><div class="box">
+  <h3>Apply Staff Leave</h3>
+  <div class="form-grid">
+    <select><option>Priya Sharma</option><option>Rahul Verma</option><option>Kavita Nair</option></select>
+    <select><option>Casual Leave</option><option>Medical Leave</option><option>Earned Leave</option><option>Half Day</option></select>
+    <input type="date" value="2026-09-04" /><input type="date" value="2026-09-04" />
+    <textarea class="full" placeholder="Reason"></textarea>
+  </div>
+  <div class="controls" style="margin-top:16px;justify-content:flex-end"><button class="btn btn-neutral" onclick="closeModal('leaveModal')">Cancel</button><button class="btn btn-primary" onclick="saveAndClose('leaveModal','Leave request submitted')">Submit Leave</button></div>
+</div></div>
+
+<div class="modal" id="teachingModal"><div class="box">
+  <h3>Add Daily Teaching Report</h3>
+  <div class="form-grid">
+    <select><option>Priya Sharma</option><option>Rahul Verma</option><option>Anita Rao</option></select>
+    <input type="number" min="1" max="10" value="1" placeholder="Period" />
+    <select><option>Grade 8A</option><option>Grade 8B</option><option>Grade 7B</option></select>
+    <select><option>Mathematics</option><option>Science</option><option>English</option></select>
+    <input class="full" placeholder="Topic taught" />
+    <input class="full" placeholder="Homework / assignment" />
+    <textarea class="full" placeholder="Teacher remarks"></textarea>
+  </div>
+  <div class="controls" style="margin-top:16px;justify-content:flex-end"><button class="btn btn-neutral" onclick="closeModal('teachingModal')">Cancel</button><button class="btn btn-primary" onclick="saveAndClose('teachingModal','Daily teaching report submitted')">Submit Report</button></div>
+</div></div>
+
+<div class="modal" id="announcementModal"><div class="box">
+  <h3>New Announcement</h3>
+  <div class="form-grid">
+    <select><option>All School</option><option>Teachers</option><option>Parents</option><option>Grade 8A</option><option>Mathematics Department</option></select>
+    <select><option>SMS + In-app</option><option>SMS Only</option><option>In-app Only</option></select>
+    <input class="full" placeholder="Announcement title" />
+    <textarea class="full" placeholder="Message"></textarea>
+  </div>
+  <div class="controls" style="margin-top:16px;justify-content:flex-end"><button class="btn btn-neutral" onclick="closeModal('announcementModal')">Cancel</button><button class="btn btn-primary" onclick="saveAndClose('announcementModal','Announcement published in prototype')">Publish</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const pageMeta={
+ dashboard:['Dashboard','Daily school operations overview'],
+ students:['Students','Admissions, profiles, class and transport assignments'],
+ teachers:['Teachers & Staff','Employee records, departments and assignments'],
+ classes:['Classes & Sections','Class structure and teacher assignment'],
+ subjects:['Subjects & Departments','Academic departments and subject setup'],
+ attendance:['Student Attendance','Daily class attendance and parent alerts'],
+ 'staff-attendance':['Staff Attendance','Teacher and staff daily attendance'],
+ 'staff-leave':['Staff Leave','Leave requests, approval and history'],
+ timetable:['Timetable','Period and class schedule management'],
+ 'teaching-report':['Daily Teaching Report','Teacher activity and HOD review'],
+ 'staff-reports':['HOD / Staff Reports','Attendance and teaching performance'],
+ transport:['Transport','Live bus operations and student trip events'],
+ sms:['Communication','SMS, alerts and announcements'],
+ settings:['School Settings','Academic year, configuration and permissions']
+};
+
+document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>go(btn.dataset.page)));
+
+function go(id){
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));
+ const meta=pageMeta[id]||[id,''];
+ document.getElementById('pageTitle').textContent=meta[0];
+ document.getElementById('pageSub').textContent=meta[1];
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function switchRole(role){
+ document.getElementById('roleLabel').textContent=role;
+ const banner=document.getElementById('roleBanner');
+ const text={
+   Admin:'Admin dashboard shows school-wide student, staff, teaching, communication and transport status.',
+   HOD:'HOD view focuses on department teachers, attendance, classes conducted, pending reports and syllabus progress.',
+   Teacher:'Teacher view focuses on assigned classes, attendance, daily teaching reports, leave and announcements.',
+   Transport:'Transport view focuses on buses, routes, live trips, student boarding/drop and trip timeline.'
+ };
+ banner.textContent=text[role]||'';
+ toast(role+' view selected. This prototype keeps all navigation visible for review.');
+}
+
+function openModal(id){document.getElementById(id).style.display='flex'}
+function closeModal(id){document.getElementById(id).style.display='none'}
+function saveAndClose(id,msg){closeModal(id);toast(msg)}
+
+function toast(msg){
+ const el=document.getElementById('toast');el.textContent=msg;el.style.display='block';
+ clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>el.style.display='none',2600);
+}
+
+function filterStudents(){
+ const q=document.getElementById('studentSearch').value.toLowerCase();
+ document.querySelectorAll('#studentTable tbody tr').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q)?'':'none');
+}
+
+function mark(btn,status){
+ const group=btn.parentElement;group.querySelectorAll('button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+ const row=btn.closest('.attendance-row');row.dataset.status=status;
+ const badge=row.querySelector('.status-badge');
+ if(status==='P'){badge.textContent='Present';badge.className='badge green status-badge'}
+ if(status==='A'){badge.textContent='Absent';badge.className='badge red status-badge'}
+ if(status==='L'){badge.textContent='Leave';badge.className='badge amber status-badge'}
+}
+
+function markAllPresent(){
+ document.querySelectorAll('.attendance-row').forEach(row=>{
+   row.dataset.status='P';
+   row.querySelectorAll('.status-toggle button').forEach(b=>b.classList.remove('active'));
+   row.querySelector('.present').classList.add('active');
+   const badge=row.querySelector('.status-badge');badge.textContent='Present';badge.className='badge green status-badge';
+ });
+ toast('All students marked present');
+}
+
+function submitAttendance(){
+ let p=0,a=0,l=0;
+ document.querySelectorAll('.attendance-row').forEach(row=>{
+   if(row.dataset.status==='P')p++; else if(row.dataset.status==='A')a++; else l++;
+ });
+ const enabled=document.getElementById('smsEnabled').checked;
+ document.getElementById('attendanceSummary').innerHTML='<strong>Submitted</strong><br>Present: '+p+' • Absent: '+a+' • Leave: '+l+'<br>Parent SMS: '+(enabled?'Queued':'Disabled');
+ toast('Attendance submitted in prototype');
+}
+
+function approveLeave(btn){
+ const row=btn.closest('tr'),badge=row.querySelector('.badge');
+ badge.textContent='Approved';badge.className='badge green';
+ btn.parentElement.innerHTML='-';toast('Leave approved');
+}
+function rejectLeave(btn){
+ const row=btn.closest('tr'),badge=row.querySelector('.badge');
+ badge.textContent='Rejected';badge.className='badge red';
+ btn.parentElement.innerHTML='-';toast('Leave rejected');
+}
+function reviewReport(btn){
+ btn.outerHTML='<span class="badge green">Reviewed</span>';toast('Teaching report reviewed');
+}
+
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.style.display='none'}));
+
+/* ---------- Theme switching ---------- */
+const THEMES={
+ attendancepay:{name:'AttendancePay',accent:'#1e40af',side:'#ffffff'},
+ classic:{name:'Classic Blue',accent:'#2563eb',side:'#111827'},
+ midnight:{name:'Midnight',accent:'#60a5fa',side:'#0b1220'},
+ forest:{name:'Forest',accent:'#1f7a4d',side:'#10291a'},
+ sunset:{name:'Sunset',accent:'#d9531e',side:'#3b1f2b'},
+ royal:{name:'Royal',accent:'#5b3fd6',side:'#1a1440'},
+ teal:{name:'Teal',accent:'#0f766e',side:'#ffffff'},
+ slate:{name:'Slate',accent:'#0f172a',side:'#f3f5f8'}
+};
+function setTheme(id,silent){
+ if(!THEMES[id])id='classic';
+ if(id==='classic')delete document.body.dataset.theme; else document.body.dataset.theme=id;
+ document.getElementById('themeSwitcher').value=id;
+ document.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active',s.dataset.theme===id));
+ try{localStorage.setItem('edutrack-theme',id)}catch(e){}
+ if(!silent)toast(THEMES[id].name+' theme applied');
+}
+(function initThemes(){
+ const wrap=document.getElementById('swatches');
+ Object.entries(THEMES).forEach(([id,t])=>{
+   const b=document.createElement('button');b.className='swatch';b.type='button';b.dataset.theme=id;b.title=t.name;b.setAttribute('aria-label',t.name+' theme');
+   b.style.background='linear-gradient(135deg,'+t.accent+' 50%,'+t.side+' 50%)';
+   b.addEventListener('click',()=>setTheme(id));wrap.appendChild(b);
+ });
+ let saved='attendancepay';try{saved=localStorage.getItem('edutrack-theme')||'attendancepay'}catch(e){}
+ setTheme(saved,true);
+})();
+
+</script>
+
+</body>
+</html>
