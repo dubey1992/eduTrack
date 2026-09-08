@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../application/school_list_notifier.dart';
 import '../data/models/school.dart';
@@ -15,29 +16,34 @@ class SchoolListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final schoolsState = ref.watch(schoolListNotifierProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Schools'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Add school',
-            onPressed: () => showDialog(context: context, builder: (_) => const AddSchoolDialog()),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Schools',
+          actions: [
+            FilledButton.icon(
+              onPressed: () => showDialog(context: context, builder: (_) => const AddSchoolDialog()),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add School'),
+            ),
+          ],
+        ),
+        Expanded(
+          child: AsyncValueView<List<School>>(
+            value: schoolsState,
+            onRetry: () => ref.read(schoolListNotifierProvider.notifier).refresh(),
+            isEmpty: (schools) => schools.isEmpty,
+            emptyBuilder: (context) => const Center(child: Text('No schools yet.')),
+            data: (context, schools) {
+              return ResponsiveBuilder(
+                mobile: (context) => _SchoolListMobile(schools: schools),
+                desktop: (context) => _SchoolListDesktop(schools: schools),
+              );
+            },
           ),
-        ],
-      ),
-      body: AsyncValueView<List<School>>(
-        value: schoolsState,
-        onRetry: () => ref.read(schoolListNotifierProvider.notifier).refresh(),
-        isEmpty: (schools) => schools.isEmpty,
-        emptyBuilder: (context) => const Center(child: Text('No schools yet.')),
-        data: (context, schools) {
-          return ResponsiveBuilder(
-            mobile: (context) => _SchoolListMobile(schools: schools),
-            desktop: (context) => _SchoolListDesktop(schools: schools),
-          );
-        },
-      ),
+        ),
+      ],
     );
   }
 }

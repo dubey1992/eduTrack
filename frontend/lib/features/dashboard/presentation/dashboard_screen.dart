@@ -3,54 +3,110 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/models/user_role.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../auth/application/auth_notifier.dart';
 
-/// Placeholder landing screen proving the auth pipe works end to end.
-/// Phase 18 replaces this with the real dashboard (KPIs, quick actions,
-/// the full sidebar) from the prototype.
+/// Landing screen after login. Phase 18 replaces this with the full
+/// dashboard (KPIs, activity feed) from the prototype; for now it welcomes
+/// the user and offers quick links into whatever this phase has built.
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authNotifierProvider).value;
+    final role = user?.role;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
+    final quickActions = [
+      if (role == UserRole.superAdmin)
+        _QuickAction(
+          icon: Icons.apartment_outlined,
+          title: 'Manage Schools',
+          subtitle: 'Onboard and configure schools',
+          onTap: () => context.go('/schools'),
+        ),
+      if (role == UserRole.superAdmin)
+        _QuickAction(
+          icon: Icons.payments_outlined,
+          title: 'Record Payment',
+          subtitle: 'Log a payment received from a school',
+          onTap: () => context.go('/payments'),
+        ),
+      if (role == UserRole.superAdmin || role == UserRole.schoolAdmin)
+        _QuickAction(
+          icon: Icons.group_outlined,
+          title: 'Manage Users',
+          subtitle: 'Accounts, roles and access',
+          onTap: () => context.go('/users'),
+        ),
+    ];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            user == null ? 'Welcome' : 'Welcome, ${user.name}',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
+          const SizedBox(height: 16),
+          if (quickActions.isNotEmpty) ...[
+            Text('Quick Actions', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+            ResponsiveBuilder(
+              mobile: (context) => Column(
+                children: [
+                  for (final action in quickActions)
+                    Padding(padding: const EdgeInsets.only(bottom: 10), child: action),
+                ],
+              ),
+              desktop: (context) => Wrap(spacing: 12, runSpacing: 12, children: quickActions),
+            ),
+          ],
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              user == null ? 'Welcome' : 'Welcome, ${user.name}',
-              style: Theme.of(context).textTheme.headlineSmall,
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({required this.icon, required this.title, required this.subtitle, required this.onTap});
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 260,
+      child: Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(icon, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(
+                        subtitle,
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            if (user?.role == UserRole.superAdmin || user?.role == UserRole.schoolAdmin) ...[
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () => context.push('/users'),
-                icon: const Icon(Icons.group_outlined),
-                label: const Text('Manage Users'),
-              ),
-            ],
-            if (user?.role == UserRole.superAdmin) ...[
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => context.push('/schools'),
-                icon: const Icon(Icons.apartment_outlined),
-                label: const Text('Manage Schools'),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

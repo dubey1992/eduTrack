@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
+use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
@@ -29,4 +30,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/schools/{school}', [SchoolController::class, 'update']);
     Route::patch('/schools/{school}/activate', [SchoolController::class, 'activate']);
     Route::patch('/schools/{school}/deactivate', [SchoolController::class, 'deactivate']);
+
+    Route::get('/payments/summary', [PaymentController::class, 'summary']);
+    Route::get('/payments', [PaymentController::class, 'index']);
+    Route::post('/payments', [PaymentController::class, 'store']);
+    Route::get('/payments/{payment}', [PaymentController::class, 'show']);
+    Route::patch('/payments/{payment}', [PaymentController::class, 'update']);
 });

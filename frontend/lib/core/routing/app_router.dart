@@ -7,12 +7,15 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/payments/presentation/payment_list_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
-import '../models/user_role.dart';
+import '../widgets/app_shell.dart';
 import '../widgets/splash_screen.dart';
+import 'app_nav.dart';
 
-/// Routes reachable without an active session.
+/// Routes reachable without an active session - rendered full-screen,
+/// outside the sidebar shell.
 const _publicPaths = {'/login', '/forgot-password', '/reset-password'};
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -33,9 +36,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           token: state.uri.queryParameters['token'] ?? '',
         ),
       ),
-      GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
-      GoRoute(path: '/users', builder: (context, state) => const UserListScreen()),
-      GoRoute(path: '/schools', builder: (context, state) => const SchoolListScreen()),
+      ShellRoute(
+        builder: (context, state, child) => AppShell(child: child),
+        routes: [
+          GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
+          GoRoute(path: '/users', builder: (context, state) => const UserListScreen()),
+          GoRoute(path: '/schools', builder: (context, state) => const SchoolListScreen()),
+          GoRoute(path: '/payments', builder: (context, state) => const PaymentListScreen()),
+        ],
+      ),
     ],
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
@@ -56,12 +65,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/';
       }
 
-      const usersAllowedRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
-      if (location == '/users' && !usersAllowedRoles.contains(user.role)) {
-        return '/';
-      }
-
-      if (location == '/schools' && user.role != UserRole.superAdmin) {
+      // Every shell route's access is driven by AppNav - the same config
+      // that builds the sidebar - so the menu and the guard can never
+      // drift apart. A route not listed there needs no role check.
+      final navItem = AppNav.findByPath(location);
+      if (navItem != null && !navItem.allows(user.role)) {
         return '/';
       }
 

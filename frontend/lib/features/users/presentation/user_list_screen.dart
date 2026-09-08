@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../application/user_list_notifier.dart';
 import '../data/models/app_user.dart';
@@ -15,29 +16,34 @@ class UserListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final usersState = ref.watch(userListNotifierProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Users'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Add user',
-            onPressed: () => showDialog(context: context, builder: (_) => const AddUserDialog()),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Users',
+          actions: [
+            FilledButton.icon(
+              onPressed: () => showDialog(context: context, builder: (_) => const AddUserDialog()),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add User'),
+            ),
+          ],
+        ),
+        Expanded(
+          child: AsyncValueView<List<AppUser>>(
+            value: usersState,
+            onRetry: () => ref.read(userListNotifierProvider.notifier).refresh(),
+            isEmpty: (users) => users.isEmpty,
+            emptyBuilder: (context) => const Center(child: Text('No users yet.')),
+            data: (context, users) {
+              return ResponsiveBuilder(
+                mobile: (context) => _UserListMobile(users: users),
+                desktop: (context) => _UserListDesktop(users: users),
+              );
+            },
           ),
-        ],
-      ),
-      body: AsyncValueView<List<AppUser>>(
-        value: usersState,
-        onRetry: () => ref.read(userListNotifierProvider.notifier).refresh(),
-        isEmpty: (users) => users.isEmpty,
-        emptyBuilder: (context) => const Center(child: Text('No users yet.')),
-        data: (context, users) {
-          return ResponsiveBuilder(
-            mobile: (context) => _UserListMobile(users: users),
-            desktop: (context) => _UserListDesktop(users: users),
-          );
-        },
-      ),
+        ),
+      ],
     );
   }
 }
