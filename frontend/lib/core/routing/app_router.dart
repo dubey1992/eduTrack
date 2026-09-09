@@ -36,7 +36,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(refreshNotifier.dispose);
 
   return GoRouter(
-    initialLocation: '/',
+    // Deliberately no `initialLocation` override - go_router derives the
+    // first route from the actual browser URL on web (window.location),
+    // which is what lets a hard reload on e.g. /timetable stay on
+    // /timetable instead of always restarting at '/'. An explicit
+    // `initialLocation` here would replace that with a hardcoded value on
+    // every single launch, including reloads.
     refreshListenable: refreshNotifier,
     routes: [
       GoRoute(path: '/', builder: (context, state) => const MarketingScreen()),
@@ -85,7 +90,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (_publicPaths.contains(location) || location == '/splash') {
           return null;
         }
-        return '/splash';
+        // Carry the originally-requested destination through the splash
+        // gate as a query param, so a hard reload on e.g. /timetable lands
+        // back on /timetable once the session resolves, instead of always
+        // bouncing to /dashboard once the location has already become
+        // '/splash' below.
+        return Uri(path: '/splash', queryParameters: {'from': state.uri.toString()}).toString();
       }
 
       final user = authState.value;
@@ -96,8 +106,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // Once logged in, the marketing homepage/login/splash are all behind
-      // them - send them to their actual landing screen instead.
+      // them - send them to their actual landing screen instead, or back to
+      // whatever destination the splash gate above was carrying, if any
+      // (the role/permission check further down still applies to it, via
+      // this same redirect running again for the new location).
       if (location == '/' || location == '/login' || location == '/splash') {
+        final from = state.uri.queryParameters['from'];
+        if (from != null && from.isNotEmpty && !_publicPaths.contains(from) && from != '/splash') {
+          return from;
+        }
         return '/dashboard';
       }
 

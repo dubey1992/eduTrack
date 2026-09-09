@@ -7,6 +7,8 @@ import 'package:edutrack_app/core/routing/app_router.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/auth/presentation/login_screen.dart';
+import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
+import 'package:edutrack_app/features/students/data/student_repository.dart';
 import 'package:edutrack_app/features/users/data/user_repository.dart';
 import 'package:edutrack_app/main.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
+import '../../support/fake_school_class_repository.dart';
+import '../../support/fake_student_repository.dart';
 import '../../support/fake_user_repository.dart';
 
 const _superAdmin = AuthenticatedUser(
@@ -151,5 +155,44 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Run Your School Smarter, Together.'), findsOneWidget);
+  });
+
+  testWidgets('a deep-linked route survives session restore instead of bouncing to the dashboard', (tester) async {
+    // Regression test: a hard reload on e.g. /students used to always land
+    // on /dashboard. The redirect gated every non-public destination behind
+    // '/splash' while the session was still restoring, and once it
+    // resolved, "location == '/splash' -> go to /dashboard" fired
+    // unconditionally - the original /students target was never carried
+    // through the gate, so a real user reloading mid-session always lost
+    // their place. See AppRouter's redirect - the splash detour now carries
+    // the original destination as a `from` query param and returns to it
+    // once the session resolves.
+    final gate = Completer<void>();
+    const teacher = AuthenticatedUser(id: 3, name: 'A Teacher', email: 'teacher@example.com', role: UserRole.teacher);
+    final fake = FakeAuthRepository(sessionOnRestore: teacher, restoreGate: gate);
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(fake),
+        authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
+        studentRepositoryProvider.overrideWithValue(FakeStudentRepository()),
+        schoolClassRepositoryProvider.overrideWithValue(FakeSchoolClassRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const EduTrackApp()));
+    await tester.pump();
+
+    // Simulate the browser already being at /students when the session
+    // (still restoring) starts resolving - exactly what a hard reload on
+    // that route looks like.
+    container.read(routerProvider).go('/students');
+    await tester.pump();
+
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Student Management'), findsWidgets);
+    expect(find.text('Dashboard'), findsNothing);
   });
 }

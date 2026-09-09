@@ -45,6 +45,17 @@ const _subAdminRow = AppUser(
   isSubAdmin: true,
 );
 
+const _peerAdminRow = AppUser(
+  id: 3,
+  firstName: 'Kavita',
+  lastName: 'Nair',
+  name: 'Kavita Nair',
+  email: 'kavita@example.com',
+  mobile: null,
+  role: UserRole.schoolAdmin,
+  status: UserStatus.active,
+);
+
 Widget wrap(FakeUserRepository fake, {AuthenticatedUser actor = _superAdmin}) {
   return ProviderScope(
     overrides: [
@@ -128,8 +139,26 @@ void main() {
     expect(find.text('School Admin'), findsNothing);
   });
 
-  testWidgets('a school admin sees no Edit/Deactivate actions on a sub-admin row', (tester) async {
+  testWidgets('a (non-sub) school admin sees Edit/Deactivate actions on a sub-admin row', (tester) async {
     await tester.pumpWidget(wrap(FakeUserRepository(users: [_subAdminRow]), actor: _schoolAdmin));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rahul Verma'), findsOneWidget);
+    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+    expect(find.text('Deactivate'), findsOneWidget);
+  });
+
+  testWidgets('a school admin sees no Edit/Deactivate actions on a peer (non-sub) school admin row', (tester) async {
+    await tester.pumpWidget(wrap(FakeUserRepository(users: [_peerAdminRow]), actor: _schoolAdmin));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kavita Nair'), findsOneWidget);
+    expect(find.byIcon(Icons.edit_outlined), findsNothing);
+    expect(find.text('Deactivate'), findsNothing);
+  });
+
+  testWidgets('a sub admin sees no Edit/Deactivate actions on any admin-tier row', (tester) async {
+    await tester.pumpWidget(wrap(FakeUserRepository(users: [_subAdminRow]), actor: _subAdmin));
     await tester.pumpAndSettle();
 
     expect(find.text('Rahul Verma'), findsOneWidget);

@@ -7,11 +7,13 @@ use App\Models\User;
 
 /**
  * SUPER_ADMIN manages every user, across every school. SCHOOL_ADMIN
- * manages non-admin users within their own school only - an admin-tier
- * account (SCHOOL_ADMIN role, whether a primary School Admin or a Sub
- * Admin) can only ever be updated/deactivated by a SUPER_ADMIN, never even
- * by the School Admin who created it. School scoping is always read from
- * the actor's own `school_id`, never from client input.
+ * manages non-admin users within their own school freely, and admin-tier
+ * accounts (SCHOOL_ADMIN role) on a strict hierarchy: the head (a School
+ * Admin who is not themselves a Sub Admin) manages the Sub Admins in their
+ * own school, but never another head, and never themselves through this
+ * ability. A Sub Admin manages no admin-tier account at all - not even
+ * another Sub Admin. School scoping is always read from the actor's own
+ * `school_id`, never from client input.
  *
  * `is_sub_admin` distinguishes two tiers of the same SCHOOL_ADMIN role
  * (not a separate UserRole case, so every other policy in the app treats
@@ -56,10 +58,7 @@ class UserPolicy
             return true;
         }
 
-        // A School Admin manages any non-admin account in their school,
-        // but never another admin-tier account - not even a Sub Admin
-        // they created themselves. Only a SUPER_ADMIN manages those.
-        return $this->isSchoolAdminOfSameSchool($actor, $target) && $target->role !== UserRole::SchoolAdmin;
+        return $this->manages($actor, $target);
     }
 
     public function setStatus(User $actor, User $target): bool
@@ -74,7 +73,27 @@ class UserPolicy
             return true;
         }
 
-        return $this->isSchoolAdminOfSameSchool($actor, $target) && $target->role !== UserRole::SchoolAdmin;
+        return $this->manages($actor, $target);
+    }
+
+    /**
+     * A School Admin manages any non-admin account in their own school
+     * freely. For an admin-tier target (SCHOOL_ADMIN role), only the head
+     * (non-Sub) manages it, and only when the target is a Sub Admin - a
+     * head never manages another head, and a Sub Admin never manages any
+     * admin-tier account, including another Sub Admin.
+     */
+    private function manages(User $actor, User $target): bool
+    {
+        if (! $this->isSchoolAdminOfSameSchool($actor, $target)) {
+            return false;
+        }
+
+        if ($target->role !== UserRole::SchoolAdmin) {
+            return true;
+        }
+
+        return ! $actor->is_sub_admin && $target->is_sub_admin;
     }
 
     private function isSchoolAdminOfSameSchool(User $actor, User $target): bool

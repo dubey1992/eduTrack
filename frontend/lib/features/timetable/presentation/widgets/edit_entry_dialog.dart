@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failure.dart';
-import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../subjects/data/models/subject.dart';
 import '../../../users/application/teacher_picker_provider.dart';
 import '../../../users/data/models/app_user.dart';
@@ -116,37 +116,7 @@ class _EditEntryDialogState extends ConsumerState<EditEntryDialog> {
                 Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
                 const SizedBox(height: 12),
               ],
-              AsyncValueView<List<Subject>>(
-                value: subjectsState,
-                data: (context, subjects) {
-                  return DropdownButtonFormField<int>(
-                    initialValue: subjects.any((s) => s.id == _subjectId) ? _subjectId : null,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Subject'),
-                    items: [
-                      for (final subject in subjects) DropdownMenuItem(value: subject.id, child: Text(subject.name)),
-                    ],
-                    onChanged: (value) => setState(() => _subjectId = value),
-                    validator: (v) => v == null ? 'Subject is required' : null,
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              AsyncValueView<List<AppUser>>(
-                value: teachersState,
-                data: (context, teachers) {
-                  return DropdownButtonFormField<int>(
-                    initialValue: teachers.any((t) => t.id == _teacherId) ? _teacherId : null,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Teacher'),
-                    items: [
-                      for (final teacher in teachers) DropdownMenuItem(value: teacher.id, child: Text(teacher.name)),
-                    ],
-                    onChanged: (value) => setState(() => _teacherId = value),
-                    validator: (v) => v == null ? 'Teacher is required' : null,
-                  );
-                },
-              ),
+              _buildPickers(subjectsState, teachersState),
             ],
           ),
         ),
@@ -159,6 +129,75 @@ class _EditEntryDialogState extends ConsumerState<EditEntryDialog> {
           child: _isSubmitting
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
               : const Text('Save'),
+        ),
+      ],
+    );
+  }
+
+  /// The subject and teacher pickers load from two independent providers,
+  /// but the dialog shows a single combined loading/error state rather than
+  /// each picker flashing its own full-size spinner/error stacked on top of
+  /// the other while they resolve at slightly different times.
+  Widget _buildPickers(AsyncValue<List<Subject>> subjectsState, AsyncValue<List<AppUser>> teachersState) {
+    if (subjectsState.isLoading || teachersState.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final error = subjectsState.error ?? teachersState.error;
+    if (error != null) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      return Builder(
+        builder: (context) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, color: context.appColors.danger, size: 36),
+              const SizedBox(height: 12),
+              Text(
+                failure.message,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.appColors.muted),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () {
+                  ref.invalidate(subjectPickerProvider(widget.schoolId));
+                  ref.invalidate(teacherPickerProvider(widget.schoolId));
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final subjects = subjectsState.value!;
+    final teachers = teachersState.value!;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DropdownButtonFormField<int>(
+          initialValue: subjects.any((s) => s.id == _subjectId) ? _subjectId : null,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Subject'),
+          items: [for (final subject in subjects) DropdownMenuItem(value: subject.id, child: Text(subject.name))],
+          onChanged: (value) => setState(() => _subjectId = value),
+          validator: (v) => v == null ? 'Subject is required' : null,
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<int>(
+          initialValue: teachers.any((t) => t.id == _teacherId) ? _teacherId : null,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Teacher'),
+          items: [for (final teacher in teachers) DropdownMenuItem(value: teacher.id, child: Text(teacher.name))],
+          onChanged: (value) => setState(() => _teacherId = value),
+          validator: (v) => v == null ? 'Teacher is required' : null,
         ),
       ],
     );

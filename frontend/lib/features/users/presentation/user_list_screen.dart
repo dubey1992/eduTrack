@@ -188,13 +188,22 @@ class _UserActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isActive = user.status == UserStatus.active;
-    final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
+    final actor = ref.watch(authNotifierProvider).value;
+    final isSuperAdmin = actor?.role == UserRole.superAdmin;
 
-    // Only a SUPER_ADMIN manages an admin-tier account (School Admin or
-    // Sub Admin) - not even the School Admin who created a given Sub
-    // Admin (see the backend's UserPolicy::update()/setStatus()). No
-    // point showing Edit/Deactivate that would always 403.
-    if (user.role == UserRole.schoolAdmin && !isSuperAdmin) {
+    // For a non-admin account (Teacher/Staff/HOD/etc.) any School Admin
+    // manages it freely - only an admin-tier row (School Admin or Sub
+    // Admin) needs the extra check below. A SUPER_ADMIN always manages
+    // everyone. Otherwise: the head (a School Admin who isn't themselves a
+    // Sub Admin) manages the Sub Admins in their own school, but never
+    // another head, and a Sub Admin manages no admin-tier account at all
+    // (see the backend's UserPolicy::manages()). No point showing
+    // Edit/Deactivate that would always 403.
+    final canManage =
+        isSuperAdmin ||
+        user.role != UserRole.schoolAdmin ||
+        (actor?.role == UserRole.schoolAdmin && actor?.isSubAdmin == false && user.isSubAdmin);
+    if (!canManage) {
       return const SizedBox.shrink();
     }
 
