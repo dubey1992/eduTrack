@@ -46,9 +46,18 @@ class LoginCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Welcome Back 👋',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: MarketingColors.text),
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    'Welcome Back',
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: MarketingColors.text),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text('👋', style: TextStyle(fontSize: 32)),
+              ],
             ),
             const SizedBox(height: 4),
             const Text(

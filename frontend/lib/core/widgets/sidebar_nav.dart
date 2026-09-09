@@ -6,6 +6,23 @@ import '../../features/auth/application/auth_notifier.dart';
 import '../models/user_role.dart';
 import '../routing/app_nav.dart';
 
+/// The prototype's sidebar is a fixed dark surface (`--sidebar:#111827` etc.
+/// in its default theme) independent of the rest of the app's light/dark
+/// mode - not something derived from [Theme.of(context).colorScheme], which
+/// would otherwise turn it white in light mode. Matches
+/// docs/prototype/school_management_prototype_v4_themes.html's `:root`
+/// tokens.
+class _SidebarColors {
+  const _SidebarColors._();
+
+  static const background = Color(0xFF111827);
+  static const text = Color(0xFFCBD5E1);
+  static const subtext = Color(0xFF94A3B8);
+  static const groupLabel = Color(0xFF64748B);
+  static const activeBackground = Color(0xFF1F2937);
+  static const activeText = Colors.white;
+}
+
 /// The persistent navigation sidebar - grouped, role-filtered nav items,
 /// matching the prototype's `<aside class="sidebar">` (brand header, nav
 /// groups in small-caps, active-item highlight). Used both as the fixed
@@ -20,24 +37,23 @@ class SidebarNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(authNotifierProvider).value?.role;
     final currentPath = GoRouterState.of(context).matchedLocation;
-    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      color: colorScheme.surface,
+      color: _SidebarColors.background,
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 12),
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 8, 20, 4),
-              child: Text('School365ai', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Text(
-                'School Management',
-                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                'School365ai',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: _SidebarColors.activeText),
               ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Text('School Management', style: TextStyle(fontSize: 13, color: _SidebarColors.subtext)),
             ),
             for (final group in AppNav.groups)
               if (role != null && group.items.any((item) => item.allows(role)))
@@ -74,11 +90,11 @@ class _NavGroupSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
           child: Text(
             group.label.toUpperCase(),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: _SidebarColors.groupLabel,
             ),
           ),
         ),
@@ -98,12 +114,12 @@ class _NavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final color = selected ? _SidebarColors.activeText : _SidebarColors.text;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Material(
-        color: selected ? colorScheme.primary : Colors.transparent,
+        color: selected ? _SidebarColors.activeBackground : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
@@ -115,15 +131,11 @@ class _NavTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             child: Row(
               children: [
-                Icon(item.icon, size: 19, color: selected ? colorScheme.onPrimary : colorScheme.onSurface),
+                Icon(item.icon, size: 19, color: color),
                 const SizedBox(width: 10),
                 Text(
                   item.label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? colorScheme.onPrimary : colorScheme.onSurface,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color),
                 ),
               ],
             ),

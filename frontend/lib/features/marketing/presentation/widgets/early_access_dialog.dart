@@ -15,16 +15,16 @@ Future<void> showEarlyAccessDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text('Thanks for your interest!', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+      title: Text('Thanks for your interest!', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
       content: Text(
         "We're not accepting early-access sign-ups just yet, but we'll let you know the moment we are.",
-        style: GoogleFonts.inter(),
+        style: GoogleFonts.poppins(),
       ),
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
           style: FilledButton.styleFrom(backgroundColor: MarketingColors.primary),
-          child: Text('Got it', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+          child: Text('Got it', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
         ),
       ],
     ),

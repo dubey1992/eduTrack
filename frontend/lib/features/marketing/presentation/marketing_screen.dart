@@ -54,7 +54,7 @@ class _MarketingScreenState extends State<MarketingScreen> {
       // per-widget style left unset, so every explicit color/weight/size
       // already authored below is untouched - only fontFamily is added.
       body: DefaultTextStyle.merge(
-        style: GoogleFonts.inter(),
+        style: GoogleFonts.poppins(),
         child: Column(
           children: [
             MarketingNavBar(

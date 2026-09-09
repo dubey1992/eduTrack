@@ -33,11 +33,11 @@ class BrandPanel extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(color: MarketingColors.primary, borderRadius: BorderRadius.circular(11)),
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(color: MarketingColors.primary, borderRadius: BorderRadius.circular(12)),
                     alignment: Alignment.center,
-                    child: const Text('🎓', style: TextStyle(fontSize: 18)),
+                    child: const Text('🎓', style: TextStyle(fontSize: 24)),
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -52,14 +52,23 @@ class BrandPanel extends StatelessWidget {
                 style: TextStyle(fontSize: 13, color: MarketingColors.subtle),
               ),
               SizedBox(height: isCompact ? 20 : 32),
-              Text(
-                'Welcome to a Smarter School Ecosystem.',
-                style: TextStyle(
-                  fontSize: heroFontSize,
-                  height: 1.1,
-                  letterSpacing: -1,
-                  fontWeight: FontWeight.w800,
-                  color: MarketingColors.text,
+              RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: heroFontSize,
+                    height: 1.1,
+                    letterSpacing: -1,
+                    fontWeight: FontWeight.w800,
+                    color: MarketingColors.text,
+                  ),
+                  children: const [
+                    TextSpan(text: 'Welcome to a '),
+                    TextSpan(
+                      text: 'Smarter School',
+                      style: TextStyle(color: MarketingColors.primary),
+                    ),
+                    TextSpan(text: ' Ecosystem.'),
+                  ],
                 ),
               ),
               const SizedBox(height: 14),
@@ -75,7 +84,7 @@ class BrandPanel extends StatelessWidget {
                 height: illustrationHeight,
                 decoration: BoxDecoration(color: MarketingColors.primaryLight, borderRadius: BorderRadius.circular(30)),
                 alignment: Alignment.center,
-                child: Text('🏫 👩‍🏫 👨‍🎓 📱', style: TextStyle(fontSize: isCompact ? 48 : 64)),
+                child: Text('🏫 👩‍🏫 👨‍🎓 📱', style: TextStyle(fontSize: isCompact ? 56 : 72)),
               ),
             ],
           ),

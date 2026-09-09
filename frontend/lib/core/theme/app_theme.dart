@@ -10,7 +10,7 @@ import 'app_colors.dart';
 /// Respects the device's light/dark preference (ThemeMode.system in
 /// main.dart) rather than forcing one look.
 ///
-/// Typeface is Inter (via google_fonts) app-wide - the same font as the
+/// Typeface is Poppins (via google_fonts) app-wide - the same font as the
 /// public marketing page, applied here through [textTheme] plus every
 /// sub-theme that carries its own hardcoded TextStyle (AppBar, buttons,
 /// chips, DataTable, SnackBar), since those aren't guaranteed to inherit
@@ -92,14 +92,14 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
       extensions: [appColors],
-      textTheme: GoogleFonts.interTextTheme(baseTextTheme),
+      textTheme: GoogleFonts.poppinsTextTheme(baseTextTheme),
       appBarTheme: AppBarTheme(
         backgroundColor: surface,
         foregroundColor: text,
         elevation: 0,
         scrolledUnderElevation: 1,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.inter(color: text, fontSize: 20, fontWeight: FontWeight.w800),
+        titleTextStyle: GoogleFonts.poppins(color: text, fontSize: 20, fontWeight: FontWeight.w800),
       ),
       cardTheme: CardThemeData(
         color: surface,
@@ -136,7 +136,7 @@ class AppTheme {
           backgroundColor: primary,
           foregroundColor: colorScheme.onPrimary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
         ),
       ),
@@ -144,7 +144,7 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: primary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
         ),
       ),
@@ -153,19 +153,19 @@ class AppTheme {
           foregroundColor: primary,
           side: BorderSide(color: border),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primary,
-          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: text,
-        contentTextStyle: GoogleFonts.inter(color: background, fontSize: 13),
+        contentTextStyle: GoogleFonts.poppins(color: background, fontSize: 13),
         behavior: SnackBarBehavior.floating,
         // Floating alone still stretches to the full window width on
         // desktop/web - capping `width` is what actually makes it read as a
@@ -177,14 +177,14 @@ class AppTheme {
       dividerTheme: DividerThemeData(color: border, space: 1),
       chipTheme: ChipThemeData(
         backgroundColor: primarySoft,
-        labelStyle: GoogleFonts.inter(color: primary, fontWeight: FontWeight.w700, fontSize: 12),
+        labelStyle: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700, fontSize: 12),
         side: BorderSide.none,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
       dataTableTheme: DataTableThemeData(
         headingRowColor: WidgetStatePropertyAll(background),
         dataRowColor: WidgetStatePropertyAll(surface),
-        headingTextStyle: GoogleFonts.inter(color: appColors.muted, fontWeight: FontWeight.w700, fontSize: 13),
+        headingTextStyle: GoogleFonts.poppins(color: appColors.muted, fontWeight: FontWeight.w700, fontSize: 13),
         dividerThickness: 1,
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),

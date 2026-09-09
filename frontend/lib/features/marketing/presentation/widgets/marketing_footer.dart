@@ -26,16 +26,16 @@ class _MarketingFooterState extends State<MarketingFooter> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("You're on the list", style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+        title: Text("You're on the list", style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
         content: Text(
           "We'll send the latest School365ai news and updates to this address.",
-          style: GoogleFonts.inter(),
+          style: GoogleFonts.poppins(),
         ),
         actions: [
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),
             style: FilledButton.styleFrom(backgroundColor: MarketingColors.primary),
-            child: Text('Got it', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+            child: Text('Got it', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
