@@ -33,32 +33,65 @@ Widget wrap(UserRole role) {
   );
 }
 
+/// The sidebar's ListView only mounts elements within the viewport + cache
+/// extent (true of every Sliver-based scrollable, not just .builder ones) -
+/// the default 800x600 test surface is too short to fit every group as the
+/// nav grows, which would silently make find.text() miss items further down
+/// without this. Tall enough for the sidebar to render in full.
+void _useTallViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 1400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
 void main() {
-  testWidgets('a super admin sees Schools, Payments and Users', (tester) async {
+  testWidgets('a super admin sees Schools, Payments, Users, Teachers & Staff and Students', (tester) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(wrap(UserRole.superAdmin));
     await tester.pumpAndSettle();
 
     expect(find.text('Schools'), findsOneWidget);
     expect(find.text('Payments'), findsOneWidget);
     expect(find.text('Users'), findsOneWidget);
+    expect(find.text('Teachers & Staff'), findsOneWidget);
+    expect(find.text('Students'), findsOneWidget);
   });
 
-  testWidgets('a school admin sees Users but not Schools or Payments', (tester) async {
+  testWidgets('a school admin sees Users, Teachers & Staff and Students but not Schools or Payments', (tester) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(wrap(UserRole.schoolAdmin));
     await tester.pumpAndSettle();
 
     expect(find.text('Users'), findsOneWidget);
+    expect(find.text('Teachers & Staff'), findsOneWidget);
+    expect(find.text('Students'), findsOneWidget);
     expect(find.text('Schools'), findsNothing);
     expect(find.text('Payments'), findsNothing);
   });
 
-  testWidgets('a teacher sees only the Dashboard entry', (tester) async {
+  testWidgets('a teacher sees Academics and Students but not Administration or Teachers & Staff', (tester) async {
+    _useTallViewport(tester);
     await tester.pumpWidget(wrap(UserRole.teacher));
     await tester.pumpAndSettle();
 
     expect(find.text('Dashboard'), findsOneWidget);
+    expect(find.text('Academic Years'), findsOneWidget);
+    expect(find.text('Departments'), findsOneWidget);
+    expect(find.text('Subjects'), findsOneWidget);
+    expect(find.text('Classes & Sections'), findsOneWidget);
+    expect(find.text('Students'), findsOneWidget);
     expect(find.text('Users'), findsNothing);
     expect(find.text('Schools'), findsNothing);
     expect(find.text('Payments'), findsNothing);
+    expect(find.text('Teachers & Staff'), findsNothing);
+  });
+
+  testWidgets('a staff member does not see Students', (tester) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(wrap(UserRole.staff));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Students'), findsNothing);
   });
 }

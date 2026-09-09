@@ -54,7 +54,7 @@ class AppNav {
     label: 'Overview',
     items: [
       NavItem(
-        path: '/',
+        path: '/dashboard',
         label: 'Dashboard',
         icon: Icons.dashboard_outlined,
         allowedRoles: _allRoles,
@@ -94,7 +94,89 @@ class AppNav {
     ],
   );
 
-  static const groups = [overview, administration];
+  static const academics = NavGroup(
+    label: 'Academics',
+    items: [
+      NavItem(
+        path: '/academic-years',
+        label: 'Academic Years',
+        icon: Icons.calendar_today_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Academic Years',
+        pageSubtitle: 'Academic year setup and rollover',
+      ),
+      NavItem(
+        path: '/departments',
+        label: 'Departments',
+        icon: Icons.corporate_fare_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Departments',
+        pageSubtitle: 'Academic departments and HOD assignment',
+      ),
+      NavItem(
+        path: '/subjects',
+        label: 'Subjects',
+        icon: Icons.menu_book_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Subjects',
+        pageSubtitle: 'Subject setup and lead teacher assignment',
+      ),
+      NavItem(
+        path: '/classes',
+        label: 'Classes & Sections',
+        icon: Icons.school_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Classes & Sections',
+        pageSubtitle: 'Class structure and teacher assignment',
+      ),
+    ],
+  );
+
+  static const attendanceHr = NavGroup(
+    label: 'Attendance & HR',
+    items: [
+      NavItem(
+        path: '/attendance',
+        label: 'Student Attendance',
+        icon: Icons.fact_check_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.teacher},
+        pageTitle: 'Student Attendance',
+        pageSubtitle: 'Daily class attendance register',
+      ),
+      NavItem(
+        path: '/staff-attendance',
+        label: 'Staff Attendance',
+        icon: Icons.badge_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod},
+        pageTitle: 'Staff Attendance',
+        pageSubtitle: 'Daily teacher and staff attendance register',
+      ),
+    ],
+  );
+
+  static const people = NavGroup(
+    label: 'People',
+    items: [
+      NavItem(
+        path: '/staff',
+        label: 'Teachers & Staff',
+        icon: Icons.groups_2_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Teachers & Staff',
+        pageSubtitle: 'Employee records, departments and assignments',
+      ),
+      NavItem(
+        path: '/students',
+        label: 'Students',
+        icon: Icons.school_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.teacher},
+        pageTitle: 'Student Management',
+        pageSubtitle: 'Admissions, profiles and class assignments',
+      ),
+    ],
+  );
+
+  static const groups = [overview, people, attendanceHr, academics, administration];
 
   static List<NavItem> get allItems => groups.expand((g) => g.items).toList();
 

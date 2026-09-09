@@ -1,9 +1,17 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AcademicYearController;
+use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PaymentController;
+use App\Http\Controllers\Api\V1\SchoolClassController;
 use App\Http\Controllers\Api\V1\SchoolController;
+use App\Http\Controllers\Api\V1\StaffAttendanceController;
+use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\StudentController;
+use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,4 +44,54 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments', [PaymentController::class, 'store']);
     Route::get('/payments/{payment}', [PaymentController::class, 'show']);
     Route::patch('/payments/{payment}', [PaymentController::class, 'update']);
+
+    Route::get('/academic-years', [AcademicYearController::class, 'index']);
+    Route::post('/academic-years', [AcademicYearController::class, 'store']);
+    Route::get('/academic-years/{academicYear}', [AcademicYearController::class, 'show']);
+    Route::patch('/academic-years/{academicYear}', [AcademicYearController::class, 'update']);
+    Route::patch('/academic-years/{academicYear}/set-current', [AcademicYearController::class, 'setCurrent']);
+    Route::delete('/academic-years/{academicYear}', [AcademicYearController::class, 'destroy']);
+
+    Route::get('/departments', [DepartmentController::class, 'index']);
+    Route::post('/departments', [DepartmentController::class, 'store']);
+    Route::get('/departments/{department}', [DepartmentController::class, 'show']);
+    Route::patch('/departments/{department}', [DepartmentController::class, 'update']);
+    Route::delete('/departments/{department}', [DepartmentController::class, 'destroy']);
+
+    Route::get('/subjects', [SubjectController::class, 'index']);
+    Route::post('/subjects', [SubjectController::class, 'store']);
+    Route::get('/subjects/{subject}', [SubjectController::class, 'show']);
+    Route::patch('/subjects/{subject}', [SubjectController::class, 'update']);
+    Route::delete('/subjects/{subject}', [SubjectController::class, 'destroy']);
+
+    Route::get('/classes', [SchoolClassController::class, 'index']);
+    Route::post('/classes', [SchoolClassController::class, 'store']);
+    Route::get('/classes/{schoolClass}', [SchoolClassController::class, 'show']);
+    Route::patch('/classes/{schoolClass}', [SchoolClassController::class, 'update']);
+    Route::delete('/classes/{schoolClass}', [SchoolClassController::class, 'destroy']);
+    Route::post('/classes/{schoolClass}/sections', [SchoolClassController::class, 'addSection']);
+    Route::patch('/sections/{section}', [SchoolClassController::class, 'updateSection']);
+    Route::delete('/sections/{section}', [SchoolClassController::class, 'deleteSection']);
+
+    Route::get('/staff', [StaffController::class, 'index']);
+    Route::post('/staff', [StaffController::class, 'store']);
+    Route::get('/staff/{staffProfile}', [StaffController::class, 'show']);
+    Route::patch('/staff/{staffProfile}', [StaffController::class, 'update']);
+
+    Route::get('/students', [StudentController::class, 'index']);
+    Route::post('/students', [StudentController::class, 'store']);
+    Route::get('/students/{student}', [StudentController::class, 'show']);
+    Route::patch('/students/{student}', [StudentController::class, 'update']);
+    Route::patch('/students/{student}/activate', [StudentController::class, 'activate']);
+    Route::patch('/students/{student}/deactivate', [StudentController::class, 'deactivate']);
+
+    Route::get('/attendance/register', [AttendanceController::class, 'register']);
+    Route::get('/attendance', [AttendanceController::class, 'index']);
+    Route::post('/attendance', [AttendanceController::class, 'store']);
+    Route::patch('/attendance', [AttendanceController::class, 'update']);
+
+    Route::get('/staff-attendance/register', [StaffAttendanceController::class, 'register']);
+    Route::get('/staff-attendance', [StaffAttendanceController::class, 'index']);
+    Route::post('/staff-attendance', [StaffAttendanceController::class, 'store']);
+    Route::patch('/staff-attendance', [StaffAttendanceController::class, 'update']);
 });

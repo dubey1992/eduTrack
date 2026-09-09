@@ -1,13 +1,20 @@
+import 'dart:async';
+
+import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
+import 'package:edutrack_app/core/network/dio_client.dart';
 import 'package:edutrack_app/core/routing/app_router.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
+import 'package:edutrack_app/features/auth/presentation/login_screen.dart';
 import 'package:edutrack_app/features/users/data/user_repository.dart';
 import 'package:edutrack_app/main.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_auth_token_storage.dart';
 import '../../support/fake_user_repository.dart';
 
 const _superAdmin = AuthenticatedUser(
@@ -17,20 +24,13 @@ const _superAdmin = AuthenticatedUser(
   role: UserRole.superAdmin,
 );
 
-const _teacher = AuthenticatedUser(
-  id: 2,
-  name: 'A Teacher',
-  email: 'teacher@example.com',
-  role: UserRole.teacher,
-);
+const _teacher = AuthenticatedUser(id: 2, name: 'A Teacher', email: 'teacher@example.com', role: UserRole.teacher);
 
 void main() {
   testWidgets('a super admin sees the Manage Users entry point on the dashboard', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _superAdmin)),
-        ],
+        overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _superAdmin))],
         child: const EduTrackApp(),
       ),
     );
@@ -70,5 +70,86 @@ void main() {
 
     expect(find.text('Users'), findsNothing);
     expect(find.text('Dashboard'), findsOneWidget);
+  });
+
+  testWidgets('a failed login shows its error message without losing the login screen', (tester) async {
+    // Regression test: AuthNotifier.login() used to set state to
+    // AsyncLoading() before the real result, which made the router's
+    // redirect (isLoading -> /splash) bounce LoginScreen out and back in on
+    // every login attempt. That tore down the widget listening for the
+    // error before the failure ever arrived, so the message was silently
+    // lost. See CLAUDE.md rule 7 - never a blank/silent failure state.
+    //
+    // A `loginGate` forces a real frame boundary between the loading and
+    // error states (matching real network latency) - without it, a fake
+    // repository resolves too fast for the router to ever act on the
+    // transient loading state, and the bug wouldn't reproduce here.
+    final gate = Completer<void>();
+    final fake = FakeAuthRepository(
+      loginGate: gate,
+      failLoginWith: const Failure(code: 'UNAUTHENTICATED', message: 'These credentials do not match our records.'),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(fake),
+          authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
+        ],
+        child: const EduTrackApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The app now lands unauthenticated visitors on the public marketing
+    // homepage, not directly on the login screen - go there via its Login
+    // button first.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Login'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'admin@example.com');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'wrong-password');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign In'));
+    await tester.pump();
+
+    // While the login request is in flight, the login screen must not be
+    // swapped out for the splash screen.
+    expect(find.byType(LoginScreen), findsOneWidget);
+
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('These credentials do not match our records.'), findsOneWidget);
+  });
+
+  testWidgets('a fresh logged-out visit to / shows the marketing homepage, not a login bounce', (tester) async {
+    // Regression test: the redirect used to send every non-'/splash'
+    // location to '/splash' while the session was still restoring, then
+    // (since '/splash' itself isn't a public path) fall through to
+    // '/login' once loading finished - meaning a first-time, logged-out
+    // visitor to '/' would never actually see the marketing homepage, only
+    // ever the login screen. Public destinations must render immediately
+    // regardless of the still-resolving session.
+    final gate = Completer<void>();
+    final fake = FakeAuthRepository(restoreGate: gate);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(fake),
+          authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
+        ],
+        child: const EduTrackApp(),
+      ),
+    );
+    await tester.pump();
+
+    // While the session is still resolving, the marketing homepage must
+    // already be showing - not a splash screen bouncing toward /login.
+    expect(find.text('Run Your School Smarter, Together.'), findsOneWidget);
+
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Run Your School Smarter, Together.'), findsOneWidget);
   });
 }
