@@ -6,12 +6,15 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PaymentController;
+use App\Http\Controllers\Api\V1\PeriodController;
 use App\Http\Controllers\Api\V1\SchoolClassController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\StaffAttendanceController;
 use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\StaffLeaveController;
 use App\Http\Controllers\Api\V1\StudentController;
 use App\Http\Controllers\Api\V1\SubjectController;
+use App\Http\Controllers\Api\V1\TimetableController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -94,4 +97,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/staff-attendance', [StaffAttendanceController::class, 'index']);
     Route::post('/staff-attendance', [StaffAttendanceController::class, 'store']);
     Route::patch('/staff-attendance', [StaffAttendanceController::class, 'update']);
+
+    Route::get('/leaves/summary', [StaffLeaveController::class, 'summary']);
+    Route::get('/leaves', [StaffLeaveController::class, 'index']);
+    Route::post('/leaves', [StaffLeaveController::class, 'store']);
+    Route::patch('/leaves/{leave}/approve', [StaffLeaveController::class, 'approve']);
+    Route::patch('/leaves/{leave}/reject', [StaffLeaveController::class, 'reject']);
+
+    Route::get('/periods', [PeriodController::class, 'index']);
+    Route::post('/periods', [PeriodController::class, 'store']);
+    Route::patch('/periods/{period}', [PeriodController::class, 'update']);
+    Route::delete('/periods/{period}', [PeriodController::class, 'destroy']);
+
+    Route::get('/timetable', [TimetableController::class, 'grid']);
+    Route::post('/timetable', [TimetableController::class, 'upsert']);
+    Route::delete('/timetable/{entry}', [TimetableController::class, 'destroy']);
 });

@@ -65,6 +65,30 @@ class ApiExceptionRenderer
                 $e->getMessage(),
                 [],
             ],
+            $e instanceof LeaveOverlapException => [
+                409,
+                'LEAVE_OVERLAP',
+                $e->getMessage(),
+                [],
+            ],
+            $e instanceof LeaveAlreadyReviewedException => [
+                409,
+                'LEAVE_ALREADY_REVIEWED',
+                $e->getMessage(),
+                [],
+            ],
+            $e instanceof StaffProfileRequiredException => [
+                409,
+                'STAFF_PROFILE_REQUIRED',
+                $e->getMessage(),
+                [],
+            ],
+            $e instanceof TeacherScheduleConflictException => [
+                409,
+                'TEACHER_SCHEDULE_CONFLICT',
+                $e->getMessage(),
+                [],
+            ],
             // Covers both "no/invalid token on a protected route" (Sanctum's
             // own generic "Unauthenticated." message) and AuthService's
             // deliberate throw for a failed login attempt (its own specific

@@ -16,8 +16,10 @@ import '../../features/payments/presentation/payment_list_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
 import '../../features/staff/presentation/staff_list_screen.dart';
 import '../../features/staff_attendance/presentation/staff_attendance_screen.dart';
+import '../../features/staff_leave/presentation/staff_leave_screen.dart';
 import '../../features/students/presentation/student_list_screen.dart';
 import '../../features/subjects/presentation/subject_list_screen.dart';
+import '../../features/timetable/presentation/timetable_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/splash_screen.dart';
@@ -58,10 +60,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/departments', builder: (context, state) => const DepartmentListScreen()),
           GoRoute(path: '/subjects', builder: (context, state) => const SubjectListScreen()),
           GoRoute(path: '/classes', builder: (context, state) => const ClassListScreen()),
+          GoRoute(path: '/timetable', builder: (context, state) => const TimetableScreen()),
           GoRoute(path: '/staff', builder: (context, state) => const StaffListScreen()),
           GoRoute(path: '/students', builder: (context, state) => const StudentListScreen()),
           GoRoute(path: '/attendance', builder: (context, state) => const AttendanceScreen()),
           GoRoute(path: '/staff-attendance', builder: (context, state) => const StaffAttendanceScreen()),
+          GoRoute(path: '/leaves', builder: (context, state) => const StaffLeaveScreen()),
         ],
       ),
     ],
