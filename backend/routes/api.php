@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\DailyTeachingReportController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PaymentController;
@@ -112,4 +113,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/timetable', [TimetableController::class, 'grid']);
     Route::post('/timetable', [TimetableController::class, 'upsert']);
     Route::delete('/timetable/{entry}', [TimetableController::class, 'destroy']);
+
+    Route::get('/teaching-reports/summary', [DailyTeachingReportController::class, 'summary']);
+    Route::get('/teaching-reports', [DailyTeachingReportController::class, 'index']);
+    Route::post('/teaching-reports', [DailyTeachingReportController::class, 'store']);
+    Route::patch('/teaching-reports/{report}/review', [DailyTeachingReportController::class, 'review']);
 });

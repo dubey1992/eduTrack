@@ -19,6 +19,7 @@ import '../../features/staff_attendance/presentation/staff_attendance_screen.dar
 import '../../features/staff_leave/presentation/staff_leave_screen.dart';
 import '../../features/students/presentation/student_list_screen.dart';
 import '../../features/subjects/presentation/subject_list_screen.dart';
+import '../../features/teaching_reports/presentation/teaching_report_screen.dart';
 import '../../features/timetable/presentation/timetable_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
 import '../widgets/app_shell.dart';
@@ -66,6 +67,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/attendance', builder: (context, state) => const AttendanceScreen()),
           GoRoute(path: '/staff-attendance', builder: (context, state) => const StaffAttendanceScreen()),
           GoRoute(path: '/leaves', builder: (context, state) => const StaffLeaveScreen()),
+          GoRoute(path: '/teaching-reports', builder: (context, state) => const TeachingReportScreen()),
         ],
       ),
     ],

@@ -174,6 +174,14 @@ class AppNav {
         pageTitle: 'Staff Leave',
         pageSubtitle: 'Leave requests, approvals and attendance sync',
       ),
+      NavItem(
+        path: '/teaching-reports',
+        label: 'Teaching Reports',
+        icon: Icons.fact_check_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
+        pageTitle: 'Daily Teaching Reports',
+        pageSubtitle: 'Scheduled periods, filed reports and HOD review',
+      ),
     ],
   );
 

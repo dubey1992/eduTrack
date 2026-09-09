@@ -89,6 +89,18 @@ class ApiExceptionRenderer
                 $e->getMessage(),
                 [],
             ],
+            $e instanceof TeachingReportAlreadySubmittedException => [
+                409,
+                'TEACHING_REPORT_ALREADY_SUBMITTED',
+                $e->getMessage(),
+                [],
+            ],
+            $e instanceof TeachingReportAlreadyReviewedException => [
+                409,
+                'TEACHING_REPORT_ALREADY_REVIEWED',
+                $e->getMessage(),
+                [],
+            ],
             // Covers both "no/invalid token on a protected route" (Sanctum's
             // own generic "Unauthenticated." message) and AuthService's
             // deliberate throw for a failed login attempt (its own specific
