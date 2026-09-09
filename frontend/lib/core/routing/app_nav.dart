@@ -182,6 +182,14 @@ class AppNav {
         pageTitle: 'Daily Teaching Reports',
         pageSubtitle: 'Scheduled periods, filed reports and HOD review',
       ),
+      NavItem(
+        path: '/syllabus',
+        label: 'Syllabus',
+        icon: Icons.menu_book_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
+        pageTitle: 'Syllabus Tracking',
+        pageSubtitle: 'Curriculum outline and per-class coverage',
+      ),
     ],
   );
 

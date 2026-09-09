@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\V1\StaffController;
 use App\Http\Controllers\Api\V1\StaffLeaveController;
 use App\Http\Controllers\Api\V1\StudentController;
 use App\Http\Controllers\Api\V1\SubjectController;
+use App\Http\Controllers\Api\V1\SyllabusProgressController;
+use App\Http\Controllers\Api\V1\SyllabusTopicController;
 use App\Http\Controllers\Api\V1\TimetableController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
@@ -118,4 +120,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/teaching-reports', [DailyTeachingReportController::class, 'index']);
     Route::post('/teaching-reports', [DailyTeachingReportController::class, 'store']);
     Route::patch('/teaching-reports/{report}/review', [DailyTeachingReportController::class, 'review']);
+
+    Route::get('/syllabus-topics', [SyllabusTopicController::class, 'index']);
+    Route::post('/syllabus-topics', [SyllabusTopicController::class, 'store']);
+    Route::patch('/syllabus-topics/{syllabusTopic}', [SyllabusTopicController::class, 'update']);
+    Route::delete('/syllabus-topics/{syllabusTopic}', [SyllabusTopicController::class, 'destroy']);
+
+    Route::get('/syllabus-progress', [SyllabusProgressController::class, 'index']);
+    Route::patch('/syllabus-progress', [SyllabusProgressController::class, 'update']);
 });
