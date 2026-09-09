@@ -243,6 +243,32 @@ class StaffManagementTest extends TestCase
         $this->assertSame(['Grade 8 A'], $response->json('class_teacher_of'));
     }
 
+    /**
+     * A School Admin gets a minimal placeholder StaffProfile so Leave/
+     * Attendance self-service works (see UserService::create()), but that
+     * isn't a real employment record - it must never clutter the actual
+     * employee directory. See StaffProfileService::paginate().
+     */
+    public function test_a_school_admins_auto_created_profile_never_appears_in_the_staff_directory(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create();
+        $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/users', [
+            'first_name' => 'Priya',
+            'last_name' => 'Sharma',
+            'email' => 'priya.sharma@example.com',
+            'password' => 'password123',
+            'role' => 'SCHOOL_ADMIN',
+            'school_id' => $school->id,
+        ])->assertCreated();
+        $admin = User::where('email', 'priya.sharma@example.com')->firstOrFail();
+
+        $response = $this->actingAs($admin, 'sanctum')->getJson('/api/v1/staff');
+
+        $response->assertOk();
+        $this->assertCount(0, $response->json('data'));
+    }
+
     public function test_a_super_admin_is_not_restricted_by_school(): void
     {
         $schoolA = School::factory()->create();

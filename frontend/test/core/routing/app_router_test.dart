@@ -68,7 +68,7 @@ void main() {
     container.read(routerProvider).go('/users');
     await tester.pumpAndSettle();
 
-    expect(find.text('Users'), findsNothing);
+    expect(find.text('Admin Users'), findsNothing);
     expect(find.text('Dashboard'), findsOneWidget);
   });
 

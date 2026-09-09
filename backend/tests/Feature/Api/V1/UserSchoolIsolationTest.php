@@ -67,32 +67,41 @@ class UserSchoolIsolationTest extends TestCase
             ->assertJsonPath('status', 'inactive');
     }
 
-    public function test_a_new_user_created_by_a_school_admin_is_forced_into_the_admins_own_school(): void
+    /**
+     * A School Admin's Sub Admin always lands in the actor's own school -
+     * a client-supplied school_id is ignored server-side, never trusted.
+     * See UserService::create().
+     */
+    public function test_a_sub_admin_created_by_a_school_admin_is_forced_into_the_admins_own_school(): void
     {
         $ownSchool = School::factory()->create();
         $otherSchool = School::factory()->create();
         $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($ownSchool)->create();
 
         $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/users', [
-            'first_name' => 'New',
-            'last_name' => 'Teacher',
-            'email' => 'new.teacher@example.com',
+            'first_name' => 'Another',
+            'last_name' => 'Admin',
+            'email' => 'another.admin@example.com',
             'password' => 'password123',
-            'role' => 'TEACHER',
-            // Attempting to plant themselves in a different school - must
-            // be ignored server-side, never trusted from the client.
+            'role' => 'SCHOOL_ADMIN',
             'school_id' => $otherSchool->id,
         ]);
 
         $response->assertCreated()->assertJsonPath('school_id', $ownSchool->id);
     }
 
-    public function test_a_school_admin_cannot_create_another_school_admin(): void
+    /**
+     * A Sub Admin has the same permissions as a School Admin everywhere
+     * else, but can never create another admin account itself - only a
+     * SUPER_ADMIN or the non-sub School Admin(s) who created it can.
+     * See UserPolicy::create().
+     */
+    public function test_a_sub_admin_cannot_create_another_sub_admin(): void
     {
         $school = School::factory()->create();
-        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $subAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create(['is_sub_admin' => true]);
 
-        $this->actingAs($admin, 'sanctum')
+        $this->actingAs($subAdmin, 'sanctum')
             ->postJson('/api/v1/users', [
                 'first_name' => 'Another',
                 'last_name' => 'Admin',
@@ -100,7 +109,57 @@ class UserSchoolIsolationTest extends TestCase
                 'password' => 'password123',
                 'role' => 'SCHOOL_ADMIN',
             ])
-            ->assertUnprocessable();
+            ->assertForbidden();
+    }
+
+    /**
+     * Only a SUPER_ADMIN manages admin-tier accounts - not even the School
+     * Admin who created a given Sub Admin can update/deactivate it.
+     * See UserPolicy::update()/setStatus().
+     */
+    public function test_a_school_admin_cannot_deactivate_a_sub_admin_they_created(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $subAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create(['is_sub_admin' => true]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/users/{$subAdmin->id}/deactivate")
+            ->assertForbidden();
+    }
+
+    public function test_a_super_admin_can_deactivate_a_sub_admin(): void
+    {
+        $school = School::factory()->create();
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $subAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create(['is_sub_admin' => true]);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->patchJson("/api/v1/users/{$subAdmin->id}/deactivate")
+            ->assertOk()
+            ->assertJsonPath('status', 'inactive');
+    }
+
+    public function test_a_school_admin_cannot_deactivate_a_peer_school_admin(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $peerAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/users/{$peerAdmin->id}/deactivate")
+            ->assertForbidden();
+    }
+
+    public function test_a_sub_admin_cannot_deactivate_any_admin_account(): void
+    {
+        $school = School::factory()->create();
+        $subAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create(['is_sub_admin' => true]);
+        $otherSubAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create(['is_sub_admin' => true]);
+
+        $this->actingAs($subAdmin, 'sanctum')
+            ->patchJson("/api/v1/users/{$otherSubAdmin->id}/deactivate")
+            ->assertForbidden();
     }
 
     public function test_a_school_admin_cannot_promote_a_user_to_school_admin(): void

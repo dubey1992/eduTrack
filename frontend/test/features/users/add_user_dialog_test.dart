@@ -14,6 +14,9 @@ import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_repository.dart';
 import '../../support/fake_user_repository.dart';
 
+const _superAdmin = AuthenticatedUser(id: 99, name: 'Actor', email: 'actor@example.com', role: UserRole.superAdmin);
+const _schoolAdmin = AuthenticatedUser(id: 5, name: 'Admin', email: 'admin@example.com', role: UserRole.schoolAdmin);
+
 const _school = School(
   id: 1,
   name: 'Sunrise Public School',
@@ -46,14 +49,10 @@ const _closedSchool = School(
   status: SchoolStatus.inactive,
 );
 
-Widget wrap({required UserRole actorRole, List<School> schools = const [_school]}) {
+Widget wrap({AuthenticatedUser actor = _superAdmin, List<School> schools = const [_school]}) {
   return ProviderScope(
     overrides: [
-      authRepositoryProvider.overrideWithValue(
-        FakeAuthRepository(
-          sessionOnRestore: AuthenticatedUser(id: 99, name: 'Actor', email: 'actor@example.com', role: actorRole),
-        ),
-      ),
+      authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: actor)),
       userRepositoryProvider.overrideWithValue(FakeUserRepository()),
       schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository(schools: schools)),
     ],
@@ -64,31 +63,25 @@ Widget wrap({required UserRole actorRole, List<School> schools = const [_school]
   );
 }
 
+/// This dialog only ever creates SCHOOL_ADMIN-role accounts (see
+/// UserPolicy::create() and StoreUserRequest on the backend) - whether the
+/// result reads as "School Admin" or "Sub Admin" depends on who's creating
+/// it, not on anything picked in the form.
 void main() {
-  testWidgets('a super admin sees a school picker for a non-super-admin role', (tester) async {
-    await tester.pumpWidget(wrap(actorRole: UserRole.superAdmin));
+  testWidgets('a super admin sees Add School Admin and must pick a school', (tester) async {
+    await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
+    expect(find.text('Add School Admin'), findsOneWidget);
     expect(find.widgetWithText(DropdownButtonFormField<int>, 'School'), findsOneWidget);
   });
 
-  testWidgets('a school admin does not see a school picker (implicit own school)', (tester) async {
-    await tester.pumpWidget(wrap(actorRole: UserRole.schoolAdmin));
+  testWidgets('a school admin sees Add Sub Admin with no school picker (implicit own school)', (tester) async {
+    await tester.pumpWidget(wrap(actor: _schoolAdmin));
     await tester.pumpAndSettle();
 
+    expect(find.text('Add Sub Admin'), findsOneWidget);
     expect(find.widgetWithText(DropdownButtonFormField<int>, 'School'), findsNothing);
-  });
-
-  testWidgets('a school admin only sees operational roles in the role dropdown', (tester) async {
-    await tester.pumpWidget(wrap(actorRole: UserRole.schoolAdmin));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.widgetWithText(DropdownButtonFormField<UserRole>, 'Role'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Super Admin').hitTestable(), findsNothing);
-    expect(find.text('School Admin').hitTestable(), findsNothing);
-    expect(find.text('Teacher').hitTestable(), findsWidgets);
   });
 
   testWidgets('the school picker excludes deactivated schools', (tester) async {
@@ -97,7 +90,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(wrap(actorRole: UserRole.superAdmin, schools: [_school, _closedSchool]));
+    await tester.pumpWidget(wrap(schools: [_school, _closedSchool]));
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'School'));

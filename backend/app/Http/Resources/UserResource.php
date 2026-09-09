@@ -24,6 +24,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'mobile' => $this->mobile,
             'role' => $this->role->value,
+            'is_sub_admin' => $this->is_sub_admin,
             'status' => $this->status->value,
             'school_id' => $this->school_id,
             'school_name' => $this->whenLoaded('school', fn () => $this->school?->name),

@@ -34,6 +34,12 @@ class StaffProfileService
             )
             ->whereHas('user', function ($query) use ($filters) {
                 $query
+                    // Never the auto-created placeholder profile a School
+                    // Admin account gets for Leave/Attendance self-service
+                    // (see UserService::create()) - this list is real
+                    // employment records only, the ones Teachers & Staff
+                    // onboarding actually produces.
+                    ->where('role', '!=', UserRole::SchoolAdmin)
                     ->when($filters['role'] ?? null, fn ($query, $role) => $query->where('role', $role))
                     ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
                     ->when(

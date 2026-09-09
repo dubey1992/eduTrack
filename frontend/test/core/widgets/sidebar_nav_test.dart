@@ -53,7 +53,7 @@ void main() {
 
     expect(find.text('Schools'), findsOneWidget);
     expect(find.text('Payments'), findsOneWidget);
-    expect(find.text('Users'), findsOneWidget);
+    expect(find.text('Admin Users'), findsOneWidget);
     expect(find.text('Teachers & Staff'), findsOneWidget);
     expect(find.text('Students'), findsOneWidget);
   });
@@ -63,7 +63,7 @@ void main() {
     await tester.pumpWidget(wrap(UserRole.schoolAdmin));
     await tester.pumpAndSettle();
 
-    expect(find.text('Users'), findsOneWidget);
+    expect(find.text('Admin Users'), findsOneWidget);
     expect(find.text('Teachers & Staff'), findsOneWidget);
     expect(find.text('Students'), findsOneWidget);
     expect(find.text('Schools'), findsNothing);
@@ -81,7 +81,7 @@ void main() {
     expect(find.text('Subjects'), findsOneWidget);
     expect(find.text('Classes & Sections'), findsOneWidget);
     expect(find.text('Students'), findsOneWidget);
-    expect(find.text('Users'), findsNothing);
+    expect(find.text('Admin Users'), findsNothing);
     expect(find.text('Schools'), findsNothing);
     expect(find.text('Payments'), findsNothing);
     expect(find.text('Teachers & Staff'), findsNothing);
@@ -93,5 +93,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Students'), findsNothing);
+  });
+
+  testWidgets('a staff member sees Staff Leave but not Staff Attendance', (tester) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(wrap(UserRole.staff));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Staff Leave'), findsOneWidget);
+    expect(find.text('Staff Attendance'), findsNothing);
+  });
+
+  testWidgets('an hod sees both Staff Attendance and Staff Leave', (tester) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(wrap(UserRole.hod));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Staff Attendance'), findsOneWidget);
+    expect(find.text('Staff Leave'), findsOneWidget);
+  });
+
+  testWidgets('a teacher sees Timetable under Academics', (tester) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(wrap(UserRole.teacher));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Timetable'), findsOneWidget);
   });
 }

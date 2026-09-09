@@ -21,6 +21,7 @@ class AppUser {
     required this.mobile,
     required this.role,
     required this.status,
+    this.isSubAdmin = false,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -33,6 +34,7 @@ class AppUser {
       mobile: json['mobile'] as String?,
       role: UserRole.fromApiValue(json['role'] as String),
       status: UserStatus.fromApiValue(json['status'] as String),
+      isSubAdmin: json['is_sub_admin'] as bool? ?? false,
     );
   }
 
@@ -45,6 +47,16 @@ class AppUser {
   final UserRole role;
   final UserStatus status;
 
+  /// True for a School Admin created by another School Admin - see
+  /// AuthenticatedUser.isSubAdmin for the full explanation. Only ever
+  /// true when [role] is schoolAdmin.
+  final bool isSubAdmin;
+
+  /// "Sub Admin" instead of the generic "School Admin" label when this
+  /// account is one - the two share the same [role] and permissions
+  /// everywhere else, so the list needs this to tell them apart.
+  String get displayRoleLabel => isSubAdmin ? 'Sub Admin' : role.label;
+
   AppUser copyWith({UserStatus? status}) {
     return AppUser(
       id: id,
@@ -55,6 +67,7 @@ class AppUser {
       mobile: mobile,
       role: role,
       status: status ?? this.status,
+      isSubAdmin: isSubAdmin,
     );
   }
 }

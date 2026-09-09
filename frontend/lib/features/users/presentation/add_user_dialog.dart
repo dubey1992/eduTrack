@@ -11,10 +11,15 @@ import '../../schools/application/school_list_notifier.dart';
 import '../../schools/data/models/school.dart';
 import '../application/user_list_notifier.dart';
 
-/// Roles a SCHOOL_ADMIN may assign - mirrors the backend's
-/// StoreUserRequest::SCHOOL_ADMIN_ASSIGNABLE_ROLES.
-const _schoolAdminAssignableRoles = [UserRole.hod, UserRole.teacher, UserRole.staff, UserRole.transportManager];
-
+/// Onboards an admin-tier account - always SCHOOL_ADMIN, the only role
+/// this dialog creates (mirrors the backend's StoreUserRequest). A
+/// SUPER_ADMIN actor creates a School Admin for a school they pick; a
+/// (non-sub) School Admin actor creates a Sub Admin for their own school -
+/// same role and permissions everywhere else, but the Sub Admin can't use
+/// this dialog themselves (see UserPolicy::create()). HOD/Teacher/Staff/
+/// Transport Manager accounts are onboarded via Teachers & Staff instead,
+/// which creates the StaffProfile this dialog deliberately doesn't - a
+/// Teacher created here would be invisible to Attendance/Leave.
 class AddUserDialog extends ConsumerStatefulWidget {
   const AddUserDialog({super.key});
 
@@ -29,7 +34,6 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
   final _emailController = TextEditingController();
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
-  UserRole? _role;
   int? _schoolId;
 
   bool _isSubmitting = false;
@@ -62,13 +66,13 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
             email: _emailController.text.trim(),
             mobile: _mobileController.text.trim().isEmpty ? null : _mobileController.text.trim(),
             password: _passwordController.text,
-            role: _role!,
-            // Ignored server-side for a SCHOOL_ADMIN actor (always forced to
-            // their own school) - only meaningful when a SUPER_ADMIN picks one.
+            role: UserRole.schoolAdmin,
             schoolId: _schoolId,
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User created.')));
+        final isSuperAdmin = ref.read(authNotifierProvider).value?.role == UserRole.superAdmin;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(isSuperAdmin ? 'School admin created.' : 'Sub admin created.')));
         Navigator.of(context).pop();
       }
     } catch (error) {
@@ -82,13 +86,9 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
   @override
   Widget build(BuildContext context) {
     final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
-    final assignableRoles = isSuperAdmin ? UserRole.values : _schoolAdminAssignableRoles;
-    // Default to Teacher, not the first enum value - creating another
-    // SUPER_ADMIN should be a deliberate choice, never the pre-selected one.
-    _role ??= UserRole.teacher;
 
     return AlertDialog(
-      title: const Text('Add User'),
+      title: Text(isSuperAdmin ? 'Add School Admin' : 'Add Sub Admin'),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(
@@ -128,17 +128,10 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
                   decoration: const InputDecoration(labelText: 'Password'),
                   validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
                 ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<UserRole>(
-                  initialValue: _role,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: [for (final role in assignableRoles) DropdownMenuItem(value: role, child: Text(role.label))],
-                  onChanged: (value) => setState(() => _role = value),
-                ),
-                // A SCHOOL_ADMIN's users always belong to their own school -
-                // no picker needed. A SUPER_ADMIN must choose one (unless
-                // creating another SUPER_ADMIN, which has no school).
-                if (isSuperAdmin && _role != UserRole.superAdmin) ...[
+                // A School Admin's Sub Admin always lands in their own
+                // school, resolved server-side - no picker needed. Only a
+                // SUPER_ADMIN, who has no "own school", must choose one.
+                if (isSuperAdmin) ...[
                   const SizedBox(height: 10),
                   _SchoolPicker(selected: _schoolId, onChanged: (value) => setState(() => _schoolId = value)),
                 ],

@@ -85,11 +85,11 @@ class AppNav {
       ),
       NavItem(
         path: '/users',
-        label: 'Users',
+        label: 'Admin Users',
         icon: Icons.group_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin},
-        pageTitle: 'Users',
-        pageSubtitle: 'Accounts, roles and access',
+        pageTitle: 'Admin Users',
+        pageSubtitle: 'School admin accounts and access',
       ),
     ],
   );
@@ -129,6 +129,14 @@ class AppNav {
         pageTitle: 'Classes & Sections',
         pageSubtitle: 'Class structure and teacher assignment',
       ),
+      NavItem(
+        path: '/timetable',
+        label: 'Timetable',
+        icon: Icons.calendar_view_week_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Timetable',
+        pageSubtitle: 'Class schedules and period management',
+      ),
     ],
   );
 
@@ -150,6 +158,21 @@ class AppNav {
         allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod},
         pageTitle: 'Staff Attendance',
         pageSubtitle: 'Daily teacher and staff attendance register',
+      ),
+      NavItem(
+        path: '/leaves',
+        label: 'Staff Leave',
+        icon: Icons.event_busy_outlined,
+        allowedRoles: {
+          UserRole.superAdmin,
+          UserRole.schoolAdmin,
+          UserRole.hod,
+          UserRole.teacher,
+          UserRole.staff,
+          UserRole.transportManager,
+        },
+        pageTitle: 'Staff Leave',
+        pageSubtitle: 'Leave requests, approvals and attendance sync',
       ),
     ],
   );

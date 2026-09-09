@@ -12,7 +12,7 @@ class UserManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_super_admin_can_create_a_user(): void
+    public function test_super_admin_can_create_a_school_admin(): void
     {
         $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
         $school = School::factory()->create();
@@ -23,15 +23,117 @@ class UserManagementTest extends TestCase
             'email' => 'priya.sharma@example.com',
             'mobile' => '+91 9876543210',
             'password' => 'password123',
-            'role' => 'TEACHER',
+            'role' => 'SCHOOL_ADMIN',
             'school_id' => $school->id,
         ]);
 
         $response->assertCreated();
         $response->assertJsonPath('email', 'priya.sharma@example.com');
-        $response->assertJsonPath('role', 'TEACHER');
+        $response->assertJsonPath('role', 'SCHOOL_ADMIN');
         $response->assertJsonPath('status', 'active');
         $this->assertDatabaseHas('users', ['email' => 'priya.sharma@example.com']);
+    }
+
+    /**
+     * A School Admin otherwise has no StaffProfile at all, which would
+     * block them from Staff Leave/Attendance self-service - a minimal
+     * placeholder profile (no department, "ADMIN-{id}" employee id) is
+     * created alongside the login so those work immediately.
+     * See UserService::create().
+     */
+    public function test_creating_a_school_admin_also_creates_a_minimal_staff_profile(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/users', [
+            'first_name' => 'Priya',
+            'last_name' => 'Sharma',
+            'email' => 'priya.sharma@example.com',
+            'password' => 'password123',
+            'role' => 'SCHOOL_ADMIN',
+            'school_id' => $school->id,
+        ]);
+
+        $newAdminId = $response->json('id');
+        $response->assertCreated();
+        $this->assertDatabaseHas('staff_profiles', [
+            'user_id' => $newAdminId,
+            'school_id' => $school->id,
+            'employee_id' => "ADMIN-{$newAdminId}",
+            'department_id' => null,
+        ]);
+    }
+
+    /**
+     * This endpoint only ever creates School Admin accounts (see
+     * UserPolicy::create()) - operational staff roles (HOD/Teacher/Staff/
+     * Transport Manager) are onboarded via Teachers & Staff instead, which
+     * creates its own, real StaffProfile as part of that flow.
+     */
+    public function test_super_admin_cannot_create_a_non_school_admin_role_via_this_endpoint(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/users', [
+            'first_name' => 'Priya',
+            'last_name' => 'Sharma',
+            'email' => 'priya.sharma@example.com',
+            'password' => 'password123',
+            'role' => 'TEACHER',
+            'school_id' => $school->id,
+        ]);
+
+        $response->assertUnprocessable();
+        $this->assertDatabaseMissing('users', ['email' => 'priya.sharma@example.com']);
+    }
+
+    /**
+     * A (non-sub) School Admin can create Sub Admins for their own school -
+     * same SCHOOL_ADMIN role and permissions everywhere else, flagged
+     * is_sub_admin so they can't create further admin accounts themselves.
+     * See UserPolicy::create() and UserService::create().
+     */
+    public function test_a_school_admin_can_create_a_sub_admin(): void
+    {
+        $school = School::factory()->create();
+        $schoolAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $response = $this->actingAs($schoolAdmin, 'sanctum')->postJson('/api/v1/users', [
+            'first_name' => 'Priya',
+            'last_name' => 'Sharma',
+            'email' => 'priya.sharma@example.com',
+            'password' => 'password123',
+            'role' => 'SCHOOL_ADMIN',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('role', 'SCHOOL_ADMIN')
+            ->assertJsonPath('is_sub_admin', true)
+            ->assertJsonPath('school_id', $school->id);
+        $this->assertDatabaseHas('users', [
+            'email' => 'priya.sharma@example.com',
+            'school_id' => $school->id,
+            'is_sub_admin' => true,
+        ]);
+    }
+
+    public function test_a_sub_admin_cannot_create_any_user(): void
+    {
+        $school = School::factory()->create();
+        $subAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create(['is_sub_admin' => true]);
+
+        $response = $this->actingAs($subAdmin, 'sanctum')->postJson('/api/v1/users', [
+            'first_name' => 'Priya',
+            'last_name' => 'Sharma',
+            'email' => 'priya.sharma@example.com',
+            'password' => 'password123',
+            'role' => 'SCHOOL_ADMIN',
+        ]);
+
+        $response->assertForbidden()->assertJsonPath('code', 'FORBIDDEN');
+        $this->assertDatabaseMissing('users', ['email' => 'priya.sharma@example.com']);
     }
 
     public function test_a_non_super_admin_cannot_create_a_user(): void
@@ -78,7 +180,7 @@ class UserManagementTest extends TestCase
             'email' => 'priya.sharma@example.com',
             'mobile' => '9876543210',
             'password' => 'password123',
-            'role' => 'TEACHER',
+            'role' => 'SCHOOL_ADMIN',
             'school_id' => $school->id,
         ]);
 

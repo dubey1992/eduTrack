@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/pagination_controls.dart';
@@ -9,6 +10,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../application/user_list_notifier.dart';
 import '../data/models/app_user.dart';
 import 'add_user_dialog.dart';
@@ -27,18 +29,25 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
   @override
   Widget build(BuildContext context) {
     final usersState = ref.watch(userListNotifierProvider);
+    final actor = ref.watch(authNotifierProvider).value;
+    final isSuperAdmin = actor?.role == UserRole.superAdmin;
+    // A School Admin who isn't themselves a Sub Admin can create one; a
+    // Sub Admin can't create any admin account at all (see the backend's
+    // UserPolicy::create()) - no point showing a button that would 403.
+    final canCreateSubAdmin = actor?.role == UserRole.schoolAdmin && actor?.isSubAdmin == false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Users',
+          title: 'Admin Users',
           actions: [
-            FilledButton.icon(
-              onPressed: () => showDialog(context: context, builder: (_) => const AddUserDialog()),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add User'),
-            ),
+            if (isSuperAdmin || canCreateSubAdmin)
+              FilledButton.icon(
+                onPressed: () => showDialog(context: context, builder: (_) => const AddUserDialog()),
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(isSuperAdmin ? 'Add School Admin' : 'Add Sub Admin'),
+              ),
             SchoolFilterDropdown(
               selected: _schoolFilter,
               onChanged: (schoolId) {
@@ -106,7 +115,7 @@ class _UserListMobile extends StatelessWidget {
                   _StatusBadge(status: user.status),
                 ],
               ),
-              subtitle: Text('${user.email}\n${user.role.label}'),
+              subtitle: Text('${user.email}\n${user.displayRoleLabel}'),
               isThreeLine: true,
               trailing: _UserActions(user: user),
             ),
@@ -145,7 +154,7 @@ class _UserListDesktop extends StatelessWidget {
                     DataCell(Text(user.name)),
                     DataCell(Text(user.email)),
                     DataCell(Text(user.mobile ?? '-')),
-                    DataCell(Text(user.role.label)),
+                    DataCell(Text(user.displayRoleLabel)),
                     DataCell(_StatusBadge(status: user.status)),
                     DataCell(_UserActions(user: user)),
                   ],
@@ -179,6 +188,15 @@ class _UserActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isActive = user.status == UserStatus.active;
+    final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
+
+    // Only a SUPER_ADMIN manages an admin-tier account (School Admin or
+    // Sub Admin) - not even the School Admin who created a given Sub
+    // Admin (see the backend's UserPolicy::update()/setStatus()). No
+    // point showing Edit/Deactivate that would always 403.
+    if (user.role == UserRole.schoolAdmin && !isSuperAdmin) {
+      return const SizedBox.shrink();
+    }
 
     return Row(
       mainAxisSize: MainAxisSize.min,
