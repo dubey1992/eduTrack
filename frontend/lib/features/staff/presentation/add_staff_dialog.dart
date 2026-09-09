@@ -154,8 +154,15 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
                     Expanded(
                       child: DropdownButtonFormField<UserRole>(
                         initialValue: _role,
+                        isExpanded: true,
                         decoration: const InputDecoration(labelText: 'Role'),
-                        items: [for (final role in _staffRoles) DropdownMenuItem(value: role, child: Text(role.label))],
+                        items: [
+                          for (final role in _staffRoles)
+                            DropdownMenuItem(
+                              value: role,
+                              child: Text(role.label, overflow: TextOverflow.ellipsis, maxLines: 1),
+                            ),
+                        ],
                         onChanged: (value) => setState(() => _role = value!),
                       ),
                     ),
