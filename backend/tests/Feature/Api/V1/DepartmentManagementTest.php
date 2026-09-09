@@ -110,4 +110,63 @@ class DepartmentManagementTest extends TestCase
 
         $this->assertDatabaseMissing('departments', ['id' => $department->id]);
     }
+
+    public function test_a_school_admin_can_rename_a_department_in_their_own_school(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $department = Department::factory()->forSchool($school)->create(['name' => 'Old Name']);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/departments/{$department->id}", ['name' => 'New Name']);
+
+        $response->assertOk()->assertJsonPath('name', 'New Name');
+    }
+
+    public function test_a_school_admin_cannot_update_a_department_from_another_school(): void
+    {
+        $ownSchool = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($ownSchool)->create();
+        $department = Department::factory()->forSchool($otherSchool)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/departments/{$department->id}", ['name' => 'New Name'])
+            ->assertForbidden();
+    }
+
+    public function test_a_teacher_cannot_update_a_department(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $department = Department::factory()->forSchool($school)->create();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->patchJson("/api/v1/departments/{$department->id}", ['name' => 'New Name'])
+            ->assertForbidden();
+    }
+
+    public function test_updating_a_department_with_an_hod_from_a_different_school_is_rejected(): void
+    {
+        $school = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $department = Department::factory()->forSchool($school)->create();
+        $hodElsewhere = User::factory()->role(UserRole::Hod)->forSchool($otherSchool)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/departments/{$department->id}", ['hod_user_id' => $hodElsewhere->id])
+            ->assertUnprocessable();
+    }
+
+    public function test_a_department_name_exceeding_the_max_length_is_rejected(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/departments', ['name' => str_repeat('a', 101)]);
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['name']]]);
+    }
 }

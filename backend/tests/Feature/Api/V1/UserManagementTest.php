@@ -187,6 +187,50 @@ class UserManagementTest extends TestCase
         $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['mobile']]]);
     }
 
+    public function test_a_nonexistent_school_id_is_rejected(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/users', [
+            'first_name' => 'Priya',
+            'last_name' => 'Sharma',
+            'email' => 'priya.sharma@example.com',
+            'password' => 'password123',
+            'role' => 'SCHOOL_ADMIN',
+            'school_id' => 999999,
+        ]);
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['school_id']]]);
+    }
+
+    public function test_first_name_exceeding_the_max_length_is_rejected(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/users', [
+            'first_name' => str_repeat('a', 101),
+            'last_name' => 'Sharma',
+            'email' => 'priya.sharma@example.com',
+            'password' => 'password123',
+            'role' => 'SCHOOL_ADMIN',
+            'school_id' => $school->id,
+        ]);
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['first_name']]]);
+    }
+
+    public function test_a_super_admin_can_view_a_single_user(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->create();
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson("/api/v1/users/{$teacher->id}")
+            ->assertOk()
+            ->assertJsonPath('id', $teacher->id);
+    }
+
     public function test_super_admin_can_list_and_filter_users(): void
     {
         $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();

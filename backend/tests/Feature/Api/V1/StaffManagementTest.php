@@ -282,4 +282,55 @@ class StaffManagementTest extends TestCase
         $response->assertOk();
         $this->assertCount(2, $response->json('data'));
     }
+
+    public function test_a_school_admin_cannot_update_a_staff_profile_from_another_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $adminA = User::factory()->role(UserRole::SchoolAdmin)->forSchool($schoolA)->create();
+        $profileB = StaffProfile::factory()
+            ->forUser(User::factory()->role(UserRole::Teacher)->forSchool($schoolB)->create())
+            ->create();
+
+        $this->actingAs($adminA, 'sanctum')
+            ->patchJson("/api/v1/staff/{$profileB->id}", ['designation' => 'Head Teacher'])
+            ->assertForbidden();
+    }
+
+    public function test_a_teacher_cannot_update_a_staff_profile(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $profile = StaffProfile::factory()
+            ->forUser(User::factory()->role(UserRole::Teacher)->forSchool($school)->create())
+            ->create();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->patchJson("/api/v1/staff/{$profile->id}", ['designation' => 'Head Teacher'])
+            ->assertForbidden();
+    }
+
+    public function test_employee_id_designation_and_address_exceeding_the_max_length_are_rejected(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/staff', [
+            'first_name' => 'New', 'last_name' => 'Teacher', 'email' => 'new1@example.com',
+            'password' => 'password123', 'role' => 'TEACHER',
+            'employee_id' => str_repeat('a', 31), 'joining_date' => '2026-01-01',
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['employee_id']]]);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/staff', [
+            'first_name' => 'New', 'last_name' => 'Teacher', 'email' => 'new2@example.com',
+            'password' => 'password123', 'role' => 'TEACHER', 'employee_id' => 'TCH-002',
+            'joining_date' => '2026-01-01', 'designation' => str_repeat('a', 101),
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['designation']]]);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/staff', [
+            'first_name' => 'New', 'last_name' => 'Teacher', 'email' => 'new3@example.com',
+            'password' => 'password123', 'role' => 'TEACHER', 'employee_id' => 'TCH-003',
+            'joining_date' => '2026-01-01', 'address' => str_repeat('a', 501),
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['address']]]);
+    }
 }

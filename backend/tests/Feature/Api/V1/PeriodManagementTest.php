@@ -143,6 +143,24 @@ class PeriodManagementTest extends TestCase
         $this->assertDatabaseHas('periods', ['id' => $period->id]);
     }
 
+    public function test_a_school_admin_cannot_delete_another_schools_period(): void
+    {
+        $period = Period::factory()->create();
+        $otherAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool(School::factory()->create())->create();
+
+        $this->actingAs($otherAdmin, 'sanctum')->deleteJson("/api/v1/periods/{$period->id}")->assertForbidden();
+        $this->assertDatabaseHas('periods', ['id' => $period->id]);
+    }
+
+    public function test_a_teacher_cannot_delete_a_period(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $period = Period::factory()->forSchool($school)->create();
+
+        $this->actingAs($teacher, 'sanctum')->deleteJson("/api/v1/periods/{$period->id}")->assertForbidden();
+    }
+
     // ── list ─────────────────────────────────────────────────────────────
 
     public function test_a_school_admin_only_sees_their_own_schools_periods(): void

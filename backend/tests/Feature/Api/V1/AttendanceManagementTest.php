@@ -101,6 +101,33 @@ class AttendanceManagementTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_the_register_requires_a_date_query_param(): void
+    {
+        [, $section, $teacher] = $this->makeClassWithTeacherAndStudents();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson("/api/v1/attendance/register?class_section_id={$section->id}")
+            ->assertUnprocessable();
+    }
+
+    public function test_the_register_requires_a_class_section_id_query_param(): void
+    {
+        [, , $teacher] = $this->makeClassWithTeacherAndStudents();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson('/api/v1/attendance/register?date='.now()->toDateString())
+            ->assertUnprocessable();
+    }
+
+    public function test_the_register_rejects_a_nonexistent_class_section_id(): void
+    {
+        [, , $teacher] = $this->makeClassWithTeacherAndStudents();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson('/api/v1/attendance/register?class_section_id=999999&date='.now()->toDateString())
+            ->assertUnprocessable();
+    }
+
     // ── store (submit) ───────────────────────────────────────────────────
 
     public function test_a_class_teacher_can_submit_attendance_for_their_own_class(): void
@@ -218,6 +245,19 @@ class AttendanceManagementTest extends TestCase
             'attendance_date' => now()->toDateString(),
             'records' => [['student_id' => $students[0]->id, 'status' => 'half_day']],
         ])->assertUnprocessable();
+    }
+
+    public function test_remarks_exceeding_the_max_length_are_rejected(): void
+    {
+        [, $section, $teacher, $students] = $this->makeClassWithTeacherAndStudents();
+
+        $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/attendance', [
+            'class_section_id' => $section->id,
+            'attendance_date' => now()->toDateString(),
+            'records' => [
+                ['student_id' => $students[0]->id, 'status' => 'absent', 'remarks' => str_repeat('a', 256)],
+            ],
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['records.0.remarks']]]);
     }
 
     // ── update (edit an already-submitted day) ──────────────────────────

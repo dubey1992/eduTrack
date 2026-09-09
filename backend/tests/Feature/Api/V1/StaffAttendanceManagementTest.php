@@ -113,6 +113,14 @@ class StaffAttendanceManagementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_the_register_requires_a_date_query_param(): void
+    {
+        [$school] = $this->makeDepartmentWithHodAndStaff();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/staff-attendance/register')->assertUnprocessable();
+    }
+
     // ── submit / update ─────────────────────────────────────────────────
 
     public function test_a_school_admin_can_submit_staff_attendance(): void
@@ -201,6 +209,28 @@ class StaffAttendanceManagementTest extends TestCase
             'attendance_date' => now()->addDay()->toDateString(),
             'records' => $this->recordsFor($staff),
         ])->assertUnprocessable();
+    }
+
+    public function test_a_nonexistent_staff_profile_id_is_rejected(): void
+    {
+        [$school] = $this->makeDepartmentWithHodAndStaff();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/staff-attendance', [
+            'attendance_date' => now()->toDateString(),
+            'records' => [['staff_profile_id' => 999999, 'status' => 'present']],
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['records.0.staff_profile_id']]]);
+    }
+
+    public function test_remarks_exceeding_the_max_length_are_rejected(): void
+    {
+        [$school, , , $staff] = $this->makeDepartmentWithHodAndStaff();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/staff-attendance', [
+            'attendance_date' => now()->toDateString(),
+            'records' => [['staff_profile_id' => $staff[0]->id, 'status' => 'absent', 'remarks' => str_repeat('a', 256)]],
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['records.0.remarks']]]);
     }
 
     // ── index (history) ─────────────────────────────────────────────────

@@ -149,4 +149,105 @@ class AcademicYearManagementTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('code', 'HAS_DEPENDENT_RECORDS');
     }
+
+    public function test_deleting_an_empty_academic_year_succeeds(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $year = AcademicYear::factory()->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')->deleteJson("/api/v1/academic-years/{$year->id}")->assertNoContent();
+        $this->assertDatabaseMissing('academic_years', ['id' => $year->id]);
+    }
+
+    public function test_a_school_admin_cannot_delete_an_academic_year_from_another_school(): void
+    {
+        $ownSchool = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($ownSchool)->create();
+        $year = AcademicYear::factory()->forSchool($otherSchool)->create();
+
+        $this->actingAs($admin, 'sanctum')->deleteJson("/api/v1/academic-years/{$year->id}")->assertForbidden();
+    }
+
+    public function test_a_teacher_cannot_delete_an_academic_year(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $year = AcademicYear::factory()->forSchool($school)->create();
+
+        $this->actingAs($teacher, 'sanctum')->deleteJson("/api/v1/academic-years/{$year->id}")->assertForbidden();
+    }
+
+    public function test_a_school_admin_can_update_an_academic_years_name(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $year = AcademicYear::factory()->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/academic-years/{$year->id}", ['name' => 'Renamed'])
+            ->assertOk()
+            ->assertJsonPath('name', 'Renamed');
+    }
+
+    public function test_a_school_admin_cannot_update_an_academic_year_from_another_school(): void
+    {
+        $ownSchool = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($ownSchool)->create();
+        $year = AcademicYear::factory()->forSchool($otherSchool)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/academic-years/{$year->id}", ['name' => 'Renamed'])
+            ->assertForbidden();
+    }
+
+    public function test_a_teacher_cannot_update_an_academic_year(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $year = AcademicYear::factory()->forSchool($school)->create();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->patchJson("/api/v1/academic-years/{$year->id}", ['name' => 'Renamed'])
+            ->assertForbidden();
+    }
+
+    public function test_a_school_admin_cannot_set_current_an_academic_year_from_another_school(): void
+    {
+        $ownSchool = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($ownSchool)->create();
+        $year = AcademicYear::factory()->forSchool($otherSchool)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/academic-years/{$year->id}/set-current")
+            ->assertForbidden();
+    }
+
+    public function test_a_teacher_cannot_set_current_an_academic_year(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $year = AcademicYear::factory()->forSchool($school)->create();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->patchJson("/api/v1/academic-years/{$year->id}/set-current")
+            ->assertForbidden();
+    }
+
+    public function test_an_academic_year_name_exceeding_the_max_length_is_rejected(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/academic-years', [
+            'name' => str_repeat('a', 51),
+            'start_date' => '2026-04-01',
+            'end_date' => '2027-03-31',
+        ]);
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['name']]]);
+    }
 }

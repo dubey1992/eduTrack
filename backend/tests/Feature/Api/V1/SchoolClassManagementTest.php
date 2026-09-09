@@ -167,4 +167,164 @@ class SchoolClassManagementTest extends TestCase
             ->getJson("/api/v1/classes/{$classB->id}")
             ->assertForbidden();
     }
+
+    // ── update / delete a class ─────────────────────────────────────────
+
+    public function test_a_school_admin_can_rename_a_class_in_their_own_school(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $schoolClass = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($school)->create())->create();
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/classes/{$schoolClass->id}", ['name' => 'Grade 9']);
+
+        $response->assertOk()->assertJsonPath('name', 'Grade 9');
+    }
+
+    public function test_a_school_admin_cannot_update_a_class_from_another_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $adminA = User::factory()->role(UserRole::SchoolAdmin)->forSchool($schoolA)->create();
+        $classB = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($schoolB)->create())->create();
+
+        $this->actingAs($adminA, 'sanctum')
+            ->patchJson("/api/v1/classes/{$classB->id}", ['name' => 'Grade 9'])
+            ->assertForbidden();
+    }
+
+    public function test_a_teacher_cannot_update_a_class(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $schoolClass = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($school)->create())->create();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->patchJson("/api/v1/classes/{$schoolClass->id}", ['name' => 'Grade 9'])
+            ->assertForbidden();
+    }
+
+    public function test_a_school_admin_can_delete_an_empty_class(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $schoolClass = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($school)->create())->create();
+
+        $this->actingAs($admin, 'sanctum')->deleteJson("/api/v1/classes/{$schoolClass->id}")->assertNoContent();
+        $this->assertDatabaseMissing('school_classes', ['id' => $schoolClass->id]);
+    }
+
+    public function test_a_school_admin_cannot_delete_a_class_from_another_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $adminA = User::factory()->role(UserRole::SchoolAdmin)->forSchool($schoolA)->create();
+        $classB = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($schoolB)->create())->create();
+
+        $this->actingAs($adminA, 'sanctum')->deleteJson("/api/v1/classes/{$classB->id}")->assertForbidden();
+    }
+
+    public function test_a_class_name_exceeding_the_max_length_is_rejected(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $year = AcademicYear::factory()->forSchool($school)->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/classes', [
+            'academic_year_id' => $year->id,
+            'name' => str_repeat('a', 51),
+            'level' => 8,
+        ]);
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['name']]]);
+    }
+
+    // ── update / delete a section ───────────────────────────────────────
+
+    public function test_a_school_admin_can_rename_a_section_in_their_own_school(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $schoolClass = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($school)->create())->create();
+        $section = ClassSection::factory()->forClass($schoolClass)->create(['name' => 'A']);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/sections/{$section->id}", ['name' => 'B']);
+
+        $response->assertOk()->assertJsonPath('name', 'B');
+    }
+
+    public function test_a_school_admin_cannot_update_a_section_from_another_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $adminA = User::factory()->role(UserRole::SchoolAdmin)->forSchool($schoolA)->create();
+        $classB = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($schoolB)->create())->create();
+        $sectionB = ClassSection::factory()->forClass($classB)->create();
+
+        $this->actingAs($adminA, 'sanctum')
+            ->patchJson("/api/v1/sections/{$sectionB->id}", ['name' => 'B'])
+            ->assertForbidden();
+    }
+
+    public function test_updating_a_section_with_a_class_teacher_from_a_different_school_is_rejected(): void
+    {
+        $school = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $schoolClass = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($school)->create())->create();
+        $section = ClassSection::factory()->forClass($schoolClass)->create();
+        $teacherElsewhere = User::factory()->role(UserRole::Teacher)->forSchool($otherSchool)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/sections/{$section->id}", ['class_teacher_id' => $teacherElsewhere->id])
+            ->assertUnprocessable();
+    }
+
+    public function test_a_school_admin_can_delete_an_empty_section(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $schoolClass = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($school)->create())->create();
+        $section = ClassSection::factory()->forClass($schoolClass)->create();
+
+        $this->actingAs($admin, 'sanctum')->deleteJson("/api/v1/sections/{$section->id}")->assertNoContent();
+        $this->assertDatabaseMissing('class_sections', ['id' => $section->id]);
+    }
+
+    public function test_a_school_admin_cannot_delete_a_section_from_another_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $adminA = User::factory()->role(UserRole::SchoolAdmin)->forSchool($schoolA)->create();
+        $classB = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($schoolB)->create())->create();
+        $sectionB = ClassSection::factory()->forClass($classB)->create();
+
+        $this->actingAs($adminA, 'sanctum')->deleteJson("/api/v1/sections/{$sectionB->id}")->assertForbidden();
+    }
+
+    public function test_a_teacher_cannot_delete_a_section(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $schoolClass = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($school)->create())->create();
+        $section = ClassSection::factory()->forClass($schoolClass)->create();
+
+        $this->actingAs($teacher, 'sanctum')->deleteJson("/api/v1/sections/{$section->id}")->assertForbidden();
+    }
+
+    public function test_a_section_room_number_exceeding_the_max_length_is_rejected(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $schoolClass = SchoolClass::factory()->forAcademicYear(AcademicYear::factory()->forSchool($school)->create())->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson("/api/v1/classes/{$schoolClass->id}/sections", [
+            'name' => 'A',
+            'room_number' => str_repeat('a', 21),
+        ]);
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['room_number']]]);
+    }
 }

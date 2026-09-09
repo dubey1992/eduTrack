@@ -163,6 +163,28 @@ class StaffLeaveManagementTest extends TestCase
         $this->assertDatabaseCount('staff_leaves', 0);
     }
 
+    public function test_a_reason_exceeding_the_max_length_is_rejected(): void
+    {
+        [, , , , $teacherProfile] = $this->makeDepartmentWithHodAndTeacher();
+
+        $this->actingAs($teacherProfile->user, 'sanctum')
+            ->postJson('/api/v1/leaves', $this->leavePayload(['reason' => str_repeat('a', 501)]))
+            ->assertUnprocessable()
+            ->assertJsonStructure(['details' => ['errors' => ['reason']]]);
+    }
+
+    public function test_review_remarks_exceeding_the_max_length_are_rejected(): void
+    {
+        [$school, , , , $teacherProfile] = $this->makeDepartmentWithHodAndTeacher();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $leave = StaffLeave::factory()->forStaff($teacherProfile)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/leaves/{$leave->id}/reject", ['remarks' => str_repeat('a', 501)])
+            ->assertUnprocessable()
+            ->assertJsonStructure(['details' => ['errors' => ['remarks']]]);
+    }
+
     public function test_end_date_before_start_date_is_rejected(): void
     {
         [, , , , $teacherProfile] = $this->makeDepartmentWithHodAndTeacher();

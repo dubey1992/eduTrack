@@ -235,4 +235,79 @@ class StudentManagementTest extends TestCase
         $response->assertOk();
         $this->assertCount(2, $response->json('data'));
     }
+
+    // ── update ───────────────────────────────────────────────────────────
+
+    public function test_a_school_admin_can_update_a_students_profile_fields(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $student = Student::factory()->forSection($this->makeSection($school))->create();
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/students/{$student->id}", ['guardian_name' => 'New Guardian']);
+
+        $response->assertOk()->assertJsonPath('guardian_name', 'New Guardian');
+    }
+
+    public function test_a_school_admin_cannot_update_a_student_from_another_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $adminA = User::factory()->role(UserRole::SchoolAdmin)->forSchool($schoolA)->create();
+        $studentB = Student::factory()->forSection($this->makeSection($schoolB))->create();
+
+        $this->actingAs($adminA, 'sanctum')
+            ->patchJson("/api/v1/students/{$studentB->id}", ['guardian_name' => 'New Guardian'])
+            ->assertForbidden();
+    }
+
+    public function test_a_teacher_cannot_update_a_student_even_in_their_own_class(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $section = $this->makeSection($school);
+        $section->update(['class_teacher_id' => $teacher->id]);
+        $student = Student::factory()->forSection($section)->create();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->patchJson("/api/v1/students/{$student->id}", ['guardian_name' => 'New Guardian'])
+            ->assertForbidden();
+    }
+
+    public function test_moving_a_student_to_a_section_from_another_school_is_rejected(): void
+    {
+        $school = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $student = Student::factory()->forSection($this->makeSection($school))->create();
+        $sectionElsewhere = $this->makeSection($otherSchool);
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/students/{$student->id}", ['class_section_id' => $sectionElsewhere->id])
+            ->assertUnprocessable();
+    }
+
+    public function test_student_name_and_guardian_name_exceeding_the_max_length_are_rejected(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $section = $this->makeSection($school);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/students', [
+            'class_section_id' => $section->id,
+            'admission_number' => 'STU-1001',
+            'first_name' => str_repeat('a', 101),
+            'last_name' => 'Kumar',
+            'guardian_name' => 'Raj Kumar',
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['first_name']]]);
+
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/students', [
+            'class_section_id' => $section->id,
+            'admission_number' => 'STU-1002',
+            'first_name' => 'Arjun',
+            'last_name' => 'Kumar',
+            'guardian_name' => str_repeat('a', 151),
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['guardian_name']]]);
+    }
 }

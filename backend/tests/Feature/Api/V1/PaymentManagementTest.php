@@ -59,6 +59,73 @@ class PaymentManagementTest extends TestCase
         $this->getJson('/api/v1/payments')->assertUnauthorized();
     }
 
+    public function test_a_non_super_admin_cannot_list_payments(): void
+    {
+        $schoolAdmin = User::factory()->role(UserRole::SchoolAdmin)->create();
+
+        $this->actingAs($schoolAdmin, 'sanctum')->getJson('/api/v1/payments')->assertForbidden();
+    }
+
+    public function test_a_non_super_admin_cannot_view_a_single_payment(): void
+    {
+        $schoolAdmin = User::factory()->role(UserRole::SchoolAdmin)->create();
+        $payment = Payment::factory()->create();
+
+        $this->actingAs($schoolAdmin, 'sanctum')->getJson("/api/v1/payments/{$payment->id}")->assertForbidden();
+    }
+
+    public function test_a_non_super_admin_cannot_update_a_payment(): void
+    {
+        $schoolAdmin = User::factory()->role(UserRole::SchoolAdmin)->create();
+        $payment = Payment::factory()->status(PaymentStatus::Pending)->create();
+
+        $this->actingAs($schoolAdmin, 'sanctum')
+            ->patchJson("/api/v1/payments/{$payment->id}", ['status' => 'paid'])
+            ->assertForbidden();
+    }
+
+    public function test_a_nonexistent_school_id_is_rejected(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/payments', [
+            'school_id' => 999999,
+            'payment_type' => 'setup_fee',
+            'amount' => '1000.00',
+            'payment_date' => now()->toDateString(),
+            'payment_mode' => 'cash',
+            'status' => 'paid',
+        ]);
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['school_id']]]);
+    }
+
+    public function test_reference_number_and_notes_exceeding_the_max_length_are_rejected(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create();
+
+        $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/payments', [
+            'school_id' => $school->id,
+            'payment_type' => 'setup_fee',
+            'amount' => '1000.00',
+            'payment_date' => now()->toDateString(),
+            'payment_mode' => 'cash',
+            'status' => 'paid',
+            'reference_number' => str_repeat('a', 101),
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['reference_number']]]);
+
+        $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/payments', [
+            'school_id' => $school->id,
+            'payment_type' => 'setup_fee',
+            'amount' => '1000.00',
+            'payment_date' => now()->toDateString(),
+            'payment_mode' => 'cash',
+            'status' => 'paid',
+            'notes' => str_repeat('a', 1001),
+        ])->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['notes']]]);
+    }
+
     public function test_recording_a_payment_validates_required_fields_and_amount(): void
     {
         $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();

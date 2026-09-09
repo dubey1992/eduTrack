@@ -115,4 +115,35 @@ class SchoolManagementTest extends TestCase
             ->getJson("/api/v1/schools/{$otherSchool->id}")
             ->assertForbidden();
     }
+
+    public function test_a_super_admin_can_update_a_schools_details(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create(['name' => 'Old Name']);
+
+        $response = $this->actingAs($superAdmin, 'sanctum')
+            ->patchJson("/api/v1/schools/{$school->id}", ['name' => 'New Name']);
+
+        $response->assertOk()->assertJsonPath('name', 'New Name');
+    }
+
+    public function test_a_school_admin_cannot_update_their_own_school(): void
+    {
+        $school = School::factory()->create();
+        $schoolAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($schoolAdmin, 'sanctum')
+            ->patchJson("/api/v1/schools/{$school->id}", ['name' => 'New Name'])
+            ->assertForbidden();
+    }
+
+    public function test_a_school_name_exceeding_the_max_length_is_rejected(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')
+            ->postJson('/api/v1/schools', $this->validPayload(['name' => str_repeat('a', 256)]));
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['name']]]);
+    }
 }
