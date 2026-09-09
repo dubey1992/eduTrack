@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -28,6 +30,37 @@ class User extends Authenticatable
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
+    }
+
+    /**
+     * @return HasOne<StaffProfile, $this>
+     */
+    public function staffProfile(): HasOne
+    {
+        return $this->hasOne(StaffProfile::class);
+    }
+
+    /**
+     * Class sections where this user is the class teacher - the "Assigned
+     * Classes" the prototype shows on the Teachers & Staff screen, derived
+     * from Phase 4's class_sections.class_teacher_id rather than a new
+     * teaching-assignment table (that belongs to Timetable, Phase 10).
+     *
+     * @return HasMany<ClassSection, $this>
+     */
+    public function classTeacherOf(): HasMany
+    {
+        return $this->hasMany(ClassSection::class, 'class_teacher_id');
+    }
+
+    /**
+     * Subjects where this user is the lead teacher, mirroring classTeacherOf().
+     *
+     * @return HasMany<Subject, $this>
+     */
+    public function leadTeacherOfSubjects(): HasMany
+    {
+        return $this->hasMany(Subject::class, 'lead_teacher_id');
     }
 
     /**

@@ -26,7 +26,12 @@ class ApiExceptionRenderer
         return response()->json([
             'code' => $code,
             'message' => $message,
-            'details' => $details,
+            // PHP's [] json_encodes as a JSON array, not an object - every
+            // branch below defaults $details to [] when there's nothing to
+            // report, which the Flutter client can't parse as the object it
+            // expects (`Map<String, dynamic>`). Force it to {} here, once,
+            // rather than relying on every branch getting this right.
+            'details' => empty($details) ? (object) [] : $details,
         ], $status);
     }
 
@@ -48,10 +53,27 @@ class ApiExceptionRenderer
                 $e->getMessage(),
                 [],
             ],
+            $e instanceof HasDependentRecordsException => [
+                409,
+                'HAS_DEPENDENT_RECORDS',
+                $e->getMessage(),
+                [],
+            ],
+            $e instanceof AttendanceAlreadySubmittedException => [
+                409,
+                'ATTENDANCE_ALREADY_SUBMITTED',
+                $e->getMessage(),
+                [],
+            ],
+            // Covers both "no/invalid token on a protected route" (Sanctum's
+            // own generic "Unauthenticated." message) and AuthService's
+            // deliberate throw for a failed login attempt (its own specific
+            // "These credentials do not match our records.") - the specific
+            // message must reach the client, not be replaced by a generic one.
             $e instanceof AuthenticationException => [
                 401,
                 'UNAUTHENTICATED',
-                'Authentication is required to access this resource.',
+                $e->getMessage() !== '' ? $e->getMessage() : 'Authentication is required to access this resource.',
                 [],
             ],
             $e instanceof ModelNotFoundException, $e instanceof NotFoundHttpException => [

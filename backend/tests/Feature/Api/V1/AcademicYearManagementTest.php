@@ -1,0 +1,152 @@
+<?php
+
+namespace Tests\Feature\Api\V1;
+
+use App\Enums\UserRole;
+use App\Models\AcademicYear;
+use App\Models\School;
+use App\Models\SchoolClass;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class AcademicYearManagementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_a_school_admin_can_create_an_academic_year_for_their_own_school(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/academic-years', [
+            'name' => '2026-27',
+            'start_date' => '2026-04-01',
+            'end_date' => '2027-03-31',
+            'is_current' => true,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('school_id', $school->id)
+            ->assertJsonPath('name', '2026-27')
+            ->assertJsonPath('is_current', true);
+    }
+
+    public function test_a_school_admin_cannot_plant_an_academic_year_into_another_school(): void
+    {
+        $ownSchool = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($ownSchool)->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/academic-years', [
+            'school_id' => $otherSchool->id,
+            'name' => '2026-27',
+            'start_date' => '2026-04-01',
+            'end_date' => '2027-03-31',
+        ]);
+
+        $response->assertCreated()->assertJsonPath('school_id', $ownSchool->id);
+    }
+
+    public function test_a_school_admin_only_sees_academic_years_from_their_own_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($schoolA)->create();
+        AcademicYear::factory()->forSchool($schoolA)->count(2)->create();
+        AcademicYear::factory()->forSchool($schoolB)->count(3)->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->getJson('/api/v1/academic-years');
+
+        $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
+    }
+
+    public function test_a_school_admin_cannot_view_an_academic_year_from_another_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($schoolA)->create();
+        $yearB = AcademicYear::factory()->forSchool($schoolB)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/academic-years/{$yearB->id}")
+            ->assertForbidden();
+    }
+
+    public function test_a_teacher_can_view_but_not_create_an_academic_year(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create();
+        $year = AcademicYear::factory()->forSchool($school)->create();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->getJson("/api/v1/academic-years/{$year->id}")
+            ->assertOk();
+
+        $this->actingAs($teacher, 'sanctum')
+            ->postJson('/api/v1/academic-years', [
+                'name' => '2026-27',
+                'start_date' => '2026-04-01',
+                'end_date' => '2027-03-31',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_creating_an_academic_year_validates_the_date_range(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/academic-years', [
+                'name' => '2026-27',
+                'start_date' => '2027-03-31',
+                'end_date' => '2026-04-01',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonStructure(['details' => ['errors' => ['end_date']]]);
+    }
+
+    public function test_setting_a_new_current_year_unsets_the_previous_one(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $oldCurrent = AcademicYear::factory()->forSchool($school)->current()->create();
+        $newYear = AcademicYear::factory()->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/academic-years/{$newYear->id}/set-current")
+            ->assertOk()
+            ->assertJsonPath('is_current', true);
+
+        $this->assertFalse($oldCurrent->fresh()->is_current);
+    }
+
+    public function test_a_super_admin_is_not_restricted_by_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        AcademicYear::factory()->forSchool($schoolA)->create();
+        AcademicYear::factory()->forSchool($schoolB)->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/academic-years');
+
+        $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
+    }
+
+    public function test_deleting_an_academic_year_that_has_classes_is_rejected(): void
+    {
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+        $year = AcademicYear::factory()->forSchool($school)->create();
+        SchoolClass::factory()->forAcademicYear($year)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->deleteJson("/api/v1/academic-years/{$year->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('code', 'HAS_DEPENDENT_RECORDS');
+    }
+}
