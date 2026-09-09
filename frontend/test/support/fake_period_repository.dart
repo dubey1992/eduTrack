@@ -3,10 +3,18 @@ import 'package:edutrack_app/features/timetable/data/models/period.dart';
 import 'package:edutrack_app/features/timetable/data/period_repository.dart';
 
 class FakePeriodRepository implements PeriodRepository {
-  FakePeriodRepository({this.periods = const [], this.failWith});
+  FakePeriodRepository({this.periods = const [], this.failWith, this.failCreateWith, this.failUpdateWith});
 
   List<Period> periods;
   Failure? failWith;
+
+  /// Lets a test fail only the create call (e.g. "Add Period") while the
+  /// initial periods list still loads successfully - [failWith] fails every
+  /// operation including that initial list, which can't express that case.
+  Failure? failCreateWith;
+
+  /// Same as [failCreateWith] but for the update call (e.g. "Edit Period").
+  Failure? failUpdateWith;
 
   int? lastDeletedId;
 
@@ -24,6 +32,7 @@ class FakePeriodRepository implements PeriodRepository {
     required String endTime,
   }) async {
     if (failWith != null) throw failWith!;
+    if (failCreateWith != null) throw failCreateWith!;
     final created = Period(
       id: periods.length + 1,
       schoolId: schoolId ?? 1,
@@ -38,6 +47,7 @@ class FakePeriodRepository implements PeriodRepository {
   @override
   Future<Period> update(int periodId, {int? periodNumber, String? startTime, String? endTime}) async {
     if (failWith != null) throw failWith!;
+    if (failUpdateWith != null) throw failUpdateWith!;
     final existing = periods.firstWhere((p) => p.id == periodId);
     final updated = Period(
       id: existing.id,

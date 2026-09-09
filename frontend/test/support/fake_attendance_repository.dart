@@ -7,12 +7,17 @@ class FakeAttendanceRepository implements AttendanceRepository {
   // The field is private but tests (a different library) construct this
   // with a named `register:` argument, so it can't be an initializing
   // formal (`this._register`) - that would make the parameter private too.
-  FakeAttendanceRepository({AttendanceRegister? register, this.records = const [], this.failSubmitWith})
-    : _register = register; // ignore: prefer_initializing_formals
+  FakeAttendanceRepository({
+    AttendanceRegister? register,
+    this.records = const [],
+    this.failSubmitWith,
+    this.failRegisterWith,
+  }) : _register = register; // ignore: prefer_initializing_formals
 
   AttendanceRegister? _register;
   List<AttendanceRecord> records;
   Failure? failSubmitWith;
+  Failure? failRegisterWith;
 
   int registerCallCount = 0;
   Map<String, dynamic>? lastSubmitPayload;
@@ -21,6 +26,7 @@ class FakeAttendanceRepository implements AttendanceRepository {
   @override
   Future<AttendanceRegister> register({required int classSectionId, required String date}) async {
     registerCallCount++;
+    if (failRegisterWith != null) throw failRegisterWith!;
     return _register!;
   }
 

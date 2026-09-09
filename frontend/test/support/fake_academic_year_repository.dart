@@ -6,10 +6,17 @@ import 'package:edutrack_app/features/academic_years/data/models/academic_year.d
 import 'fake_pagination.dart';
 
 class FakeAcademicYearRepository implements AcademicYearRepository {
-  FakeAcademicYearRepository({List<AcademicYear>? years, this.failCreateWith}) : _years = years ?? [];
+  FakeAcademicYearRepository({
+    List<AcademicYear>? years,
+    this.failCreateWith,
+    this.failUpdateWith,
+    this.failListPageWith,
+  }) : _years = years ?? [];
 
   final List<AcademicYear> _years;
   Failure? failCreateWith;
+  Failure? failUpdateWith;
+  Failure? failListPageWith;
 
   List<AcademicYear> _filtered({int? schoolId}) {
     return schoolId == null ? _years : _years.where((y) => y.schoolId == schoolId).toList();
@@ -22,6 +29,8 @@ class FakeAcademicYearRepository implements AcademicYearRepository {
 
   @override
   Future<PaginatedResponse<AcademicYear>> listPage({int? schoolId, required int page, required int perPage}) async {
+    if (failListPageWith != null) throw failListPageWith!;
+
     return paginateFake(
       _filtered(schoolId: schoolId),
       page: page,
@@ -54,6 +63,8 @@ class FakeAcademicYearRepository implements AcademicYearRepository {
 
   @override
   Future<AcademicYear> update(int academicYearId, {String? name, DateTime? startDate, DateTime? endDate}) async {
+    if (failUpdateWith != null) throw failUpdateWith!;
+
     final index = _years.indexWhere((y) => y.id == academicYearId);
     final existing = _years[index];
     final updated = AcademicYear(

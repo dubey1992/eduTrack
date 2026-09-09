@@ -1,12 +1,17 @@
+import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/core/widgets/status_badge.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/departments/data/department_repository.dart';
+import 'package:edutrack_app/features/departments/data/models/department.dart';
 import 'package:edutrack_app/features/staff/data/models/staff_profile.dart';
 import 'package:edutrack_app/features/staff/data/staff_repository.dart';
+import 'package:edutrack_app/features/staff/presentation/edit_staff_profile_dialog.dart';
 import 'package:edutrack_app/features/users/data/models/app_user.dart';
 import 'package:edutrack_app/features/staff/presentation/staff_list_screen.dart';
+import 'package:edutrack_app/features/users/data/user_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_department_repository.dart';
 import '../../support/fake_staff_repository.dart';
+import '../../support/fake_user_repository.dart';
 
 final _teacher = StaffProfile(
   id: 1,
@@ -36,11 +42,24 @@ final _teacher = StaffProfile(
   classTeacherOf: const ['Grade 8 A'],
 );
 
-Widget wrap(FakeStaffRepository fake) {
+// Matches _teacher.departmentId (1) - the edit dialog's department picker
+// asserts its initialValue matches exactly one item, so the picker's data
+// source must already contain the profile's current department.
+const _mathematicsDepartment = Department(
+  id: 1,
+  schoolId: 1,
+  schoolName: 'Sunrise Public School',
+  name: 'Mathematics',
+  hodUserId: null,
+  hodName: null,
+);
+
+Widget wrap(FakeStaffRepository fake, {FakeUserRepository? userRepositoryFake}) {
   return ProviderScope(
     overrides: [
       staffRepositoryProvider.overrideWithValue(fake),
-      departmentRepositoryProvider.overrideWithValue(FakeDepartmentRepository()),
+      departmentRepositoryProvider.overrideWithValue(FakeDepartmentRepository(departments: [_mathematicsDepartment])),
+      userRepositoryProvider.overrideWithValue(userRepositoryFake ?? FakeUserRepository()),
       authRepositoryProvider.overrideWithValue(
         FakeAuthRepository(
           sessionOnRestore: const AuthenticatedUser(
@@ -117,5 +136,70 @@ void main() {
 
     expect(find.textContaining('Priya Sharma'), findsOneWidget);
     expect(find.textContaining('Rahul Verma'), findsNothing);
+  });
+
+  testWidgets('tapping Edit on a row opens the edit dialog for that employee', (tester) async {
+    tester.view.physicalSize = const Size(1800, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(wrap(FakeStaffRepository(staff: [_teacher])));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TextButton, 'Edit'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditStaffProfileDialog), findsOneWidget);
+    expect(find.text('Edit Priya Sharma'), findsOneWidget);
+  });
+
+  testWidgets('tapping Deactivate updates the row status badge', (tester) async {
+    tester.view.physicalSize = const Size(1800, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final userRepositoryFake = FakeUserRepository(
+      users: [
+        const AppUser(
+          id: 1,
+          firstName: 'Priya',
+          lastName: 'Sharma',
+          name: 'Priya Sharma',
+          email: 'priya.sharma@example.com',
+          mobile: '9876543210',
+          role: UserRole.teacher,
+          status: UserStatus.active,
+        ),
+      ],
+    );
+    await tester.pumpWidget(wrap(FakeStaffRepository(staff: [_teacher]), userRepositoryFake: userRepositoryFake));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(StatusBadge, 'Active'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Deactivate'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(StatusBadge, 'Inactive'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Activate'), findsOneWidget);
+  });
+
+  testWidgets('shows an error state with a retry button when the repository throws', (tester) async {
+    final fake = FakeStaffRepository(
+      failListPageWith: const Failure(code: 'STAFF_LIST_FAILED', message: 'Could not load staff.'),
+    );
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not load staff.'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
+
+    fake.failListPageWith = null;
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No teachers or staff added yet.'), findsOneWidget);
   });
 }

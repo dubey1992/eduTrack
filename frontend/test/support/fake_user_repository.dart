@@ -5,10 +5,11 @@ import 'package:edutrack_app/features/users/data/models/app_user.dart';
 import 'package:edutrack_app/features/users/data/user_repository.dart';
 
 class FakeUserRepository implements UserRepository {
-  FakeUserRepository({List<AppUser>? users, this.failCreateWith}) : _users = users ?? [];
+  FakeUserRepository({List<AppUser>? users, this.failCreateWith, this.failUpdateWith}) : _users = users ?? [];
 
   final List<AppUser> _users;
   Failure? failCreateWith;
+  Failure? failUpdateWith;
   int? lastListSchoolId;
 
   List<AppUser> _filtered({List<UserRole>? roles, String? status}) {
@@ -83,6 +84,8 @@ class FakeUserRepository implements UserRepository {
     String? password,
     UserRole? role,
   }) async {
+    if (failUpdateWith != null) throw failUpdateWith!;
+
     final index = _users.indexWhere((u) => u.id == userId);
     final existing = _users[index];
     final newFirstName = firstName ?? existing.firstName;

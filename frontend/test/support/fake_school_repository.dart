@@ -6,10 +6,13 @@ import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'fake_pagination.dart';
 
 class FakeSchoolRepository implements SchoolRepository {
-  FakeSchoolRepository({List<School>? schools, this.failCreateWith}) : _schools = schools ?? [];
+  FakeSchoolRepository({List<School>? schools, this.failCreateWith, this.failUpdateWith, this.failListPageWith})
+    : _schools = schools ?? [];
 
   final List<School> _schools;
   Failure? failCreateWith;
+  Failure? failUpdateWith;
+  Failure? failListPageWith;
   int listCallCount = 0;
 
   @override
@@ -20,6 +23,7 @@ class FakeSchoolRepository implements SchoolRepository {
 
   @override
   Future<PaginatedResponse<School>> listPage({required int page, required int perPage}) async {
+    if (failListPageWith != null) throw failListPageWith!;
     return paginateFake(_schools, page: page, perPage: perPage);
   }
 
@@ -71,6 +75,8 @@ class FakeSchoolRepository implements SchoolRepository {
     String? postalCode,
     String? currencyCode,
   }) async {
+    if (failUpdateWith != null) throw failUpdateWith!;
+
     final index = _schools.indexWhere((s) => s.id == schoolId);
     final existing = _schools[index];
     final updated = School(

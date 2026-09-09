@@ -6,10 +6,19 @@ import 'package:edutrack_app/features/students/data/student_repository.dart';
 import 'fake_pagination.dart';
 
 class FakeStudentRepository implements StudentRepository {
-  FakeStudentRepository({List<Student>? students, this.failCreateWith}) : _students = students ?? [];
+  FakeStudentRepository({
+    List<Student>? students,
+    this.failCreateWith,
+    this.failUpdateWith,
+    this.failSetActiveWith,
+    this.failListWith,
+  }) : _students = students ?? [];
 
   final List<Student> _students;
   Failure? failCreateWith;
+  Failure? failUpdateWith;
+  Failure? failSetActiveWith;
+  Failure? failListWith;
 
   List<Student> _filtered({int? schoolId}) {
     return schoolId == null ? _students : _students.where((s) => s.schoolId == schoolId).toList();
@@ -17,6 +26,7 @@ class FakeStudentRepository implements StudentRepository {
 
   @override
   Future<List<Student>> list({int? schoolId, int? classSectionId, String? search}) async {
+    if (failListWith != null) throw failListWith!;
     return List.unmodifiable(_filtered(schoolId: schoolId));
   }
 
@@ -28,6 +38,7 @@ class FakeStudentRepository implements StudentRepository {
     required int page,
     required int perPage,
   }) async {
+    if (failListWith != null) throw failListWith!;
     return paginateFake(
       _filtered(schoolId: schoolId),
       page: page,
@@ -81,6 +92,8 @@ class FakeStudentRepository implements StudentRepository {
     String? guardianMobile,
     String? address,
   }) async {
+    if (failUpdateWith != null) throw failUpdateWith!;
+
     final index = _students.indexWhere((s) => s.id == studentId);
     final existing = _students[index];
     final updated = Student(
@@ -105,6 +118,8 @@ class FakeStudentRepository implements StudentRepository {
 
   @override
   Future<Student> setActive(int studentId, bool active) async {
+    if (failSetActiveWith != null) throw failSetActiveWith!;
+
     final index = _students.indexWhere((s) => s.id == studentId);
     final updated = _students[index].copyWith(status: active ? StudentStatus.active : StudentStatus.inactive);
     _students[index] = updated;

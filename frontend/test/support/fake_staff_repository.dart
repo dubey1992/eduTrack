@@ -8,10 +8,13 @@ import 'package:edutrack_app/features/users/data/models/app_user.dart';
 import 'fake_pagination.dart';
 
 class FakeStaffRepository implements StaffRepository {
-  FakeStaffRepository({List<StaffProfile>? staff, this.failCreateWith}) : _staff = staff ?? [];
+  FakeStaffRepository({List<StaffProfile>? staff, this.failCreateWith, this.failUpdateWith, this.failListPageWith})
+    : _staff = staff ?? [];
 
   final List<StaffProfile> _staff;
   Failure? failCreateWith;
+  Failure? failUpdateWith;
+  Failure? failListPageWith;
 
   List<StaffProfile> _filtered({int? schoolId, int? departmentId, UserRole? role, String? search}) {
     final query = search?.trim().toLowerCase();
@@ -37,6 +40,7 @@ class FakeStaffRepository implements StaffRepository {
     required int page,
     required int perPage,
   }) async {
+    if (failListPageWith != null) throw failListPageWith!;
     return paginateFake(
       _filtered(schoolId: schoolId, departmentId: departmentId, role: role, search: search),
       page: page,
@@ -94,6 +98,7 @@ class FakeStaffRepository implements StaffRepository {
     DateTime? joiningDate,
     String? address,
   }) async {
+    if (failUpdateWith != null) throw failUpdateWith!;
     final index = _staff.indexWhere((s) => s.id == staffProfileId);
     final updated = _staff[index].copyWith(designation: designation, departmentId: departmentId);
     _staff[index] = updated;

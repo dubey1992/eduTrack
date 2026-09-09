@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/schools/data/models/school.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
@@ -60,5 +61,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Inactive'), findsOneWidget);
+  });
+
+  testWidgets('shows an error state with a working retry when loading fails', (tester) async {
+    final fake = FakeSchoolRepository(
+      schools: [_school],
+      failListPageWith: const Failure(code: 'SCHOOL_LIST_FAILED', message: 'Could not load schools.'),
+    );
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not load schools.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Sunrise Public School'), findsNothing);
+
+    fake.failListPageWith = null;
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sunrise Public School'), findsOneWidget);
+    expect(find.text('Could not load schools.'), findsNothing);
   });
 }

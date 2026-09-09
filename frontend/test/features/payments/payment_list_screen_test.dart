@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/payments/data/models/payment.dart';
 import 'package:edutrack_app/features/payments/data/payment_repository.dart';
@@ -72,5 +73,22 @@ void main() {
 
     expect(find.text('Payment Receipt'), findsOneWidget);
     expect(find.text('PMT-000001'), findsOneWidget);
+  });
+
+  testWidgets('shows an error state with a retry button when the repository throws', (tester) async {
+    final fake = FakePaymentRepository(
+      failListPageWith: const Failure(code: 'PAYMENT_LIST_FAILED', message: 'Could not load payments.'),
+    );
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not load payments.'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
+
+    fake.failListPageWith = null;
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No payments recorded yet.'), findsOneWidget);
   });
 }

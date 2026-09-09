@@ -86,6 +86,22 @@ void main() {
     expect(find.text('Leave request approved.'), findsOneWidget);
   });
 
+  testWidgets('rejecting a leave request updates its status badge', (tester) async {
+    final fake = FakeStaffLeaveRepository(leaves: [_pendingLeave]);
+    await tester.pumpWidget(wrap(_schoolAdmin, staffLeave: fake));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Reject'));
+    await tester.pumpAndSettle();
+
+    expect(fake.lastRejectedId, 1);
+    // "Rejected" shows up three times here: the status filter chip, the
+    // "Rejected" KPI card in the summary row, and the leave's own status
+    // badge now that it's been reviewed.
+    expect(find.text('Rejected'), findsNWidgets(3));
+    expect(find.text('Leave request rejected.'), findsOneWidget);
+  });
+
   testWidgets('a school admin applying for their own leave is told it was auto-approved', (tester) async {
     final fake = FakeStaffLeaveRepository(applyResultStatus: LeaveStatus.approved);
     await tester.pumpWidget(wrap(_schoolAdmin, staffLeave: fake));

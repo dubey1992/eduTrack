@@ -6,10 +6,21 @@ import 'package:edutrack_app/features/classes/data/school_class_repository.dart'
 import 'fake_pagination.dart';
 
 class FakeSchoolClassRepository implements SchoolClassRepository {
-  FakeSchoolClassRepository({List<SchoolClass>? classes, this.failCreateWith}) : _classes = classes ?? [];
+  FakeSchoolClassRepository({
+    List<SchoolClass>? classes,
+    this.failCreateWith,
+    this.failUpdateWith,
+    this.failListPageWith,
+    this.failAddSectionWith,
+    this.failUpdateSectionWith,
+  }) : _classes = classes ?? [];
 
   final List<SchoolClass> _classes;
   Failure? failCreateWith;
+  Failure? failUpdateWith;
+  Failure? failListPageWith;
+  Failure? failAddSectionWith;
+  Failure? failUpdateSectionWith;
 
   List<SchoolClass> _filtered({int? schoolId, int? academicYearId}) {
     return _classes
@@ -33,6 +44,8 @@ class FakeSchoolClassRepository implements SchoolClassRepository {
     required int page,
     required int perPage,
   }) async {
+    if (failListPageWith != null) throw failListPageWith!;
+
     return paginateFake(
       _filtered(schoolId: schoolId, academicYearId: academicYearId),
       page: page,
@@ -65,6 +78,8 @@ class FakeSchoolClassRepository implements SchoolClassRepository {
 
   @override
   Future<SchoolClass> update(int schoolClassId, {String? name, int? level}) async {
+    if (failUpdateWith != null) throw failUpdateWith!;
+
     final index = _classes.indexWhere((c) => c.id == schoolClassId);
     final existing = _classes[index];
     final updated = SchoolClass(
@@ -93,6 +108,8 @@ class FakeSchoolClassRepository implements SchoolClassRepository {
     String? roomNumber,
     int? classTeacherId,
   }) async {
+    if (failAddSectionWith != null) throw failAddSectionWith!;
+
     final index = _classes.indexWhere((c) => c.id == schoolClassId);
     final section = ClassSection(
       id: _classes[index].sections.length + 1,
@@ -117,6 +134,8 @@ class FakeSchoolClassRepository implements SchoolClassRepository {
 
   @override
   Future<ClassSection> updateSection(int sectionId, {String? name, String? roomNumber, int? classTeacherId}) async {
+    if (failUpdateSectionWith != null) throw failUpdateSectionWith!;
+
     for (var i = 0; i < _classes.length; i++) {
       final schoolClass = _classes[i];
       final sectionIndex = schoolClass.sections.indexWhere((s) => s.id == sectionId);

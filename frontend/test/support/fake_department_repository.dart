@@ -6,10 +6,17 @@ import 'package:edutrack_app/features/departments/data/models/department.dart';
 import 'fake_pagination.dart';
 
 class FakeDepartmentRepository implements DepartmentRepository {
-  FakeDepartmentRepository({List<Department>? departments, this.failCreateWith}) : _departments = departments ?? [];
+  FakeDepartmentRepository({
+    List<Department>? departments,
+    this.failCreateWith,
+    this.failUpdateWith,
+    this.failListPageWith,
+  }) : _departments = departments ?? [];
 
   final List<Department> _departments;
   Failure? failCreateWith;
+  Failure? failUpdateWith;
+  Failure? failListPageWith;
 
   List<Department> _filtered({int? schoolId}) {
     return schoolId == null ? _departments : _departments.where((d) => d.schoolId == schoolId).toList();
@@ -22,6 +29,8 @@ class FakeDepartmentRepository implements DepartmentRepository {
 
   @override
   Future<PaginatedResponse<Department>> listPage({int? schoolId, required int page, required int perPage}) async {
+    if (failListPageWith != null) throw failListPageWith!;
+
     return paginateFake(
       _filtered(schoolId: schoolId),
       page: page,
@@ -47,6 +56,8 @@ class FakeDepartmentRepository implements DepartmentRepository {
 
   @override
   Future<Department> update(int departmentId, {String? name, int? hodUserId}) async {
+    if (failUpdateWith != null) throw failUpdateWith!;
+
     final index = _departments.indexWhere((d) => d.id == departmentId);
     final existing = _departments[index];
     final updated = Department(

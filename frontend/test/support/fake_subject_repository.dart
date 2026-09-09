@@ -6,10 +6,13 @@ import 'package:edutrack_app/features/subjects/data/subject_repository.dart';
 import 'fake_pagination.dart';
 
 class FakeSubjectRepository implements SubjectRepository {
-  FakeSubjectRepository({List<Subject>? subjects, this.failCreateWith}) : _subjects = subjects ?? [];
+  FakeSubjectRepository({List<Subject>? subjects, this.failCreateWith, this.failUpdateWith, this.failListPageWith})
+    : _subjects = subjects ?? [];
 
   final List<Subject> _subjects;
   Failure? failCreateWith;
+  Failure? failUpdateWith;
+  Failure? failListPageWith;
 
   List<Subject> _filtered({int? schoolId, int? departmentId}) {
     return _subjects
@@ -32,6 +35,8 @@ class FakeSubjectRepository implements SubjectRepository {
     required int page,
     required int perPage,
   }) async {
+    if (failListPageWith != null) throw failListPageWith!;
+
     return paginateFake(
       _filtered(schoolId: schoolId, departmentId: departmentId),
       page: page,
@@ -78,6 +83,8 @@ class FakeSubjectRepository implements SubjectRepository {
     int? maxClassLevel,
     int? leadTeacherId,
   }) async {
+    if (failUpdateWith != null) throw failUpdateWith!;
+
     final index = _subjects.indexWhere((s) => s.id == subjectId);
     final existing = _subjects[index];
     final updated = Subject(
