@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\UserRole;
 use App\Exceptions\TeachingReportAlreadyReviewedException;
 use App\Exceptions\TeachingReportAlreadySubmittedException;
+use App\Exceptions\TeachingReportOnHolidayException;
 use App\Models\DailyTeachingReport;
 use App\Models\TimetableEntry;
 use App\Models\User;
@@ -19,11 +20,18 @@ class DailyTeachingReportService
         'timetableEntry.classSection.schoolClass', 'timetableEntry.period', 'timetableEntry.subject', 'teacher', 'reviewedBy',
     ];
 
+    public function __construct(private readonly HolidayService $holidayService) {}
+
     /**
      * @param  array<string, mixed>  $data
      */
     public function create(TimetableEntry $entry, array $data, User $actor): DailyTeachingReport
     {
+        $holiday = $this->holidayService->holidayOn($entry->school_id, $data['report_date']);
+        if ($holiday !== null) {
+            throw new TeachingReportOnHolidayException("No periods are taught on {$holiday->name} - it is a holiday.");
+        }
+
         $this->assertNoDuplicate($entry->id, $data['report_date']);
 
         $report = DailyTeachingReport::create([
@@ -70,18 +78,25 @@ class DailyTeachingReportService
      * entry whose day_of_week matches the given date), Submitted from this
      * table, both counted over the same role-scoped visibility as
      * paginate(). "Conducted" isn't included - this system has no signal
-     * for it independent of "a report was filed".
+     * for it independent of "a report was filed". On a holiday nothing is
+     * scheduled, and `holiday` names it (only resolvable when the query is
+     * pinned to one school - a SuperAdmin looking across schools gets null).
      *
      * @param  array<string, mixed>  $filters
-     * @return array<string, int>
+     * @return array<string, mixed>
      */
     public function summary(User $actor, array $filters, string $date): array
     {
+        $schoolId = $actor->role === UserRole::SuperAdmin ? ($filters['school_id'] ?? null) : $actor->school_id;
+        $holiday = $schoolId === null ? null : $this->holidayService->holidayOn((int) $schoolId, $date);
+
         $dayOfWeek = strtolower(Carbon::parse($date)->format('l'));
 
-        $scheduled = $this->scopedTimetableQuery($actor, $filters['school_id'] ?? null)
-            ->where('day_of_week', $dayOfWeek)
-            ->count();
+        $scheduled = $holiday !== null
+            ? 0
+            : $this->scopedTimetableQuery($actor, $filters['school_id'] ?? null)
+                ->where('day_of_week', $dayOfWeek)
+                ->count();
 
         $submitted = $this->scopedQuery($actor, $filters['school_id'] ?? null)
             ->where('report_date', $date)
@@ -91,6 +106,7 @@ class DailyTeachingReportService
             'scheduled' => $scheduled,
             'submitted' => $submitted,
             'pending' => max(0, $scheduled - $submitted),
+            'holiday' => $holiday?->name,
         ];
     }
 

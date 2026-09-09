@@ -1,3 +1,4 @@
+import '../../../holidays/data/models/holiday.dart';
 import 'staff_attendance_status.dart';
 
 /// One staff member's row in a school's daily register - [status]/etc. are
@@ -70,6 +71,7 @@ class StaffAttendanceRegister {
     required this.attendanceDate,
     required this.submitted,
     required this.staff,
+    this.holiday,
   });
 
   factory StaffAttendanceRegister.fromJson(Map<String, dynamic> json) {
@@ -78,6 +80,7 @@ class StaffAttendanceRegister {
       attendanceDate: json['attendance_date'] as String,
       submitted: json['submitted'] as bool,
       staff: (json['staff'] as List).cast<Map<String, dynamic>>().map(StaffRosterEntry.fromJson).toList(),
+      holiday: json['holiday'] == null ? null : HolidaySummary.fromJson(json['holiday'] as Map<String, dynamic>),
     );
   }
 
@@ -85,4 +88,7 @@ class StaffAttendanceRegister {
   final String attendanceDate;
   final bool submitted;
   final List<StaffRosterEntry> staff;
+
+  /// Set when the day is on the school's calendar; the server refuses to mark it.
+  final HolidaySummary? holiday;
 }

@@ -8,6 +8,7 @@ use App\Models\AcademicYear;
 use App\Models\ClassSection;
 use App\Models\DailyTeachingReport;
 use App\Models\Department;
+use App\Models\Holiday;
 use App\Models\Period;
 use App\Models\School;
 use App\Models\SchoolClass;
@@ -67,18 +68,21 @@ class HodDepartmentReportTest extends TestCase
     }
 
     /**
-     * August 2026: Mon 3rd, Tue 4th, Wed 5th, Thu 6th are the four "working
-     * days" (the only dates with any staff attendance recorded). Priya is
-     * present (late) Monday, half-day Tuesday, absent Wednesday, on leave
-     * Thursday; teaches Maths/8A twice on Monday, Science/9B on Tuesday and
-     * Maths/8A on Wednesday; filed two reports on Monday (one reviewed);
-     * Maths has 4 topics (2 done for 8A), Science has 2 (none done).
+     * August 2026 has 21 weekdays; Fri 14th and Mon 24th - Tue 25th are
+     * holidays, leaving 18 working days. Priya is present (late) Mon 3rd,
+     * half-day Tue 4th, absent Wed 5th, on leave Thu 6th; teaches Maths/8A
+     * twice on Mondays, Science/9B on Tuesdays and Maths/8A on Wednesdays;
+     * filed two reports on Mon 3rd (one reviewed); Maths has 4 topics
+     * (2 done for 8A), Science has 2 (none done).
      *
      * @return array{0: School, 1: Department, 2: User, 3: User, 4: StaffProfile}
      */
     private function makeRichFixture(): array
     {
         [$school, $department, $hod, $teacher, $teacherProfile] = $this->makeDepartment();
+
+        Holiday::factory()->forSchool($school)->onDates('2026-08-14')->create(['name' => 'Founders Day']);
+        Holiday::factory()->forSchool($school)->onDates('2026-08-24', '2026-08-25')->type('vacation')->create();
 
         $period1 = Period::factory()->forSchool($school)->number(1)->create(['start_time' => '09:00', 'end_time' => '09:45']);
         $period2 = Period::factory()->forSchool($school)->number(2)->create(['start_time' => '09:45', 'end_time' => '10:30']);
@@ -101,7 +105,8 @@ class HodDepartmentReportTest extends TestCase
         DailyTeachingReport::factory()->forEntry($monday1)->onDate('2026-08-03')->reviewed($hod->id)->create();
         DailyTeachingReport::factory()->forEntry($monday2)->onDate('2026-08-03')->create();
 
-        // 2 days inside the month, 1 clipped day (Jul 30 - Aug 1), a half-day, and a pending one that must not count.
+        // Thu-Fri (2 working days), Jul 30 - Sat Aug 1 (its only August day is a weekend: 0),
+        // a half-day on a Monday (0.5), and a pending request that must not count.
         StaffLeave::factory()->forStaff($teacherProfile)->onDates('2026-08-06', '2026-08-07')->status('approved')->create();
         StaffLeave::factory()->forStaff($teacherProfile)->onDates('2026-07-30', '2026-08-01')->status('approved')->create();
         StaffLeave::factory()->forStaff($teacherProfile)->onDates('2026-08-10', '2026-08-10')->status('approved')->create(['leave_type' => 'half_day']);
@@ -329,17 +334,17 @@ class HodDepartmentReportTest extends TestCase
 
         $response = $this->actingAs($hod, 'sanctum')->getJson(self::ENDPOINT.'?month='.self::MONTH);
 
-        $response->assertOk()->assertJsonPath('working_days', 4);
+        $response->assertOk()->assertJsonPath('working_days', 18);
         $row = $this->teacherRow($response->json(), $teacher->id);
 
         $this->assertSame($teacherProfile->id, $row['staff_profile_id']);
         $this->assertSame($teacher->name, $row['teacher_name']);
         $this->assertSame($teacherProfile->employee_id, $row['employee_id']);
-        $this->assertSame(37.5, $row['attendance_percent']);   // (1 present + 0.5 half-day) / 4 working days
-        $this->assertSame(3.5, $row['leave_days']);            // 2 + 1 clipped + 0.5 half-day; pending ignored
+        $this->assertSame(8.3, $row['attendance_percent']);    // (1 present + 0.5 half-day) / 18 working days
+        $this->assertSame(2.5, $row['leave_days']);            // Thu+Fri + 0.5 half-day; Sat and pending ignored
         $this->assertSame(1, $row['late_marks']);              // 09:15 check-in vs 09:00 first period
-        $this->assertSame(4, $row['classes_assigned']);        // Mon 2 + Tue 1 + Wed 1 + Thu 0
-        $this->assertSame(3, $row['classes_taught']);          // absent on Wednesday
+        $this->assertSame(15, $row['classes_assigned']);       // Mon 4x2 (24th is a holiday) + Tue 3 (25th) + Wed 4
+        $this->assertSame(3, $row['classes_taught']);          // present Mon 3rd (2) + half-day Tue 4th (1)
         $this->assertSame(2, $row['reports_submitted']);
         $this->assertSame(1, $row['reports_pending_review']);
         $this->assertSame(33, $row['syllabus_percent']);       // 2 of (4 maths + 2 science) topics
@@ -352,12 +357,12 @@ class HodDepartmentReportTest extends TestCase
 
         $response = $this->actingAs($hod, 'sanctum')->getJson(self::ENDPOINT.'?month='.self::MONTH);
 
-        // Priya (1.5 credits) + the HOD (no attendance) over 4 days x 2 teachers.
+        // Priya (1.5 credits) + the HOD (no attendance) over 18 days x 2 teachers.
         $response->assertOk()
             ->assertJsonPath('teacher_count', 2)
-            ->assertJsonPath('working_days', 4)
-            ->assertJsonPath('avg_attendance_percent', 18.8)
-            ->assertJsonPath('leave_days', 3.5)
+            ->assertJsonPath('working_days', 18)
+            ->assertJsonPath('avg_attendance_percent', 4.2)
+            ->assertJsonPath('leave_days', 2.5)
             ->assertJsonPath('late_marks', 1);
     }
 
@@ -393,9 +398,10 @@ class HodDepartmentReportTest extends TestCase
         $this->assertSame('on_track', $row['status']);
     }
 
-    public function test_a_month_with_no_recorded_attendance_yields_zero_working_days_and_no_division_errors(): void
+    public function test_a_month_that_is_entirely_a_vacation_yields_zero_working_days_and_no_division_errors(): void
     {
-        [, , $hod, $teacher] = $this->makeRichFixture();
+        [$school, , $hod, $teacher] = $this->makeRichFixture();
+        Holiday::factory()->forSchool($school)->onDates('2026-05-01', '2026-05-31')->type('vacation')->create();
 
         $response = $this->actingAs($hod, 'sanctum')->getJson(self::ENDPOINT.'?month=2026-05');
 
@@ -410,6 +416,45 @@ class HodDepartmentReportTest extends TestCase
         $this->assertSame(0, $row['classes_taught']);
     }
 
+    public function test_working_days_are_weekdays_minus_holidays(): void
+    {
+        [$school, , $hod] = $this->makeDepartment();
+        // May 2026 has 21 weekdays; Fri 1st is a holiday, and a Sat-Sun break must not change anything.
+        Holiday::factory()->forSchool($school)->onDates('2026-05-01')->create();
+        Holiday::factory()->forSchool($school)->onDates('2026-05-09', '2026-05-10')->create();
+
+        $this->actingAs($hod, 'sanctum')
+            ->getJson(self::ENDPOINT.'?month=2026-05')
+            ->assertOk()
+            ->assertJsonPath('working_days', 20);
+    }
+
+    public function test_the_current_month_only_counts_working_days_up_to_today(): void
+    {
+        [, , $hod] = $this->makeDepartment();
+        $expected = 0;
+        for ($date = now()->startOfMonth(); $date->lte(now()->startOfDay()); $date->addDay()) {
+            if (! $date->isWeekend()) {
+                $expected++;
+            }
+        }
+
+        $this->actingAs($hod, 'sanctum')
+            ->getJson(self::ENDPOINT.'?month='.now()->format('Y-m'))
+            ->assertOk()
+            ->assertJsonPath('working_days', $expected);
+    }
+
+    public function test_a_future_month_has_no_working_days_yet(): void
+    {
+        [, , $hod] = $this->makeDepartment();
+
+        $this->actingAs($hod, 'sanctum')
+            ->getJson(self::ENDPOINT.'?month='.now()->addMonths(2)->format('Y-m'))
+            ->assertOk()
+            ->assertJsonPath('working_days', 0);
+    }
+
     public function test_late_marks_are_zero_when_the_school_has_no_periods_defined(): void
     {
         [, , $hod, $teacher, $teacherProfile] = $this->makeDepartment();
@@ -421,18 +466,16 @@ class HodDepartmentReportTest extends TestCase
         $this->assertSame(0, $this->teacherRow($response->json(), $teacher->id)['late_marks']);
     }
 
-    public function test_working_days_only_count_dates_with_attendance_recorded_in_that_school(): void
+    public function test_another_schools_holidays_do_not_reduce_this_schools_working_days(): void
     {
-        [, , $hod, , $teacherProfile] = $this->makeDepartment();
-        [, , , , $foreignProfile] = $this->makeDepartment();
-        StaffAttendance::factory()->forStaff($teacherProfile)->onDate('2026-08-03')->status('present')->create();
-        StaffAttendance::factory()->forStaff($foreignProfile)->onDate('2026-08-04')->status('present')->create();
-        StaffAttendance::factory()->forStaff($foreignProfile)->onDate('2026-08-05')->status('present')->create();
+        [, , $hod] = $this->makeDepartment();
+        [$otherSchool] = $this->makeDepartment();
+        Holiday::factory()->forSchool($otherSchool)->onDates('2026-08-03', '2026-08-07')->type('vacation')->create();
 
         $this->actingAs($hod, 'sanctum')
             ->getJson(self::ENDPOINT.'?month='.self::MONTH)
             ->assertOk()
-            ->assertJsonPath('working_days', 1);
+            ->assertJsonPath('working_days', 21);
     }
 
     // ── row membership ──────────────────────────────────────────────────

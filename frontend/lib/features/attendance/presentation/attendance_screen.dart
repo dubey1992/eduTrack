@@ -195,6 +195,9 @@ class _RegisterView extends ConsumerWidget {
       ),
       data: (context, register) {
         final isComplete = register.students.every((s) => s.status != null);
+        // On a holiday the server refuses to mark, so the whole register is
+        // read-only and the banner explains why instead of the submit row.
+        final holiday = register.holiday;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,56 +212,76 @@ class _RegisterView extends ConsumerWidget {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Chip(
-                  label: Text(register.submitted ? 'Submitted' : 'Not yet submitted'),
-                  backgroundColor: register.submitted
-                      ? context.appColors.successContainer
-                      : context.appColors.warningContainer,
-                  labelStyle: TextStyle(
-                    color: register.submitted
-                        ? context.appColors.onSuccessContainer
-                        : context.appColors.onWarningContainer,
+                if (holiday != null)
+                  Chip(
+                    avatar: Icon(Icons.beach_access_outlined, size: 18, color: context.appColors.onDangerContainer),
+                    label: Text('Holiday: ${holiday.name}'),
+                    backgroundColor: context.appColors.dangerContainer,
+                    labelStyle: TextStyle(color: context.appColors.onDangerContainer),
+                  )
+                else
+                  Chip(
+                    label: Text(register.submitted ? 'Submitted' : 'Not yet submitted'),
+                    backgroundColor: register.submitted
+                        ? context.appColors.successContainer
+                        : context.appColors.warningContainer,
+                    labelStyle: TextStyle(
+                      color: register.submitted
+                          ? context.appColors.onSuccessContainer
+                          : context.appColors.onWarningContainer,
+                    ),
                   ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton(onPressed: notifier.markAllPresent, child: const Text('Mark All Present')),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: isComplete
-                          ? () async {
-                              try {
-                                await notifier.submitOrUpdate();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        register.submitted ? 'Attendance updated.' : 'Attendance submitted.',
+                if (holiday == null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton(onPressed: notifier.markAllPresent, child: const Text('Mark All Present')),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: isComplete
+                            ? () async {
+                                try {
+                                  await notifier.submitOrUpdate();
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          register.submitted ? 'Attendance updated.' : 'Attendance submitted.',
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                }
-                              } catch (error) {
-                                final failure = error is Failure ? error : Failure.unknown(error.toString());
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+                                    );
+                                  }
+                                } catch (error) {
+                                  final failure = error is Failure ? error : Failure.unknown(error.toString());
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(content: Text(failure.message)));
+                                  }
                                 }
                               }
-                            }
-                          : null,
-                      child: Text(register.submitted ? 'Update Attendance' : 'Submit Attendance'),
-                    ),
-                  ],
-                ),
+                            : null,
+                        child: Text(register.submitted ? 'Update Attendance' : 'Submit Attendance'),
+                      ),
+                    ],
+                  ),
               ],
             ),
+            if (holiday != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Attendance is not marked on holidays. Pick another date to mark this class.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
             const SizedBox(height: 12),
             Card(
               child: Column(
                 children: [
                   for (final entry in register.students)
-                    _RosterRow(entry: entry, onStatusChanged: (status) => notifier.setStatus(entry.studentId, status)),
+                    _RosterRow(
+                      entry: entry,
+                      onStatusChanged: holiday != null ? null : (status) => notifier.setStatus(entry.studentId, status),
+                    ),
                 ],
               ),
             ),
@@ -273,7 +296,9 @@ class _RosterRow extends StatelessWidget {
   const _RosterRow({required this.entry, required this.onStatusChanged});
 
   final AttendanceRosterEntry entry;
-  final ValueChanged<AttendanceStatus> onStatusChanged;
+
+  /// Null when the register is read-only (a holiday).
+  final ValueChanged<AttendanceStatus>? onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -301,7 +326,7 @@ class _RosterRow extends StatelessWidget {
                 label: Text(status.label[0]),
                 tooltip: status.label,
                 selected: entry.status == status,
-                onSelected: (_) => onStatusChanged(status),
+                onSelected: onStatusChanged == null ? null : (_) => onStatusChanged!(status),
               ),
             ),
         ],

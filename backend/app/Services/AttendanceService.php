@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Enums\StudentStatus;
 use App\Enums\UserRole;
 use App\Exceptions\AttendanceAlreadySubmittedException;
+use App\Exceptions\AttendanceOnHolidayException;
 use App\Models\Attendance;
 use App\Models\ClassSection;
+use App\Models\Holiday;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -14,9 +16,13 @@ use Illuminate\Support\Facades\DB;
 
 class AttendanceService
 {
+    public function __construct(private readonly HolidayService $holidayService) {}
+
     /**
      * The class's active roster for one day, each student paired with their
-     * existing mark (or null if the day hasn't been submitted yet).
+     * existing mark (or null if the day hasn't been submitted yet). If the
+     * day is on the school's holiday calendar, `holiday` says which one -
+     * the client shows it and submit()/update() refuse to mark.
      *
      * @return array<string, mixed>
      */
@@ -33,10 +39,13 @@ class AttendanceService
             ->get()
             ->keyBy('student_id');
 
+        $holiday = $this->holidayService->holidayOn($section->schoolClass->school_id, $date);
+
         return [
             'class_section_id' => $section->id,
             'attendance_date' => $date,
             'submitted' => $existing->isNotEmpty(),
+            'holiday' => $holiday === null ? null : self::holidayPayload($holiday),
             'students' => $students->map(fn (Student $student) => [
                 'student_id' => $student->id,
                 'name' => $student->name,
@@ -86,12 +95,17 @@ class AttendanceService
      */
     private function save(ClassSection $section, array $data, User $actor): array
     {
-        return DB::transaction(function () use ($section, $data, $actor) {
-            // Never trusted from the client - derived the same way
-            // School/currency snapshots are (CLAUDE.md rule 5's pattern).
-            $schoolId = $section->schoolClass->school_id;
-            $academicYearId = $section->schoolClass->academic_year_id;
+        // Never trusted from the client - derived the same way
+        // School/currency snapshots are (CLAUDE.md rule 5's pattern).
+        $schoolId = $section->schoolClass->school_id;
+        $academicYearId = $section->schoolClass->academic_year_id;
 
+        $holiday = $this->holidayService->holidayOn($schoolId, $data['attendance_date']);
+        if ($holiday !== null) {
+            throw new AttendanceOnHolidayException("Attendance cannot be marked on {$holiday->name} - it is a holiday.");
+        }
+
+        return DB::transaction(function () use ($section, $data, $actor, $schoolId, $academicYearId) {
             foreach ($data['records'] as $record) {
                 Attendance::updateOrCreate(
                     [
@@ -154,5 +168,15 @@ class AttendanceService
             ->orderByDesc('attendance_date')
             ->orderBy('student_id')
             ->paginate(perPage: 20);
+    }
+
+    /**
+     * The holiday summary both registers (student and staff) return.
+     *
+     * @return array{id: int, name: string, type: string}
+     */
+    public static function holidayPayload(Holiday $holiday): array
+    {
+        return ['id' => $holiday->id, 'name' => $holiday->name, 'type' => $holiday->type->value];
     }
 }

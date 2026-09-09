@@ -4,11 +4,13 @@ namespace Tests\Feature\Api\V1;
 
 use App\Enums\UserRole;
 use App\Models\Department;
+use App\Models\Holiday;
 use App\Models\School;
 use App\Models\StaffLeave;
 use App\Models\StaffProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class StaffLeaveManagementTest extends TestCase
@@ -31,12 +33,22 @@ class StaffLeaveManagementTest extends TestCase
         return [$school, $department, $hodUser, $hodProfile, $teacherProfile];
     }
 
+    /**
+     * Leave dates are anchored to a Monday so the weekday-only rules (no
+     * leave on weekends/holidays, attendance sync on working days only)
+     * behave the same no matter which day the suite runs on.
+     */
+    private function nextMonday(int $plusDays = 0): string
+    {
+        return now()->next(Carbon::MONDAY)->addDays($plusDays)->toDateString();
+    }
+
     private function leavePayload(array $overrides = []): array
     {
         return array_merge([
             'leave_type' => 'casual',
-            'start_date' => now()->addDays(2)->toDateString(),
-            'end_date' => now()->addDays(3)->toDateString(),
+            'start_date' => $this->nextMonday(),
+            'end_date' => $this->nextMonday(1),
             'reason' => 'Family function.',
         ], $overrides);
     }
@@ -101,7 +113,7 @@ class StaffLeaveManagementTest extends TestCase
             ->assertJsonPath('reviewed_by_name', $admin->name);
         $this->assertDatabaseHas('staff_attendances', [
             'staff_profile_id' => $profile->id,
-            'attendance_date' => now()->addDays(2)->toDateString(),
+            'attendance_date' => $this->nextMonday(),
             'status' => 'leave',
         ]);
     }
@@ -190,8 +202,8 @@ class StaffLeaveManagementTest extends TestCase
         [, , , , $teacherProfile] = $this->makeDepartmentWithHodAndTeacher();
 
         $this->actingAs($teacherProfile->user, 'sanctum')->postJson('/api/v1/leaves', $this->leavePayload([
-            'start_date' => now()->addDays(5)->toDateString(),
-            'end_date' => now()->addDays(2)->toDateString(),
+            'start_date' => $this->nextMonday(3),
+            'end_date' => $this->nextMonday(),
         ]))->assertUnprocessable();
     }
 
@@ -202,9 +214,38 @@ class StaffLeaveManagementTest extends TestCase
         $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/leaves', $this->leavePayload())->assertCreated();
 
         $this->actingAs($teacher, 'sanctum')->postJson('/api/v1/leaves', $this->leavePayload([
-            'start_date' => now()->addDays(3)->toDateString(),
-            'end_date' => now()->addDays(4)->toDateString(),
+            'start_date' => $this->nextMonday(1),
+            'end_date' => $this->nextMonday(2),
         ]))->assertConflict()->assertJsonPath('code', 'LEAVE_OVERLAP');
+    }
+
+    public function test_leave_that_falls_entirely_on_a_weekend_is_rejected(): void
+    {
+        [, , , , $teacherProfile] = $this->makeDepartmentWithHodAndTeacher();
+
+        $this->actingAs($teacherProfile->user, 'sanctum')->postJson('/api/v1/leaves', $this->leavePayload([
+            'start_date' => $this->nextMonday(5),
+            'end_date' => $this->nextMonday(6),
+        ]))->assertConflict()->assertJsonPath('code', 'LEAVE_ON_NON_WORKING_DAYS');
+    }
+
+    public function test_leave_that_falls_entirely_on_a_holiday_is_rejected(): void
+    {
+        [$school, , , , $teacherProfile] = $this->makeDepartmentWithHodAndTeacher();
+        Holiday::factory()->forSchool($school)->onDates($this->nextMonday(), $this->nextMonday(1))->create();
+
+        $this->actingAs($teacherProfile->user, 'sanctum')->postJson('/api/v1/leaves', $this->leavePayload())
+            ->assertConflict()
+            ->assertJsonPath('code', 'LEAVE_ON_NON_WORKING_DAYS');
+    }
+
+    public function test_leave_spanning_a_holiday_and_a_working_day_is_accepted(): void
+    {
+        [$school, , , , $teacherProfile] = $this->makeDepartmentWithHodAndTeacher();
+        Holiday::factory()->forSchool($school)->onDates($this->nextMonday())->create();
+
+        $this->actingAs($teacherProfile->user, 'sanctum')->postJson('/api/v1/leaves', $this->leavePayload())
+            ->assertCreated();
     }
 
     // ── review (approve/reject) ─────────────────────────────────────────
@@ -222,21 +263,34 @@ class StaffLeaveManagementTest extends TestCase
     public function test_approving_a_leave_marks_every_date_in_range_as_leave_on_the_attendance_register(): void
     {
         [, , $hodUser, , $teacherProfile] = $this->makeDepartmentWithHodAndTeacher();
-        $leave = StaffLeave::factory()->forStaff($teacherProfile)->onDates(
-            now()->addDays(2)->toDateString(),
-            now()->addDays(4)->toDateString(),
-        )->create();
+        $leave = StaffLeave::factory()->forStaff($teacherProfile)->onDates($this->nextMonday(), $this->nextMonday(2))->create();
 
         $this->actingAs($hodUser, 'sanctum')->patchJson("/api/v1/leaves/{$leave->id}/approve")->assertOk();
 
         $this->assertDatabaseCount('staff_attendances', 3);
-        foreach ([2, 3, 4] as $offset) {
+        foreach ([0, 1, 2] as $offset) {
             $this->assertDatabaseHas('staff_attendances', [
                 'staff_profile_id' => $teacherProfile->id,
-                'attendance_date' => now()->addDays($offset)->toDateString(),
+                'attendance_date' => $this->nextMonday($offset),
                 'status' => 'leave',
             ]);
         }
+    }
+
+    public function test_approving_a_leave_skips_weekends_and_holidays_when_syncing_attendance(): void
+    {
+        [$school, , $hodUser, , $teacherProfile] = $this->makeDepartmentWithHodAndTeacher();
+        // Thursday -> next Monday, with Friday a holiday: only Thursday and Monday are working days.
+        Holiday::factory()->forSchool($school)->onDates($this->nextMonday(4))->create();
+        $leave = StaffLeave::factory()->forStaff($teacherProfile)->onDates($this->nextMonday(3), $this->nextMonday(7))->create();
+
+        $this->actingAs($hodUser, 'sanctum')->patchJson("/api/v1/leaves/{$leave->id}/approve")->assertOk();
+
+        $this->assertDatabaseCount('staff_attendances', 2);
+        $this->assertDatabaseHas('staff_attendances', ['staff_profile_id' => $teacherProfile->id, 'attendance_date' => $this->nextMonday(3)]);
+        $this->assertDatabaseHas('staff_attendances', ['staff_profile_id' => $teacherProfile->id, 'attendance_date' => $this->nextMonday(7)]);
+        $this->assertDatabaseMissing('staff_attendances', ['attendance_date' => $this->nextMonday(4)]);
+        $this->assertDatabaseMissing('staff_attendances', ['attendance_date' => $this->nextMonday(5)]);
     }
 
     public function test_an_hod_cannot_approve_leave_for_staff_outside_their_department(): void

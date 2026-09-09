@@ -201,6 +201,9 @@ class _RegisterView extends ConsumerWidget {
       ),
       data: (context, register) {
         final isComplete = register.staff.every((s) => s.status != null);
+        // On a holiday the server refuses to mark, so the whole register is
+        // read-only and the banner explains why instead of the submit row.
+        final holiday = register.holiday;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,50 +213,67 @@ class _RegisterView extends ConsumerWidget {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Chip(
-                  label: Text(register.submitted ? 'Submitted' : 'Not yet submitted'),
-                  backgroundColor: register.submitted
-                      ? context.appColors.successContainer
-                      : context.appColors.warningContainer,
-                  labelStyle: TextStyle(
-                    color: register.submitted
-                        ? context.appColors.onSuccessContainer
-                        : context.appColors.onWarningContainer,
+                if (holiday != null)
+                  Chip(
+                    avatar: Icon(Icons.beach_access_outlined, size: 18, color: context.appColors.onDangerContainer),
+                    label: Text('Holiday: ${holiday.name}'),
+                    backgroundColor: context.appColors.dangerContainer,
+                    labelStyle: TextStyle(color: context.appColors.onDangerContainer),
+                  )
+                else
+                  Chip(
+                    label: Text(register.submitted ? 'Submitted' : 'Not yet submitted'),
+                    backgroundColor: register.submitted
+                        ? context.appColors.successContainer
+                        : context.appColors.warningContainer,
+                    labelStyle: TextStyle(
+                      color: register.submitted
+                          ? context.appColors.onSuccessContainer
+                          : context.appColors.onWarningContainer,
+                    ),
                   ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton(onPressed: notifier.markAllPresent, child: const Text('Mark All Present')),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: isComplete
-                          ? () async {
-                              try {
-                                await notifier.submitOrUpdate();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        register.submitted ? 'Attendance updated.' : 'Attendance submitted.',
+                if (holiday == null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton(onPressed: notifier.markAllPresent, child: const Text('Mark All Present')),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: isComplete
+                            ? () async {
+                                try {
+                                  await notifier.submitOrUpdate();
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          register.submitted ? 'Attendance updated.' : 'Attendance submitted.',
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                }
-                              } catch (error) {
-                                final failure = error is Failure ? error : Failure.unknown(error.toString());
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+                                    );
+                                  }
+                                } catch (error) {
+                                  final failure = error is Failure ? error : Failure.unknown(error.toString());
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(content: Text(failure.message)));
+                                  }
                                 }
                               }
-                            }
-                          : null,
-                      child: Text(register.submitted ? 'Update Attendance' : 'Submit Attendance'),
-                    ),
-                  ],
-                ),
+                            : null,
+                        child: Text(register.submitted ? 'Update Attendance' : 'Submit Attendance'),
+                      ),
+                    ],
+                  ),
               ],
             ),
+            if (holiday != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Attendance is not marked on holidays. Pick another date to mark staff.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
             const SizedBox(height: 12),
             Card(
               child: Column(
@@ -262,6 +282,7 @@ class _RegisterView extends ConsumerWidget {
                     _StaffRosterRow(
                       key: ValueKey(entry.staffProfileId),
                       entry: entry,
+                      enabled: holiday == null,
                       onStatusChanged: (status) => notifier.setStatus(entry.staffProfileId, status),
                       onCheckInChanged: (time) => notifier.setCheckIn(entry.staffProfileId, time),
                       onCheckOutChanged: (time) => notifier.setCheckOut(entry.staffProfileId, time),
@@ -281,6 +302,7 @@ class _StaffRosterRow extends StatefulWidget {
   const _StaffRosterRow({
     super.key,
     required this.entry,
+    required this.enabled,
     required this.onStatusChanged,
     required this.onCheckInChanged,
     required this.onCheckOutChanged,
@@ -288,6 +310,9 @@ class _StaffRosterRow extends StatefulWidget {
   });
 
   final StaffRosterEntry entry;
+
+  /// False when the register is read-only (a holiday).
+  final bool enabled;
   final ValueChanged<StaffAttendanceStatus> onStatusChanged;
   final ValueChanged<String?> onCheckInChanged;
   final ValueChanged<String?> onCheckOutChanged;
@@ -349,7 +374,7 @@ class _StaffRosterRowState extends State<_StaffRosterRow> {
                   label: Text(status.label[0]),
                   tooltip: status.label,
                   selected: entry.status == status,
-                  onSelected: (_) => widget.onStatusChanged(status),
+                  onSelected: widget.enabled ? (_) => widget.onStatusChanged(status) : null,
                 ),
             ],
           ),
@@ -360,12 +385,12 @@ class _StaffRosterRowState extends State<_StaffRosterRow> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               OutlinedButton.icon(
-                onPressed: () => _pickTime(widget.onCheckInChanged, entry.checkIn),
+                onPressed: widget.enabled ? () => _pickTime(widget.onCheckInChanged, entry.checkIn) : null,
                 icon: const Icon(Icons.login, size: 16),
                 label: Text(entry.checkIn ?? 'Check In'),
               ),
               OutlinedButton.icon(
-                onPressed: () => _pickTime(widget.onCheckOutChanged, entry.checkOut),
+                onPressed: widget.enabled ? () => _pickTime(widget.onCheckOutChanged, entry.checkOut) : null,
                 icon: const Icon(Icons.logout, size: 16),
                 label: Text(entry.checkOut ?? 'Check Out'),
               ),
@@ -374,6 +399,7 @@ class _StaffRosterRowState extends State<_StaffRosterRow> {
                 width: 220,
                 child: TextField(
                   controller: _remarksController,
+                  enabled: widget.enabled,
                   decoration: const InputDecoration(labelText: 'Remarks (optional)', isDense: true),
                   onChanged: (value) => widget.onRemarksChanged(value.trim().isEmpty ? null : value.trim()),
                 ),

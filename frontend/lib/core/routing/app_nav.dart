@@ -106,6 +106,14 @@ class AppNav {
         pageSubtitle: 'Academic year setup and rollover',
       ),
       NavItem(
+        path: '/holidays',
+        label: 'Holidays',
+        icon: Icons.beach_access_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Holiday Calendar',
+        pageSubtitle: 'School holidays and breaks that pause attendance, leave and teaching',
+      ),
+      NavItem(
         path: '/departments',
         label: 'Departments',
         icon: Icons.corporate_fare_outlined,

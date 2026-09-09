@@ -65,6 +65,30 @@ class ApiExceptionRenderer
                 $e->getMessage(),
                 [],
             ],
+            $e instanceof AttendanceOnHolidayException => [
+                409,
+                'ATTENDANCE_ON_HOLIDAY',
+                $e->getMessage(),
+                [],
+            ],
+            $e instanceof HolidayOverlapException => [
+                409,
+                'HOLIDAY_OVERLAP',
+                $e->getMessage(),
+                [],
+            ],
+            $e instanceof LeaveOnNonWorkingDaysException => [
+                409,
+                'LEAVE_ON_NON_WORKING_DAYS',
+                $e->getMessage(),
+                [],
+            ],
+            $e instanceof TeachingReportOnHolidayException => [
+                409,
+                'TEACHING_REPORT_ON_HOLIDAY',
+                $e->getMessage(),
+                [],
+            ],
             $e instanceof LeaveOverlapException => [
                 409,
                 'LEAVE_OVERLAP',

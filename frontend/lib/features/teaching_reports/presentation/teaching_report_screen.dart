@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/kpi_card.dart';
 import '../../../core/widgets/pagination_controls.dart';
@@ -110,10 +111,18 @@ class _SummaryRow extends ConsumerWidget {
         return Wrap(
           spacing: 10,
           runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             KpiCard(label: 'Scheduled Today', value: '${summary.scheduled}'),
             KpiCard(label: 'Submitted Today', value: '${summary.submitted}'),
             KpiCard(label: 'Pending Today', value: '${summary.pending}'),
+            if (summary.holiday != null)
+              Chip(
+                avatar: Icon(Icons.beach_access_outlined, size: 18, color: context.appColors.onDangerContainer),
+                label: Text('Holiday: ${summary.holiday}'),
+                backgroundColor: context.appColors.dangerContainer,
+                labelStyle: TextStyle(color: context.appColors.onDangerContainer),
+              ),
           ],
         );
       },
@@ -129,6 +138,13 @@ class _MyScheduleToday extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final holiday = ref.watch(teachingReportSummaryNotifierProvider).value?.holiday;
+    if (holiday != null) {
+      return Card(
+        child: Padding(padding: const EdgeInsets.all(20), child: Text('No periods today - $holiday is a holiday.')),
+      );
+    }
+
     final today = _todayDayOfWeek();
     if (today == null) {
       return const Card(

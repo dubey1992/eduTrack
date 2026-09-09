@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DailyTeachingReportController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\HodReportController;
+use App\Http\Controllers\Api\V1\HolidayController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PeriodController;
@@ -131,4 +132,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/syllabus-progress', [SyllabusProgressController::class, 'update']);
 
     Route::get('/hod/department-report', [HodReportController::class, 'departmentReport']);
+
+    Route::get('/holidays', [HolidayController::class, 'index']);
+    Route::post('/holidays', [HolidayController::class, 'store']);
+    Route::get('/holidays/{holiday}', [HolidayController::class, 'show']);
+    Route::patch('/holidays/{holiday}', [HolidayController::class, 'update']);
+    Route::delete('/holidays/{holiday}', [HolidayController::class, 'destroy']);
 });

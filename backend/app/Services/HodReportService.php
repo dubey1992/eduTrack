@@ -28,10 +28,12 @@ use Illuminate\Support\Collection;
  * teaching performance, computed on the fly from what earlier phases
  * already record (nothing is stored). Definitions, fixed on 2026-09-09:
  *
- * - Working days: the distinct dates in the month on which the school
- *   recorded staff attendance (there is no holiday calendar yet).
+ * - Working days: Monday-Friday dates in the month that are not on the
+ *   school's holiday calendar (see HolidayService); for the current month,
+ *   only up to today.
  * - Attendance %: (present + 0.5 x half_day) / working days.
- * - Leave days: approved leave, clipped to the month; half_day type = 0.5.
+ * - Leave days: approved leave counted on working days only, clipped to
+ *   the month; half_day type = 0.5 per day.
  * - Late marks: check-ins later than the school's earliest period start.
  * - Classes assigned: timetable slots falling on working days; classes
  *   taught: the subset on days the teacher was present/half-day.
@@ -46,6 +48,8 @@ class HodReportService
 {
     private const array TEACHING_ROLES = [UserRole::Teacher, UserRole::Hod];
 
+    public function __construct(private readonly HolidayService $holidayService) {}
+
     /**
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
@@ -59,7 +63,7 @@ class HodReportService
         $monthEnd = $monthStart->copy()->endOfMonth()->startOfDay();
         $range = [$monthStart->toDateString(), $monthEnd->toDateString()];
 
-        $workingDates = $this->workingDates($school, $range);
+        $workingDates = $this->holidayService->workingDates($school->id, $monthStart, $monthEnd->min(now()->startOfDay()));
         $lateAfter = Period::query()->where('school_id', $school->id)->min('start_time');
 
         $teachersQuery = $this->teachersQuery($school, $departmentIds);
@@ -101,8 +105,6 @@ class HodReportService
             $entriesByTeacher->get($profile->user_id, collect()),
             $reportsByTeacher->get($profile->user_id),
             $syllabus,
-            $monthStart,
-            $monthEnd,
         ))->values()->all();
 
         $workingDays = $workingDates->count();
@@ -118,7 +120,7 @@ class HodReportService
             'avg_attendance_percent' => $workingDays === 0 || $teacherCount === 0
                 ? 0.0
                 : round($attendanceCredit / ($workingDays * $teacherCount) * 100, 1),
-            'leave_days' => $leavesByProfile->flatten(1)->sum(fn (StaffLeave $leave) => $this->leaveDaysWithin($leave, $monthStart, $monthEnd)),
+            'leave_days' => $leavesByProfile->flatten(1)->sum(fn (StaffLeave $leave) => $this->leaveDaysWithin($leave, $workingDates)),
             'late_marks' => $this->lateMarks($scopedProfileIds, $range, $lateAfter),
             'data' => $rows,
             'meta' => [
@@ -147,8 +149,6 @@ class HodReportService
         Collection $entries,
         ?DailyTeachingReport $reports,
         array $syllabus,
-        Carbon $monthStart,
-        Carbon $monthEnd,
     ): array {
         $statusByDate = $attendance->mapWithKeys(fn (StaffAttendance $row) => [$row->attendance_date->toDateString() => $row->status]);
         $present = $attendance->where('status', StaffAttendanceStatus::Present)->count();
@@ -184,7 +184,7 @@ class HodReportService
             'department_id' => $profile->department_id,
             'department_name' => $profile->department?->name,
             'attendance_percent' => $workingDays === 0 ? 0.0 : round(($present + 0.5 * $halfDay) / $workingDays * 100, 1),
-            'leave_days' => $leaves->sum(fn (StaffLeave $leave) => $this->leaveDaysWithin($leave, $monthStart, $monthEnd)),
+            'leave_days' => $leaves->sum(fn (StaffLeave $leave) => $this->leaveDaysWithin($leave, $workingDates)),
             'late_marks' => $lateAfter === null
                 ? 0
                 : $attendance->filter(fn (StaffAttendance $row) => $row->check_in !== null && strcmp($row->check_in, $lateAfter) > 0)->count(),
@@ -228,22 +228,6 @@ class HodReportService
     }
 
     /**
-     * @param  array{0: string, 1: string}  $range
-     * @return Collection<int, string>
-     */
-    private function workingDates(School $school, array $range): Collection
-    {
-        return StaffAttendance::query()
-            ->where('school_id', $school->id)
-            ->whereBetween('attendance_date', $range)
-            ->distinct()
-            ->orderBy('attendance_date')
-            ->pluck('attendance_date')
-            ->map(fn ($date) => Carbon::parse($date)->toDateString())
-            ->values();
-    }
-
-    /**
      * @param  Collection<int, int>  $profileIds
      * @param  array{0: string, 1: string}  $range
      * @return Collection<int, StaffLeave>
@@ -258,11 +242,14 @@ class HodReportService
             ->get();
     }
 
-    private function leaveDaysWithin(StaffLeave $leave, Carbon $monthStart, Carbon $monthEnd): float
+    /**
+     * @param  Collection<int, string>  $workingDates
+     */
+    private function leaveDaysWithin(StaffLeave $leave, Collection $workingDates): float
     {
-        $from = $leave->start_date->greaterThan($monthStart) ? $leave->start_date : $monthStart;
-        $to = $leave->end_date->lessThan($monthEnd) ? $leave->end_date : $monthEnd;
-        $days = (int) $from->diffInDays($to) + 1;
+        $start = $leave->start_date->toDateString();
+        $end = $leave->end_date->toDateString();
+        $days = $workingDates->filter(fn (string $date) => $date >= $start && $date <= $end)->count();
 
         return $leave->leave_type === LeaveType::HalfDay ? $days * 0.5 : (float) $days;
     }

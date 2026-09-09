@@ -6,6 +6,7 @@ use App\Enums\LeaveStatus;
 use App\Enums\StaffAttendanceStatus;
 use App\Enums\UserRole;
 use App\Exceptions\LeaveAlreadyReviewedException;
+use App\Exceptions\LeaveOnNonWorkingDaysException;
 use App\Exceptions\LeaveOverlapException;
 use App\Models\StaffAttendance;
 use App\Models\StaffLeave;
@@ -14,11 +15,14 @@ use App\Models\User;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class StaffLeaveService
 {
     private const array RELATIONS = ['staffProfile.user', 'staffProfile.department', 'appliedBy', 'reviewedBy'];
+
+    public function __construct(private readonly HolidayService $holidayService) {}
 
     /**
      * A staff member applying for their own leave - staff_profile_id always
@@ -38,6 +42,7 @@ class StaffLeaveService
      */
     public function apply(StaffProfile $staffProfile, array $data, User $actor): StaffLeave
     {
+        $this->assertCoversAWorkingDay($staffProfile->school_id, $data['start_date'], $data['end_date']);
         $this->assertNoOverlap($staffProfile->id, $data['start_date'], $data['end_date']);
 
         $isSchoolHead = $actor->role === UserRole::SchoolAdmin && ! $actor->is_sub_admin;
@@ -202,13 +207,29 @@ class StaffLeaveService
         }
     }
 
+    private function assertCoversAWorkingDay(int $schoolId, string $start, string $end): void
+    {
+        $workingDays = $this->holidayService->workingDates($schoolId, Carbon::parse($start), Carbon::parse($end));
+
+        if ($workingDays->isEmpty()) {
+            throw new LeaveOnNonWorkingDaysException(
+                'The selected dates fall entirely on weekends or holidays - there is no working day to take leave from.'
+            );
+        }
+    }
+
+    /**
+     * Only working days get a "Leave" mark - weekends and holidays inside
+     * the range are not attendance days, so marking them would contradict
+     * the holiday calendar (attendance can't be marked on a holiday).
+     */
     private function syncAttendance(StaffLeave $leave, User $actor): void
     {
-        $period = $leave->start_date->toPeriod($leave->end_date, 1, 'day');
+        $workingDays = $this->holidayService->workingDates($leave->school_id, $leave->start_date, $leave->end_date);
 
-        foreach ($period as $date) {
+        foreach ($workingDays as $date) {
             StaffAttendance::updateOrCreate(
-                ['staff_profile_id' => $leave->staff_profile_id, 'attendance_date' => $date->toDateString()],
+                ['staff_profile_id' => $leave->staff_profile_id, 'attendance_date' => $date],
                 ['school_id' => $leave->school_id, 'status' => StaffAttendanceStatus::Leave, 'marked_by' => $actor->id]
             );
         }

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Exceptions\AttendanceAlreadySubmittedException;
+use App\Exceptions\AttendanceOnHolidayException;
 use App\Models\School;
 use App\Models\StaffAttendance;
 use App\Models\StaffProfile;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\DB;
 
 class StaffAttendanceService
 {
+    public function __construct(private readonly HolidayService $holidayService) {}
+
     /**
      * The school's (optionally department-filtered) staff roster for one
      * day, each paired with their existing mark (or null if not yet
@@ -38,10 +41,13 @@ class StaffAttendanceService
             ->get()
             ->keyBy('staff_profile_id');
 
+        $holiday = $this->holidayService->holidayOn($school->id, $date);
+
         return [
             'school_id' => $school->id,
             'attendance_date' => $date,
             'submitted' => $existing->isNotEmpty(),
+            'holiday' => $holiday === null ? null : AttendanceService::holidayPayload($holiday),
             'staff' => $staff->map(function (StaffProfile $profile) use ($existing) {
                 $mark = $existing->get($profile->id);
 
@@ -101,6 +107,11 @@ class StaffAttendanceService
      */
     private function save(School $school, array $data, User $actor): array
     {
+        $holiday = $this->holidayService->holidayOn($school->id, $data['attendance_date']);
+        if ($holiday !== null) {
+            throw new AttendanceOnHolidayException("Attendance cannot be marked on {$holiday->name} - it is a holiday.");
+        }
+
         return DB::transaction(function () use ($school, $data, $actor) {
             foreach ($data['records'] as $record) {
                 StaffAttendance::updateOrCreate(
