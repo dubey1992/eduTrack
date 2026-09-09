@@ -40,6 +40,33 @@ class DepartmentPolicy
         return $this->manages($actor, $department);
     }
 
+    /**
+     * Phase 13 - the monthly department performance report. Admins see any
+     * department of their school; an HOD only the one(s) they head. This is
+     * the role gate; viewReport() is the per-department check.
+     */
+    public function viewAnyReport(User $actor): bool
+    {
+        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::Hod], true);
+    }
+
+    public function viewReport(User $actor, Department $department): bool
+    {
+        if ($actor->role === UserRole::SuperAdmin) {
+            return true;
+        }
+
+        if ($actor->school_id !== $department->school_id) {
+            return false;
+        }
+
+        return match ($actor->role) {
+            UserRole::SchoolAdmin => true,
+            UserRole::Hod => $department->hod_user_id === $actor->id,
+            default => false,
+        };
+    }
+
     private function manages(User $actor, Department $department): bool
     {
         if ($actor->role === UserRole::SuperAdmin) {

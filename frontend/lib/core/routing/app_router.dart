@@ -11,6 +11,7 @@ import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/classes/presentation/class_list_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/departments/presentation/department_list_screen.dart';
+import '../../features/hod/presentation/hod_report_screen.dart';
 import '../../features/marketing/presentation/marketing_screen.dart';
 import '../../features/payments/presentation/payment_list_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
@@ -75,6 +76,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/leaves', builder: (context, state) => const StaffLeaveScreen()),
           GoRoute(path: '/teaching-reports', builder: (context, state) => const TeachingReportScreen()),
           GoRoute(path: '/syllabus', builder: (context, state) => const SyllabusScreen()),
+          GoRoute(path: '/hod-reports', builder: (context, state) => const HodReportScreen()),
         ],
       ),
     ],

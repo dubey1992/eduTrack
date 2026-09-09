@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DailyTeachingReportController;
 use App\Http\Controllers\Api\V1\DepartmentController;
+use App\Http\Controllers\Api\V1\HodReportController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PeriodController;
@@ -128,4 +129,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/syllabus-progress', [SyllabusProgressController::class, 'index']);
     Route::patch('/syllabus-progress', [SyllabusProgressController::class, 'update']);
+
+    Route::get('/hod/department-report', [HodReportController::class, 'departmentReport']);
 });

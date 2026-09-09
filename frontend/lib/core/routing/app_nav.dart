@@ -190,6 +190,14 @@ class AppNav {
         pageTitle: 'Syllabus Tracking',
         pageSubtitle: 'Curriculum outline and per-class coverage',
       ),
+      NavItem(
+        path: '/hod-reports',
+        label: 'HOD Reports',
+        icon: Icons.insights_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod},
+        pageTitle: 'HOD / Staff Reports',
+        pageSubtitle: 'Attendance and teaching performance by department',
+      ),
     ],
   );
 
