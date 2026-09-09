@@ -10,8 +10,5 @@ class Env {
   /// Defaults to localhost, which works for web/desktop. Android emulators
   /// must reach the host machine via 10.0.2.2 instead of localhost, so pass
   /// --dart-define=API_BASE_URL=... when running on an emulator.
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:8000/api/v1',
-  );
+  static const String apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8000/api/v1');
 }

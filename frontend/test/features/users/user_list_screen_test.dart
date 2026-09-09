@@ -23,7 +23,10 @@ const _teacher = AppUser(
 Widget wrap(FakeUserRepository fake) {
   return ProviderScope(
     overrides: [userRepositoryProvider.overrideWithValue(fake)],
-    child: MaterialApp(theme: AppTheme.light(), home: const UserListScreen()),
+    child: MaterialApp(
+      theme: AppTheme.light(),
+      home: const Scaffold(body: UserListScreen()),
+    ),
   );
 }
 

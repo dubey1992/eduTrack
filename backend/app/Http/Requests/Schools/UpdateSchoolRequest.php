@@ -23,7 +23,7 @@ class UpdateSchoolRequest extends FormRequest
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'registration_number' => ['nullable', 'string', 'max:100'],
             'email' => ['sometimes', 'required', 'email', Rule::unique('schools', 'email')->ignore($schoolId)],
-            'phone' => ['sometimes', 'required', 'string', 'max:20'],
+            'phone' => ['sometimes', 'required', 'string', 'max:20', 'regex:/^\+[1-9][0-9 ]{6,17}$/'],
             'address' => ['sometimes', 'required', 'string', 'max:255'],
             'city' => ['sometimes', 'required', 'string', 'max:100'],
             'state' => ['sometimes', 'required', 'string', 'max:100'],

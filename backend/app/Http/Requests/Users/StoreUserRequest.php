@@ -34,7 +34,8 @@ class StoreUserRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('users', 'email')],
-            'mobile' => ['nullable', 'string', 'max:20'],
+            // Multi-nation users always carry a dial code - e.g. "+91 9876543210".
+            'mobile' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9][0-9 ]{6,17}$/'],
             'password' => ['required', 'string', 'min:8'],
             'role' => [
                 'required',

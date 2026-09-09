@@ -5,6 +5,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/phone_number_field.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../schools/data/models/school.dart';
@@ -12,12 +13,7 @@ import '../application/user_list_notifier.dart';
 
 /// Roles a SCHOOL_ADMIN may assign - mirrors the backend's
 /// StoreUserRequest::SCHOOL_ADMIN_ASSIGNABLE_ROLES.
-const _schoolAdminAssignableRoles = [
-  UserRole.hod,
-  UserRole.teacher,
-  UserRole.staff,
-  UserRole.transportManager,
-];
+const _schoolAdminAssignableRoles = [UserRole.hod, UserRole.teacher, UserRole.staff, UserRole.transportManager];
 
 class AddUserDialog extends ConsumerStatefulWidget {
   const AddUserDialog({super.key});
@@ -71,7 +67,10 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
             // their own school) - only meaningful when a SUPER_ADMIN picks one.
             schoolId: _schoolId,
           );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User created.')));
+        Navigator.of(context).pop();
+      }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) setState(() => _errorMessage = failure.message);
@@ -121,11 +120,7 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
                   validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _mobileController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Mobile (optional)'),
-                ),
+                PhoneNumberField(controller: _mobileController, label: 'Mobile (optional)'),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _passwordController,
@@ -137,10 +132,7 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
                 DropdownButtonFormField<UserRole>(
                   initialValue: _role,
                   decoration: const InputDecoration(labelText: 'Role'),
-                  items: [
-                    for (final role in assignableRoles)
-                      DropdownMenuItem(value: role, child: Text(role.label)),
-                  ],
+                  items: [for (final role in assignableRoles) DropdownMenuItem(value: role, child: Text(role.label))],
                   onChanged: (value) => setState(() => _role = value),
                 ),
                 // A SCHOOL_ADMIN's users always belong to their own school -
@@ -185,10 +177,18 @@ class _SchoolPicker extends ConsumerWidget {
     return AsyncValueView<List<School>>(
       value: schoolsState,
       data: (context, schools) {
+        final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
         return DropdownButtonFormField<int>(
           initialValue: selected,
+          isExpanded: true,
           decoration: const InputDecoration(labelText: 'School'),
-          items: [for (final school in schools) DropdownMenuItem(value: school.id, child: Text(school.name))],
+          items: [
+            for (final school in activeSchools)
+              DropdownMenuItem(
+                value: school.id,
+                child: Text(school.name, overflow: TextOverflow.ellipsis, maxLines: 1),
+              ),
+          ],
           onChanged: onChanged,
           validator: (v) => v == null ? 'School is required' : null,
         );

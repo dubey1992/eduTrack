@@ -38,8 +38,7 @@ enum PaymentStatus {
   final String apiValue;
   final String label;
 
-  static PaymentStatus fromApiValue(String value) =>
-      PaymentStatus.values.firstWhere((s) => s.apiValue == value);
+  static PaymentStatus fromApiValue(String value) => PaymentStatus.values.firstWhere((s) => s.apiValue == value);
 }
 
 class Payment {
@@ -112,10 +111,7 @@ class CurrencyTotal {
   const CurrencyTotal({required this.currencyCode, required this.total});
 
   factory CurrencyTotal.fromJson(Map<String, dynamic> json) {
-    return CurrencyTotal(
-      currencyCode: json['currency_code'] as String,
-      total: double.parse(json['total'] as String),
-    );
+    return CurrencyTotal(currencyCode: json['currency_code'] as String, total: double.parse(json['total'] as String));
   }
 
   final String currencyCode;

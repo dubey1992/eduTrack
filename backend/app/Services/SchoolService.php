@@ -4,13 +4,17 @@ namespace App\Services;
 
 use App\Enums\SchoolStatus;
 use App\Models\School;
+use App\Support\Pagination;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class SchoolService
 {
-    public function paginate(): LengthAwarePaginator
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginate(array $filters = []): LengthAwarePaginator
     {
-        return School::query()->orderBy('name')->paginate(perPage: 20);
+        return School::query()->orderBy('name')->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
     /**

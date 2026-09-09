@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Models\User;
+use App\Support\Pagination;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class UserService
@@ -23,9 +24,18 @@ class UserService
                 fn ($query) => $query->where('school_id', $actor->school_id)
             )
             ->when($filters['role'] ?? null, fn ($query, $role) => $query->where('role', $role))
+            // Comma-separated shorthand for "any of these roles" - used by
+            // the academic-config pickers (HOD/lead-teacher/class-teacher).
+            ->when(
+                $filters['roles'] ?? null,
+                fn ($query, $roles) => $query->whereIn('role', explode(',', $roles))
+            )
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            // Only meaningful for a SUPER_ADMIN actor - a SCHOOL_ADMIN is
+            // already forced into their own school above.
+            ->when($filters['school_id'] ?? null, fn ($query, $schoolId) => $query->where('school_id', $schoolId))
             ->orderBy('first_name')
-            ->paginate(perPage: 20);
+            ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
     /**

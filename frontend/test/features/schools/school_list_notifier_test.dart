@@ -27,7 +27,12 @@ void main() {
     return ProviderContainer(overrides: [schoolRepositoryProvider.overrideWithValue(fake)]);
   }
 
-  test('build() loads the initial school list', () async {
+  // This unpaginated provider backs picker-style consumers (e.g. the school
+  // filter dropdown and every "Add X" dialog's school picker) - it
+  // deliberately has no create/setActive methods of its own; SchoolPageNotifier
+  // (see school_page_notifier_test.dart) owns those and keeps this provider in
+  // sync via invalidation.
+  test('build() loads every school, unpaginated', () async {
     final container = makeContainer(FakeSchoolRepository(schools: [_school]));
     addTearDown(container.dispose);
 
@@ -37,38 +42,15 @@ void main() {
     expect(result.first.currencyCode, 'INR');
   });
 
-  test('createSchool() adds the new school to the list', () async {
-    final container = makeContainer(FakeSchoolRepository());
+  test('refresh() re-fetches the full list', () async {
+    final fake = FakeSchoolRepository(schools: [_school]);
+    final container = makeContainer(fake);
     addTearDown(container.dispose);
     await container.read(schoolListNotifierProvider.future);
 
-    await container
-        .read(schoolListNotifierProvider.notifier)
-        .createSchool(
-          name: 'Green Valley School',
-          email: 'admin@greenvalley.edu',
-          phone: '+234 800 000 0000',
-          address: '5 Valley Road',
-          city: 'Lagos',
-          state: 'Lagos',
-          country: 'Nigeria',
-          postalCode: '100001',
-          currencyCode: 'NGN',
-        );
+    await container.read(schoolListNotifierProvider.notifier).refresh();
 
     final state = container.read(schoolListNotifierProvider).value;
     expect(state, hasLength(1));
-    expect(state!.first.currencyCode, 'NGN');
-  });
-
-  test('setActive() updates that school in place', () async {
-    final container = makeContainer(FakeSchoolRepository(schools: [_school]));
-    addTearDown(container.dispose);
-    await container.read(schoolListNotifierProvider.future);
-
-    await container.read(schoolListNotifierProvider.notifier).setActive(_school, false);
-
-    final state = container.read(schoolListNotifierProvider).value;
-    expect(state!.first.status, SchoolStatus.inactive);
   });
 }

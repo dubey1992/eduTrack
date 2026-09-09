@@ -16,8 +16,7 @@ Widget wrap(FakeAuthRepository fake) {
         routes: [
           GoRoute(
             path: '/reset-password',
-            builder: (context, state) =>
-                const ResetPasswordScreen(email: 'test@example.com', token: 'a-valid-token'),
+            builder: (context, state) => const ResetPasswordScreen(email: 'test@example.com', token: 'a-valid-token'),
           ),
           GoRoute(
             path: '/login',

@@ -27,7 +27,10 @@ const _school = School(
 Widget wrap(FakeSchoolRepository fake) {
   return ProviderScope(
     overrides: [schoolRepositoryProvider.overrideWithValue(fake)],
-    child: MaterialApp(theme: AppTheme.light(), home: const SchoolListScreen()),
+    child: MaterialApp(
+      theme: AppTheme.light(),
+      home: const Scaffold(body: SchoolListScreen()),
+    ),
   );
 }
 

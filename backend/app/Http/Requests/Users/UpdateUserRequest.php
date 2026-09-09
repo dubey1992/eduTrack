@@ -31,7 +31,7 @@ class UpdateUserRequest extends FormRequest
             'first_name' => ['sometimes', 'required', 'string', 'max:100'],
             'last_name' => ['sometimes', 'required', 'string', 'max:100'],
             'email' => ['sometimes', 'required', 'email', Rule::unique('users', 'email')->ignore($userId)],
-            'mobile' => ['nullable', 'string', 'max:20'],
+            'mobile' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9][0-9 ]{6,17}$/'],
             'password' => ['sometimes', 'required', 'string', 'min:8'],
             'role' => [
                 'sometimes', 'required', new Enum(UserRole::class),

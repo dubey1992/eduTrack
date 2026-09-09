@@ -69,7 +69,7 @@ class _Topbar extends ConsumerWidget {
                 if (navItem?.pageSubtitle != null)
                   Text(
                     navItem!.pageSubtitle,
-                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
               ],
             ),
@@ -106,7 +106,7 @@ class _Pill extends StatelessWidget {
         border: Border.all(color: colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      child: Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
     );
   }
 }

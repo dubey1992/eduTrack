@@ -31,9 +31,22 @@ void main() {
     await tester.tap(find.widgetWithText(ElevatedButton, 'Send Reset Link'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('If an account exists for that email, a password reset link has been sent.'),
-      findsOneWidget,
-    );
+    expect(find.text('If an account exists for that email, a password reset link has been sent.'), findsOneWidget);
+  });
+
+  testWidgets('offers a way back to login below the form', (tester) async {
+    await tester.pumpWidget(wrap(FakeAuthRepository()));
+
+    expect(find.text('Back to Login'), findsOneWidget);
+  });
+
+  testWidgets('offers a way back to login after submitting too', (tester) async {
+    await tester.pumpWidget(wrap(FakeAuthRepository()));
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'test@example.com');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send Reset Link'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Back to Login'), findsOneWidget);
   });
 }

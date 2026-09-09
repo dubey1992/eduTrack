@@ -21,7 +21,7 @@ class UserManagementTest extends TestCase
             'first_name' => 'Priya',
             'last_name' => 'Sharma',
             'email' => 'priya.sharma@example.com',
-            'mobile' => '9876543210',
+            'mobile' => '+91 9876543210',
             'password' => 'password123',
             'role' => 'TEACHER',
             'school_id' => $school->id,
@@ -67,6 +67,24 @@ class UserManagementTest extends TestCase
             ->assertJsonStructure(['details' => ['errors' => ['first_name', 'last_name', 'email', 'password', 'role']]]);
     }
 
+    public function test_a_mobile_number_without_a_country_code_is_rejected(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/users', [
+            'first_name' => 'Priya',
+            'last_name' => 'Sharma',
+            'email' => 'priya.sharma@example.com',
+            'mobile' => '9876543210',
+            'password' => 'password123',
+            'role' => 'TEACHER',
+            'school_id' => $school->id,
+        ]);
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['mobile']]]);
+    }
+
     public function test_super_admin_can_list_and_filter_users(): void
     {
         $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
@@ -74,6 +92,33 @@ class UserManagementTest extends TestCase
         User::factory()->role(UserRole::Staff)->create();
 
         $response = $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/users?role=TEACHER');
+
+        $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
+    }
+
+    public function test_super_admin_can_filter_users_by_a_comma_separated_list_of_roles(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        User::factory()->role(UserRole::Hod)->create();
+        User::factory()->role(UserRole::Teacher)->count(2)->create();
+        User::factory()->role(UserRole::Staff)->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/users?roles=HOD,TEACHER');
+
+        $response->assertOk();
+        $this->assertCount(3, $response->json('data'));
+    }
+
+    public function test_super_admin_can_filter_users_by_school(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        User::factory()->role(UserRole::Teacher)->forSchool($schoolA)->count(2)->create();
+        User::factory()->role(UserRole::Teacher)->forSchool($schoolB)->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->getJson("/api/v1/users?school_id={$schoolA->id}");
 
         $response->assertOk();
         $this->assertCount(2, $response->json('data'));

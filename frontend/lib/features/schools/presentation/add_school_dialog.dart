@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/currency.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
 
 class AddSchoolDialog extends ConsumerStatefulWidget {
@@ -53,7 +54,7 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
 
     try {
       await ref
-          .read(schoolListNotifierProvider.notifier)
+          .read(schoolPageNotifierProvider.notifier)
           .createSchool(
             name: _nameController.text.trim(),
             registrationNumber: _registrationController.text.trim().isEmpty
@@ -68,7 +69,10 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
             postalCode: _postalCodeController.text.trim(),
             currencyCode: _currencyCode,
           );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School created.')));
+        Navigator.of(context).pop();
+      }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) setState(() => _errorMessage = failure.message);
@@ -114,12 +118,7 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
                   validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Phone'),
-                  validator: (v) => _required(v, 'Phone'),
-                ),
+                PhoneNumberField(controller: _phoneController, label: 'Phone', required: true),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _addressController,

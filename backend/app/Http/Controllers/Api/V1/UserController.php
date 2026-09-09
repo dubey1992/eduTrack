@@ -21,7 +21,10 @@ class UserController extends Controller
     {
         Gate::authorize('viewAny', User::class);
 
-        $users = $this->userService->paginate($request->user(), $request->only(['role', 'status']));
+        $users = $this->userService->paginate(
+            $request->user(),
+            $request->only(['role', 'roles', 'status', 'school_id', 'per_page'])
+        );
 
         return UserResource::collection($users);
     }

@@ -30,13 +30,13 @@ class SidebarNav extends ConsumerWidget {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 8, 20, 4),
-              child: Text('EduTrack School', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+              child: Text('School365ai', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Text(
                 'School Management',
-                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
             for (final group in AppNav.groups)
@@ -75,7 +75,7 @@ class _NavGroupSection extends StatelessWidget {
           child: Text(
             group.label.toUpperCase(),
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -120,7 +120,7 @@ class _NavTile extends StatelessWidget {
                 Text(
                   item.label,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: selected ? colorScheme.onPrimary : colorScheme.onSurface,
                   ),

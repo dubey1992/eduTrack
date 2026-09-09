@@ -20,7 +20,7 @@ class SchoolFactory extends Factory
             'name' => fake()->company().' School',
             'registration_number' => fake()->bothify('REG-####??'),
             'email' => fake()->unique()->companyEmail(),
-            'phone' => fake()->numerify('##########'),
+            'phone' => fake()->numerify('+91 ##########'),
             'address' => fake()->streetAddress(),
             'city' => fake()->city(),
             'state' => fake()->state(),

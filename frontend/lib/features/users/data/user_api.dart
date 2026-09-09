@@ -13,8 +13,24 @@ class UserApi {
 
   final Dio _dio;
 
-  Future<PaginatedResponse<AppUser>> list() async {
-    final response = await _dio.get('/users');
+  Future<PaginatedResponse<AppUser>> list({
+    List<UserRole>? roles,
+    int? schoolId,
+    String? status,
+    int? page,
+    int? perPage,
+  }) async {
+    final rolesParam = roles?.map((role) => role.apiValue).join(',');
+    final response = await _dio.get(
+      '/users',
+      queryParameters: {
+        'roles': ?rolesParam,
+        'school_id': ?schoolId,
+        'status': ?status,
+        'page': ?page,
+        'per_page': ?perPage,
+      },
+    );
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, AppUser.fromJson);
   }
 
@@ -37,6 +53,30 @@ class UserApi {
         'password': password,
         'role': role.apiValue,
         'school_id': schoolId,
+      },
+    );
+
+    return AppUser.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AppUser> update(
+    int userId, {
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? mobile,
+    String? password,
+    UserRole? role,
+  }) async {
+    final response = await _dio.patch(
+      '/users/$userId',
+      data: {
+        'first_name': ?firstName,
+        'last_name': ?lastName,
+        'email': ?email,
+        'mobile': mobile,
+        'password': ?password,
+        'role': ?role?.apiValue,
       },
     );
 

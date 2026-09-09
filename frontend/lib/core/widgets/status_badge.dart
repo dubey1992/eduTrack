@@ -32,7 +32,7 @@ class StatusBadge extends StatelessWidget {
       decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
       child: Text(
         label,
-        style: TextStyle(color: foreground, fontWeight: FontWeight.w800, fontSize: 11),
+        style: TextStyle(color: foreground, fontWeight: FontWeight.w800, fontSize: 12),
       ),
     );
   }

@@ -24,7 +24,7 @@ class KpiCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+          Text(label, style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant)),
           const SizedBox(height: 6),
           Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
         ],

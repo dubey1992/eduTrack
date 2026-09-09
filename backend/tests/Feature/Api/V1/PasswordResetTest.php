@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
@@ -58,6 +59,27 @@ class PasswordResetTest extends TestCase
             'email' => $user->email,
             'password' => 'old-password',
         ])->assertOk();
+    }
+
+    public function test_the_password_reset_email_is_branded_and_links_to_the_frontend(): void
+    {
+        $user = User::factory()->create(['email' => 'priya.sharma@example.com']);
+
+        $html = (string) (new ResetPassword('a-reset-token'))->toMail($user)->render();
+
+        $this->assertStringContainsString(config('app.name'), $html);
+        $this->assertStringContainsString('Smarter Schools. Brighter Futures.', $html);
+        // The button's inlined style, not just an unstyled link - proves the
+        // brand color (not Laravel's stock black) actually made it into the
+        // rendered HTML, not just the source theme.css.
+        $this->assertStringContainsString('#2563eb', $html);
+        // Points at the Flutter app's own reset screen, never a Laravel
+        // Blade route the SPA doesn't have (see AppServiceProvider::boot).
+        // "&" is HTML-entity-encoded to "&amp;" inside the rendered href.
+        $this->assertStringContainsString(
+            rtrim(config('app.frontend_url'), '/').'/reset-password?token=a-reset-token&amp;email=priya.sharma@example.com',
+            $html
+        );
     }
 
     public function test_resetting_a_password_revokes_existing_tokens(): void

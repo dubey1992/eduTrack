@@ -46,10 +46,7 @@ class DashboardScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            user == null ? 'Welcome' : 'Welcome, ${user.name}',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
+          Text(user == null ? 'Welcome' : 'Welcome, ${user.name}', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 16),
           if (quickActions.isNotEmpty) ...[
             Text('Quick Actions', style: Theme.of(context).textTheme.titleMedium),
@@ -57,8 +54,7 @@ class DashboardScreen extends ConsumerWidget {
             ResponsiveBuilder(
               mobile: (context) => Column(
                 children: [
-                  for (final action in quickActions)
-                    Padding(padding: const EdgeInsets.only(bottom: 10), child: action),
+                  for (final action in quickActions) Padding(padding: const EdgeInsets.only(bottom: 10), child: action),
                 ],
               ),
               desktop: (context) => Wrap(spacing: 12, runSpacing: 12, children: quickActions),
@@ -80,8 +76,15 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A fixed height (rather than letting the Card size to its own content)
+    // keeps every card in the row the same height regardless of subtitle
+    // length - these sit in a Wrap, which (unlike a Row) never stretches
+    // siblings to match each other, so a two-line subtitle would otherwise
+    // make just that one card taller than the rest. maxLines/ellipsis is a
+    // defensive cap so a longer subtitle in the future still fits.
     return SizedBox(
       width: 260,
+      height: 112,
       child: Card(
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -95,10 +98,14 @@ class _QuickAction extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
                       Text(
                         subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ],

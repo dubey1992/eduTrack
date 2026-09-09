@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
 
@@ -8,6 +9,12 @@ import 'app_colors.dart';
 /// culturally neutral for a product launching across multiple countries.
 /// Respects the device's light/dark preference (ThemeMode.system in
 /// main.dart) rather than forcing one look.
+///
+/// Typeface is Inter (via google_fonts) app-wide - the same font as the
+/// public marketing page, applied here through [textTheme] plus every
+/// sub-theme that carries its own hardcoded TextStyle (AppBar, buttons,
+/// chips, DataTable, SnackBar), since those aren't guaranteed to inherit
+/// fontFamily from textTheme the way a plain inherited Text widget does.
 class AppTheme {
   const AppTheme._();
 
@@ -70,27 +77,29 @@ class AppTheme {
       primaryContainer: primarySoft,
     );
 
+    final baseTextTheme = Typography.material2021(platform: TargetPlatform.android).black
+        .apply(bodyColor: text, displayColor: text)
+        .copyWith(
+          // A slightly heavier weight than default reads better for an admin
+          // dashboard's headings, matching the prototype's font-weight: 850.
+          titleLarge: TextStyle(color: text, fontWeight: FontWeight.w800),
+          titleMedium: TextStyle(color: text, fontWeight: FontWeight.w700),
+        );
+
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
       extensions: [appColors],
-      textTheme: Typography.material2021(platform: TargetPlatform.android).black
-          .apply(bodyColor: text, displayColor: text)
-          .copyWith(
-            // A slightly heavier weight than default reads better for an admin
-            // dashboard's headings, matching the prototype's font-weight: 850.
-            titleLarge: TextStyle(color: text, fontWeight: FontWeight.w800),
-            titleMedium: TextStyle(color: text, fontWeight: FontWeight.w700),
-          ),
+      textTheme: GoogleFonts.interTextTheme(baseTextTheme),
       appBarTheme: AppBarTheme(
         backgroundColor: surface,
         foregroundColor: text,
         elevation: 0,
         scrolledUnderElevation: 1,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: TextStyle(color: text, fontSize: 20, fontWeight: FontWeight.w800),
+        titleTextStyle: GoogleFonts.inter(color: text, fontSize: 20, fontWeight: FontWeight.w800),
       ),
       cardTheme: CardThemeData(
         color: surface,
@@ -127,7 +136,7 @@ class AppTheme {
           backgroundColor: primary,
           foregroundColor: colorScheme.onPrimary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
         ),
       ),
@@ -135,7 +144,7 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: primary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
         ),
       ),
@@ -144,32 +153,38 @@ class AppTheme {
           foregroundColor: primary,
           side: BorderSide(color: border),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primary,
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: text,
-        contentTextStyle: TextStyle(color: background),
+        contentTextStyle: GoogleFonts.inter(color: background, fontSize: 13),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        // Floating alone still stretches to the full window width on
+        // desktop/web - capping `width` is what actually makes it read as a
+        // small toast instead of a full-width bar.
+        width: 360,
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       dividerTheme: DividerThemeData(color: border, space: 1),
       chipTheme: ChipThemeData(
         backgroundColor: primarySoft,
-        labelStyle: TextStyle(color: primary, fontWeight: FontWeight.w700, fontSize: 11),
+        labelStyle: GoogleFonts.inter(color: primary, fontWeight: FontWeight.w700, fontSize: 12),
         side: BorderSide.none,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
       dataTableTheme: DataTableThemeData(
         headingRowColor: WidgetStatePropertyAll(background),
         dataRowColor: WidgetStatePropertyAll(surface),
-        headingTextStyle: TextStyle(color: appColors.muted, fontWeight: FontWeight.w700, fontSize: 12),
+        headingTextStyle: GoogleFonts.inter(color: appColors.muted, fontWeight: FontWeight.w700, fontSize: 13),
         dividerThickness: 1,
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),

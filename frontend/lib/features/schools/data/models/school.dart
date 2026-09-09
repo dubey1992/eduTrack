@@ -6,8 +6,7 @@ enum SchoolStatus {
 
   final String apiValue;
 
-  static SchoolStatus fromApiValue(String value) =>
-      SchoolStatus.values.firstWhere((s) => s.apiValue == value);
+  static SchoolStatus fromApiValue(String value) => SchoolStatus.values.firstWhere((s) => s.apiValue == value);
 }
 
 class School {

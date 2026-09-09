@@ -9,6 +9,7 @@ use App\Http\Resources\SchoolResource;
 use App\Models\School;
 use App\Services\SchoolService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 
@@ -16,11 +17,11 @@ class SchoolController extends Controller
 {
     public function __construct(private readonly SchoolService $schoolService) {}
 
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('viewAny', School::class);
 
-        return SchoolResource::collection($this->schoolService->paginate());
+        return SchoolResource::collection($this->schoolService->paginate($request->only(['per_page'])));
     }
 
     public function store(StoreSchoolRequest $request): JsonResponse

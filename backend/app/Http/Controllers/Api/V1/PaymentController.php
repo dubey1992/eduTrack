@@ -21,7 +21,7 @@ class PaymentController extends Controller
     {
         Gate::authorize('viewAny', Payment::class);
 
-        $payments = $this->paymentService->paginate($request->only(['school_id', 'status', 'payment_type']));
+        $payments = $this->paymentService->paginate($request->only(['school_id', 'status', 'payment_type', 'per_page']));
 
         return PaymentResource::collection($payments);
     }

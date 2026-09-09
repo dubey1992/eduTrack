@@ -13,8 +13,11 @@ class PaymentApi {
 
   final Dio _dio;
 
-  Future<PaginatedResponse<Payment>> list({int? schoolId}) async {
-    final response = await _dio.get('/payments', queryParameters: {'school_id': ?schoolId});
+  Future<PaginatedResponse<Payment>> list({int? schoolId, int? page, int? perPage}) async {
+    final response = await _dio.get(
+      '/payments',
+      queryParameters: {'school_id': ?schoolId, 'page': ?page, 'per_page': ?perPage},
+    );
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, Payment.fromJson);
   }
 
@@ -47,6 +50,34 @@ class PaymentApi {
 
   Future<Payment> updateStatus(int paymentId, PaymentStatus status) async {
     final response = await _dio.patch('/payments/$paymentId', data: {'status': status.apiValue});
+    return Payment.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<Payment> update(
+    int paymentId, {
+    PaymentType? paymentType,
+    double? amount,
+    DateTime? paymentDate,
+    PaymentMode? paymentMode,
+    String? referenceNumber,
+    String? notes,
+    PaymentStatus? status,
+  }) async {
+    final formattedDate = paymentDate == null ? null : DateFormat('yyyy-MM-dd').format(paymentDate);
+
+    final response = await _dio.patch(
+      '/payments/$paymentId',
+      data: {
+        'payment_type': ?paymentType?.apiValue,
+        'amount': ?amount?.toStringAsFixed(2),
+        'payment_date': ?formattedDate,
+        'payment_mode': ?paymentMode?.apiValue,
+        'reference_number': referenceNumber,
+        'notes': notes,
+        'status': ?status?.apiValue,
+      },
+    );
+
     return Payment.fromJson(response.data as Map<String, dynamic>);
   }
 

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/decimal_input_formatter.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../schools/data/models/school.dart';
@@ -67,13 +68,14 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
             amount: double.parse(_amountController.text),
             paymentDate: _paymentDate,
             paymentMode: _paymentMode,
-            referenceNumber: _referenceController.text.trim().isEmpty
-                ? null
-                : _referenceController.text.trim(),
+            referenceNumber: _referenceController.text.trim().isEmpty ? null : _referenceController.text.trim(),
             notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
             status: _status,
           );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment recorded.')));
+        Navigator.of(context).pop();
+      }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) setState(() => _errorMessage = failure.message);
@@ -103,14 +105,20 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                 AsyncValueView<List<School>>(
                   value: schoolsState,
                   data: (context, schools) {
+                    final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
                     return DropdownButtonFormField<int>(
                       initialValue: _schoolId,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'School'),
                       items: [
-                        for (final school in schools)
+                        for (final school in activeSchools)
                           DropdownMenuItem(
                             value: school.id,
-                            child: Text('${school.name} (${school.currencyCode})'),
+                            child: Text(
+                              '${school.name} (${school.currencyCode})',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           ),
                       ],
                       onChanged: (value) => setState(() => _schoolId = value),
@@ -123,8 +131,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                   initialValue: _paymentType,
                   decoration: const InputDecoration(labelText: 'Payment type'),
                   items: [
-                    for (final type in PaymentType.values)
-                      DropdownMenuItem(value: type, child: Text(type.label)),
+                    for (final type in PaymentType.values) DropdownMenuItem(value: type, child: Text(type.label)),
                   ],
                   onChanged: (value) => setState(() => _paymentType = value!),
                 ),
@@ -132,6 +139,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                 TextFormField(
                   controller: _amountController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [DecimalTextInputFormatter()],
                   decoration: const InputDecoration(labelText: 'Amount'),
                   validator: (v) {
                     final parsed = double.tryParse(v ?? '');
@@ -152,8 +160,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                   initialValue: _paymentMode,
                   decoration: const InputDecoration(labelText: 'Payment mode'),
                   items: [
-                    for (final mode in PaymentMode.values)
-                      DropdownMenuItem(value: mode, child: Text(mode.label)),
+                    for (final mode in PaymentMode.values) DropdownMenuItem(value: mode, child: Text(mode.label)),
                   ],
                   onChanged: (value) => setState(() => _paymentMode = value!),
                 ),

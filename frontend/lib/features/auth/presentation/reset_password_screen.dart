@@ -45,8 +45,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           .read(authRepositoryProvider)
           .resetPassword(email: widget.email, token: widget.token, password: _passwordController.text);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Password reset. Please sign in.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset. Please sign in.')));
         context.go('/login');
       }
     } catch (error) {

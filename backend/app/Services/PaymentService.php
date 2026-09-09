@@ -6,6 +6,7 @@ use App\Enums\PaymentStatus;
 use App\Models\Payment;
 use App\Models\School;
 use App\Models\User;
+use App\Support\Pagination;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -26,7 +27,7 @@ class PaymentService
             )
             ->orderByDesc('payment_date')
             ->orderByDesc('id')
-            ->paginate(perPage: 20);
+            ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
     /**

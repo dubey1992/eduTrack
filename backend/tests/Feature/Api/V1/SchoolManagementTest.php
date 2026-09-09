@@ -58,6 +58,16 @@ class SchoolManagementTest extends TestCase
             ->assertJsonStructure(['details' => ['errors' => ['currency_code']]]);
     }
 
+    public function test_phone_must_include_a_country_code(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson('/api/v1/schools', $this->validPayload(['phone' => '9876543210']))
+            ->assertUnprocessable()
+            ->assertJsonStructure(['details' => ['errors' => ['phone']]]);
+    }
+
     public function test_super_admin_can_list_schools(): void
     {
         $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();

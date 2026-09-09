@@ -30,21 +30,32 @@ const _school = School(
   status: SchoolStatus.active,
 );
 
-Widget wrap({required UserRole actorRole}) {
+const _closedSchool = School(
+  id: 2,
+  name: 'Closed Down Academy',
+  registrationNumber: null,
+  email: 'admin@closeddown.edu',
+  phone: '+91 98765 00000',
+  address: '9 Old Road',
+  city: 'Mumbai',
+  state: 'Maharashtra',
+  country: 'India',
+  postalCode: '400001',
+  currencyCode: 'INR',
+  logoUrl: null,
+  status: SchoolStatus.inactive,
+);
+
+Widget wrap({required UserRole actorRole, List<School> schools = const [_school]}) {
   return ProviderScope(
     overrides: [
       authRepositoryProvider.overrideWithValue(
         FakeAuthRepository(
-          sessionOnRestore: AuthenticatedUser(
-            id: 99,
-            name: 'Actor',
-            email: 'actor@example.com',
-            role: actorRole,
-          ),
+          sessionOnRestore: AuthenticatedUser(id: 99, name: 'Actor', email: 'actor@example.com', role: actorRole),
         ),
       ),
       userRepositoryProvider.overrideWithValue(FakeUserRepository()),
-      schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository(schools: [_school])),
+      schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository(schools: schools)),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),
@@ -78,5 +89,21 @@ void main() {
     expect(find.text('Super Admin').hitTestable(), findsNothing);
     expect(find.text('School Admin').hitTestable(), findsNothing);
     expect(find.text('Teacher').hitTestable(), findsWidgets);
+  });
+
+  testWidgets('the school picker excludes deactivated schools', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(wrap(actorRole: UserRole.superAdmin, schools: [_school, _closedSchool]));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'School'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sunrise Public School').hitTestable(), findsWidgets);
+    expect(find.text('Closed Down Academy').hitTestable(), findsNothing);
   });
 }

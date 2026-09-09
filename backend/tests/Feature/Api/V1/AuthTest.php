@@ -34,7 +34,18 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertUnauthorized()
-            ->assertJsonPath('code', 'UNAUTHENTICATED');
+            ->assertJsonPath('code', 'UNAUTHENTICATED')
+            // The client must see the actual reason, not a generic
+            // "authentication required" message meant for protected routes.
+            ->assertJsonPath('message', 'These credentials do not match our records.');
+
+        // `details` must serialize as a JSON *object* ({}), never an array
+        // ([]) - the Flutter client casts it to Map<String, dynamic> and a
+        // bare PHP [] json_encodes as [], which crashes that cast. Asserting
+        // on the raw body is required here since assertJsonPath()/->json()
+        // decode both {} and [] into an identical empty PHP array, hiding
+        // the exact bug this guards against.
+        $this->assertStringContainsString('"details":{}', $response->getContent());
     }
 
     public function test_login_requires_email_and_password(): void

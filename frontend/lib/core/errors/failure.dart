@@ -4,10 +4,8 @@
 class Failure {
   const Failure({required this.code, required this.message, this.details = const {}});
 
-  factory Failure.network() => const Failure(
-    code: 'NETWORK_ERROR',
-    message: 'Could not reach the server. Check your connection and try again.',
-  );
+  factory Failure.network() =>
+      const Failure(code: 'NETWORK_ERROR', message: 'Could not reach the server. Check your connection and try again.');
 
   factory Failure.unknown([String? message]) =>
       Failure(code: 'UNKNOWN_ERROR', message: message ?? 'Something went wrong. Please try again.');

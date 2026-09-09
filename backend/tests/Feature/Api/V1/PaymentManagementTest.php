@@ -73,6 +73,23 @@ class PaymentManagementTest extends TestCase
             ]);
     }
 
+    public function test_an_amount_with_more_than_two_decimal_places_is_rejected(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create();
+
+        $response = $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/payments', [
+            'school_id' => $school->id,
+            'payment_type' => 'SETUP_FEE',
+            'amount' => '1000.999',
+            'payment_date' => now()->toDateString(),
+            'payment_mode' => 'CASH',
+            'status' => 'PAID',
+        ]);
+
+        $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['amount']]]);
+    }
+
     public function test_super_admin_can_filter_payments_by_school(): void
     {
         $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();

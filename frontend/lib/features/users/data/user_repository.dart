@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/user_role.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/paginated_response.dart';
 import 'models/app_user.dart';
 import 'user_api.dart';
 
@@ -13,10 +14,27 @@ class UserRepository {
 
   final UserApi _api;
 
-  Future<List<AppUser>> list() async {
+  Future<List<AppUser>> list({List<UserRole>? roles, int? schoolId, String? status}) async {
     try {
-      final page = await _api.list();
+      final page = await _api.list(roles: roles, schoolId: schoolId, status: status);
       return page.items;
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  /// The paginated variant used by the Users list screen - [list] above
+  /// stays as-is for callers that want "every matching user" (e.g. the
+  /// teacher picker), not one page of them.
+  Future<PaginatedResponse<AppUser>> listPage({
+    List<UserRole>? roles,
+    int? schoolId,
+    String? status,
+    required int page,
+    required int perPage,
+  }) async {
+    try {
+      return await _api.list(roles: roles, schoolId: schoolId, status: status, page: page, perPage: perPage);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }
@@ -40,6 +58,30 @@ class UserRepository {
         password: password,
         role: role,
         schoolId: schoolId,
+      );
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<AppUser> update(
+    int userId, {
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? mobile,
+    String? password,
+    UserRole? role,
+  }) async {
+    try {
+      return await _api.update(
+        userId,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        mobile: mobile,
+        password: password,
+        role: role,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);

@@ -24,7 +24,7 @@ class UpdatePaymentRequest extends FormRequest
             // school_id and currency_code are fixed at creation - not
             // editable here (see PaymentService::create).
             'payment_type' => ['sometimes', 'required', new Enum(PaymentType::class)],
-            'amount' => ['sometimes', 'required', 'numeric', 'min:0.01'],
+            'amount' => ['sometimes', 'required', 'numeric', 'min:0.01', 'regex:/^\d+(\.\d{1,2})?$/'],
             'payment_date' => ['sometimes', 'required', 'date'],
             'payment_mode' => ['sometimes', 'required', new Enum(PaymentMode::class)],
             'reference_number' => ['nullable', 'string', 'max:100'],

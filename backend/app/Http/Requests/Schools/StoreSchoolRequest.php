@@ -22,7 +22,8 @@ class StoreSchoolRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'registration_number' => ['nullable', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('schools', 'email')],
-            'phone' => ['required', 'string', 'max:20'],
+            // Multi-nation schools always carry a dial code - e.g. "+91 9876543210".
+            'phone' => ['required', 'string', 'max:20', 'regex:/^\+[1-9][0-9 ]{6,17}$/'],
             'address' => ['required', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:100'],
             'state' => ['required', 'string', 'max:100'],

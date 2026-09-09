@@ -24,7 +24,10 @@ class StorePaymentRequest extends FormRequest
         return [
             'school_id' => ['required', 'integer', 'exists:schools,id'],
             'payment_type' => ['required', new Enum(PaymentType::class)],
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            // Matches the amount column's DECIMAL(12,2) shape (CLAUDE.md
+            // rule 5) - without this, a value like "12.345" would pass
+            // `numeric` and only get silently rounded by MySQL.
+            'amount' => ['required', 'numeric', 'min:0.01', 'regex:/^\d+(\.\d{1,2})?$/'],
             'payment_date' => ['required', 'date'],
             'payment_mode' => ['required', new Enum(PaymentMode::class)],
             'reference_number' => ['nullable', 'string', 'max:100'],

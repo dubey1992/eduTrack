@@ -47,10 +47,14 @@ Failure failureFromDioException(DioException e) {
 
   final data = e.response?.data;
   if (data is Map<String, dynamic> && data['code'] is String && data['message'] is String) {
+    // The backend always sends `details` as a JSON object, but this is a
+    // system boundary - don't let an unexpected shape (e.g. a stray `[]`)
+    // crash the app instead of just showing the message.
+    final rawDetails = data['details'];
     return Failure(
       code: data['code'] as String,
       message: data['message'] as String,
-      details: (data['details'] as Map<String, dynamic>?) ?? const {},
+      details: rawDetails is Map<String, dynamic> ? rawDetails : const {},
     );
   }
 
