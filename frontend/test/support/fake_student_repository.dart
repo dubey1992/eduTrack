@@ -12,6 +12,7 @@ class FakeStudentRepository implements StudentRepository {
     this.failUpdateWith,
     this.failSetActiveWith,
     this.failListWith,
+    this.failSetTransportWith,
   }) : _students = students ?? [];
 
   final List<Student> _students;
@@ -19,6 +20,9 @@ class FakeStudentRepository implements StudentRepository {
   Failure? failUpdateWith;
   Failure? failSetActiveWith;
   Failure? failListWith;
+  Failure? failSetTransportWith;
+
+  List<Student> get students => List.unmodifiable(_students);
 
   List<Student> _filtered({int? schoolId}) {
     return schoolId == null ? _students : _students.where((s) => s.schoolId == schoolId).toList();
@@ -111,6 +115,46 @@ class FakeStudentRepository implements StudentRepository {
       guardianMobile: guardianMobile ?? existing.guardianMobile,
       address: address ?? existing.address,
       status: existing.status,
+      transport: existing.transport,
+    );
+    _students[index] = updated;
+    return updated;
+  }
+
+  Map<String, Object?>? lastTransportCall;
+
+  @override
+  Future<Student> setTransport(int studentId, {required int? routeId, required int? stopId}) async {
+    if (failSetTransportWith != null) throw failSetTransportWith!;
+    lastTransportCall = {'student_id': studentId, 'route_id': routeId, 'stop_id': stopId};
+
+    final index = _students.indexWhere((s) => s.id == studentId);
+    final e = _students[index];
+    final updated = Student(
+      id: e.id,
+      schoolId: e.schoolId,
+      schoolName: e.schoolName,
+      classSectionId: e.classSectionId,
+      classSectionName: e.classSectionName,
+      admissionNumber: e.admissionNumber,
+      firstName: e.firstName,
+      lastName: e.lastName,
+      name: e.name,
+      rollNumber: e.rollNumber,
+      guardianName: e.guardianName,
+      guardianMobile: e.guardianMobile,
+      address: e.address,
+      status: e.status,
+      transport: routeId == null || stopId == null
+          ? null
+          : StudentTransport(
+              routeId: routeId,
+              routeName: 'Green Park',
+              routeLabel: 'Bus 04 - Green Park',
+              vehicleName: 'Bus 04',
+              stopId: stopId,
+              stopName: stopId == 101 ? 'Lake View' : 'Central Park',
+            ),
     );
     _students[index] = updated;
     return updated;

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DailyTeachingReportController;
 use App\Http\Controllers\Api\V1\DepartmentController;
+use App\Http\Controllers\Api\V1\DriverController;
 use App\Http\Controllers\Api\V1\HodReportController;
 use App\Http\Controllers\Api\V1\HolidayController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
@@ -16,11 +17,14 @@ use App\Http\Controllers\Api\V1\StaffAttendanceController;
 use App\Http\Controllers\Api\V1\StaffController;
 use App\Http\Controllers\Api\V1\StaffLeaveController;
 use App\Http\Controllers\Api\V1\StudentController;
+use App\Http\Controllers\Api\V1\StudentTransportController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SyllabusProgressController;
 use App\Http\Controllers\Api\V1\SyllabusTopicController;
 use App\Http\Controllers\Api\V1\TimetableController;
+use App\Http\Controllers\Api\V1\TransportRouteController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\VehicleController;
 use Illuminate\Support\Facades\Route;
 
 // Mounted under /api/v1 (see bootstrap/app.php apiPrefix).
@@ -92,6 +96,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/students/{student}', [StudentController::class, 'update']);
     Route::patch('/students/{student}/activate', [StudentController::class, 'activate']);
     Route::patch('/students/{student}/deactivate', [StudentController::class, 'deactivate']);
+    Route::put('/students/{student}/transport', [StudentTransportController::class, 'assign']);
+    Route::delete('/students/{student}/transport', [StudentTransportController::class, 'unassign']);
 
     Route::get('/attendance/register', [AttendanceController::class, 'register']);
     Route::get('/attendance', [AttendanceController::class, 'index']);
@@ -138,4 +144,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/holidays/{holiday}', [HolidayController::class, 'show']);
     Route::patch('/holidays/{holiday}', [HolidayController::class, 'update']);
     Route::delete('/holidays/{holiday}', [HolidayController::class, 'destroy']);
+
+    Route::get('/transport/vehicles', [VehicleController::class, 'index']);
+    Route::post('/transport/vehicles', [VehicleController::class, 'store']);
+    Route::get('/transport/vehicles/{vehicle}', [VehicleController::class, 'show']);
+    Route::patch('/transport/vehicles/{vehicle}', [VehicleController::class, 'update']);
+    Route::delete('/transport/vehicles/{vehicle}', [VehicleController::class, 'destroy']);
+
+    Route::get('/transport/drivers', [DriverController::class, 'index']);
+    Route::post('/transport/drivers', [DriverController::class, 'store']);
+    Route::get('/transport/drivers/{driver}', [DriverController::class, 'show']);
+    Route::patch('/transport/drivers/{driver}', [DriverController::class, 'update']);
+    Route::delete('/transport/drivers/{driver}', [DriverController::class, 'destroy']);
+
+    Route::get('/transport/routes', [TransportRouteController::class, 'index']);
+    Route::post('/transport/routes', [TransportRouteController::class, 'store']);
+    Route::get('/transport/routes/{route}', [TransportRouteController::class, 'show']);
+    Route::patch('/transport/routes/{route}', [TransportRouteController::class, 'update']);
+    Route::delete('/transport/routes/{route}', [TransportRouteController::class, 'destroy']);
+    Route::get('/transport/routes/{route}/students', [TransportRouteController::class, 'students']);
+    Route::post('/transport/routes/{route}/stops', [TransportRouteController::class, 'storeStop']);
+    Route::patch('/transport/stops/{stop}', [TransportRouteController::class, 'updateStop']);
+    Route::delete('/transport/stops/{stop}', [TransportRouteController::class, 'destroyStop']);
 });

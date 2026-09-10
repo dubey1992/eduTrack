@@ -231,7 +231,45 @@ class AppNav {
     ],
   );
 
-  static const groups = [overview, people, attendanceHr, academics, administration];
+  static const _transportViewerRoles = {
+    UserRole.superAdmin,
+    UserRole.schoolAdmin,
+    UserRole.hod,
+    UserRole.teacher,
+    UserRole.transportManager,
+  };
+
+  static const transport = NavGroup(
+    label: 'Transport',
+    items: [
+      NavItem(
+        path: '/transport/vehicles',
+        label: 'Vehicles',
+        icon: Icons.directions_bus_outlined,
+        allowedRoles: _transportViewerRoles,
+        pageTitle: 'Vehicles',
+        pageSubtitle: 'School buses and their seating capacity',
+      ),
+      NavItem(
+        path: '/transport/drivers',
+        label: 'Drivers',
+        icon: Icons.badge_outlined,
+        allowedRoles: _transportViewerRoles,
+        pageTitle: 'Drivers',
+        pageSubtitle: 'Bus drivers and their licences',
+      ),
+      NavItem(
+        path: '/transport/routes',
+        label: 'Routes',
+        icon: Icons.alt_route_outlined,
+        allowedRoles: _transportViewerRoles,
+        pageTitle: 'Routes & Stops',
+        pageSubtitle: 'Bus routes, stops and the students riding them',
+      ),
+    ],
+  );
+
+  static const groups = [overview, people, attendanceHr, academics, transport, administration];
 
   static List<NavItem> get allItems => groups.expand((g) => g.items).toList();
 

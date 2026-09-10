@@ -11,6 +11,7 @@ import '../../classes/application/class_section_picker_provider.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../schools/data/models/school.dart';
 import '../application/student_list_notifier.dart';
+import 'widgets/student_transport_picker.dart';
 
 class AddStudentDialog extends ConsumerStatefulWidget {
   const AddStudentDialog({super.key});
@@ -31,6 +32,8 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
 
   int? _schoolId;
   int? _classSectionId;
+  int? _routeId;
+  int? _stopId;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -70,6 +73,8 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
                 ? null
                 : _guardianMobileController.text.trim(),
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+            routeId: _routeId,
+            stopId: _stopId,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student admitted.')));
@@ -107,6 +112,8 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
                     onChanged: (value) => setState(() {
                       _schoolId = value;
                       _classSectionId = null;
+                      _routeId = null;
+                      _stopId = null;
                     }),
                   ),
                   const SizedBox(height: 10),
@@ -168,6 +175,17 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
                   controller: _addressController,
                   decoration: const InputDecoration(labelText: 'Address (optional)'),
                   maxLines: 2,
+                ),
+                const SizedBox(height: 10),
+                StudentTransportPicker(
+                  schoolId: _schoolId,
+                  routeId: _routeId,
+                  stopId: _stopId,
+                  currentRouteLabel: null,
+                  onChanged: (routeId, stopId) => setState(() {
+                    _routeId = routeId;
+                    _stopId = stopId;
+                  }),
                 ),
               ],
             ),

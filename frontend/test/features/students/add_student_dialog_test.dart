@@ -6,6 +6,7 @@ import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/classes/data/models/school_class.dart';
 import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
 import 'package:edutrack_app/features/students/data/student_repository.dart';
+import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 import 'package:edutrack_app/features/students/presentation/add_student_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_class_repository.dart';
 import '../../support/fake_student_repository.dart';
+import '../../support/fake_transport_repository.dart';
 
 // A school admin is already scoped to their own school server-side, so this
 // dialog skips the School picker entirely for them (see AddStudentDialog's
@@ -40,6 +42,7 @@ Widget wrap({FakeStudentRepository? student}) {
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _schoolAdmin)),
       schoolClassRepositoryProvider.overrideWithValue(FakeSchoolClassRepository(classes: [_schoolClass])),
       studentRepositoryProvider.overrideWithValue(student ?? FakeStudentRepository()),
+      transportRepositoryProvider.overrideWithValue(FakeTransportRepository()),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),

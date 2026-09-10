@@ -89,6 +89,19 @@ class StudentApi {
     return Student.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<Student> assignTransport(int studentId, {required int routeId, required int stopId}) async {
+    final response = await _dio.put(
+      '/students/$studentId/transport',
+      data: {'route_id': routeId, 'transport_stop_id': stopId},
+    );
+    return Student.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<Student> unassignTransport(int studentId) async {
+    final response = await _dio.delete('/students/$studentId/transport');
+    return Student.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<Student> activate(int studentId) async {
     final response = await _dio.patch('/students/$studentId/activate');
     return Student.fromJson(response.data as Map<String, dynamic>);

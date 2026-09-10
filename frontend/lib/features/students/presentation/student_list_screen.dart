@@ -5,6 +5,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../../../core/widgets/pagination_controls.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
@@ -142,7 +143,9 @@ class _StudentListMobile extends StatelessWidget {
         return Card(
           child: ListTile(
             title: Text('${student.admissionNumber} · ${student.name}'),
-            subtitle: Text('${student.classSectionName ?? '-'} · Guardian: ${student.guardianName}'),
+            subtitle: Text(
+              '${student.classSectionName ?? '-'} · Guardian: ${student.guardianName} · ${_transportLabel(student)}',
+            ),
             trailing: _StatusBadgeFor(student: student),
             onTap: canManage
                 ? () => showDialog(
@@ -168,14 +171,14 @@ class _StudentListDesktop extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Card(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        child: HorizontalScrollTable(
           child: DataTable(
             columns: const [
               DataColumn(label: Text('ID')),
               DataColumn(label: Text('Name')),
               DataColumn(label: Text('Class')),
               DataColumn(label: Text('Parent')),
+              DataColumn(label: Text('Transport')),
               DataColumn(label: Text('Status')),
               DataColumn(label: Text('Action')),
             ],
@@ -187,6 +190,7 @@ class _StudentListDesktop extends StatelessWidget {
                     DataCell(Text(student.name)),
                     DataCell(Text(student.classSectionName ?? '-')),
                     DataCell(Text(student.guardianName)),
+                    DataCell(Text(_transportLabel(student))),
                     DataCell(_StatusBadgeFor(student: student)),
                     DataCell(canManage ? _StudentActions(student: student) : const SizedBox.shrink()),
                   ],
@@ -197,6 +201,13 @@ class _StudentListDesktop extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Bus 04 - Green Park (Lake View)" or "No Transport" - the prototype's
+/// Transport column.
+String _transportLabel(Student student) {
+  final transport = student.transport;
+  return transport == null ? 'No Transport' : '${transport.routeLabel} (${transport.stopName})';
 }
 
 class _StatusBadgeFor extends StatelessWidget {

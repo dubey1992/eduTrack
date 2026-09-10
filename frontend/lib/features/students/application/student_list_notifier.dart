@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/paged_list.dart';
+import '../../transport/application/route_page_notifier.dart';
 import '../data/models/student.dart';
 import '../data/student_repository.dart';
 
@@ -54,6 +55,9 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
     await refresh();
   }
 
+  /// A route + stop is a second call after the admission (the assignment
+  /// has its own endpoint and capacity rules); a failure there leaves the
+  /// student admitted without transport and surfaces the reason.
   Future<void> createStudent({
     int? schoolId,
     required int classSectionId,
@@ -64,24 +68,36 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
     required String guardianName,
     String? guardianMobile,
     String? address,
+    int? routeId,
+    int? stopId,
   }) async {
-    await ref
-        .read(studentRepositoryProvider)
-        .create(
-          schoolId: schoolId,
-          classSectionId: classSectionId,
-          admissionNumber: admissionNumber,
-          firstName: firstName,
-          lastName: lastName,
-          rollNumber: rollNumber,
-          guardianName: guardianName,
-          guardianMobile: guardianMobile,
-          address: address,
-        );
+    final repository = ref.read(studentRepositoryProvider);
+    final created = await repository.create(
+      schoolId: schoolId,
+      classSectionId: classSectionId,
+      admissionNumber: admissionNumber,
+      firstName: firstName,
+      lastName: lastName,
+      rollNumber: rollNumber,
+      guardianName: guardianName,
+      guardianMobile: guardianMobile,
+      address: address,
+    );
     _page = 1;
-    await refresh();
+    try {
+      if (routeId != null && stopId != null) {
+        await repository.setTransport(created.id, routeId: routeId, stopId: stopId);
+        // The Routes list shows rider counts per route.
+        ref.invalidate(routePageNotifierProvider);
+      }
+    } finally {
+      await refresh();
+    }
   }
 
+  /// [routeId]/[stopId] are the form's current transport selection (null =
+  /// "No Transport"); the assignment call only happens when it differs from
+  /// what the student already has.
   Future<void> updateStudent(
     Student student, {
     int? classSectionId,
@@ -92,20 +108,27 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
     String? guardianName,
     String? guardianMobile,
     String? address,
+    int? routeId,
+    int? stopId,
   }) async {
-    final updated = await ref
-        .read(studentRepositoryProvider)
-        .update(
-          student.id,
-          classSectionId: classSectionId,
-          admissionNumber: admissionNumber,
-          firstName: firstName,
-          lastName: lastName,
-          rollNumber: rollNumber,
-          guardianName: guardianName,
-          guardianMobile: guardianMobile,
-          address: address,
-        );
+    final repository = ref.read(studentRepositoryProvider);
+    var updated = await repository.update(
+      student.id,
+      classSectionId: classSectionId,
+      admissionNumber: admissionNumber,
+      firstName: firstName,
+      lastName: lastName,
+      rollNumber: rollNumber,
+      guardianName: guardianName,
+      guardianMobile: guardianMobile,
+      address: address,
+    );
+
+    final transportChanged = routeId != student.transport?.routeId || stopId != student.transport?.stopId;
+    if (transportChanged) {
+      updated = await repository.setTransport(student.id, routeId: routeId, stopId: stopId);
+      ref.invalidate(routePageNotifierProvider);
+    }
 
     state = state.whenData(
       (page) => page.withItems([for (final existing in page.items) existing.id == updated.id ? updated : existing]),

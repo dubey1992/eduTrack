@@ -24,6 +24,9 @@ import '../../features/subjects/presentation/subject_list_screen.dart';
 import '../../features/syllabus/presentation/syllabus_screen.dart';
 import '../../features/teaching_reports/presentation/teaching_report_screen.dart';
 import '../../features/timetable/presentation/timetable_screen.dart';
+import '../../features/transport/presentation/driver_list_screen.dart';
+import '../../features/transport/presentation/route_list_screen.dart';
+import '../../features/transport/presentation/vehicle_list_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/splash_screen.dart';
@@ -79,6 +82,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/teaching-reports', builder: (context, state) => const TeachingReportScreen()),
           GoRoute(path: '/syllabus', builder: (context, state) => const SyllabusScreen()),
           GoRoute(path: '/hod-reports', builder: (context, state) => const HodReportScreen()),
+          GoRoute(path: '/transport/vehicles', builder: (context, state) => const VehicleListScreen()),
+          GoRoute(path: '/transport/drivers', builder: (context, state) => const DriverListScreen()),
+          GoRoute(path: '/transport/routes', builder: (context, state) => const RouteListScreen()),
         ],
       ),
     ],

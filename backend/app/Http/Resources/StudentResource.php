@@ -35,6 +35,21 @@ class StudentResource extends JsonResource
             'guardian_mobile' => $this->guardian_mobile,
             'address' => $this->address,
             'status' => $this->status->value,
+            'transport' => $this->whenLoaded('transportAssignment', function () {
+                $assignment = $this->transportAssignment;
+                if ($assignment === null) {
+                    return null;
+                }
+
+                return [
+                    'route_id' => $assignment->route_id,
+                    'route_name' => $assignment->route->name,
+                    'route_label' => $assignment->route->label(),
+                    'vehicle_name' => $assignment->route->vehicle?->name,
+                    'stop_id' => $assignment->transport_stop_id,
+                    'stop_name' => $assignment->stop->name,
+                ];
+            }),
             'created_at' => $this->created_at,
         ];
     }

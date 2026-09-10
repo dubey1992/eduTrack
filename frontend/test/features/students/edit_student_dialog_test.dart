@@ -4,6 +4,7 @@ import 'package:edutrack_app/features/classes/data/models/school_class.dart';
 import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
 import 'package:edutrack_app/features/students/data/models/student.dart';
 import 'package:edutrack_app/features/students/data/student_repository.dart';
+import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 import 'package:edutrack_app/features/students/presentation/edit_student_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_school_class_repository.dart';
 import '../../support/fake_student_repository.dart';
+import '../../support/fake_transport_repository.dart';
 
 final _schoolClass = SchoolClass(
   id: 1,
@@ -47,6 +49,7 @@ Widget wrap(FakeStudentRepository fake) {
     overrides: [
       schoolClassRepositoryProvider.overrideWithValue(FakeSchoolClassRepository(classes: [_schoolClass])),
       studentRepositoryProvider.overrideWithValue(fake),
+      transportRepositoryProvider.overrideWithValue(FakeTransportRepository()),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),

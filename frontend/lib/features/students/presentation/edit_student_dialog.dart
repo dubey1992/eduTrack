@@ -8,6 +8,7 @@ import '../../../core/widgets/phone_number_field.dart';
 import '../../classes/application/class_section_picker_provider.dart';
 import '../application/student_list_notifier.dart';
 import '../data/models/student.dart';
+import 'widgets/student_transport_picker.dart';
 
 class EditStudentDialog extends ConsumerStatefulWidget {
   const EditStudentDialog({super.key, required this.student});
@@ -26,6 +27,8 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
   late final _addressController = TextEditingController(text: widget.student.address ?? '');
 
   late int? _classSectionId = widget.student.classSectionId;
+  late int? _routeId = widget.student.transport?.routeId;
+  late int? _stopId = widget.student.transport?.stopId;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -59,6 +62,8 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
                 ? null
                 : _guardianMobileController.text.trim(),
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+            routeId: _routeId,
+            stopId: _stopId,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student updated.')));
@@ -111,6 +116,17 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
                   controller: _addressController,
                   decoration: const InputDecoration(labelText: 'Address (optional)'),
                   maxLines: 2,
+                ),
+                const SizedBox(height: 10),
+                StudentTransportPicker(
+                  schoolId: null,
+                  routeId: _routeId,
+                  stopId: _stopId,
+                  currentRouteLabel: widget.student.transport?.routeLabel,
+                  onChanged: (routeId, stopId) => setState(() {
+                    _routeId = routeId;
+                    _stopId = stopId;
+                  }),
                 ),
               ],
             ),

@@ -77,6 +77,12 @@ class ApiExceptionRenderer
                 $e->getMessage(),
                 [],
             ],
+            $e instanceof RouteCapacityFullException => [
+                409,
+                'ROUTE_CAPACITY_FULL',
+                $e->getMessage(),
+                [],
+            ],
             $e instanceof LeaveOnNonWorkingDaysException => [
                 409,
                 'LEAVE_ON_NON_WORKING_DAYS',

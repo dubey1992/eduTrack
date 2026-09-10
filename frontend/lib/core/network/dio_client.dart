@@ -51,11 +51,19 @@ Failure failureFromDioException(DioException e) {
     // system boundary - don't let an unexpected shape (e.g. a stray `[]`)
     // crash the app instead of just showing the message.
     final rawDetails = data['details'];
-    return Failure(
+    final failure = Failure(
       code: data['code'] as String,
       message: data['message'] as String,
       details: rawDetails is Map<String, dynamic> ? rawDetails : const {},
     );
+
+    // "The given data was invalid." tells the user nothing - surface the
+    // first field message instead (the full map stays in details).
+    final firstFieldMessage = failure.validationErrors.values.expand((m) => m).firstOrNull;
+    if (failure.code == 'VALIDATION_ERROR' && firstFieldMessage != null) {
+      return Failure(code: failure.code, message: firstFieldMessage, details: failure.details);
+    }
+    return failure;
   }
 
   return Failure.unknown(e.message);

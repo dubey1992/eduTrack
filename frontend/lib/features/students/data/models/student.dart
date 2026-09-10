@@ -9,6 +9,39 @@ enum StudentStatus {
   static StudentStatus fromApiValue(String value) => StudentStatus.values.firstWhere((s) => s.apiValue == value);
 }
 
+/// The student's current bus route + stop (Phase 14), or absent when they
+/// don't use school transport.
+class StudentTransport {
+  const StudentTransport({
+    required this.routeId,
+    required this.routeName,
+    required this.routeLabel,
+    required this.vehicleName,
+    required this.stopId,
+    required this.stopName,
+  });
+
+  factory StudentTransport.fromJson(Map<String, dynamic> json) {
+    return StudentTransport(
+      routeId: json['route_id'] as int,
+      routeName: json['route_name'] as String,
+      routeLabel: json['route_label'] as String,
+      vehicleName: json['vehicle_name'] as String?,
+      stopId: json['stop_id'] as int,
+      stopName: json['stop_name'] as String,
+    );
+  }
+
+  final int routeId;
+  final String routeName;
+
+  /// "Bus 04 - Green Park".
+  final String routeLabel;
+  final String? vehicleName;
+  final int stopId;
+  final String stopName;
+}
+
 class Student {
   const Student({
     required this.id,
@@ -25,6 +58,7 @@ class Student {
     required this.guardianMobile,
     required this.address,
     required this.status,
+    this.transport,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -43,6 +77,9 @@ class Student {
       guardianMobile: json['guardian_mobile'] as String?,
       address: json['address'] as String?,
       status: StudentStatus.fromApiValue(json['status'] as String),
+      transport: json['transport'] == null
+          ? null
+          : StudentTransport.fromJson(json['transport'] as Map<String, dynamic>),
     );
   }
 
@@ -60,6 +97,7 @@ class Student {
   final String? guardianMobile;
   final String? address;
   final StudentStatus status;
+  final StudentTransport? transport;
 
   Student copyWith({StudentStatus? status}) {
     return Student(
@@ -77,6 +115,7 @@ class Student {
       guardianMobile: guardianMobile,
       address: address,
       status: status ?? this.status,
+      transport: transport,
     );
   }
 }

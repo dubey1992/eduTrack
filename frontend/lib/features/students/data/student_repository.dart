@@ -100,6 +100,17 @@ class StudentRepository {
     }
   }
 
+  /// [routeId] null clears the student's transport; otherwise assigns (or
+  /// re-assigns) them to that route and stop.
+  Future<Student> setTransport(int studentId, {required int? routeId, required int? stopId}) async {
+    try {
+      if (routeId == null || stopId == null) return await _api.unassignTransport(studentId);
+      return await _api.assignTransport(studentId, routeId: routeId, stopId: stopId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<Student> setActive(int studentId, bool active) async {
     try {
       return active ? await _api.activate(studentId) : await _api.deactivate(studentId);

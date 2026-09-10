@@ -17,7 +17,7 @@ class StudentService
     public function paginate(User $actor, array $filters): LengthAwarePaginator
     {
         return Student::query()
-            ->with(['school', 'classSection.schoolClass'])
+            ->with(['school', 'classSection.schoolClass', 'transportAssignment.route.vehicle', 'transportAssignment.stop'])
             ->when(
                 $actor->role === UserRole::SuperAdmin,
                 fn ($query) => $query->when(

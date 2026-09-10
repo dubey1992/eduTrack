@@ -17,7 +17,7 @@ class StudentController extends Controller
 {
     public function __construct(private readonly StudentService $studentService) {}
 
-    private const WITH = ['school', 'classSection.schoolClass'];
+    private const WITH = ['school', 'classSection.schoolClass', 'transportAssignment.route.vehicle', 'transportAssignment.stop'];
 
     public function index(Request $request): AnonymousResourceCollection
     {
