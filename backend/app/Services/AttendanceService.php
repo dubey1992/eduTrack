@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\AttendanceStatus;
+use App\Enums\MessageEvent;
 use App\Enums\StudentStatus;
 use App\Enums\UserRole;
 use App\Exceptions\AttendanceAlreadySubmittedException;
@@ -12,11 +14,15 @@ use App\Models\Holiday;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AttendanceService
 {
-    public function __construct(private readonly HolidayService $holidayService) {}
+    public function __construct(
+        private readonly HolidayService $holidayService,
+        private readonly NotificationService $notifications,
+    ) {}
 
     /**
      * The class's active roster for one day, each student paired with their
@@ -106,8 +112,10 @@ class AttendanceService
         }
 
         return DB::transaction(function () use ($section, $data, $actor, $schoolId, $academicYearId) {
+            $changed = [];
+
             foreach ($data['records'] as $record) {
-                Attendance::updateOrCreate(
+                $attendance = Attendance::updateOrCreate(
                     [
                         'class_section_id' => $section->id,
                         'student_id' => $record['student_id'],
@@ -121,10 +129,55 @@ class AttendanceService
                         'marked_by' => $actor->id,
                     ]
                 );
+
+                // Only a new mark or a changed one alerts the guardian, so
+                // correcting a remark does not text a parent twice.
+                if ($attendance->wasRecentlyCreated || $attendance->wasChanged('status')) {
+                    $changed[$attendance->student_id] = $attendance->status;
+                }
             }
+
+            $this->alertGuardians($section, $data['attendance_date'], $changed, $actor);
 
             return $this->register($section, $data['attendance_date']);
         });
+    }
+
+    /**
+     * Tells guardians what was marked. Which statuses actually go out is the
+     * school's choice (Communication settings), and the send itself is queued
+     * after this transaction commits - marking attendance is never held up by
+     * a gateway.
+     *
+     * @param  array<int, AttendanceStatus>  $changed
+     */
+    private function alertGuardians(ClassSection $section, string $date, array $changed, User $actor): void
+    {
+        if ($changed === []) {
+            return;
+        }
+
+        $students = Student::query()
+            ->with('school')
+            ->whereIn('id', array_keys($changed))
+            ->get();
+
+        foreach ($students as $student) {
+            $event = match ($changed[$student->id]) {
+                AttendanceStatus::Absent => MessageEvent::AttendanceAbsent,
+                AttendanceStatus::Present => MessageEvent::AttendancePresent,
+                default => null,
+            };
+
+            if ($event === null) {
+                continue;
+            }
+
+            $this->notifications->notifyGuardian($event, $student, [
+                'class_name' => trim("{$section->schoolClass->name} {$section->name}"),
+                'date' => Carbon::parse($date)->format('d M Y'),
+            ], $actor);
+        }
     }
 
     /**

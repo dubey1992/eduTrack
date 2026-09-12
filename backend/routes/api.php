@@ -1,13 +1,16 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AcademicYearController;
+use App\Http\Controllers\Api\V1\AnnouncementController;
 use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CommunicationController;
 use App\Http\Controllers\Api\V1\DailyTeachingReportController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DriverController;
 use App\Http\Controllers\Api\V1\HodReportController;
 use App\Http\Controllers\Api\V1\HolidayController;
+use App\Http\Controllers\Api\V1\InboxController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PeriodController;
@@ -175,4 +178,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/transport/trips/{trip}/riders/{student}', [TransportTripController::class, 'updateRider']);
     Route::post('/transport/trips/{trip}/end', [TransportTripController::class, 'end']);
     Route::post('/transport/trips/{trip}/cancel', [TransportTripController::class, 'cancel']);
+
+    // Phase 16 - Communication.
+    Route::get('/communication/messages', [CommunicationController::class, 'index']);
+    Route::get('/communication/summary', [CommunicationController::class, 'summary']);
+    Route::get('/communication/messages/{message}', [CommunicationController::class, 'show']);
+    Route::post('/communication/messages/{message}/retry', [CommunicationController::class, 'retry']);
+    Route::get('/communication/templates', [CommunicationController::class, 'templates']);
+    Route::put('/communication/templates/{event}', [CommunicationController::class, 'updateTemplate']);
+    Route::delete('/communication/templates/{event}', [CommunicationController::class, 'resetTemplate']);
+    Route::get('/communication/settings', [CommunicationController::class, 'settings']);
+    Route::put('/communication/settings', [CommunicationController::class, 'updateSettings']);
+
+    Route::get('/inbox', [InboxController::class, 'index']);
+    Route::get('/inbox/unread-count', [InboxController::class, 'unreadCount']);
+    Route::post('/inbox/{message}/read', [InboxController::class, 'markRead']);
+    Route::post('/inbox/read-all', [InboxController::class, 'markAllRead']);
+
+    // Phase 17 - Announcements.
+    Route::get('/announcements', [AnnouncementController::class, 'index']);
+    Route::get('/announcements/preview', [AnnouncementController::class, 'preview']);
+    Route::post('/announcements', [AnnouncementController::class, 'store']);
+    Route::get('/announcements/{announcement}', [AnnouncementController::class, 'show']);
+    Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
 });

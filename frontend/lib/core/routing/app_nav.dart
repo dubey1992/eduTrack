@@ -277,7 +277,40 @@ class AppNav {
     ],
   );
 
-  static const groups = [overview, people, attendanceHr, academics, transport, administration];
+  /// The prototype's Operations group sits next to Transport. The message
+  /// log holds guardians' numbers, so only admins see it; the inbox is every
+  /// user's own mail and is open to all.
+  static const operations = NavGroup(
+    label: 'Operations',
+    items: [
+      NavItem(
+        path: '/communication',
+        label: 'Communication',
+        icon: Icons.forum_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Communication',
+        pageSubtitle: 'SMS, alerts and announcements',
+      ),
+      NavItem(
+        path: '/announcements',
+        label: 'Announcements',
+        icon: Icons.campaign_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod},
+        pageTitle: 'Announcements',
+        pageSubtitle: 'Notices published to the school',
+      ),
+      NavItem(
+        path: '/inbox',
+        label: 'My Inbox',
+        icon: Icons.inbox_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'My Inbox',
+        pageSubtitle: 'Messages the school sent you',
+      ),
+    ],
+  );
+
+  static const groups = [overview, people, attendanceHr, academics, transport, operations, administration];
 
   static List<NavItem> get allItems => groups.expand((g) => g.items).toList();
 

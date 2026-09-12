@@ -107,6 +107,18 @@ class ApiExceptionRenderer
                 $e->getMessage(),
                 [],
             ],
+            $e instanceof UnreachableAudienceException => [
+                422,
+                'UNREACHABLE_AUDIENCE',
+                $e->getMessage(),
+                [],
+            ],
+            $e instanceof MessageNotRetryableException => [
+                409,
+                'MESSAGE_NOT_RETRYABLE',
+                $e->getMessage(),
+                [],
+            ],
             $e instanceof LeaveAlreadyReviewedException => [
                 409,
                 'LEAVE_ALREADY_REVIEWED',

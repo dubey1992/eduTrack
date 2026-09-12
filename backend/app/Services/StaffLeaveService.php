@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\LeaveStatus;
+use App\Enums\MessageEvent;
 use App\Enums\StaffAttendanceStatus;
 use App\Enums\UserRole;
 use App\Exceptions\LeaveAlreadyReviewedException;
@@ -22,7 +23,10 @@ class StaffLeaveService
 {
     private const array RELATIONS = ['staffProfile.user', 'staffProfile.department', 'appliedBy', 'reviewedBy'];
 
-    public function __construct(private readonly HolidayService $holidayService) {}
+    public function __construct(
+        private readonly HolidayService $holidayService,
+        private readonly NotificationService $notifications,
+    ) {}
 
     /**
      * A staff member applying for their own leave - staff_profile_id always
@@ -88,6 +92,7 @@ class StaffLeaveService
             ]);
 
             $this->syncAttendance($leave, $actor);
+            $this->notifyApplicant($leave, MessageEvent::LeaveApproved, $actor);
 
             return $leave->fresh(self::RELATIONS);
         });
@@ -103,7 +108,30 @@ class StaffLeaveService
             'review_remarks' => $remarks,
         ]);
 
+        $this->notifyApplicant($leave, MessageEvent::LeaveRejected, $actor);
+
         return $leave->fresh(self::RELATIONS);
+    }
+
+    /**
+     * Tells the staff member what was decided, in their inbox and by SMS.
+     * The reviewer's own action is never held up by the send.
+     */
+    private function notifyApplicant(StaffLeave $leave, MessageEvent $event, User $actor): void
+    {
+        $applicant = $leave->staffProfile?->user;
+
+        if ($applicant === null) {
+            return;
+        }
+
+        $this->notifications->notifyUser($event, $applicant, [
+            'leave_type' => $leave->leave_type->label(),
+            'start_date' => $leave->start_date->format('d M Y'),
+            'end_date' => $leave->end_date->format('d M Y'),
+            'days' => (string) ((int) $leave->start_date->diffInDays($leave->end_date) + 1),
+            'remarks' => $leave->review_remarks,
+        ], $actor);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\MessageEvent;
 use App\Enums\StudentStatus;
 use App\Enums\TransportStatus;
 use App\Enums\TripDirection;
@@ -38,7 +39,10 @@ class TransportTripService
         'riders.student.classSection.schoolClass', 'events.recordedBy',
     ];
 
-    public function __construct(private readonly HolidayService $holidayService) {}
+    public function __construct(
+        private readonly HolidayService $holidayService,
+        private readonly NotificationService $notifications,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $filters
@@ -184,9 +188,48 @@ class TransportTripService
                 TripRiderStatus::Pending => throw TripRuleException::invalidRiderChange($rider->status->value, 'pending'),
             };
             $this->record($trip, $type, $actor, stop: $trip->currentStop, student: $student);
+            $this->alertGuardian($trip, $rider, $status, $student, $actor);
         });
 
         return $this->detail($trip->fresh());
+    }
+
+    /**
+     * Tells the guardian their child boarded, was dropped off, or never got
+     * on. Queued after commit, so a slow gateway never delays the driver.
+     */
+    private function alertGuardian(
+        TransportTrip $trip,
+        TransportTripRider $rider,
+        TripRiderStatus $status,
+        Student $student,
+        User $actor,
+    ): void {
+        $event = match ($status) {
+            TripRiderStatus::Boarded => MessageEvent::TransportBoarded,
+            TripRiderStatus::Dropped => MessageEvent::TransportDropped,
+            TripRiderStatus::Absent => MessageEvent::TransportAbsent,
+            TripRiderStatus::Pending => null,
+        };
+
+        if ($event === null) {
+            return;
+        }
+
+        $trip->loadMissing(['vehicle', 'route']);
+
+        $this->notifications->notifyGuardian($event, $student, [
+            // The moment it happened, in the school's configured timezone -
+            // not the UTC "now" the default token would use.
+            'time' => now()->format('g:i A'),
+            'stop_name' => $rider->stop_name,
+            'vehicle_name' => $trip->vehicle?->name,
+            'route_name' => $trip->route?->name,
+            'direction' => $trip->direction->label(),
+            'date' => $trip->trip_date instanceof Carbon
+                ? $trip->trip_date->format('d M Y')
+                : Carbon::parse((string) $trip->trip_date)->format('d M Y'),
+        ], $actor);
     }
 
     /**

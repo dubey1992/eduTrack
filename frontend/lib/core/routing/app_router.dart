@@ -5,10 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../features/academic_years/presentation/academic_year_list_screen.dart';
 import '../../features/attendance/presentation/attendance_screen.dart';
 import '../../features/auth/application/auth_notifier.dart';
+import '../../features/announcements/presentation/announcement_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/classes/presentation/class_list_screen.dart';
+import '../../features/communication/presentation/communication_screen.dart';
+import '../../features/communication/presentation/inbox_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/departments/presentation/department_list_screen.dart';
 import '../../features/hod/presentation/hod_report_screen.dart';
@@ -87,6 +90,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/transport/drivers', builder: (context, state) => const DriverListScreen()),
           GoRoute(path: '/transport/routes', builder: (context, state) => const RouteListScreen()),
           GoRoute(path: '/transport/trips', builder: (context, state) => const TripScreen()),
+          GoRoute(path: '/communication', builder: (context, state) => const CommunicationScreen()),
+          GoRoute(path: '/announcements', builder: (context, state) => const AnnouncementScreen()),
+          GoRoute(path: '/inbox', builder: (context, state) => const InboxScreen()),
         ],
       ),
     ],
