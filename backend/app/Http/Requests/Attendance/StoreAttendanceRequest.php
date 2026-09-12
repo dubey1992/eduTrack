@@ -3,12 +3,15 @@
 namespace App\Http\Requests\Attendance;
 
 use App\Enums\AttendanceStatus;
+use App\Http\Requests\Concerns\ChecksSchoolDates;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 
 class StoreAttendanceRequest extends FormRequest
 {
+    use ChecksSchoolDates;
+
     /**
      * class_section_id is body data here, not a route-bound model - same
      * reasoning as AttendanceRegisterRequest: a bad id fails validation
@@ -26,7 +29,7 @@ class StoreAttendanceRequest extends FormRequest
     {
         return [
             'class_section_id' => ['required', 'integer', Rule::exists('class_sections', 'id')],
-            'attendance_date' => ['required', 'date', 'before_or_equal:today'],
+            'attendance_date' => ['required', 'date', $this->notInFuture()],
             'records' => [
                 'required', 'array', 'min:1',
                 function ($attribute, $value, $fail) {

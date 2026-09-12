@@ -97,6 +97,8 @@ class TripRider {
     required this.status,
     required this.boardedAt,
     required this.droppedAt,
+    this.boardedAtLabel,
+    this.droppedAtLabel,
   });
 
   factory TripRider.fromJson(Map<String, dynamic> json) {
@@ -113,6 +115,8 @@ class TripRider {
       status: TripRiderStatus.fromApiValue(json['status'] as String),
       boardedAt: json['boarded_at'] as String?,
       droppedAt: json['dropped_at'] as String?,
+      boardedAtLabel: json['boarded_at_label'] as String?,
+      droppedAtLabel: json['dropped_at_label'] as String?,
     );
   }
 
@@ -129,7 +133,18 @@ class TripRider {
   final String? boardedAt;
   final String? droppedAt;
 
-  TripRider copyWith({TripRiderStatus? status, String? boardedAt, String? droppedAt}) {
+  /// Rendered by the API in the school's timezone. The raw instants above
+  /// are UTC and must never be formatted in the browser's own zone.
+  final String? boardedAtLabel;
+  final String? droppedAtLabel;
+
+  TripRider copyWith({
+    TripRiderStatus? status,
+    String? boardedAt,
+    String? droppedAt,
+    String? boardedAtLabel,
+    String? droppedAtLabel,
+  }) {
     return TripRider(
       studentId: studentId,
       admissionNumber: admissionNumber,
@@ -143,6 +158,8 @@ class TripRider {
       status: status ?? this.status,
       boardedAt: boardedAt ?? this.boardedAt,
       droppedAt: droppedAt ?? this.droppedAt,
+      boardedAtLabel: boardedAtLabel ?? this.boardedAtLabel,
+      droppedAtLabel: droppedAtLabel ?? this.droppedAtLabel,
     );
   }
 }
@@ -157,6 +174,7 @@ class TripEvent {
     required this.studentName,
     required this.recordedByName,
     required this.recordedAt,
+    this.recordedAtLabel,
     required this.note,
   });
 
@@ -170,6 +188,7 @@ class TripEvent {
       studentName: json['student_name'] as String?,
       recordedByName: json['recorded_by_name'] as String?,
       recordedAt: json['recorded_at'] as String,
+      recordedAtLabel: json['recorded_at_label'] as String?,
       note: json['note'] as String?,
     );
   }
@@ -182,6 +201,9 @@ class TripEvent {
   final String? studentName;
   final String? recordedByName;
   final String recordedAt;
+
+  /// Rendered by the API in the school's timezone.
+  final String? recordedAtLabel;
   final String? note;
 
   /// The timeline line for this event.
@@ -219,6 +241,8 @@ class TransportTrip {
     required this.startedByName,
     required this.startedAt,
     required this.endedAt,
+    this.startedAtLabel,
+    this.endedAtLabel,
     required this.ridersCount,
     this.pendingCount,
     this.boardedCount,
@@ -251,6 +275,8 @@ class TransportTrip {
       startedByName: json['started_by_name'] as String?,
       startedAt: json['started_at'] as String,
       endedAt: json['ended_at'] as String?,
+      startedAtLabel: json['started_at_label'] as String?,
+      endedAtLabel: json['ended_at_label'] as String?,
       ridersCount: json['riders_count'] as int,
       pendingCount: json['pending_count'] as int?,
       boardedCount: json['boarded_count'] as int?,
@@ -284,6 +310,10 @@ class TransportTrip {
   final String? startedByName;
   final String startedAt;
   final String? endedAt;
+
+  /// Rendered by the API in the school's timezone.
+  final String? startedAtLabel;
+  final String? endedAtLabel;
   final int ridersCount;
   final int? pendingCount;
   final int? boardedCount;
@@ -301,6 +331,7 @@ class TransportTrip {
     int? currentStopId,
     String? currentStopName,
     String? endedAt,
+    String? endedAtLabel,
     int? pendingCount,
     int? boardedCount,
     int? droppedCount,
@@ -330,6 +361,8 @@ class TransportTrip {
       startedByName: startedByName,
       startedAt: startedAt,
       endedAt: endedAt ?? this.endedAt,
+      startedAtLabel: startedAtLabel,
+      endedAtLabel: endedAtLabel ?? this.endedAtLabel,
       ridersCount: ridersCount,
       pendingCount: pendingCount ?? this.pendingCount,
       boardedCount: boardedCount ?? this.boardedCount,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/school.dart';
+import 'models/timezone_option.dart';
 
 final schoolApiProvider = Provider<SchoolApi>((ref) => SchoolApi(ref.watch(dioClientProvider)));
 
@@ -15,6 +16,13 @@ class SchoolApi {
   Future<PaginatedResponse<School>> list({int? page, int? perPage}) async {
     final response = await _dio.get('/schools', queryParameters: {'page': ?page, 'per_page': ?perPage});
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, School.fromJson);
+  }
+
+  Future<List<TimezoneOption>> listTimezones() async {
+    final response = await _dio.get('/timezones');
+    final data = (response.data as Map<String, dynamic>)['data'] as List<dynamic>;
+
+    return data.map((item) => TimezoneOption.fromJson(item as Map<String, dynamic>)).toList();
   }
 
   Future<School> create(Map<String, dynamic> payload) async {

@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests\Attendance;
 
+use App\Http\Requests\Concerns\ChecksSchoolDates;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class AttendanceRegisterRequest extends FormRequest
 {
+    use ChecksSchoolDates;
+
     /**
      * class_section_id arrives as a query param, not a route-bound model, so
      * there's nothing to check ownership of until after `rules()` confirms
@@ -26,7 +29,7 @@ class AttendanceRegisterRequest extends FormRequest
     {
         return [
             'class_section_id' => ['required', 'integer', Rule::exists('class_sections', 'id')],
-            'date' => ['required', 'date', 'before_or_equal:today'],
+            'date' => ['required', 'date', $this->notInFuture()],
         ];
     }
 }

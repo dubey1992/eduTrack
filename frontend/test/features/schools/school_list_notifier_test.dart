@@ -18,6 +18,7 @@ const _school = School(
   country: 'India',
   postalCode: '110001',
   currencyCode: 'INR',
+  timezone: 'UTC',
   logoUrl: null,
   status: SchoolStatus.active,
 );

@@ -21,7 +21,7 @@ class AuthController extends Controller
         );
 
         return response()->json([
-            'user' => new UserResource($user),
+            'user' => new UserResource($user->loadMissing('school')),
             'token' => $token,
         ]);
     }
@@ -35,6 +35,6 @@ class AuthController extends Controller
 
     public function me(Request $request): UserResource
     {
-        return new UserResource($request->user());
+        return new UserResource($request->user()->loadMissing('school'));
     }
 }

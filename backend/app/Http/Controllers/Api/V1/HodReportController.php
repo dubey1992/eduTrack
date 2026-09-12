@@ -30,7 +30,8 @@ class HodReportController extends Controller
             Gate::authorize('viewReport', $department);
         }
 
-        $month = $request->validated('month') ?? now()->format('Y-m');
+        // Defaulting to "this month" means this month at the school.
+        $month = $request->validated('month') ?? $school->clock()->now()->format('Y-m');
 
         return response()->json(
             $this->hodReportService->departmentReport($actor, $school, $department, $month, $request->only(['per_page']))

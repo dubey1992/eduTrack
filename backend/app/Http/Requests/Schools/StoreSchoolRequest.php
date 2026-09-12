@@ -30,6 +30,9 @@ class StoreSchoolRequest extends FormRequest
             'country' => ['required', 'string', 'max:100'],
             'postal_code' => ['required', 'string', 'max:20'],
             'currency_code' => ['required', 'string', 'regex:/^[A-Z]{3}$/'],
+            // An IANA name such as Asia/Kolkata. This decides what "today"
+            // means for everything the school records.
+            'timezone' => ['required', 'string', 'timezone:all'],
             'logo_url' => ['nullable', 'url', 'max:2048'],
         ];
     }

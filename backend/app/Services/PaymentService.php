@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\School;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolClock;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -70,6 +71,8 @@ class PaymentService
      */
     public function collectionSummary(): array
     {
+        $platformNow = SchoolClock::platform()->now();
+
         $totalByCurrency = Payment::query()
             ->where('status', PaymentStatus::Paid)
             ->select('currency_code', DB::raw('SUM(amount) as total'))
@@ -78,8 +81,10 @@ class PaymentService
 
         $monthlyByCurrency = Payment::query()
             ->where('status', PaymentStatus::Paid)
-            ->whereYear('payment_date', now()->year)
-            ->whereMonth('payment_date', now()->month)
+            // Cross-school totals belong to no single school, so "this month"
+            // is the platform's month - see config('app.platform_timezone').
+            ->whereYear('payment_date', $platformNow->year)
+            ->whereMonth('payment_date', $platformNow->month)
             ->select('currency_code', DB::raw('SUM(amount) as total'))
             ->groupBy('currency_code')
             ->get();

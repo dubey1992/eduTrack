@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SyllabusProgressController;
 use App\Http\Controllers\Api\V1\SyllabusTopicController;
 use App\Http\Controllers\Api\V1\TimetableController;
+use App\Http\Controllers\Api\V1\TimezoneController;
 use App\Http\Controllers\Api\V1\TransportRouteController;
 use App\Http\Controllers\Api\V1\TransportTripController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -47,6 +48,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/users/{user}', [UserController::class, 'update']);
     Route::patch('/users/{user}/activate', [UserController::class, 'activate']);
     Route::patch('/users/{user}/deactivate', [UserController::class, 'deactivate']);
+
+    // Reference data for the school form's timezone picker.
+    Route::get('/timezones', [TimezoneController::class, 'index']);
 
     Route::get('/schools', [SchoolController::class, 'index']);
     Route::post('/schools', [SchoolController::class, 'store']);

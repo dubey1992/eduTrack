@@ -106,6 +106,7 @@ Widget wrap(AuthenticatedUser actor, FakeHodReportRepository fake) {
               country: 'India',
               postalCode: '411001',
               currencyCode: 'INR',
+              timezone: 'UTC',
               logoUrl: null,
               status: SchoolStatus.active,
             ),

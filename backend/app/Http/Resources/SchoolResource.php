@@ -28,6 +28,7 @@ class SchoolResource extends JsonResource
             'country' => $this->country,
             'postal_code' => $this->postal_code,
             'currency_code' => $this->currency_code,
+            'timezone' => $this->timezone,
             'logo_url' => $this->logo_url,
             'status' => $this->status->value,
             'created_at' => $this->created_at,

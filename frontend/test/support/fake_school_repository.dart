@@ -1,19 +1,40 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/schools/data/models/school.dart';
+import 'package:edutrack_app/features/schools/data/models/timezone_option.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 
 import 'fake_pagination.dart';
 
 class FakeSchoolRepository implements SchoolRepository {
-  FakeSchoolRepository({List<School>? schools, this.failCreateWith, this.failUpdateWith, this.failListPageWith})
-    : _schools = schools ?? [];
+  FakeSchoolRepository({
+    List<School>? schools,
+    this.failCreateWith,
+    this.failUpdateWith,
+    this.failListPageWith,
+    this.failListTimezonesWith,
+  }) : _schools = schools ?? [];
 
   final List<School> _schools;
   Failure? failCreateWith;
   Failure? failUpdateWith;
   Failure? failListPageWith;
+  Failure? failListTimezonesWith;
   int listCallCount = 0;
+
+  /// A couple of real zones is enough for the picker; the full list comes
+  /// from PHP's database and is not worth restating here.
+  List<TimezoneOption> timezones = const [
+    TimezoneOption(name: 'UTC', region: 'Other', label: 'UTC (GMT+00:00)', offsetMinutes: 0),
+    TimezoneOption(name: 'Asia/Kolkata', region: 'Asia', label: 'Asia/Kolkata (GMT+05:30)', offsetMinutes: 330),
+  ];
+
+  @override
+  Future<List<TimezoneOption>> listTimezones() async {
+    if (failListTimezonesWith != null) throw failListTimezonesWith!;
+
+    return timezones;
+  }
 
   @override
   Future<List<School>> list() async {
@@ -39,6 +60,7 @@ class FakeSchoolRepository implements SchoolRepository {
     required String country,
     required String postalCode,
     required String currencyCode,
+    required String timezone,
   }) async {
     if (failCreateWith != null) throw failCreateWith!;
 
@@ -54,6 +76,7 @@ class FakeSchoolRepository implements SchoolRepository {
       country: country,
       postalCode: postalCode,
       currencyCode: currencyCode,
+      timezone: timezone,
       logoUrl: null,
       status: SchoolStatus.active,
     );
@@ -74,6 +97,7 @@ class FakeSchoolRepository implements SchoolRepository {
     String? country,
     String? postalCode,
     String? currencyCode,
+    String? timezone,
   }) async {
     if (failUpdateWith != null) throw failUpdateWith!;
 
@@ -91,6 +115,7 @@ class FakeSchoolRepository implements SchoolRepository {
       country: country ?? existing.country,
       postalCode: postalCode ?? existing.postalCode,
       currencyCode: currencyCode ?? existing.currencyCode,
+      timezone: timezone ?? existing.timezone,
       logoUrl: existing.logoUrl,
       status: existing.status,
     );

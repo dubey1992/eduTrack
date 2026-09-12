@@ -71,6 +71,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
     required String country,
     required String postalCode,
     required String currencyCode,
+    required String timezone,
   }) async {
     await ref
         .read(schoolRepositoryProvider)
@@ -85,6 +86,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
           country: country,
           postalCode: postalCode,
           currencyCode: currencyCode,
+          timezone: timezone,
         );
     _page = 1;
     await refresh();
@@ -105,6 +107,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
     String? country,
     String? postalCode,
     String? currencyCode,
+    String? timezone,
   }) async {
     final updated = await ref
         .read(schoolRepositoryProvider)
@@ -120,6 +123,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
           country: country,
           postalCode: postalCode,
           currencyCode: currencyCode,
+          timezone: timezone,
         );
 
     this.state = this.state.whenData(

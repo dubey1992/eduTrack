@@ -57,6 +57,7 @@ class Announcement {
     required this.hasExpired,
     required this.publishedByName,
     required this.publishedAt,
+    this.publishedAtLabel,
     required this.recipientsCount,
     required this.smsCount,
     required this.inAppCount,
@@ -77,6 +78,7 @@ class Announcement {
       hasExpired: json['has_expired'] as bool? ?? false,
       publishedByName: json['published_by_name'] as String?,
       publishedAt: json['published_at'] as String?,
+      publishedAtLabel: json['published_at_label'] as String?,
       recipientsCount: json['recipients_count'] as int? ?? 0,
       smsCount: json['sms_count'] as int? ?? 0,
       inAppCount: json['in_app_count'] as int? ?? 0,
@@ -96,6 +98,9 @@ class Announcement {
   final bool hasExpired;
   final String? publishedByName;
   final String? publishedAt;
+
+  /// Rendered by the API in the school's timezone.
+  final String? publishedAtLabel;
   final int recipientsCount;
   final int smsCount;
   final int inAppCount;

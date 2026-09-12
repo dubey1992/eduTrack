@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/school_clock_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/models/user_role.dart';
@@ -94,14 +95,14 @@ String _licenceLabel(Driver driver) {
   return '${driver.licenceNumber} · exp. ${DateFormat.yMMMd().format(DateTime.parse(driver.licenceExpiry!))}';
 }
 
-class _LicenceBadge extends StatelessWidget {
+class _LicenceBadge extends ConsumerWidget {
   const _LicenceBadge({required this.driver});
 
   final Driver driver;
 
   @override
-  Widget build(BuildContext context) {
-    if (!driver.isLicenceExpired) return const SizedBox.shrink();
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!driver.isLicenceExpiredOn(ref.watch(schoolClockProvider).today)) return const SizedBox.shrink();
     return const Padding(
       padding: EdgeInsets.only(left: 8),
       child: StatusBadge(label: 'Licence expired', tone: BadgeTone.danger),

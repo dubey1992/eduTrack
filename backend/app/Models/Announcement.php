@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AnnouncementAudience;
 use App\Enums\AnnouncementChannels;
+use App\Support\SchoolClock;
 use Database\Factories\AnnouncementFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -73,8 +74,21 @@ class Announcement extends Model
         return $this->hasMany(Message::class);
     }
 
+    /**
+     * An expiry is a day on the school's calendar, so a notice expiring on
+     * the 30th is still showing all through the 30th *there* - not from
+     * whenever midnight happened to pass on the server.
+     */
     public function hasExpired(): bool
     {
-        return $this->expires_at !== null && $this->expires_at->isPast();
+        if ($this->expires_at === null) {
+            return false;
+        }
+
+        $clock = $this->relationLoaded('school')
+            ? SchoolClock::for($this->school)
+            : SchoolClock::for($this->school_id);
+
+        return $this->expires_at->toDateString() < $clock->date();
     }
 }

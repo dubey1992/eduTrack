@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/school_clock_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
@@ -44,7 +45,7 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
       context: context,
       initialDate: _paymentDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: ref.read(schoolClockProvider).today,
     );
     if (picked != null) setState(() => _paymentDate = picked);
   }

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 /// "‹ September 2026 ›" - steps one calendar month at a time. [month] is
-/// always the first day of a month; stepping forward stops at [maxMonth]
-/// (defaults to the current month - there is no data in the future).
+/// always the first day of a month; stepping forward stops at [maxMonth],
+/// since there is no data in the future.
+///
+/// [maxMonth] is required rather than defaulting to the current month: only
+/// the caller knows whose month that is, and for a school abroad it is not
+/// necessarily the browser's.
 class MonthStepper extends StatelessWidget {
-  MonthStepper({super.key, required this.month, required this.onChanged, DateTime? maxMonth})
-    : maxMonth = maxMonth ?? DateTime(DateTime.now().year, DateTime.now().month);
+  const MonthStepper({super.key, required this.month, required this.onChanged, required this.maxMonth});
 
   final DateTime month;
   final DateTime maxMonth;

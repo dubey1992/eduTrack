@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/school_clock_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
@@ -28,10 +29,16 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
   PaymentType _paymentType = PaymentType.setupFee;
   PaymentMode _paymentMode = PaymentMode.bankTransfer;
   PaymentStatus _status = PaymentStatus.paid;
-  DateTime _paymentDate = DateTime.now();
+  late DateTime _paymentDate;
 
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _paymentDate = ref.read(schoolClockProvider).today;
+  }
 
   @override
   void dispose() {
@@ -46,7 +53,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
       context: context,
       initialDate: _paymentDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: ref.read(schoolClockProvider).today,
     );
     if (picked != null) setState(() => _paymentDate = picked);
   }

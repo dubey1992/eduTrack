@@ -135,7 +135,7 @@ class TripDetailView extends StatelessWidget {
               for (final event in trip.events)
                 ListTile(
                   dense: true,
-                  leading: Text(_time(event.recordedAt), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  leading: Text(_time(event.recordedAtLabel), style: const TextStyle(fontWeight: FontWeight.w700)),
                   title: Text(event.description),
                   subtitle: event.recordedByName == null ? null : Text('by ${event.recordedByName}', style: muted),
                 ),
@@ -146,7 +146,8 @@ class TripDetailView extends StatelessWidget {
     );
   }
 
-  static String _time(String iso) => DateFormat.jm().format(DateTime.parse(iso).toLocal());
+  /// The API renders event times in the school's timezone; see TripEvent.
+  static String _time(String? label) => label ?? '-';
 }
 
 class TripStatusBadge extends StatelessWidget {

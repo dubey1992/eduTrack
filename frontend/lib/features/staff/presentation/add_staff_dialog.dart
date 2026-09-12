@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/school_clock_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
@@ -37,11 +38,17 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
   UserRole _role = UserRole.teacher;
   int? _schoolId;
   int? _departmentId;
-  DateTime _joiningDate = DateTime.now();
+  late DateTime _joiningDate;
   bool _obscurePassword = true;
 
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _joiningDate = ref.read(schoolClockProvider).today;
+  }
 
   @override
   void dispose() {

@@ -6,6 +6,7 @@ import '../../../core/models/currency.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
+import 'widgets/timezone_field.dart';
 
 class AddSchoolDialog extends ConsumerStatefulWidget {
   const AddSchoolDialog({super.key});
@@ -26,6 +27,9 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
   final _countryController = TextEditingController();
   final _postalCodeController = TextEditingController();
   String _currencyCode = Currency.common.first.code;
+  // UTC until the Super Admin picks one, which matches what the column
+  // defaults to for a school created any other way.
+  String _timezone = 'UTC';
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -68,6 +72,7 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
             country: _countryController.text.trim(),
             postalCode: _postalCodeController.text.trim(),
             currencyCode: _currencyCode,
+            timezone: _timezone,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School created.')));
@@ -175,6 +180,8 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
                   ],
                   onChanged: (value) => setState(() => _currencyCode = value!),
                 ),
+                const SizedBox(height: 10),
+                TimezoneField(value: _timezone, onChanged: (value) => setState(() => _timezone = value)),
               ],
             ),
           ),

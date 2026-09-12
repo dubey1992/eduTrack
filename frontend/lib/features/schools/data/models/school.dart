@@ -22,6 +22,7 @@ class School {
     required this.country,
     required this.postalCode,
     required this.currencyCode,
+    required this.timezone,
     required this.logoUrl,
     required this.status,
   });
@@ -39,6 +40,7 @@ class School {
       country: json['country'] as String,
       postalCode: json['postal_code'] as String,
       currencyCode: json['currency_code'] as String,
+      timezone: json['timezone'] as String? ?? 'UTC',
       logoUrl: json['logo_url'] as String?,
       status: SchoolStatus.fromApiValue(json['status'] as String),
     );
@@ -55,6 +57,10 @@ class School {
   final String country;
   final String postalCode;
   final String currencyCode;
+
+  /// The IANA zone this school's dates and times are read in, e.g.
+  /// `Asia/Kolkata`. Decides what "today" means for everything it records.
+  final String timezone;
   final String? logoUrl;
   final SchoolStatus status;
 
@@ -71,6 +77,7 @@ class School {
       country: country,
       postalCode: postalCode,
       currencyCode: currencyCode,
+      timezone: timezone,
       logoUrl: logoUrl,
       status: status ?? this.status,
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/school_clock_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
@@ -35,7 +36,7 @@ class _EditAcademicYearDialogState extends ConsumerState<EditAcademicYearDialog>
   Future<void> _pickDate({required bool isStart}) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: (isStart ? _startDate : _endDate) ?? DateTime.now(),
+      initialDate: (isStart ? _startDate : _endDate) ?? ref.read(schoolClockProvider).today,
       firstDate: DateTime(2015),
       lastDate: DateTime(2100),
     );

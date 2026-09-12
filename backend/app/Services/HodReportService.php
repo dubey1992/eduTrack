@@ -63,7 +63,13 @@ class HodReportService
         $monthEnd = $monthStart->copy()->endOfMonth()->startOfDay();
         $range = [$monthStart->toDateString(), $monthEnd->toDateString()];
 
-        $workingDates = $this->holidayService->workingDates($school->id, $monthStart, $monthEnd->min(now()->startOfDay()));
+        // Never count working days the school has not reached yet - and "not
+        // yet" is measured on the school's calendar, not the server's.
+        $workingDates = $this->holidayService->workingDates(
+            $school->id,
+            $monthStart,
+            $monthEnd->min($school->clock()->today()),
+        );
         $lateAfter = Period::query()->where('school_id', $school->id)->min('start_time');
 
         $teachersQuery = $this->teachersQuery($school, $departmentIds);

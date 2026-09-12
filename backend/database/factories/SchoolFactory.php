@@ -27,6 +27,9 @@ class SchoolFactory extends Factory
             'country' => fake()->country(),
             'postal_code' => fake()->postcode(),
             'currency_code' => fake()->randomElement(['INR', 'USD', 'GBP', 'NGN', 'AED']),
+            // UTC by default so existing tests keep asserting against the
+            // server's clock; a test that cares about timezones sets its own.
+            'timezone' => 'UTC',
             'status' => SchoolStatus::Active,
         ];
     }

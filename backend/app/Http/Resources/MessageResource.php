@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\RendersSchoolTime;
 use App\Models\Message;
 use App\Support\Sms\SmsGatewayManager;
 use Illuminate\Http\Request;
@@ -12,6 +13,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class MessageResource extends JsonResource
 {
+    use RendersSchoolTime;
+
     /**
      * @return array<string, mixed>
      */
@@ -41,12 +44,13 @@ class MessageResource extends JsonResource
             'sent_at' => $this->sent_at,
             'read_at' => $this->read_at,
             'created_at' => $this->created_at,
-            // Rendered server-side in the application timezone, so the log
-            // agrees with the time written inside the message itself. See
-            // docs/communication.md on per-school timezones.
-            'created_at_label' => $this->created_at?->format('g:i A'),
-            'created_on_label' => $this->created_at?->format('d M Y'),
-            'sent_at_label' => $this->sent_at?->format('g:i A'),
+            // Rendered server-side in the school's own timezone, so the log
+            // agrees with the time written inside the message itself - and
+            // with the clock on the wall wherever the school is.
+            'created_at_label' => $this->timeLabel($this->created_at),
+            'created_on_label' => $this->dateLabel($this->created_at),
+            'sent_at_label' => $this->timeLabel($this->sent_at),
+            'timezone' => $this->clock()->timezone(),
         ];
     }
 }

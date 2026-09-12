@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/application/school_clock_provider.dart';
 import '../data/models/message.dart';
 import 'communication_screen.dart' show MessageStatusBadge, formatMessageTime, messageTimeOf;
 
 /// One message in full: who it went to, what it said, and what became of it.
-class MessageDetailDialog extends StatelessWidget {
+class MessageDetailDialog extends ConsumerWidget {
   const MessageDetailDialog({super.key, required this.message});
 
   final Message message;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final muted = TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant);
 
     return AlertDialog(
@@ -37,9 +39,9 @@ class MessageDetailDialog extends StatelessWidget {
               if (message.studentName != null) _Row(label: 'Student', value: message.studentName!),
               _Row(label: 'Channel', value: message.channel.label),
               _Row(label: 'Category', value: message.category.label),
-              _Row(label: 'Created', value: messageTimeOf(message)),
+              _Row(label: 'Created', value: messageTimeOf(message, ref.watch(schoolClockProvider))),
               if (message.sentAt != null)
-                _Row(label: 'Sent', value: message.sentAtLabel ?? formatMessageTime(message.sentAt)),
+                _Row(label: 'Sent', value: formatMessageTime(message.createdOnLabel, message.sentAtLabel)),
               if (message.provider != null) _Row(label: 'Gateway', value: message.providerLabel ?? message.provider!),
               const SizedBox(height: 12),
               Text('Message', style: muted),

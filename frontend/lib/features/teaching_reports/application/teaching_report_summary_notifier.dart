@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../data/models/teaching_report_summary.dart';
 import '../data/teaching_report_repository.dart';
+import '../../auth/application/school_clock_provider.dart';
 
 final teachingReportSummaryNotifierProvider =
     AsyncNotifierProvider<TeachingReportSummaryNotifier, TeachingReportSummary>(TeachingReportSummaryNotifier.new);
@@ -16,7 +16,8 @@ class TeachingReportSummaryNotifier extends AsyncNotifier<TeachingReportSummary>
   Future<TeachingReportSummary> build() => _fetch();
 
   Future<TeachingReportSummary> _fetch() {
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    // "Today" here is the school's day; see SchoolClock.
+    final today = ref.read(schoolClockProvider).todayIso;
     return ref.read(teachingReportRepositoryProvider).summary(schoolId: _schoolId, date: today);
   }
 

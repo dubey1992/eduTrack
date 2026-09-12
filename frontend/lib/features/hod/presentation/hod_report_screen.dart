@@ -10,6 +10,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../auth/application/school_clock_provider.dart';
 import '../../departments/application/department_picker_provider.dart';
 import '../../departments/data/models/department.dart';
 import '../application/hod_report_notifier.dart';
@@ -31,7 +32,18 @@ class HodReportScreen extends ConsumerStatefulWidget {
 class _HodReportScreenState extends ConsumerState<HodReportScreen> {
   int? _schoolId;
   int? _departmentId;
-  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  /// Null until the user steps to another month; the school's current month
+  /// stands in until then, resolved on build so a session that is still
+  /// loading cannot pin this to the browser's month.
+  DateTime? _chosenMonth;
+
+  DateTime get _month => _chosenMonth ?? _schoolMonth;
+
+  DateTime get _schoolMonth {
+    final today = ref.read(schoolClockProvider).today;
+
+    return DateTime(today.year, today.month);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +98,13 @@ class _HodReportScreenState extends ConsumerState<HodReportScreen> {
                         onChanged: (value) => setState(() => _departmentId = value),
                       ),
                     ),
-                  MonthStepper(month: _month, onChanged: (month) => setState(() => _month = month)),
+                  MonthStepper(
+                    month: _month,
+                    // The newest month a school can report on is its own
+                    // current month, which may not be the server's.
+                    maxMonth: _schoolMonth,
+                    onChanged: (month) => setState(() => _chosenMonth = month),
+                  ),
                 ],
               ),
             ),

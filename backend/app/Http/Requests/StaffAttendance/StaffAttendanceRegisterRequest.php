@@ -3,11 +3,14 @@
 namespace App\Http\Requests\StaffAttendance;
 
 use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ChecksSchoolDates;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StaffAttendanceRegisterRequest extends FormRequest
 {
+    use ChecksSchoolDates;
+
     /**
      * school_id arrives as a query param, not a route-bound model, so
      * there's nothing to check ownership of until after `rules()` confirms
@@ -32,7 +35,7 @@ class StaffAttendanceRegisterRequest extends FormRequest
                 ? ['required', 'integer', Rule::exists('schools', 'id')]
                 : ['nullable'],
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')],
-            'date' => ['required', 'date', 'before_or_equal:today'],
+            'date' => ['required', 'date', $this->notInFuture()],
         ];
     }
 }

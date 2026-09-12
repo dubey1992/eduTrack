@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/school_clock_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
@@ -48,7 +49,7 @@ class _DriverFormDialogState extends ConsumerState<DriverFormDialog> {
   Future<void> _pickExpiry() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _licenceExpiry ?? DateTime.now(),
+      initialDate: _licenceExpiry ?? ref.read(schoolClockProvider).today,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );

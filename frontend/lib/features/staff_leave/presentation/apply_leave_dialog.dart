@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/school_clock_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
@@ -23,11 +24,19 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
   final _reasonController = TextEditingController();
 
   LeaveType _leaveType = LeaveType.casual;
-  DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now();
+  late DateTime _startDate;
+  late DateTime _endDate;
 
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Dates a school picks are days on its own calendar.
+    _startDate = ref.read(schoolClockProvider).today;
+    _endDate = _startDate;
+  }
 
   @override
   void dispose() {
@@ -39,8 +48,8 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _startDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      firstDate: ref.read(schoolClockProvider).today,
+      lastDate: ref.read(schoolClockProvider).today.add(const Duration(days: 365)),
     );
     if (picked == null) return;
     setState(() {
@@ -54,7 +63,7 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
       context: context,
       initialDate: _endDate.isBefore(_startDate) ? _startDate : _endDate,
       firstDate: _startDate,
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: ref.read(schoolClockProvider).today.add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => _endDate = picked);
   }

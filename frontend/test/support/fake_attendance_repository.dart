@@ -20,12 +20,17 @@ class FakeAttendanceRepository implements AttendanceRepository {
   Failure? failRegisterWith;
 
   int registerCallCount = 0;
+
+  /// The date the screen actually asked for - which must be the school's
+  /// today, not the machine running the test.
+  String? lastRegisterDate;
   Map<String, dynamic>? lastSubmitPayload;
   Map<String, dynamic>? lastUpdatePayload;
 
   @override
   Future<AttendanceRegister> register({required int classSectionId, required String date}) async {
     registerCallCount++;
+    lastRegisterDate = date;
     if (failRegisterWith != null) throw failRegisterWith!;
     return _register!;
   }

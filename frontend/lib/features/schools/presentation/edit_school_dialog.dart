@@ -6,6 +6,7 @@ import '../../../core/models/currency.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
+import 'widgets/timezone_field.dart';
 import '../data/models/school.dart';
 
 class EditSchoolDialog extends ConsumerStatefulWidget {
@@ -29,6 +30,7 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
   late final _countryController = TextEditingController(text: widget.school.country);
   late final _postalCodeController = TextEditingController(text: widget.school.postalCode);
   late String _currencyCode = widget.school.currencyCode;
+  late String _timezone = widget.school.timezone;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -72,6 +74,7 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
             country: _countryController.text.trim(),
             postalCode: _postalCodeController.text.trim(),
             currencyCode: _currencyCode,
+            timezone: _timezone,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School updated.')));
@@ -180,6 +183,8 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
                   ],
                   onChanged: (value) => setState(() => _currencyCode = value!),
                 ),
+                const SizedBox(height: 10),
+                TimezoneField(value: _timezone, onChanged: (value) => setState(() => _timezone = value)),
               ],
             ),
           ),

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Announcements;
 use App\Enums\AnnouncementAudience;
 use App\Enums\AnnouncementChannels;
 use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ChecksSchoolDates;
 use App\Models\Announcement;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -12,6 +13,8 @@ use Illuminate\Validation\Rules\Enum;
 
 class PublishAnnouncementRequest extends FormRequest
 {
+    use ChecksSchoolDates;
+
     public function authorize(): bool
     {
         $audience = AnnouncementAudience::tryFrom((string) $this->input('audience_type'));
@@ -67,7 +70,7 @@ class PublishAnnouncementRequest extends FormRequest
                 ),
             ],
             'channels' => ['required', new Enum(AnnouncementChannels::class)],
-            'expires_at' => ['nullable', 'date', 'after_or_equal:today'],
+            'expires_at' => ['nullable', 'date', $this->notInPast()],
         ];
     }
 

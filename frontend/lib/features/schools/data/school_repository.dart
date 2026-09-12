@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/school.dart';
+import 'models/timezone_option.dart';
 import 'school_api.dart';
 
 final schoolRepositoryProvider = Provider<SchoolRepository>((ref) => SchoolRepository(ref.watch(schoolApiProvider)));
@@ -30,6 +31,16 @@ class SchoolRepository {
     }
   }
 
+  /// The zones a school can be set to. Comes from the server so the picker
+  /// can never offer one the backend would reject.
+  Future<List<TimezoneOption>> listTimezones() async {
+    try {
+      return await _api.listTimezones();
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<School> create({
     required String name,
     String? registrationNumber,
@@ -41,6 +52,7 @@ class SchoolRepository {
     required String country,
     required String postalCode,
     required String currencyCode,
+    required String timezone,
   }) async {
     try {
       return await _api.create({
@@ -54,6 +66,7 @@ class SchoolRepository {
         'country': country,
         'postal_code': postalCode,
         'currency_code': currencyCode,
+        'timezone': timezone,
       });
     } on DioException catch (e) {
       throw failureFromDioException(e);
@@ -72,6 +85,7 @@ class SchoolRepository {
     String? country,
     String? postalCode,
     String? currencyCode,
+    String? timezone,
   }) async {
     try {
       return await _api.update(schoolId, {
@@ -85,6 +99,7 @@ class SchoolRepository {
         'country': ?country,
         'postal_code': ?postalCode,
         'currency_code': ?currencyCode,
+        'timezone': ?timezone,
       });
     } on DioException catch (e) {
       throw failureFromDioException(e);

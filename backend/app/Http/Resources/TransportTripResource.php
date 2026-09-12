@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\TripEventType;
 use App\Enums\TripRiderStatus;
+use App\Http\Resources\Concerns\RendersSchoolTime;
 use App\Models\TransportTrip;
 use App\Models\TransportTripEvent;
 use App\Models\TransportTripRider;
@@ -20,6 +21,8 @@ use Illuminate\Support\Collection;
  */
 class TransportTripResource extends JsonResource
 {
+    use RendersSchoolTime;
+
     /**
      * @return array<string, mixed>
      */
@@ -45,6 +48,11 @@ class TransportTripResource extends JsonResource
             'started_by_name' => $this->whenLoaded('startedBy', fn () => $this->startedBy->name),
             'started_at' => $this->started_at,
             'ended_at' => $this->ended_at,
+            // Rendered here because the client has no timezone database; the
+            // school's own clock is the only one that makes sense on a trip.
+            'started_at_label' => $this->timeLabel($this->started_at),
+            'ended_at_label' => $this->timeLabel($this->ended_at),
+            'timezone' => $this->clock()->timezone(),
             // From withCount() on the list, from the loaded riders on the detail.
             'riders_count' => $this->relationLoaded('riders') ? $this->riders->count() : $this->riders_count,
             $this->mergeWhen($this->relationLoaded('riders'), fn () => $this->riderCounts()),
@@ -52,8 +60,20 @@ class TransportTripResource extends JsonResource
                 $this->relationLoaded('route') && $this->route->relationLoaded('stops'),
                 fn () => $this->stopsLeft()
             ),
-            'riders' => TripRiderResource::collection($this->whenLoaded('riders')),
-            'events' => TripEventResource::collection($this->whenLoaded('events')),
+            // Riders and events share the trip's school, so they are handed
+            // the clock rather than each resolving it again.
+            'riders' => $this->when(
+                $this->relationLoaded('riders'),
+                fn () => $this->riders
+                    ->map(fn ($rider) => (new TripRiderResource($rider))->usingClock($this->clock()))
+                    ->values()
+            ),
+            'events' => $this->when(
+                $this->relationLoaded('events'),
+                fn () => $this->events
+                    ->map(fn ($event) => (new TripEventResource($event))->usingClock($this->clock()))
+                    ->values()
+            ),
             'stops' => $this->when(
                 $this->relationLoaded('route') && $this->route->relationLoaded('stops'),
                 fn () => $this->route->stops->map(fn ($stop) => [

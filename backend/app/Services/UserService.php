@@ -7,6 +7,7 @@ use App\Enums\UserStatus;
 use App\Models\StaffProfile;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolClock;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class UserService
@@ -80,7 +81,7 @@ class UserService
                 'employee_id' => 'ADMIN-'.$user->id,
                 'department_id' => null,
                 'designation' => $user->is_sub_admin ? 'Sub Admin' : 'School Admin',
-                'joining_date' => now()->toDateString(),
+                'joining_date' => SchoolClock::for($user->school_id)->date(),
             ]);
         }
 

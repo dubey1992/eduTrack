@@ -4,6 +4,7 @@ namespace App\Http\Requests\StaffAttendance;
 
 use App\Enums\StaffAttendanceStatus;
 use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ChecksSchoolDates;
 use App\Models\Department;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Rules\Enum;
 
 class StoreStaffAttendanceRequest extends FormRequest
 {
+    use ChecksSchoolDates;
+
     /**
      * school_id is body data here, not a route-bound model - same reasoning
      * as StaffAttendanceRegisterRequest: a bad id fails validation (422),
@@ -31,7 +34,7 @@ class StoreStaffAttendanceRequest extends FormRequest
                 ? ['required', 'integer', Rule::exists('schools', 'id')]
                 : ['nullable'],
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')],
-            'attendance_date' => ['required', 'date', 'before_or_equal:today'],
+            'attendance_date' => ['required', 'date', $this->notInFuture()],
             'records' => [
                 'required', 'array', 'min:1',
                 function ($attribute, $value, $fail) {

@@ -20,6 +20,7 @@ use App\Models\TransportTripEvent;
 use App\Models\TransportTripRider;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolClock;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -32,10 +33,11 @@ use Illuminate\Support\Facades\DB;
  */
 class TransportTripService
 {
-    private const array LIST_RELATIONS = ['route', 'vehicle', 'driver', 'currentStop'];
+    // 'school' is loaded for the timezone the resource renders times in.
+    private const array LIST_RELATIONS = ['route', 'vehicle', 'driver', 'currentStop', 'school'];
 
     private const array DETAIL_RELATIONS = [
-        'route.stops', 'vehicle', 'driver', 'currentStop', 'startedBy',
+        'route.stops', 'vehicle', 'driver', 'currentStop', 'startedBy', 'school',
         'riders.student.classSection.schoolClass', 'events.recordedBy',
     ];
 
@@ -76,7 +78,10 @@ class TransportTripService
     public function start(TransportRoute $route, TripDirection $direction, User $actor): TransportTrip
     {
         $route->loadMissing(['vehicle', 'driver']);
-        $today = now()->toDateString();
+        // "Today" is the school's date, not the server's. A 7am pickup in
+        // Asia/Kolkata happens on the previous UTC day.
+        $clock = SchoolClock::for($route->school_id);
+        $today = $clock->date();
 
         if (! $route->isActive() || $route->vehicle === null || $route->driver === null
             || $route->vehicle->status !== TransportStatus::Active || $route->driver->status !== TransportStatus::Active) {
@@ -221,7 +226,7 @@ class TransportTripService
         $this->notifications->notifyGuardian($event, $student, [
             // The moment it happened, in the school's configured timezone -
             // not the UTC "now" the default token would use.
-            'time' => now()->format('g:i A'),
+            'time' => SchoolClock::for($trip->school_id)->format(now(), 'g:i A'),
             'stop_name' => $rider->stop_name,
             'vehicle_name' => $trip->vehicle?->name,
             'route_name' => $trip->route?->name,

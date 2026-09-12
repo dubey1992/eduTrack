@@ -11,6 +11,7 @@ import '../../../core/widgets/pagination_controls.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../auth/application/school_clock_provider.dart';
 import '../application/live_trip_notifier.dart';
 import '../application/transport_pickers.dart';
 import '../application/trip_history_notifier.dart';
@@ -162,8 +163,15 @@ class _LiveTripPanel extends ConsumerStatefulWidget {
 }
 
 class _LiveTripPanelState extends ConsumerState<_LiveTripPanel> {
-  TripDirection _direction = DateTime.now().hour < 12 ? TripDirection.pickup : TripDirection.drop;
+  TripDirection? _chosenDirection;
   bool _busy = false;
+
+  /// Morning at the school is a pickup run. The browser could be in another
+  /// country entirely, so its hour means nothing here. Resolved on build
+  /// rather than in initState, since the session carrying the school's clock
+  /// may still be loading when this panel first mounts.
+  TripDirection get _direction =>
+      _chosenDirection ?? (ref.read(schoolClockProvider).now.hour < 12 ? TripDirection.pickup : TripDirection.drop);
 
   Future<void> _run(Future<void> Function() action, {String? successMessage}) async {
     if (_busy) return;
@@ -238,7 +246,7 @@ class _LiveTripPanelState extends ConsumerState<_LiveTripPanel> {
                             for (final d in TripDirection.values) ButtonSegment(value: d, label: Text(d.label)),
                           ],
                           selected: {_direction},
-                          onSelectionChanged: (s) => setState(() => _direction = s.first),
+                          onSelectionChanged: (s) => setState(() => _chosenDirection = s.first),
                         ),
                         FilledButton.icon(
                           onPressed: _busy
@@ -353,10 +361,12 @@ class _TripHistory extends ConsumerWidget {
   }
 }
 
-String _when(String iso) => DateFormat.jm().format(DateTime.parse(iso).toLocal());
+/// The API renders trip times in the school's timezone, because the browser
+/// has no timezone database and could be in another country entirely.
+String _when(String? label) => label ?? '-';
 
 String _historyRange(TransportTrip trip) =>
-    '${_when(trip.startedAt)}${trip.endedAt == null ? '' : ' – ${_when(trip.endedAt!)}'}';
+    '${_when(trip.startedAtLabel)}${trip.endedAtLabel == null ? '' : ' – ${_when(trip.endedAtLabel)}'}';
 
 void _openDetail(BuildContext context, TransportTrip trip) {
   showDialog(

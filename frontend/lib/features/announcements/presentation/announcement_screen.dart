@@ -300,7 +300,7 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
             Text(announcement.body),
             const SizedBox(height: 10),
             Text(
-              'Sent ${_publishedAt(announcement.publishedAt)}'
+              'Sent ${_publishedAt(announcement.publishedAtLabel)}'
               '${announcement.publishedByName == null ? '' : ' by ${announcement.publishedByName}'} · '
               'reached ${announcement.recipientsCount} '
               '${announcement.recipientsCount == 1 ? 'person' : 'people'} '
@@ -325,9 +325,8 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
     return parsed == null ? date : DateFormat.yMMMd().format(parsed);
   }
 
-  String _publishedAt(String? iso) {
-    final parsed = iso == null ? null : DateTime.tryParse(iso)?.toLocal();
-
-    return parsed == null ? 'recently' : DateFormat('d MMM y, h:mm a').format(parsed);
-  }
+  /// Rendered by the API in the school's timezone - the browser's own zone
+  /// would disagree with the timestamp written inside the messages this
+  /// notice sent.
+  String _publishedAt(String? label) => label ?? 'recently';
 }

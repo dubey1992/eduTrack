@@ -12,7 +12,9 @@ import '../../../core/widgets/pagination_controls.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/utils/school_clock.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../auth/application/school_clock_provider.dart';
 import '../application/message_page_notifier.dart';
 import '../data/models/message.dart';
 import 'communication_settings_dialog.dart';
@@ -349,6 +351,8 @@ class _MessageTable extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final clock = ref.watch(schoolClockProvider);
+
     return Card(
       child: HorizontalScrollTable(
         child: DataTable(
@@ -369,7 +373,7 @@ class _MessageTable extends ConsumerWidget {
             for (final message in messages)
               DataRow(
                 cells: [
-                  DataCell(Text(messageTimeOf(message))),
+                  DataCell(Text(messageTimeOf(message, clock))),
                   DataCell(Text(message.recipientName)),
                   DataCell(Text(message.studentName ?? '-')),
                   DataCell(Text(message.category.label)),
@@ -413,7 +417,7 @@ class _MessageCards extends StatelessWidget {
                 children: [
                   Text(message.recipientName, style: const TextStyle(fontWeight: FontWeight.w700)),
                   Text(
-                    '${message.category.label} · ${formatMessageTime(message.createdAt)}'
+                    '${message.category.label} · ${formatMessageTime(message.createdOnLabel, message.createdAtLabel)}'
                     '${message.studentName == null ? '' : ' · ${message.studentName}'}',
                     style: muted,
                   ),
@@ -509,23 +513,23 @@ class MessageStatusBadge extends StatelessWidget {
 
 /// The time the server rendered, which is the one written inside the message
 /// itself, so the log and the text a parent received never disagree.
-String messageTimeOf(Message message) {
-  if (message.createdAtLabel == null) return formatMessageTime(message.createdAt);
+///
+/// [clock] decides what counts as "today": today at the school, which is not
+/// necessarily today in the browser.
+String messageTimeOf(Message message, SchoolClock clock) {
+  if (message.createdAtLabel == null) return formatMessageTime(message.createdOnLabel, message.createdAtLabel);
 
-  final sentToday = message.createdOnLabel == DateFormat('d MMM y').format(DateTime.now());
+  final sentToday = message.createdOnLabel == DateFormat('d MMM y').format(clock.today);
 
   return sentToday ? message.createdAtLabel! : '\${message.createdOnLabel}, \${message.createdAtLabel}';
 }
 
-/// "8:42 AM" for today's traffic, with the date once it is older.
-String formatMessageTime(String? iso) {
-  if (iso == null) return '-';
+/// Joins the server's date and time labels, for the places that show both.
+///
+/// Never parses the raw UTC timestamp: the browser would render it in its own
+/// timezone and quietly disagree with every other time on the screen.
+String formatMessageTime(String? dateLabel, String? timeLabel) {
+  if (timeLabel == null) return '-';
 
-  final parsed = DateTime.tryParse(iso)?.toLocal();
-  if (parsed == null) return '-';
-
-  final now = DateTime.now();
-  final isToday = parsed.year == now.year && parsed.month == now.month && parsed.day == now.day;
-
-  return isToday ? DateFormat('h:mm a').format(parsed) : DateFormat('d MMM, h:mm a').format(parsed);
+  return dateLabel == null ? timeLabel : '\$dateLabel, \$timeLabel';
 }

@@ -4,6 +4,7 @@ namespace App\Http\Requests\StaffAttendance;
 
 use App\Enums\StaffAttendanceStatus;
 use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ChecksSchoolDates;
 use App\Models\Department;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Rules\Enum;
 
 class UpdateStaffAttendanceRequest extends FormRequest
 {
+    use ChecksSchoolDates;
+
     public function authorize(): bool
     {
         return true;
@@ -26,7 +29,7 @@ class UpdateStaffAttendanceRequest extends FormRequest
                 ? ['required', 'integer', Rule::exists('schools', 'id')]
                 : ['nullable'],
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')],
-            'attendance_date' => ['required', 'date', 'before_or_equal:today'],
+            'attendance_date' => ['required', 'date', $this->notInFuture()],
             'records' => [
                 'required', 'array', 'min:1',
                 function ($attribute, $value, $fail) {

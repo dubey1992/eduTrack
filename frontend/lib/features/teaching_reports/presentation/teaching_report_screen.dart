@@ -13,6 +13,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../auth/application/school_clock_provider.dart';
 import '../../timetable/application/timetable_grid_notifier.dart';
 import '../../timetable/data/models/day_of_week.dart';
 import '../../timetable/data/models/timetable_entry.dart';
@@ -42,7 +43,7 @@ class _TeachingReportScreenState extends ConsumerState<TeachingReportScreen> {
   static const _submitterRoles = {UserRole.teacher, UserRole.hod};
   static const _reviewerRoles = {UserRole.hod, UserRole.schoolAdmin, UserRole.superAdmin};
 
-  String get _today => DateFormat('yyyy-MM-dd').format(DateTime.now());
+  String get _today => ref.read(schoolClockProvider).todayIso;
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +146,7 @@ class _MyScheduleToday extends ConsumerWidget {
       );
     }
 
-    final today = _todayDayOfWeek();
+    final today = _todayDayOfWeek(ref.watch(schoolClockProvider).today);
     if (today == null) {
       return const Card(
         child: Padding(padding: EdgeInsets.all(20), child: Text('No periods are scheduled today.')),
@@ -212,8 +213,9 @@ class _MyScheduleToday extends ConsumerWidget {
     );
   }
 
-  DayOfWeek? _todayDayOfWeek() {
-    final name = DateFormat('EEEE').format(DateTime.now()).toLowerCase();
+  /// Which weekday it is at the school - the browser could be a day out.
+  DayOfWeek? _todayDayOfWeek(DateTime today) {
+    final name = DateFormat('EEEE').format(today).toLowerCase();
     for (final day in DayOfWeek.values) {
       if (day.apiValue == name) return day;
     }

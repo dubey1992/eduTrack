@@ -9,9 +9,9 @@ use App\Jobs\SendMessageJob;
 use App\Models\Message;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolClock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Carbon;
 
 /**
  * Reading and re-driving the message log - the prototype's Communication
@@ -26,7 +26,8 @@ class MessageService
     public function paginate(User $actor, array $filters): LengthAwarePaginator
     {
         return $this->scoped($actor, $filters)
-            ->with(['student', 'user'])
+            // 'school' is loaded for the timezone the resource renders in.
+            ->with(['student', 'user', 'school'])
             ->latest('created_at')
             ->latest('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
@@ -41,8 +42,10 @@ class MessageService
      */
     public function summary(User $actor, array $filters): array
     {
-        $today = Carbon::today();
-        $todayQuery = $this->scoped($actor, $filters)->whereDate('created_at', $today);
+        [$dayStart, $dayEnd] = SchoolClock::forScope($actor, $filters['school_id'] ?? null)->todayRange();
+        $todayQuery = $this->scoped($actor, $filters)
+            ->where('created_at', '>=', $dayStart)
+            ->where('created_at', '<', $dayEnd);
 
         $sentToday = (clone $todayQuery)->where('status', MessageStatus::Sent)->count();
         $smsSentToday = (clone $todayQuery)
@@ -90,6 +93,7 @@ class MessageService
     public function inbox(User $actor, array $filters): LengthAwarePaginator
     {
         return $this->inboxQuery($actor)
+            ->with('school')
             ->when($filters['unread'] ?? null, fn (Builder $query) => $query->whereNull('read_at'))
             ->latest('created_at')
             ->latest('id')
@@ -120,7 +124,7 @@ class MessageService
                 ->orWhereHas('announcement', fn (Builder $announcement) => $announcement
                     ->where(fn (Builder $live) => $live
                         ->whereNull('expires_at')
-                        ->orWhereDate('expires_at', '>=', now()->toDateString()))));
+                        ->orWhereDate('expires_at', '>=', SchoolClock::forUser($actor)->date()))));
     }
 
     public function markRead(Message $message): Message
@@ -143,6 +147,8 @@ class MessageService
      */
     private function scoped(User $actor, array $filters): Builder
     {
+        $clock = SchoolClock::forScope($actor, $filters['school_id'] ?? null);
+
         return Message::query()
             ->when(
                 $actor->role !== UserRole::SuperAdmin,
@@ -155,8 +161,16 @@ class MessageService
             ->when($filters['category'] ?? null, fn (Builder $query, $category) => $query->where('category', $category))
             ->when($filters['channel'] ?? null, fn (Builder $query, $channel) => $query->where('channel', $channel))
             ->when($filters['status'] ?? null, fn (Builder $query, $status) => $query->where('status', $status))
-            ->when($filters['date_from'] ?? null, fn (Builder $query, $date) => $query->whereDate('created_at', '>=', $date))
-            ->when($filters['date_to'] ?? null, fn (Builder $query, $date) => $query->whereDate('created_at', '<=', $date))
+            // The dates come off a date picker, so they mean days at the
+            // school; created_at is a UTC instant. Compare windows, not dates.
+            ->when(
+                $filters['date_from'] ?? null,
+                fn (Builder $query, $date) => $query->where('created_at', '>=', $clock->startOfDayUtc($date))
+            )
+            ->when(
+                $filters['date_to'] ?? null,
+                fn (Builder $query, $date) => $query->where('created_at', '<', $clock->endOfDayUtc($date))
+            )
             ->when($filters['q'] ?? null, function (Builder $query, string $term) {
                 $like = '%'.$term.'%';
                 $query->where(fn (Builder $inner) => $inner

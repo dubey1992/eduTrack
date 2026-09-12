@@ -44,10 +44,13 @@ class Driver {
 
   bool get isActive => status == TransportStatus.active;
 
-  bool get isLicenceExpired {
+  /// Whether the licence had already run out on [today] - which the caller
+  /// reads from the school's clock, since the browser may be in another
+  /// country and a day out.
+  bool isLicenceExpiredOn(DateTime today) {
     final expiry = licenceExpiry;
     if (expiry == null) return false;
-    final today = DateTime.now();
+
     return DateTime.parse(expiry).isBefore(DateTime(today.year, today.month, today.day));
   }
 }

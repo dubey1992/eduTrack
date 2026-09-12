@@ -18,6 +18,7 @@ const _school = School(
   country: 'India',
   postalCode: '110001',
   currencyCode: 'INR',
+  timezone: 'UTC',
   logoUrl: null,
   status: SchoolStatus.active,
 );
@@ -34,6 +35,7 @@ School _schoolWithId(int id) => School(
   country: 'India',
   postalCode: '110001',
   currencyCode: 'INR',
+  timezone: 'UTC',
   logoUrl: null,
   status: SchoolStatus.active,
 );
@@ -70,6 +72,7 @@ void main() {
           country: 'Nigeria',
           postalCode: '100001',
           currencyCode: 'NGN',
+          timezone: 'UTC',
         );
 
     final state = container.read(schoolPageNotifierProvider).value;
@@ -132,6 +135,7 @@ void main() {
           country: 'Nigeria',
           postalCode: '100001',
           currencyCode: 'NGN',
+          timezone: 'UTC',
         );
 
     final pickerState = await container.read(schoolListNotifierProvider.future);

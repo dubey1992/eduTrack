@@ -13,6 +13,7 @@ use App\Models\CommunicationSetting;
 use App\Models\Message;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\SchoolClock;
 use App\Support\TemplateRenderer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -52,13 +53,16 @@ class NotificationService
         ?Announcement $announcement = null,
     ): array {
         $student->loadMissing('school');
+        // The guardian reads this on a phone in the school's country, so the
+        // date and time inside the text are the school's, not the server's.
+        $clock = SchoolClock::for($student->school);
 
         $tokens = array_merge([
             'student_name' => $student->name,
             'guardian_name' => $student->guardian_name,
             'school_name' => $student->school?->name,
-            'date' => now()->format('d M Y'),
-            'time' => now()->format('g:i A'),
+            'date' => $clock->format(now(), 'd M Y'),
+            'time' => $clock->format(now(), 'g:i A'),
         ], $tokens);
 
         return $this->record(
@@ -90,11 +94,12 @@ class NotificationService
         ?Announcement $announcement = null,
     ): array {
         $user->loadMissing('school');
+        $clock = SchoolClock::for($user->school);
 
         $tokens = array_merge([
             'staff_name' => $user->name,
             'school_name' => $user->school?->name,
-            'date' => now()->format('d M Y'),
+            'date' => $clock->format(now(), 'd M Y'),
         ], $tokens);
 
         return $this->record(

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\RendersSchoolTime;
 use App\Models\TransportTripEvent;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -11,6 +12,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class TripEventResource extends JsonResource
 {
+    use RendersSchoolTime;
+
     /**
      * @return array<string, mixed>
      */
@@ -25,6 +28,7 @@ class TripEventResource extends JsonResource
             'student_name' => $this->student_name,
             'recorded_by_name' => $this->whenLoaded('recordedBy', fn () => $this->recordedBy->name),
             'recorded_at' => $this->recorded_at,
+            'recorded_at_label' => $this->timeLabel($this->recorded_at),
             'note' => $this->note,
         ];
     }

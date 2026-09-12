@@ -14,6 +14,7 @@ use App\Models\StaffLeave;
 use App\Models\StaffProfile;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolClock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -168,8 +169,11 @@ class StaffLeaveService
     public function summary(User $actor, array $filters): array
     {
         $base = $this->scopedQuery($actor, $filters['school_id'] ?? null);
-        $today = now()->toDateString();
-        $monthStart = now()->startOfMonth()->toDateString();
+        // start_date and end_date are calendar dates at the school, so "today"
+        // and "this month" have to be read on the school's calendar too.
+        $clock = SchoolClock::forScope($actor, $filters['school_id'] ?? null);
+        $today = $clock->date();
+        $monthStart = $clock->now()->startOfMonth()->toDateString();
 
         return [
             'pending' => (clone $base)->where('status', LeaveStatus::Pending)->count(),

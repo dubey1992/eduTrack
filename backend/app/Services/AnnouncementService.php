@@ -17,6 +17,7 @@ use App\Models\Department;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolClock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -68,10 +69,14 @@ class AnnouncementService
                 $like = '%'.$term.'%';
                 $query->where(fn (Builder $inner) => $inner->where('title', 'like', $like)->orWhere('body', 'like', $like));
             })
+            // "Still showing" means still showing at the school - an expiry
+            // date is a day on its calendar, not the server's.
             ->when(
                 filter_var($filters['active_only'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 fn (Builder $query) => $query->where(
-                    fn (Builder $inner) => $inner->whereNull('expires_at')->orWhereDate('expires_at', '>=', now()->toDateString())
+                    fn (Builder $inner) => $inner
+                        ->whereNull('expires_at')
+                        ->orWhereDate('expires_at', '>=', SchoolClock::forScope($actor, $filters['school_id'] ?? null)->date())
                 )
             )
             ->latest('published_at')

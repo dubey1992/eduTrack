@@ -7,6 +7,7 @@ import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../auth/application/school_clock_provider.dart';
 import '../../departments/application/department_picker_provider.dart';
 import '../../departments/data/models/department.dart';
 import '../../schools/application/school_list_notifier.dart';
@@ -29,7 +30,13 @@ class StaffAttendanceScreen extends ConsumerStatefulWidget {
 class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
   int? _schoolId;
   int? _departmentId;
-  DateTime _date = DateTime.now();
+  /// Null until the user picks a day; the school's today stands in until
+  /// then. Resolved on build rather than in initState, because the session
+  /// (and with it the school's clock) may still be loading when this screen
+  /// is first mounted.
+  DateTime? _pickedDate;
+
+  DateTime get _date => _pickedDate ?? ref.read(schoolClockProvider).today;
 
   String get _formattedDate => DateFormat('yyyy-MM-dd').format(_date);
 
@@ -38,9 +45,9 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
       context: context,
       initialDate: _date,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: ref.read(schoolClockProvider).today,
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null) setState(() => _pickedDate = picked);
   }
 
   @override

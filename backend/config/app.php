@@ -71,13 +71,29 @@ return [
     | Application Timezone
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | Leave this as UTC. Every timestamp column is written by PHP in this
+    | zone, so changing it would store wall-clock time instead of instants
+    | and silently re-interpret every row already in the database.
+    |
+    | What a date *means* to a user is decided per school - see the timezone
+    | column on schools and App\Support\SchoolClock - never here.
     |
     */
 
-    'timezone' => env('APP_TIMEZONE', 'UTC'),
+    'timezone' => 'UTC',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Platform Timezone
+    |--------------------------------------------------------------------------
+    |
+    | The zone for the handful of views that belong to no school: the Super
+    | Admin's cross-school totals, for instance, where "this month" cannot
+    | mean one school's month. School-owned data never uses this.
+    |
+    */
+
+    'platform_timezone' => env('PLATFORM_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

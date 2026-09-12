@@ -56,12 +56,16 @@ nothing is lost.
 ## Timezones
 
 Times written into messages ("Aarav boarded at 7:42 AM") and the times shown in
-the log are both rendered server-side in `APP_TIMEZONE`, so they always agree.
-Set it to the school's own timezone at deployment.
+the log are both rendered server-side in **the school's own timezone**, so they
+always agree with each other and with the clock on the wall wherever the school
+is. Two schools in different countries on one deployment each get their own.
 
-This is a single timezone per deployment. A future phase should give each
-school its own, because the product is explicitly multi-nation: two schools in
-different countries on one deployment would share this setting today.
+The zone is `schools.timezone`, and everything reads it through
+`App\Support\SchoolClock`. "SMS sent today" counts the school's day, not the
+server's - which begins at a different instant for every zone.
+
+See [timezones.md](timezones.md) for the full rule and what to do when you add
+a feature that touches a date.
 
 ## Adding a real provider
 

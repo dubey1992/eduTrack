@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\RendersSchoolTime;
 use App\Models\Announcement;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -11,6 +12,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class AnnouncementResource extends JsonResource
 {
+    use RendersSchoolTime;
+
     /**
      * @return array<string, mixed>
      */
@@ -31,6 +34,7 @@ class AnnouncementResource extends JsonResource
             'has_expired' => $this->hasExpired(),
             'published_by_name' => $this->whenLoaded('publishedBy', fn () => $this->publishedBy?->name),
             'published_at' => $this->published_at,
+            'published_at_label' => $this->dateTimeLabel($this->published_at),
             'recipients_count' => $this->recipients_count,
             'sms_count' => $this->sms_count,
             'in_app_count' => $this->in_app_count,

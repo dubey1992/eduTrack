@@ -7,6 +7,7 @@ import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/pagination_controls.dart';
 import '../application/inbox_notifier.dart';
 import '../data/models/message.dart';
+import '../../auth/application/school_clock_provider.dart';
 import 'communication_screen.dart' show messageTimeOf;
 
 /// Every user's own in-app messages - today that means leave decisions, and
@@ -135,7 +136,7 @@ class _InboxList extends ConsumerWidget {
                 children: [
                   Text(message.body),
                   const SizedBox(height: 4),
-                  Text(messageTimeOf(message), style: muted),
+                  Text(messageTimeOf(message, ref.watch(schoolClockProvider)), style: muted),
                 ],
               ),
               trailing: message.isUnread

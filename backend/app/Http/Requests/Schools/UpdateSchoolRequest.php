@@ -30,6 +30,7 @@ class UpdateSchoolRequest extends FormRequest
             'country' => ['sometimes', 'required', 'string', 'max:100'],
             'postal_code' => ['sometimes', 'required', 'string', 'max:20'],
             'currency_code' => ['sometimes', 'required', 'string', 'regex:/^[A-Z]{3}$/'],
+            'timezone' => ['sometimes', 'required', 'string', 'timezone:all'],
             'logo_url' => ['nullable', 'url', 'max:2048'],
         ];
     }

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../auth/application/school_clock_provider.dart';
 import '../../classes/application/class_section_picker_provider.dart';
 import '../../departments/application/department_picker_provider.dart';
 import '../application/announcement_page_notifier.dart';
@@ -99,7 +100,9 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
   }
 
   Future<void> _pickExpiry() async {
-    final now = DateTime.now();
+    // The school's today: the API rejects an expiry before it, so offering
+    // an earlier one here would only produce a 422.
+    final now = ref.read(schoolClockProvider).today;
     final picked = await showDatePicker(
       context: context,
       initialDate: _expiresAt ?? now.add(const Duration(days: 7)),

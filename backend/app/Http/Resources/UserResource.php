@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\User;
+use App\Support\SchoolClock;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,6 +17,12 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // Reads the already-eager-loaded school where there is one, so a
+        // paginated user list does not fire a query per row.
+        $clock = $this->relationLoaded('school')
+            ? SchoolClock::for($this->school)
+            : SchoolClock::forUser($this->resource);
+
         return [
             'id' => $this->id,
             'first_name' => $this->first_name,
@@ -28,6 +35,12 @@ class UserResource extends JsonResource
             'status' => $this->status->value,
             'school_id' => $this->school_id,
             'school_name' => $this->whenLoaded('school', fn () => $this->school?->name),
+            // The session's clock. The client measures every date it shows or
+            // defaults to against these two, never against the browser's own
+            // timezone. A Super Admin belongs to no school and gets the
+            // platform's zone.
+            'timezone' => $clock->timezone(),
+            'current_time' => $clock->now()->toIso8601String(),
         ];
     }
 }

@@ -182,6 +182,10 @@ const greenParkTrip = TransportTrip(
   startedByName: 'Mohan',
   startedAt: '2026-09-10T07:32:00.000000Z',
   endedAt: null,
+  // As the API renders it, in the school's timezone - the UI never formats
+  // the raw instant above.
+  startedAtLabel: '1:02 PM',
+  endedAtLabel: null,
   ridersCount: 2,
   pendingCount: 2,
   boardedCount: 0,
@@ -203,6 +207,7 @@ const greenParkTrip = TransportTrip(
       studentName: null,
       recordedByName: 'Mohan',
       recordedAt: '2026-09-10T07:32:00.000000Z',
+      recordedAtLabel: '1:02 PM',
       note: 'Trip started with 2 students expected',
     ),
   ],

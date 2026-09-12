@@ -29,6 +29,7 @@ const _school = School(
   country: 'India',
   postalCode: '110001',
   currencyCode: 'INR',
+  timezone: 'UTC',
   logoUrl: null,
   status: SchoolStatus.active,
 );
@@ -45,6 +46,7 @@ const _closedSchool = School(
   country: 'India',
   postalCode: '400001',
   currencyCode: 'INR',
+  timezone: 'UTC',
   logoUrl: null,
   status: SchoolStatus.inactive,
 );

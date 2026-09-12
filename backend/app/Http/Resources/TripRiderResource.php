@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\RendersSchoolTime;
 use App\Models\TransportTripRider;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -11,6 +12,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class TripRiderResource extends JsonResource
 {
+    use RendersSchoolTime;
+
     /**
      * @return array<string, mixed>
      */
@@ -32,6 +35,8 @@ class TripRiderResource extends JsonResource
             'status' => $this->status->value,
             'boarded_at' => $this->boarded_at,
             'dropped_at' => $this->dropped_at,
+            'boarded_at_label' => $this->timeLabel($this->boarded_at),
+            'dropped_at_label' => $this->timeLabel($this->dropped_at),
         ];
     }
 }

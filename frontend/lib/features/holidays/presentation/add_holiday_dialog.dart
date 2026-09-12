@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/application/school_clock_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
@@ -26,11 +27,19 @@ class _AddHolidayDialogState extends ConsumerState<AddHolidayDialog> {
 
   int? _schoolId;
   HolidayType _type = HolidayType.national;
-  DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now();
+  late DateTime _startDate;
+  late DateTime _endDate;
 
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Dates a school picks are days on its own calendar.
+    _startDate = ref.read(schoolClockProvider).today;
+    _endDate = _startDate;
+  }
 
   @override
   void dispose() {

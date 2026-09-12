@@ -24,6 +24,7 @@ class SchoolManagementTest extends TestCase
             'country' => 'India',
             'postal_code' => '110001',
             'currency_code' => 'INR',
+            'timezone' => 'Asia/Kolkata',
         ], $overrides);
     }
 
@@ -36,6 +37,7 @@ class SchoolManagementTest extends TestCase
         $response->assertCreated()
             ->assertJsonPath('name', 'Sunrise Public School')
             ->assertJsonPath('currency_code', 'INR')
+            ->assertJsonPath('timezone', 'Asia/Kolkata')
             ->assertJsonPath('status', 'active');
     }
 
