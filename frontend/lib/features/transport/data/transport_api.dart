@@ -6,6 +6,7 @@ import '../../../core/network/paginated_response.dart';
 import 'models/driver.dart';
 import 'models/transport_route.dart';
 import 'models/transport_status.dart';
+import 'models/transport_trip.dart';
 import 'models/vehicle.dart';
 
 final transportApiProvider = Provider<TransportApi>((ref) => TransportApi(ref.watch(dioClientProvider)));
@@ -215,5 +216,59 @@ class TransportApi {
 
   Future<void> deleteStop(int stopId) async {
     await _dio.delete('/transport/stops/$stopId');
+  }
+
+  // ── trips ───────────────────────────────────────────────────────────
+
+  Future<PaginatedResponse<TransportTrip>> listTrips({
+    int? schoolId,
+    int? routeId,
+    String? date,
+    TripStatus? status,
+    int? page,
+    int? perPage,
+  }) async {
+    final response = await _dio.get(
+      '/transport/trips',
+      queryParameters: {
+        'school_id': ?schoolId,
+        'route_id': ?routeId,
+        'date': ?date,
+        'status': ?status?.apiValue,
+        'page': ?page,
+        'per_page': ?perPage,
+      },
+    );
+    return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, TransportTrip.fromJson);
+  }
+
+  Future<TransportTrip> getTrip(int tripId) async {
+    final response = await _dio.get('/transport/trips/$tripId');
+    return TransportTrip.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TransportTrip> startTrip({required int routeId, required TripDirection direction}) async {
+    final response = await _dio.post('/transport/trips', data: {'route_id': routeId, 'direction': direction.apiValue});
+    return TransportTrip.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TransportTrip> reachStop(int tripId, int stopId) async {
+    final response = await _dio.post('/transport/trips/$tripId/stops/$stopId/reached');
+    return TransportTrip.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TransportTrip> updateRider(int tripId, int studentId, TripRiderStatus status) async {
+    final response = await _dio.patch('/transport/trips/$tripId/riders/$studentId', data: {'status': status.apiValue});
+    return TransportTrip.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TransportTrip> endTrip(int tripId) async {
+    final response = await _dio.post('/transport/trips/$tripId/end');
+    return TransportTrip.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TransportTrip> cancelTrip(int tripId) async {
+    final response = await _dio.post('/transport/trips/$tripId/cancel');
+    return TransportTrip.fromJson(response.data as Map<String, dynamic>);
   }
 }

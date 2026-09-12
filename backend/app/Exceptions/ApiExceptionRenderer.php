@@ -77,6 +77,12 @@ class ApiExceptionRenderer
                 $e->getMessage(),
                 [],
             ],
+            $e instanceof TripRuleException => [
+                409,
+                $e->errorCode,
+                $e->getMessage(),
+                [],
+            ],
             $e instanceof RouteCapacityFullException => [
                 409,
                 'ROUTE_CAPACITY_FULL',

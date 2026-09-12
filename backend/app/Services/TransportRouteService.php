@@ -75,6 +75,11 @@ class TransportRouteService
                 'Students are still assigned to this route. Move them to another route first.'
             );
         }
+        if ($route->trips()->exists()) {
+            throw new HasDependentRecordsException(
+                'This route has trip history and cannot be deleted. Deactivate it instead.'
+            );
+        }
 
         // Stops cascade with the route.
         $route->delete();

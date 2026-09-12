@@ -6,6 +6,7 @@ import '../../../core/network/paginated_response.dart';
 import 'models/driver.dart';
 import 'models/transport_route.dart';
 import 'models/transport_status.dart';
+import 'models/transport_trip.dart';
 import 'models/vehicle.dart';
 import 'transport_api.dart';
 
@@ -184,4 +185,32 @@ class TransportRepository {
   );
 
   Future<void> deleteStop(int stopId) => _guard(() => _api.deleteStop(stopId));
+
+  // ── trips ───────────────────────────────────────────────────────────
+
+  Future<PaginatedResponse<TransportTrip>> listTrips({
+    int? schoolId,
+    int? routeId,
+    String? date,
+    TripStatus? status,
+    required int page,
+    required int perPage,
+  }) => _guard(
+    () =>
+        _api.listTrips(schoolId: schoolId, routeId: routeId, date: date, status: status, page: page, perPage: perPage),
+  );
+
+  Future<TransportTrip> getTrip(int tripId) => _guard(() => _api.getTrip(tripId));
+
+  Future<TransportTrip> startTrip({required int routeId, required TripDirection direction}) =>
+      _guard(() => _api.startTrip(routeId: routeId, direction: direction));
+
+  Future<TransportTrip> reachStop(int tripId, int stopId) => _guard(() => _api.reachStop(tripId, stopId));
+
+  Future<TransportTrip> updateRider(int tripId, int studentId, TripRiderStatus status) =>
+      _guard(() => _api.updateRider(tripId, studentId, status));
+
+  Future<TransportTrip> endTrip(int tripId) => _guard(() => _api.endTrip(tripId));
+
+  Future<TransportTrip> cancelTrip(int tripId) => _guard(() => _api.cancelTrip(tripId));
 }

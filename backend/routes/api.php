@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\SyllabusProgressController;
 use App\Http\Controllers\Api\V1\SyllabusTopicController;
 use App\Http\Controllers\Api\V1\TimetableController;
 use App\Http\Controllers\Api\V1\TransportRouteController;
+use App\Http\Controllers\Api\V1\TransportTripController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\VehicleController;
 use Illuminate\Support\Facades\Route;
@@ -166,4 +167,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/transport/routes/{route}/stops', [TransportRouteController::class, 'storeStop']);
     Route::patch('/transport/stops/{stop}', [TransportRouteController::class, 'updateStop']);
     Route::delete('/transport/stops/{stop}', [TransportRouteController::class, 'destroyStop']);
+
+    Route::get('/transport/trips', [TransportTripController::class, 'index']);
+    Route::post('/transport/trips', [TransportTripController::class, 'store']);
+    Route::get('/transport/trips/{trip}', [TransportTripController::class, 'show']);
+    Route::post('/transport/trips/{trip}/stops/{stop}/reached', [TransportTripController::class, 'reachStop']);
+    Route::patch('/transport/trips/{trip}/riders/{student}', [TransportTripController::class, 'updateRider']);
+    Route::post('/transport/trips/{trip}/end', [TransportTripController::class, 'end']);
+    Route::post('/transport/trips/{trip}/cancel', [TransportTripController::class, 'cancel']);
 });

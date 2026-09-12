@@ -16,11 +16,9 @@ class TransportStopFactory extends Factory
      */
     public function definition(): array
     {
-        $route = TransportRoute::factory()->create();
-
         return [
-            'school_id' => $route->school_id,
-            'route_id' => $route->id,
+            'route_id' => TransportRoute::factory(),
+            'school_id' => fn (array $attributes) => TransportRoute::findOrFail($attributes['route_id'])->school_id,
             'name' => fake()->unique()->streetName().' Stop',
             'sequence_number' => 1,
             'pickup_time' => '07:30',

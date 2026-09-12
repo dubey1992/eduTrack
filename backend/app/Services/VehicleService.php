@@ -61,6 +61,11 @@ class VehicleService
                 'This vehicle is still serving a route. Remove it from the route first.'
             );
         }
+        if ($vehicle->trips()->exists()) {
+            throw new HasDependentRecordsException(
+                'This vehicle has trip history and cannot be deleted. Deactivate it instead.'
+            );
+        }
 
         $vehicle->delete();
     }

@@ -266,6 +266,14 @@ class AppNav {
         pageTitle: 'Routes & Stops',
         pageSubtitle: 'Bus routes, stops and the students riding them',
       ),
+      NavItem(
+        path: '/transport/trips',
+        label: 'Trips',
+        icon: Icons.route_outlined,
+        allowedRoles: _transportViewerRoles,
+        pageTitle: 'School Transport',
+        pageSubtitle: 'Live bus operations and student trip events',
+      ),
     ],
   );
 

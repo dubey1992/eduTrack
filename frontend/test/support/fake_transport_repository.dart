@@ -3,6 +3,7 @@ import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/transport/data/models/driver.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_route.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_status.dart';
+import 'package:edutrack_app/features/transport/data/models/transport_trip.dart';
 import 'package:edutrack_app/features/transport/data/models/vehicle.dart';
 import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 
@@ -17,16 +18,26 @@ class FakeTransportRepository implements TransportRepository {
     List<Driver>? drivers,
     List<TransportRoute>? routes,
     List<RouteStudent>? routeStudents,
+    List<TransportTrip>? trips,
+    this.ridersForNewTrip = const [],
     this.failWith,
   }) : _vehicles = vehicles ?? [],
        _drivers = drivers ?? [],
        _routes = routes ?? [],
-       _routeStudents = routeStudents ?? [];
+       _routeStudents = routeStudents ?? [],
+       _trips = trips ?? [];
 
   final List<Vehicle> _vehicles;
   final List<Driver> _drivers;
   final List<TransportRoute> _routes;
   final List<RouteStudent> _routeStudents;
+  final List<TransportTrip> _trips;
+
+  /// The riders a trip started through this fake gets (the real API takes
+  /// them from the route's assignments).
+  List<TripRider> ridersForNewTrip;
+
+  List<TransportTrip> get trips => List.unmodifiable(_trips);
 
   /// When set, every call throws it.
   Failure? failWith;
@@ -481,5 +492,220 @@ class FakeTransportRepository implements TransportRepository {
     lastDeletedStopId = stopId;
     final route = _routes.firstWhere((r) => r.stops.any((s) => s.id == stopId));
     _replaceStops(route.id, route.stops.where((s) => s.id != stopId).toList());
+  }
+
+  // ── trips ───────────────────────────────────────────────────────────
+
+  static const _now = '2026-09-10T08:00:00.000000Z';
+
+  @override
+  Future<PaginatedResponse<TransportTrip>> listTrips({
+    int? schoolId,
+    int? routeId,
+    String? date,
+    TripStatus? status,
+    required int page,
+    required int perPage,
+  }) async {
+    _check();
+    lastListCall = {
+      'op': 'listTrips',
+      'school_id': schoolId,
+      'route_id': routeId,
+      'date': date,
+      'status': status?.apiValue,
+      'page': page,
+      'per_page': perPage,
+    };
+    final items =
+        _trips
+            .where((t) => routeId == null || t.routeId == routeId)
+            .where((t) => date == null || t.tripDate == date)
+            .where((t) => status == null || t.status == status)
+            .toList()
+          ..sort((a, b) => b.id.compareTo(a.id));
+    return paginateFake(items, page: page, perPage: perPage);
+  }
+
+  @override
+  Future<TransportTrip> getTrip(int tripId) async {
+    _check();
+    return _trips.firstWhere((t) => t.id == tripId);
+  }
+
+  @override
+  Future<TransportTrip> startTrip({required int routeId, required TripDirection direction}) async {
+    _check();
+    lastCall = {'op': 'startTrip', 'route_id': routeId, 'direction': direction.apiValue};
+    final route = _routes.firstWhere((r) => r.id == routeId);
+    final trip = TransportTrip(
+      id: _trips.length + 1,
+      schoolId: route.schoolId,
+      routeId: route.id,
+      routeName: route.name,
+      routeLabel: route.label,
+      vehicleId: route.vehicleId ?? 0,
+      vehicleName: route.vehicleName ?? '',
+      vehicleRegistrationNumber: route.vehicleRegistrationNumber ?? '',
+      driverId: route.driverId ?? 0,
+      driverName: route.driverName ?? '',
+      driverMobile: route.driverMobile,
+      tripDate: '2026-09-10',
+      direction: direction,
+      status: TripStatus.inProgress,
+      currentStopId: null,
+      currentStopName: null,
+      startedByName: 'Mohan',
+      startedAt: _now,
+      endedAt: null,
+      ridersCount: ridersForNewTrip.length,
+      pendingCount: ridersForNewTrip.length,
+      boardedCount: 0,
+      droppedCount: 0,
+      absentCount: 0,
+      stopsLeft: route.stops.length,
+      stops: [
+        for (final s in route.stops)
+          TripStop(
+            id: s.id,
+            name: s.name,
+            sequenceNumber: s.sequenceNumber,
+            pickupTime: s.pickupTime,
+            dropTime: s.dropTime,
+            reached: false,
+          ),
+      ],
+      riders: ridersForNewTrip,
+      events: [
+        TripEvent(
+          id: 1,
+          type: TripEventType.started,
+          stopId: null,
+          stopName: null,
+          studentId: null,
+          studentName: null,
+          recordedByName: 'Mohan',
+          recordedAt: _now,
+          note: 'Trip started with ${ridersForNewTrip.length} students expected',
+        ),
+      ],
+    );
+    _trips.add(trip);
+    return trip;
+  }
+
+  TransportTrip _replaceTrip(TransportTrip updated) {
+    final index = _trips.indexWhere((t) => t.id == updated.id);
+    _trips[index] = updated;
+    return updated;
+  }
+
+  TransportTrip _withEvent(TransportTrip trip, TripEventType type, {TripStop? stop, TripRider? rider, String? note}) {
+    return trip.copyWith(
+      events: [
+        ...trip.events,
+        TripEvent(
+          id: trip.events.length + 1,
+          type: type,
+          stopId: stop?.id,
+          stopName: stop?.name,
+          studentId: rider?.studentId,
+          studentName: rider?.name,
+          recordedByName: 'Mohan',
+          recordedAt: _now,
+          note: note,
+        ),
+      ],
+    );
+  }
+
+  static TransportTrip _recount(TransportTrip trip) {
+    int count(TripRiderStatus s) => trip.riders.where((r) => r.status == s).length;
+    return trip.copyWith(
+      pendingCount: count(TripRiderStatus.pending),
+      boardedCount: count(TripRiderStatus.boarded),
+      droppedCount: count(TripRiderStatus.dropped),
+      absentCount: count(TripRiderStatus.absent),
+    );
+  }
+
+  @override
+  Future<TransportTrip> reachStop(int tripId, int stopId) async {
+    _check();
+    lastCall = {'op': 'reachStop', 'trip_id': tripId, 'stop_id': stopId};
+    final trip = _trips.firstWhere((t) => t.id == tripId);
+    final stop = trip.stops.firstWhere((s) => s.id == stopId);
+    final stops = [
+      for (final s in trip.stops)
+        s.id == stopId
+            ? TripStop(
+                id: s.id,
+                name: s.name,
+                sequenceNumber: s.sequenceNumber,
+                pickupTime: s.pickupTime,
+                dropTime: s.dropTime,
+                reached: true,
+              )
+            : s,
+    ];
+    final updated = trip.copyWith(
+      currentStopId: stop.id,
+      currentStopName: stop.name,
+      stops: stops,
+      stopsLeft: stops.where((s) => !s.reached).length,
+    );
+    return _replaceTrip(_withEvent(updated, TripEventType.stopReached, stop: stop));
+  }
+
+  @override
+  Future<TransportTrip> updateRider(int tripId, int studentId, TripRiderStatus status) async {
+    _check();
+    lastCall = {'op': 'updateRider', 'trip_id': tripId, 'student_id': studentId, 'status': status.apiValue};
+    final trip = _trips.firstWhere((t) => t.id == tripId);
+    final rider = trip.riders.firstWhere((r) => r.studentId == studentId);
+    final changed = rider.copyWith(
+      status: status,
+      boardedAt: status == TripRiderStatus.boarded ? _now : null,
+      droppedAt: status == TripRiderStatus.dropped ? _now : null,
+    );
+    final updated = _recount(
+      trip.copyWith(riders: [for (final r in trip.riders) r.studentId == studentId ? changed : r]),
+    );
+    final type = switch (status) {
+      TripRiderStatus.boarded => TripEventType.boarded,
+      TripRiderStatus.dropped => TripEventType.dropped,
+      _ => TripEventType.absent,
+    };
+    final currentStop = trip.stops.where((s) => s.id == trip.currentStopId).firstOrNull;
+    return _replaceTrip(_withEvent(updated, type, stop: currentStop, rider: changed));
+  }
+
+  @override
+  Future<TransportTrip> endTrip(int tripId) async {
+    _check();
+    lastCall = {'op': 'endTrip', 'trip_id': tripId};
+    final trip = _trips.firstWhere((t) => t.id == tripId);
+    final onBoard = trip.riders.where((r) => r.status == TripRiderStatus.boarded).length;
+    if (onBoard > 0) {
+      throw Failure(
+        code: 'TRIP_RIDERS_ON_BOARD',
+        message:
+            '$onBoard ${onBoard == 1 ? 'student is' : 'students are'} still on board. Drop them off before ending the trip.',
+      );
+    }
+    final riders = [
+      for (final r in trip.riders) r.status == TripRiderStatus.pending ? r.copyWith(status: TripRiderStatus.absent) : r,
+    ];
+    final updated = _recount(trip.copyWith(status: TripStatus.completed, endedAt: _now, riders: riders));
+    return _replaceTrip(_withEvent(updated, TripEventType.completed, note: 'Trip completed'));
+  }
+
+  @override
+  Future<TransportTrip> cancelTrip(int tripId) async {
+    _check();
+    lastCall = {'op': 'cancelTrip', 'trip_id': tripId};
+    final trip = _trips.firstWhere((t) => t.id == tripId);
+    final updated = trip.copyWith(status: TripStatus.cancelled, endedAt: _now);
+    return _replaceTrip(_withEvent(updated, TripEventType.cancelled, note: 'Trip cancelled'));
   }
 }

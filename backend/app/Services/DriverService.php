@@ -61,6 +61,11 @@ class DriverService
                 'This driver is still assigned to a route. Remove them from the route first.'
             );
         }
+        if ($driver->trips()->exists()) {
+            throw new HasDependentRecordsException(
+                'This driver has trip history and cannot be deleted. Deactivate them instead.'
+            );
+        }
 
         $driver->delete();
     }

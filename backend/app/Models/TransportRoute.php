@@ -64,6 +64,19 @@ class TransportRoute extends Model
     }
 
     /**
+     * @return HasMany<TransportTrip, $this>
+     */
+    public function trips(): HasMany
+    {
+        return $this->hasMany(TransportTrip::class, 'route_id');
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === TransportStatus::Active;
+    }
+
+    /**
      * "Bus 04 - Green Park" when a vehicle is attached, else just the name -
      * the label the prototype uses everywhere a route is picked.
      */

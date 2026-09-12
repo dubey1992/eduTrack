@@ -26,6 +26,7 @@ import '../../features/teaching_reports/presentation/teaching_report_screen.dart
 import '../../features/timetable/presentation/timetable_screen.dart';
 import '../../features/transport/presentation/driver_list_screen.dart';
 import '../../features/transport/presentation/route_list_screen.dart';
+import '../../features/transport/presentation/trip_screen.dart';
 import '../../features/transport/presentation/vehicle_list_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
 import '../widgets/app_shell.dart';
@@ -85,6 +86,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/transport/vehicles', builder: (context, state) => const VehicleListScreen()),
           GoRoute(path: '/transport/drivers', builder: (context, state) => const DriverListScreen()),
           GoRoute(path: '/transport/routes', builder: (context, state) => const RouteListScreen()),
+          GoRoute(path: '/transport/trips', builder: (context, state) => const TripScreen()),
         ],
       ),
     ],
