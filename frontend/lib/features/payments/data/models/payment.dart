@@ -30,7 +30,7 @@ enum PaymentMode {
 enum PaymentStatus {
   pending('pending', 'Pending'),
   paid('paid', 'Paid'),
-  partial('partial', 'Partial'),
+  partial('partial', 'Partially Paid'),
   cancelled('cancelled', 'Cancelled');
 
   const PaymentStatus(this.apiValue, this.label);
@@ -48,6 +48,8 @@ class Payment {
     required this.schoolName,
     required this.paymentType,
     required this.amount,
+    required this.paidAmount,
+    required this.remainingAmount,
     required this.currencyCode,
     required this.paymentDate,
     required this.paymentMode,
@@ -55,6 +57,7 @@ class Payment {
     required this.notes,
     required this.status,
     required this.createdByName,
+    this.receiptSentAt,
   });
 
   factory Payment.fromJson(Map<String, dynamic> json) {
@@ -64,6 +67,8 @@ class Payment {
       schoolName: json['school_name'] as String?,
       paymentType: PaymentType.fromApiValue(json['payment_type'] as String),
       amount: double.parse(json['amount'] as String),
+      paidAmount: double.parse(json['paid_amount'] as String? ?? '0'),
+      remainingAmount: double.parse(json['remaining_amount'] as String? ?? '0'),
       currencyCode: json['currency_code'] as String,
       paymentDate: DateTime.parse(json['payment_date'] as String),
       paymentMode: PaymentMode.fromApiValue(json['payment_mode'] as String),
@@ -71,6 +76,7 @@ class Payment {
       notes: json['notes'] as String?,
       status: PaymentStatus.fromApiValue(json['status'] as String),
       createdByName: json['created_by_name'] as String?,
+      receiptSentAt: json['receipt_sent_at'] as String?,
     );
   }
 
@@ -78,7 +84,13 @@ class Payment {
   final int schoolId;
   final String? schoolName;
   final PaymentType paymentType;
+
+  /// How much of [amount] has actually arrived, and how much is still owed.
+  /// The balance is computed by the API from those two, never stored, so it
+  /// cannot drift out of step with them.
   final double amount;
+  final double paidAmount;
+  final double remainingAmount;
   final String currencyCode;
   final DateTime paymentDate;
   final PaymentMode paymentMode;
@@ -87,6 +99,13 @@ class Payment {
   final PaymentStatus status;
   final String? createdByName;
 
+  /// When the receipt was last emailed to the school's admins, if ever.
+  final String? receiptSentAt;
+
+  /// True while money is still owed - the case the UI has to spell out
+  /// rather than leaving someone to subtract two figures.
+  bool get hasBalance => remainingAmount > 0 && status != PaymentStatus.cancelled;
+
   Payment copyWith({PaymentStatus? status}) {
     return Payment(
       id: id,
@@ -94,6 +113,8 @@ class Payment {
       schoolName: schoolName,
       paymentType: paymentType,
       amount: amount,
+      paidAmount: paidAmount,
+      remainingAmount: remainingAmount,
       currencyCode: currencyCode,
       paymentDate: paymentDate,
       paymentMode: paymentMode,
@@ -101,6 +122,7 @@ class Payment {
       notes: notes,
       status: status ?? this.status,
       createdByName: createdByName,
+      receiptSentAt: receiptSentAt,
     );
   }
 }

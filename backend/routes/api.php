@@ -68,6 +68,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments', [PaymentController::class, 'store']);
     Route::get('/payments/{payment}', [PaymentController::class, 'show']);
     Route::patch('/payments/{payment}', [PaymentController::class, 'update']);
+    // The receipt: emailed automatically when a payment is recorded or its
+    // figures change, and available here for a resend or a direct download.
+    Route::post('/payments/{payment}/receipt', [PaymentController::class, 'sendReceipt']);
+    Route::get('/payments/{payment}/receipt', [PaymentController::class, 'downloadReceipt']);
 
     Route::get('/academic-years', [AcademicYearController::class, 'index']);
     Route::post('/academic-years', [AcademicYearController::class, 'store']);

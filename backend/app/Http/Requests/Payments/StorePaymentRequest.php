@@ -19,6 +19,16 @@ class StorePaymentRequest extends FormRequest
     /**
      * @return array<string, mixed>
      */
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'paid_amount.lte' => 'The amount received cannot be more than the payment amount.',
+        ];
+    }
+
     public function rules(): array
     {
         return [
@@ -32,6 +42,14 @@ class StorePaymentRequest extends FormRequest
             'payment_mode' => ['required', new Enum(PaymentMode::class)],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            // How much has actually arrived. The status is derived from it
+            // (see Payment::statusFor), so the two can never contradict each
+            // other; 'status' is still accepted because Cancelled is a
+            // decision rather than a consequence of the figures.
+            'paid_amount' => [
+                'nullable', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/',
+                'lte:amount',
+            ],
             'status' => ['required', new Enum(PaymentStatus::class)],
         ];
     }

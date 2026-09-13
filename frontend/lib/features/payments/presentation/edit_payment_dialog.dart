@@ -7,6 +7,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/decimal_input_formatter.dart';
 import '../application/payment_list_notifier.dart';
+import 'widgets/remaining_line.dart';
 import '../data/models/payment.dart';
 
 class EditPaymentDialog extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class EditPaymentDialog extends ConsumerStatefulWidget {
 class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _amountController = TextEditingController(text: widget.payment.amount.toStringAsFixed(2));
+  late final _paidAmountController = TextEditingController(text: widget.payment.paidAmount.toStringAsFixed(2));
   late final _referenceController = TextEditingController(text: widget.payment.referenceNumber ?? '');
   late final _notesController = TextEditingController(text: widget.payment.notes ?? '');
 
@@ -35,9 +37,28 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
   @override
   void dispose() {
     _amountController.dispose();
+    _paidAmountController.dispose();
     _referenceController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  double? get _enteredAmount => double.tryParse(_amountController.text);
+
+  /// Only sent for a part-payment - for every other status the API derives
+  /// it from the status, which keeps the two from contradicting each other.
+  double? get _paidAmount =>
+      _status == PaymentStatus.partial ? double.tryParse(_paidAmountController.text) : null;
+
+  String? _validatePaidAmount(String? value) {
+    final paid = double.tryParse(value ?? '');
+    if (paid == null || paid <= 0) return 'Enter how much has been received';
+
+    final total = _enteredAmount;
+    if (total != null && paid > total) return 'This is more than the payment amount';
+    if (total != null && paid == total) return 'Received in full - choose Paid instead';
+
+    return null;
   }
 
   Future<void> _pickDate() async {
@@ -65,6 +86,7 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
             widget.payment,
             paymentType: _paymentType,
             amount: double.parse(_amountController.text),
+            paidAmount: _paidAmount,
             paymentDate: _paymentDate,
             paymentMode: _paymentMode,
             referenceNumber: _referenceController.text.trim().isEmpty ? null : _referenceController.text.trim(),
@@ -146,6 +168,27 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
                   ],
                   onChanged: (value) => setState(() => _status = value!),
                 ),
+                // Only a part-payment needs a second figure; for the others
+                // the status already says what was received.
+                if (_status == PaymentStatus.partial) ...[
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _paidAmountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [DecimalTextInputFormatter()],
+                    decoration: const InputDecoration(
+                      labelText: 'Amount received',
+                      helperText: 'How much has arrived so far.',
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    validator: _validatePaidAmount,
+                  ),
+                  RemainingLine(
+                    amount: _enteredAmount,
+                    paidAmount: _paidAmount,
+                    currencyCode: widget.payment.currencyCode,
+                  ),
+                ],
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _referenceController,

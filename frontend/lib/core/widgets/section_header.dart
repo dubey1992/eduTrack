@@ -21,7 +21,18 @@ class SectionHeader extends StatelessWidget {
         runSpacing: 8,
         children: [
           Text(title, style: Theme.of(context).textTheme.titleLarge),
-          if (actions.isNotEmpty) Wrap(spacing: 8, children: actions),
+          if (actions.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              // Without this the actions sit flush against each other once
+              // they wrap onto a second line, and a field's floating label
+              // ends up underneath the button above it. On a phone the
+              // actions almost always wrap, so this is the common case, not
+              // the edge case.
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: actions,
+            ),
         ],
       ),
     );

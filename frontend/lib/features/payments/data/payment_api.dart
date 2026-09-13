@@ -25,6 +25,7 @@ class PaymentApi {
     required int schoolId,
     required PaymentType paymentType,
     required double amount,
+    double? paidAmount,
     required DateTime paymentDate,
     required PaymentMode paymentMode,
     String? referenceNumber,
@@ -37,6 +38,9 @@ class PaymentApi {
         'school_id': schoolId,
         'payment_type': paymentType.apiValue,
         'amount': amount.toStringAsFixed(2),
+        // Omitted entirely when the form did not ask for a figure: the API
+        // then reads it from the status, so "mark it paid" still works.
+        'paid_amount': ?paidAmount?.toStringAsFixed(2),
         'payment_date': DateFormat('yyyy-MM-dd').format(paymentDate),
         'payment_mode': paymentMode.apiValue,
         'reference_number': referenceNumber,
@@ -57,6 +61,7 @@ class PaymentApi {
     int paymentId, {
     PaymentType? paymentType,
     double? amount,
+    double? paidAmount,
     DateTime? paymentDate,
     PaymentMode? paymentMode,
     String? referenceNumber,
@@ -70,6 +75,7 @@ class PaymentApi {
       data: {
         'payment_type': ?paymentType?.apiValue,
         'amount': ?amount?.toStringAsFixed(2),
+        'paid_amount': ?paidAmount?.toStringAsFixed(2),
         'payment_date': ?formattedDate,
         'payment_mode': ?paymentMode?.apiValue,
         'reference_number': referenceNumber,
@@ -77,6 +83,13 @@ class PaymentApi {
         'status': ?status?.apiValue,
       },
     );
+
+    return Payment.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Asks the server to email the receipt again.
+  Future<Payment> sendReceipt(int paymentId) async {
+    final response = await _dio.post('/payments/$paymentId/receipt');
 
     return Payment.fromJson(response.data as Map<String, dynamic>);
   }

@@ -29,6 +29,9 @@ class UpdatePaymentRequest extends FormRequest
             'payment_mode' => ['sometimes', 'required', new Enum(PaymentMode::class)],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'paid_amount' => [
+                'sometimes', 'nullable', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/',
+            ],
             'status' => ['sometimes', 'required', new Enum(PaymentStatus::class)],
         ];
     }

@@ -18,6 +18,8 @@ Payment _payment({
     schoolName: schoolName,
     paymentType: PaymentType.setupFee,
     amount: 25000,
+    paidAmount: 25000,
+    remainingAmount: 0,
     currencyCode: 'INR',
     paymentDate: DateTime(2026, 9, 1),
     paymentMode: PaymentMode.bankTransfer,

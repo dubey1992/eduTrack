@@ -137,9 +137,25 @@ class _PaymentListMobile extends StatelessWidget {
         return Card(
           child: ListTile(
             title: Text(payment.schoolName ?? 'School #${payment.schoolId}'),
-            subtitle: Text(
-              '${payment.paymentType.label} · ${formatCurrency(payment.amount, payment.currencyCode)}\n'
-              '${DateFormat.yMMMd().format(payment.paymentDate)}',
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${payment.paymentType.label} · ${formatCurrency(payment.amount, payment.currencyCode)}\n'
+                  '${DateFormat.yMMMd().format(payment.paymentDate)}',
+                ),
+                // An outstanding balance is the thing someone scanning this
+                // list needs to see; making them open each row to find it
+                // defeats the point of the list.
+                if (payment.hasBalance)
+                  Text(
+                    '${formatCurrency(payment.remainingAmount, payment.currencyCode)} remaining',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+              ],
             ),
             isThreeLine: true,
             trailing: Row(
@@ -185,6 +201,7 @@ class _PaymentListDesktop extends StatelessWidget {
               DataColumn(label: Text('School')),
               DataColumn(label: Text('Type')),
               DataColumn(label: Text('Amount')),
+              DataColumn(label: Text('Balance')),
               DataColumn(label: Text('Date')),
               DataColumn(label: Text('Mode')),
               DataColumn(label: Text('Status')),
@@ -197,6 +214,7 @@ class _PaymentListDesktop extends StatelessWidget {
                     DataCell(Text(payment.schoolName ?? 'School #${payment.schoolId}')),
                     DataCell(Text(payment.paymentType.label)),
                     DataCell(Text(formatCurrency(payment.amount, payment.currencyCode))),
+                    DataCell(_BalanceCell(payment: payment)),
                     DataCell(Text(DateFormat.yMMMd().format(payment.paymentDate))),
                     DataCell(Text(payment.paymentMode.label)),
                     DataCell(_PaymentStatusBadge(status: payment.status)),
@@ -228,6 +246,24 @@ class _PaymentListDesktop extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// What is still owed, or a dash when nothing is. Coloured, because a
+/// balance is the exception on this screen and should read as one.
+class _BalanceCell extends StatelessWidget {
+  const _BalanceCell({required this.payment});
+
+  final Payment payment;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!payment.hasBalance) return const Text('-');
+
+    return Text(
+      formatCurrency(payment.remainingAmount, payment.currencyCode),
+      style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.error),
     );
   }
 }

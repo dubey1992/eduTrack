@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../auth/application/school_clock_provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/decimal_input_formatter.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../auth/application/school_clock_provider.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../schools/data/models/school.dart';
 import '../application/payment_list_notifier.dart';
 import '../data/models/payment.dart';
+import 'widgets/remaining_line.dart';
 
 class AddPaymentDialog extends ConsumerStatefulWidget {
   const AddPaymentDialog({super.key});
@@ -22,6 +23,7 @@ class AddPaymentDialog extends ConsumerStatefulWidget {
 class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
+  final _paidAmountController = TextEditingController();
   final _referenceController = TextEditingController();
   final _notesController = TextEditingController();
 
@@ -43,9 +45,40 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
   @override
   void dispose() {
     _amountController.dispose();
+    _paidAmountController.dispose();
     _referenceController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  /// The amount typed into the form, or null while it is unreadable.
+  double? get _enteredAmount => double.tryParse(_amountController.text);
+
+  /// Only sent for a part-payment. For every other status the API works the
+  /// received amount out from the status itself, which keeps the two from
+  /// ever contradicting each other.
+  double? get _paidAmount =>
+      _status == PaymentStatus.partial ? double.tryParse(_paidAmountController.text) : null;
+
+  String? _validatePaidAmount(String? value) {
+    final paid = double.tryParse(value ?? '');
+    if (paid == null || paid <= 0) return 'Enter how much has been received';
+
+    final total = _enteredAmount;
+    if (total != null && paid > total) return 'This is more than the payment amount';
+    if (total != null && paid == total) return 'Received in full - choose Paid instead';
+
+    return null;
+  }
+
+  /// The currency of the school the payment is for, so the remaining figure
+  /// is shown in the money the school actually pays in.
+  String _selectedCurrency(List<School>? schools) {
+    for (final school in schools ?? const <School>[]) {
+      if (school.id == _schoolId) return school.currencyCode;
+    }
+
+    return '';
   }
 
   Future<void> _pickDate() async {
@@ -73,6 +106,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
             schoolId: _schoolId!,
             paymentType: _paymentType,
             amount: double.parse(_amountController.text),
+            paidAmount: _paidAmount,
             paymentDate: _paymentDate,
             paymentMode: _paymentMode,
             referenceNumber: _referenceController.text.trim().isEmpty ? null : _referenceController.text.trim(),
@@ -181,6 +215,29 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                   ],
                   onChanged: (value) => setState(() => _status = value!),
                 ),
+                // Only a part-payment needs a second figure. For the others
+                // the status already says what was received - all of it, or
+                // none of it yet - and asking twice invites the two to
+                // disagree.
+                if (_status == PaymentStatus.partial) ...[
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _paidAmountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [DecimalTextInputFormatter()],
+                    decoration: const InputDecoration(
+                      labelText: 'Amount received',
+                      helperText: 'How much has arrived so far.',
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    validator: _validatePaidAmount,
+                  ),
+                  RemainingLine(
+                    amount: _enteredAmount,
+                    paidAmount: _paidAmount,
+                    currencyCode: _selectedCurrency(schoolsState.value),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _referenceController,

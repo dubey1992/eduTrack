@@ -83,7 +83,7 @@ void main() {
 
     await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'admin@example.com');
     await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'password');
-    await tester.tap(find.widgetWithText(CheckboxListTile, 'Remember me'));
+    await tester.tap(find.text('Remember me'));
     await tester.tap(find.widgetWithText(ElevatedButton, 'Sign In'));
     await tester.pumpAndSettle();
 
@@ -110,7 +110,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('returning.admin@example.com'), findsOneWidget);
-    final checkbox = tester.widget<CheckboxListTile>(find.widgetWithText(CheckboxListTile, 'Remember me'));
+    final checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
     expect(checkbox.value, isTrue);
   });
 

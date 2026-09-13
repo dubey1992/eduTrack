@@ -6,5 +6,7 @@ import 'package:intl/intl.dart';
 /// currency it was recorded in, and this is the single place that turns
 /// that pair into display text.
 String formatCurrency(num amount, String currencyCode) {
-  return NumberFormat.currency(name: currencyCode, customPattern: '¤#,##0.00').format(amount);
+  // A space after the code, so "INR 50,000.00" reads the same here as it
+  // does on the PDF receipt the school receives.
+  return NumberFormat.currency(name: currencyCode, customPattern: '¤ #,##0.00').format(amount);
 }

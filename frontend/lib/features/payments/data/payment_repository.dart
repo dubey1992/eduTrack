@@ -36,6 +36,7 @@ class PaymentRepository {
     required int schoolId,
     required PaymentType paymentType,
     required double amount,
+    double? paidAmount,
     required DateTime paymentDate,
     required PaymentMode paymentMode,
     String? referenceNumber,
@@ -47,6 +48,7 @@ class PaymentRepository {
         schoolId: schoolId,
         paymentType: paymentType,
         amount: amount,
+        paidAmount: paidAmount,
         paymentDate: paymentDate,
         paymentMode: paymentMode,
         referenceNumber: referenceNumber,
@@ -70,6 +72,7 @@ class PaymentRepository {
     int paymentId, {
     PaymentType? paymentType,
     double? amount,
+    double? paidAmount,
     DateTime? paymentDate,
     PaymentMode? paymentMode,
     String? referenceNumber,
@@ -81,12 +84,22 @@ class PaymentRepository {
         paymentId,
         paymentType: paymentType,
         amount: amount,
+        paidAmount: paidAmount,
         paymentDate: paymentDate,
         paymentMode: paymentMode,
         referenceNumber: referenceNumber,
         notes: notes,
         status: status,
       );
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  /// Asks the server to email the receipt to the school's admins again.
+  Future<Payment> sendReceipt(int paymentId) async {
+    try {
+      return await _api.sendReceipt(paymentId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

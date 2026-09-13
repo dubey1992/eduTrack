@@ -17,6 +17,8 @@ final _payment = Payment(
   schoolName: 'Sunrise Public School',
   paymentType: PaymentType.setupFee,
   amount: 25000,
+  paidAmount: 25000,
+  remainingAmount: 0,
   currencyCode: 'INR',
   paymentDate: DateTime(2026, 9, 1),
   paymentMode: PaymentMode.bankTransfer,
@@ -72,7 +74,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Payment Receipt'), findsOneWidget);
-    expect(find.text('PMT-000001'), findsOneWidget);
+    expect(find.text('RCPT-000001'), findsOneWidget);
   });
 
   testWidgets('shows an error state with a retry button when the repository throws', (tester) async {

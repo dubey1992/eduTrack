@@ -94,22 +94,37 @@ class LoginCard extends StatelessWidget {
               },
               onFieldSubmitted: (_) => isSubmitting ? null : onSubmit(),
             ),
-            Row(
+            // A Wrap, not a Row: on a narrow phone the two controls cannot
+            // share a line, and a Row squeezed "Remember me" until it broke
+            // mid-word ("Remem / ber me"). Here the link drops to its own
+            // line instead.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: 4,
               children: [
-                Expanded(
-                  child: CheckboxListTile(
-                    value: rememberMe,
-                    onChanged: (value) => onRememberMeChanged(value ?? false),
-                    // Explicit colors throughout, same as every other
-                    // control here - this card intentionally carries the
-                    // marketing palette regardless of the device's
-                    // light/dark setting (see MarketingColors), so nothing
-                    // here can fall back to the admin app's ambient theme.
-                    activeColor: MarketingColors.primary,
-                    title: const Text('Remember me', style: TextStyle(fontSize: 14, color: MarketingColors.text)),
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
+                InkWell(
+                  onTap: () => onRememberMeChanged(!rememberMe),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Checkbox(
+                        value: rememberMe,
+                        onChanged: (value) => onRememberMeChanged(value ?? false),
+                        // Explicit colors throughout, same as every other
+                        // control here - this card intentionally carries the
+                        // marketing palette regardless of the device's
+                        // light/dark setting (see MarketingColors), so
+                        // nothing here can fall back to the admin app's
+                        // ambient theme.
+                        activeColor: MarketingColors.primary,
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      const SizedBox(width: 6),
+                      const Text('Remember me', style: TextStyle(fontSize: 14, color: MarketingColors.text)),
+                    ],
                   ),
                 ),
                 TextButton(

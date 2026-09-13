@@ -59,6 +59,7 @@ class PaymentListNotifier extends AsyncNotifier<PagedList<Payment>> {
     required int schoolId,
     required PaymentType paymentType,
     required double amount,
+    double? paidAmount,
     required DateTime paymentDate,
     required PaymentMode paymentMode,
     String? referenceNumber,
@@ -71,6 +72,7 @@ class PaymentListNotifier extends AsyncNotifier<PagedList<Payment>> {
           schoolId: schoolId,
           paymentType: paymentType,
           amount: amount,
+          paidAmount: paidAmount,
           paymentDate: paymentDate,
           paymentMode: paymentMode,
           referenceNumber: referenceNumber,
@@ -86,6 +88,7 @@ class PaymentListNotifier extends AsyncNotifier<PagedList<Payment>> {
     Payment payment, {
     PaymentType? paymentType,
     double? amount,
+    double? paidAmount,
     DateTime? paymentDate,
     PaymentMode? paymentMode,
     String? referenceNumber,
@@ -98,6 +101,7 @@ class PaymentListNotifier extends AsyncNotifier<PagedList<Payment>> {
           payment.id,
           paymentType: paymentType,
           amount: amount,
+          paidAmount: paidAmount,
           paymentDate: paymentDate,
           paymentMode: paymentMode,
           referenceNumber: referenceNumber,
@@ -109,6 +113,16 @@ class PaymentListNotifier extends AsyncNotifier<PagedList<Payment>> {
       (page) => page.withItems([for (final existing in page.items) existing.id == updated.id ? updated : existing]),
     );
     ref.invalidate(paymentSummaryNotifierProvider);
+  }
+
+  /// Emails the receipt to the school's admins again, and folds the
+  /// refreshed payment (with its new "sent" time) back into the list.
+  Future<void> sendReceipt(Payment payment) async {
+    final updated = await ref.read(paymentRepositoryProvider).sendReceipt(payment.id);
+
+    state = state.whenData(
+      (page) => page.withItems([for (final existing in page.items) existing.id == updated.id ? updated : existing]),
+    );
   }
 
   Future<void> updateStatus(Payment payment, PaymentStatus status) async {

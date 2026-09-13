@@ -12,8 +12,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'school_id', 'payment_type', 'amount', 'currency_code', 'payment_date',
-    'payment_mode', 'reference_number', 'notes', 'status', 'created_by',
+    'school_id', 'payment_type', 'amount', 'paid_amount', 'currency_code',
+    'payment_date', 'payment_mode', 'reference_number', 'notes', 'status',
+    'receipt_sent_at', 'created_by',
 ])]
 class Payment extends Model
 {
@@ -28,7 +29,49 @@ class Payment extends Model
             'status' => PaymentStatus::class,
             'payment_date' => 'date',
             'amount' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
+            'receipt_sent_at' => 'datetime',
         ];
+    }
+
+    /**
+     * What is still owed on this payment.
+     *
+     * Derived, never stored - a remaining balance kept in its own column is
+     * one that can drift out of step with the two figures it comes from.
+     * A cancelled payment owes nothing.
+     */
+    public function remainingAmount(): string
+    {
+        if ($this->status === PaymentStatus::Cancelled) {
+            return '0.00';
+        }
+
+        return number_format(max(0, (float) $this->amount - (float) $this->paid_amount), 2, '.', '');
+    }
+
+    public function isFullySettled(): bool
+    {
+        return (float) $this->paid_amount >= (float) $this->amount;
+    }
+
+    /**
+     * The status these figures describe.
+     *
+     * Cancelled is the one status a person chooses; the rest follow from the
+     * money, so a row can never read "Paid" with a balance outstanding.
+     */
+    public static function statusFor(float $amount, float $paidAmount, ?PaymentStatus $requested = null): PaymentStatus
+    {
+        if ($requested === PaymentStatus::Cancelled) {
+            return PaymentStatus::Cancelled;
+        }
+
+        return match (true) {
+            $paidAmount <= 0 => PaymentStatus::Pending,
+            $paidAmount >= $amount => PaymentStatus::Paid,
+            default => PaymentStatus::Partial,
+        };
     }
 
     /**
