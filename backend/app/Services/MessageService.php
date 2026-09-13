@@ -6,10 +6,12 @@ use App\Enums\MessageChannel;
 use App\Enums\MessageStatus;
 use App\Enums\UserRole;
 use App\Jobs\SendMessageJob;
+use App\Models\CommunicationSetting;
 use App\Models\Message;
 use App\Models\User;
 use App\Support\Pagination;
 use App\Support\SchoolClock;
+use App\Support\Sms\SmsGatewayManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -43,6 +45,10 @@ class MessageService
     public function summary(User $actor, array $filters): array
     {
         [$dayStart, $dayEnd] = SchoolClock::forScope($actor, $filters['school_id'] ?? null)->todayRange();
+        $gateways = app(SmsGatewayManager::class);
+        $provider = CommunicationSetting::query()
+            ->where('school_id', $this->schoolIdFor($actor, $filters))
+            ->value('provider');
         $todayQuery = $this->scoped($actor, $filters)
             ->where('created_at', '>=', $dayStart)
             ->where('created_at', '<', $dayEnd);
@@ -68,6 +74,11 @@ class MessageService
             'skipped_today' => $skippedToday,
             'delivery_rate' => $attempted === 0 ? null : round($sentToday / $attempted * 100, 1),
             'total' => $this->scoped($actor, $filters)->count(),
+            // What is actually carrying these messages. Until a real provider
+            // is configured the answer is a gateway that delivers nothing,
+            // and the screen has to say so next to the word "Sent".
+            'provider_label' => $gateways->label($provider),
+            'provider_delivers' => $gateways->delivers($provider),
         ];
     }
 
@@ -145,6 +156,23 @@ class MessageService
      * @param  array<string, mixed>  $filters
      * @return Builder<Message>
      */
+    /**
+     * Which school's settings decide the gateway. A Super Admin looking
+     * across every school has none, so the platform default answers.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function schoolIdFor(User $actor, array $filters): ?int
+    {
+        if ($actor->role !== UserRole::SuperAdmin) {
+            return $actor->school_id;
+        }
+
+        $schoolId = $filters['school_id'] ?? null;
+
+        return $schoolId === null ? null : (int) $schoolId;
+    }
+
     private function scoped(User $actor, array $filters): Builder
     {
         $clock = SchoolClock::forScope($actor, $filters['school_id'] ?? null);

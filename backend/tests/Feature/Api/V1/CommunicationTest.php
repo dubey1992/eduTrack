@@ -604,4 +604,48 @@ class CommunicationTest extends TestCase
         );
         $this->assertSame(AttendanceAlertMode::PresentAndAbsent, AttendanceAlertMode::from('both'));
     }
+
+    // -- which gateway is really carrying the messages -------------------
+
+    public function test_the_summary_says_when_the_gateway_delivers_nothing(): void
+    {
+        // The demo gateway writes to the log and stops. A school reading
+        // "Sent" has to be told that, or it will assume a parent was texted.
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/communication/summary')
+            ->assertOk()
+            ->assertJsonPath('provider_label', 'Demo Gateway')
+            ->assertJsonPath('provider_delivers', false);
+    }
+
+    public function test_a_real_gateway_is_not_flagged_as_undelivered(): void
+    {
+        config(['communication.gateways.acme' => ['driver' => 'log', 'label' => 'Acme SMS', 'delivers' => true]]);
+
+        $school = School::factory()->create();
+        CommunicationSetting::factory()->forSchool($school)->create(['provider' => 'acme']);
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/communication/summary')
+            ->assertOk()
+            ->assertJsonPath('provider_label', 'Acme SMS')
+            ->assertJsonPath('provider_delivers', true);
+    }
+
+    public function test_a_gateway_that_is_no_longer_installed_reports_the_one_actually_used(): void
+    {
+        // The school still names a provider that has been removed from
+        // config; sending silently falls back to the default, so the summary
+        // must describe the fallback rather than the missing gateway.
+        $school = School::factory()->create();
+        CommunicationSetting::factory()->forSchool($school)->create(['provider' => 'retired-provider']);
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/communication/summary')
+            ->assertOk()
+            ->assertJsonPath('provider_label', 'Demo Gateway')
+            ->assertJsonPath('provider_delivers', false);
+    }
 }

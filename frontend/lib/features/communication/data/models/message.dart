@@ -156,6 +156,8 @@ class MessageSummary {
     required this.skippedToday,
     required this.deliveryRate,
     required this.total,
+    this.providerLabel,
+    this.providerDelivers = true,
   });
 
   factory MessageSummary.fromJson(Map<String, dynamic> json) {
@@ -167,6 +169,10 @@ class MessageSummary {
       skippedToday: json['skipped_today'] as int? ?? 0,
       deliveryRate: (json['delivery_rate'] as num?)?.toDouble(),
       total: json['total'] as int? ?? 0,
+      providerLabel: json['provider_label'] as String?,
+      // Assume delivery unless the server says otherwise, so an older
+      // response can never silently suppress the warning.
+      providerDelivers: json['provider_delivers'] as bool? ?? true,
     );
   }
 
@@ -177,6 +183,13 @@ class MessageSummary {
   final int queuedToday;
   final int failedToday;
   final int skippedToday;
+
+  /// The gateway actually carrying these messages, e.g. "Demo Gateway".
+  final String? providerLabel;
+
+  /// False when that gateway writes messages to a log and sends nothing -
+  /// the state a deployment is in before a real SMS provider is configured.
+  final bool providerDelivers;
 
   /// Null when nothing was attempted today, so the screen shows a dash
   /// rather than a misleading 0%.

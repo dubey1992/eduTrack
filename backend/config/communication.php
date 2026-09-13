@@ -21,6 +21,10 @@ return [
         'log' => [
             'driver' => 'log',
             'label' => 'Demo Gateway',
+            // Writes the message to the log and stops there. Nothing reaches
+            // a phone, so the app has to say so rather than let a school
+            // read "Sent" and assume a parent was told.
+            'delivers' => false,
         ],
     ],
 

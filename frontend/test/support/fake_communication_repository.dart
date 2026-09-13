@@ -14,9 +14,17 @@ class FakeCommunicationRepository implements CommunicationRepository {
     List<MessageTemplate>? templates,
     CommunicationSettings? settings,
     this.failWith,
+    this.providerLabel = 'Acme SMS',
+    this.providerDelivers = true,
   }) : _messages = messages ?? [],
        _templates = templates ?? [...defaultTemplates],
        _settings = settings ?? defaultSettings;
+
+  /// What the summary reports about the gateway. Defaults to one that
+  /// really sends, so only tests about the demo gateway have to think
+  /// about it.
+  final String providerLabel;
+  final bool providerDelivers;
 
   final List<Message> _messages;
   List<MessageTemplate> _templates;
@@ -98,6 +106,8 @@ class FakeCommunicationRepository implements CommunicationRepository {
       skippedToday: skipped,
       deliveryRate: attempted == 0 ? null : (sent / attempted * 100),
       total: _messages.length,
+      providerLabel: providerLabel,
+      providerDelivers: providerDelivers,
     );
   }
 

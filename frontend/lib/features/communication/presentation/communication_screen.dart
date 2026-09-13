@@ -19,6 +19,7 @@ import '../application/message_page_notifier.dart';
 import '../data/models/message.dart';
 import 'communication_settings_dialog.dart';
 import 'message_detail_dialog.dart';
+import 'widgets/demo_gateway_notice.dart';
 import 'message_templates_dialog.dart';
 
 /// Phase 16 - the prototype's "Communication Center": today's KPI tiles, the
@@ -135,6 +136,7 @@ class _CommunicationScreenState extends ConsumerState<CommunicationScreen> {
               ),
             )
           else ...[
+            DemoGatewayNotice(schoolId: _schoolId),
             _SummaryTiles(schoolId: _schoolId),
             const SizedBox(height: 16),
             _CategoryTabs(

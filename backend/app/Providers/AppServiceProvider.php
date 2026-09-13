@@ -3,8 +3,12 @@
 namespace App\Providers;
 
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -35,5 +39,40 @@ class AppServiceProvider extends ServiceProvider
 
             return "{$frontendUrl}/reset-password?token={$token}&email={$user->getEmailForPasswordReset()}";
         });
+
+        $this->configureRateLimiting();
+    }
+
+    /**
+     * Limits on the endpoints that accept a password or hand out a reset
+     * link - the only ones an attacker can attack without an account.
+     *
+     * Each is limited per account *and* per address. A school usually sits
+     * behind one public IP, so limiting by address alone would let one
+     * person mistyping their password lock out the whole staff room; keying
+     * on the account stops that, and the looser per-address limit still
+     * catches someone working through a list of addresses.
+     */
+    private function configureRateLimiting(): void
+    {
+        RateLimiter::for('login', fn (Request $request) => [
+            Limit::perMinute(5)->by($this->accountKey($request)),
+            Limit::perMinute(30)->by($request->ip()),
+        ]);
+
+        // Tighter: each attempt sends a real email, so this is also a way to
+        // spam somebody's inbox.
+        RateLimiter::for('password-reset', fn (Request $request) => [
+            Limit::perMinute(3)->by($this->accountKey($request)),
+            Limit::perMinute(10)->by($request->ip()),
+        ]);
+    }
+
+    /**
+     * One attacker guessing one account, as opposed to one office.
+     */
+    private function accountKey(Request $request): string
+    {
+        return Str::lower((string) $request->input('email')).'|'.$request->ip();
     }
 }

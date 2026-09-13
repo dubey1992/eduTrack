@@ -34,9 +34,13 @@ use Illuminate\Support\Facades\Route;
 
 // Mounted under /api/v1 (see bootstrap/app.php apiPrefix).
 
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgot']);
-Route::post('/auth/reset-password', [PasswordResetController::class, 'reset']);
+// The only endpoints reachable without a token, so the only ones that can be
+// attacked by guessing. Limits are defined in AppServiceProvider.
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgot'])
+    ->middleware('throttle:password-reset');
+Route::post('/auth/reset-password', [PasswordResetController::class, 'reset'])
+    ->middleware('throttle:password-reset');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);

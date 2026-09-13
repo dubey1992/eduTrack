@@ -12,6 +12,7 @@ import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/announcement_page_notifier.dart';
 import '../data/models/announcement.dart';
+import '../../communication/presentation/widgets/demo_gateway_notice.dart';
 import 'new_announcement_dialog.dart';
 
 /// Phase 17 - what has been announced, and the button that publishes the next
@@ -107,6 +108,9 @@ class _AnnouncementScreenState extends ConsumerState<AnnouncementScreen> {
               ),
             )
           else ...[
+            // Announcements report how many people they reached "by SMS",
+            // which is only true if a real gateway is carrying them.
+            DemoGatewayNotice(schoolId: _schoolId),
             _FilterBar(
               audience: notifier.audienceType,
               activeOnly: notifier.activeOnly,
