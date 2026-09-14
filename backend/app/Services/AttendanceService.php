@@ -8,6 +8,7 @@ use App\Enums\StudentStatus;
 use App\Enums\UserRole;
 use App\Exceptions\AttendanceAlreadySubmittedException;
 use App\Exceptions\AttendanceOnHolidayException;
+use App\Exceptions\NonWorkingDayException;
 use App\Models\Attendance;
 use App\Models\ClassSection;
 use App\Models\Holiday;
@@ -84,6 +85,26 @@ class AttendanceService
     }
 
     /**
+     * A register can only be taken for a day the school actually ran.
+     *
+     * Both halves matter: a holiday names itself, and a weekend is refused
+     * too, because every working-day figure in the product excludes both. A
+     * Saturday register that no percentage counts is worse than none.
+     */
+    private function assertSchoolIsOpen(int $schoolId, string $date): void
+    {
+        $holiday = $this->holidayService->holidayOn($schoolId, $date);
+
+        if ($holiday !== null) {
+            throw new AttendanceOnHolidayException("Attendance cannot be marked on {$holiday->name} - it is a holiday.");
+        }
+
+        if (! $this->holidayService->isWorkingDay($schoolId, $date)) {
+            throw new NonWorkingDayException('Attendance cannot be marked on a weekend - the school is closed.');
+        }
+    }
+
+    /**
      * Corrects an already-submitted day (or fills in a student the first
      * submission missed) - an explicit, separate action from submit().
      *
@@ -106,10 +127,7 @@ class AttendanceService
         $schoolId = $section->schoolClass->school_id;
         $academicYearId = $section->schoolClass->academic_year_id;
 
-        $holiday = $this->holidayService->holidayOn($schoolId, $data['attendance_date']);
-        if ($holiday !== null) {
-            throw new AttendanceOnHolidayException("Attendance cannot be marked on {$holiday->name} - it is a holiday.");
-        }
+        $this->assertSchoolIsOpen($schoolId, $data['attendance_date']);
 
         return DB::transaction(function () use ($section, $data, $actor, $schoolId, $academicYearId) {
             $changed = [];

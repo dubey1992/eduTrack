@@ -40,6 +40,11 @@ dependencies:
   intl: ^0.20.3
   flutter_secure_storage: ^11.0.0
   google_fonts: ^6.3.2
+  # Saving a report as a CSV needs the browser's own download mechanism, and
+  # dart:html is deprecated. This is the Dart team's replacement and is
+  # already in the tree as a transitive dependency; declared here because the
+  # app imports it directly.
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

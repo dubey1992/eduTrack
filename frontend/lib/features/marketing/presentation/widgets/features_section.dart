@@ -44,7 +44,10 @@ class FeaturesSection extends StatelessWidget {
                   itemCount: _features.length,
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
-                    mainAxisExtent: 150,
+                    // Two columns means narrower cards, and narrower cards
+                    // wrap their body text onto more lines - a single fixed
+                    // height for both layouts overflowed the phone one.
+                    mainAxisExtent: columns == 5 ? 150 : 190,
                     crossAxisSpacing: 18,
                     mainAxisSpacing: 26,
                   ),
@@ -96,10 +99,16 @@ class _FeatureCard extends StatelessWidget {
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: MarketingColors.text),
         ),
         const SizedBox(height: 5),
-        Text(
-          body,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 13, color: MarketingColors.subtle),
+        // Flexible, so an unusually long line trims instead of overflowing
+        // the fixed-height grid cell it lives in.
+        Flexible(
+          child: Text(
+            body,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 4,
+            style: const TextStyle(fontSize: 13, color: MarketingColors.subtle),
+          ),
         ),
       ],
     );

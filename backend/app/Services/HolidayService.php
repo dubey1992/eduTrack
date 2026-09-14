@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Enums\UserRole;
 use App\Exceptions\HolidayOverlapException;
+use App\Models\Attendance;
+use App\Models\DailyTeachingReport;
 use App\Models\Holiday;
+use App\Models\StaffAttendance;
 use App\Models\User;
 use App\Support\Pagination;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -52,7 +55,9 @@ class HolidayService
 
         $this->assertNoOverlap($data['school_id'], $data['start_date'], $data['end_date']);
 
-        return Holiday::create($data);
+        $holiday = Holiday::create($data);
+
+        return $this->withAffectedRecords($holiday);
     }
 
     /**
@@ -65,6 +70,37 @@ class HolidayService
         $this->assertNoOverlap($holiday->school_id, $start, $end, ignoreId: $holiday->id);
 
         $holiday->update($data);
+
+        return $this->withAffectedRecords($holiday);
+    }
+
+    /**
+     * Counts the day's records that now sit on a non-working day.
+     *
+     * A holiday declared after the fact is a legitimate correction - a strike
+     * day, a closure nobody knew about on the morning. What is not legitimate
+     * is doing it silently: those records stop counting towards every
+     * working-day figure in the product, so whoever declared it is told how
+     * many there are and can go and clear them.
+     */
+    private function withAffectedRecords(Holiday $holiday): Holiday
+    {
+        $between = [$holiday->start_date->toDateString(), $holiday->end_date->toDateString()];
+
+        $holiday->setAttribute('affected_records', [
+            'attendance' => Attendance::query()
+                ->where('school_id', $holiday->school_id)
+                ->whereBetween('attendance_date', $between)
+                ->count(),
+            'staff_attendance' => StaffAttendance::query()
+                ->where('school_id', $holiday->school_id)
+                ->whereBetween('attendance_date', $between)
+                ->count(),
+            'teaching_reports' => DailyTeachingReport::query()
+                ->where('school_id', $holiday->school_id)
+                ->whereBetween('report_date', $between)
+                ->count(),
+        ]);
 
         return $holiday;
     }

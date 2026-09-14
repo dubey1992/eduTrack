@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\UserRole;
+use App\Exceptions\NonWorkingDayException;
 use App\Exceptions\TeachingReportAlreadyReviewedException;
 use App\Exceptions\TeachingReportAlreadySubmittedException;
 use App\Exceptions\TeachingReportOnHolidayException;
@@ -30,6 +31,12 @@ class DailyTeachingReportService
         $holiday = $this->holidayService->holidayOn($entry->school_id, $data['report_date']);
         if ($holiday !== null) {
             throw new TeachingReportOnHolidayException("No periods are taught on {$holiday->name} - it is a holiday.");
+        }
+
+        // The timetable runs Monday to Friday, so a weekend period is not a
+        // period that existed to be taught.
+        if (! $this->holidayService->isWorkingDay($entry->school_id, $data['report_date'])) {
+            throw new NonWorkingDayException('No periods are taught at the weekend - the school is closed.');
         }
 
         $this->assertNoDuplicate($entry->id, $data['report_date']);

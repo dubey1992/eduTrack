@@ -5,6 +5,7 @@ import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/dio_client.dart';
 import 'package:edutrack_app/core/routing/app_router.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
+import 'package:edutrack_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/auth/presentation/login_screen.dart';
 import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
@@ -19,6 +20,7 @@ import '../../support/fake_auth_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
 import '../../support/fake_school_class_repository.dart';
 import '../../support/fake_student_repository.dart';
+import '../../support/fake_dashboard_repository.dart';
 import '../../support/fake_user_repository.dart';
 
 const _superAdmin = AuthenticatedUser(
@@ -31,28 +33,53 @@ const _superAdmin = AuthenticatedUser(
 const _teacher = AuthenticatedUser(id: 2, name: 'A Teacher', email: 'teacher@example.com', role: UserRole.teacher);
 
 void main() {
-  testWidgets('a super admin sees the Manage Users entry point on the dashboard', (tester) async {
+  testWidgets('a super admin sees the admin-only navigation', (tester) async {
+    // Desktop width: below the breakpoint the shell puts the sidebar behind a
+    // drawer, where none of its entries are on screen to find.
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _superAdmin))],
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _superAdmin)),
+          // The dashboard fetches its figures on mount; without this the
+          // screen sits on a spinner and pumpAndSettle never returns.
+          dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+        ],
         child: const EduTrackApp(),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Manage Users'), findsOneWidget);
+    // Reports sits at the top of the sidebar and is admin-only, so it is
+    // both on screen and a genuine test of the role gate. "Admin Users" is
+    // further down a lazily-built list and may not be built at all.
+    expect(find.text('Reports'), findsWidgets);
   });
 
-  testWidgets('a non-super-admin does not see the Manage Users entry point', (tester) async {
+  testWidgets('a teacher does not see the admin-only navigation', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _teacher))],
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _teacher)),
+          dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+        ],
         child: const EduTrackApp(),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Manage Users'), findsNothing);
+    // A teacher marks their own register rather than pulling a school-wide
+    // report, so the entry is not offered at all.
+    expect(find.text('Reports'), findsNothing);
   });
 
   testWidgets('a non-super-admin is redirected away from /users back to the dashboard', (tester) async {
@@ -60,6 +87,7 @@ void main() {
       overrides: [
         authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _teacher)),
         userRepositoryProvider.overrideWithValue(FakeUserRepository()),
+        dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
       ],
     );
     addTearDown(container.dispose);
@@ -73,7 +101,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Admin Users'), findsNothing);
-    expect(find.text('Dashboard'), findsOneWidget);
+    expect(find.text('Dashboard'), findsWidgets);
   });
 
   testWidgets('a failed login shows its error message without losing the login screen', (tester) async {

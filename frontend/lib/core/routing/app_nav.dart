@@ -61,6 +61,16 @@ class AppNav {
         pageTitle: 'Dashboard',
         pageSubtitle: 'Daily school operations overview',
       ),
+      NavItem(
+        path: '/reports',
+        label: 'Reports',
+        icon: Icons.insights_outlined,
+        // The roles ReportController lets through. A teacher sees their own
+        // class on the attendance screen instead of a school-wide report.
+        allowedRoles: {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.transportManager},
+        pageTitle: 'Reports',
+        pageSubtitle: 'Attendance, teaching and transport over a period',
+      ),
     ],
   );
 

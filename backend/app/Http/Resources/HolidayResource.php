@@ -25,6 +25,9 @@ class HolidayResource extends JsonResource
             'start_date' => $this->start_date->toDateString(),
             'end_date' => $this->end_date->toDateString(),
             'days' => (int) $this->start_date->diffInDays($this->end_date) + 1,
+            // Only present on create/update: how many already-recorded days
+            // this holiday has just taken out of the working-day count.
+            'affected_records' => $this->whenNotNull($this->affected_records),
             'created_at' => $this->created_at,
         ];
     }

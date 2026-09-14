@@ -129,9 +129,15 @@ class _BrandColumn extends StatelessWidget {
               child: const Text('🎓', style: TextStyle(fontSize: 18)),
             ),
             const SizedBox(width: 10),
-            const Text(
-              'School365ai',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: MarketingColors.text),
+            // Trims rather than spilling: this column is one of several in a
+            // footer that narrows with the viewport.
+            const Flexible(
+              child: Text(
+                'School365ai',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: MarketingColors.text),
+              ),
             ),
           ],
         ),

@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Exceptions\AttendanceAlreadySubmittedException;
 use App\Exceptions\AttendanceOnHolidayException;
+use App\Exceptions\NonWorkingDayException;
 use App\Models\School;
 use App\Models\StaffAttendance;
 use App\Models\StaffProfile;
@@ -110,6 +111,11 @@ class StaffAttendanceService
         $holiday = $this->holidayService->holidayOn($school->id, $data['attendance_date']);
         if ($holiday !== null) {
             throw new AttendanceOnHolidayException("Attendance cannot be marked on {$holiday->name} - it is a holiday.");
+        }
+
+        // Weekends too - see AttendanceService::assertSchoolIsOpen.
+        if (! $this->holidayService->isWorkingDay($school->id, $data['attendance_date'])) {
+            throw new NonWorkingDayException('Attendance cannot be marked on a weekend - the school is closed.');
         }
 
         return DB::transaction(function () use ($school, $data, $actor) {

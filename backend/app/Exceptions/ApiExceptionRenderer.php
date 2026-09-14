@@ -71,6 +71,12 @@ class ApiExceptionRenderer
                 $e->getMessage(),
                 [],
             ],
+            $e instanceof NonWorkingDayException => [
+                409,
+                'NON_WORKING_DAY',
+                $e->getMessage(),
+                [],
+            ],
             $e instanceof HolidayOverlapException => [
                 409,
                 'HOLIDAY_OVERLAP',

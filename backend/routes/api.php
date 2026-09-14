@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CommunicationController;
 use App\Http\Controllers\Api\V1\DailyTeachingReportController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DriverController;
 use App\Http\Controllers\Api\V1\HodReportController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Api\V1\InboxController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PeriodController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SchoolClassController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\StaffAttendanceController;
@@ -52,6 +54,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/users/{user}', [UserController::class, 'update']);
     Route::patch('/users/{user}/activate', [UserController::class, 'activate']);
     Route::patch('/users/{user}/deactivate', [UserController::class, 'deactivate']);
+
+    // Phase 18 - the landing screen, and the four reports behind it. Each
+    // report also answers ?format=csv with the same figures.
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/reports/student-attendance', [ReportController::class, 'studentAttendance']);
+    Route::get('/reports/staff-attendance', [ReportController::class, 'staffAttendance']);
+    Route::get('/reports/teaching-coverage', [ReportController::class, 'teachingCoverage']);
+    Route::get('/reports/transport-usage', [ReportController::class, 'transportUsage']);
 
     // Reference data for the school form's timezone picker.
     Route::get('/timezones', [TimezoneController::class, 'index']);

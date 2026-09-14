@@ -133,9 +133,16 @@ class _NavTile extends StatelessWidget {
               children: [
                 Icon(item.icon, size: 19, color: color),
                 const SizedBox(width: 10),
-                Text(
-                  item.label,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color),
+                // Flexible with an ellipsis: the sidebar is a fixed 255px and
+                // a long label - or a larger system font - would otherwise
+                // run past its edge rather than trimming.
+                Flexible(
+                  child: Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color),
+                  ),
                 ),
               ],
             ),
