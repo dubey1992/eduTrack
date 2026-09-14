@@ -22,10 +22,7 @@ void main() {
 
   group('reading the session payload', () {
     test('keeps the school clock reading instead of converting it', () {
-      final clock = SchoolClock.fromSession(
-        timezone: 'Asia/Kolkata',
-        currentTime: '2026-09-17T00:30:00+05:30',
-      );
+      final clock = SchoolClock.fromSession(timezone: 'Asia/Kolkata', currentTime: '2026-09-17T00:30:00+05:30');
 
       expect(clock.timezone, 'Asia/Kolkata');
       // Half past midnight on the 17th, as the school reads it. The same
@@ -36,10 +33,7 @@ void main() {
     });
 
     test('reads a zone behind UTC just as faithfully', () {
-      final clock = SchoolClock.fromSession(
-        timezone: 'America/New_York',
-        currentTime: '2026-09-15T22:00:00-04:00',
-      );
+      final clock = SchoolClock.fromSession(timezone: 'America/New_York', currentTime: '2026-09-15T22:00:00-04:00');
 
       // Ten at night on the 15th in New York; the 16th has already begun in
       // UTC.

@@ -150,7 +150,7 @@ class CommunicationTest extends TestCase
         $this->actingAs($f['admin'], 'sanctum')->getJson(self::MESSAGES)
             ->assertOk()
             ->assertJsonPath('data.0.created_at_label', '8:42 AM')
-            ->assertJsonPath('data.0.created_on_label', '16 Sep 2026')
+            ->assertJsonPath('data.0.created_on_label', '09/16/2026')
             ->assertJsonPath('data.0.sent_at_label', '8:42 AM');
     }
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/horizontal_scroll_table.dart';
@@ -7,6 +6,7 @@ import '../../../../core/widgets/kpi_card.dart';
 import '../../../../core/widgets/responsive.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../data/models/transport_trip.dart';
+import '../../../../core/utils/date_format.dart';
 
 /// The prototype's live-tracking panel: trip header, KPIs, the stop strip,
 /// "Students on Bus" and the timeline. Read-only unless [onReachStop] /
@@ -51,7 +51,7 @@ class TripDetailView extends StatelessWidget {
                 Text(
                   'Driver: ${trip.driverName}${trip.driverMobile == null ? '' : ' (${trip.driverMobile})'} · '
                   '${trip.vehicleName} ${trip.vehicleRegistrationNumber} · '
-                  '${DateFormat.yMMMd().format(DateTime.parse(trip.tripDate))}',
+                  '${formatDate(DateTime.parse(trip.tripDate))}',
                   style: muted,
                 ),
                 if (trip.currentStopName != null) ...[

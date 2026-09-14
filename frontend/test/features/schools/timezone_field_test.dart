@@ -35,7 +35,12 @@ const _zones = [
   TimezoneOption(name: 'Africa/Lagos', region: 'Africa', label: 'Africa/Lagos (GMT+01:00)', offsetMinutes: 60),
   TimezoneOption(name: 'Asia/Kolkata', region: 'Asia', label: 'Asia/Kolkata (GMT+05:30)', offsetMinutes: 330),
   TimezoneOption(name: 'Asia/Colombo', region: 'Asia', label: 'Asia/Colombo (GMT+05:30)', offsetMinutes: 330),
-  TimezoneOption(name: 'Pacific/Auckland', region: 'Pacific', label: 'Pacific/Auckland (GMT+12:00)', offsetMinutes: 720),
+  TimezoneOption(
+    name: 'Pacific/Auckland',
+    region: 'Pacific',
+    label: 'Pacific/Auckland (GMT+12:00)',
+    offsetMinutes: 720,
+  ),
 ];
 
 Widget wrap(FakeSchoolRepository fake, {School school = _school}) {
@@ -46,7 +51,10 @@ Widget wrap(FakeSchoolRepository fake, {School school = _school}) {
       home: Scaffold(
         body: Builder(
           builder: (context) => ElevatedButton(
-            onPressed: () => showDialog(context: context, builder: (_) => EditSchoolDialog(school: school)),
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => EditSchoolDialog(school: school),
+            ),
             child: const Text('Open'),
           ),
         ),

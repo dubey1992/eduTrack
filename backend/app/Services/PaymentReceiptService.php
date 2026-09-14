@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Payment;
+use App\Support\DateFormats;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 /**
@@ -39,7 +40,7 @@ class PaymentReceiptService
             'payment' => $payment,
             'receiptNumber' => $this->receiptNumber($payment),
             // Dates on the receipt are read at the school, not on the server.
-            'issuedOn' => $payment->school?->clock()->format(now(), 'd M Y') ?? now()->format('d M Y'),
+            'issuedOn' => $payment->school?->clock()->format(now(), DateFormats::DATE) ?? now()->format(DateFormats::DATE),
         ])->setPaper('a4')->output();
     }
 }

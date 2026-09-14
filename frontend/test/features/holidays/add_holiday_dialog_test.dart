@@ -8,6 +8,7 @@ import 'package:edutrack_app/features/holidays/presentation/add_holiday_dialog.d
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:edutrack_app/core/utils/date_format.dart';
 import 'package:intl/intl.dart';
 
 import '../../support/fake_auth_repository.dart';
@@ -59,7 +60,8 @@ void main() {
     await _open(tester);
 
     expect(find.text('National'), findsOneWidget);
-    final today = DateFormat.yMMMd().format(DateTime.now());
+    // The app shows dates in US order; the wire still uses ISO below.
+    final today = formatDate(DateTime.now());
     expect(find.text(today), findsNWidgets(2));
 
     await tester.enterText(find.widgetWithText(TextFormField, 'Holiday name'), 'Sports Day');

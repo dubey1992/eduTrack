@@ -5,9 +5,7 @@ import '../../../core/network/dio_client.dart';
 import 'models/report.dart';
 import 'report_api.dart';
 
-final reportRepositoryProvider = Provider<ReportRepository>(
-  (ref) => ReportRepository(ref.watch(reportApiProvider)),
-);
+final reportRepositoryProvider = Provider<ReportRepository>((ref) => ReportRepository(ref.watch(reportApiProvider)));
 
 class ReportRepository {
   ReportRepository(this._api);

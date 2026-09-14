@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
@@ -14,6 +13,7 @@ import '../application/announcement_page_notifier.dart';
 import '../data/models/announcement.dart';
 import '../../communication/presentation/widgets/demo_gateway_notice.dart';
 import 'new_announcement_dialog.dart';
+import '../../../core/utils/date_format.dart';
 
 /// Phase 17 - what has been announced, and the button that publishes the next
 /// one. Reading an announcement as a recipient is the inbox, not this screen.
@@ -326,7 +326,7 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
   String _expiresOn(String date) {
     final parsed = DateTime.tryParse(date);
 
-    return parsed == null ? date : DateFormat.yMMMd().format(parsed);
+    return parsed == null ? date : formatDate(parsed);
   }
 
   /// Rendered by the API in the school's timezone - the browser's own zone

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/network/paged_list.dart';
@@ -18,6 +17,7 @@ import '../data/models/payment.dart';
 import 'add_payment_dialog.dart';
 import 'edit_payment_dialog.dart';
 import 'payment_receipt_dialog.dart';
+import '../../../core/utils/date_format.dart';
 
 class PaymentListScreen extends ConsumerStatefulWidget {
   const PaymentListScreen({super.key});
@@ -142,7 +142,7 @@ class _PaymentListMobile extends StatelessWidget {
               children: [
                 Text(
                   '${payment.paymentType.label} · ${formatCurrency(payment.amount, payment.currencyCode)}\n'
-                  '${DateFormat.yMMMd().format(payment.paymentDate)}',
+                  '${formatDate(payment.paymentDate)}',
                 ),
                 // An outstanding balance is the thing someone scanning this
                 // list needs to see; making them open each row to find it
@@ -150,10 +150,7 @@ class _PaymentListMobile extends StatelessWidget {
                 if (payment.hasBalance)
                   Text(
                     '${formatCurrency(payment.remainingAmount, payment.currencyCode)} remaining',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.error),
                   ),
               ],
             ),
@@ -215,7 +212,7 @@ class _PaymentListDesktop extends StatelessWidget {
                     DataCell(Text(payment.paymentType.label)),
                     DataCell(Text(formatCurrency(payment.amount, payment.currencyCode))),
                     DataCell(_BalanceCell(payment: payment)),
-                    DataCell(Text(DateFormat.yMMMd().format(payment.paymentDate))),
+                    DataCell(Text(formatDate(payment.paymentDate))),
                     DataCell(Text(payment.paymentMode.label)),
                     DataCell(_PaymentStatusBadge(status: payment.status)),
                     DataCell(

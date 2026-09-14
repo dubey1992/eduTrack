@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/password_field.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/user_list_notifier.dart';
@@ -116,10 +117,10 @@ class _EditUserDialogState extends ConsumerState<EditUserDialog> {
                 const SizedBox(height: 10),
                 PhoneNumberField(controller: _mobileController, label: 'Mobile (optional)'),
                 const SizedBox(height: 10),
-                TextFormField(
+                PasswordField(
                   controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'New password (leave blank to keep current)'),
+                  label: 'New password',
+                  helperText: 'Leave blank to keep the current one.',
                   validator: (v) => (v != null && v.isNotEmpty && v.length < 8) ? 'At least 8 characters' : null,
                 ),
                 const SizedBox(height: 10),

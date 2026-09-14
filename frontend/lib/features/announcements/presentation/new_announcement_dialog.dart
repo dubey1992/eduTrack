@@ -10,6 +10,7 @@ import '../../classes/application/class_section_picker_provider.dart';
 import '../../departments/application/department_picker_provider.dart';
 import '../application/announcement_page_notifier.dart';
 import '../data/models/announcement.dart';
+import '../../../core/utils/date_format.dart';
 
 /// The prototype's "New Announcement" modal: audience, channel, title and
 /// message, plus an optional expiry and a live count of who it reaches.
@@ -225,7 +226,7 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
                       child: Text(
                         _expiresAt == null
                             ? 'Stays in the feed until it is deleted.'
-                            : 'Drops from the feed after ${DateFormat.yMMMd().format(_expiresAt!)}.',
+                            : 'Drops from the feed after ${formatDate(_expiresAt!)}.',
                         style: muted,
                       ),
                     ),

@@ -81,6 +81,11 @@ class _Topbar extends ConsumerWidget {
             const SizedBox(width: 8),
           ],
           IconButton(
+            icon: const Icon(Icons.lock_outline),
+            tooltip: 'Change password',
+            onPressed: () => context.go('/change-password'),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
             onPressed: () => ref.read(authNotifierProvider.notifier).logout(),

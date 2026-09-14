@@ -97,7 +97,7 @@ void main() {
     await tester.pumpWidget(wrap(teacherAtSchoolDay(DateTime(2026, 9, 17, 0, 30)), attendance));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Sep 17, 2026'), findsWidgets);
+    expect(find.textContaining('09/17/2026'), findsWidgets);
   });
 
   testWidgets('a school still on the previous day opens on that day', (tester) async {

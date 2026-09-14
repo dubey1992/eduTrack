@@ -30,7 +30,13 @@ class PasswordResetService
         $status = Password::reset(
             ['email' => $email, 'token' => $token, 'password' => $password],
             function ($user, $newPassword) {
-                $user->forceFill(['password' => Hash::make($newPassword)])->save();
+                // Choosing a password is choosing a password, however the
+                // account got here - so an imported employee who uses the
+                // reset link is no longer being asked to change it.
+                $user->forceFill([
+                    'password' => Hash::make($newPassword),
+                    'must_change_password' => false,
+                ])->save();
                 $user->tokens()->delete();
             }
         );

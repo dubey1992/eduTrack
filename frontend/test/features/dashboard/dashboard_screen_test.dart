@@ -4,7 +4,6 @@ import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/dashboard/data/dashboard_repository.dart';
-import 'package:edutrack_app/features/dashboard/data/models/dashboard.dart';
 import 'package:edutrack_app/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:flutter/material.dart';

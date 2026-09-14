@@ -13,7 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'name', 'registration_number', 'email', 'phone', 'address', 'city',
-    'state', 'country', 'postal_code', 'currency_code', 'timezone', 'logo_url',
+    'state', 'country', 'postal_code', 'latitude', 'longitude',
+    'currency_code', 'timezone', 'logo_url',
     'status',
 ])]
 // 'status' is fillable here for the same reason as User::status (Phase 1):
@@ -28,6 +29,8 @@ class School extends Model
     {
         return [
             'status' => SchoolStatus::class,
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
         ];
     }
 

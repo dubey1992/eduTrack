@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
 use App\Services\AuthService;
@@ -24,6 +25,13 @@ class AuthController extends Controller
             'user' => new UserResource($user->loadMissing('school')),
             'token' => $token,
         ]);
+    }
+
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $this->authService->changePassword($request->user(), $request->string('password')->toString());
+
+        return response()->json(['message' => 'Password changed successfully.']);
     }
 
     public function logout(Request $request): JsonResponse

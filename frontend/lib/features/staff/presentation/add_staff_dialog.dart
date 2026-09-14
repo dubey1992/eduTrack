@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../auth/application/school_clock_provider.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/password_field.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../departments/application/department_picker_provider.dart';
@@ -14,6 +15,7 @@ import '../../departments/data/models/department.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../schools/data/models/school.dart';
 import '../application/staff_list_notifier.dart';
+import '../../../core/utils/date_format.dart';
 
 const _staffRoles = [UserRole.teacher, UserRole.hod, UserRole.staff, UserRole.transportManager];
 
@@ -39,7 +41,6 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
   int? _schoolId;
   int? _departmentId;
   late DateTime _joiningDate;
-  bool _obscurePassword = true;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -206,24 +207,13 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
                   validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                  validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
-                ),
+                PasswordField(controller: _passwordController, helperText: 'At least 8 characters.'),
                 const SizedBox(height: 10),
                 InkWell(
                   onTap: _pickJoiningDate,
                   child: InputDecorator(
                     decoration: const InputDecoration(labelText: 'Joining date'),
-                    child: Text(DateFormat.yMMMd().format(_joiningDate)),
+                    child: Text(formatDate(_joiningDate)),
                   ),
                 ),
                 const SizedBox(height: 10),

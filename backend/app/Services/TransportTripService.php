@@ -19,6 +19,7 @@ use App\Models\TransportTrip;
 use App\Models\TransportTripEvent;
 use App\Models\TransportTripRider;
 use App\Models\User;
+use App\Support\DateFormats;
 use App\Support\Pagination;
 use App\Support\SchoolClock;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -226,14 +227,14 @@ class TransportTripService
         $this->notifications->notifyGuardian($event, $student, [
             // The moment it happened, in the school's configured timezone -
             // not the UTC "now" the default token would use.
-            'time' => SchoolClock::for($trip->school_id)->format(now(), 'g:i A'),
+            'time' => SchoolClock::for($trip->school_id)->format(now(), DateFormats::TIME),
             'stop_name' => $rider->stop_name,
             'vehicle_name' => $trip->vehicle?->name,
             'route_name' => $trip->route?->name,
             'direction' => $trip->direction->label(),
             'date' => $trip->trip_date instanceof Carbon
-                ? $trip->trip_date->format('d M Y')
-                : Carbon::parse((string) $trip->trip_date)->format('d M Y'),
+                ? $trip->trip_date->format(DateFormats::DATE)
+                : Carbon::parse((string) $trip->trip_date)->format(DateFormats::DATE),
         ], $actor);
     }
 

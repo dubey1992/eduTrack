@@ -7,8 +7,16 @@
 /// disagree about what a column means.
 enum ReportKind {
   studentAttendance('student-attendance', 'Student attendance', 'Present, absent and the rate for each student.'),
-  staffAttendance('staff-attendance', 'Staff attendance & leave', 'Attendance, half days and leave for each staff member.'),
-  teachingCoverage('teaching-coverage', 'Teaching & syllabus', 'Periods taught against the timetable, and syllabus covered.'),
+  staffAttendance(
+    'staff-attendance',
+    'Staff attendance & leave',
+    'Attendance, half days and leave for each staff member.',
+  ),
+  teachingCoverage(
+    'teaching-coverage',
+    'Teaching & syllabus',
+    'Periods taught against the timetable, and syllabus covered.',
+  ),
   transportUsage('transport-usage', 'Transport usage', 'Trips run per route, and the children on them.');
 
   const ReportKind(this.apiPath, this.label, this.description);

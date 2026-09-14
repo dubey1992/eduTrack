@@ -52,8 +52,8 @@ void main() {
 
     expect(find.text('Diwali Break'), findsOneWidget);
     expect(find.text('Religious'), findsOneWidget);
-    expect(find.text('Nov 9, 2026'), findsOneWidget);
-    expect(find.text('Nov 11, 2026'), findsOneWidget);
+    expect(find.text('11/09/2026'), findsOneWidget);
+    expect(find.text('11/11/2026'), findsOneWidget);
   });
 
   testWidgets('shows a validation error when the name is cleared', (tester) async {

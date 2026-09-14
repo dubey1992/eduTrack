@@ -250,7 +250,7 @@ class SchoolTimezoneTest extends TestCase
         $this->actingAs($admin, 'sanctum')->getJson('/api/v1/communication/messages')
             ->assertOk()
             ->assertJsonPath('data.0.created_at_label', '12:15 AM')
-            ->assertJsonPath('data.0.created_on_label', '17 Sep 2026')
+            ->assertJsonPath('data.0.created_on_label', '09/17/2026')
             ->assertJsonPath('data.0.sent_at_label', '12:15 AM')
             ->assertJsonPath('data.0.timezone', 'Asia/Kolkata');
     }

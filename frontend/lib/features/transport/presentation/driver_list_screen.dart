@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../auth/application/school_clock_provider.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
@@ -13,11 +13,13 @@ import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../imports/presentation/bulk_import_button.dart';
 import '../application/driver_page_notifier.dart';
 import '../data/models/driver.dart';
 import '../data/models/transport_status.dart';
 import 'driver_form_dialog.dart';
 import 'widgets/transport_list_scaffold.dart';
+import '../../../core/utils/date_format.dart';
 
 const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
 
@@ -47,6 +49,13 @@ class _DriverListScreenState extends ConsumerState<DriverListScreen> {
                 onPressed: () => showDialog(context: context, builder: (_) => const DriverFormDialog()),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add Driver'),
+              ),
+            if (canManage)
+              BulkImportButton(
+                type: 'drivers',
+                title: 'Drivers',
+                schoolId: _schoolFilter,
+                onImported: () => ref.read(driverPageNotifierProvider.notifier).refresh(),
               ),
             SchoolFilterDropdown(
               selected: _schoolFilter,
@@ -92,7 +101,7 @@ class _DriverListScreenState extends ConsumerState<DriverListScreen> {
 
 String _licenceLabel(Driver driver) {
   if (driver.licenceExpiry == null) return driver.licenceNumber;
-  return '${driver.licenceNumber} · exp. ${DateFormat.yMMMd().format(DateTime.parse(driver.licenceExpiry!))}';
+  return '${driver.licenceNumber} · exp. ${formatDate(DateTime.parse(driver.licenceExpiry!))}';
 }
 
 class _LicenceBadge extends ConsumerWidget {

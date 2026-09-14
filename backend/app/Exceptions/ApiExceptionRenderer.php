@@ -71,6 +71,12 @@ class ApiExceptionRenderer
                 $e->getMessage(),
                 [],
             ],
+            $e instanceof BulkImportFailedException => [
+                422,
+                'BULK_IMPORT_FAILED',
+                $e->getMessage(),
+                ['rows' => $e->rowErrors, 'row_count' => $e->rowCount],
+            ],
             $e instanceof NonWorkingDayException => [
                 409,
                 'NON_WORKING_DAY',

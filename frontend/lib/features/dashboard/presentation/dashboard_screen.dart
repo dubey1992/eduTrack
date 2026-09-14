@@ -107,17 +107,8 @@ class _DashboardBody extends StatelessWidget {
         // school there is no single set of opening hours to be closed, and
         // saying "the school is closed" of all seven at once is nonsense.
         if (!dashboard.isWorkingDay && dashboard.schoolId != null) _ClosedBanner(dashboard: dashboard),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            for (final card in dashboard.cards) _StatCard(card: card),
-          ],
-        ),
-        if (dashboard.attention.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _AttentionList(notes: dashboard.attention),
-        ],
+        Wrap(spacing: 12, runSpacing: 12, children: [for (final card in dashboard.cards) _StatCard(card: card)]),
+        if (dashboard.attention.isNotEmpty) ...[const SizedBox(height: 16), _AttentionList(notes: dashboard.attention)],
         if (dashboard.attendanceTrend.isNotEmpty) ...[
           const SizedBox(height: 16),
           AttendanceTrendChart(points: dashboard.attendanceTrend),
@@ -247,12 +238,7 @@ class _ReportsLink extends StatelessWidget {
 
   final UserRole? role;
 
-  static const _withReports = {
-    UserRole.superAdmin,
-    UserRole.schoolAdmin,
-    UserRole.hod,
-    UserRole.transportManager,
-  };
+  static const _withReports = {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.transportManager};
 
   @override
   Widget build(BuildContext context) {

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../application/payment_list_notifier.dart';
 import '../data/models/payment.dart';
+import '../../../core/utils/date_format.dart';
 
 /// A read-only receipt view for one payment - the spec's "Payment Details"
 /// / "Generate Receipt" screens, kept as a dialog rather than a full route
@@ -68,7 +68,7 @@ class _PaymentReceiptDialogState extends ConsumerState<PaymentReceiptDialog> {
               _Row('School', payment.schoolName ?? '-'),
               _Row('Payment Type', payment.paymentType.label),
               _Row('Payment Mode', payment.paymentMode.label),
-              _Row('Payment Date', DateFormat.yMMMd().format(payment.paymentDate)),
+              _Row('Payment Date', formatDate(payment.paymentDate)),
               _Row('Reference', payment.referenceNumber ?? '-'),
               _Row('Status', payment.status.label),
               _Row('Amount', formatCurrency(payment.amount, payment.currencyCode)),
@@ -82,10 +82,7 @@ class _PaymentReceiptDialogState extends ConsumerState<PaymentReceiptDialog> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: scheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(8)),
                   child: Text(
                     'Balance due: ${formatCurrency(payment.remainingAmount, payment.currencyCode)}',
                     style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onErrorContainer),

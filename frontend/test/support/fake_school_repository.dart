@@ -61,6 +61,8 @@ class FakeSchoolRepository implements SchoolRepository {
     required String postalCode,
     required String currencyCode,
     required String timezone,
+    String? latitude,
+    String? longitude,
   }) async {
     if (failCreateWith != null) throw failCreateWith!;
 
@@ -77,6 +79,8 @@ class FakeSchoolRepository implements SchoolRepository {
       postalCode: postalCode,
       currencyCode: currencyCode,
       timezone: timezone,
+      latitude: latitude,
+      longitude: longitude,
       logoUrl: null,
       status: SchoolStatus.active,
     );
@@ -98,6 +102,8 @@ class FakeSchoolRepository implements SchoolRepository {
     String? postalCode,
     String? currencyCode,
     String? timezone,
+    String? latitude,
+    String? longitude,
   }) async {
     if (failUpdateWith != null) throw failUpdateWith!;
 
@@ -116,6 +122,8 @@ class FakeSchoolRepository implements SchoolRepository {
       postalCode: postalCode ?? existing.postalCode,
       currencyCode: currencyCode ?? existing.currencyCode,
       timezone: timezone ?? existing.timezone,
+      latitude: latitude ?? existing.latitude,
+      longitude: longitude ?? existing.longitude,
       logoUrl: existing.logoUrl,
       status: existing.status,
     );

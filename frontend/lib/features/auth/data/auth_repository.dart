@@ -62,6 +62,18 @@ class AuthRepository {
     }
   }
 
+  /// Changes the signed-in user's own password, and returns the session as
+  /// it stands afterwards - which is how the "must change password" flag
+  /// clears without a sign-out and back in.
+  Future<AuthenticatedUser> changePassword({required String currentPassword, required String password}) async {
+    try {
+      await _api.changePassword(currentPassword: currentPassword, password: password);
+      return await _api.me();
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<void> resetPassword({required String email, required String token, required String password}) async {
     try {
       await _api.resetPassword(email: email, token: token, password: password);

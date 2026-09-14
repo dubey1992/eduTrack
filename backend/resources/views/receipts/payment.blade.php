@@ -67,7 +67,7 @@
     <h1>Payment</h1>
     <table class="meta">
         <tr><td class="key">For</td><td>{{ $payment->payment_type->label() }}</td></tr>
-        <tr><td class="key">Date</td><td>{{ $payment->payment_date->format('d M Y') }}</td></tr>
+        <tr><td class="key">Date</td><td>{{ $payment->payment_date->format(\App\Support\DateFormats::DATE) }}</td></tr>
         <tr><td class="key">Method</td><td>{{ $payment->payment_mode->label() }}</td></tr>
         @if ($payment->reference_number)
             <tr><td class="key">Reference</td><td>{{ $payment->reference_number }}</td></tr>

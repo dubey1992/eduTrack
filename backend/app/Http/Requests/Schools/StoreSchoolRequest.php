@@ -16,6 +16,19 @@ class StoreSchoolRequest extends FormRequest
     /**
      * @return array<string, mixed>
      */
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'latitude.required_with' => 'Enter a latitude as well, or clear the longitude.',
+            'longitude.required_with' => 'Enter a longitude as well, or clear the latitude.',
+            'latitude.between' => 'A latitude is between -90 and 90.',
+            'longitude.between' => 'A longitude is between -180 and 180.',
+        ];
+    }
+
     public function rules(): array
     {
         return [
@@ -29,6 +42,11 @@ class StoreSchoolRequest extends FormRequest
             'state' => ['required', 'string', 'max:100'],
             'country' => ['required', 'string', 'max:100'],
             'postal_code' => ['required', 'string', 'max:20'],
+            // A coordinate is optional - most schools are onboarded without
+            // one - but if either is given both must be, since half a
+            // coordinate points nowhere.
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             'currency_code' => ['required', 'string', 'regex:/^[A-Z]{3}$/'],
             // An IANA name such as Asia/Kolkata. This decides what "today"
             // means for everything the school records.

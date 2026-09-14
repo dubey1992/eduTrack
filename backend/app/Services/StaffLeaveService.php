@@ -13,6 +13,7 @@ use App\Models\StaffAttendance;
 use App\Models\StaffLeave;
 use App\Models\StaffProfile;
 use App\Models\User;
+use App\Support\DateFormats;
 use App\Support\Pagination;
 use App\Support\SchoolClock;
 use Illuminate\Database\Eloquent\Builder;
@@ -128,8 +129,8 @@ class StaffLeaveService
 
         $this->notifications->notifyUser($event, $applicant, [
             'leave_type' => $leave->leave_type->label(),
-            'start_date' => $leave->start_date->format('d M Y'),
-            'end_date' => $leave->end_date->format('d M Y'),
+            'start_date' => $leave->start_date->format(DateFormats::DATE),
+            'end_date' => $leave->end_date->format(DateFormats::DATE),
             'days' => (string) ((int) $leave->start_date->diffInDays($leave->end_date) + 1),
             'remarks' => $leave->review_remarks,
         ], $actor);

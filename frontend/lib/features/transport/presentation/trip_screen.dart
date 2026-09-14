@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
@@ -18,6 +17,7 @@ import '../application/trip_history_notifier.dart';
 import '../data/models/transport_route.dart';
 import '../data/models/transport_trip.dart';
 import 'widgets/trip_detail_view.dart';
+import '../../../core/utils/date_format.dart';
 
 /// Who runs trips - the prototype's "Manage Trips" (Transport Manager)
 /// plus the admins.
@@ -398,7 +398,7 @@ class _HistoryTable extends StatelessWidget {
             for (final trip in trips)
               DataRow(
                 cells: [
-                  DataCell(Text(DateFormat.yMMMd().format(DateTime.parse(trip.tripDate)))),
+                  DataCell(Text(formatDate(DateTime.parse(trip.tripDate)))),
                   DataCell(Text(trip.routeLabel)),
                   DataCell(Text(trip.direction.label)),
                   DataCell(TripStatusBadge(status: trip.status)),
@@ -430,7 +430,7 @@ class _HistoryCards extends StatelessWidget {
             child: ListTile(
               title: Text('${trip.routeLabel} · ${trip.direction.label}'),
               subtitle: Text(
-                '${DateFormat.yMMMd().format(DateTime.parse(trip.tripDate))} · ${_historyRange(trip)} · ${trip.ridersCount} students',
+                '${formatDate(DateTime.parse(trip.tripDate))} · ${_historyRange(trip)} · ${trip.ridersCount} students',
                 style: muted,
               ),
               trailing: TripStatusBadge(status: trip.status),

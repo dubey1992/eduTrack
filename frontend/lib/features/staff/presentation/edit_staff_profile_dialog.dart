@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
@@ -9,6 +8,7 @@ import '../../departments/application/department_picker_provider.dart';
 import '../../departments/data/models/department.dart';
 import '../application/staff_list_notifier.dart';
 import '../data/models/staff_profile.dart';
+import '../../../core/utils/date_format.dart';
 
 class EditStaffProfileDialog extends ConsumerStatefulWidget {
   const EditStaffProfileDialog({super.key, required this.profile});
@@ -117,7 +117,7 @@ class _EditStaffProfileDialogState extends ConsumerState<EditStaffProfileDialog>
                   onTap: _pickJoiningDate,
                   child: InputDecorator(
                     decoration: const InputDecoration(labelText: 'Joining date'),
-                    child: Text(DateFormat.yMMMd().format(_joiningDate)),
+                    child: Text(formatDate(_joiningDate)),
                   ),
                 ),
                 const SizedBox(height: 10),

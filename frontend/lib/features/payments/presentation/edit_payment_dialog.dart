@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../auth/application/school_clock_provider.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
@@ -9,6 +9,7 @@ import '../../../core/utils/decimal_input_formatter.dart';
 import '../application/payment_list_notifier.dart';
 import 'widgets/remaining_line.dart';
 import '../data/models/payment.dart';
+import '../../../core/utils/date_format.dart';
 
 class EditPaymentDialog extends ConsumerStatefulWidget {
   const EditPaymentDialog({super.key, required this.payment});
@@ -47,8 +48,7 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
 
   /// Only sent for a part-payment - for every other status the API derives
   /// it from the status, which keeps the two from contradicting each other.
-  double? get _paidAmount =>
-      _status == PaymentStatus.partial ? double.tryParse(_paidAmountController.text) : null;
+  double? get _paidAmount => _status == PaymentStatus.partial ? double.tryParse(_paidAmountController.text) : null;
 
   String? _validatePaidAmount(String? value) {
     final paid = double.tryParse(value ?? '');
@@ -146,7 +146,7 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
                   onTap: _pickDate,
                   child: InputDecorator(
                     decoration: const InputDecoration(labelText: 'Payment date'),
-                    child: Text(DateFormat.yMMMd().format(_paymentDate)),
+                    child: Text(formatDate(_paymentDate)),
                   ),
                 ),
                 const SizedBox(height: 10),

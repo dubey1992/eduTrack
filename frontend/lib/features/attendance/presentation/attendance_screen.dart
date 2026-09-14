@@ -14,6 +14,7 @@ import '../../schools/data/models/school.dart';
 import '../application/attendance_register_notifier.dart';
 import '../data/models/attendance_register.dart';
 import '../data/models/attendance_status.dart';
+import '../../../core/utils/date_format.dart';
 
 /// Mark or edit a class's daily attendance register - the Teacher/Admin
 /// workflow behind CLAUDE.md's Phase 7 (Student Attendance), reusing the
@@ -29,6 +30,7 @@ class AttendanceScreen extends ConsumerStatefulWidget {
 class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   int? _schoolId;
   int? _classSectionId;
+
   /// Null until the user picks a day; the school's today stands in until
   /// then. Resolved on build rather than in initState, because the session
   /// (and with it the school's clock) may still be loading when this screen
@@ -97,7 +99,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   OutlinedButton.icon(
                     onPressed: _pickDate,
                     icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                    label: Text(DateFormat.yMMMd().format(_date)),
+                    label: Text(formatDate(_date)),
                   ),
                 ],
               ),

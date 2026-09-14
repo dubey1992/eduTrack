@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../data/models/holiday.dart';
+import '../../../../core/utils/date_format.dart';
 
 /// The name / type / from / to fields shared by the Add and Edit holiday
 /// dialogs. The dialog owns the state; this only renders and reports.
@@ -70,7 +70,7 @@ class HolidayFormFields extends StatelessWidget {
           onTap: () => _pickStart(context),
           child: InputDecorator(
             decoration: const InputDecoration(labelText: 'From'),
-            child: Text(DateFormat.yMMMd().format(startDate)),
+            child: Text(formatDate(startDate)),
           ),
         ),
         const SizedBox(height: 10),
@@ -78,7 +78,7 @@ class HolidayFormFields extends StatelessWidget {
           onTap: () => _pickEnd(context),
           child: InputDecorator(
             decoration: const InputDecoration(labelText: 'To'),
-            child: Text(DateFormat.yMMMd().format(endDate)),
+            child: Text(formatDate(endDate)),
           ),
         ),
       ],

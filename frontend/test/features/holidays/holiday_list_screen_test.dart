@@ -72,8 +72,8 @@ void main() {
     expect(find.text('Diwali Break'), findsOneWidget);
     expect(find.text('National'), findsOneWidget);
     expect(find.text('Religious'), findsOneWidget);
-    expect(find.text('Aug 15, 2026 · 1 day'), findsOneWidget);
-    expect(find.text('Nov 9, 2026 – Nov 11, 2026 · 3 days'), findsOneWidget);
+    expect(find.text('08/15/2026 · 1 day'), findsOneWidget);
+    expect(find.text('11/09/2026 – 11/11/2026 · 3 days'), findsOneWidget);
 
     final independenceY = tester.getTopLeft(find.text('Independence Day')).dy;
     final diwaliY = tester.getTopLeft(find.text('Diwali Break')).dy;
@@ -87,7 +87,7 @@ void main() {
 
     expect(find.byType(DataTable), findsOneWidget);
     expect(find.text('Actions'), findsOneWidget);
-    expect(find.text('Nov 9, 2026 – Nov 11, 2026'), findsOneWidget);
+    expect(find.text('11/09/2026 – 11/11/2026'), findsOneWidget);
     expect(find.text('3 days'), findsOneWidget);
     expect(find.byTooltip('Edit'), findsOneWidget);
     expect(find.byTooltip('Delete'), findsOneWidget);

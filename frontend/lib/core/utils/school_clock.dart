@@ -12,11 +12,7 @@
 /// for the other half of the problem - the dates the client itself decides,
 /// like a date picker's default and its upper bound.
 class SchoolClock {
-  const SchoolClock({
-    required this.timezone,
-    required this.schoolTimeAtAnchor,
-    required this.anchorUtc,
-  });
+  const SchoolClock({required this.timezone, required this.schoolTimeAtAnchor, required this.anchorUtc});
 
   /// Builds a clock from the session payload: an IANA name and the school's
   /// current time as an ISO string carrying its offset, e.g.
@@ -29,11 +25,7 @@ class SchoolClock {
 
     if (wall == null || instant == null) return SchoolClock.device();
 
-    return SchoolClock(
-      timezone: timezone,
-      schoolTimeAtAnchor: wall,
-      anchorUtc: instant.toUtc(),
-    );
+    return SchoolClock(timezone: timezone, schoolTimeAtAnchor: wall, anchorUtc: instant.toUtc());
   }
 
   /// The fallback before anyone is signed in - the login screen has no school

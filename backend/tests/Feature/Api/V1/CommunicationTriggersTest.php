@@ -125,7 +125,7 @@ class CommunicationTriggersTest extends TestCase
         $this->assertSame('Arjun Kumar', $message->student_name);
         $this->assertSame($arjun->id, $message->student_id);
         $this->assertSame(MessageStatus::Queued, $message->status);
-        $this->assertStringContainsString('Arjun Kumar was marked ABSENT on 16 Sep 2026', $message->body);
+        $this->assertStringContainsString('Arjun Kumar was marked ABSENT on 09/16/2026', $message->body);
         $this->assertStringContainsString('Sunrise Public School', $message->body);
         $this->assertStringNotContainsString('{', $message->body);
 
@@ -286,7 +286,7 @@ class CommunicationTriggersTest extends TestCase
         ])->assertCreated();
 
         $this->assertSame(
-            'Namaste Raj Kumar, Arjun Kumar of Grade 8 A was absent on 16 Sep 2026.',
+            'Namaste Raj Kumar, Arjun Kumar of Grade 8 A was absent on 09/16/2026.',
             Message::sole()->body,
         );
     }
@@ -451,7 +451,7 @@ class CommunicationTriggersTest extends TestCase
         $this->assertSame($f['applicant']->id, $inApp->user_id);
         $this->assertSame(MessageEvent::LeaveApproved, $inApp->event);
         $this->assertSame(MessageStatus::Queued, $inApp->status);
-        $this->assertStringContainsString('Your casual leave from 21 Sep 2026 to 22 Sep 2026 has been approved.', $inApp->body);
+        $this->assertStringContainsString('Your casual leave from 09/21/2026 to 09/22/2026 has been approved.', $inApp->body);
 
         $sms = Message::where('channel', MessageChannel::Sms)->sole();
         $this->assertSame('+91 9800000001', $sms->recipient_mobile);

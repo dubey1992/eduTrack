@@ -148,4 +148,68 @@ class SchoolManagementTest extends TestCase
 
         $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['name']]]);
     }
+
+    // -- where the school is ---------------------------------------------
+
+    public function test_a_school_can_be_onboarded_with_a_coordinate(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson('/api/v1/schools', $this->validPayload([
+                'latitude' => '18.5204',
+                'longitude' => '73.8567',
+            ]))
+            ->assertCreated()
+            ->assertJsonPath('latitude', '18.5204000')
+            ->assertJsonPath('longitude', '73.8567000');
+    }
+
+    public function test_a_coordinate_is_optional(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson('/api/v1/schools', $this->validPayload())
+            ->assertCreated()
+            ->assertJsonPath('latitude', null)
+            ->assertJsonPath('longitude', null);
+    }
+
+    public function test_half_a_coordinate_is_refused(): void
+    {
+        // A latitude on its own points nowhere.
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson('/api/v1/schools', $this->validPayload(['latitude' => '18.5204']))
+            ->assertStatus(422)
+            ->assertJsonPath('details.errors.longitude.0', 'Enter a longitude as well, or clear the latitude.');
+    }
+
+    public function test_a_coordinate_off_the_globe_is_refused(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson('/api/v1/schools', $this->validPayload(['latitude' => '91', 'longitude' => '73.8567']))
+            ->assertStatus(422)
+            ->assertJsonPath('details.errors.latitude.0', 'A latitude is between -90 and 90.');
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson('/api/v1/schools', $this->validPayload(['latitude' => '18.5', 'longitude' => '181']))
+            ->assertStatus(422)
+            ->assertJsonPath('details.errors.longitude.0', 'A longitude is between -180 and 180.');
+    }
+
+    public function test_a_coordinate_can_be_added_to_a_school_that_had_none(): void
+    {
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create();
+        $school = School::factory()->create(['latitude' => null, 'longitude' => null]);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->patchJson("/api/v1/schools/{$school->id}", ['latitude' => '-33.8688', 'longitude' => '-151.2093'])
+            ->assertOk()
+            ->assertJsonPath('latitude', '-33.8688000');
+    }
 }

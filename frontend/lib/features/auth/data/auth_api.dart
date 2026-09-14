@@ -31,6 +31,13 @@ class AuthApi {
     return _dio.post('/auth/reset-password', data: {'email': email, 'token': token, 'password': password});
   }
 
+  Future<void> changePassword({required String currentPassword, required String password}) {
+    return _dio.post(
+      '/auth/change-password',
+      data: {'current_password': currentPassword, 'password': password, 'password_confirmation': password},
+    );
+  }
+
   Future<AuthenticatedUser> me() async {
     final response = await _dio.get('/me');
     return AuthenticatedUser.fromJson(response.data as Map<String, dynamic>);

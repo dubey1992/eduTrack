@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/password_field.dart';
 import '../data/auth_repository.dart';
 
 /// Reached via the link in the password reset email:
@@ -80,17 +81,15 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                         const SizedBox(height: 12),
                       ],
-                      TextFormField(
+                      PasswordField(
                         controller: _passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'New password'),
-                        validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
+                        label: 'New password',
+                        helperText: 'At least 8 characters.',
                       ),
                       const SizedBox(height: 10),
-                      TextFormField(
+                      PasswordField(
                         controller: _confirmController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Confirm password'),
+                        label: 'Confirm password',
                         validator: (v) => v != _passwordController.text ? 'Passwords do not match' : null,
                       ),
                       const SizedBox(height: 22),

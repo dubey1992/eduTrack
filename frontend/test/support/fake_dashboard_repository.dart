@@ -33,16 +33,20 @@ const defaultDashboard = Dashboard(
   cards: [
     DashboardCard(key: 'students', label: 'Students', value: '842', hint: 'on the roll', tone: 'neutral'),
     DashboardCard(key: 'staff', label: 'Teachers & staff', value: '68', hint: 'on the payroll', tone: 'neutral'),
-    DashboardCard(key: 'attendance', label: 'Attendance today', value: '94.8%', hint: 'of students present', tone: 'neutral'),
+    DashboardCard(
+      key: 'attendance',
+      label: 'Attendance today',
+      value: '94.8%',
+      hint: 'of students present',
+      tone: 'neutral',
+    ),
   ],
   attendanceTrend: [
     TrendPoint(date: '2026-09-10', label: '10 Sep', attendanceRate: 95),
     TrendPoint(date: '2026-09-11', label: '11 Sep', attendanceRate: 71.4),
     TrendPoint(date: '2026-09-14', label: '14 Sep', attendanceRate: null),
   ],
-  attention: [
-    AttentionNote(key: 'attendance', message: 'No attendance has been marked yet today.'),
-  ],
+  attention: [AttentionNote(key: 'attendance', message: 'No attendance has been marked yet today.')],
 );
 
 /// The Super Admin looking across every school: no single school's opening
@@ -53,9 +57,7 @@ const platformDashboard = Dashboard(
   isWorkingDay: false,
   holiday: null,
   schoolId: null,
-  cards: [
-    DashboardCard(key: 'schools', label: 'Schools', value: '7', hint: '7 active', tone: 'neutral'),
-  ],
+  cards: [DashboardCard(key: 'schools', label: 'Schools', value: '7', hint: '7 active', tone: 'neutral')],
   attendanceTrend: [],
   attention: [],
 );
@@ -67,9 +69,7 @@ const holidayDashboard = Dashboard(
   isWorkingDay: false,
   holiday: 'Founders Day',
   schoolId: 1,
-  cards: [
-    DashboardCard(key: 'students', label: 'Students', value: '842', hint: 'on the roll', tone: 'neutral'),
-  ],
+  cards: [DashboardCard(key: 'students', label: 'Students', value: '842', hint: 'on the roll', tone: 'neutral')],
   attendanceTrend: [],
   attention: [],
 );

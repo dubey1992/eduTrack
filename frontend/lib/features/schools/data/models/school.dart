@@ -21,6 +21,8 @@ class School {
     required this.state,
     required this.country,
     required this.postalCode,
+    this.latitude,
+    this.longitude,
     required this.currencyCode,
     required this.timezone,
     required this.logoUrl,
@@ -39,6 +41,8 @@ class School {
       state: json['state'] as String,
       country: json['country'] as String,
       postalCode: json['postal_code'] as String,
+      latitude: json['latitude'] as String?,
+      longitude: json['longitude'] as String?,
       currencyCode: json['currency_code'] as String,
       timezone: json['timezone'] as String? ?? 'UTC',
       logoUrl: json['logo_url'] as String?,
@@ -56,6 +60,12 @@ class School {
   final String state;
   final String country;
   final String postalCode;
+
+  /// Where the school is, if anyone has said. Kept as the string the
+  /// API sent so a coordinate is never quietly rounded by a double on
+  /// its way through the client.
+  final String? latitude;
+  final String? longitude;
   final String currencyCode;
 
   /// The IANA zone this school's dates and times are read in, e.g.
@@ -76,6 +86,8 @@ class School {
       state: state,
       country: country,
       postalCode: postalCode,
+      latitude: latitude,
+      longitude: longitude,
       currencyCode: currencyCode,
       timezone: timezone,
       logoUrl: logoUrl,

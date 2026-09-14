@@ -130,7 +130,7 @@ void main() {
       await tester.pumpWidget(wrap(fake, () => const DriverFormDialog(driver: sanjay)));
       await _open(tester);
 
-      expect(find.text('Mar 31, 2029'), findsOneWidget);
+      expect(find.text('03/31/2029'), findsOneWidget);
       await tester.tap(find.byTooltip('Clear expiry'));
       await tester.pumpAndSettle();
       expect(find.text('Not set'), findsOneWidget);

@@ -12,6 +12,7 @@ import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../imports/presentation/bulk_import_button.dart';
 import '../application/student_list_notifier.dart';
 import '../data/models/student.dart';
 import 'add_student_dialog.dart';
@@ -63,6 +64,13 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 onPressed: () => showDialog(context: context, builder: (_) => const AddStudentDialog()),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add Student'),
+              ),
+            if (canManage)
+              BulkImportButton(
+                type: 'students',
+                title: 'Students',
+                schoolId: _schoolFilter,
+                onImported: () => ref.read(studentListNotifierProvider.notifier).refresh(),
               ),
             SchoolFilterDropdown(
               selected: _schoolFilter,

@@ -13,6 +13,7 @@ use App\Models\CommunicationSetting;
 use App\Models\Message;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\DateFormats;
 use App\Support\SchoolClock;
 use App\Support\TemplateRenderer;
 use Illuminate\Support\Facades\DB;
@@ -61,8 +62,8 @@ class NotificationService
             'student_name' => $student->name,
             'guardian_name' => $student->guardian_name,
             'school_name' => $student->school?->name,
-            'date' => $clock->format(now(), 'd M Y'),
-            'time' => $clock->format(now(), 'g:i A'),
+            'date' => $clock->format(now(), DateFormats::DATE),
+            'time' => $clock->format(now(), DateFormats::TIME),
         ], $tokens);
 
         return $this->record(
@@ -99,7 +100,7 @@ class NotificationService
         $tokens = array_merge([
             'staff_name' => $user->name,
             'school_name' => $user->school?->name,
-            'date' => $clock->format(now(), 'd M Y'),
+            'date' => $clock->format(now(), DateFormats::DATE),
         ], $tokens);
 
         return $this->record(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../auth/application/school_clock_provider.dart';
+
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
@@ -12,6 +14,7 @@ import '../application/driver_page_notifier.dart';
 import '../data/models/driver.dart';
 import 'widgets/submit_button.dart';
 import 'widgets/transport_school_picker.dart';
+import '../../../core/utils/date_format.dart';
 
 /// Add (no [driver]) or edit (with [driver]) a driver.
 class DriverFormDialog extends ConsumerStatefulWidget {
@@ -149,7 +152,7 @@ class _DriverFormDialogState extends ConsumerState<DriverFormDialog> {
                               onPressed: () => setState(() => _licenceExpiry = null),
                             ),
                     ),
-                    child: Text(_licenceExpiry == null ? 'Not set' : DateFormat.yMMMd().format(_licenceExpiry!)),
+                    child: Text(_licenceExpiry == null ? 'Not set' : formatDate(_licenceExpiry!)),
                   ),
                 ),
               ],

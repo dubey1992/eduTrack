@@ -45,10 +45,7 @@ class AttendanceTrendChart extends StatelessWidget {
               height: 150,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  for (final point in points)
-                    Expanded(child: _Bar(point: point)),
-                ],
+                children: [for (final point in points) Expanded(child: _Bar(point: point))],
               ),
             ),
           ],
@@ -93,9 +90,7 @@ class _Bar extends StatelessWidget {
                   // empty column would read as nobody having turned up.
                   height: rate == null ? 2 : (constraints.maxHeight * (rate / 100)).clamp(2, constraints.maxHeight),
                   decoration: BoxDecoration(
-                    color: rate == null
-                        ? scheme.outlineVariant
-                        : (poor ? scheme.error : scheme.primary),
+                    color: rate == null ? scheme.outlineVariant : (poor ? scheme.error : scheme.primary),
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                   ),
                 ),

@@ -44,6 +44,27 @@ class FakeAuthRepository implements AuthRepository {
     loggedOutCalled = true;
   }
 
+  /// What the session looks like after a successful password change - by
+  /// default the same user with the flag cleared.
+  AuthenticatedUser? sessionAfterChange;
+
+  /// If set, changePassword() throws this instead of succeeding.
+  Failure? failChangeWith;
+
+  String? changedFrom;
+  String? changedTo;
+
+  @override
+  Future<AuthenticatedUser> changePassword({required String currentPassword, required String password}) async {
+    if (failChangeWith != null) throw failChangeWith!;
+
+    changedFrom = currentPassword;
+    changedTo = password;
+
+    return sessionAfterChange ??
+        const AuthenticatedUser(id: 1, name: 'Test User', email: 'test@example.com', role: UserRole.teacher);
+  }
+
   @override
   Future<void> forgotPassword(String email) async {}
 

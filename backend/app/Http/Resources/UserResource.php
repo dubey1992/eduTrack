@@ -34,6 +34,10 @@ class UserResource extends JsonResource
             'is_sub_admin' => $this->is_sub_admin,
             'status' => $this->status->value,
             'school_id' => $this->school_id,
+            // True for an account created by a bulk import, which was given
+            // a generated password: the client keeps it on the
+            // change-password screen until it chooses one of its own.
+            'must_change_password' => $this->must_change_password,
             'school_name' => $this->whenLoaded('school', fn () => $this->school?->name),
             // The session's clock. The client measures every date it shows or
             // defaults to against these two, never against the browser's own

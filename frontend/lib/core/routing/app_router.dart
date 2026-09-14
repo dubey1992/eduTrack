@@ -6,6 +6,7 @@ import '../../features/academic_years/presentation/academic_year_list_screen.dar
 import '../../features/attendance/presentation/attendance_screen.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/announcements/presentation/announcement_screen.dart';
+import '../../features/auth/presentation/change_password_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
@@ -58,6 +59,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (context, state) => const MarketingScreen()),
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      // Outside the shell on purpose: an account still holding a temporary
+      // password has no business reaching the sidebar behind it.
+      GoRoute(path: '/change-password', builder: (context, state) => const ChangePasswordScreen()),
       GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
       GoRoute(
         path: '/reset-password',
@@ -125,6 +129,13 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (!isLoggedIn) {
         return _publicPaths.contains(location) ? null : '/login';
+      }
+
+      // An account created by a bulk import was handed a generated password
+      // that whoever ran the import has seen. Nothing else opens until it
+      // has been replaced.
+      if (user.mustChangePassword && location != '/change-password') {
+        return '/change-password';
       }
 
       // Once logged in, the marketing homepage/login/splash are all behind

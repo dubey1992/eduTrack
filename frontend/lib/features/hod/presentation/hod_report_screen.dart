@@ -32,6 +32,7 @@ class HodReportScreen extends ConsumerStatefulWidget {
 class _HodReportScreenState extends ConsumerState<HodReportScreen> {
   int? _schoolId;
   int? _departmentId;
+
   /// Null until the user steps to another month; the school's current month
   /// stands in until then, resolved on build so a session that is still
   /// loading cannot pin this to the browser's month.

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,6 +11,7 @@ import '../../schools/data/models/school.dart';
 import '../application/payment_list_notifier.dart';
 import '../data/models/payment.dart';
 import 'widgets/remaining_line.dart';
+import '../../../core/utils/date_format.dart';
 
 class AddPaymentDialog extends ConsumerStatefulWidget {
   const AddPaymentDialog({super.key});
@@ -57,8 +57,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
   /// Only sent for a part-payment. For every other status the API works the
   /// received amount out from the status itself, which keeps the two from
   /// ever contradicting each other.
-  double? get _paidAmount =>
-      _status == PaymentStatus.partial ? double.tryParse(_paidAmountController.text) : null;
+  double? get _paidAmount => _status == PaymentStatus.partial ? double.tryParse(_paidAmountController.text) : null;
 
   String? _validatePaidAmount(String? value) {
     final paid = double.tryParse(value ?? '');
@@ -193,7 +192,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                   onTap: _pickDate,
                   child: InputDecorator(
                     decoration: const InputDecoration(labelText: 'Payment date'),
-                    child: Text(DateFormat.yMMMd().format(_paymentDate)),
+                    child: Text(formatDate(_paymentDate)),
                   ),
                 ),
                 const SizedBox(height: 10),

@@ -10,6 +10,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../imports/presentation/bulk_import_button.dart';
 import '../application/vehicle_page_notifier.dart';
 import '../data/models/transport_status.dart';
 import '../data/models/vehicle.dart';
@@ -44,6 +45,13 @@ class _VehicleListScreenState extends ConsumerState<VehicleListScreen> {
                 onPressed: () => showDialog(context: context, builder: (_) => const VehicleFormDialog()),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add Vehicle'),
+              ),
+            if (canManage)
+              BulkImportButton(
+                type: 'vehicles',
+                title: 'Vehicles',
+                schoolId: _schoolFilter,
+                onImported: () => ref.read(vehiclePageNotifierProvider.notifier).refresh(),
               ),
             SchoolFilterDropdown(
               selected: _schoolFilter,

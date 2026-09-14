@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../auth/application/school_clock_provider.dart';
+
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
@@ -8,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../application/staff_leave_list_notifier.dart';
 import '../data/models/leave_status.dart';
 import '../data/models/leave_type.dart';
+import '../../../core/utils/date_format.dart';
 
 /// Self-service "Apply Leave" form - the staff_profile_id it applies for is
 /// always the signed-in actor's own, resolved server-side (see
@@ -130,7 +133,7 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
                   onTap: _pickStartDate,
                   child: InputDecorator(
                     decoration: const InputDecoration(labelText: 'From'),
-                    child: Text(DateFormat.yMMMd().format(_startDate)),
+                    child: Text(formatDate(_startDate)),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -138,7 +141,7 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
                   onTap: _pickEndDate,
                   child: InputDecorator(
                     decoration: const InputDecoration(labelText: 'To'),
-                    child: Text(DateFormat.yMMMd().format(_endDate)),
+                    child: Text(formatDate(_endDate)),
                   ),
                 ),
                 const SizedBox(height: 10),

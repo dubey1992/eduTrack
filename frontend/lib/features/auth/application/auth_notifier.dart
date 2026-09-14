@@ -43,6 +43,17 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     if (state.hasValue) _resetSessionScopedProviders();
   }
 
+  /// Changes the signed-in user's password and refreshes the session, so a
+  /// user who was being held on the change-password screen is let through
+  /// the moment it succeeds.
+  Future<void> changePassword({required String currentPassword, required String password}) async {
+    final user = await ref
+        .read(authRepositoryProvider)
+        .changePassword(currentPassword: currentPassword, password: password);
+
+    state = AsyncData(user);
+  }
+
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
     state = const AsyncData(null);

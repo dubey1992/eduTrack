@@ -12,6 +12,7 @@ import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../imports/presentation/bulk_import_button.dart';
 import '../../departments/application/department_list_notifier.dart';
 import '../../users/data/models/app_user.dart';
 import '../application/staff_list_notifier.dart';
@@ -57,6 +58,13 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                 onPressed: () => showDialog(context: context, builder: (_) => const AddStaffDialog()),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add Employee'),
+              ),
+            if (canManage)
+              BulkImportButton(
+                type: 'staff',
+                title: 'Teachers and Staff',
+                schoolId: _schoolFilter,
+                onImported: () => ref.read(staffListNotifierProvider.notifier).refresh(),
               ),
             SchoolFilterDropdown(
               selected: _schoolFilter,

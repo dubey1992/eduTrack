@@ -13,6 +13,7 @@ import '../../auth/application/school_clock_provider.dart';
 import '../application/report_notifier.dart';
 import '../data/models/report.dart';
 import '../data/report_repository.dart';
+import '../../../core/utils/date_format.dart';
 
 /// Phase 18 - the reports behind the dashboard's figures.
 ///
@@ -150,9 +151,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     onPressed: _pickRange,
                     icon: const Icon(Icons.date_range, size: 18),
                     label: Text(
-                      _from == null || _to == null
-                          ? 'This month'
-                          : '${DateFormat.yMMMd().format(_from!)} - ${DateFormat.yMMMd().format(_to!)}',
+                      _from == null || _to == null ? 'This month' : '${formatDate(_from!)} - ${formatDate(_to!)}',
                     ),
                   ),
                   FilledButton.icon(
@@ -167,10 +166,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            _kind.description,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
+          Text(_kind.description, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -276,16 +272,11 @@ class _ReportTable extends StatelessWidget {
         child: DataTable(
           columnSpacing: 22,
           horizontalMargin: 12,
-          columns: [
-            for (final column in columns) DataColumn(label: Text(column.label), numeric: column.numeric),
-          ],
+          columns: [for (final column in columns) DataColumn(label: Text(column.label), numeric: column.numeric)],
           rows: [
             for (final row in report.rows)
               DataRow(
-                cells: [
-                  for (final column in columns)
-                    DataCell(_Cell(value: row[column.key], isRate: column.isRate)),
-                ],
+                cells: [for (final column in columns) DataCell(_Cell(value: row[column.key], isRate: column.isRate))],
               ),
           ],
         ),
@@ -315,10 +306,7 @@ class _Cell extends StatelessWidget {
 
     return Text(
       '${rate.toStringAsFixed(1)}%',
-      style: TextStyle(
-        fontWeight: FontWeight.w700,
-        color: rate < 75 ? scheme.error : scheme.onSurface,
-      ),
+      style: TextStyle(fontWeight: FontWeight.w700, color: rate < 75 ? scheme.error : scheme.onSurface),
     );
   }
 }

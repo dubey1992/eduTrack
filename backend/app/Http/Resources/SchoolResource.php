@@ -27,6 +27,8 @@ class SchoolResource extends JsonResource
             'state' => $this->state,
             'country' => $this->country,
             'postal_code' => $this->postal_code,
+            'latitude' => $this->latitude === null ? null : (string) $this->latitude,
+            'longitude' => $this->longitude === null ? null : (string) $this->longitude,
             'currency_code' => $this->currency_code,
             'timezone' => $this->timezone,
             'logo_url' => $this->logo_url,

@@ -9,12 +9,7 @@ import '../../../../core/utils/currency_formatter.dart';
 /// person to do the subtraction, and to do it again every time either figure
 /// changes. This does it for them, live.
 class RemainingLine extends StatelessWidget {
-  const RemainingLine({
-    super.key,
-    required this.amount,
-    required this.paidAmount,
-    required this.currencyCode,
-  });
+  const RemainingLine({super.key, required this.amount, required this.paidAmount, required this.currencyCode});
 
   final double? amount;
   final double? paidAmount;

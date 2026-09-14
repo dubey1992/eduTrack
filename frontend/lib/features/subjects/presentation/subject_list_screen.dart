@@ -10,6 +10,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../imports/presentation/bulk_import_button.dart';
 import '../application/subject_list_notifier.dart';
 import '../data/models/subject.dart';
 import 'add_subject_dialog.dart';
@@ -43,6 +44,13 @@ class _SubjectListScreenState extends ConsumerState<SubjectListScreen> {
                 onPressed: () => showDialog(context: context, builder: (_) => const AddSubjectDialog()),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add Subject'),
+              ),
+            if (canManage)
+              BulkImportButton(
+                type: 'subjects',
+                title: 'Subjects',
+                schoolId: _schoolFilter,
+                onImported: () => ref.read(subjectListNotifierProvider.notifier).refresh(),
               ),
             SchoolFilterDropdown(
               selected: _schoolFilter,

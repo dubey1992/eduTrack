@@ -6,6 +6,7 @@ import '../../../core/models/currency.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
+import 'widgets/coordinates_fields.dart';
 import 'widgets/timezone_field.dart';
 import '../data/models/school.dart';
 
@@ -29,6 +30,8 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
   late final _stateController = TextEditingController(text: widget.school.state);
   late final _countryController = TextEditingController(text: widget.school.country);
   late final _postalCodeController = TextEditingController(text: widget.school.postalCode);
+  late final _latitudeController = TextEditingController(text: widget.school.latitude ?? '');
+  late final _longitudeController = TextEditingController(text: widget.school.longitude ?? '');
   late String _currencyCode = widget.school.currencyCode;
   late String _timezone = widget.school.timezone;
 
@@ -46,6 +49,8 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
     _stateController.dispose();
     _countryController.dispose();
     _postalCodeController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
   }
 
@@ -75,6 +80,8 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
             postalCode: _postalCodeController.text.trim(),
             currencyCode: _currencyCode,
             timezone: _timezone,
+            latitude: _latitudeController.text.trim(),
+            longitude: _longitudeController.text.trim(),
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School updated.')));
@@ -185,6 +192,8 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
                 ),
                 const SizedBox(height: 10),
                 TimezoneField(value: _timezone, onChanged: (value) => setState(() => _timezone = value)),
+                const SizedBox(height: 10),
+                CoordinatesFields(latitude: _latitudeController, longitude: _longitudeController),
               ],
             ),
           ),

@@ -4,12 +4,7 @@
 /// offer a zone the backend would reject, and so it stays correct as the
 /// IANA database changes.
 class TimezoneOption {
-  const TimezoneOption({
-    required this.name,
-    required this.region,
-    required this.label,
-    required this.offsetMinutes,
-  });
+  const TimezoneOption({required this.name, required this.region, required this.label, required this.offsetMinutes});
 
   factory TimezoneOption.fromJson(Map<String, dynamic> json) {
     return TimezoneOption(

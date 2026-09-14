@@ -10,10 +10,7 @@ import 'package:web/web.dart' as web;
 /// in memory for the life of the tab, and a report run twenty times would
 /// otherwise hold twenty copies.
 void saveBytes({required String fileName, required List<int> bytes, required String mimeType}) {
-  final blob = web.Blob(
-    [Uint8List.fromList(bytes).toJS].toJS,
-    web.BlobPropertyBag(type: mimeType),
-  );
+  final blob = web.Blob([Uint8List.fromList(bytes).toJS].toJS, web.BlobPropertyBag(type: mimeType));
   final url = web.URL.createObjectURL(blob);
 
   final anchor = web.document.createElement('a') as web.HTMLAnchorElement

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Concerns;
 
+use App\Support\DateFormats;
 use App\Support\SchoolClock;
 use DateTimeInterface;
 use LogicException;
@@ -53,7 +54,7 @@ trait RendersSchoolTime
      */
     protected function timeLabel(?DateTimeInterface $instant): ?string
     {
-        return $this->clock()->format($instant, 'g:i A');
+        return $this->clock()->format($instant, DateFormats::TIME);
     }
 
     /**
@@ -61,7 +62,7 @@ trait RendersSchoolTime
      */
     protected function dateLabel(?DateTimeInterface $instant): ?string
     {
-        return $this->clock()->format($instant, 'd M Y');
+        return $this->clock()->format($instant, DateFormats::DATE);
     }
 
     /**
@@ -69,6 +70,6 @@ trait RendersSchoolTime
      */
     protected function dateTimeLabel(?DateTimeInterface $instant): ?string
     {
-        return $this->clock()->format($instant, 'd M Y, g:i A');
+        return $this->clock()->format($instant, DateFormats::DATE_TIME);
     }
 }

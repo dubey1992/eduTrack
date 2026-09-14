@@ -164,7 +164,7 @@ void main() {
 
       expect(find.text('Sanjay Patel'), findsOneWidget);
       expect(find.text('+91 9876543210'), findsOneWidget);
-      expect(find.text('MH-12-20190012345 · exp. Mar 31, 2029'), findsOneWidget);
+      expect(find.text('MH-12-20190012345 · exp. 03/31/2029'), findsOneWidget);
       expect(find.text('Licence expired'), findsOneWidget);
       expect(find.text('Green Park'), findsOneWidget);
       expect(find.text('Unassigned'), findsOneWidget);

@@ -33,6 +33,61 @@ const _superAdmin = AuthenticatedUser(
 const _teacher = AuthenticatedUser(id: 2, name: 'A Teacher', email: 'teacher@example.com', role: UserRole.teacher);
 
 void main() {
+  testWidgets('an account holding a temporary password gets no further', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(
+            FakeAuthRepository(
+              sessionOnRestore: const AuthenticatedUser(
+                id: 3,
+                name: 'Priya Nair',
+                email: 'priya@example.com',
+                role: UserRole.teacher,
+                mustChangePassword: true,
+              ),
+            ),
+          ),
+          dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+        ],
+        child: const EduTrackApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Your account was set up with a temporary password. Choose your own to continue.'),
+      findsOneWidget,
+    );
+    // Outside the shell: no sidebar to reach past the screen.
+    expect(find.text('Reports'), findsNothing);
+  });
+
+  testWidgets('an ordinary session is not sent to change its password', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _teacher)),
+          dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+        ],
+        child: const EduTrackApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Change Password'), findsNothing);
+  });
+
   testWidgets('a super admin sees the admin-only navigation', (tester) async {
     // Desktop width: below the breakpoint the shell puts the sidebar behind a
     // drawer, where none of its entries are on screen to find.

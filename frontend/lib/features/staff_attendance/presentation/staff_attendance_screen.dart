@@ -15,6 +15,7 @@ import '../../schools/data/models/school.dart';
 import '../application/staff_attendance_register_notifier.dart';
 import '../data/models/staff_attendance_register.dart';
 import '../data/models/staff_attendance_status.dart';
+import '../../../core/utils/date_format.dart';
 
 /// Mark or edit a school's daily staff attendance register - Phase 8,
 /// reusing the existing school/department pickers from Super Admin (Phase 2)
@@ -30,6 +31,7 @@ class StaffAttendanceScreen extends ConsumerStatefulWidget {
 class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
   int? _schoolId;
   int? _departmentId;
+
   /// Null until the user picks a day; the school's today stands in until
   /// then. Resolved on build rather than in initState, because the session
   /// (and with it the school's clock) may still be loading when this screen
@@ -103,7 +105,7 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
                   OutlinedButton.icon(
                     onPressed: _pickDate,
                     icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                    label: Text(DateFormat.yMMMd().format(_date)),
+                    label: Text(formatDate(_date)),
                   ),
                 ],
               ),

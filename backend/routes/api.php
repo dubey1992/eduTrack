@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\AnnouncementController;
 use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BulkImportController;
 use App\Http\Controllers\Api\V1\CommunicationController;
 use App\Http\Controllers\Api\V1\DailyTeachingReportController;
 use App\Http\Controllers\Api\V1\DashboardController;
@@ -46,6 +47,7 @@ Route::post('/auth/reset-password', [PasswordResetController::class, 'reset'])
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
     Route::get('/me', [AuthController::class, 'me']);
 
     Route::get('/users', [UserController::class, 'index']);
@@ -62,6 +64,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/staff-attendance', [ReportController::class, 'staffAttendance']);
     Route::get('/reports/teaching-coverage', [ReportController::class, 'teachingCoverage']);
     Route::get('/reports/transport-usage', [ReportController::class, 'transportUsage']);
+
+    // Bulk upload. One pair of endpoints for every kind of record - the
+    // type in the path picks the importer, and its own create policy
+    // decides who may run it.
+    Route::get('/imports/{type}/template', [BulkImportController::class, 'template']);
+    Route::post('/imports/{type}', [BulkImportController::class, 'store']);
 
     // Reference data for the school form's timezone picker.
     Route::get('/timezones', [TimezoneController::class, 'index']);

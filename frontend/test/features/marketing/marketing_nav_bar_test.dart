@@ -14,12 +14,7 @@ void main() {
         body: SizedBox(
           width: width,
           child: MarketingNavBar(
-            onNavigate: {
-              'Features': () {},
-              'Modules': () {},
-              'Pricing': () {},
-              'Contact': () {},
-            },
+            onNavigate: {'Features': () {}, 'Modules': () {}, 'Pricing': () {}, 'Contact': () {}},
             onJoinEarlyAccess: () {},
           ),
         ),

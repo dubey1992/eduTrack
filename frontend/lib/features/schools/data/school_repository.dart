@@ -53,6 +53,8 @@ class SchoolRepository {
     required String postalCode,
     required String currencyCode,
     required String timezone,
+    String? latitude,
+    String? longitude,
   }) async {
     try {
       return await _api.create({
@@ -67,6 +69,8 @@ class SchoolRepository {
         'postal_code': postalCode,
         'currency_code': currencyCode,
         'timezone': timezone,
+        'latitude': latitude,
+        'longitude': longitude,
       });
     } on DioException catch (e) {
       throw failureFromDioException(e);
@@ -86,6 +90,8 @@ class SchoolRepository {
     String? postalCode,
     String? currencyCode,
     String? timezone,
+    String? latitude,
+    String? longitude,
   }) async {
     try {
       return await _api.update(schoolId, {
@@ -100,6 +106,9 @@ class SchoolRepository {
         'postal_code': ?postalCode,
         'currency_code': ?currencyCode,
         'timezone': ?timezone,
+        // Sent even when empty, so clearing a coordinate actually clears it.
+        'latitude': latitude,
+        'longitude': longitude,
       });
     } on DioException catch (e) {
       throw failureFromDioException(e);

@@ -8,14 +8,7 @@ import '../data/report_repository.dart';
 /// Held as one value so a single provider covers all four reports: switching
 /// report or moving the dates is a new query, not new state to manage.
 class ReportQuery {
-  const ReportQuery({
-    required this.kind,
-    this.schoolId,
-    this.from,
-    this.to,
-    this.classSectionId,
-    this.departmentId,
-  });
+  const ReportQuery({required this.kind, this.schoolId, this.from, this.to, this.classSectionId, this.departmentId});
 
   final ReportKind kind;
   final int? schoolId;

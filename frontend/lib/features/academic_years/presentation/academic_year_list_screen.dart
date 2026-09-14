@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
@@ -16,6 +15,7 @@ import '../application/academic_year_list_notifier.dart';
 import '../data/models/academic_year.dart';
 import 'add_academic_year_dialog.dart';
 import 'edit_academic_year_dialog.dart';
+import '../../../core/utils/date_format.dart';
 
 const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
 
@@ -115,7 +115,7 @@ class _AcademicYearListMobile extends StatelessWidget {
                 ],
               ),
               subtitle: Text(
-                '${DateFormat.yMMMd().format(year.startDate)} - ${DateFormat.yMMMd().format(year.endDate)}'
+                '${formatDate(year.startDate)} - ${formatDate(year.endDate)}'
                 '${year.schoolName != null ? '\n${year.schoolName}' : ''}',
               ),
               isThreeLine: year.schoolName != null,
@@ -156,8 +156,8 @@ class _AcademicYearListDesktop extends StatelessWidget {
                   cells: [
                     DataCell(Text(year.name)),
                     DataCell(Text(year.schoolName ?? '-')),
-                    DataCell(Text(DateFormat.yMMMd().format(year.startDate))),
-                    DataCell(Text(DateFormat.yMMMd().format(year.endDate))),
+                    DataCell(Text(formatDate(year.startDate))),
+                    DataCell(Text(formatDate(year.endDate))),
                     DataCell(
                       year.isCurrent
                           ? const StatusBadge(label: 'Current', tone: BadgeTone.success)

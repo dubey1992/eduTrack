@@ -5,6 +5,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/password_field.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../schools/application/school_list_notifier.dart';
@@ -122,12 +123,7 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
                 const SizedBox(height: 10),
                 PhoneNumberField(controller: _mobileController, label: 'Mobile (optional)'),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                  validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
-                ),
+                PasswordField(controller: _passwordController, helperText: 'At least 8 characters.'),
                 // A School Admin's Sub Admin always lands in their own
                 // school, resolved server-side - no picker needed. Only a
                 // SUPER_ADMIN, who has no "own school", must choose one.

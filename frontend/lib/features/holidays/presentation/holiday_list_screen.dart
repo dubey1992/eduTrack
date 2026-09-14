@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
@@ -16,6 +15,7 @@ import '../application/holiday_page_notifier.dart';
 import '../data/models/holiday.dart';
 import 'add_holiday_dialog.dart';
 import 'edit_holiday_dialog.dart';
+import '../../../core/utils/date_format.dart';
 
 const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
 
@@ -91,9 +91,9 @@ class _HolidayListScreenState extends ConsumerState<HolidayListScreen> {
 }
 
 String _dateRange(Holiday holiday) {
-  final start = DateFormat.yMMMd().format(DateTime.parse(holiday.startDate));
+  final start = formatDate(DateTime.parse(holiday.startDate));
   if (holiday.isSingleDay) return start;
-  return '$start – ${DateFormat.yMMMd().format(DateTime.parse(holiday.endDate))}';
+  return '$start – ${formatDate(DateTime.parse(holiday.endDate))}';
 }
 
 String _daysLabel(Holiday holiday) => holiday.days == 1 ? '1 day' : '${holiday.days} days';

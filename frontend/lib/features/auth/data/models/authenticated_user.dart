@@ -8,6 +8,7 @@ class AuthenticatedUser {
     required this.email,
     required this.role,
     this.isSubAdmin = false,
+    this.mustChangePassword = false,
     SchoolClock? clock,
   }) : _clock = clock;
 
@@ -24,6 +25,7 @@ class AuthenticatedUser {
         currentTime: json['current_time'] as String? ?? '',
       ),
       isSubAdmin: json['is_sub_admin'] as bool? ?? false,
+      mustChangePassword: json['must_change_password'] as bool? ?? false,
     );
   }
 
@@ -46,4 +48,9 @@ class AuthenticatedUser {
   /// create or manage any admin account themselves. Always false for every
   /// other role. See the backend's UserPolicy::create().
   final bool isSubAdmin;
+
+  /// True for an account created by a bulk import, which was handed a
+  /// generated password. The router keeps them on the change-password
+  /// screen until they pick one of their own.
+  final bool mustChangePassword;
 }

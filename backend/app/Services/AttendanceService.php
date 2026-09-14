@@ -14,6 +14,7 @@ use App\Models\ClassSection;
 use App\Models\Holiday;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\DateFormats;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -193,7 +194,7 @@ class AttendanceService
 
             $this->notifications->notifyGuardian($event, $student, [
                 'class_name' => trim("{$section->schoolClass->name} {$section->name}"),
-                'date' => Carbon::parse($date)->format('d M Y'),
+                'date' => Carbon::parse($date)->format(DateFormats::DATE),
             ], $actor);
         }
     }
