@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
 import 'widgets/coordinates_fields.dart';
+import 'widgets/parent_school_field.dart';
 import 'widgets/timezone_field.dart';
 import '../data/models/school.dart';
 
@@ -34,6 +35,7 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
   late final _longitudeController = TextEditingController(text: widget.school.longitude ?? '');
   late String _currencyCode = widget.school.currencyCode;
   late String _timezone = widget.school.timezone;
+  late int? _parentSchoolId = widget.school.parentSchoolId;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -80,6 +82,10 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
             postalCode: _postalCodeController.text.trim(),
             currencyCode: _currencyCode,
             timezone: _timezone,
+            // Only sent when it actually changed, so a plain edit never
+            // pulls a branch out of its group by accident.
+            changeParent: _parentSchoolId != widget.school.parentSchoolId,
+            parentSchoolId: _parentSchoolId,
             latitude: _latitudeController.text.trim(),
             longitude: _longitudeController.text.trim(),
           );
@@ -192,6 +198,12 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
                 ),
                 const SizedBox(height: 10),
                 TimezoneField(value: _timezone, onChanged: (value) => setState(() => _timezone = value)),
+                const SizedBox(height: 12),
+                ParentSchoolField(
+                  value: _parentSchoolId,
+                  editing: widget.school,
+                  onChanged: (value) => setState(() => _parentSchoolId = value),
+                ),
                 const SizedBox(height: 10),
                 CoordinatesFields(latitude: _latitudeController, longitude: _longitudeController),
               ],

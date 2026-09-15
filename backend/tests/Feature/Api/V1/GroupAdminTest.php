@@ -448,6 +448,25 @@ class GroupAdminTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_the_school_list_is_the_group_and_nothing_else(): void
+    {
+        $names = collect($this->asGroupAdmin()->getJson('/api/v1/schools')->assertOk()->json('data'))
+            ->pluck('name');
+
+        $this->assertEqualsCanonicalizing(
+            ["St Mary's Group", "St Mary's North", "St Mary's South"],
+            $names->all(),
+        );
+        $this->assertNotContains('Elsewhere High', $names->all());
+    }
+
+    public function test_a_school_admin_still_cannot_list_schools_at_all(): void
+    {
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($this->north)->create();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/schools')->assertForbidden();
+    }
+
     // -- a group of one ----------------------------------------------------
 
     public function test_a_group_admin_of_a_school_with_no_branches_sees_only_it(): void

@@ -21,7 +21,9 @@ class SchoolController extends Controller
     {
         Gate::authorize('viewAny', School::class);
 
-        return SchoolResource::collection($this->schoolService->paginate($request->only(['per_page'])));
+        return SchoolResource::collection(
+            $this->schoolService->paginate($request->user(), $request->only(['per_page']))
+        );
     }
 
     public function store(StoreSchoolRequest $request): JsonResponse

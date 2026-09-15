@@ -1,7 +1,8 @@
-# Multi-branch schools — implementation plan
+# Multi-branch schools
 
-**Status: plan only. Nothing here is built yet.** Decisions below were taken
-on 2026-09-15 and are what the implementation should follow.
+**Status: built.** Steps 1-4 of the phasing below have landed; step 5 is
+partly done (the group dashboard exists; per-branch report breakdowns do
+not). Decisions were taken on 2026-09-15.
 
 A school group runs several branches — St Mary's North, South and East — under
 one name. Today eduTrack has no idea they are related: each is an unconnected
@@ -164,22 +165,48 @@ The four reports in `docs/reports.md` gain a branch dimension the same way:
 same service, `SchoolScope` instead of a single `school_id`, and a per-branch
 breakdown row.
 
-## Suggested phasing
+## What landed, in order
 
-Each step ships on its own and leaves the app working.
+1. **`SchoolScope`, no behaviour change.** ✅ The 154 call sites route through
+   it. 735 tests green before and after, none edited — that was the proof.
+2. **`parent_school_id`.** ✅ Migration, `parent`/`branches` relationships,
+   `groupSchoolIds()`, and the one-level validation.
+3. **`GROUP_ADMIN`.** ✅ The role, its scope, the capability changes, and 34
+   ALLOW/DENY tests.
+4. **The group in the UI.** ✅ The filter reads "Filter by branch" / "Whole
+   group" for a Group Admin, the school form has a parent picker that refuses
+   to offer an impossible parent, and the school list shows the hierarchy.
+5. **Group dashboards and reports.** Partly. The group dashboard is built -
+   one attendance ratio across the group rather than an average of averages,
+   and each unmarked branch named. Per-branch breakdowns inside the four
+   reports are **not** built: a Group Admin runs each report against one
+   branch at a time.
 
-1. **`SchoolScope`, no behaviour change.** Route the 154 call sites through it.
-   Existing suites must stay green untouched — that is the whole proof.
-2. **`parent_school_id`.** Migration, model relationships (`parent`,
-   `branches`), Super Admin can set a parent when onboarding or editing a
-   school. Validation: a parent cannot be its own child, no cycles, and a
-   branch cannot itself be a parent (one level only — see below).
-3. **`GROUP_ADMIN`.** The role, its `SchoolScope`, the policy tests above, and
-   the school-list endpoint scoped to the group.
-4. **The group in the UI.** The "Filter by school" dropdown appears for Group
-   Admins listing their branches (today it renders nothing for anyone but
-   Super Admin). School list shows the hierarchy.
-5. **Group dashboards and reports.** Per-branch breakdowns; totals by currency.
+### Two things the refactor caught
+
+Worth recording, because they are exactly what step 1 existed to prevent.
+Sweeping the `SuperAdmin` call sites left two scope decisions keyed on
+`SchoolAdmin` instead:
+
+- **`UserService::paginate`** was role-gated, not scoped. A Group Admin would
+  have seen every user account on the platform.
+- **`DashboardService`** dispatched on a `match ($actor->role)` with no arm
+  for the new role — an `UnhandledMatchError`, not a default.
+
+Both are covered by tests now. Neither would have been found by adding the
+role to 154 branching points by hand.
+
+## Where a Group Admin's limits are enforced
+
+- **Scope** (which schools): `App\Support\SchoolScope`. A Group Admin
+  resolves to `School::groupSchoolIds()` - the parent and its branches.
+- **Capability** (what they may do): `UserRole::administersSchool()`, which is
+  true for a School Admin and a Group Admin alike, plus the `ADMIN_ROLES`
+  constants on each policy. `SchoolPolicy` and `PaymentPolicy` deliberately
+  do not mention it.
+- **Which branch a write lands in**: `SchoolScope::writableSchoolId()`, and
+  `ScopesSchool::schoolIdRules()` makes `school_id` required for anybody whose
+  scope covers more than one school.
 
 ## Deliberately out of scope
 

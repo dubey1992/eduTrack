@@ -62,6 +62,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
 
   Future<void> createSchool({
     required String name,
+    int? parentSchoolId,
     String? registrationNumber,
     required String email,
     required String phone,
@@ -79,6 +80,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
         .read(schoolRepositoryProvider)
         .create(
           name: name,
+          parentSchoolId: parentSchoolId,
           registrationNumber: registrationNumber,
           email: email,
           phone: phone,
@@ -114,11 +116,15 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
     String? timezone,
     String? latitude,
     String? longitude,
+    bool changeParent = false,
+    int? parentSchoolId,
   }) async {
     final updated = await ref
         .read(schoolRepositoryProvider)
         .update(
           school.id,
+          changeParent: changeParent,
+          parentSchoolId: parentSchoolId,
           name: name,
           registrationNumber: registrationNumber,
           email: email,

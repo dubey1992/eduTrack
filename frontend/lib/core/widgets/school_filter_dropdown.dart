@@ -19,19 +19,27 @@ class SchoolFilterDropdown extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(authNotifierProvider).value?.role;
-    if (role != UserRole.superAdmin) return const SizedBox.shrink();
+    if (role != UserRole.superAdmin && role != UserRole.groupAdmin) return const SizedBox.shrink();
 
     final schools = ref.watch(schoolListNotifierProvider).value ?? const <School>[];
     final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
+
+    // A Super Admin is choosing between schools; a Group Admin between the
+    // branches of one group. The list itself is scoped server-side either
+    // way - this only changes what it is called.
+    final isGroup = role == UserRole.groupAdmin;
 
     return SizedBox(
       width: 220,
       child: DropdownButtonFormField<int?>(
         initialValue: selected,
         isExpanded: true,
-        decoration: const InputDecoration(labelText: 'Filter by school', isDense: true),
+        decoration: InputDecoration(labelText: isGroup ? 'Filter by branch' : 'Filter by school', isDense: true),
         items: [
-          const DropdownMenuItem(value: null, child: Text('All Schools', overflow: TextOverflow.ellipsis, maxLines: 1)),
+          DropdownMenuItem(
+            value: null,
+            child: Text(isGroup ? 'Whole group' : 'All Schools', overflow: TextOverflow.ellipsis, maxLines: 1),
+          ),
           for (final school in activeSchools)
             DropdownMenuItem(
               value: school.id,

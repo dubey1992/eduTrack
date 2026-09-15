@@ -36,6 +36,7 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
   int? _schoolId;
+  UserRole _role = UserRole.schoolAdmin;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -67,13 +68,17 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
             email: _emailController.text.trim(),
             mobile: _mobileController.text.trim().isEmpty ? null : _mobileController.text.trim(),
             password: _passwordController.text,
-            role: UserRole.schoolAdmin,
+            role: _role,
             schoolId: _schoolId,
           );
       if (mounted) {
         final isSuperAdmin = ref.read(authNotifierProvider).value?.role == UserRole.superAdmin;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(isSuperAdmin ? 'School admin created.' : 'Sub admin created.')));
+        final what = _role == UserRole.groupAdmin
+            ? 'Group admin created.'
+            : isSuperAdmin
+            ? 'School admin created.'
+            : 'Sub admin created.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(what)));
         Navigator.of(context).pop();
       }
     } catch (error) {
@@ -101,6 +106,25 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
                 if (_errorMessage != null) ...[
                   Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                   const SizedBox(height: 12),
+                ],
+                // Only a Super Admin hands out the group-level role, and it
+                // sits at the school the branches are under. See
+                // docs/branches.md.
+                if (isSuperAdmin) ...[
+                  DropdownButtonFormField<UserRole>(
+                    initialValue: _role,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Role', isDense: true),
+                    items: const [
+                      DropdownMenuItem(value: UserRole.schoolAdmin, child: Text('School Admin - one school')),
+                      DropdownMenuItem(
+                        value: UserRole.groupAdmin,
+                        child: Text('Group Admin - every branch in a group'),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() => _role = value ?? UserRole.schoolAdmin),
+                  ),
+                  const SizedBox(height: 10),
                 ],
                 TextFormField(
                   controller: _firstNameController,

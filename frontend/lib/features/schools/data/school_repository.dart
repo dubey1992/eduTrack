@@ -43,6 +43,7 @@ class SchoolRepository {
 
   Future<School> create({
     required String name,
+    int? parentSchoolId,
     String? registrationNumber,
     required String email,
     required String phone,
@@ -59,6 +60,7 @@ class SchoolRepository {
     try {
       return await _api.create({
         'name': name,
+        'parent_school_id': parentSchoolId,
         'registration_number': registrationNumber,
         'email': email,
         'phone': phone,
@@ -92,9 +94,14 @@ class SchoolRepository {
     String? timezone,
     String? latitude,
     String? longitude,
+    // Sent only when the caller means to change it: a plain edit must not
+    // silently pull a branch out of its group.
+    bool changeParent = false,
+    int? parentSchoolId,
   }) async {
     try {
       return await _api.update(schoolId, {
+        if (changeParent) 'parent_school_id': parentSchoolId,
         'name': ?name,
         'registration_number': registrationNumber,
         'email': ?email,

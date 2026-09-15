@@ -117,6 +117,7 @@ class _SchoolListDesktop extends StatelessWidget {
           child: DataTable(
             columns: const [
               DataColumn(label: Text('Name')),
+              DataColumn(label: Text('Group')),
               DataColumn(label: Text('Email')),
               DataColumn(label: Text('City')),
               DataColumn(label: Text('Country')),
@@ -129,6 +130,7 @@ class _SchoolListDesktop extends StatelessWidget {
                 DataRow(
                   cells: [
                     DataCell(Text(school.name)),
+                    DataCell(_GroupCell(school: school)),
                     DataCell(Text(school.email)),
                     DataCell(Text(school.city)),
                     DataCell(Text(school.country)),
@@ -198,5 +200,28 @@ class _SchoolActions extends ConsumerWidget {
         ),
       ],
     );
+  }
+}
+
+/// Where a school sits in its group: a branch names its parent, a parent
+/// counts its branches, and a standalone school says so plainly.
+class _GroupCell extends StatelessWidget {
+  const _GroupCell({required this.school});
+
+  final School school;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant);
+
+    if (school.isBranch) {
+      return Text('Branch of ${school.parentSchoolName ?? 'a group'}', overflow: TextOverflow.ellipsis, maxLines: 1);
+    }
+
+    if (school.isGroupParent) {
+      return Text('${school.branchCount} ${school.branchCount == 1 ? 'branch' : 'branches'}');
+    }
+
+    return Text('Standalone', style: muted);
   }
 }

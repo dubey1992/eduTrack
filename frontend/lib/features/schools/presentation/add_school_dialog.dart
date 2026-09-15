@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
 import 'widgets/coordinates_fields.dart';
+import 'widgets/parent_school_field.dart';
 import 'widgets/timezone_field.dart';
 
 class AddSchoolDialog extends ConsumerStatefulWidget {
@@ -33,6 +34,7 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
   // UTC until the Super Admin picks one, which matches what the column
   // defaults to for a school created any other way.
   String _timezone = 'UTC';
+  int? _parentSchoolId;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -66,6 +68,7 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
           .read(schoolPageNotifierProvider.notifier)
           .createSchool(
             name: _nameController.text.trim(),
+            parentSchoolId: _parentSchoolId,
             registrationNumber: _registrationController.text.trim().isEmpty
                 ? null
                 : _registrationController.text.trim(),
@@ -189,6 +192,11 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
                 ),
                 const SizedBox(height: 10),
                 TimezoneField(value: _timezone, onChanged: (value) => setState(() => _timezone = value)),
+                const SizedBox(height: 12),
+                ParentSchoolField(
+                  value: _parentSchoolId,
+                  onChanged: (value) => setState(() => _parentSchoolId = value),
+                ),
                 const SizedBox(height: 10),
                 CoordinatesFields(latitude: _latitudeController, longitude: _longitudeController),
               ],

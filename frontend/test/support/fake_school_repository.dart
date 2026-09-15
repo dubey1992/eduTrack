@@ -51,6 +51,7 @@ class FakeSchoolRepository implements SchoolRepository {
   @override
   Future<School> create({
     required String name,
+    int? parentSchoolId,
     String? registrationNumber,
     required String email,
     required String phone,
@@ -104,6 +105,8 @@ class FakeSchoolRepository implements SchoolRepository {
     String? timezone,
     String? latitude,
     String? longitude,
+    bool changeParent = false,
+    int? parentSchoolId,
   }) async {
     if (failUpdateWith != null) throw failUpdateWith!;
 

@@ -17,7 +17,9 @@ class SchoolPolicy
 {
     public function viewAny(User $actor): bool
     {
-        return $actor->role === UserRole::SuperAdmin;
+        // A Group Admin lists the branches in their group so they can pick
+        // one - SchoolService::paginate() scopes the list to exactly that.
+        return $actor->role === UserRole::SuperAdmin || $actor->role === UserRole::GroupAdmin;
     }
 
     public function view(User $actor, School $school): bool

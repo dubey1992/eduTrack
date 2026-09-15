@@ -1,6 +1,10 @@
 /// Mirrors the backend's App\Enums\UserRole (backend CLAUDE.md rule 11).
 enum UserRole {
   superAdmin('SUPER_ADMIN', 'Super Admin'),
+
+  /// Reads every branch in a school group and writes into whichever it
+  /// names. Not a platform role - see docs/branches.md.
+  groupAdmin('GROUP_ADMIN', 'Group Admin'),
   schoolAdmin('SCHOOL_ADMIN', 'School Admin'),
   hod('HOD', 'HOD'),
   teacher('TEACHER', 'Teacher'),

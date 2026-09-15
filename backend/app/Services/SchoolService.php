@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Enums\SchoolStatus;
 use App\Models\School;
+use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class SchoolService
@@ -12,9 +14,12 @@ class SchoolService
     /**
      * @param  array<string, mixed>  $filters
      */
-    public function paginate(array $filters = []): LengthAwarePaginator
+    public function paginate(User $actor, array $filters = []): LengthAwarePaginator
     {
         return School::query()
+            // The schools table is scoped on its own id, not a school_id
+            // column: a Group Admin sees their group, a Super Admin sees all.
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, null, 'id'))
             // Eager loaded so a list of branches does not fire a query per
             // row for the parent's name (CLAUDE.md rule 22).
             ->with('parent')
