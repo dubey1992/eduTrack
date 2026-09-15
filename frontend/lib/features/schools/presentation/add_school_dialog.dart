@@ -7,11 +7,17 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
 import 'widgets/coordinates_fields.dart';
+import '../../early_access/data/models/early_access_request.dart';
 import 'widgets/parent_school_field.dart';
 import 'widgets/timezone_field.dart';
 
 class AddSchoolDialog extends ConsumerStatefulWidget {
-  const AddSchoolDialog({super.key});
+  const AddSchoolDialog({super.key, this.fromEarlyAccess});
+
+  /// The signup request this school is being onboarded from, if any. Its
+  /// details pre-fill the form, and creating the school marks the request
+  /// Converted - see docs/early-access.md.
+  final EarlyAccessRequest? fromEarlyAccess;
 
   @override
   ConsumerState<AddSchoolDialog> createState() => _AddSchoolDialogState();
@@ -19,14 +25,16 @@ class AddSchoolDialog extends ConsumerStatefulWidget {
 
 class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  late final _nameController = TextEditingController(text: widget.fromEarlyAccess?.schoolName ?? '');
   final _registrationController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
+  late final _emailController = TextEditingController(text: widget.fromEarlyAccess?.email ?? '');
+  // PhoneNumberField splits a '+91 9876543210' back into dial code and number, so seeding the whole
+  // value is enough.
+  late final _phoneController = TextEditingController(text: widget.fromEarlyAccess?.phone ?? '');
   final _addressController = TextEditingController();
-  final _cityController = TextEditingController();
+  late final _cityController = TextEditingController(text: widget.fromEarlyAccess?.city ?? '');
   final _stateController = TextEditingController();
-  final _countryController = TextEditingController();
+  late final _countryController = TextEditingController(text: widget.fromEarlyAccess?.country ?? '');
   final _postalCodeController = TextEditingController();
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
@@ -69,6 +77,7 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
           .createSchool(
             name: _nameController.text.trim(),
             parentSchoolId: _parentSchoolId,
+            earlyAccessRequestId: widget.fromEarlyAccess?.id,
             registrationNumber: _registrationController.text.trim().isEmpty
                 ? null
                 : _registrationController.text.trim(),

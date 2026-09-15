@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'marketing_colors.dart';
 import 'widgets/cta_section.dart';
 import 'widgets/features_section.dart';
-import 'widgets/early_access_dialog.dart';
+import 'widgets/early_access_form.dart';
 import 'widgets/hero_section.dart';
 import 'widgets/marketing_footer.dart';
 import 'widgets/marketing_nav_bar.dart';

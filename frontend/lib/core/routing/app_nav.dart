@@ -93,6 +93,16 @@ class AppNav {
         pageSubtitle: 'Onboard and manage schools on the platform',
       ),
       NavItem(
+        path: '/early-access',
+        label: 'Early Access',
+        icon: Icons.mark_email_unread_outlined,
+        // Schools asking to be let in - platform business, same as
+        // onboarding and payments. See docs/early-access.md.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Early Access Requests',
+        pageSubtitle: 'Schools that have asked to join the platform',
+      ),
+      NavItem(
         path: '/payments',
         label: 'Payments',
         icon: Icons.payments_outlined,

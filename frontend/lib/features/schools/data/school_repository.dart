@@ -44,6 +44,7 @@ class SchoolRepository {
   Future<School> create({
     required String name,
     int? parentSchoolId,
+    int? earlyAccessRequestId,
     String? registrationNumber,
     required String email,
     required String phone,
@@ -61,6 +62,7 @@ class SchoolRepository {
       return await _api.create({
         'name': name,
         'parent_school_id': parentSchoolId,
+        'early_access_request_id': earlyAccessRequestId,
         'registration_number': registrationNumber,
         'email': email,
         'phone': phone,

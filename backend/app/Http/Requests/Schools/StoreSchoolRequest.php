@@ -36,6 +36,9 @@ class StoreSchoolRequest extends FormRequest
             // A branch of an existing school. Null for a standalone school,
             // which is what most are. See docs/branches.md.
             'parent_school_id' => ['nullable', 'integer', 'exists:schools,id', new ValidParentSchool],
+            // Set when this school is being onboarded from a signup request,
+            // so the request can record what it became. See docs/early-access.md.
+            'early_access_request_id' => ['nullable', 'integer', 'exists:early_access_requests,id'],
             'name' => ['required', 'string', 'max:255'],
             'registration_number' => ['nullable', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('schools', 'email')],

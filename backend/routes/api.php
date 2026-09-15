@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\DailyTeachingReportController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DriverController;
+use App\Http\Controllers\Api\V1\EarlyAccessController;
 use App\Http\Controllers\Api\V1\HodReportController;
 use App\Http\Controllers\Api\V1\HolidayController;
 use App\Http\Controllers\Api\V1\InboxController;
@@ -40,6 +41,10 @@ use Illuminate\Support\Facades\Route;
 // The only endpoints reachable without a token, so the only ones that can be
 // attacked by guessing. Limits are defined in AppServiceProvider.
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+
+// The marketing page's signup form. Public on purpose - it is how a school
+// with no account asks for one - and throttled because of it.
+Route::post('/early-access', [EarlyAccessController::class, 'store'])->middleware('throttle:early-access');
 Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgot'])
     ->middleware('throttle:password-reset');
 Route::post('/auth/reset-password', [PasswordResetController::class, 'reset'])
@@ -70,6 +75,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // decides who may run it.
     Route::get('/imports/{type}/template', [BulkImportController::class, 'template']);
     Route::post('/imports/{type}', [BulkImportController::class, 'store']);
+
+    // Schools asking to be let in. Platform business, so Super Admin only -
+    // see EarlyAccessRequestPolicy.
+    Route::get('/early-access', [EarlyAccessController::class, 'index']);
+    Route::get('/early-access/{earlyAccessRequest}', [EarlyAccessController::class, 'show']);
+    Route::patch('/early-access/{earlyAccessRequest}', [EarlyAccessController::class, 'review']);
 
     // Reference data for the school form's timezone picker.
     Route::get('/timezones', [TimezoneController::class, 'index']);

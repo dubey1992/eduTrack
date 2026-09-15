@@ -63,6 +63,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
   Future<void> createSchool({
     required String name,
     int? parentSchoolId,
+    int? earlyAccessRequestId,
     String? registrationNumber,
     required String email,
     required String phone,
@@ -81,6 +82,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
         .create(
           name: name,
           parentSchoolId: parentSchoolId,
+          earlyAccessRequestId: earlyAccessRequestId,
           registrationNumber: registrationNumber,
           email: email,
           phone: phone,

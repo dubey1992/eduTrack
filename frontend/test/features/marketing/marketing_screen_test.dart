@@ -39,7 +39,14 @@ void main() {
     expect(find.text('Login Screen'), findsOneWidget);
   });
 
-  testWidgets('tapping Join Early Access shows a custom dialog, not a JS alert', (tester) async {
+  testWidgets('tapping Join Early Access opens the signup form, not a JS alert', (tester) async {
+    // Tall enough for the form; the dialog scrolls, but the fields have to
+    // exist to be found.
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
@@ -47,6 +54,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.text('Thanks for your interest!'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'School name'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Request access'), findsOneWidget);
   });
 }

@@ -60,6 +60,11 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(30)->by($request->ip()),
         ]);
 
+        // A public write with no account behind it, so the only thing between
+        // it and a script is this. Five a minute is more than any school
+        // needs and less than any bot wants.
+        RateLimiter::for('early-access', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+
         // Tighter: each attempt sends a real email, so this is also a way to
         // spam somebody's inbox.
         RateLimiter::for('password-reset', fn (Request $request) => [

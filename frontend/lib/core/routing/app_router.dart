@@ -14,6 +14,7 @@ import '../../features/classes/presentation/class_list_screen.dart';
 import '../../features/communication/presentation/communication_screen.dart';
 import '../../features/communication/presentation/inbox_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/early_access/presentation/early_access_screen.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/errors/presentation/not_found_screen.dart';
 import '../../features/departments/presentation/department_list_screen.dart';
@@ -66,6 +67,7 @@ const appRoutePaths = {
   '/dashboard',
   '/users',
   '/schools',
+  '/early-access',
   '/payments',
   '/academic-years',
   '/holidays',
@@ -127,6 +129,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen()),
           GoRoute(path: '/users', builder: (context, state) => const UserListScreen()),
           GoRoute(path: '/schools', builder: (context, state) => const SchoolListScreen()),
+          GoRoute(path: '/early-access', builder: (context, state) => const EarlyAccessScreen()),
           GoRoute(path: '/payments', builder: (context, state) => const PaymentListScreen()),
           GoRoute(path: '/academic-years', builder: (context, state) => const AcademicYearListScreen()),
           GoRoute(path: '/holidays', builder: (context, state) => const HolidayListScreen()),

@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Schools\StoreSchoolRequest;
 use App\Http\Requests\Schools\UpdateSchoolRequest;
 use App\Http\Resources\SchoolResource;
+use App\Models\EarlyAccessRequest;
 use App\Models\School;
+use App\Services\EarlyAccessService;
 use App\Services\SchoolService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +17,10 @@ use Illuminate\Support\Facades\Gate;
 
 class SchoolController extends Controller
 {
-    public function __construct(private readonly SchoolService $schoolService) {}
+    public function __construct(
+        private readonly SchoolService $schoolService,
+        private readonly EarlyAccessService $earlyAccess,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -28,7 +33,22 @@ class SchoolController extends Controller
 
     public function store(StoreSchoolRequest $request): JsonResponse
     {
-        $school = $this->schoolService->create($request->validated());
+        $data = $request->validated();
+        $requestId = $data['early_access_request_id'] ?? null;
+        unset($data['early_access_request_id']);
+
+        $school = $this->schoolService->create($data);
+
+        // Closing the loop: the signup request records the school it became,
+        // which is the only way "Converted" can be true rather than
+        // remembered.
+        if ($requestId !== null) {
+            $this->earlyAccess->markConverted(
+                EarlyAccessRequest::findOrFail($requestId),
+                $school,
+                $request->user(),
+            );
+        }
 
         return (new SchoolResource($school))->response()->setStatusCode(201);
     }

@@ -52,6 +52,7 @@ class FakeSchoolRepository implements SchoolRepository {
   Future<School> create({
     required String name,
     int? parentSchoolId,
+    int? earlyAccessRequestId,
     String? registrationNumber,
     required String email,
     required String phone,

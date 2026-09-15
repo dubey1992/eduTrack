@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../marketing_colors.dart';
-import 'early_access_dialog.dart';
+import 'early_access_form.dart';
 import 'marketing_buttons.dart';
 import 'marketing_wrap.dart';
 
