@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
+import '../../features/auth/presentation/change_password_dialog.dart';
 import '../routing/app_nav.dart';
+import 'confirm_dialog.dart';
 import 'responsive.dart';
 import 'sidebar_nav.dart';
 
@@ -83,17 +85,30 @@ class _Topbar extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.lock_outline),
             tooltip: 'Change password',
-            onPressed: () => context.go('/change-password'),
+            // A dialog, not a page: changing a password is a two-minute
+            // errand, and whoever is halfway through marking attendance
+            // should get back to it rather than be navigated away.
+            onPressed: () => showDialog(context: context, builder: (_) => const ChangePasswordDialog()),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
-          ),
+          IconButton(icon: const Icon(Icons.logout), tooltip: 'Log out', onPressed: () => _confirmLogout(context, ref)),
         ],
       ),
     );
   }
+}
+
+/// Signing out sits one pixel from Change Password and cannot be undone
+/// without typing a password again - worth one question first.
+Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+  final confirmed = await confirmDialog(
+    context,
+    title: 'Log out?',
+    message: 'You will need to sign in again to get back to your school.',
+    confirmLabel: 'Log out',
+    cancelLabel: 'Stay signed in',
+  );
+
+  if (confirmed) await ref.read(authNotifierProvider.notifier).logout();
 }
 
 class _Pill extends StatelessWidget {
