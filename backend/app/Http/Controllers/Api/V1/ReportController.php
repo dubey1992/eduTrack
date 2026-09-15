@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reports\ReportRequest;
 use App\Models\Department;
+use App\Models\School;
 use App\Models\User;
 use App\Services\HolidayService;
 use App\Services\Reports\StaffAttendanceReport;
@@ -13,6 +14,7 @@ use App\Services\Reports\StudentAttendanceReport;
 use App\Services\Reports\TeachingCoverageReport;
 use App\Services\Reports\TransportUsageReport;
 use App\Support\Reports\CsvResponse;
+use App\Support\Reports\GroupReport;
 use App\Support\Reports\ReportRange;
 use App\Support\SchoolScope;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -65,32 +67,70 @@ class ReportController extends Controller
     private function respond(ReportRequest $request, object $report, string $name): JsonResponse|StreamedResponse
     {
         $actor = $request->user();
-        $schoolId = $this->schoolIdFor($actor, $request);
         $filters = $this->filtersFor($actor, $request);
+        $scope = SchoolScope::for($actor);
+        // A branch outside the actor's reach is ignored rather than refused,
+        // the same as every other school filter in the app.
+        $requested = $request->integer('school_id') ?: null;
+        $requested = $scope->allows($requested) ? $requested : null;
 
-        $range = ReportRange::fromFilters($schoolId, $filters, $this->holidays);
-        $built = $report->build($range, $filters);
+        // A Group Admin who names no reachable branch means the whole group.
+        // Everybody else is reporting on exactly one school, whether they
+        // named it or it was decided for them.
+        $built = $requested === null && $scope->coversAGroup()
+            ? $this->group($scope, $report, $filters)
+            : $this->single((int) $scope->writableSchoolId($requested), $report, $filters);
 
         if (! $request->wantsCsv()) {
             return response()->json($built);
         }
 
-        [$from, $to] = $range->bounds();
+        $isGroup = $built['group'] ?? false;
+        $from = $built['range']['from'];
+        $to = $built['range']['to'];
 
         return CsvResponse::make(
-            "{$name}-{$from}-to-{$to}.csv",
-            $report->headings(),
-            $report->csvRows($built),
+            $isGroup ? "{$name}-group-{$from}-to-{$to}.csv" : "{$name}-{$from}-to-{$to}.csv",
+            // A group export has to say which branch a line came from, or the
+            // rows are a heap.
+            $isGroup ? ['School', ...$report->headings()] : $report->headings(),
+            $isGroup
+                ? array_map(
+                    fn (array $row, array $csv) => [$row['school_name'], ...$csv],
+                    $built['rows'],
+                    $report->csvRows($built),
+                )
+                : $report->csvRows($built),
         );
     }
 
     /**
-     * A school user's report is always their own school's. Only a Super
-     * Admin, who belongs to none, names the school they want.
+     * @param  StudentAttendanceReport|StaffAttendanceReport|TeachingCoverageReport|TransportUsageReport  $report
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
      */
-    private function schoolIdFor(User $actor, ReportRequest $request): int
+    private function single(int $schoolId, object $report, array $filters): array
     {
-        return (int) SchoolScope::for($actor)->writableSchoolId($request->integer('school_id') ?: null);
+        return $report->build(ReportRange::fromFilters($schoolId, $filters, $this->holidays), $filters);
+    }
+
+    /**
+     * The same report across every branch, run once per branch because each
+     * has its own holiday calendar. See App\Support\Reports\GroupReport.
+     *
+     * @param  StudentAttendanceReport|StaffAttendanceReport|TeachingCoverageReport|TransportUsageReport  $report
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function group(SchoolScope $scope, object $report, array $filters): array
+    {
+        $schools = School::query()->whereIn('id', $scope->ids() ?? [])->orderBy('name')->get();
+
+        return GroupReport::build(
+            $schools,
+            fn (School $school) => $this->single($school->id, $report, $filters),
+            $report,
+        );
     }
 
     /**

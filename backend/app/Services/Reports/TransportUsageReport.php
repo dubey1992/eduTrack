@@ -7,6 +7,7 @@ use App\Enums\TripStatus;
 use App\Models\TransportRoute;
 use App\Models\TransportTrip;
 use App\Models\TransportTripRider;
+use App\Support\Reports\CombinesTotals;
 use App\Support\Reports\ReportRange;
 use Illuminate\Support\Collection;
 
@@ -17,7 +18,7 @@ use Illuminate\Support\Collection;
  * "Days not run" is measured against the school's working days, so a route
  * is not marked as having missed a holiday nobody expected it to run on.
  */
-class TransportUsageReport
+class TransportUsageReport implements CombinesTotals
 {
     /**
      * @param  array<string, mixed>  $filters
@@ -139,5 +140,23 @@ class TransportUsageReport
             ->get()
             ->groupBy('route_id')
             ->map(fn (Collection $rows) => $rows->pluck('total', 'status_value'));
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $branchTotals
+     * @return array<string, mixed>
+     */
+    public function combineTotals(array $branchTotals): array
+    {
+        $sum = fn (string $key) => (int) array_sum(array_column($branchTotals, $key));
+
+        return [
+            'branches' => count($branchTotals),
+            'routes' => $sum('routes'),
+            'trips_completed' => $sum('trips_completed'),
+            'trips_cancelled' => $sum('trips_cancelled'),
+            'riders_boarded' => $sum('riders_boarded'),
+            'riders_absent' => $sum('riders_absent'),
+        ];
     }
 }

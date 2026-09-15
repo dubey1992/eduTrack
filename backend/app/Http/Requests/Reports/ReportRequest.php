@@ -31,7 +31,7 @@ class ReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'school_id' => $this->schoolIdRules(),
+            'school_id' => $this->readableSchoolIdRules(),
             // A report covers days that have happened. Asking for next month
             // would report everybody as absent for days nobody has taught.
             'from' => ['nullable', 'date', $this->notInFuture()],

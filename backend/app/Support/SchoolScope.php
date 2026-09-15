@@ -64,6 +64,18 @@ final class SchoolScope
         return $this->schoolIds === null;
     }
 
+    /**
+     * True when this scope covers several named schools - a group.
+     *
+     * The distinction a report needs: a group can be reported on as a whole
+     * because it is a handful of branches, while "every school on the
+     * platform" cannot, and a Super Admin is asked to name one.
+     */
+    public function coversAGroup(): bool
+    {
+        return $this->schoolIds !== null && count($this->schoolIds) > 1;
+    }
+
     public function allows(?int $schoolId): bool
     {
         if ($this->isUnrestricted()) {

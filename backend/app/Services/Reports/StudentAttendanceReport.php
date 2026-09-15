@@ -6,6 +6,7 @@ use App\Enums\AttendanceStatus;
 use App\Enums\StudentStatus;
 use App\Models\Attendance;
 use App\Models\Student;
+use App\Support\Reports\CombinesTotals;
 use App\Support\Reports\ReportRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -18,7 +19,7 @@ use Illuminate\Support\Collection;
  * have a register - so a class whose teacher never marked attendance reads
  * as 0%, which is the truth, rather than as having no data.
  */
-class StudentAttendanceReport
+class StudentAttendanceReport implements CombinesTotals
 {
     /**
      * @param  array<string, mixed>  $filters
@@ -154,6 +155,33 @@ class StudentAttendanceReport
             'leave' => (int) $rows->sum('leave'),
             'not_marked' => (int) $rows->sum('not_marked'),
             'attendance_rate' => $possible === 0 ? null : round($present / $possible * 100, 1),
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $branchTotals
+     * @return array<string, mixed>
+     */
+    public function combineTotals(array $branchTotals): array
+    {
+        $sum = fn (string $key) => (int) array_sum(array_column($branchTotals, $key));
+
+        // Recomputed from raw counts, never averaged: each branch measures
+        // against its own working days, so a branch of forty and a branch of
+        // four hundred must not weigh the same.
+        $possible = array_sum(array_map(
+            fn (array $totals) => (int) $totals['students'] * (int) $totals['working_days'],
+            $branchTotals,
+        ));
+
+        return [
+            'branches' => count($branchTotals),
+            'students' => $sum('students'),
+            'present' => $sum('present'),
+            'absent' => $sum('absent'),
+            'leave' => $sum('leave'),
+            'not_marked' => $sum('not_marked'),
+            'attendance_rate' => $possible === 0 ? null : round($sum('present') / $possible * 100, 1),
         ];
     }
 }

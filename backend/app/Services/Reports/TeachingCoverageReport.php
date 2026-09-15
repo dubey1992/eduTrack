@@ -7,6 +7,7 @@ use App\Models\Subject;
 use App\Models\SyllabusTopic;
 use App\Models\SyllabusTopicProgress;
 use App\Models\TimetableEntry;
+use App\Support\Reports\CombinesTotals;
 use App\Support\Reports\ReportRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -20,7 +21,7 @@ use Illuminate\Support\Collection;
  * in the range. That is what makes the figure honest when a holiday removes a
  * day - the periods that would have run on it are not counted as missed.
  */
-class TeachingCoverageReport
+class TeachingCoverageReport implements CombinesTotals
 {
     /**
      * @param  array<string, mixed>  $filters
@@ -211,5 +212,25 @@ class TeachingCoverageReport
             'total' => (int) $total,
             'completed' => (int) ($completed[$subjectId] ?? 0),
         ]);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $branchTotals
+     * @return array<string, mixed>
+     */
+    public function combineTotals(array $branchTotals): array
+    {
+        $sum = fn (string $key) => (int) array_sum(array_column($branchTotals, $key));
+        $scheduled = $sum('periods_scheduled');
+
+        return [
+            'branches' => count($branchTotals),
+            'subjects' => $sum('subjects'),
+            'periods_scheduled' => $scheduled,
+            'periods_reported' => $sum('periods_reported'),
+            'periods_missing' => $sum('periods_missing'),
+            // Periods reported over periods scheduled, across the group.
+            'coverage_rate' => $scheduled === 0 ? null : round($sum('periods_reported') / $scheduled * 100, 1),
+        ];
     }
 }

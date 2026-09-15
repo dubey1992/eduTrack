@@ -108,3 +108,54 @@ final emptyResult = ReportResult(
   rows: const [],
   totals: const {'students': 0, 'working_days': 5},
 );
+
+/// A group report: two branches with different working days, combined.
+///
+/// North ran five days and had one student present for all of them; South ran
+/// four (a local holiday) and had one present for two. Eight present marks
+/// against nine possible - 88.9% - which is *not* the average of 100% and
+/// 50%.
+final groupResult = ReportResult(
+  range: const ReportRange(from: '2026-09-07', to: '2026-09-11', workingDays: null),
+  branches: const [
+    ReportBranch(
+      schoolId: 2,
+      schoolName: "St Mary's North",
+      range: ReportRange(from: '2026-09-07', to: '2026-09-11', workingDays: 5),
+      totals: {'students': 1, 'working_days': 5, 'present': 5, 'attendance_rate': 100.0},
+    ),
+    ReportBranch(
+      schoolId: 3,
+      schoolName: "St Mary's South",
+      range: ReportRange(from: '2026-09-07', to: '2026-09-11', workingDays: 4),
+      totals: {'students': 1, 'working_days': 4, 'present': 2, 'attendance_rate': 50.0},
+    ),
+  ],
+  rows: [
+    {
+      'school_id': 2,
+      'school_name': "St Mary's North",
+      'admission_number': 'N-1',
+      'name': 'Aarav Sharma',
+      'class_section': 'Grade 5 A',
+      'present': 5,
+      'absent': 0,
+      'leave': 0,
+      'not_marked': 0,
+      'attendance_rate': 100.0,
+    },
+    {
+      'school_id': 3,
+      'school_name': "St Mary's South",
+      'admission_number': 'S-1',
+      'name': 'Ishaan Patel',
+      'class_section': 'Grade 5 A',
+      'present': 2,
+      'absent': 2,
+      'leave': 0,
+      'not_marked': 0,
+      'attendance_rate': 50.0,
+    },
+  ],
+  totals: const {'branches': 2, 'students': 2, 'present': 7, 'absent': 2, 'attendance_rate': 77.8},
+);

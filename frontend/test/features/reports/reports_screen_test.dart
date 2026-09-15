@@ -163,4 +163,51 @@ void main() {
     expect(find.text('Something went wrong.'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
   });
+
+  group('a whole group', () {
+    testWidgets('breaks the figures down by branch', (tester) async {
+      await tester.pumpWidget(wrap(FakeReportRepository(result: groupResult)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('By branch'), findsOneWidget);
+      expect(find.text("St Mary's North"), findsWidgets);
+      expect(find.text("St Mary's South"), findsWidgets);
+    });
+
+    testWidgets('shows each branch its own working days', (tester) async {
+      // The whole reason the report runs once per branch: a holiday at one
+      // is not a holiday at the other.
+      await tester.pumpWidget(wrap(FakeReportRepository(result: groupResult)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('5'), findsWidgets);
+      expect(find.text('4'), findsWidgets);
+    });
+
+    testWidgets('does not claim the group has working days of its own', (tester) async {
+      await tester.pumpWidget(wrap(FakeReportRepository(result: groupResult)));
+      await tester.pumpAndSettle();
+
+      // Adding two schools' calendars together would be a number that means
+      // nothing, so the header simply does not offer one.
+      expect(find.text('Working days'), findsOneWidget, reason: 'only the by-branch column, not a header fact');
+    });
+
+    testWidgets('names the branch on every row of the table', (tester) async {
+      await tester.pumpWidget(wrap(FakeReportRepository(result: groupResult)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('School'), findsWidgets);
+      expect(find.text('Aarav Sharma'), findsOneWidget);
+      expect(find.text('Ishaan Patel'), findsOneWidget);
+    });
+
+    testWidgets('a single school report has no breakdown and no School column', (tester) async {
+      await tester.pumpWidget(wrap(FakeReportRepository()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('By branch'), findsNothing);
+      expect(find.text('School'), findsNothing);
+    });
+  });
 }

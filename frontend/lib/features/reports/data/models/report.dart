@@ -33,7 +33,9 @@ class ReportRange {
     return ReportRange(
       from: json['from'] as String,
       to: json['to'] as String,
-      workingDays: json['working_days'] as int? ?? 0,
+      // Absent on a group range, and rightly so: working days belong to one
+      // school's calendar, and two schools' cannot be added together.
+      workingDays: json['working_days'] as int?,
     );
   }
 
@@ -42,24 +44,55 @@ class ReportRange {
 
   /// The days the school actually ran - the denominator behind every rate in
   /// the report, and the reason a holiday cannot drag a percentage down.
-  final int workingDays;
+  ///
+  /// Null for a whole group, where each branch has its own.
+  final int? workingDays;
+}
+
+/// One branch's slice of a group report.
+class ReportBranch {
+  const ReportBranch({required this.schoolId, required this.schoolName, required this.range, required this.totals});
+
+  factory ReportBranch.fromJson(Map<String, dynamic> json) {
+    return ReportBranch(
+      schoolId: json['school_id'] as int,
+      schoolName: json['school_name'] as String,
+      range: ReportRange.fromJson(json['range'] as Map<String, dynamic>),
+      totals: (json['totals'] as Map<String, dynamic>?) ?? const {},
+    );
+  }
+
+  final int schoolId;
+  final String schoolName;
+  final ReportRange range;
+  final Map<String, dynamic> totals;
 }
 
 /// One report's result: the rows as the API returned them, plus its totals.
 class ReportResult {
-  const ReportResult({required this.range, required this.rows, required this.totals});
+  const ReportResult({required this.range, required this.rows, required this.totals, this.branches = const []});
 
   factory ReportResult.fromJson(Map<String, dynamic> json) {
     return ReportResult(
       range: ReportRange.fromJson(json['range'] as Map<String, dynamic>),
       rows: (json['rows'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>(),
       totals: (json['totals'] as Map<String, dynamic>?) ?? const {},
+      branches: (json['branches'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(ReportBranch.fromJson)
+          .toList(growable: false),
     );
   }
 
   final ReportRange range;
   final List<Map<String, dynamic>> rows;
   final Map<String, dynamic> totals;
+
+  /// One entry per branch when a group was reported on as a whole; empty for
+  /// a single school.
+  final List<ReportBranch> branches;
+
+  bool get isGroup => branches.isNotEmpty;
 
   bool get isEmpty => rows.isEmpty;
 }

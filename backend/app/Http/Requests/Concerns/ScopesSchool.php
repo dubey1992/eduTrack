@@ -41,6 +41,30 @@ trait ScopesSchool
     }
 
     /**
+     * Validation for the school_id field on a *read*.
+     *
+     * Unlike a write, "the whole group" is a sensible thing to ask for, so a
+     * Group Admin may leave this out. A Super Admin still names one: every
+     * school on the platform is not a report.
+     *
+     * @return array<int, mixed>
+     */
+    protected function readableSchoolIdRules(): array
+    {
+        $scope = $this->schoolScope();
+
+        if ($scope->isUnrestricted()) {
+            return ['required', 'integer', Rule::exists('schools', 'id')];
+        }
+
+        // Not scoped with an `exists` on purpose: everywhere else in the app
+        // a school filter outside the actor's reach is ignored rather than
+        // rejected, and a report must not be the one place that answers 422
+        // to the same request.
+        return ['nullable', 'integer'];
+    }
+
+    /**
      * Validation for the school_id field itself.
      *
      * An actor with exactly one school writes into it regardless, so the

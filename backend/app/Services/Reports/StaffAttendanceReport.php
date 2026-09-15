@@ -7,6 +7,7 @@ use App\Enums\StaffAttendanceStatus;
 use App\Models\StaffAttendance;
 use App\Models\StaffLeave;
 use App\Models\StaffProfile;
+use App\Support\Reports\CombinesTotals;
 use App\Support\Reports\ReportRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -20,7 +21,7 @@ use Illuminate\Support\Collection;
  * never approved wrote nothing. Approved requests are reported alongside, by
  * type, so a payroll run in Phase 19 has both.
  */
-class StaffAttendanceReport
+class StaffAttendanceReport implements CombinesTotals
 {
     /**
      * @param  array<string, mixed>  $filters
@@ -168,5 +169,23 @@ class StaffAttendanceReport
             ->get()
             ->groupBy('staff_profile_id')
             ->map(fn (Collection $rows) => $rows->pluck('total', 'type_value'));
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $branchTotals
+     * @return array<string, mixed>
+     */
+    public function combineTotals(array $branchTotals): array
+    {
+        $sum = fn (string $key) => (int) array_sum(array_column($branchTotals, $key));
+
+        return [
+            'branches' => count($branchTotals),
+            'staff' => $sum('staff'),
+            'present' => $sum('present'),
+            'absent' => $sum('absent'),
+            'leave' => $sum('leave'),
+            'not_marked' => $sum('not_marked'),
+        ];
     }
 }

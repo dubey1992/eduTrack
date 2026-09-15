@@ -429,12 +429,19 @@ class GroupAdminTest extends TestCase
             ->assertOk();
     }
 
-    public function test_a_group_admin_cannot_report_on_a_school_outside_the_group(): void
+    public function test_asking_to_report_outside_the_group_reports_on_the_group(): void
     {
-        $this->asGroupAdmin()
+        // Ignored, not refused - the same as every other school filter in the
+        // app. What must never happen is the outsider's figures coming back.
+        $response = $this->asGroupAdmin()
             ->getJson("/api/v1/reports/student-attendance?school_id={$this->outsider->id}&from=2026-09-01&to=2026-09-07")
-            ->assertStatus(422)
-            ->assertJsonStructure(['details' => ['errors' => ['school_id']]]);
+            ->assertOk();
+
+        $this->assertTrue($response->json('group'));
+        $this->assertEqualsCanonicalizing(
+            [$this->group->id, $this->north->id, $this->south->id],
+            array_column($response->json('branches'), 'school_id'),
+        );
     }
 
     public function test_a_group_admin_configures_a_branch_but_not_an_outsider(): void

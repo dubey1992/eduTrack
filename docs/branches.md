@@ -161,9 +161,30 @@ with branches in India and Nigeria reports "₹4,50,000 INR + ₦2,100,000 NGN",
 never a single converted number. The existing Super Admin payment summary
 already does this; the group view is the same query with a different scope.
 
-The four reports in `docs/reports.md` gain a branch dimension the same way:
-same service, `SchoolScope` instead of a single `school_id`, and a per-branch
-breakdown row.
+### Reporting on a whole group
+
+All four reports do this. A Group Admin who names no branch gets the group;
+one who names a branch gets that branch alone. A Super Admin still names a
+school - "every school on the platform" is not a report.
+
+It runs the existing report **once per branch** rather than as one query with
+a `whereIn`, because every branch has its own holiday calendar and its own
+timezone. "The working days in September" is a different number at each of
+them, and every percentage in a report is measured against that number.
+
+Which also settles the group total: it can never be an average of the
+branches' percentages, or a branch of forty would weigh the same as a branch
+of four hundred. The combined rate is recomputed from raw counts, and each
+report does that arithmetic itself (`App\Support\Reports\CombinesTotals`) -
+a generic "sum the integers and guess at the rates" helper would be quietly
+wrong, since a student attendance rate and a teaching coverage rate are not
+the same shape.
+
+The group range deliberately carries no `working_days`: adding two schools'
+calendars together is a number that means nothing. Each branch reports its
+own, in the breakdown.
+
+A group CSV gains a leading **School** column, so the rows are not a heap.
 
 ## What landed, in order
 
@@ -176,11 +197,9 @@ breakdown row.
 4. **The group in the UI.** ✅ The filter reads "Filter by branch" / "Whole
    group" for a Group Admin, the school form has a parent picker that refuses
    to offer an impossible parent, and the school list shows the hierarchy.
-5. **Group dashboards and reports.** Partly. The group dashboard is built -
-   one attendance ratio across the group rather than an average of averages,
-   and each unmarked branch named. Per-branch breakdowns inside the four
-   reports are **not** built: a Group Admin runs each report against one
-   branch at a time.
+5. **Group dashboards and reports.** ✅ The group dashboard rolls up its
+   branches, and all four reports break down by branch when no branch is
+   named.
 
 ### Two things the refactor caught
 
