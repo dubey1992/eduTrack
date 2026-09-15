@@ -14,7 +14,7 @@ use App\Support\SchoolScope;
  */
 class MessagePolicy
 {
-    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin];
+    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin];
 
     public function viewAny(User $actor): bool
     {
@@ -45,7 +45,7 @@ class MessagePolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin
+        return $actor->role->administersSchool()
             && $schoolId !== null
             && SchoolScope::for($actor)->allows($schoolId);
     }

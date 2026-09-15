@@ -58,6 +58,10 @@ class DashboardService
             UserRole::SuperAdmin => $schoolId === null
                 ? $this->platform($clock)
                 : $this->school($schoolId, $today),
+            // A branch they named, or the group as a whole.
+            UserRole::GroupAdmin => $schoolId === null
+                ? $this->group($actor, $today)
+                : $this->school($schoolId, $today),
             UserRole::SchoolAdmin => $this->school((int) $actor->school_id, $today),
             UserRole::Hod => $this->hod($actor, $today),
             UserRole::Teacher => $this->teacher($actor, $today),
@@ -107,6 +111,47 @@ class DashboardService
             ],
             'attendance_trend' => [],
             'attention' => [],
+        ];
+    }
+
+    /**
+     * A whole school group at once - every branch beneath the parent.
+     *
+     * Roll-ups, not a blend: the attendance figure is the group's marked
+     * students over its marked total, and each branch that has not marked
+     * yet is named rather than quietly averaged away.
+     *
+     * @return array<string, mixed>
+     */
+    private function group(User $actor, string $today): array
+    {
+        $schoolIds = $actor->school?->groupSchoolIds() ?? [];
+        $branches = School::query()->whereIn('id', $schoolIds)->orderBy('name')->get();
+
+        $students = Student::whereIn('school_id', $schoolIds)->where('status', StudentStatus::Active)->count();
+        $staff = StaffProfile::whereIn('school_id', $schoolIds)->count();
+        $rate = $this->attendanceRateAcross($schoolIds, $today);
+
+        $unmarked = $branches
+            ->filter(fn (School $branch) => $this->attendanceRateOn($branch->id, $today) === null)
+            ->map(fn (School $branch) => $this->note('attendance-'.$branch->id, "{$branch->name} has not marked attendance today."))
+            ->values()
+            ->all();
+
+        return [
+            'cards' => [
+                $this->card('branches', 'Schools in group', (string) $branches->count(), 'including the parent'),
+                $this->card('students', 'Students', (string) $students, 'across the group'),
+                $this->card('staff', 'Teachers & staff', (string) $staff, 'across the group'),
+                $this->card(
+                    'attendance',
+                    'Attendance today',
+                    $rate === null ? '-' : $rate.'%',
+                    $rate === null ? 'not marked yet' : 'of students present',
+                ),
+            ],
+            'attendance_trend' => [],
+            'attention' => $unmarked,
         ];
     }
 
@@ -252,6 +297,31 @@ class DashboardService
      * marked a register yet. Null rather than zero: "not marked" and
      * "everybody absent" are very different things to show a head teacher.
      */
+    /**
+     * The same figure as attendanceRateOn(), over several schools at once.
+     *
+     * One ratio across the group, not an average of averages - a branch of
+     * forty and a branch of four hundred should not weigh the same.
+     *
+     * @param  array<int, int>  $schoolIds
+     */
+    private function attendanceRateAcross(array $schoolIds, string $date): ?float
+    {
+        $marks = Attendance::whereIn('school_id', $schoolIds)
+            ->where('attendance_date', $date)
+            ->selectRaw('status as status_value, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status_value');
+
+        $total = (int) $marks->sum();
+
+        if ($total === 0) {
+            return null;
+        }
+
+        return round(((int) $marks->get(AttendanceStatus::Present->value, 0)) / $total * 100, 1);
+    }
+
     private function attendanceRateOn(int $schoolId, string $date): ?float
     {
         $marks = Attendance::where('school_id', $schoolId)

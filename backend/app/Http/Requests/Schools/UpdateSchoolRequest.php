@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Schools;
 
+use App\Rules\ValidParentSchool;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -33,6 +34,13 @@ class UpdateSchoolRequest extends FormRequest
         $schoolId = $this->route('school')->id;
 
         return [
+            // Moving a school into, or out of, a group. Only a Super Admin
+            // reaches this - it changes the shape of the platform, not a
+            // school's own affairs. See docs/branches.md.
+            'parent_school_id' => [
+                'sometimes', 'nullable', 'integer', 'exists:schools,id',
+                new ValidParentSchool($this->route('school')),
+            ],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'registration_number' => ['nullable', 'string', 'max:100'],
             'email' => ['sometimes', 'required', 'email', Rule::unique('schools', 'email')->ignore($schoolId)],

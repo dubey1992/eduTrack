@@ -25,7 +25,7 @@ class DailyTeachingReportPolicy
      */
     public function viewAny(User $actor): bool
     {
-        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::Hod, UserRole::Teacher], true);
+        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::Hod, UserRole::Teacher], true);
     }
 
     /**
@@ -59,7 +59,7 @@ class DailyTeachingReportPolicy
             return true;
         }
 
-        if ($actor->role === UserRole::SchoolAdmin) {
+        if ($actor->role->administersSchool()) {
             return SchoolScope::for($actor)->allows($report->school_id);
         }
 

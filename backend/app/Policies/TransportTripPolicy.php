@@ -15,7 +15,7 @@ use App\Support\SchoolScope;
  */
 class TransportTripPolicy
 {
-    private const MANAGE_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::TransportManager];
+    private const MANAGE_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::TransportManager];
 
     public function viewAny(User $actor): bool
     {

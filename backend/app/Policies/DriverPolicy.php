@@ -12,7 +12,7 @@ use App\Support\SchoolScope;
  */
 class DriverPolicy
 {
-    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin];
+    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin];
 
     public function viewAny(User $actor): bool
     {
@@ -46,6 +46,6 @@ class DriverPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($driver->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($driver->school_id);
     }
 }

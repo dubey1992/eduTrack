@@ -33,28 +33,28 @@ class ReportController extends Controller
 
     public function studentAttendance(ReportRequest $request, StudentAttendanceReport $report): JsonResponse|StreamedResponse
     {
-        $this->allow($request->user(), [UserRole::SuperAdmin, UserRole::SchoolAdmin]);
+        $this->allow($request->user(), [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin]);
 
         return $this->respond($request, $report, 'student-attendance');
     }
 
     public function staffAttendance(ReportRequest $request, StaffAttendanceReport $report): JsonResponse|StreamedResponse
     {
-        $this->allow($request->user(), [UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::Hod]);
+        $this->allow($request->user(), [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::Hod]);
 
         return $this->respond($request, $report, 'staff-attendance');
     }
 
     public function teachingCoverage(ReportRequest $request, TeachingCoverageReport $report): JsonResponse|StreamedResponse
     {
-        $this->allow($request->user(), [UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::Hod]);
+        $this->allow($request->user(), [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::Hod]);
 
         return $this->respond($request, $report, 'teaching-coverage');
     }
 
     public function transportUsage(ReportRequest $request, TransportUsageReport $report): JsonResponse|StreamedResponse
     {
-        $this->allow($request->user(), [UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::TransportManager]);
+        $this->allow($request->user(), [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::TransportManager]);
 
         return $this->respond($request, $report, 'transport-usage');
     }

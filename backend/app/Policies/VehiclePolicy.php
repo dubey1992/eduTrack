@@ -14,10 +14,11 @@ use App\Support\SchoolScope;
  */
 class VehiclePolicy
 {
-    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin];
+    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin];
 
     public const VIEW_ROLES = [
-        UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::Hod, UserRole::Teacher, UserRole::TransportManager,
+        UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::Hod, UserRole::Teacher,
+        UserRole::TransportManager,
     ];
 
     public function viewAny(User $actor): bool
@@ -52,6 +53,6 @@ class VehiclePolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($vehicle->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($vehicle->school_id);
     }
 }

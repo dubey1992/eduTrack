@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Schools;
 
 use App\Models\School;
+use App\Rules\ValidParentSchool;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,6 +33,9 @@ class StoreSchoolRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // A branch of an existing school. Null for a standalone school,
+            // which is what most are. See docs/branches.md.
+            'parent_school_id' => ['nullable', 'integer', 'exists:schools,id', new ValidParentSchool],
             'name' => ['required', 'string', 'max:255'],
             'registration_number' => ['nullable', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('schools', 'email')],

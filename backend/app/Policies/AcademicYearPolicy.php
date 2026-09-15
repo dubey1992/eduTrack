@@ -16,7 +16,7 @@ use App\Support\SchoolScope;
  */
 class AcademicYearPolicy
 {
-    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin];
+    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin];
 
     public function viewAny(User $actor): bool
     {
@@ -54,6 +54,6 @@ class AcademicYearPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($academicYear->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($academicYear->school_id);
     }
 }

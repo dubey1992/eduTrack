@@ -14,7 +14,7 @@ use App\Support\SchoolScope;
  */
 class DepartmentPolicy
 {
-    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin];
+    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin];
 
     public function viewAny(User $actor): bool
     {
@@ -48,7 +48,7 @@ class DepartmentPolicy
      */
     public function viewAnyReport(User $actor): bool
     {
-        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::Hod], true);
+        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::Hod], true);
     }
 
     public function viewReport(User $actor, Department $department): bool
@@ -62,7 +62,7 @@ class DepartmentPolicy
         }
 
         return match ($actor->role) {
-            UserRole::SchoolAdmin => true,
+            UserRole::GroupAdmin, UserRole::SchoolAdmin => true,
             UserRole::Hod => $department->hod_user_id === $actor->id,
             default => false,
         };
@@ -74,6 +74,6 @@ class DepartmentPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($department->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($department->school_id);
     }
 }

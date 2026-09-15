@@ -15,6 +15,6 @@ class AttendancePolicy
 {
     public function viewAny(User $actor): bool
     {
-        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::Teacher], true);
+        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::Teacher], true);
     }
 }

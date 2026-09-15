@@ -18,7 +18,7 @@ class StaffAttendancePolicy
 {
     public function viewAny(User $actor): bool
     {
-        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::SchoolAdmin, UserRole::Hod], true);
+        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::Hod], true);
     }
 
     public function manage(User $actor, School $school): bool
@@ -27,7 +27,7 @@ class StaffAttendancePolicy
             return true;
         }
 
-        return in_array($actor->role, [UserRole::SchoolAdmin, UserRole::Hod], true)
+        return in_array($actor->role, [UserRole::GroupAdmin, UserRole::SchoolAdmin, UserRole::Hod], true)
             && SchoolScope::for($actor)->allows($school->id);
     }
 }

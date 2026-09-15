@@ -15,7 +15,7 @@ use App\Support\SchoolScope;
  */
 class StaffProfilePolicy
 {
-    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin];
+    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin];
 
     public function viewAny(User $actor): bool
     {
@@ -28,7 +28,7 @@ class StaffProfilePolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($staffProfile->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($staffProfile->school_id);
     }
 
     public function create(User $actor): bool
@@ -42,6 +42,6 @@ class StaffProfilePolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($staffProfile->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($staffProfile->school_id);
     }
 }

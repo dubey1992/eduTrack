@@ -14,7 +14,13 @@ class SchoolService
      */
     public function paginate(array $filters = []): LengthAwarePaginator
     {
-        return School::query()->orderBy('name')->paginate(perPage: Pagination::resolvePerPage($filters));
+        return School::query()
+            // Eager loaded so a list of branches does not fire a query per
+            // row for the parent's name (CLAUDE.md rule 22).
+            ->with('parent')
+            ->withCount('branches')
+            ->orderBy('name')
+            ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
     /**

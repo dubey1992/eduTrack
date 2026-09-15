@@ -20,12 +20,10 @@ class UserService
     {
         return User::query()
             ->with('school')
-            // SCHOOL_ADMIN only ever sees their own school - never trust a
-            // client-supplied school filter for this (CLAUDE.md rule 12).
-            ->when(
-                $actor->role === UserRole::SchoolAdmin,
-                fn ($query) => $query->where('school_id', $actor->school_id)
-            )
+            // Never trust a client-supplied school filter for this: the
+            // scope decides what is reachable and the filter can only narrow
+            // within it (CLAUDE.md rule 12).
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->when($filters['role'] ?? null, fn ($query, $role) => $query->where('role', $role))
             // Comma-separated shorthand for "any of these roles" - used by
             // the academic-config pickers (HOD/lead-teacher/class-teacher).
@@ -34,9 +32,6 @@ class UserService
                 fn ($query, $roles) => $query->whereIn('role', explode(',', $roles))
             )
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
-            // Only meaningful for a SUPER_ADMIN actor - a SCHOOL_ADMIN is
-            // already forced into their own school above.
-            ->when($filters['school_id'] ?? null, fn ($query, $schoolId) => $query->where('school_id', $schoolId))
             ->orderBy('first_name')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }

@@ -13,7 +13,7 @@ use App\Support\SchoolScope;
  */
 class ClassSectionPolicy
 {
-    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin];
+    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin];
 
     public function create(User $actor): bool
     {
@@ -52,7 +52,7 @@ class ClassSectionPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($section->schoolClass->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($section->schoolClass->school_id);
     }
 
     private function isClassTeacher(User $actor, ClassSection $section): bool

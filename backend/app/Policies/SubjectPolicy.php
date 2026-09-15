@@ -14,7 +14,7 @@ use App\Support\SchoolScope;
  */
 class SubjectPolicy
 {
-    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin];
+    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin];
 
     public function viewAny(User $actor): bool
     {
@@ -47,6 +47,6 @@ class SubjectPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($subject->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($subject->school_id);
     }
 }

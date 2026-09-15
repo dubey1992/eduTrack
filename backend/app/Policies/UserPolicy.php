@@ -32,7 +32,7 @@ class UserPolicy
 {
     public function viewAny(User $actor): bool
     {
-        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::SchoolAdmin], true);
+        return in_array($actor->role, [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin], true);
     }
 
     public function view(User $actor, User $target): bool
@@ -50,7 +50,7 @@ class UserPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && ! $actor->is_sub_admin;
+        return $actor->role->administersSchool() && ! $actor->is_sub_admin;
     }
 
     public function update(User $actor, User $target): bool
@@ -90,7 +90,10 @@ class UserPolicy
             return false;
         }
 
-        if ($target->role !== UserRole::SchoolAdmin) {
+        // Admin-tier targets - a School Admin or a Group Admin - are managed
+        // on the strict hierarchy below. Everybody else is managed freely
+        // within the school.
+        if (! $target->role->administersSchool()) {
             return true;
         }
 
@@ -99,7 +102,7 @@ class UserPolicy
 
     private function isSchoolAdminOfSameSchool(User $actor, User $target): bool
     {
-        return $actor->role === UserRole::SchoolAdmin
+        return $actor->role->administersSchool()
             && SchoolScope::for($actor)->allows($target->school_id);
     }
 }

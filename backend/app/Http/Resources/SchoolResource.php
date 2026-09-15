@@ -19,6 +19,11 @@ class SchoolResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            // Where this school sits in its group. Null for a standalone
+            // school, which is what most are. See docs/branches.md.
+            'parent_school_id' => $this->parent_school_id,
+            'parent_school_name' => $this->whenLoaded('parent', fn () => $this->parent?->name),
+            'branch_count' => $this->whenCounted('branches'),
             'registration_number' => $this->registration_number,
             'email' => $this->email,
             'phone' => $this->phone,

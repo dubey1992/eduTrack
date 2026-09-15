@@ -34,6 +34,12 @@ class SchoolFactory extends Factory
         ];
     }
 
+    /** A branch of [$parent]. */
+    public function branchOf(School $parent): static
+    {
+        return $this->state(fn (array $attributes) => ['parent_school_id' => $parent->id]);
+    }
+
     public function inactive(): static
     {
         return $this->state(fn (array $attributes) => ['status' => SchoolStatus::Inactive]);

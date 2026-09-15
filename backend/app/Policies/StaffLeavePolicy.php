@@ -61,7 +61,7 @@ class StaffLeavePolicy
             return true;
         }
 
-        if ($actor->role === UserRole::SchoolAdmin) {
+        if ($actor->role->administersSchool()) {
             return SchoolScope::for($actor)->allows($leave->school_id);
         }
 

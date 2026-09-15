@@ -29,7 +29,7 @@ class TimetableEntryPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($school->id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($school->id);
     }
 
     public function delete(User $actor, TimetableEntry $entry): bool
@@ -38,6 +38,6 @@ class TimetableEntryPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($entry->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($entry->school_id);
     }
 }

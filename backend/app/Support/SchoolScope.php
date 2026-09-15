@@ -33,6 +33,10 @@ final class SchoolScope
     {
         return match ($actor->role) {
             UserRole::SuperAdmin => self::unrestricted(),
+            // A group admin is attached to the parent and reaches every
+            // branch beneath it - and nothing outside that group, however
+            // the request is edited.
+            UserRole::GroupAdmin => self::of($actor->school?->groupSchoolIds() ?? []),
             // Everybody else lives in exactly one school. An account with no
             // school at all - which should not happen outside a half-finished
             // fixture - can see nothing, rather than mysteriously matching

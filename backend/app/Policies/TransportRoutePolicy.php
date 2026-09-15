@@ -15,7 +15,7 @@ use App\Support\SchoolScope;
  */
 class TransportRoutePolicy
 {
-    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::SchoolAdmin];
+    private const ADMIN_ROLES = [UserRole::SuperAdmin, UserRole::GroupAdmin, UserRole::SchoolAdmin];
 
     public function viewAny(User $actor): bool
     {
@@ -54,7 +54,7 @@ class TransportRoutePolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($route->school_id);
+        return $actor->role->administersSchool() && SchoolScope::for($actor)->allows($route->school_id);
     }
 
     private function sameSchoolOrSuper(User $actor, TransportRoute $route): bool
