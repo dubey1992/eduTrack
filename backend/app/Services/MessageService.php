@@ -4,13 +4,13 @@ namespace App\Services;
 
 use App\Enums\MessageChannel;
 use App\Enums\MessageStatus;
-use App\Enums\UserRole;
 use App\Jobs\SendMessageJob;
 use App\Models\CommunicationSetting;
 use App\Models\Message;
 use App\Models\User;
 use App\Support\Pagination;
 use App\Support\SchoolClock;
+use App\Support\SchoolScope;
 use App\Support\Sms\SmsGatewayManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -164,13 +164,9 @@ class MessageService
      */
     private function schoolIdFor(User $actor, array $filters): ?int
     {
-        if ($actor->role !== UserRole::SuperAdmin) {
-            return $actor->school_id;
-        }
-
-        $schoolId = $filters['school_id'] ?? null;
-
-        return $schoolId === null ? null : (int) $schoolId;
+        return SchoolScope::for($actor)->writableSchoolId(
+            isset($filters['school_id']) ? (int) $filters['school_id'] : null
+        );
     }
 
     private function scoped(User $actor, array $filters): Builder
@@ -178,14 +174,7 @@ class MessageService
         $clock = SchoolClock::forScope($actor, $filters['school_id'] ?? null);
 
         return Message::query()
-            ->when(
-                $actor->role !== UserRole::SuperAdmin,
-                fn (Builder $query) => $query->where('school_id', $actor->school_id),
-                fn (Builder $query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn (Builder $query, $schoolId) => $query->where('school_id', $schoolId)
-                )
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->when($filters['category'] ?? null, fn (Builder $query, $category) => $query->where('category', $category))
             ->when($filters['channel'] ?? null, fn (Builder $query, $channel) => $query->where('channel', $channel))
             ->when($filters['status'] ?? null, fn (Builder $query, $status) => $query->where('status', $status))

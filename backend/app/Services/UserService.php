@@ -8,6 +8,7 @@ use App\Models\StaffProfile;
 use App\Models\User;
 use App\Support\Pagination;
 use App\Support\SchoolClock;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class UserService
@@ -49,9 +50,9 @@ class UserService
         // school - used both here (a School Admin creating a Sub Admin)
         // and by StaffProfileService::createEmployee() (Teachers & Staff) -
         // never trusted from client input either way.
-        if ($actor->role !== UserRole::SuperAdmin) {
-            $data['school_id'] = $actor->school_id;
-        }
+        // Never the client's school_id: an actor pinned to one school
+        // writes into it whatever the request said (CLAUDE.md rule 10).
+        $data['school_id'] = SchoolScope::for($actor)->writableSchoolId($data['school_id'] ?? null);
 
         // Only meaningful when creating a SCHOOL_ADMIN (StoreUserRequest's
         // only allowed role): a School Admin created by SUPER_ADMIN can

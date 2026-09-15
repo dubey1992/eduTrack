@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\StaffProfile;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -20,14 +21,7 @@ class StaffProfileService
     {
         return StaffProfile::query()
             ->with(['user.classTeacherOf.schoolClass', 'school', 'department'])
-            ->when(
-                $actor->role !== UserRole::SuperAdmin,
-                fn ($query) => $query->where('school_id', $actor->school_id),
-                fn ($query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn ($query, $schoolId) => $query->where('school_id', $schoolId)
-                )
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->when(
                 $filters['department_id'] ?? null,
                 fn ($query, $departmentId) => $query->where('department_id', $departmentId)

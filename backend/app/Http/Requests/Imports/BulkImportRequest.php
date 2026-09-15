@@ -2,11 +2,13 @@
 
 namespace App\Http\Requests\Imports;
 
-use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use Illuminate\Foundation\Http\FormRequest;
 
 class BulkImportRequest extends FormRequest
 {
+    use ScopesSchool;
+
     /**
      * Who may import what is the same question as who may add one by hand,
      * and it needs the type from the route - so the controller asks the
@@ -28,9 +30,7 @@ class BulkImportRequest extends FormRequest
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
             // A school user imports into their own school and cannot say
             // otherwise. Only a Super Admin, who belongs to none, names one.
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
         ];
     }
 

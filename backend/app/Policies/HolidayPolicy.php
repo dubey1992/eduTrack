@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\Holiday;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Same shape as DepartmentPolicy - SUPER_ADMIN full access, SCHOOL_ADMIN
@@ -22,7 +23,7 @@ class HolidayPolicy
 
     public function view(User $actor, Holiday $holiday): bool
     {
-        return $actor->role === UserRole::SuperAdmin || $actor->school_id === $holiday->school_id;
+        return $actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($holiday->school_id);
     }
 
     public function create(User $actor): bool
@@ -46,6 +47,6 @@ class HolidayPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $holiday->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($holiday->school_id);
     }
 }

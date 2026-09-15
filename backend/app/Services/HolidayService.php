@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\UserRole;
 use App\Exceptions\HolidayOverlapException;
 use App\Models\Attendance;
 use App\Models\DailyTeachingReport;
@@ -10,6 +9,7 @@ use App\Models\Holiday;
 use App\Models\StaffAttendance;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -30,14 +30,7 @@ class HolidayService
     {
         return Holiday::query()
             ->with('school')
-            ->when(
-                $actor->role !== UserRole::SuperAdmin,
-                fn ($query) => $query->where('school_id', $actor->school_id),
-                fn ($query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn ($query, $schoolId) => $query->where('school_id', $schoolId)
-                )
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->where('end_date', '>=', $date))
             ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->where('start_date', '<=', $date))
             ->orderBy('start_date')
@@ -49,9 +42,9 @@ class HolidayService
      */
     public function create(array $data, User $actor): Holiday
     {
-        if ($actor->role !== UserRole::SuperAdmin) {
-            $data['school_id'] = $actor->school_id;
-        }
+        // Never the client's school_id: an actor pinned to one school
+        // writes into it whatever the request said (CLAUDE.md rule 10).
+        $data['school_id'] = SchoolScope::for($actor)->writableSchoolId($data['school_id'] ?? null);
 
         $this->assertNoOverlap($data['school_id'], $data['start_date'], $data['end_date']);
 

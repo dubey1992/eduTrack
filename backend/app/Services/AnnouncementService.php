@@ -18,6 +18,7 @@ use App\Models\Student;
 use App\Models\User;
 use App\Support\Pagination;
 use App\Support\SchoolClock;
+use App\Support\SchoolScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -42,14 +43,7 @@ class AnnouncementService
     {
         return Announcement::query()
             ->with(['school', 'publishedBy'])
-            ->when(
-                $actor->role !== UserRole::SuperAdmin,
-                fn (Builder $query) => $query->where('school_id', $actor->school_id),
-                fn (Builder $query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn (Builder $query, $schoolId) => $query->where('school_id', $schoolId)
-                )
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             // A head of department manages their own department's notices and
             // nothing else, so the list must not show them the rest.
             ->when(

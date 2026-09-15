@@ -14,6 +14,7 @@ use App\Services\Reports\TeachingCoverageReport;
 use App\Services\Reports\TransportUsageReport;
 use App\Support\Reports\CsvResponse;
 use App\Support\Reports\ReportRange;
+use App\Support\SchoolScope;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -89,9 +90,7 @@ class ReportController extends Controller
      */
     private function schoolIdFor(User $actor, ReportRequest $request): int
     {
-        return $actor->role === UserRole::SuperAdmin
-            ? (int) $request->validated('school_id')
-            : (int) $actor->school_id;
+        return (int) SchoolScope::for($actor)->writableSchoolId($request->integer('school_id') ?: null);
     }
 
     /**

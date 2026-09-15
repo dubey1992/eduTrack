@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Enums\UserRole;
 use App\Exceptions\HasDependentRecordsException;
 use App\Models\AcademicYear;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -19,14 +19,7 @@ class AcademicYearService
     {
         return AcademicYear::query()
             ->with('school')
-            ->when(
-                $actor->role !== UserRole::SuperAdmin,
-                fn ($query) => $query->where('school_id', $actor->school_id),
-                fn ($query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn ($query, $schoolId) => $query->where('school_id', $schoolId)
-                )
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->orderByDesc('start_date')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
@@ -36,9 +29,9 @@ class AcademicYearService
      */
     public function create(array $data, User $actor): AcademicYear
     {
-        if ($actor->role !== UserRole::SuperAdmin) {
-            $data['school_id'] = $actor->school_id;
-        }
+        // Never the client's school_id: an actor pinned to one school
+        // writes into it whatever the request said (CLAUDE.md rule 10).
+        $data['school_id'] = SchoolScope::for($actor)->writableSchoolId($data['school_id'] ?? null);
 
         return DB::transaction(function () use ($data) {
             if ($data['is_current'] ?? false) {

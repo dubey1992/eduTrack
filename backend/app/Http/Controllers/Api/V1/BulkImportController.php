@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Imports\BulkImportRequest;
 use App\Services\Imports\BulkImportService;
 use App\Services\Imports\ImportRegistry;
 use App\Services\Imports\RowImporter;
 use App\Support\Reports\CsvResponse;
+use App\Support\SchoolScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -44,9 +44,7 @@ class BulkImportController extends Controller
         $importer = $this->importerFor($request, $type);
         $actor = $request->user();
 
-        $schoolId = $actor->role === UserRole::SuperAdmin
-            ? (int) $request->validated('school_id')
-            : (int) $actor->school_id;
+        $schoolId = (int) SchoolScope::for($actor)->writableSchoolId($request->integer('school_id') ?: null);
 
         // A bad file throws BulkImportFailedException, which the API error
         // renderer turns into a 422 listing every row that needs fixing.

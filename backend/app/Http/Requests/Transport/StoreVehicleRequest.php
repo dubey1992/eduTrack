@@ -2,13 +2,15 @@
 
 namespace App\Http\Requests\Transport;
 
-use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\Vehicle;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreVehicleRequest extends FormRequest
 {
+    use ScopesSchool;
+
     public function authorize(): bool
     {
         return $this->user()->can('create', Vehicle::class);
@@ -20,9 +22,7 @@ class StoreVehicleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'name' => ['required', 'string', 'max:50'],
             'registration_number' => [
                 'required', 'string', 'max:30',
@@ -30,12 +30,5 @@ class StoreVehicleRequest extends FormRequest
             ],
             'capacity' => ['required', 'integer', 'min:1', 'max:200'],
         ];
-    }
-
-    private function resolvedSchoolId(): ?int
-    {
-        return $this->user()->role === UserRole::SuperAdmin
-            ? $this->integer('school_id')
-            : $this->user()->school_id;
     }
 }

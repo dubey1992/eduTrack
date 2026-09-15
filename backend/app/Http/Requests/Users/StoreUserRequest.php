@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Users;
 
 use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,6 +20,8 @@ use Illuminate\Validation\Rules\Enum;
  */
 class StoreUserRequest extends FormRequest
 {
+    use ScopesSchool;
+
     public function authorize(): bool
     {
         return $this->user()->can('create', User::class);
@@ -41,9 +44,7 @@ class StoreUserRequest extends FormRequest
             // Admin actor creating a Sub Admin is always scoped to their
             // own school server-side (see UserService::create()) - never
             // trusted from this field either way.
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
         ];
     }
 }

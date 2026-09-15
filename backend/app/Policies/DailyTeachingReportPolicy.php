@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\DailyTeachingReport;
 use App\Models\TimetableEntry;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * "Create" and "review" are deliberately separate abilities (same split as
@@ -59,7 +60,7 @@ class DailyTeachingReportPolicy
         }
 
         if ($actor->role === UserRole::SchoolAdmin) {
-            return $actor->school_id === $report->school_id;
+            return SchoolScope::for($actor)->allows($report->school_id);
         }
 
         if ($actor->role === UserRole::Hod) {

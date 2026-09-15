@@ -2,14 +2,15 @@
 
 namespace App\Http\Requests\StaffAttendance;
 
-use App\Enums\UserRole;
 use App\Http\Requests\Concerns\ChecksSchoolDates;
+use App\Http\Requests\Concerns\ScopesSchool;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StaffAttendanceRegisterRequest extends FormRequest
 {
     use ChecksSchoolDates;
+    use ScopesSchool;
 
     /**
      * school_id arrives as a query param, not a route-bound model, so
@@ -31,9 +32,7 @@ class StaffAttendanceRegisterRequest extends FormRequest
         return [
             // A SUPER_ADMIN must pick a school explicitly; every other role
             // is always scoped to their own (see StaffAttendanceController).
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', Rule::exists('schools', 'id')]
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')],
             'date' => ['required', 'date', $this->notInFuture()],
         ];

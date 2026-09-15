@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\StaffProfile;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Same shape as UserPolicy - SUPER_ADMIN manages every school's staff,
@@ -27,7 +28,7 @@ class StaffProfilePolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $staffProfile->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($staffProfile->school_id);
     }
 
     public function create(User $actor): bool
@@ -41,6 +42,6 @@ class StaffProfilePolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $staffProfile->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($staffProfile->school_id);
     }
 }

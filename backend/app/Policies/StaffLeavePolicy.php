@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\StaffLeave;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * "Apply" and "review" are deliberately separate abilities (unlike
@@ -61,7 +62,7 @@ class StaffLeavePolicy
         }
 
         if ($actor->role === UserRole::SchoolAdmin) {
-            return $actor->school_id === $leave->school_id;
+            return SchoolScope::for($actor)->allows($leave->school_id);
         }
 
         if ($actor->role === UserRole::Hod) {

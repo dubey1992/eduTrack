@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\Period;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Same shape as DepartmentPolicy - SUPER_ADMIN full access, SCHOOL_ADMIN
@@ -41,6 +42,6 @@ class PeriodPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $period->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($period->school_id);
     }
 }

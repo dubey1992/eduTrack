@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\TransportRoute;
 use App\Models\TransportTrip;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Trips are the Transport Manager's job (the prototype's "Manage Trips"),
@@ -41,6 +42,6 @@ class TransportTripPolicy
 
     private function sameSchoolOrSuper(User $actor, int $schoolId): bool
     {
-        return $actor->role === UserRole::SuperAdmin || $actor->school_id === $schoolId;
+        return $actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($schoolId);
     }
 }

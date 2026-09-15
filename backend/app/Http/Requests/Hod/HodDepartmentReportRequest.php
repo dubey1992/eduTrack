@@ -2,12 +2,14 @@
 
 namespace App\Http\Requests\Hod;
 
-use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class HodDepartmentReportRequest extends FormRequest
 {
+    use ScopesSchool;
+
     /**
      * Role/department authorization happens in the controller via
      * DepartmentPolicy once the ids are known to be real (422 for a bad id,
@@ -25,9 +27,7 @@ class HodDepartmentReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', Rule::exists('schools', 'id')]
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'department_id' => [
                 'nullable',
                 'integer',
@@ -35,12 +35,5 @@ class HodDepartmentReportRequest extends FormRequest
             ],
             'month' => ['nullable', 'date_format:Y-m'],
         ];
-    }
-
-    private function resolvedSchoolId(): ?int
-    {
-        $actor = $this->user();
-
-        return $actor->role === UserRole::SuperAdmin ? (int) $this->input('school_id') : $actor->school_id;
     }
 }

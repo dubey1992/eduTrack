@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\ClassSection;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Same shape as SchoolClassPolicy - a section is scoped through its parent
@@ -51,7 +52,7 @@ class ClassSectionPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $section->schoolClass->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($section->schoolClass->school_id);
     }
 
     private function isClassTeacher(User $actor, ClassSection $section): bool

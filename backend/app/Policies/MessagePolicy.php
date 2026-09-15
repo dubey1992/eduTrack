@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\Message;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * The message log holds guardians' phone numbers and what was said to them,
@@ -46,6 +47,6 @@ class MessagePolicy
 
         return $actor->role === UserRole::SchoolAdmin
             && $schoolId !== null
-            && $actor->school_id === $schoolId;
+            && SchoolScope::for($actor)->allows($schoolId);
     }
 }

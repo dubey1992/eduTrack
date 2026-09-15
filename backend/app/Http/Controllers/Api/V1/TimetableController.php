@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Timetable\TimetableGridRequest;
 use App\Http\Requests\Timetable\UpsertTimetableEntryRequest;
@@ -12,6 +11,7 @@ use App\Models\School;
 use App\Models\TimetableEntry;
 use App\Models\User;
 use App\Services\TimetableService;
+use App\Support\SchoolScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
@@ -65,7 +65,7 @@ class TimetableController extends Controller
      */
     private function assertSameSchool(User $actor, ?int $schoolId): void
     {
-        if ($actor->role !== UserRole::SuperAdmin && $actor->school_id !== $schoolId) {
+        if (! SchoolScope::for($actor)->allows($schoolId)) {
             throw new NotFoundHttpException;
         }
     }
@@ -73,7 +73,7 @@ class TimetableController extends Controller
     private function resolveSchool(UpsertTimetableEntryRequest $request): School
     {
         $actor = $request->user();
-        $schoolId = $actor->role === UserRole::SuperAdmin ? $request->validated('school_id') : $actor->school_id;
+        $schoolId = SchoolScope::for($actor)->writableSchoolId($request->integer('school_id') ?: null);
 
         return School::findOrFail($schoolId);
     }

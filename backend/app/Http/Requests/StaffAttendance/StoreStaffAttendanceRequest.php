@@ -5,6 +5,7 @@ namespace App\Http\Requests\StaffAttendance;
 use App\Enums\StaffAttendanceStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\Concerns\ChecksSchoolDates;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\Department;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -13,6 +14,7 @@ use Illuminate\Validation\Rules\Enum;
 class StoreStaffAttendanceRequest extends FormRequest
 {
     use ChecksSchoolDates;
+    use ScopesSchool;
 
     /**
      * school_id is body data here, not a route-bound model - same reasoning
@@ -30,9 +32,7 @@ class StoreStaffAttendanceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', Rule::exists('schools', 'id')]
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')],
             'attendance_date' => ['required', 'date', $this->notInFuture()],
             'records' => [
@@ -48,8 +48,7 @@ class StoreStaffAttendanceRequest extends FormRequest
                 'required', 'integer',
                 Rule::exists('staff_profiles', 'id')->where(function ($query) {
                     $actor = $this->user();
-                    $schoolId = $actor->role === UserRole::SuperAdmin ? $this->input('school_id') : $actor->school_id;
-                    $query->where('school_id', $schoolId);
+                    $this->schoolScope()->applyTo($query, $this->requestedSchoolId());
 
                     // An HOD can only mark staff in the department(s) they
                     // head - never another department in the same school.

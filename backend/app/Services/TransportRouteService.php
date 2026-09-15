@@ -3,12 +3,12 @@
 namespace App\Services;
 
 use App\Enums\TransportStatus;
-use App\Enums\UserRole;
 use App\Exceptions\HasDependentRecordsException;
 use App\Models\TransportRoute;
 use App\Models\TransportStop;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class TransportRouteService
@@ -23,14 +23,7 @@ class TransportRouteService
         return TransportRoute::query()
             ->with(self::RELATIONS)
             ->withCount(['stops', 'assignments'])
-            ->when(
-                $actor->role !== UserRole::SuperAdmin,
-                fn ($query) => $query->where('school_id', $actor->school_id),
-                fn ($query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn ($query, $schoolId) => $query->where('school_id', $schoolId)
-                )
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->orderBy('name')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
@@ -51,9 +44,9 @@ class TransportRouteService
      */
     public function create(array $data, User $actor): TransportRoute
     {
-        if ($actor->role !== UserRole::SuperAdmin) {
-            $data['school_id'] = $actor->school_id;
-        }
+        // Never the client's school_id: an actor pinned to one school
+        // writes into it whatever the request said (CLAUDE.md rule 10).
+        $data['school_id'] = SchoolScope::for($actor)->writableSchoolId($data['school_id'] ?? null);
 
         return TransportRoute::create([...$data, 'status' => TransportStatus::Active]);
     }

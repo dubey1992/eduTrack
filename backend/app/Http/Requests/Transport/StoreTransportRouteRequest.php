@@ -3,13 +3,15 @@
 namespace App\Http\Requests\Transport;
 
 use App\Enums\TransportStatus;
-use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\TransportRoute;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreTransportRouteRequest extends FormRequest
 {
+    use ScopesSchool;
+
     public function authorize(): bool
     {
         return $this->user()->can('create', TransportRoute::class);
@@ -21,9 +23,7 @@ class StoreTransportRouteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'name' => [
                 'required', 'string', 'max:100',
                 Rule::unique('transport_routes', 'name')->where(fn ($query) => $query->where('school_id', $this->resolvedSchoolId())),
@@ -56,12 +56,5 @@ class StoreTransportRouteRequest extends FormRequest
             'driver_id.exists' => 'The selected driver is not an active driver of this school.',
             'driver_id.unique' => 'That driver is already assigned to another route.',
         ];
-    }
-
-    private function resolvedSchoolId(): ?int
-    {
-        return $this->user()->role === UserRole::SuperAdmin
-            ? $this->integer('school_id')
-            : $this->user()->school_id;
     }
 }

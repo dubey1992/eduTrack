@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\School;
 use App\Models\TimetableEntry;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Same shape as StaffAttendancePolicy - a coarse role gate for viewing (a
@@ -28,7 +29,7 @@ class TimetableEntryPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $school->id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($school->id);
     }
 
     public function delete(User $actor, TimetableEntry $entry): bool
@@ -37,6 +38,6 @@ class TimetableEntryPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $entry->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($entry->school_id);
     }
 }

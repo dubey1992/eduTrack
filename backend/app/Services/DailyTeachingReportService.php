@@ -11,6 +11,7 @@ use App\Models\DailyTeachingReport;
 use App\Models\TimetableEntry;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -94,7 +95,9 @@ class DailyTeachingReportService
      */
     public function summary(User $actor, array $filters, string $date): array
     {
-        $schoolId = $actor->role === UserRole::SuperAdmin ? ($filters['school_id'] ?? null) : $actor->school_id;
+        $schoolId = SchoolScope::for($actor)->writableSchoolId(
+            isset($filters['school_id']) ? (int) $filters['school_id'] : null
+        );
         $holiday = $schoolId === null ? null : $this->holidayService->holidayOn((int) $schoolId, $date);
 
         $dayOfWeek = strtolower(Carbon::parse($date)->format('l'));
@@ -135,11 +138,7 @@ class DailyTeachingReportService
     private function scopedQuery(User $actor, ?int $schoolIdFilter): Builder
     {
         return DailyTeachingReport::query()
-            ->when(
-                $actor->role === UserRole::SuperAdmin,
-                fn ($query) => $query->when($schoolIdFilter, fn ($query, $id) => $query->where('school_id', $id)),
-                fn ($query) => $query->where('school_id', $actor->school_id)
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $schoolIdFilter))
             // An HOD only ever sees reports filed by teachers in the
             // department(s) they head - same rule as StaffLeaveService.
             ->when(
@@ -163,11 +162,7 @@ class DailyTeachingReportService
     private function scopedTimetableQuery(User $actor, ?int $schoolIdFilter): Builder
     {
         return TimetableEntry::query()
-            ->when(
-                $actor->role === UserRole::SuperAdmin,
-                fn ($query) => $query->when($schoolIdFilter, fn ($query, $id) => $query->where('school_id', $id)),
-                fn ($query) => $query->where('school_id', $actor->school_id)
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $schoolIdFilter))
             ->when(
                 $actor->role === UserRole::Hod,
                 fn ($query) => $query->whereHas(

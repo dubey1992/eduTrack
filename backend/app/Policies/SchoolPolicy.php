@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\School;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Schools are platform-level records - only SUPER_ADMIN manages them.
@@ -21,7 +22,7 @@ class SchoolPolicy
 
     public function view(User $actor, School $school): bool
     {
-        return $actor->role === UserRole::SuperAdmin || $actor->school_id === $school->id;
+        return $actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($school->id);
     }
 
     public function create(User $actor): bool

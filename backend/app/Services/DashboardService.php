@@ -28,6 +28,7 @@ use App\Models\TransportRoute;
 use App\Models\TransportTrip;
 use App\Models\User;
 use App\Support\SchoolClock;
+use App\Support\SchoolScope;
 use Illuminate\Support\Carbon;
 
 /**
@@ -352,12 +353,8 @@ class DashboardService
      */
     private function schoolIdFor(User $actor, array $filters): ?int
     {
-        if ($actor->role !== UserRole::SuperAdmin) {
-            return $actor->school_id;
-        }
-
-        $schoolId = $filters['school_id'] ?? null;
-
-        return $schoolId === null ? null : (int) $schoolId;
+        return SchoolScope::for($actor)->writableSchoolId(
+            isset($filters['school_id']) ? (int) $filters['school_id'] : null
+        );
     }
 }

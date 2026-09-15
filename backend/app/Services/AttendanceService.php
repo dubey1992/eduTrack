@@ -15,6 +15,7 @@ use App\Models\Holiday;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\DateFormats;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -206,14 +207,7 @@ class AttendanceService
     {
         return Attendance::query()
             ->with(['student', 'classSection.schoolClass', 'markedBy'])
-            ->when(
-                $actor->role === UserRole::SuperAdmin,
-                fn ($query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn ($query, $schoolId) => $query->where('school_id', $schoolId)
-                ),
-                fn ($query) => $query->where('school_id', $actor->school_id)
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             // A teacher only ever sees attendance for sections they are the
             // class teacher of - never another class, regardless of filters.
             ->when(

@@ -9,7 +9,6 @@ use App\Enums\TripDirection;
 use App\Enums\TripEventType;
 use App\Enums\TripRiderStatus;
 use App\Enums\TripStatus;
-use App\Enums\UserRole;
 use App\Exceptions\TripRuleException;
 use App\Models\Student;
 use App\Models\StudentTransportAssignment;
@@ -22,6 +21,7 @@ use App\Models\User;
 use App\Support\DateFormats;
 use App\Support\Pagination;
 use App\Support\SchoolClock;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -55,14 +55,7 @@ class TransportTripService
         return TransportTrip::query()
             ->with(self::LIST_RELATIONS)
             ->withCount('riders')
-            ->when(
-                $actor->role !== UserRole::SuperAdmin,
-                fn ($query) => $query->where('school_id', $actor->school_id),
-                fn ($query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn ($query, $schoolId) => $query->where('school_id', $schoolId)
-                )
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->when($filters['route_id'] ?? null, fn ($query, $routeId) => $query->where('route_id', $routeId))
             ->when($filters['date'] ?? null, fn ($query, $date) => $query->where('trip_date', $date))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))

@@ -3,13 +3,15 @@
 namespace App\Http\Requests\Transport;
 
 use App\Enums\TripDirection;
-use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 
 class StartTripRequest extends FormRequest
 {
+    use ScopesSchool;
+
     /**
      * TransportTripPolicy::create is checked in the controller once the
      * route is loaded (a bad id is a 422, not a 403).
@@ -29,10 +31,9 @@ class StartTripRequest extends FormRequest
         return [
             'route_id' => [
                 'required', 'integer',
-                Rule::exists('transport_routes', 'id')->where(fn ($query) => $query->when(
-                    $actor->role !== UserRole::SuperAdmin,
-                    fn ($query) => $query->where('school_id', $actor->school_id)
-                )),
+                Rule::exists('transport_routes', 'id')->where(
+                    fn ($query) => $this->schoolScope()->applyTo($query)
+                ),
             ],
             'direction' => ['required', new Enum(TripDirection::class)],
         ];

@@ -4,8 +4,8 @@ namespace App\Http\Requests\Announcements;
 
 use App\Enums\AnnouncementAudience;
 use App\Enums\AnnouncementChannels;
-use App\Enums\UserRole;
 use App\Http\Requests\Concerns\ChecksSchoolDates;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\Announcement;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,6 +14,7 @@ use Illuminate\Validation\Rules\Enum;
 class PublishAnnouncementRequest extends FormRequest
 {
     use ChecksSchoolDates;
+    use ScopesSchool;
 
     public function authorize(): bool
     {
@@ -40,9 +41,7 @@ class PublishAnnouncementRequest extends FormRequest
         $schoolId = $this->schoolId();
 
         return [
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'title' => ['required', 'string', 'min:3', 'max:150'],
             'body' => ['required', 'string', 'min:10', 'max:2000'],
             'audience_type' => ['required', new Enum(AnnouncementAudience::class)],
@@ -93,11 +92,7 @@ class PublishAnnouncementRequest extends FormRequest
 
     public function schoolId(): ?int
     {
-        $requested = $this->input('school_id');
-
-        return $this->user()->role === UserRole::SuperAdmin
-            ? ($requested === null ? null : (int) $requested)
-            : $this->user()->school_id;
+        return $this->resolvedSchoolId();
     }
 
     /**

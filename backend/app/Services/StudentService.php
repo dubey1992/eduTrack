@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class StudentService
@@ -18,14 +19,7 @@ class StudentService
     {
         return Student::query()
             ->with(['school', 'classSection.schoolClass', 'transportAssignment.route.vehicle', 'transportAssignment.stop'])
-            ->when(
-                $actor->role === UserRole::SuperAdmin,
-                fn ($query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn ($query, $schoolId) => $query->where('school_id', $schoolId)
-                ),
-                fn ($query) => $query->where('school_id', $actor->school_id)
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             // A teacher only ever sees students in sections they are the
             // class teacher of - never another class, regardless of filters.
             ->when(
@@ -58,9 +52,9 @@ class StudentService
      */
     public function create(array $data, User $actor): Student
     {
-        if ($actor->role !== UserRole::SuperAdmin) {
-            $data['school_id'] = $actor->school_id;
-        }
+        // Never the client's school_id: an actor pinned to one school
+        // writes into it whatever the request said (CLAUDE.md rule 10).
+        $data['school_id'] = SchoolScope::for($actor)->writableSchoolId($data['school_id'] ?? null);
 
         return Student::create([...$data, 'status' => StudentStatus::Active]);
     }

@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * SUPER_ADMIN manages academic years for every school. SCHOOL_ADMIN manages
@@ -24,7 +25,7 @@ class AcademicYearPolicy
 
     public function view(User $actor, AcademicYear $academicYear): bool
     {
-        return $actor->role === UserRole::SuperAdmin || $actor->school_id === $academicYear->school_id;
+        return $actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($academicYear->school_id);
     }
 
     public function create(User $actor): bool
@@ -53,6 +54,6 @@ class AcademicYearPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $academicYear->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($academicYear->school_id);
     }
 }

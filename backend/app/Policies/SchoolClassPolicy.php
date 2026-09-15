@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\SchoolClass;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Same shape as AcademicYearPolicy - SUPER_ADMIN full access, SCHOOL_ADMIN
@@ -23,7 +24,7 @@ class SchoolClassPolicy
 
     public function view(User $actor, SchoolClass $schoolClass): bool
     {
-        return $actor->role === UserRole::SuperAdmin || $actor->school_id === $schoolClass->school_id;
+        return $actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($schoolClass->school_id);
     }
 
     public function create(User $actor): bool
@@ -47,6 +48,6 @@ class SchoolClassPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $schoolClass->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($schoolClass->school_id);
     }
 }

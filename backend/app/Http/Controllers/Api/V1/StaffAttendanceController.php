@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StaffAttendance\StaffAttendanceRegisterRequest;
 use App\Http\Requests\StaffAttendance\StoreStaffAttendanceRequest;
@@ -11,6 +10,7 @@ use App\Http\Resources\StaffAttendanceResource;
 use App\Models\School;
 use App\Models\StaffAttendance;
 use App\Services\StaffAttendanceService;
+use App\Support\SchoolScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -75,7 +75,7 @@ class StaffAttendanceController extends Controller
     private function resolveSchool(StaffAttendanceRegisterRequest|StoreStaffAttendanceRequest|UpdateStaffAttendanceRequest $request): School
     {
         $actor = $request->user();
-        $schoolId = $actor->role === UserRole::SuperAdmin ? $request->validated('school_id') : $actor->school_id;
+        $schoolId = SchoolScope::for($actor)->writableSchoolId($request->integer('school_id') ?: null);
 
         return School::findOrFail($schoolId);
     }

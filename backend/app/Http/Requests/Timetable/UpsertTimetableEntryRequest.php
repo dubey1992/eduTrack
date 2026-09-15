@@ -4,6 +4,7 @@ namespace App\Http\Requests\Timetable;
 
 use App\Enums\DayOfWeek;
 use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\SchoolClass;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Collection;
@@ -12,6 +13,8 @@ use Illuminate\Validation\Rules\Enum;
 
 class UpsertTimetableEntryRequest extends FormRequest
 {
+    use ScopesSchool;
+
     /**
      * school_id is body data here, not a route-bound model - same
      * reasoning as StaffAttendance's requests: a bad id fails validation
@@ -29,9 +32,7 @@ class UpsertTimetableEntryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'class_section_id' => [
                 'required', 'integer',
                 Rule::exists('class_sections', 'id')->where(function ($query) {
@@ -67,12 +68,5 @@ class UpsertTimetableEntryRequest extends FormRequest
     private function schoolClassIdsQuery()
     {
         return SchoolClass::query()->where('school_id', $this->resolvedSchoolId())->pluck('id');
-    }
-
-    private function resolvedSchoolId(): ?int
-    {
-        return $this->user()->role === UserRole::SuperAdmin
-            ? $this->integer('school_id')
-            : $this->user()->school_id;
     }
 }

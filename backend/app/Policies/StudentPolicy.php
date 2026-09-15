@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * SUPER_ADMIN and SCHOOL_ADMIN manage every student in scope, same shape as
@@ -29,7 +30,7 @@ class StudentPolicy
         }
 
         if ($actor->role === UserRole::SchoolAdmin) {
-            return $actor->school_id === $student->school_id;
+            return SchoolScope::for($actor)->allows($student->school_id);
         }
 
         if ($actor->role === UserRole::Teacher) {
@@ -60,6 +61,6 @@ class StudentPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $student->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($student->school_id);
     }
 }

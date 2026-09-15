@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Staff;
 
 use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\StaffProfile;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -10,6 +11,8 @@ use Illuminate\Validation\Rules\Enum;
 
 class StoreStaffRequest extends FormRequest
 {
+    use ScopesSchool;
+
     /**
      * Unlike the generic Users feature (StoreUserRequest), this form is
      * specifically "add an employee" - it never creates an admin account,
@@ -39,9 +42,7 @@ class StoreStaffRequest extends FormRequest
             // account server-side either way (see resolvedSchoolId()) -
             // so non-SuperAdmin gets its own minimal, null-tolerant rule set
             // rather than the full integer/exists check meant for SuperAdmin.
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'employee_id' => [
                 'required', 'string', 'max:30',
                 Rule::unique('staff_profiles', 'employee_id')->where(fn ($query) => $query->where('school_id', $this->resolvedSchoolId())),
@@ -74,12 +75,5 @@ class StoreStaffRequest extends FormRequest
     public function profileData(): array
     {
         return $this->safe()->only(['employee_id', 'department_id', 'designation', 'joining_date', 'address']);
-    }
-
-    private function resolvedSchoolId(): ?int
-    {
-        return $this->user()->role === UserRole::SuperAdmin
-            ? $this->integer('school_id')
-            : $this->user()->school_id;
     }
 }

@@ -12,6 +12,7 @@ use App\Models\StaffAttendance;
 use App\Models\StaffProfile;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolScope;
 use App\Support\WorkingHours;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -147,14 +148,7 @@ class StaffAttendanceService
     {
         return StaffAttendance::query()
             ->with(['staffProfile.user', 'staffProfile.department', 'markedBy'])
-            ->when(
-                $actor->role === UserRole::SuperAdmin,
-                fn ($query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn ($query, $schoolId) => $query->where('school_id', $schoolId)
-                ),
-                fn ($query) => $query->where('school_id', $actor->school_id)
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             // An HOD only ever sees attendance for staff in the
             // department(s) they head - never another department,
             // regardless of filters (same rule as the register roster).

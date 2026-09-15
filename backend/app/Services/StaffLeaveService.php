@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Support\DateFormats;
 use App\Support\Pagination;
 use App\Support\SchoolClock;
+use App\Support\SchoolScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -197,11 +198,7 @@ class StaffLeaveService
     private function scopedQuery(User $actor, ?int $schoolIdFilter): Builder
     {
         return StaffLeave::query()
-            ->when(
-                $actor->role === UserRole::SuperAdmin,
-                fn ($query) => $query->when($schoolIdFilter, fn ($query, $id) => $query->where('school_id', $id)),
-                fn ($query) => $query->where('school_id', $actor->school_id)
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $schoolIdFilter))
             // An HOD only ever sees leave for staff in the department(s)
             // they head - same rule as StaffAttendanceService.
             ->when(

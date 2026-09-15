@@ -2,13 +2,15 @@
 
 namespace App\Http\Requests\Students;
 
-use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\Student;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreStudentRequest extends FormRequest
 {
+    use ScopesSchool;
+
     public function authorize(): bool
     {
         return $this->user()->can('create', Student::class);
@@ -25,9 +27,7 @@ class StoreStudentRequest extends FormRequest
             // account server-side either way (see resolvedSchoolId()) -
             // so non-SuperAdmin gets its own minimal, null-tolerant rule set
             // rather than the full integer/exists check meant for SuperAdmin.
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'class_section_id' => [
                 'required', 'integer',
                 // class_sections has no school_id column of its own - reach
@@ -49,12 +49,5 @@ class StoreStudentRequest extends FormRequest
             'guardian_mobile' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9][0-9 ]{6,17}$/'],
             'address' => ['nullable', 'string', 'max:500'],
         ];
-    }
-
-    private function resolvedSchoolId(): ?int
-    {
-        return $this->user()->role === UserRole::SuperAdmin
-            ? $this->integer('school_id')
-            : $this->user()->school_id;
     }
 }

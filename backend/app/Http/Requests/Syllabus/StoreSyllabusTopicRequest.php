@@ -2,13 +2,15 @@
 
 namespace App\Http\Requests\Syllabus;
 
-use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\Subject;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreSyllabusTopicRequest extends FormRequest
 {
+    use ScopesSchool;
+
     /**
      * The role gate (SyllabusTopicPolicy::create) needs the subject loaded
      * first, so it's checked in the controller once `subject_id` has passed
@@ -29,9 +31,7 @@ class StoreSyllabusTopicRequest extends FormRequest
             // The real client always sends this key - literal null for a
             // non-SuperAdmin, since school_id is taken from the actor's own
             // account server-side either way (see resolvedSchoolId()).
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'subject_id' => [
                 'required', 'integer',
                 Rule::exists('subjects', 'id')->where(fn ($query) => $query->where('school_id', $this->resolvedSchoolId())),
@@ -48,12 +48,5 @@ class StoreSyllabusTopicRequest extends FormRequest
     public function subject(): Subject
     {
         return Subject::findOrFail($this->validated('subject_id'));
-    }
-
-    private function resolvedSchoolId(): ?int
-    {
-        return $this->user()->role === UserRole::SuperAdmin
-            ? $this->integer('school_id')
-            : $this->user()->school_id;
     }
 }

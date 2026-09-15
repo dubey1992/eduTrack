@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\School;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Coarse role gate plus school ownership - same shape as
@@ -27,6 +28,6 @@ class StaffAttendancePolicy
         }
 
         return in_array($actor->role, [UserRole::SchoolAdmin, UserRole::Hod], true)
-            && $actor->school_id === $school->id;
+            && SchoolScope::for($actor)->allows($school->id);
     }
 }

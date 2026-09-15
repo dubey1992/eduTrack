@@ -3,13 +3,15 @@
 namespace App\Http\Requests\Holidays;
 
 use App\Enums\HolidayType;
-use App\Enums\UserRole;
+use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\Holiday;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
 
 class StoreHolidayRequest extends FormRequest
 {
+    use ScopesSchool;
+
     public function authorize(): bool
     {
         return $this->user()->can('create', Holiday::class);
@@ -23,9 +25,7 @@ class StoreHolidayRequest extends FormRequest
         return [
             // Same null-tolerant split as StoreDepartmentRequest - a
             // non-SuperAdmin's school is always taken from their account.
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', 'exists:schools,id']
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             'name' => ['required', 'string', 'max:100'],
             'type' => ['required', new Enum(HolidayType::class)],
             'start_date' => ['required', 'date'],

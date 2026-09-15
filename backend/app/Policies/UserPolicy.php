@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * SUPER_ADMIN manages every user, across every school. SCHOOL_ADMIN
@@ -99,7 +100,6 @@ class UserPolicy
     private function isSchoolAdminOfSameSchool(User $actor, User $target): bool
     {
         return $actor->role === UserRole::SchoolAdmin
-            && $actor->school_id !== null
-            && $actor->school_id === $target->school_id;
+            && SchoolScope::for($actor)->allows($target->school_id);
     }
 }

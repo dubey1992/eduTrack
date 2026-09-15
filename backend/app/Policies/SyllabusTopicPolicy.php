@@ -8,6 +8,7 @@ use App\Models\Subject;
 use App\Models\SyllabusTopic;
 use App\Models\TimetableEntry;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Two distinct concerns live here, both keyed off SyllabusTopic since a
@@ -37,7 +38,7 @@ class SyllabusTopicPolicy
 
     public function view(User $actor, SyllabusTopic $topic): bool
     {
-        return $actor->role === UserRole::SuperAdmin || $actor->school_id === $topic->school_id;
+        return $actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($topic->school_id);
     }
 
     public function create(User $actor, Subject $subject): bool
@@ -66,7 +67,7 @@ class SyllabusTopicPolicy
             return false;
         }
 
-        return $actor->role === UserRole::SuperAdmin || $actor->school_id === $section->schoolClass->school_id;
+        return $actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($section->schoolClass->school_id);
     }
 
     public function mark(User $actor, SyllabusTopic $topic, ClassSection $section): bool
@@ -77,7 +78,7 @@ class SyllabusTopicPolicy
             return true;
         }
 
-        if ($actor->school_id !== $schoolId) {
+        if (! SchoolScope::for($actor)->allows($schoolId)) {
             return false;
         }
 
@@ -106,7 +107,7 @@ class SyllabusTopicPolicy
             return true;
         }
 
-        if ($actor->school_id !== $subject->school_id) {
+        if (! SchoolScope::for($actor)->allows($subject->school_id)) {
             return false;
         }
 

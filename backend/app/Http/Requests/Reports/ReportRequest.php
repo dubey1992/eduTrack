@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Reports;
 
-use App\Enums\UserRole;
 use App\Http\Requests\Concerns\ChecksSchoolDates;
+use App\Http\Requests\Concerns\ScopesSchool;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,6 +18,7 @@ use Illuminate\Validation\Rule;
 class ReportRequest extends FormRequest
 {
     use ChecksSchoolDates;
+    use ScopesSchool;
 
     public function authorize(): bool
     {
@@ -30,9 +31,7 @@ class ReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'school_id' => $this->user()->role === UserRole::SuperAdmin
-                ? ['required', 'integer', Rule::exists('schools', 'id')]
-                : ['nullable'],
+            'school_id' => $this->schoolIdRules(),
             // A report covers days that have happened. Asking for next month
             // would report everybody as absent for days nobody has taught.
             'from' => ['nullable', 'date', $this->notInFuture()],

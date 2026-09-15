@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\Driver;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Same matrix as VehiclePolicy.
@@ -21,7 +22,7 @@ class DriverPolicy
     public function view(User $actor, Driver $driver): bool
     {
         return $this->viewAny($actor)
-            && ($actor->role === UserRole::SuperAdmin || $actor->school_id === $driver->school_id);
+            && ($actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($driver->school_id));
     }
 
     public function create(User $actor): bool
@@ -45,6 +46,6 @@ class DriverPolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $driver->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($driver->school_id);
     }
 }

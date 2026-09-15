@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\TransportRoute;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Same matrix as VehiclePolicy, plus `viewStudents` - the list of students
@@ -53,11 +54,11 @@ class TransportRoutePolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $route->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($route->school_id);
     }
 
     private function sameSchoolOrSuper(User $actor, TransportRoute $route): bool
     {
-        return $actor->role === UserRole::SuperAdmin || $actor->school_id === $route->school_id;
+        return $actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($route->school_id);
     }
 }

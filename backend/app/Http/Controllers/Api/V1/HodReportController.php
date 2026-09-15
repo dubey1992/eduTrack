@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Hod\HodDepartmentReportRequest;
 use App\Models\Department;
 use App\Models\School;
 use App\Services\HodReportService;
+use App\Support\SchoolScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
@@ -21,7 +21,7 @@ class HodReportController extends Controller
 
         $actor = $request->user();
         $school = School::findOrFail(
-            $actor->role === UserRole::SuperAdmin ? $request->validated('school_id') : $actor->school_id
+            SchoolScope::for($actor)->writableSchoolId($request->integer('school_id') ?: null)
         );
 
         $department = null;

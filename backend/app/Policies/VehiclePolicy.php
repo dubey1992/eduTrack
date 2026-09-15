@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Support\SchoolScope;
 
 /**
  * Transport master data follows the prototype's permission matrix:
@@ -27,7 +28,7 @@ class VehiclePolicy
     public function view(User $actor, Vehicle $vehicle): bool
     {
         return $this->viewAny($actor)
-            && ($actor->role === UserRole::SuperAdmin || $actor->school_id === $vehicle->school_id);
+            && ($actor->role === UserRole::SuperAdmin || SchoolScope::for($actor)->allows($vehicle->school_id));
     }
 
     public function create(User $actor): bool
@@ -51,6 +52,6 @@ class VehiclePolicy
             return true;
         }
 
-        return $actor->role === UserRole::SchoolAdmin && $actor->school_id === $vehicle->school_id;
+        return $actor->role === UserRole::SchoolAdmin && SchoolScope::for($actor)->allows($vehicle->school_id);
     }
 }

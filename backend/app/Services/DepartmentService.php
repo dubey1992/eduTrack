@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Enums\UserRole;
 use App\Exceptions\HasDependentRecordsException;
 use App\Models\Department;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class DepartmentService
@@ -18,14 +18,7 @@ class DepartmentService
     {
         return Department::query()
             ->with(['school', 'hod'])
-            ->when(
-                $actor->role !== UserRole::SuperAdmin,
-                fn ($query) => $query->where('school_id', $actor->school_id),
-                fn ($query) => $query->when(
-                    $filters['school_id'] ?? null,
-                    fn ($query, $schoolId) => $query->where('school_id', $schoolId)
-                )
-            )
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->orderBy('name')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
@@ -35,9 +28,9 @@ class DepartmentService
      */
     public function create(array $data, User $actor): Department
     {
-        if ($actor->role !== UserRole::SuperAdmin) {
-            $data['school_id'] = $actor->school_id;
-        }
+        // Never the client's school_id: an actor pinned to one school
+        // writes into it whatever the request said (CLAUDE.md rule 10).
+        $data['school_id'] = SchoolScope::for($actor)->writableSchoolId($data['school_id'] ?? null);
 
         return Department::create($data);
     }

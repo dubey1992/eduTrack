@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\Announcement;
 use App\Models\Department;
 use App\Models\User;
+use App\Support\SchoolScope;
 
 /**
  * Admins announce to anyone in their school. A Head of Department may only
@@ -28,7 +29,7 @@ class AnnouncementPolicy
             return true;
         }
 
-        if ($actor->school_id !== $announcement->school_id) {
+        if (! SchoolScope::for($actor)->allows($announcement->school_id)) {
             return false;
         }
 
@@ -49,7 +50,7 @@ class AnnouncementPolicy
             return true;
         }
 
-        if ($schoolId !== null && $actor->school_id !== $schoolId) {
+        if ($schoolId !== null && ! SchoolScope::for($actor)->allows($schoolId)) {
             return false;
         }
 
@@ -80,7 +81,7 @@ class AnnouncementPolicy
 
         return Department::query()
             ->whereKey($departmentId)
-            ->where('school_id', $actor->school_id)
+            ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query))
             ->where('hod_user_id', $actor->id)
             ->exists();
     }
