@@ -39,7 +39,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   /// offering it.
   List<ReportKind> _kindsFor(UserRole? role) {
     return switch (role) {
-      UserRole.superAdmin || UserRole.schoolAdmin => ReportKind.values,
+      UserRole.superAdmin || UserRole.groupAdmin || UserRole.schoolAdmin => ReportKind.values,
       UserRole.hod => [ReportKind.staffAttendance, ReportKind.teachingCoverage],
       UserRole.transportManager => [ReportKind.transportUsage],
       _ => const [],

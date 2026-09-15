@@ -51,9 +51,9 @@ class _HodReportScreenState extends ConsumerState<HodReportScreen> {
     final actor = ref.watch(authNotifierProvider).value;
     if (actor == null) return const SizedBox.shrink();
 
-    final isSuperAdmin = actor.role == UserRole.superAdmin;
+    final picksSchool = actor.role.picksSchool;
     final isHod = actor.role == UserRole.hod;
-    final needsSchool = isSuperAdmin && _schoolId == null;
+    final needsSchool = picksSchool && _schoolId == null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),

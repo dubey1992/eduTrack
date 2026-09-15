@@ -55,12 +55,12 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(authNotifierProvider).value?.role;
-    final isSuperAdmin = role == UserRole.superAdmin;
+    final picksSchool = role?.picksSchool ?? false;
     final isHod = role == UserRole.hod;
     // An HOD's roster is always their own department(s), server-side - the
     // department picker would have no visible effect, so it's not shown.
     final showDepartmentPicker = !isHod;
-    final ready = !isSuperAdmin || _schoolId != null;
+    final ready = !picksSchool || _schoolId != null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -82,7 +82,7 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
                 runSpacing: 12,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (isSuperAdmin)
+                  if (picksSchool)
                     SizedBox(
                       width: 240,
                       child: _SchoolPicker(

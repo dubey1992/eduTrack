@@ -41,7 +41,7 @@ class _TeachingReportScreenState extends ConsumerState<TeachingReportScreen> {
   int? _schoolFilter;
 
   static const _submitterRoles = {UserRole.teacher, UserRole.hod};
-  static const _reviewerRoles = {UserRole.hod, UserRole.schoolAdmin, UserRole.superAdmin};
+  static const _reviewerRoles = {UserRole.hod, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.superAdmin};
 
   String get _today => ref.read(schoolClockProvider).todayIso;
 

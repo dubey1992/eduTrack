@@ -17,7 +17,7 @@ import '../data/models/vehicle.dart';
 import 'vehicle_form_dialog.dart';
 import 'widgets/transport_list_scaffold.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 class VehicleListScreen extends ConsumerStatefulWidget {
   const VehicleListScreen({super.key});

@@ -54,7 +54,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(authNotifierProvider).value?.role;
-    final isSuperAdmin = role == UserRole.superAdmin;
+    final picksSchool = role?.picksSchool ?? false;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -76,7 +76,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 runSpacing: 12,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (isSuperAdmin)
+                  if (picksSchool)
                     SizedBox(
                       width: 240,
                       child: _SchoolPicker(
@@ -87,7 +87,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         }),
                       ),
                     ),
-                  if (!isSuperAdmin || _schoolId != null)
+                  if (!picksSchool || _schoolId != null)
                     SizedBox(
                       width: 240,
                       child: _ClassSectionPicker(

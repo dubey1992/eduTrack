@@ -18,7 +18,7 @@ import '../data/models/student.dart';
 import 'add_student_dialog.dart';
 import 'edit_student_dialog.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 class StudentListScreen extends ConsumerStatefulWidget {
   const StudentListScreen({super.key});

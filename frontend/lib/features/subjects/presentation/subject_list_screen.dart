@@ -16,7 +16,7 @@ import '../data/models/subject.dart';
 import 'add_subject_dialog.dart';
 import 'edit_subject_dialog.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 class SubjectListScreen extends ConsumerStatefulWidget {
   const SubjectListScreen({super.key});

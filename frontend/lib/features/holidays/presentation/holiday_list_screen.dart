@@ -17,7 +17,7 @@ import 'add_holiday_dialog.dart';
 import 'edit_holiday_dialog.dart';
 import '../../../core/utils/date_format.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 /// The school's holiday calendar. Everyone can see it (attendance, leave,
 /// teaching reports and the HOD report all depend on it); admins define it.

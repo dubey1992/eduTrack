@@ -19,11 +19,11 @@ import 'route_form_dialog.dart';
 import 'route_students_dialog.dart';
 import 'widgets/transport_list_scaffold.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 /// Who may open the "Students on Bus" list - the prototype's "Transport
 /// Students" access (admins + the Transport Manager).
-const _riderViewerRoles = {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.transportManager};
+const _riderViewerRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.transportManager};
 
 class RouteListScreen extends ConsumerStatefulWidget {
   const RouteListScreen({super.key});

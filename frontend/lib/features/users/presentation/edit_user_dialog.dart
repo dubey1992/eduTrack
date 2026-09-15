@@ -79,7 +79,10 @@ class _EditUserDialogState extends ConsumerState<EditUserDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
+    final actorRole = ref.watch(authNotifierProvider).value?.role;
+    // Reassigning a role is a platform action, not a group one - a Group
+    // Admin gets the same short list a School Admin does.
+    final isSuperAdmin = actorRole == UserRole.superAdmin;
     final assignableRoles = isSuperAdmin ? UserRole.values : _schoolAdminAssignableRoles;
 
     return AlertDialog(

@@ -1,10 +1,11 @@
+import 'dart:io';
+
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/routing/app_nav.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/core/widgets/school_filter_dropdown.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
-import 'package:edutrack_app/features/schools/application/school_list_notifier.dart';
 import 'package:edutrack_app/features/schools/data/models/school.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:edutrack_app/features/schools/presentation/widgets/parent_school_field.dart';
@@ -91,6 +92,42 @@ void main() {
         expect(item.allows(UserRole.groupAdmin), isFalse, reason: '$path must stay Super Admin only');
         expect(item.allows(UserRole.superAdmin), isTrue);
       }
+    });
+  });
+
+  group('screen-level permissions', () {
+    // Each list screen carries its own _manageRoles set. A role missing from
+    // one of those is a hidden button: the API would accept the write, so the
+    // screen is simply lying about it. This reads the sets out of the source
+    // rather than trusting that the sweep caught them all.
+    final screenSets = RegExp(r'\{UserRole\.[^}]*UserRole\.schoolAdmin[^}]*\}');
+
+    test('every screen that admits a School Admin admits a Group Admin', () {
+      final offenders = <String>[];
+
+      for (final file in Directory('lib/features').listSync(recursive: true).whereType<File>()) {
+        if (!file.path.endsWith('.dart')) continue;
+        final source = file.readAsStringSync();
+
+        for (final match in screenSets.allMatches(source)) {
+          final set = match.group(0)!;
+          // The applicant list is deliberately without the group role: a
+          // Group Admin has no employment record to take leave from.
+          if (set.contains('UserRole.teacher') && set.contains('UserRole.staff')) continue;
+          if (!set.contains('UserRole.groupAdmin')) {
+            offenders.add('${file.path}: $set');
+          }
+        }
+      }
+
+      expect(offenders, isEmpty, reason: 'role sets missing groupAdmin: ${offenders.join(" | ")}');
+    });
+
+    test('a group admin administers schools, like a school admin', () {
+      expect(UserRole.groupAdmin.administersSchool, isTrue);
+      expect(UserRole.schoolAdmin.administersSchool, isTrue);
+      expect(UserRole.superAdmin.administersSchool, isFalse);
+      expect(UserRole.teacher.administersSchool, isFalse);
     });
   });
 

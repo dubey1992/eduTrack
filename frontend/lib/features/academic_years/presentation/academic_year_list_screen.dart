@@ -17,7 +17,7 @@ import 'add_academic_year_dialog.dart';
 import 'edit_academic_year_dialog.dart';
 import '../../../core/utils/date_format.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 class AcademicYearListScreen extends ConsumerStatefulWidget {
   const AcademicYearListScreen({super.key});

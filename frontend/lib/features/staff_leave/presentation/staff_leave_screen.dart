@@ -34,7 +34,7 @@ class _StaffLeaveScreenState extends ConsumerState<StaffLeaveScreen> {
   int? _schoolFilter;
   String? _statusFilter;
 
-  static const _reviewerRoles = {UserRole.hod, UserRole.schoolAdmin, UserRole.superAdmin};
+  static const _reviewerRoles = {UserRole.hod, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.superAdmin};
   // A school admin both applies for their own leave (they get a minimal
   // auto-created StaffProfile for exactly this - see UserService::create()
   // on the backend) and reviews everyone else's - self-review is blocked

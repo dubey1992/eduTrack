@@ -20,7 +20,7 @@ import '../data/models/staff_profile.dart';
 import 'add_staff_dialog.dart';
 import 'edit_staff_profile_dialog.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 const _staffRoles = [UserRole.teacher, UserRole.hod, UserRole.staff, UserRole.transportManager];
 
 class StaffListScreen extends ConsumerStatefulWidget {

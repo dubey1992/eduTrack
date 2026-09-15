@@ -238,7 +238,13 @@ class _ReportsLink extends StatelessWidget {
 
   final UserRole? role;
 
-  static const _withReports = {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.transportManager};
+  static const _withReports = {
+    UserRole.superAdmin,
+    UserRole.groupAdmin,
+    UserRole.schoolAdmin,
+    UserRole.hod,
+    UserRole.transportManager,
+  };
 
   @override
   Widget build(BuildContext context) {

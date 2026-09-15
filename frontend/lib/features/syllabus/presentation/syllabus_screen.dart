@@ -21,7 +21,7 @@ import 'widgets/edit_topic_dialog.dart';
 /// class section's completion checklist against it. Outline management
 /// (add/edit/delete topics) is separate from marking progress - see
 /// SyllabusTopicPolicy on the backend for exactly who can do which.
-const _outlineManagerRoles = {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.hod};
+const _outlineManagerRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod};
 
 class SyllabusScreen extends ConsumerStatefulWidget {
   const SyllabusScreen({super.key});
@@ -40,7 +40,7 @@ class _SyllabusScreenState extends ConsumerState<SyllabusScreen> {
     final actor = ref.watch(authNotifierProvider).value;
     if (actor == null) return const SizedBox.shrink();
 
-    final isSuperAdmin = actor.role == UserRole.superAdmin;
+    final picksSchool = actor.role.picksSchool;
     final canManageOutline = _outlineManagerRoles.contains(actor.role);
 
     return SingleChildScrollView(
@@ -63,7 +63,7 @@ class _SyllabusScreenState extends ConsumerState<SyllabusScreen> {
                 runSpacing: 12,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (isSuperAdmin)
+                  if (picksSchool)
                     SizedBox(
                       width: 240,
                       child: _SchoolPicker(

@@ -91,7 +91,11 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
+    final actorRole = ref.watch(authNotifierProvider).value?.role;
+    // Two different questions: who must name a school, and who may hand out
+    // the group-level role. Only a Super Admin does the second.
+    final picksSchool = actorRole?.picksSchool ?? false;
+    final isSuperAdmin = actorRole == UserRole.superAdmin;
 
     return AlertDialog(
       title: Text(isSuperAdmin ? 'Add School Admin' : 'Add Sub Admin'),
@@ -151,7 +155,7 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
                 // A School Admin's Sub Admin always lands in their own
                 // school, resolved server-side - no picker needed. Only a
                 // SUPER_ADMIN, who has no "own school", must choose one.
-                if (isSuperAdmin) ...[
+                if (picksSchool) ...[
                   const SizedBox(height: 10),
                   _SchoolPicker(selected: _schoolId, onChanged: (value) => setState(() => _schoolId = value)),
                 ],

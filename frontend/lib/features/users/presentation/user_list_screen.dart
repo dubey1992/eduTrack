@@ -31,10 +31,11 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
     final usersState = ref.watch(userListNotifierProvider);
     final actor = ref.watch(authNotifierProvider).value;
     final isSuperAdmin = actor?.role == UserRole.superAdmin;
-    // A School Admin who isn't themselves a Sub Admin can create one; a
-    // Sub Admin can't create any admin account at all (see the backend's
-    // UserPolicy::create()) - no point showing a button that would 403.
-    final canCreateSubAdmin = actor?.role == UserRole.schoolAdmin && actor?.isSubAdmin == false;
+    // A School or Group Admin who isn't themselves a Sub Admin can create
+    // one; a Sub Admin can't create any admin account at all (see the
+    // backend's UserPolicy::create()) - no point showing a button that
+    // would 403.
+    final canCreateSubAdmin = actor?.role.administersSchool == true && actor?.isSubAdmin == false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,8 +202,10 @@ class _UserActions extends ConsumerWidget {
     // Edit/Deactivate that would always 403.
     final canManage =
         isSuperAdmin ||
-        user.role != UserRole.schoolAdmin ||
-        (actor?.role == UserRole.schoolAdmin && actor?.isSubAdmin == false && user.isSubAdmin);
+        // Admin-tier is a School Admin *or* a Group Admin: a branch's admin
+        // must not be offered Edit on the group's.
+        !user.role.administersSchool ||
+        (actor?.role.administersSchool == true && actor?.isSubAdmin == false && user.isSubAdmin);
     if (!canManage) {
       return const SizedBox.shrink();
     }

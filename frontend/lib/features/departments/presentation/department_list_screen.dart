@@ -15,7 +15,7 @@ import '../data/models/department.dart';
 import 'add_department_dialog.dart';
 import 'edit_department_dialog.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 class DepartmentListScreen extends ConsumerStatefulWidget {
   const DepartmentListScreen({super.key});

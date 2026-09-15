@@ -113,7 +113,7 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
+    final picksSchool = ref.watch(authNotifierProvider).value?.role.picksSchool ?? false;
 
     return AlertDialog(
       title: const Text('Add Teacher / Staff'),
@@ -177,7 +177,7 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                if (isSuperAdmin) ...[
+                if (picksSchool) ...[
                   _SchoolPicker(
                     selected: _schoolId,
                     onChanged: (value) => setState(() {

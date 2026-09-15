@@ -16,6 +16,16 @@ enum UserRole {
   final String apiValue;
   final String label;
 
+  /// True when "my school" is ambiguous for this actor, so a form has to ask
+  /// which one. A Super Admin belongs to none and a Group Admin to several.
+  /// Mirrors the backend's SchoolScope::defaultSchoolId() being null.
+  bool get picksSchool => this == UserRole.superAdmin || this == UserRole.groupAdmin;
+
+  /// Administers schools' own affairs - one school for a School Admin, every
+  /// branch in the group for a Group Admin. Mirrors the backend's
+  /// UserRole::administersSchool().
+  bool get administersSchool => this == UserRole.schoolAdmin || this == UserRole.groupAdmin;
+
   static UserRole fromApiValue(String value) {
     return UserRole.values.firstWhere(
       (role) => role.apiValue == value,

@@ -37,7 +37,7 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
     final actor = ref.watch(authNotifierProvider).value;
     if (actor == null) return const SizedBox.shrink();
 
-    final canEdit = actor.role == UserRole.superAdmin || actor.role == UserRole.schoolAdmin;
+    final canEdit = actor.role == UserRole.superAdmin || actor.role.administersSchool;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -74,7 +74,7 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
   }
 
   Widget _buildAdminControls(BuildContext context) {
-    final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
+    final picksSchool = ref.watch(authNotifierProvider).value?.role.picksSchool ?? false;
 
     return Card(
       child: Padding(
@@ -84,7 +84,7 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
           runSpacing: 12,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (isSuperAdmin)
+            if (picksSchool)
               SizedBox(
                 width: 240,
                 child: _SchoolPicker(

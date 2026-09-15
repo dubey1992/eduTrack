@@ -17,7 +17,7 @@ import 'add_section_dialog.dart';
 import 'edit_class_dialog.dart';
 import 'edit_section_dialog.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 class ClassListScreen extends ConsumerStatefulWidget {
   const ClassListScreen({super.key});

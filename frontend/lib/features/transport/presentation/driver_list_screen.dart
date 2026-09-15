@@ -21,7 +21,7 @@ import 'driver_form_dialog.dart';
 import 'widgets/transport_list_scaffold.dart';
 import '../../../core/utils/date_format.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 class DriverListScreen extends ConsumerStatefulWidget {
   const DriverListScreen({super.key});

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
-import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/route_page_notifier.dart';
@@ -83,8 +82,8 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
-    final pickerSchoolId = _isEdit ? (isSuperAdmin ? widget.route!.schoolId : null) : _schoolId;
+    final picksSchool = ref.watch(authNotifierProvider).value?.role.picksSchool ?? false;
+    final pickerSchoolId = _isEdit ? (picksSchool ? widget.route!.schoolId : null) : _schoolId;
 
     return AlertDialog(
       title: Text(_isEdit ? 'Edit Route' : 'Add Route'),
@@ -100,7 +99,7 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
                   Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                   const SizedBox(height: 12),
                 ],
-                if (isSuperAdmin && !_isEdit) ...[
+                if (picksSchool && !_isEdit) ...[
                   TransportSchoolPicker(
                     selected: _schoolId,
                     onChanged: (value) => setState(() {

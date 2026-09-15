@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
-import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/vehicle_page_notifier.dart';
@@ -78,7 +77,7 @@ class _VehicleFormDialogState extends ConsumerState<VehicleFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isSuperAdmin = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin;
+    final picksSchool = ref.watch(authNotifierProvider).value?.role.picksSchool ?? false;
 
     return AlertDialog(
       title: Text(_isEdit ? 'Edit Vehicle' : 'Add Vehicle'),
@@ -94,7 +93,7 @@ class _VehicleFormDialogState extends ConsumerState<VehicleFormDialog> {
                   Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                   const SizedBox(height: 12),
                 ],
-                if (isSuperAdmin && !_isEdit) ...[
+                if (picksSchool && !_isEdit) ...[
                   TransportSchoolPicker(selected: _schoolId, onChanged: (value) => setState(() => _schoolId = value)),
                   const SizedBox(height: 10),
                 ],

@@ -21,7 +21,7 @@ import '../../../core/utils/date_format.dart';
 
 /// Who runs trips - the prototype's "Manage Trips" (Transport Manager)
 /// plus the admins.
-const _manageRoles = {UserRole.superAdmin, UserRole.schoolAdmin, UserRole.transportManager};
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.transportManager};
 
 /// Phase 15 - the prototype's "School Transport" page: pick a route, start
 /// today's pickup/drop trip, mark stops reached and students boarded /
