@@ -152,6 +152,18 @@ rollback.
 
 ## Updating an existing deployment
 
+Anything with migrations in it should happen behind the maintenance page
+rather than under people's feet. Set the window first so the page can say
+when to come back - see [error-pages.md](error-pages.md):
+
+```bash
+cd /home/<account>/edutrack/backend
+# in .env:  MAINTENANCE_UNTIL="2026-09-15 18:00"
+php artisan down --retry=60
+```
+
+Then:
+
 ```bash
 cd /home/<account>/edutrack
 # take a database dump first if this release has migrations
@@ -162,7 +174,22 @@ php artisan migrate --force
 php artisan config:cache && php artisan route:cache
 ```
 
-Then rebuild the web app (step 6) and replace `public_html/`.
+Then rebuild the web app (step 6) and replace `public_html/`, and let people
+back in:
+
+```bash
+cd /home/<account>/edutrack/backend
+php artisan up
+```
+
+The web app is served from `public_html/` and keeps working while the API is
+down; the app notices the 503 and holds everyone on its own maintenance
+screen until the API answers again. Point Apache's 404 at the page that ships
+with the build while you are in there:
+
+```apache
+ErrorDocument 404 /404.html
+```
 
 Rolling back means restoring the dump and checking out the previous tag.
 Migrations are not reversed automatically — `migrate:rollback` exists but has

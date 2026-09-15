@@ -68,6 +68,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Scheduled Maintenance Window
+    |--------------------------------------------------------------------------
+    |
+    | When the platform is taken down with `php artisan down`, the maintenance
+    | page says when to come back if this names a time (any format Carbon can
+    | read, e.g. "2026-09-15 18:00"). Leave it unset and the page simply says
+    | less. See App\Support\MaintenanceWindow.
+    |
+    */
+
+    'maintenance_until' => env('MAINTENANCE_UNTIL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

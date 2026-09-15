@@ -14,6 +14,8 @@ import '../../features/classes/presentation/class_list_screen.dart';
 import '../../features/communication/presentation/communication_screen.dart';
 import '../../features/communication/presentation/inbox_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/errors/presentation/maintenance_screen.dart';
+import '../../features/errors/presentation/not_found_screen.dart';
 import '../../features/departments/presentation/department_list_screen.dart';
 import '../../features/hod/presentation/hod_report_screen.dart';
 import '../../features/holidays/presentation/holiday_list_screen.dart';
@@ -34,6 +36,7 @@ import '../../features/transport/presentation/route_list_screen.dart';
 import '../../features/transport/presentation/trip_screen.dart';
 import '../../features/transport/presentation/vehicle_list_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
+import '../network/maintenance_notifier.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/splash_screen.dart';
 import 'app_nav.dart';
@@ -42,6 +45,51 @@ import 'app_nav.dart';
 /// outside the sidebar shell. '/' is the public marketing homepage (see
 /// MarketingScreen); the authenticated landing screen lives at /dashboard.
 const _publicPaths = {'/', '/login', '/forgot-password', '/reset-password'};
+
+/// Every path this router actually serves.
+///
+/// Used to tell "you need to sign in" apart from "there is no such page": an
+/// address that is not in here is a 404 and goes to [NotFoundScreen],
+/// whoever is asking.
+///
+/// A route added below and forgotten here would quietly 404, so
+/// app_router_test.dart walks the router's own configuration and fails if
+/// the two ever disagree.
+const appRoutePaths = {
+  '/',
+  '/splash',
+  '/login',
+  '/forgot-password',
+  '/reset-password',
+  '/change-password',
+  '/maintenance',
+  '/dashboard',
+  '/users',
+  '/schools',
+  '/payments',
+  '/academic-years',
+  '/holidays',
+  '/departments',
+  '/subjects',
+  '/classes',
+  '/timetable',
+  '/staff',
+  '/students',
+  '/attendance',
+  '/staff-attendance',
+  '/leaves',
+  '/teaching-reports',
+  '/syllabus',
+  '/hod-reports',
+  '/transport/vehicles',
+  '/transport/drivers',
+  '/transport/routes',
+  '/transport/trips',
+  '/communication',
+  '/announcements',
+  '/inbox',
+  '/reports',
+};
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _AuthRefreshNotifier(ref);
@@ -62,6 +110,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Outside the shell on purpose: an account still holding a temporary
       // password has no business reaching the sidebar behind it.
       GoRoute(path: '/change-password', builder: (context, state) => const ChangePasswordScreen()),
+      // Where the whole app waits out a maintenance window. Reachable signed
+      // in or out - the API being down does not care which.
+      GoRoute(path: '/maintenance', builder: (context, state) => const MaintenanceScreen()),
       GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
       GoRoute(
         path: '/reset-password',
@@ -102,9 +153,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
+    // Anything that matches no route at all. Reached by a stale bookmark or a
+    // hand-edited address; the redirect below deliberately lets an unknown
+    // path through so it lands here rather than being bounced to /login.
+    errorBuilder: (context, state) => NotFoundScreen(location: state.uri.toString()),
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
       final location = state.matchedLocation;
+
+      // A maintenance window is every screen at once, so it outranks every
+      // other rule here - including the session, which cannot be restored
+      // while the API is down anyway.
+      if (ref.read(maintenanceProvider)) {
+        return location == '/maintenance' ? null : '/maintenance';
+      }
+
+      // And once it is over, nobody should be left sitting on that page.
+      if (location == '/maintenance') {
+        return authState.value != null ? '/dashboard' : '/';
+      }
 
       if (authState.isLoading) {
         // A public destination renders the same regardless of how the
@@ -128,6 +195,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = user != null;
 
       if (!isLoggedIn) {
+        // An address that is not a route at all is a 404, not a locked door:
+        // bouncing it to /login would tell somebody who mistyped a path that
+        // they need an account, which is both wrong and confusing. Let it
+        // fall through to errorBuilder.
+        if (!appRoutePaths.contains(location)) return null;
+
         return _publicPaths.contains(location) ? null : '/login';
       }
 
@@ -164,19 +237,25 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Bridges Riverpod's [authNotifierProvider] changes to go_router's
-/// [Listenable]-based refresh mechanism, so navigation redirects re-run
-/// whenever the session state changes (login, logout, restore).
+/// Bridges Riverpod changes to go_router's [Listenable]-based refresh
+/// mechanism, so navigation redirects re-run whenever the session state
+/// changes (login, logout, restore) or the API goes into - or comes out of -
+/// a maintenance window.
 class _AuthRefreshNotifier extends ChangeNotifier {
   _AuthRefreshNotifier(Ref ref) {
-    _subscription = ref.listen<AsyncValue<Object?>>(authNotifierProvider, (previous, next) => notifyListeners());
+    _subscriptions = [
+      ref.listen<AsyncValue<Object?>>(authNotifierProvider, (previous, next) => notifyListeners()),
+      ref.listen<bool>(maintenanceProvider, (previous, next) => notifyListeners()),
+    ];
   }
 
-  late final ProviderSubscription<AsyncValue<Object?>> _subscription;
+  late final List<ProviderSubscription<Object?>> _subscriptions;
 
   @override
   void dispose() {
-    _subscription.close();
+    for (final subscription in _subscriptions) {
+      subscription.close();
+    }
     super.dispose();
   }
 }

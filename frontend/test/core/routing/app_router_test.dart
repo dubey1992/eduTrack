@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/dio_client.dart';
+import 'package:edutrack_app/core/network/maintenance_notifier.dart';
 import 'package:edutrack_app/core/routing/app_router.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/dashboard/data/dashboard_repository.dart';
@@ -15,6 +16,7 @@ import 'package:edutrack_app/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
@@ -32,7 +34,147 @@ const _superAdmin = AuthenticatedUser(
 
 const _teacher = AuthenticatedUser(id: 2, name: 'A Teacher', email: 'teacher@example.com', role: UserRole.teacher);
 
+/// A maintenance notifier that is simply stuck down, with no Dio behind it.
+class _DownForMaintenance extends MaintenanceNotifier {
+  @override
+  bool build() => true;
+
+  @override
+  Future<bool> recheck() async => false;
+}
+
 void main() {
+  group('the route path set', () {
+    /// appRoutePaths is what tells "sign in first" apart from "no such page",
+    /// so a route added to the router and forgotten there would quietly 404.
+    /// This walks the router's own configuration rather than trusting a list.
+    test('names every route the router actually serves', () {
+      final container = ProviderContainer(overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository())]);
+      addTearDown(container.dispose);
+
+      Iterable<String> pathsOf(List<RouteBase> routes) sync* {
+        for (final route in routes) {
+          if (route is GoRoute) yield route.path;
+          yield* pathsOf(route.routes);
+        }
+      }
+
+      final configured = pathsOf(container.read(routerProvider).configuration.routes).toSet();
+
+      expect(configured.difference(appRoutePaths), isEmpty, reason: 'route(s) missing from appRoutePaths');
+      expect(appRoutePaths.difference(configured), isEmpty, reason: 'appRoutePaths names route(s) that do not exist');
+    });
+  });
+
+  group('a path that is not a route', () {
+    testWidgets('shows the 404 page rather than bouncing a visitor to login', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+            dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+          ],
+          child: const EduTrackApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Reached the way a stale bookmark would.
+      tester.state<NavigatorState>(find.byType(Navigator).first);
+      final router = ProviderScope.containerOf(tester.element(find.byType(MaterialApp))).read(routerProvider);
+      router.go('/no-such-page');
+      await tester.pumpAndSettle();
+
+      expect(find.text("We couldn't find that page."), findsOneWidget);
+      expect(find.text('/no-such-page'), findsOneWidget);
+    });
+  });
+
+  group('a maintenance window', () {
+    testWidgets('holds the app on the maintenance page', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _superAdmin)),
+            dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+            maintenanceProvider.overrideWith(_DownForMaintenance.new),
+          ],
+          child: const EduTrackApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text("We're making School365ai better."), findsOneWidget);
+      // Not one screen behind a spinner - the whole app, sidebar included.
+      expect(find.text('Reports'), findsNothing);
+    });
+
+    testWidgets('will not let anybody walk past it', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _superAdmin)),
+            dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+            maintenanceProvider.overrideWith(_DownForMaintenance.new),
+          ],
+          child: const EduTrackApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      ProviderScope.containerOf(tester.element(find.byType(MaterialApp))).read(routerProvider).go('/students');
+      await tester.pumpAndSettle();
+
+      expect(find.text("We're making School365ai better."), findsOneWidget);
+    });
+
+    testWidgets('lets go once the API answers again', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _superAdmin)),
+            dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+          ],
+          child: const EduTrackApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+
+      container.read(maintenanceProvider.notifier).reportUnavailable();
+      await tester.pumpAndSettle();
+      expect(find.text("We're making School365ai better."), findsOneWidget);
+
+      container.read(maintenanceProvider.notifier).state = false;
+      await tester.pumpAndSettle();
+
+      // Back where they belong, not left sitting on the maintenance page.
+      expect(find.text("We're making School365ai better."), findsNothing);
+      expect(find.text('Reports'), findsWidgets);
+    });
+  });
+
   testWidgets('an account holding a temporary password gets no further', (tester) async {
     tester.view.physicalSize = const Size(1400, 1000);
     tester.view.devicePixelRatio = 1;

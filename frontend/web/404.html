@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Page not found - School365ai</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <!--
+    The web host's 404, for a path that never reaches the app at all - a
+    mistyped URL, a stale link, a missing asset. Unknown routes *inside* the
+    app are handled by Flutter's own NotFoundScreen, which keeps the sidebar
+    and the session.
+
+    Self-contained on purpose: no stylesheet, font or script from anywhere
+    else. This page has to work when the rest of the deployment does not.
+  -->
+  <style>
+    :root {
+      --ink: #0F172A;
+      --body: #334155;
+      --muted: #64748B;
+      --ground: #F8FAFC;
+      --surface: #FFFFFF;
+      --border: #E2E8F0;
+      --accent: #2563EB;
+      --accent-dark: #1D4ED8;
+      --accent-tint: #EFF6FF;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #F1F5F9;
+        --body: #CBD5E1;
+        --muted: #94A3B8;
+        --ground: #0B0F1A;
+        --surface: #111827;
+        --border: #263042;
+        --accent: #60A5FA;
+        --accent-dark: #3B82F6;
+        --accent-tint: #172034;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 32px 20px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--ground);
+      color: var(--body);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page { width: 100%; max-width: 560px; }
+
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+      border-radius: 12px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .brand-name { font-size: 19px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+    .brand-tagline { font-size: 13px; color: var(--muted); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 36px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--accent-tint);
+      color: var(--accent-dark);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    h1 {
+      margin: 20px 0 12px;
+      font-size: 30px;
+      line-height: 1.2;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+
+    p { margin: 0 0 14px; }
+    p:last-of-type { margin-bottom: 0; }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+
+    .button {
+      display: inline-block;
+      padding: 12px 22px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid transparent;
+    }
+
+    .button-primary { background: var(--accent); color: #FFFFFF; }
+    .button-primary:hover { background: var(--accent-dark); }
+
+    .button-secondary { background: transparent; color: var(--ink); border-color: var(--border); }
+    .button-secondary:hover { border-color: var(--muted); }
+
+    .detail {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .detail code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      word-break: break-all;
+      color: var(--body);
+    }
+
+    .footer { margin-top: 24px; text-align: center; font-size: 13px; color: var(--muted); }
+
+    @media (max-width: 480px) {
+      .card { padding: 28px 22px; }
+      h1 { font-size: 25px; }
+      .actions { flex-direction: column; }
+      .button { text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="brand">
+      <div class="brand-mark">🎓</div>
+      <div>
+        <div class="brand-name">School365ai</div>
+        <div class="brand-tagline">Smarter Schools. Brighter Futures.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge">Error 404</span>
+
+      <h1>We couldn't find that page.</h1>
+
+      <p>
+        The link may be out of date, or the address may have a typo in it.
+        Nothing has gone wrong with your account, and nothing has been lost.
+      </p>
+
+      <div class="actions">
+        <a class="button button-primary" href="/">Go to School365ai</a>
+        <a class="button button-secondary" href="/#/login">Sign in</a>
+      </div>
+
+      <p class="detail">
+        You asked for <code id="asked-for">this address</code>
+      </p>
+    </div>
+
+    <p class="footer">&copy; <span id="year">2026</span> School365ai</p>
+  </main>
+
+  <script>
+    // The path is read here rather than written by a server, so this file
+    // stays a plain static asset any host can serve.
+    document.getElementById('asked-for').textContent = window.location.pathname;
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

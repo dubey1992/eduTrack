@@ -193,6 +193,17 @@ class ApiExceptionRenderer
                 'You are not authorized to perform this action.',
                 [],
             ],
+            // `php artisan down` throws a plain 503, which would otherwise
+            // land in the generic branch below as HTTP_ERROR - and the client
+            // cannot tell a maintenance window from any other failure. It
+            // needs to: a maintenance window means every screen is down, not
+            // just the one being used.
+            $e instanceof HttpExceptionInterface && $e->getStatusCode() === 503 => [
+                503,
+                'SERVICE_UNAVAILABLE',
+                'School365ai is briefly offline for scheduled maintenance. Please try again shortly.',
+                [],
+            ],
             $e instanceof HttpExceptionInterface => [
                 $e->getStatusCode(),
                 'HTTP_ERROR',

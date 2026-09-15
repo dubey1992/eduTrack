@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/env.dart';
 import '../errors/failure.dart';
 import 'auth_token_storage.dart';
+import 'maintenance_notifier.dart';
 
 final authTokenStorageProvider = Provider<AuthTokenStorage>((ref) => AuthTokenStorage());
 
@@ -30,6 +31,15 @@ final dioClientProvider = Provider<Dio>((ref) {
           options.headers['Authorization'] = 'Bearer $token';
         }
         handler.next(options);
+      },
+      onError: (error, handler) {
+        // A maintenance window is not this screen's failure, it is every
+        // screen's. Recorded here, once, so the router can act on it rather
+        // than each caller showing its own red box - see maintenanceProvider.
+        if (error.response?.statusCode == 503) {
+          ref.read(maintenanceProvider.notifier).reportUnavailable();
+        }
+        handler.next(error);
       },
     ),
   );
