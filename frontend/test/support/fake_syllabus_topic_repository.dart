@@ -8,6 +8,8 @@ class FakeSyllabusTopicRepository implements SyllabusTopicRepository {
     this.failCreateWith,
     this.failUpdateWith,
     this.failDeleteWith,
+    // Private field, public parameter - see AuthenticatedUser.
+    // ignore: prefer_initializing_formals
   }) : _topics = topics;
 
   List<SyllabusTopic> _topics;

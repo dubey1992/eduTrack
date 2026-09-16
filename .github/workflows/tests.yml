@@ -1,0 +1,141 @@
+name: Tests
+
+# Phase M4 of docs/python-migration.md: the suite runs against MySQL *and*
+# PostgreSQL on every commit. Until the Python rewrite lands, that is the whole
+# guarantee that the two databases behave the same - and the differences that
+# matter here are silent ones, which is precisely why a person remembering to
+# run `composer test:both` is not good enough.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A second push supersedes the first: nobody needs the results of a commit that
+# has already been replaced.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (${{ matrix.database }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Both databases always report, so a failure on one cannot hide the
+      # result on the other - knowing whether a break is PostgreSQL-specific is
+      # most of the diagnosis.
+      fail-fast: false
+      matrix:
+        include:
+          - database: MySQL
+            phpunit: phpunit.xml
+          - database: PostgreSQL
+            phpunit: phpunit.pgsql.xml
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: edutrack_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: edutrack_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          # pdo_pgsql is the one that is easy to forget: without it the
+          # PostgreSQL leg fails at connection time with a driver error that
+          # reads like a configuration mistake.
+          extensions: mbstring, pdo_mysql, pdo_pgsql, bcmath, intl
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare the application
+        # .env.testing is not committed - it carries local credentials - and
+        # nothing here needs to write one. Laravel's dotenv does not overwrite
+        # a variable that is already set, so the real environment variables on
+        # the test step below win over anything in .env. That is a good deal
+        # less fragile than editing files in a shell step.
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Test against ${{ matrix.database }}
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: edutrack_testing
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          PG_HOST: 127.0.0.1
+          PG_PORT: 5432
+          PG_DATABASE: edutrack_test
+          PG_USERNAME: postgres
+          PG_PASSWORD: postgres
+        # phpunit.pgsql.xml overrides DB_CONNECTION with force="true", which is
+        # what points this at PostgreSQL. See M1 in docs/python-migration.md.
+        run: php artisan test -c ${{ matrix.phpunit }}
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        # Fatal on everything, infos included. The three that were outstanding
+        # when this was written were a lint that cannot be satisfied here - a
+        # private field initialised from a public named parameter - and are
+        # silenced individually at the line rather than by relaxing this.
+        run: flutter analyze lib test
+
+      - name: Check formatting
+        run: dart format --line-length=120 --set-exit-if-changed lib test
+
+      - name: Test
+        run: flutter test

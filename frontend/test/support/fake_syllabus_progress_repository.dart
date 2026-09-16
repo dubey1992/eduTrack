@@ -4,6 +4,8 @@ import 'package:edutrack_app/features/syllabus/data/syllabus_progress_repository
 
 class FakeSyllabusProgressRepository implements SyllabusProgressRepository {
   FakeSyllabusProgressRepository({required SyllabusChecklist checklist, this.failChecklistWith, this.failToggleWith})
+    // Private field, public parameter - see AuthenticatedUser.
+    // ignore: prefer_initializing_formals
     : _checklist = checklist;
 
   SyllabusChecklist _checklist;

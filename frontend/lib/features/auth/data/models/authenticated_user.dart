@@ -11,6 +11,10 @@ class AuthenticatedUser {
     this.mustChangePassword = false,
     this.managesBranches = false,
     SchoolClock? clock,
+    // The field is private and the parameter is not. An initializing formal
+    // would make callers write `_clock:`, leaking the underscore into the
+    // public API - so the lint's fix is worse than the lint.
+    // ignore: prefer_initializing_formals
   }) : _clock = clock;
 
   factory AuthenticatedUser.fromJson(Map<String, dynamic> json) {
