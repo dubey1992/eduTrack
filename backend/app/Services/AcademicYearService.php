@@ -21,6 +21,10 @@ class AcademicYearService
             ->with('school')
             ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->orderByDesc('start_date')
+            // A tiebreaker: several years can start on the same date, and
+            // without this a page boundary between them shows one twice and
+            // skips another. See StableOrderingTest.
+            ->orderByDesc('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 

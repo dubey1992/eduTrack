@@ -92,6 +92,24 @@ class StableOrderingTest extends TestCase
         $this->assertEachRecordAppearsOnce('/api/v1/schools', School::query()->count());
     }
 
+    public function test_paging_through_academic_years_that_start_together_shows_each_once(): void
+    {
+        // Years repeat their start date constantly - every school in a group
+        // begins on the same April day - so this list ties more often than
+        // any other.
+        foreach (range(1, 6) as $index) {
+            AcademicYear::factory()->create([
+                'school_id' => $this->school->id,
+                'name' => '2026-27 #'.$index,
+                'start_date' => '2026-04-01',
+                'end_date' => '2027-03-31',
+                'is_current' => false,
+            ]);
+        }
+
+        $this->assertEachRecordAppearsOnce('/api/v1/academic-years', 6);
+    }
+
     /**
      * Walks every page one record at a time and asserts the ids seen are
      * exactly the ids that exist - no repeats, nothing missed.
