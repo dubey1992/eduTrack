@@ -5,8 +5,10 @@ namespace Tests\Feature\Api\V1;
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\ClassSection;
+use App\Models\Department;
 use App\Models\School;
 use App\Models\SchoolClass;
+use App\Models\Subject;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -108,6 +110,39 @@ class StableOrderingTest extends TestCase
         }
 
         $this->assertEachRecordAppearsOnce('/api/v1/academic-years', 6);
+    }
+
+    public function test_paging_through_departments_that_share_a_name_shows_each_once(): void
+    {
+        // A department name is unique within a school and not across them, so
+        // a Super Admin's list ties on almost every row: every school has a
+        // Science department.
+        foreach (range(1, 6) as $index) {
+            Department::factory()->create([
+                'school_id' => School::factory()->create([
+                    'email' => 'dept'.$index.'@example.invalid',
+                ])->id,
+                'name' => 'Science',
+            ]);
+        }
+
+        $this->assertEachRecordAppearsOnce('/api/v1/departments', 6);
+    }
+
+    public function test_paging_through_subjects_that_share_a_name_shows_each_once(): void
+    {
+        foreach (range(1, 6) as $index) {
+            $school = School::factory()->create(['email' => 'subj'.$index.'@example.invalid']);
+
+            Subject::factory()->create([
+                'school_id' => $school->id,
+                'department_id' => Department::factory()->create(['school_id' => $school->id])->id,
+                'name' => 'Mathematics',
+                'code' => 'MATH',
+            ]);
+        }
+
+        $this->assertEachRecordAppearsOnce('/api/v1/subjects', 6);
     }
 
     /**

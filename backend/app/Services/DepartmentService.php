@@ -20,6 +20,10 @@ class DepartmentService
             ->with(['school', 'hod'])
             ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->orderBy('name')
+            // A tiebreaker. The name is unique within a school but not
+            // across them, so a cross-school list ties constantly. See
+            // StableOrderingTest.
+            ->orderBy('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
