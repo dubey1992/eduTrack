@@ -26,7 +26,7 @@ class AcademicTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if AcademicTest.WORLD is None:
-            AcademicTest.WORLD = world.build()
+            AcademicTest.WORLD = world.shared()
 
     @property
     def w(self) -> world.World:

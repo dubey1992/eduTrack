@@ -88,6 +88,9 @@ class World:
     other_admin: Client
     academic_year_id: int
     department_id: int
+    staff_profile_id: int
+    staff_email: str
+    staff_client: Client
     school_class_id: int
     class_section_id: int
     student_id: int
@@ -115,6 +118,9 @@ def build() -> World:
     other_admin = sign_in(other_email, TEST_PASSWORD)
 
     department_id = _make_department(admin, school_id, tag)
+    staff_email = "contract.staff." + tag + "@example.invalid"
+    staff_id = _make_staff(admin, school_id, department_id, tag, staff_email)
+    staff_client = sign_in(staff_email, TEST_PASSWORD)
     year_id, class_id, section_id = _make_class_section(admin, school_id, tag)
     student_id = _make_student(admin, school_id, section_id, tag)
 
@@ -127,11 +133,36 @@ def build() -> World:
         other_admin=other_admin,
         academic_year_id=year_id,
         department_id=department_id,
+        staff_profile_id=staff_id,
+        staff_email=staff_email,
+        staff_client=staff_client,
         school_class_id=class_id,
         class_section_id=section_id,
         student_id=student_id,
         created_user_ids=[admin_id, other_id],
     )
+
+
+_SHARED: World | None = None
+
+
+def shared() -> World:
+    """One world for the whole run, however many files ask for it.
+
+    Building per file looked tidier and is not: every build signs in three
+    times, login is rate limited at five a minute per address, and a suite
+    that grows past two files starts failing with 429s that look like the
+    backend refusing perfectly good credentials.
+
+    It also means the schools, classes and accounts each run leaves behind
+    stay a fixed handful rather than multiplying by the number of test files.
+    """
+    global _SHARED
+
+    if _SHARED is None:
+        _SHARED = build()
+
+    return _SHARED
 
 
 def demolish(world: World) -> None:
@@ -208,6 +239,35 @@ def _make_department(admin: Client, school_id: int, tag: str) -> int:
     body = _created(
         admin.post("/departments", {"school_id": school_id, "name": "Contract Dept " + tag}),
         "a department",
+    )
+
+    return body["id"]
+
+
+def _make_staff(admin: Client, school_id: int, department_id: int, tag: str, email: str) -> int:
+    """One employee, so leave and staff attendance have somebody to be about.
+
+    In the world rather than in a test, because tests run in whatever order the
+    loader chooses: a leave test that depends on a staff test having run first
+    passes or skips depending on the alphabet.
+    """
+    body = _created(
+        admin.post(
+            "/staff",
+            {
+                "school_id": school_id,
+                "first_name": "Rahul",
+                "last_name": "Verma",
+                "email": email,
+                "password": TEST_PASSWORD,
+                "role": "TEACHER",
+                "employee_id": "EMP-" + tag[:6].upper(),
+                "department_id": department_id,
+                "designation": "Teacher",
+                "joining_date": "2026-04-01",
+            },
+        ),
+        "an employee",
     )
 
     return body["id"]

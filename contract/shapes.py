@@ -242,3 +242,64 @@ HOLIDAY = {
     "end_date": "str",
     "days": "int",
 }
+
+# -- people and daily operations ---------------------------------------------
+
+USER = {
+    "id": "int",
+    "first_name": "str",
+    "last_name": "str",
+    "name": "str",
+    "email": "str",
+    "mobile": "str?",
+    "role": "str",
+    "is_sub_admin": "bool",
+    "status": "str",
+    "school_id": "int?",
+}
+
+ATTENDANCE = {
+    "id": "int",
+    "school_id": "int",
+    "class_section_id": "int",
+    "student_id": "int",
+    "student_name": "str?",
+    "attendance_date": "str",
+    "status": "str",
+    "remarks": "str?",
+    "marked_by": "int?",
+}
+
+# One name on a register, with whatever was recorded against it. Status is
+# nullable on purpose: an unmarked name is the normal state at 8am, and a
+# client that cannot represent "not yet" cannot draw the screen.
+REGISTER_ENTRY = {
+    "student_id": "int",
+    "name": "str",
+    "status": "str?",
+}
+
+STAFF_ATTENDANCE = {
+    "id": "int",
+    "school_id": "int",
+    "staff_profile_id": "int",
+    "employee_id": "str?",
+    "staff_name": "str?",
+    "attendance_date": "str",
+    "status": "str",
+    "check_in": "str?",
+    "check_out": "str?",
+}
+
+LEAVE = {
+    "id": "int",
+    "school_id": "int",
+    "staff_profile_id": "int",
+    "employee_id": "str?",
+    "staff_name": "str?",
+    "leave_type": "str",
+    "start_date": "str",
+    "end_date": "str",
+    "reason": "str?",
+    "status": "str",
+}

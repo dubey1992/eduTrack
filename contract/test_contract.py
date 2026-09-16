@@ -24,12 +24,7 @@ WORLD: world.World | None = None
 def setUpModule() -> None:
     """One school, built once, shared by every test below."""
     global WORLD
-    WORLD = world.build()
-
-
-def tearDownModule() -> None:
-    if WORLD is not None:
-        world.demolish(WORLD)
+    WORLD = world.shared()
 
 
 class ContractTest(unittest.TestCase):
