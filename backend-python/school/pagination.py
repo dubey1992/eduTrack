@@ -88,6 +88,7 @@ class LaravelPagination(PageNumberPagination):
                             # only because it is configured to allow an empty
                             # first page.
                             "last_page": paginator.num_pages,
+                            "links": self.link_collection(page.number, paginator.num_pages),
                             "path": self.path(),
                             "per_page": self.get_page_size(self.request),
                             "to": last_on_page,
@@ -105,3 +106,100 @@ class LaravelPagination(PageNumberPagination):
 
     def page_url(self, number: int) -> str:
         return f"{self.path()}?page={number}"
+
+    # -- meta.links ---------------------------------------------------------
+    #
+    # The page-link descriptors Laravel's `linkCollection()` produces: a
+    # "Previous", one entry per page shown, and a "Next", with `...` standing
+    # in for the pages a long list elides.
+    #
+    # Nothing in the Flutter client reads this. It is here because this file
+    # claims to reproduce Laravel's envelope and a claim like that is either
+    # true or it is a trap for whoever relies on it next - and because the
+    # first cross-backend diff of /schools found it missing, which is exactly
+    # the sort of quiet gap that comparison exists to catch.
+    #
+    # Ported from Illuminate\Pagination\UrlWindow, which decides how many
+    # pages to show, and LengthAwarePaginator::linkCollection(), which wraps
+    # them. ON_EACH_SIDE is Laravel's default.
+
+    ON_EACH_SIDE = 3
+
+    def link_collection(self, current: int, last: int) -> list[dict]:
+        links = [
+            {
+                "url": self.page_url(current - 1) if current > 1 else None,
+                "label": "&laquo; Previous",
+                "page": current - 1 if current > 1 else None,
+                "active": False,
+            }
+        ]
+
+        for page in self.window(current, last):
+            if page is None:
+                links.append({"url": None, "label": "...", "active": False})
+            else:
+                links.append(
+                    {
+                        "url": self.page_url(page),
+                        "label": str(page),
+                        "page": page,
+                        "active": page == current,
+                    }
+                )
+
+        links.append(
+            {
+                "url": self.page_url(current + 1) if current < last else None,
+                "label": "Next &raquo;",
+                "page": current + 1 if current < last else None,
+                "active": False,
+            }
+        )
+
+        return links
+
+    @classmethod
+    def window(cls, current: int, last: int) -> list[int | None]:
+        """Which page numbers to show, with None for an elision.
+
+        Laravel's UrlWindow, arm for arm. Short lists show every page; long
+        ones show a start, a slider around the current page, and an end.
+        """
+        on_each_side = cls.ON_EACH_SIDE
+
+        # Short enough to show every page. The threshold is Laravel's, and
+        # note it is `<`, not `<=`: at exactly 14 pages the slider starts.
+        if last < on_each_side * 2 + 8:
+            return list(range(1, last + 1))
+
+        window = on_each_side + 4
+
+        if current <= window:
+            return cls.join(list(range(1, window + on_each_side + 1)), None, [last - 1, last])
+
+        if current > last - window:
+            start = last - (window + on_each_side - 1)
+
+            return cls.join([1, 2], None, list(range(start, last + 1)))
+
+        return cls.join(
+            [1, 2],
+            None,
+            list(range(current - on_each_side, current + on_each_side + 1)),
+            None,
+            [last - 1, last],
+        )
+
+    @staticmethod
+    def join(*parts) -> list:
+        """Flattens the segments of a window, keeping the None separators."""
+        flattened = []
+
+        for part in parts:
+            if part is None:
+                flattened.append(None)
+            else:
+                flattened.extend(part)
+
+        return flattened

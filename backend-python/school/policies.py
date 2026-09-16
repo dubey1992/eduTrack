@@ -30,6 +30,117 @@ def authorize(allowed: bool) -> None:
         raise PermissionDenied()
 
 
+class SchoolPolicy:
+    """Schools are platform-level records - only SUPER_ADMIN manages them.
+
+    A SCHOOL_ADMIN may view any school in their own group (the school details
+    screen and the branch pickers need it) but never one outside it, and never
+    edits the school record itself.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        # An admin who answers for several branches lists them so they can
+        # pick one. Asked of the scope rather than the role, because a School
+        # Admin has branches to pick from only when their school is in a
+        # group; a standalone one has nothing to choose and is refused.
+        return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).covers_a_group()
+
+    @staticmethod
+    def view(actor: User, school) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(school.id)
+
+    @staticmethod
+    def create(actor: User) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
+
+    @staticmethod
+    def update(actor: User, school=None) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
+
+    @staticmethod
+    def set_status(actor: User, school=None) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
+
+
+class UserPolicy:
+    """Who may manage which accounts.
+
+    SUPER_ADMIN manages every user, across every school. An admin manages
+    non-admin accounts in their own school freely, and admin-tier accounts on
+    a strict hierarchy: the head - a School Admin who is not themselves a Sub
+    Admin - manages the Sub Admins in their own school, but never another
+    head, and never themselves.
+
+    `is_sub_admin` is two tiers of one role rather than a role of its own, so
+    every other policy treats them identically. A School Admin a Super Admin
+    onboarded can create further admin accounts for their school; a Sub Admin
+    has the same permissions everywhere else but can create no admin account
+    at all.
+
+    Operational staff (HOD/TEACHER/STAFF/TRANSPORT_MANAGER) are onboarded
+    through Teachers & Staff instead, which creates the login and the
+    employment record together. One created here would have no StaffProfile
+    and be invisible to Attendance and Leave, so that path is deliberately not
+    offered.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES
+
+    @classmethod
+    def view(cls, actor: User, target: User) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return cls._same_school(actor, target)
+
+    @staticmethod
+    def create(actor: User) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return UserRole.administers_school(actor.role) and not actor.is_sub_admin
+
+    @classmethod
+    def update(cls, actor: User, target: User) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return cls._manages(actor, target)
+
+    @classmethod
+    def set_status(cls, actor: User, target: User) -> bool:
+        # Nobody deactivates their own account through this endpoint, whatever
+        # their role - it is the one mistake that locks you out of fixing it.
+        if actor.id == target.id:
+            return False
+
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return cls._manages(actor, target)
+
+    @classmethod
+    def _manages(cls, actor: User, target: User) -> bool:
+        if not cls._same_school(actor, target):
+            return False
+
+        # Admin-tier targets follow the hierarchy; everybody else is managed
+        # freely within the school.
+        if not UserRole.administers_school(target.role):
+            return True
+
+        return not actor.is_sub_admin and target.is_sub_admin
+
+    @staticmethod
+    def _same_school(actor: User, target: User) -> bool:
+        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
+            target.school_id
+        )
+
+
 class StudentPolicy:
     """SUPER_ADMIN, GROUP_ADMIN and SCHOOL_ADMIN manage every student in
     scope. TEACHER gets read-only access, and only to students in a class

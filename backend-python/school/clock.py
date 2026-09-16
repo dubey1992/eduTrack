@@ -77,6 +77,15 @@ class SchoolClock:
         """Now, as the school experiences it."""
         return timezone.now().astimezone(zoneinfo.ZoneInfo(self._timezone))
 
+    def date(self) -> str:
+        """The school's current calendar date as Y-m-d.
+
+        The value that belongs in a date column, and the one to compare date
+        columns against. Not the server's date: a school in Asia/Kolkata is
+        already on tomorrow while a server in UTC is not.
+        """
+        return self.now().strftime("%Y-%m-%d")
+
     def now_iso8601(self) -> str:
         """The instant in the form Laravel's toIso8601String() produces -
         `2026-09-16T14:05:00+05:30`, seconds and a colon in the offset.

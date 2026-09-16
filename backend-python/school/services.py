@@ -7,13 +7,21 @@ rather than about the web, and can be tested without one.
 
 from __future__ import annotations
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from . import hashing, tokens
-from .enums import StudentStatus, UserRole
+from .clock import SchoolClock
+from .enums import SchoolStatus, StudentStatus, UserRole, UserStatus
 from .errors import AccountInactive, Unauthenticated
-from .models import PersonalAccessToken, Student, User
+from .models import (
+    EarlyAccessRequest,
+    PersonalAccessToken,
+    School,
+    StaffProfile,
+    Student,
+    User,
+)
 from .scope import SchoolScope
 
 
@@ -78,6 +86,205 @@ class AuthService:
             PersonalAccessToken.objects.filter(pk=current_token.pk).delete()
 
 
+class EarlyAccessService:
+    """Only the one method the schools module needs.
+
+    Early access is M11's module. `mark_converted` comes early because
+    `POST /schools` calls it - onboarding a school from a signup request has
+    to close the loop, or the panel shows "Converted" with no school behind
+    it. The rest of the service arrives with its own phase.
+    """
+
+    @staticmethod
+    def mark_converted(request, school: School, actor: User):
+        """Marks a request as having become a school.
+
+        Set by the system when the school is actually created, never by hand:
+        a list that says "Converted" with no school behind it is worse than
+        one that says nothing.
+        """
+        EarlyAccessRequest.objects.filter(pk=request.pk).update(
+            status="converted",
+            converted_school_id=school.id,
+            reviewed_by_id=actor.id,
+            reviewed_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+
+        return EarlyAccessRequest.objects.get(pk=request.pk)
+
+
+class SchoolService:
+    @staticmethod
+    def visible_to(actor: User):
+        """The schools this actor may see.
+
+        Scoped on the table's own `id`, not a `school_id` column - a school
+        *is* the tenant. A Group Admin sees their group; a Super Admin sees
+        every school there is.
+        """
+        schools = School.objects.select_related("parent_school")
+
+        schools = SchoolScope.for_actor(actor).apply_to(schools, column="id")
+
+        # Counted in the query rather than per row, so a list of branches does
+        # not fire a query each (CLAUDE.md rule 22). Ordered by name with id
+        # as a tiebreaker - see StudentService.visible_to for why the second
+        # column is not optional.
+        return schools.annotate(branch_count=Count("school")).order_by("name", "id")
+
+    @staticmethod
+    def create(data: dict) -> School:
+        now = timezone.now()
+
+        return School.objects.create(
+            status=SchoolStatus.ACTIVE, created_at=now, updated_at=now, **data
+        )
+
+    @staticmethod
+    def update(school: School, data: dict) -> School:
+        for field, value in data.items():
+            setattr(school, field, value)
+
+        school.updated_at = timezone.now()
+        school.save()
+
+        return school
+
+    @classmethod
+    def activate(cls, school: School) -> School:
+        return cls.set_status(school, SchoolStatus.ACTIVE)
+
+    @classmethod
+    def deactivate(cls, school: School) -> School:
+        return cls.set_status(school, SchoolStatus.INACTIVE)
+
+    @staticmethod
+    def set_status(school: School, status: str) -> School:
+        school.status = status
+        school.updated_at = timezone.now()
+        school.save(update_fields=["status", "updated_at"])
+
+        return school
+
+    @staticmethod
+    def branch_count(school: School) -> int:
+        return School.objects.filter(parent_school_id=school.id).count()
+
+
+class UserService:
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        users = User.objects.select_related("school")
+
+        # Never trust a client-supplied school filter: the scope decides what
+        # is reachable and the filter can only narrow within it.
+        users = SchoolScope.for_actor(actor).apply_to(users, filters.get("school_id"))
+
+        if filters.get("role"):
+            users = users.filter(role=filters["role"])
+
+        # Comma-separated shorthand for "any of these roles" - used by the
+        # academic-config pickers (HOD, lead teacher, class teacher).
+        if filters.get("roles"):
+            users = users.filter(role__in=str(filters["roles"]).split(","))
+
+        if filters.get("status"):
+            users = users.filter(status=filters["status"])
+
+        # See StudentService.visible_to for why the id is not optional.
+        return users.order_by("first_name", "id")
+
+    @staticmethod
+    def create(actor: User, data: dict) -> User:
+        data = dict(data)
+
+        # Never the client's school_id: an actor pinned to one school writes
+        # into it whatever the request said (CLAUDE.md rule 10).
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+
+        # Only meaningful for a SCHOOL_ADMIN: one created by a Super Admin can
+        # create further admin accounts; one created by another admin - a "Sub
+        # Admin" - has the same permissions everywhere else but cannot.
+        is_sub_admin = (
+            data.get("role") == UserRole.SCHOOL_ADMIN and actor.role != UserRole.SUPER_ADMIN
+        )
+
+        now = timezone.now()
+
+        user = User.objects.create(
+            first_name=data["first_name"],
+            last_name=data["last_name"],
+            email=data["email"],
+            mobile=data.get("mobile"),
+            password=hashing.make(data["password"]),
+            role=data["role"],
+            school_id=school_id,
+            is_sub_admin=is_sub_admin,
+            must_change_password=False,
+            status=UserStatus.ACTIVE,
+            created_at=now,
+            updated_at=now,
+        )
+
+        # A School or Sub Admin otherwise has no StaffProfile at all, which
+        # blocks them from the self-service actions that key off one - Staff
+        # Leave and Staff Attendance. A minimal profile is enough for those;
+        # it deliberately does not appear in the Teachers & Staff roster,
+        # since it is not a real employment record the way onboarding through
+        # that screen produces one.
+        if user.role == UserRole.SCHOOL_ADMIN:
+            StaffProfile.objects.create(
+                user_id=user.id,
+                school_id=user.school_id,
+                employee_id=f"ADMIN-{user.id}",
+                department_id=None,
+                designation="Sub Admin" if user.is_sub_admin else "School Admin",
+                joining_date=SchoolClock.for_school(user.school_id).date(),
+                created_at=now,
+                updated_at=now,
+            )
+
+        return user
+
+    @staticmethod
+    def update(user: User, data: dict) -> User:
+        for field, value in data.items():
+            # The model has no hashing cast the way Eloquent does, so the one
+            # field that must never be stored as typed is hashed here.
+            setattr(user, field, hashing.make(value) if field == "password" else value)
+
+        user.updated_at = timezone.now()
+        user.save()
+
+        return user
+
+    @classmethod
+    def activate(cls, user: User) -> User:
+        return cls.set_status(user, UserStatus.ACTIVE)
+
+    @classmethod
+    def deactivate(cls, user: User) -> User:
+        user = cls.set_status(user, UserStatus.INACTIVE)
+
+        # Deactivating signs them out everywhere. Without this the account is
+        # switched off but whatever browser it was open in keeps working
+        # until the token happens to be used against a check that notices.
+        PersonalAccessToken.objects.filter(
+            tokenable_type=tokens.TOKENABLE_TYPE, tokenable_id=user.pk
+        ).delete()
+
+        return user
+
+    @staticmethod
+    def set_status(user: User, status: str) -> User:
+        user.status = status
+        user.updated_at = timezone.now()
+        user.save(update_fields=["status", "updated_at"])
+
+        return user
+
+
 class StudentService:
     # Laravel's `['school', 'classSection.schoolClass',
     # 'transportAssignment.route.vehicle', 'transportAssignment.stop']`, in
@@ -122,16 +329,16 @@ class StudentService:
                 | Q(admission_number__icontains=search)
             )
 
-        # Exactly Laravel's `orderBy('first_name')`, tiebreaker and all - which
-        # is to say without one. Two students called Aarav come back in
-        # whatever order the database felt like, and a page boundary between
-        # them can show one twice and the other not at all.
+        # `first_name` is not unique, so it needs a tiebreaker: without one a
+        # page boundary can fall between two students called Aarav and show
+        # one of them twice while skipping the other. MySQL and PostgreSQL
+        # order ties differently, which is how the two backends were caught
+        # disagreeing about a list they both thought they had sorted.
         #
-        # Left alone deliberately. Adding `, id` here would fix a real bug and
-        # would also mean the Python backend ordering a list differently from
-        # the PHP one, which is the kind of difference this migration exists
-        # not to introduce. It belongs in its own change, on both backends.
-        return students.order_by("first_name")
+        # Changed on both backends in the same commit, deliberately - a fix
+        # applied to one would have been a behaviour difference this migration
+        # exists not to introduce.
+        return students.order_by("first_name", "id")
 
     @staticmethod
     def create(data: dict, actor: User) -> Student:

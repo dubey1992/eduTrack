@@ -18,6 +18,11 @@ answers a `NOT_FOUND` envelope, not an HTML page.
 | `GET`/`POST /students`, `GET`/`PATCH /students/{id}` | list, admit, read, edit |
 | `PATCH /students/{id}/activate`, `/deactivate` | a student is never deleted |
 | `GET /imports/students/template`, `POST /imports/students` | bulk upload, all or nothing |
+| `GET`/`POST /schools`, `GET`/`PATCH /schools/{id}` | platform records; a group is one level deep |
+| `PATCH /schools/{id}/activate`, `/deactivate` | no delete, deliberately |
+| `GET`/`POST /users`, `GET`/`PATCH /users/{id}` | admin accounts, on a two-tier hierarchy |
+| `PATCH /users/{id}/activate`, `/deactivate` | deactivating signs them out everywhere |
+| `GET /timezones` | the picker's list — **PHP's**, not Python's |
 
 | File | |
 |---|---|
@@ -30,6 +35,7 @@ answers a `NOT_FOUND` envelope, not an HTML page.
 | `school/resources.py` | what a record looks like on the wire — every key is contract |
 | `school/requests.py` / `validation.py` | the same 422s, in Laravel's own wording |
 | `school/fields.py` | the one field that knows a naive column holds UTC — read its docstring |
+| `school/zones.py` | the timezone list, generated from PHP because Python's is a different list |
 | `school/models.py` | 33 models, all `managed = False` |
 | `school/factories.py` | `factory_boy` equivalents of Laravel's factories |
 | `config/test_runner.py` | builds the test database from unmanaged models |

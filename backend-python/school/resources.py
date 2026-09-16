@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from .clock import SchoolClock
 from .fields import as_utc
-from .models import Student, StudentTransportAssignment, User
+from .models import School, Student, StudentTransportAssignment, User
 from .scope import SchoolScope
 
 
@@ -38,6 +38,47 @@ def timestamp(value) -> str | None:
         return None
 
     return as_utc(value).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
+
+
+def school_resource(school: School, branch_count: int | None = None) -> dict:
+    """A school, or a branch of one.
+
+    `branch_count` is passed in rather than read off the instance: it comes
+    from an annotation on the list query, and a resource that fetched it
+    itself would fire a query per row.
+    """
+    body = {
+        "id": school.id,
+        "name": school.name,
+        # Where this school sits in its group. Null for a standalone school,
+        # which is what most are. See docs/branches.md.
+        "parent_school_id": school.parent_school_id,
+        "registration_number": school.registration_number,
+        "email": school.email,
+        "phone": school.phone,
+        "address": school.address,
+        "city": school.city,
+        "state": school.state,
+        "country": school.country,
+        "postal_code": school.postal_code,
+        # Strings, not floats. `decimal(10,7)` through a float loses the
+        # seventh place, and Laravel's `decimal:7` cast sends a string too.
+        "latitude": None if school.latitude is None else str(school.latitude),
+        "longitude": None if school.longitude is None else str(school.longitude),
+        "currency_code": school.currency_code,
+        "timezone": school.timezone,
+        "logo_url": school.logo_url,
+        "status": school.status,
+        "created_at": timestamp(school.created_at),
+    }
+
+    if loaded(school, "parent_school"):
+        body["parent_school_name"] = school.parent_school.name if school.parent_school else None
+
+    if branch_count is not None:
+        body["branch_count"] = branch_count
+
+    return body
 
 
 def user_resource(user: User, viewer: User | None = None) -> dict:

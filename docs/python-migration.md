@@ -13,11 +13,26 @@
 | M6 Contract suite | **Done** — 153/153 endpoints |
 | M7 Skeleton | **Done** — 33 models, round-tripped |
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
-| M9 onwards | Not started |
+| M9 Wave 1 — foundations | **In progress** — 13 of 52 endpoints |
+| M10 onwards | Not started |
 
-**Answered at M0:** Django + DRF is the framework. **Still open: whether the
-host can run any of this** — nobody has asked the provider yet, and phases M5
-and M12 cannot happen until somebody does.
+**Answered at M0:** Django + DRF is the framework. **Open, and deliberately
+not blocking: where this is hosted.** cPanel or AWS is under discussion
+(2026-09-16). Nothing in M9–M11 depends on the answer — those phases are
+application code against a database — so the port continues while that is
+settled. Only **M5 and M12 wait**, and what they become differs sharply:
+
+| | cPanel | AWS |
+|---|---|---|
+| M5 staging | a second document root, if the plan allows one | trivial — a second environment |
+| M12 cutover | document-root switch | DNS or load-balancer switch |
+| Background work (CLAUDE.md §15) | cron, with the fallback already designed | real queue workers; the fallback stops being needed |
+| Python process | Passenger, one persistent process | whatever is chosen |
+
+The one thing to avoid is designing for both. The queue fallback and the
+"no Docker, no Redis" constraint in CLAUDE.md §6 exist because of cPanel; if
+AWS wins, several of those constraints can be dropped, and that is a
+simplification to make *once*, deliberately, not a fork to carry.
 
 Replacing the Laravel/PHP backend with Python, and MySQL with PostgreSQL.
 
@@ -667,6 +682,80 @@ departments, subjects, classes and sections, holidays, periods.
 Ported in dependency order, because everything downstream references them.
 
 **Done when:** each module's contract tests pass and its ALLOW/DENY tests exist.
+
+### Progress
+
+| Module | Endpoints | |
+|---|---|---|
+| Schools | 6 | **Done** — identical to Laravel, envelope included |
+| Timezones | 1 | **Done** |
+| Users and admin accounts | 6 | **Done** |
+| Payments | 7 | **Blocked** — see below |
+| Academic years, departments, subjects | 16 | Not started |
+| Classes, sections, periods, holidays | 17 | Not started |
+
+Each module is checked the way M8's bug was found: ask both backends the same
+question and diff the answers, with the host and the wall clock normalised
+away and nothing else. That found two things in this wave that no test on
+either side would have.
+
+**`meta.links` was missing from the Python pagination envelope.** Laravel's
+`LengthAwarePaginator` emits page-link descriptors inside `meta`, including
+the `...` elision for long lists. Nothing in the Flutter client reads them,
+which is exactly why it went unnoticed; the module claimed to reproduce the
+envelope and did not. Now ported from `UrlWindow` arm for arm.
+
+**The timezone list was wrong, and it was a calendar bug.** Django offered 598
+zones where Laravel offers 419: Python's `zoneinfo` includes the
+backward-compatibility aliases (`Asia/Calcutta`, `America/Buenos_Aires`,
+`US/Eastern`) and PHP's list does not. A school set to `Asia/Calcutta` through
+Django would be read by Laravel's `SchoolClock`, fail its check against PHP's
+list, and **fall back to UTC** — moving every attendance date for that school
+by five and a half hours. The canonical list is now generated from PHP and
+committed as `backend-python/school/zones.py`.
+
+### Payments is blocked, and on the hosting decision
+
+Five of its seven endpoints are ordinary. The other two are not:
+
+- `GET /payments/{payment}/receipt` renders a **PDF**. Python has no equivalent
+  of the PHP renderer in the tree, so this needs a new dependency — and
+  CLAUDE.md §6 asks that one be justified rather than assumed.
+- `POST /payments/{payment}/receipt` **queues an email**, as does every
+  create and update that changes the money. Queues are M0's open question:
+  cron under cPanel, or real workers under AWS.
+
+Porting the five and stubbing the two would mean a module that looks finished
+and silently stops sending receipts. Left until the hosting answer lands,
+rather than half-built.
+
+### The ordering bug this wave found in Laravel
+
+Comparing the two backends showed them disagreeing about the order of two
+students who shared a first name. Neither was wrong about the other — both
+were wrong in the same way.
+
+Fifteen paginated lists order by a column that is not unique and offer no
+tiebreaker, so the database returns ties in whatever order it likes. A page
+boundary falling inside a group of equal values then **shows one record twice
+and never shows another**. Reproduced on both engines, with the fix removed:
+
+| | |
+|---|---|
+| MySQL | `/api/v1/users` returned 6 distinct records out of 7 — id 8 twice |
+| PostgreSQL | `/api/v1/students` returned 5 out of 6 — id 1 twice |
+
+This is live behaviour in the PHP backend today, not something the migration
+introduced. Fixed on **both** backends in the same commit for the three
+modules ported so far — students, schools and users — because fixing one
+backend alone would have been exactly the kind of behaviour difference this
+migration exists not to introduce.
+
+`StableOrderingTest` covers all three and fails without the fix on either
+database. **The remaining twelve lists have the same latent bug** and are
+fixed as their modules are ported, so that every change to the live backend
+arrives with a cross-backend check of the same endpoint rather than on its
+own.
 
 ## M10 · Wave 2 — people and daily operations
 

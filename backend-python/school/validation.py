@@ -16,9 +16,13 @@ exact strings were printed from Validator::make and pasted here.
 
 from __future__ import annotations
 
+import decimal
 import re
+import urllib.parse
 
 from rest_framework import serializers
+
+from .zones import ZONES
 
 # Laravel's regex for a mobile number: a country code and then digits or
 # spaces. The same expression guards the same field in the Flutter form, so
@@ -98,8 +102,32 @@ def does_not_exist(field: str) -> str:
     return f"The selected {attribute(field)} is invalid."
 
 
+# Laravel gives `exists`, `in` and `Enum` the same sentence. Two names for it
+# so a call site reads as what it meant - "this id is not in the table" and
+# "this is not one of the allowed values" are different mistakes to make.
+selected_is_invalid = does_not_exist
+
+
 def already_taken(field: str) -> str:
     return f"The {attribute(field)} has already been taken."
+
+
+def must_be_a_number(field: str) -> str:
+    return f"The {attribute(field)} field must be a number."
+
+
+def must_be_between(field: str, low, high) -> str:
+    return f"The {attribute(field)} field must be between {low} and {high}."
+
+
+def not_a_url(field: str) -> str:
+    # "logo url", not "logo URL" - Laravel lowercases the attribute and leaves
+    # the word URL capitalised only where it appears in the template.
+    return f"The {attribute(field)} field must be a valid URL."
+
+
+def not_a_timezone(field: str) -> str:
+    return f"The {attribute(field)} field must be a valid timezone."
 
 
 def must_differ(field: str, other: str) -> str:
@@ -147,6 +175,8 @@ class LaravelCharField(serializers.CharField):
         kwargs.setdefault("trim_whitespace", False)
 
         super().__init__(error_messages=messages, **kwargs)
+        # Kept so subclasses can name the field in a message of their own.
+        self._field_name = field_name
 
     def to_internal_value(self, data):
         # Laravel's `string` rule rejects a number; DRF's CharField would
@@ -183,7 +213,6 @@ class MobileField(LaravelCharField):
         kwargs.setdefault("allow_null", True)
         kwargs.setdefault("allow_blank", True)
         super().__init__(field_name, max_length=20, **kwargs)
-        self._field_name = field_name
 
     def to_internal_value(self, data):
         if data is None or data == "":
@@ -193,6 +222,80 @@ class MobileField(LaravelCharField):
 
         if not MOBILE_PATTERN.match(value):
             raise serializers.ValidationError(bad_format(self._field_name))
+
+        return value
+
+
+class CoordinateField(serializers.Field):
+    """A latitude or longitude, or nothing.
+
+    Kept as a string all the way to the column, which is `decimal(10,7)`.
+    Going through a float would round the seventh decimal place - about a
+    centimetre - and a coordinate that changes every time it is read is a
+    coordinate nobody can trust.
+    """
+
+    def __init__(self, field_name: str, low, high, **kwargs) -> None:
+        kwargs.setdefault("required", False)
+        kwargs.setdefault("allow_null", True)
+        super().__init__(**kwargs)
+        self._field_name = field_name
+        self._low = low
+        self._high = high
+
+    def to_internal_value(self, data):
+        if data is None or data == "":
+            return None
+
+        try:
+            number = decimal.Decimal(str(data))
+        except (decimal.InvalidOperation, TypeError, ValueError):
+            raise serializers.ValidationError(must_be_a_number(self._field_name))
+
+        if not number.is_finite() or not (self._low <= number <= self._high):
+            raise serializers.ValidationError(
+                must_be_between(self._field_name, self._low, self._high)
+            )
+
+        return number
+
+    def to_representation(self, value):
+        return None if value is None else str(value)
+
+
+class UrlField(LaravelCharField):
+    def to_internal_value(self, data):
+        if data is None or data == "":
+            return None
+
+        value = super().to_internal_value(data)
+        parsed = urllib.parse.urlparse(value)
+
+        # Laravel's `url` rule wants a scheme and a host, and nothing more
+        # clever than that.
+        if not parsed.scheme or not parsed.netloc:
+            raise serializers.ValidationError(not_a_url(self._field_name))
+
+        return value
+
+
+class TimezoneField(LaravelCharField):
+    """An IANA name such as Asia/Kolkata.
+
+    This decides what "today" means for everything the school records, so an
+    unknown name has to be refused rather than quietly defaulted - a school
+    whose day boundary is wrong marks the wrong register.
+    """
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+
+        # Checked against the list PHP accepts, not Python's - they differ by
+        # 179 backward-compatibility aliases, and accepting one here would
+        # store a name Laravel's SchoolClock rejects, silently moving that
+        # school's day boundary to UTC. See school/zones.py.
+        if value not in ZONES:
+            raise serializers.ValidationError(not_a_timezone(self._field_name))
 
         return value
 

@@ -16,7 +16,7 @@ does not call.
 
 from django.urls import path
 
-from school.views import auth, imports, students
+from school.views import auth, imports, schools, students, timezones, users
 
 urlpatterns = [
     # -- auth --------------------------------------------------------------
@@ -24,6 +24,19 @@ urlpatterns = [
     path("api/v1/auth/logout", auth.logout),
     path("api/v1/auth/change-password", auth.change_password),
     path("api/v1/me", auth.me),
+    # -- schools -----------------------------------------------------------
+    # No DELETE, and not by omission: erasing a school's records is not
+    # something a school management system should offer.
+    path("api/v1/schools", schools.collection),
+    path("api/v1/schools/<int:school_id>", schools.detail),
+    path("api/v1/schools/<int:school_id>/activate", schools.activate),
+    path("api/v1/schools/<int:school_id>/deactivate", schools.deactivate),
+    path("api/v1/timezones", timezones.index),
+    # -- users -------------------------------------------------------------
+    path("api/v1/users", users.collection),
+    path("api/v1/users/<int:user_id>", users.detail),
+    path("api/v1/users/<int:user_id>/activate", users.activate),
+    path("api/v1/users/<int:user_id>/deactivate", users.deactivate),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

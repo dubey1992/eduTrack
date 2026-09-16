@@ -15,20 +15,38 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+import re
+
 from . import hashing
-from .models import ClassSection, School, SchoolClass, Student
+from .enums import UserRole
+from .models import ClassSection, EarlyAccessRequest, School, SchoolClass, Student, User
 from .scope import SchoolScope
 from .validation import (
+    CoordinateField,
     LaravelCharField,
     LaravelIntegerField,
     MobileField,
+    TimezoneField,
+    UrlField,
     already_taken,
+    bad_format,
     confirmation_does_not_match,
     does_not_exist,
     normalise,
+    not_an_email,
     optional_text,
     required,
+    selected_is_invalid,
 )
+
+# ISO 4217: three upper-case letters and nothing else.
+CURRENCY_PATTERN = re.compile(r"^[A-Z]{3}$")
+
+# Deliberately permissive, matching Laravel's `email` rule rather than trying
+# to be cleverer than it: something, an @, something with a dot in it. A
+# stricter pattern here would refuse addresses the PHP backend accepts, which
+# is a contract difference dressed up as a fix.
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class ScopedSerializer(serializers.Serializer):
@@ -191,6 +209,288 @@ def admission_number_taken(admission_number, school_id, ignoring: int | None = N
         taken = taken.exclude(pk=ignoring)
 
     return taken.exists()
+
+
+# -- schools ----------------------------------------------------------------
+
+
+class SchoolForm(serializers.Serializer):
+    """The fields a school is described by, shared by create and edit.
+
+    Only a Super Admin reaches either, so there is no scope to apply: a school
+    is a platform record, not a tenant one.
+    """
+
+    name = LaravelCharField("name", max_length=255)
+    registration_number = optional_text("registration_number", 100)
+    email = LaravelCharField("email", max_length=255)
+    phone = MobileField("phone", required=True, allow_null=False)
+    address = LaravelCharField("address", max_length=255)
+    city = LaravelCharField("city", max_length=100)
+    state = LaravelCharField("state", max_length=100)
+    country = LaravelCharField("country", max_length=100)
+    postal_code = LaravelCharField("postal_code", max_length=20)
+    latitude = CoordinateField("latitude", -90, 90)
+    longitude = CoordinateField("longitude", -180, 180)
+    currency_code = LaravelCharField("currency_code", max_length=3)
+    timezone = TimezoneField("timezone", max_length=64)
+    logo_url = UrlField("logo_url", max_length=2048, required=False, allow_null=True)
+    parent_school_id = LaravelIntegerField(
+        "parent_school_id", required=False, allow_null=True
+    )
+
+    def __init__(self, *args, school: School = None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        # The school being edited, if this is an edit. It decides what the
+        # uniqueness and parent checks are allowed to ignore.
+        self.school = school
+
+    def validate_email(self, value: str) -> str:
+        if not EMAIL_PATTERN.match(value):
+            raise serializers.ValidationError(not_an_email("email"))
+
+        return value
+
+    def validate_currency_code(self, value: str) -> str:
+        # ISO 4217, upper case. Lower case is refused rather than corrected -
+        # the currency is fixed at creation and copied onto every payment, so
+        # guessing here would put a guess in a ledger (CLAUDE.md rule 5).
+        if not CURRENCY_PATTERN.match(value):
+            raise serializers.ValidationError(bad_format("currency_code"))
+
+        return value
+
+    def validate(self, attrs):
+        errors = {}
+
+        taken = School.objects.filter(email=attrs["email"]) if "email" in attrs else School.objects.none()
+
+        if self.school is not None:
+            taken = taken.exclude(pk=self.school.pk)
+
+        if taken.exists():
+            errors["email"] = [already_taken("email")]
+
+        # Half a coordinate points nowhere.
+        latitude = attrs.get("latitude")
+        longitude = attrs.get("longitude")
+
+        if latitude is None and longitude is not None:
+            errors["latitude"] = ["Enter a latitude as well, or clear the longitude."]
+
+        if longitude is None and latitude is not None:
+            errors["longitude"] = ["Enter a longitude as well, or clear the latitude."]
+
+        parent_error = self.check_parent(attrs.get("parent_school_id"))
+
+        if parent_error:
+            errors["parent_school_id"] = [parent_error]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+    def check_parent(self, parent_id) -> str | None:
+        """Keeps a school group exactly one level deep.
+
+        A parent with branches, and nothing below that. Groups of groups would
+        mean a recursive query everywhere a group is resolved - and everywhere
+        that forgot would silently miss half the group, which is the worst
+        kind of isolation bug because it looks like missing data rather than a
+        leak.
+
+        Ported from App\\Rules\\ValidParentSchool, message for message.
+        """
+        if parent_id is None:
+            return None
+
+        parent = School.objects.filter(pk=parent_id).first()
+
+        if parent is None:
+            return does_not_exist("parent_school_id")
+
+        if self.school is not None and parent.id == self.school.id:
+            return "A school cannot be a branch of itself."
+
+        if parent.parent_school_id is not None:
+            return (
+                f'"{parent.name}" is itself a branch. '
+                "A group is one level deep: pick its parent instead."
+            )
+
+        if self.school is not None and School.objects.filter(parent_school_id=self.school.id).exists():
+            return (
+                f'"{self.school.name}" has branches of its own, '
+                "so it cannot become a branch of another school."
+            )
+
+        return None
+
+
+class StoreSchoolRequest(SchoolForm):
+    # Set when a school is onboarded from a signup request, so the request can
+    # record what it became. The early-access module itself is M11; this field
+    # is here because it is part of the schools contract today.
+    early_access_request_id = LaravelIntegerField(
+        "early_access_request_id", required=False, allow_null=True
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        request_id = attrs.get("early_access_request_id")
+
+        if request_id is not None and not EarlyAccessRequest.objects.filter(pk=request_id).exists():
+            raise serializers.ValidationError(
+                {"early_access_request_id": [does_not_exist("early_access_request_id")]}
+            )
+
+        return attrs
+
+
+class UpdateSchoolRequest(SchoolForm):
+    """A PATCH: every field optional, but a field that is sent must be good."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        # `sometimes` in Laravel's words: a field absent from the body is not
+        # checked and not written. Applied here rather than by declaring two
+        # near-identical field lists, which is how the two forms drift apart.
+        for name, field in self.fields.items():
+            field.required = False
+
+
+# -- users ------------------------------------------------------------------
+
+# What a School or Group Admin may assign when editing somebody. Not the admin
+# roles: promoting a colleague to admin is the create path's business, and it
+# derives the tier from who is doing the creating.
+SCHOOL_ADMIN_ASSIGNABLE_ROLES = (
+    UserRole.HOD,
+    UserRole.TEACHER,
+    UserRole.STAFF,
+    UserRole.TRANSPORT_MANAGER,
+)
+
+
+class StoreUserRequest(ScopedSerializer):
+    """Onboards an admin-tier account.
+
+    The only roles this endpoint creates are SCHOOL_ADMIN and - for a Super
+    Admin - GROUP_ADMIN. Whether the result is a "School Admin" or a "Sub
+    Admin" depends on who is creating it, not on anything in this request.
+    """
+
+    first_name = LaravelCharField("first_name", max_length=100)
+    last_name = LaravelCharField("last_name", max_length=100)
+    email = LaravelCharField("email", max_length=255)
+    mobile = MobileField("mobile")
+    password = LaravelCharField("password", min_length=8)
+    role = LaravelCharField("role")
+
+    def validate_email(self, value: str) -> str:
+        # Stored lowercase, so validation has to ask in the same form or the
+        # unique rule looks for something the index will refuse later - a 500
+        # where a field-level 422 belongs.
+        value = value.strip().lower()
+
+        if not EMAIL_PATTERN.match(value):
+            raise serializers.ValidationError(not_an_email("email"))
+
+        return value
+
+    def validate(self, attrs):
+        errors = {}
+
+        role = attrs.get("role")
+        allowed = (
+            [UserRole.SCHOOL_ADMIN, UserRole.GROUP_ADMIN]
+            if self.actor.role == UserRole.SUPER_ADMIN
+            else [UserRole.SCHOOL_ADMIN]
+        )
+
+        if role not in allowed:
+            errors["role"] = [selected_is_invalid("role")]
+
+        if User.objects.filter(email=attrs["email"]).exists():
+            errors["email"] = [already_taken("email")]
+
+        try:
+            self.validate_school_id_field()
+        except serializers.ValidationError as invalid:
+            errors.update(invalid.detail)
+
+        # A Group Admin sits at the parent and answers for the branches
+        # beneath it. Attaching one to a branch would be claiming the branch
+        # is the group.
+        if role == UserRole.GROUP_ADMIN and "school_id" not in errors:
+            school = School.objects.filter(pk=self.resolved_school_id()).first()
+
+            if school is not None and school.parent_school_id is not None:
+                errors["school_id"] = [
+                    f'"{school.name}" is a branch. '
+                    "A Group Admin belongs to the school the branches sit under."
+                ]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = self.resolved_school_id()
+
+        return attrs
+
+
+class UpdateUserRequest(ScopedSerializer):
+    first_name = LaravelCharField("first_name", max_length=100, required=False)
+    last_name = LaravelCharField("last_name", max_length=100, required=False)
+    email = LaravelCharField("email", max_length=255, required=False)
+    mobile = MobileField("mobile")
+    password = LaravelCharField("password", min_length=8, required=False)
+    role = LaravelCharField("role", required=False)
+
+    def __init__(self, *args, user: User = None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        # Moving a user between schools is not a feature, so school_id is
+        # deliberately not on this form at all.
+        self.user = user
+
+    def validate_email(self, value: str) -> str:
+        value = value.strip().lower()
+
+        if not EMAIL_PATTERN.match(value):
+            raise serializers.ValidationError(not_an_email("email"))
+
+        return value
+
+    def validate(self, attrs):
+        errors = {}
+
+        if "email" in attrs and User.objects.filter(email=attrs["email"]).exclude(
+            pk=self.user.pk
+        ).exists():
+            errors["email"] = [already_taken("email")]
+
+        if "role" in attrs:
+            if attrs["role"] not in UserRole.values:
+                errors["role"] = [selected_is_invalid("role")]
+            elif (
+                self.actor.role == UserRole.SCHOOL_ADMIN
+                and attrs["role"] not in SCHOOL_ADMIN_ASSIGNABLE_ROLES
+            ):
+                errors["role"] = [
+                    "A school admin can only assign the HOD, Teacher, Staff, "
+                    "or Transport Manager role."
+                ]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
 
 # -- auth -------------------------------------------------------------------
