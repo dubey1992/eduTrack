@@ -105,16 +105,13 @@ violations rather than the collision they are.
 | `test_contract.py` | The contract itself |
 | `run.py` | Entry point |
 
-## What is covered so far
+## Coverage
 
-Auth, the two envelopes, students end to end, school isolation, and the Super
-Admin's view of schools — 23 tests.
-
-**That is not all 153 endpoints.** It is the harness plus the highest-risk
-slice: the shapes every other endpoint reuses, and the isolation rules that a
-rewrite is most likely to break. Adding an endpoint is now mechanical — a shape
-in `shapes.py` and a handful of assertions — and the plan's bar for M6 is all
-153, endpoint by endpoint, before the Python work starts in earnest.
+**153 of 153 endpoints, 127 tests.** The figure is counted, not claimed: every
+request the client makes is recorded and matched against `endpoints.py`, so the
+number cannot drift from what the suite actually does. `python contract/run.py`
+prints it, along with anything still missing and anything called that the
+manifest does not declare.
 
 ## One thing it found already
 

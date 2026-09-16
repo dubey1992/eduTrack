@@ -89,10 +89,12 @@ class World:
     academic_year_id: int
     department_id: int
     staff_profile_id: int
+    staff_user_id: int
     staff_email: str
     staff_client: Client
     school_class_id: int
     class_section_id: int
+    subject_id: int
     student_id: int
     created_user_ids: list[int] = field(default_factory=list)
 
@@ -119,9 +121,10 @@ def build() -> World:
 
     department_id = _make_department(admin, school_id, tag)
     staff_email = "contract.staff." + tag + "@example.invalid"
-    staff_id = _make_staff(admin, school_id, department_id, tag, staff_email)
+    staff = _make_staff(admin, school_id, department_id, tag, staff_email)
     staff_client = sign_in(staff_email, TEST_PASSWORD)
     year_id, class_id, section_id = _make_class_section(admin, school_id, tag)
+    subject_id = _make_subject(admin, school_id, department_id, tag)
     student_id = _make_student(admin, school_id, section_id, tag)
 
     return World(
@@ -133,11 +136,13 @@ def build() -> World:
         other_admin=other_admin,
         academic_year_id=year_id,
         department_id=department_id,
-        staff_profile_id=staff_id,
+        staff_profile_id=staff["id"],
+        staff_user_id=staff["user_id"],
         staff_email=staff_email,
         staff_client=staff_client,
         school_class_id=class_id,
         class_section_id=section_id,
+        subject_id=subject_id,
         student_id=student_id,
         created_user_ids=[admin_id, other_id],
     )
@@ -244,7 +249,27 @@ def _make_department(admin: Client, school_id: int, tag: str) -> int:
     return body["id"]
 
 
-def _make_staff(admin: Client, school_id: int, department_id: int, tag: str, email: str) -> int:
+def _make_subject(admin: Client, school_id: int, department_id: int, tag: str) -> int:
+    """Timetable entries, syllabus topics and teaching reports all need one."""
+    body = _created(
+        admin.post(
+            "/subjects",
+            {
+                "school_id": school_id,
+                "department_id": department_id,
+                "code": "CON" + tag[:3].upper(),
+                "name": "Contract Subject " + tag,
+                "min_class_level": 1,
+                "max_class_level": 12,
+            },
+        ),
+        "a subject",
+    )
+
+    return body["id"]
+
+
+def _make_staff(admin: Client, school_id: int, department_id: int, tag: str, email: str) -> dict:
     """One employee, so leave and staff attendance have somebody to be about.
 
     In the world rather than in a test, because tests run in whatever order the
@@ -270,7 +295,9 @@ def _make_staff(admin: Client, school_id: int, department_id: int, tag: str, ema
         "an employee",
     )
 
-    return body["id"]
+    # Both ids matter: the profile is what leave and attendance are about, the
+    # user is who a timetable entry names as the teacher.
+    return body
 
 
 def _make_class_section(admin: Client, school_id: int, tag: str) -> tuple[int, int, int]:

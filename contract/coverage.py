@@ -21,18 +21,33 @@ CALLED: set[tuple[str, str]] = set()
 
 
 def shape(path: str) -> str:
-    """Reduce a path to its route shape.
+    """Strip the query string and normalise declared placeholders.
 
-    `students/42?search=x` and `students/{student}` both come out as
-    `students/{}`, which is what makes an observed call comparable to a
-    declared route.
+    `students/{student}` becomes `students/{}`. Concrete paths are left alone
+    here, because a segment cannot be judged a parameter on its own - see
+    `matches`.
     """
     path = path.split("?")[0].strip("/")
-    path = re.sub(r"\{[^}]+\}", "{}", path)
 
-    # Any bare number is an id. Nothing in this API routes on a numeric
-    # literal, so there is no real segment this can swallow by mistake.
-    return re.sub(r"(?<=^)\d+(?=$)|(?<=/)\d+(?=/|$)", "{}", path)
+    return re.sub(r"\{[^}]+\}", "{}", path)
+
+
+def matches(called: str, declared: str) -> bool:
+    """Does a path that was called correspond to a declared route?
+
+    Compared segment by segment, with a declared `{}` matching anything. String
+    equality is not enough and the difference is not academic: route parameters
+    are often not numbers - `imports/{type}` is called as `imports/students`,
+    and `communication/templates/{event}` as `.../attendance.present` - so a
+    normaliser that only reduced digits reported real coverage as a stale
+    manifest.
+    """
+    a, b = called.split("/"), declared.split("/")
+
+    if len(a) != len(b):
+        return False
+
+    return all(want == "{}" or want == got for got, want in zip(a, b))
 
 
 def record(method: str, path: str) -> None:
@@ -41,14 +56,19 @@ def record(method: str, path: str) -> None:
 
 def report() -> tuple[int, int, dict[str, list[str]]]:
     """Covered, total, and what is missing grouped by module."""
-    declared = {(m.upper(), shape(u)) for m, u in ENDPOINTS}
-    covered = declared & CALLED
+    declared = [(m.upper(), shape(u)) for m, u in ENDPOINTS]
+
+    covered = {
+        route
+        for route in declared
+        if any(method == route[0] and matches(path, route[1]) for method, path in CALLED)
+    }
 
     missing: dict[str, list[str]] = {}
-    for method, path in sorted(declared - covered, key=lambda x: (x[1], x[0])):
+    for method, path in sorted(set(declared) - covered, key=lambda x: (x[1], x[0])):
         missing.setdefault(path.split("/")[0], []).append(f"{method} {path}")
 
-    return len(covered), len(declared), missing
+    return len(covered), len(set(declared)), missing
 
 
 def summarise() -> str:
@@ -65,8 +85,12 @@ def summarise() -> str:
 
     # Anything called that the manifest does not declare means the manifest is
     # stale, or a test is calling something that is not a real endpoint.
-    declared = {(m.upper(), shape(u)) for m, u in ENDPOINTS}
-    unknown = sorted(CALLED - declared)
+    declared = [(m.upper(), shape(u)) for m, u in ENDPOINTS]
+    unknown = sorted(
+        call
+        for call in CALLED
+        if not any(call[0] == method and matches(call[1], path) for method, path in declared)
+    )
     if unknown:
         lines.append("")
         lines.append("Called but not in the manifest (stale manifest, or a wrong path in a test):")

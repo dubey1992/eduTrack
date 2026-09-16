@@ -8,7 +8,8 @@
 | M1 PostgreSQL locally, schema parity | **Done** 2026-09-16 |
 | M2 Portability fixes | **Done** 2026-09-16 |
 | M3 Data migration rehearsal | **Done** 2026-09-16 |
-| M4 Both databases in CI | **Half done** — needs a CI decision |
+| M4 Both databases in CI | **Done** — green in CI |
+| M6 Contract suite | **Done** — 153/153 endpoints |
 | M3 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework. **Still open: whether the
@@ -490,6 +491,32 @@ does its real damage, and this is what catches it.
 
 **Done when:** the suite passes against the Laravel backend. From here it is the
 definition of done for every Python module that follows.
+
+### Done — 2026-09-16
+
+**153 of 153 endpoints, 127 tests, green against the running backend.** In
+`contract/`, standard library only, no import from `backend/` anywhere in it.
+
+Coverage is counted rather than claimed: the client records every request and
+matches it against a manifest of all 153, which `RouteManifestTest` keeps
+honest from the backend side - a route added without being listed fails the
+build, and so does a listed route that no longer exists.
+
+**What it found while being written**, which is the argument for having done it
+before the rewrite rather than during:
+
+- `POST /academic-years` answered `"is_current": null` for a column that is NOT
+  NULL with a default of false. The Flutter client reads it as a plain bool and
+  would have thrown; it escaped only because that client always sends the field
+  and the suite does not. Fixed, with a backend test pinning it.
+- A School Admin's leave request is approved as they raise it - there is nobody
+  above the head of a school to ask. A rewrite "fixing" that to pending would
+  leave an approval nobody can ever give.
+- Re-deciding a decided request answers 409, not 403. The reviewer is allowed
+  to review; the request has simply already been answered.
+- Wrong credentials answer 401, not 422.
+- List endpoints deliberately omit the nested collections their detail
+  endpoints carry, which needed two shapes rather than one loose one.
 
 ---
 

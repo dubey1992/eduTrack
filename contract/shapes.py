@@ -390,3 +390,89 @@ TRIP_RIDER = {
     "dropped_at": "str?",
 }
 
+# -- money, messages, teaching, platform -------------------------------------
+
+PAYMENT = {
+    "id": "int",
+    "school_id": "int",
+    "payment_type": "str",
+    "amount": "str",
+    "paid_amount": "str?",
+    "remaining_amount": "str?",
+    # Never absent and never blended with another: an amount without its
+    # currency is a number nobody can bank (CLAUDE.md rule 5).
+    "currency_code": "str",
+    "payment_date": "str",
+    "payment_mode": "str",
+    "status": "str",
+}
+
+MESSAGE = {
+    "id": "int",
+    "school_id": "int",
+    "event": "str",
+    "category": "str",
+    "channel": "str",
+    "recipient_name": "str?",
+    "body": "str?",
+    "status": "str",
+}
+
+ANNOUNCEMENT = {
+    "id": "int",
+    "school_id": "int",
+    "title": "str",
+    "body": "str",
+    "audience_type": "str",
+    "audience_label": "str?",
+    "channels": "str",
+    "recipients_count": "int",
+}
+
+TIMETABLE_ENTRY = {
+    "id": "int",
+    "school_id": "int",
+    "class_section_id": "int",
+    "period_id": "int",
+    "day_of_week": "str",
+    "subject_id": "int",
+    "subject_name": "str?",
+    "teacher_id": "int?",
+    "teacher_name": "str?",
+}
+
+SYLLABUS_TOPIC = {
+    "id": "int",
+    "school_id": "int",
+    "subject_id": "int",
+    "title": "str",
+    "sequence_number": "int",
+}
+
+TEACHING_REPORT = {
+    "id": "int",
+    "school_id": "int",
+    "timetable_entry_id": "int",
+    "teacher_id": "int?",
+    "report_date": "str",
+    "topic_taught": "str",
+    "reviewed_by": "int?",
+}
+
+EARLY_ACCESS = {
+    "id": "int",
+    "school_name": "str",
+    "contact_name": "str",
+    "email": "str",
+    "phone": "str?",
+    "city": "str?",
+    "country": "str?",
+    "status": "str",
+}
+
+DASHBOARD_CARD = {
+    "key": "str",
+    "label": "str",
+    "value": "str",
+}
+

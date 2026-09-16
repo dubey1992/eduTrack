@@ -252,6 +252,29 @@ class StaffAttendance(PeopleTest):
         self.assertEqual(200, response.status, f"GET the staff register\n{response!r}")
         self.assertIsInstance(response.body, dict, "the register is a document, not a list")
 
+    def test_staff_attendance_can_be_submitted_then_corrected(self):
+        submitted = self.w.admin.post(
+            "/staff-attendance",
+            {
+                "school_id": self.w.school_id,
+                "attendance_date": self.DATE,
+                "records": [
+                    {"staff_profile_id": self.w.staff_profile_id, "status": "present", "check_in": "08:30"}
+                ],
+            },
+        )
+        self.assertIn(submitted.status, (200, 201), f"POST staff attendance\n{submitted!r}")
+
+        corrected = self.w.admin.patch(
+            "/staff-attendance",
+            {
+                "school_id": self.w.school_id,
+                "attendance_date": self.DATE,
+                "records": [{"staff_profile_id": self.w.staff_profile_id, "status": "half_day"}],
+            },
+        )
+        self.assertEqual(200, corrected.status, f"PATCH staff attendance\n{corrected!r}")
+
     def test_the_staff_history_is_shaped(self):
         response = self.w.admin.get("/staff-attendance", date=self.DATE)
 
