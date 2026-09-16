@@ -61,7 +61,9 @@ class AnnouncementService
             )
             ->when($filters['q'] ?? null, function (Builder $query, string $term) {
                 $like = '%'.$term.'%';
-                $query->where(fn (Builder $inner) => $inner->where('title', 'like', $like)->orWhere('body', 'like', $like));
+                $query->where(fn (Builder $inner) => $inner
+                    ->whereLike('title', $like, caseSensitive: false)
+                    ->orWhereLike('body', $like, caseSensitive: false));
             })
             // "Still showing" means still showing at the school - an expiry
             // date is a day on its calendar, not the server's.

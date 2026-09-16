@@ -53,9 +53,9 @@ class EarlyAccessService
             ->when($filters['q'] ?? null, function ($query, string $term) {
                 $like = '%'.$term.'%';
                 $query->where(fn ($query) => $query
-                    ->where('school_name', 'like', $like)
-                    ->orWhere('contact_name', 'like', $like)
-                    ->orWhere('email', 'like', $like));
+                    ->whereLike('school_name', $like, caseSensitive: false)
+                    ->orWhereLike('contact_name', $like, caseSensitive: false)
+                    ->orWhereLike('email', $like, caseSensitive: false));
             })
             // Newest first: the panel is a queue, and the thing nobody has
             // looked at yet is the thing that matters.

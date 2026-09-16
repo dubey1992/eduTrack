@@ -205,9 +205,18 @@ MySQL's collation makes `like` case-insensitive; Postgres's does not. Searching
 `abhishek` would silently stop finding *Abhishek*, across students, staff,
 announcements, messages and early-access requests. No error, no failing test.
 
-**Fix:** one helper that picks `like` or `ilike` from the connection driver, used
-at all 14 sites, plus a test that searches in deliberately the wrong case so the
-regression cannot return.
+**Fixed 2026-09-16.** No helper was needed: Laravel's own
+`whereLike($column, $value, caseSensitive: false)` compiles to `ilike` on
+PostgreSQL and `like` on MySQL. All 14 sites use it, and
+`SearchCaseInsensitivityTest` searches in deliberately the wrong case across
+students, staff, announcements and early-access requests.
+
+Worth recording how that test behaved before the fix, because it is the
+clearest demonstration of what "silent" means here: **6 of 6 passed on MySQL
+and 5 of 6 failed on PostgreSQL.** Writing it first also caught a test passing
+for the wrong reason — announcements name their filter `q`, not `search`, so
+the parameter was ignored and an unfiltered list was satisfying the
+assertion.
 
 ### Email uniqueness stops being case-insensitive — `users.email`
 
@@ -216,8 +225,23 @@ they can — two accounts for one person, one of them unreachable by whoever
 types the other spelling. This is an authentication boundary quietly changing
 meaning, so it is the one to get right first.
 
-**Fix:** normalise to lowercase on write, and a unique index on `lower(email)`.
-**Check the pilot data for existing collisions before the import, not after.**
+**Fixed 2026-09-16**, and the failures first proved how bad it would have been:
+on PostgreSQL the duplicate account was **created** (201 where 422 belongs), and
+signing in with a capitalised address returned **401**.
+
+Normalised to lowercase on write, on the `User` model rather than in the
+services so that imports, factories and seeders cannot route around it, plus a
+`LowercasesEmail` trait on the six requests that take an address, so validation
+asks about the same form that gets stored. A migration lowercases existing rows.
+
+No `lower(email)` index proved necessary: with every row stored lowercase the
+existing unique index enforces it on either database, which is simpler and
+cannot be raced by two requests arriving together.
+
+**That migration is safe in this direction only.** Lowercasing on MySQL cannot
+collide, because its collation already forbids two addresses differing only by
+case. Importing first and normalising afterwards is what would fail — by then
+they are two real rows, and one of them has to be somebody's problem.
 
 ### Timestamps and per-school timezones — 17 timestamp, 14 date columns
 
@@ -226,9 +250,17 @@ application code (`docs/timezones.md`). Choose `timestamptz` carelessly and
 Postgres shifts values by the session timezone on read, moving attendance
 across a day boundary for any school far enough east or west.
 
-**Fix:** decide per column, deliberately, and write the decision down. Pin the
-connection timezone to UTC. The date/instant distinction is already load-bearing
-here and must survive intact.
+**Decided 2026-09-16: `timestamp without time zone` everywhere**, which is what
+Laravel's `timestamp()` already produces — all 84 columns came out that way with
+no migration edited. The connection is pinned to UTC in `config/database.php`
+and the local server in `postgresql.conf`.
+
+The decision was never much in doubt; the risk is that somebody later changes
+it, because switching a column to `timestamptz` reads like an improvement right
+up until the day it isn't. `PostgresTemporalStorageTest` fails if any column
+grows a timezone of its own, if the connection is not UTC, or if an instant does
+not come back exactly as written. The twenty tests in `SchoolTimezoneTest` would
+catch the damage; these catch the cause.
 
 ### Booleans and unsigned integers — 7 boolean columns, 87 keys
 

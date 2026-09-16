@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Users;
 
 use App\Enums\UserRole;
+use App\Http\Requests\Concerns\LowercasesEmail;
 use App\Http\Requests\Concerns\ScopesSchool;
 use App\Models\School;
 use App\Models\User;
@@ -22,7 +23,7 @@ use Illuminate\Validation\Validator;
  */
 class StoreUserRequest extends FormRequest
 {
-    use ScopesSchool;
+    use LowercasesEmail, ScopesSchool;
 
     public function authorize(): bool
     {

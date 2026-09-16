@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable([
@@ -71,6 +72,27 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
+    /**
+     * Addresses are stored lowercase, always.
+     *
+     * An email identifies one person, and until now that was true only because
+     * MySQL's collation happens to compare case-insensitively - which made
+     * "one account per address" a property of the database rather than of this
+     * application. PostgreSQL compares case-sensitively, and the same data
+     * there would allow Head@school.test alongside head@school.test: two
+     * accounts for one person, each invisible to whoever typed the other.
+     *
+     * Normalising on write puts the guarantee back where it belongs and makes
+     * the existing unique index enforce it on either database - no functional
+     * index, and no rule that can be raced by two requests arriving together.
+     * It sits on the model rather than in the services so that imports,
+     * factories and seeders cannot route around it.
+     */
+    protected function email(): Attribute
+    {
+        return Attribute::set(fn (?string $value) => $value === null ? null : Str::lower(trim($value)));
+    }
+
     protected function casts(): array
     {
         return [

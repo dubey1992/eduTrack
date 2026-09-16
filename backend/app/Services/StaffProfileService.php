@@ -38,11 +38,13 @@ class StaffProfileService
                     ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
                     ->when(
                         $filters['search'] ?? null,
+                        // Case-insensitive on either database - see
+                        // StudentService for why a bare `like` cannot be.
                         fn ($query, $search) => $query->where(
                             fn ($query) => $query
-                                ->where('first_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%")
+                                ->whereLike('first_name', "%{$search}%", caseSensitive: false)
+                                ->orWhereLike('last_name', "%{$search}%", caseSensitive: false)
+                                ->orWhereLike('email', "%{$search}%", caseSensitive: false)
                         )
                     );
             })

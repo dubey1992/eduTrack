@@ -191,10 +191,10 @@ class MessageService
             ->when($filters['q'] ?? null, function (Builder $query, string $term) {
                 $like = '%'.$term.'%';
                 $query->where(fn (Builder $inner) => $inner
-                    ->where('recipient_name', 'like', $like)
-                    ->orWhere('student_name', 'like', $like)
-                    ->orWhere('recipient_mobile', 'like', $like)
-                    ->orWhere('body', 'like', $like));
+                    ->whereLike('recipient_name', $like, caseSensitive: false)
+                    ->orWhereLike('student_name', $like, caseSensitive: false)
+                    ->orWhereLike('recipient_mobile', $like, caseSensitive: false)
+                    ->orWhereLike('body', $like, caseSensitive: false));
             });
     }
 }

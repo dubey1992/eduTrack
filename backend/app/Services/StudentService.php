@@ -36,11 +36,15 @@ class StudentService
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when(
                 $filters['search'] ?? null,
+                // whereLike rather than a bare `like`: MySQL's collation is
+                // case-insensitive and PostgreSQL's is not, so `like` alone
+                // means two different things and the difference is silent.
+                // This compiles to `ilike` on PostgreSQL and `like` on MySQL.
                 fn ($query, $search) => $query->where(
                     fn ($query) => $query
-                        ->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('admission_number', 'like', "%{$search}%")
+                        ->whereLike('first_name', "%{$search}%", caseSensitive: false)
+                        ->orWhereLike('last_name', "%{$search}%", caseSensitive: false)
+                        ->orWhereLike('admission_number', "%{$search}%", caseSensitive: false)
                 )
             )
             ->orderBy('first_name')

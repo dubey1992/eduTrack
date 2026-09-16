@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Users;
 
 use App\Enums\UserRole;
+use App\Http\Requests\Concerns\LowercasesEmail;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -10,6 +11,8 @@ use Illuminate\Validation\Rules\Enum;
 
 class UpdateUserRequest extends FormRequest
 {
+    use LowercasesEmail;
+
     private const SCHOOL_ADMIN_ASSIGNABLE_ROLES = [
         UserRole::Hod, UserRole::Teacher, UserRole::Staff, UserRole::TransportManager,
     ];
