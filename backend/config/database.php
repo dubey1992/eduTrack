@@ -84,19 +84,28 @@ return [
             ]) : [],
         ],
 
+        // Reads PG_* rather than the shared DB_* keys on purpose: during the
+        // migration to PostgreSQL both connections have to be configured at
+        // once, so the suite can be run against either without editing .env
+        // between runs. See docs/python-migration.md, phases M1 and M4.
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
-            'charset' => env('DB_CHARSET', 'utf8'),
+            'url' => env('PG_URL'),
+            'host' => env('PG_HOST', '127.0.0.1'),
+            'port' => env('PG_PORT', '5432'),
+            'database' => env('PG_DATABASE', 'edutrack'),
+            'username' => env('PG_USERNAME', 'postgres'),
+            'password' => env('PG_PASSWORD', ''),
+            'charset' => env('PG_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'sslmode' => env('PG_SSLMODE', 'prefer'),
+            // eduTrack stores instants in UTC and resolves each school's local
+            // day in application code (docs/timezones.md). The server is
+            // already pinned to UTC; this pins the session too, so a
+            // differently-configured server cannot shift timestamps on read.
+            'timezone' => 'UTC',
         ],
 
         'sqlsrv' => [
