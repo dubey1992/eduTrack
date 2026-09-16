@@ -52,7 +52,14 @@ class AttendanceController extends Controller
 
         $attendances = $this->attendanceService->paginate(
             $request->user(),
-            $request->only(['school_id', 'class_section_id', 'student_id', 'status', 'date_from', 'date_to'])
+            // per_page was missing from this list, so the attendance list
+            // was the one paginated endpoint that ignored it and always
+            // returned twenty. Found by asking the PHP and Python backends
+            // for the same page and getting different numbers of rows.
+            $request->only([
+                'school_id', 'class_section_id', 'student_id', 'status',
+                'date_from', 'date_to', 'per_page',
+            ])
         );
 
         return AttendanceResource::collection($attendances);

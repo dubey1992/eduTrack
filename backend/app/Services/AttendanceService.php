@@ -15,6 +15,7 @@ use App\Models\Holiday;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\DateFormats;
+use App\Support\Pagination;
 use App\Support\SchoolScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -233,7 +234,10 @@ class AttendanceService
             )
             ->orderByDesc('attendance_date')
             ->orderBy('student_id')
-            ->paginate(perPage: 20);
+            // Was a hardcoded 20, which is the other half of why this list
+            // ignored per_page - the controller dropped the filter and the
+            // service would not have read it anyway.
+            ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
     /**

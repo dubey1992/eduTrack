@@ -34,6 +34,10 @@ class HolidayService
             ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->where('end_date', '>=', $date))
             ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->where('start_date', '<=', $date))
             ->orderBy('start_date')
+            // A tiebreaker. Schools share dates constantly - every school in
+            // a country closes on the same national holiday. See
+            // StableOrderingTest.
+            ->orderBy('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 

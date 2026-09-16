@@ -4,7 +4,9 @@ namespace Tests\Feature\Api\V1;
 
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
+use App\Models\Attendance;
 use App\Models\ClassSection;
+use App\Models\Holiday;
 use App\Models\Department;
 use App\Models\School;
 use App\Models\SchoolClass;
@@ -163,6 +165,55 @@ class StableOrderingTest extends TestCase
         }
 
         $this->assertEachRecordAppearsOnce('/api/v1/staff', 6);
+    }
+
+    public function test_paging_through_holidays_that_start_together_shows_each_once(): void
+    {
+        // Schools share dates constantly: every school in a country closes on
+        // the same national holiday.
+        foreach (range(1, 6) as $index) {
+            Holiday::factory()->create([
+                'school_id' => School::factory()->create([
+                    'email' => 'holiday'.$index.'@example.invalid',
+                ])->id,
+                'name' => 'Republic Day',
+                'start_date' => '2027-01-26',
+                'end_date' => '2027-01-26',
+            ]);
+        }
+
+        $this->assertEachRecordAppearsOnce('/api/v1/holidays', 6);
+    }
+
+    public function test_the_attendance_list_honours_per_page(): void
+    {
+        // Not an ordering test, but found the same way and belonging with the
+        // others: this list dropped per_page on its way to the service, so it
+        // was the one paginated endpoint that always returned twenty however
+        // small a page the caller asked for.
+        $section = $this->section();
+
+        foreach (range(1, 3) as $index) {
+            $student = Student::factory()->create([
+                'school_id' => $this->school->id,
+                'class_section_id' => $section->id,
+                'admission_number' => 'ADM-P'.$index,
+            ]);
+
+            Attendance::factory()->create([
+                'school_id' => $this->school->id,
+                'academic_year_id' => $section->schoolClass->academic_year_id,
+                'class_section_id' => $section->id,
+                'student_id' => $student->id,
+                'marked_by' => $this->root->id,
+            ]);
+        }
+
+        $response = $this->actingAs($this->root)->getJson('/api/v1/attendance?per_page=2');
+
+        $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
+        $this->assertSame(2, $response->json('meta.per_page'));
     }
 
     /**
