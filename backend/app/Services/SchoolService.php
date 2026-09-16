@@ -25,6 +25,12 @@ class SchoolService
             ->with('parent')
             ->withCount('branches')
             ->orderBy('name')
+            // A tiebreaker, so a page boundary cannot fall in the middle of a
+            // group of equal values and show one row twice while skipping
+            // another. The ordering column above is not unique, and without
+            // this the database is free to return ties in any order it likes -
+            // which it does, differently, on MySQL and PostgreSQL.
+            ->orderBy('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
