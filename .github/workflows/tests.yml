@@ -149,6 +149,83 @@ jobs:
         if: failure()
         run: echo "::error title=${{ matrix.database }} output::$(tail -c 4000 test-output.txt 2>/dev/null | awk '{printf "%s%%0A", $0}')"
 
+  python:
+    name: Python backend
+    runs-on: ubuntu-latest
+
+    # Two different claims, checked separately, because neither substitutes for
+    # the other. `manage.py test` builds a database from the models and proves
+    # they agree with themselves. `check_models` reads a database built by
+    # Laravel's own migrations and proves they agree with Laravel - which is
+    # the one that catches a migration moving underneath them. That second
+    # check is the reason PHP is installed in a job that is otherwise Python.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: edutrack_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: backend-python
+        run: pip install -r requirements.txt
+
+      - name: Test
+        working-directory: backend-python
+        env:
+          PG_HOST: 127.0.0.1
+          PG_PORT: '5432'
+          PG_DATABASE: edutrack_test
+          PG_USERNAME: postgres
+          PG_PASSWORD: postgres
+        run: python manage.py test school --verbosity=2
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_pgsql, bcmath, intl
+          coverage: none
+
+      - name: Build the real schema with Laravel's migrations
+        working-directory: backend
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: pgsql
+          PG_HOST: 127.0.0.1
+          PG_PORT: '5432'
+          PG_DATABASE: edutrack_test
+          PG_USERNAME: postgres
+          PG_PASSWORD: postgres
+        run: |
+          composer install --prefer-dist --no-interaction --no-progress
+          cp .env.example .env
+          php artisan key:generate
+          php artisan migrate:fresh --force --database=pgsql
+
+      - name: Check the models still describe those tables
+        working-directory: backend-python
+        env:
+          PG_HOST: 127.0.0.1
+          PG_PORT: '5432'
+          PG_DATABASE: edutrack_test
+          PG_USERNAME: postgres
+          PG_PASSWORD: postgres
+        run: python manage.py check_models
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

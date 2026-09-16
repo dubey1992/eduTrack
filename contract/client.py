@@ -28,7 +28,26 @@ DEFAULT_BASE_URL = "http://127.0.0.1:8000/api/v1"
 
 
 def base_url() -> str:
+    """The backend under test. Every assertion in this suite is about this one."""
     return os.environ.get("CONTRACT_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
+
+
+def setup_url() -> str:
+    """The backend the world is *built* through, which is normally the same one.
+
+    It can be a different one, and that is what makes this suite usable during
+    the port rather than only at the end of it. The Python backend grows one
+    module at a time, so for most of the migration it can serve the endpoints
+    under test while being unable to create the school they are about. Pointing
+    setup at Laravel and the tests at Django asks the honest question - does
+    the new backend answer the same way about the same rows? - months before
+    the new backend can build a school of its own.
+
+    Both must be on the same database for this to mean anything. They are:
+    that is the whole point of moving to PostgreSQL first, and of the two
+    backends staying runnable side by side.
+    """
+    return os.environ.get("CONTRACT_SETUP_BASE_URL", base_url()).rstrip("/")
 
 
 @dataclass
@@ -54,11 +73,18 @@ class Response:
 
 
 class Client:
-    """One caller, optionally holding a token."""
+    """One caller, optionally holding a token.
 
-    def __init__(self, token: str | None = None, timeout: int = 30) -> None:
+    `base` names which backend it speaks to. Left alone it is the one under
+    test; world.py binds its setup calls to the other one. Coverage is only
+    recorded for the backend under test, so building a school somewhere else
+    cannot flatter the figure.
+    """
+
+    def __init__(self, token: str | None = None, timeout: int = 30, base: str | None = None) -> None:
         self.token = token
         self.timeout = timeout
+        self.base = base
 
     # -- verbs -------------------------------------------------------------
 
@@ -90,11 +116,16 @@ class Client:
         return f"{path}{joiner}{encoded}"
 
     def _send(self, method: str, path: str, payload: dict | None = None) -> Response:
-        # Recorded here because this is the only place a request is made, so
-        # the coverage figure cannot disagree with what the suite actually did.
-        coverage.record(method, path)
+        base = self.base or base_url()
 
-        url = f"{base_url()}/{path.lstrip('/')}"
+        # Recorded here because this is the only place a request is made, so
+        # the coverage figure cannot disagree with what the suite actually did
+        # - and only for the backend under test, so calls made to build the
+        # world elsewhere do not count as endpoints this backend answered.
+        if base == base_url():
+            coverage.record(method, path)
+
+        url = f"{base}/{path.lstrip('/')}"
         body = None if payload is None else json.dumps(payload).encode()
 
         request = urllib.request.Request(url, data=body, method=method)
@@ -132,9 +163,15 @@ class Client:
         return Response(status=raw.status, body=body, headers=headers)
 
 
-def sign_in(email: str, password: str) -> Client:
-    """A client holding a token for this account."""
-    response = Client().post("/auth/login", {"email": email, "password": password})
+def sign_in(email: str, password: str, base: str | None = None) -> Client:
+    """A client holding a token for this account.
+
+    Signing in happens on whichever backend the client will be used against.
+    That is not a detail: it means a run pointed at Django proves Django can
+    issue a token for a password Laravel hashed, which is the single riskiest
+    assumption in the whole migration.
+    """
+    response = Client(base=base).post("/auth/login", {"email": email, "password": password})
 
     if response.status != 200:
         raise AssertionError(f"Could not sign in as {email}: HTTP {response.status} {response.body}")
@@ -143,4 +180,4 @@ def sign_in(email: str, password: str) -> Client:
     if not token:
         raise AssertionError(f"Login for {email} returned no token: {response.body}")
 
-    return Client(token=token)
+    return Client(token=token, base=base)

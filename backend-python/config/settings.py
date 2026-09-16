@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.staticfiles",
     "rest_framework",
+    "corsheaders",
     "school",
 ]
 
@@ -45,6 +46,10 @@ INSTALLED_APPS = [
 # would mean carrying the browser's assumptions.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Above CommonMiddleware, which is where it has to sit: a redirect issued
+    # before the CORS headers are attached reaches the browser without them,
+    # and the browser reports it as a CORS failure rather than a redirect.
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
 
@@ -102,4 +107,33 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.JSONParser",
         "rest_framework.parsers.MultiPartParser",
     ],
+    # Sanctum's tokens, read by Python. See school/tokens.py - both backends
+    # can serve the same signed-in session, which is what makes the cutover
+    # reversible without signing anybody out.
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "school.authentication.SanctumTokenAuthentication",
+    ],
+    # Every error in the {code, message, details} envelope, which is what the
+    # Flutter client parses. A DRF default reaching the client unshaped is a
+    # contract break, so this is not optional decoration.
+    "EXCEPTION_HANDLER": "school.errors.handler",
+    "DEFAULT_PAGINATION_CLASS": "school.pagination.LaravelPagination",
+    "PAGE_SIZE": 20,
 }
+
+# The Flutter web app is served from a different origin than the API - 5000
+# and 8000 in development - so the browser preflights every request. Laravel
+# answers those through its own CORS config; this is the same allowance,
+# spelled out here rather than inherited.
+CORS_ALLOWED_ORIGINS = [
+    origin
+    for origin in os.environ.get(
+        "DJANGO_CORS_ORIGINS", "http://127.0.0.1:5000,http://localhost:5000"
+    ).split(",")
+    if origin
+]
+
+# Not Django's TIME_ZONE, which must stay UTC because it decides how instants
+# are stored. This is the zone the few views that belong to no school are read
+# in - a Super Admin's cross-school totals. See school/clock.py.
+PLATFORM_TIMEZONE = os.environ.get("PLATFORM_TIMEZONE", "UTC")

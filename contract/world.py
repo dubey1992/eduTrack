@@ -29,7 +29,7 @@ import random
 import string
 from dataclasses import dataclass, field
 
-from client import Client, base_url, sign_in
+from client import Client, base_url, setup_url, sign_in
 
 SUPER_ADMIN_EMAIL = os.environ.get("CONTRACT_SUPER_ADMIN_EMAIL", "")
 SUPER_ADMIN_PASSWORD = os.environ.get("CONTRACT_SUPER_ADMIN_PASSWORD", "")
@@ -97,35 +97,54 @@ class World:
     subject_id: int
     student_id: int
     created_user_ids: list[int] = field(default_factory=list)
+    # The Super Admin bound to the *setup* backend. Only teardown uses it, and
+    # only because deactivating a school is a write the backend under test may
+    # not be able to serve yet.
+    builder: Client | None = None
 
 
 def build() -> World:
-    """Two schools, so isolation can be asserted rather than hoped."""
+    """Two schools, so isolation can be asserted rather than hoped.
+
+    Everything is *created* through the setup backend and everything is
+    *asserted* against the backend under test. Normally those are the same
+    instance and this reads as it always did. During the port they differ, and
+    the split is what lets these tests run against a Python backend that can
+    serve students before it can create a school - see client.setup_url().
+    """
     guard_the_target()
     require_credentials()
 
-    root = sign_in(SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD)
+    setup = setup_url()
+
+    # The builder speaks to whichever backend can create things; the clients
+    # handed back to the tests speak to the one being judged. Both sign in for
+    # themselves, so a run against Python proves Python's login as well.
+    root_builder = sign_in(SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD, base=setup)
+    root = root_builder if setup == base_url() else sign_in(SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD)
     tag = _tag()
 
-    school_id = _make_school(root, "Contract School " + tag)
-    other_school_id = _make_school(root, "Contract Outsider " + tag)
+    school_id = _make_school(root_builder, "Contract School " + tag)
+    other_school_id = _make_school(root_builder, "Contract Outsider " + tag)
 
     admin_email = "contract.admin." + tag + "@example.invalid"
-    admin_id = _make_admin(root, school_id, admin_email)
+    admin_id = _make_admin(root_builder, school_id, admin_email)
 
     other_email = "contract.outsider." + tag + "@example.invalid"
-    other_id = _make_admin(root, other_school_id, other_email)
+    other_id = _make_admin(root_builder, other_school_id, other_email)
+
+    admin_builder = sign_in(admin_email, TEST_PASSWORD, base=setup)
 
     admin = sign_in(admin_email, TEST_PASSWORD)
     other_admin = sign_in(other_email, TEST_PASSWORD)
 
-    department_id = _make_department(admin, school_id, tag)
+    department_id = _make_department(admin_builder, school_id, tag)
     staff_email = "contract.staff." + tag + "@example.invalid"
-    staff = _make_staff(admin, school_id, department_id, tag, staff_email)
+    staff = _make_staff(admin_builder, school_id, department_id, tag, staff_email)
     staff_client = sign_in(staff_email, TEST_PASSWORD)
-    year_id, class_id, section_id = _make_class_section(admin, school_id, tag)
-    subject_id = _make_subject(admin, school_id, department_id, tag)
-    student_id = _make_student(admin, school_id, section_id, tag)
+    year_id, class_id, section_id = _make_class_section(admin_builder, school_id, tag)
+    subject_id = _make_subject(admin_builder, school_id, department_id, tag)
+    student_id = _make_student(admin_builder, school_id, section_id, tag)
 
     return World(
         super_admin=root,
@@ -145,6 +164,7 @@ def build() -> World:
         subject_id=subject_id,
         student_id=student_id,
         created_user_ids=[admin_id, other_id],
+        builder=root_builder,
     )
 
 
@@ -180,8 +200,10 @@ def demolish(world: World) -> None:
 
     The records stay. That is what guard_the_target() is protecting.
     """
+    closer = world.builder or world.super_admin
+
     for school_id in (world.school_id, world.other_school_id):
-        response = world.super_admin.patch("/schools/" + str(school_id) + "/deactivate")
+        response = closer.patch("/schools/" + str(school_id) + "/deactivate")
 
         if response.status != 200:
             print("  note: could not deactivate school " + str(school_id) + " (HTTP " + str(response.status) + ")")

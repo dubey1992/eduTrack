@@ -17,6 +17,14 @@ corrected: framework tables dropped, because Laravel owns its own queue, cache
 and sessions and this backend will grow its own; classes named the way a person
 would name them rather than after the table.
 
+One correction is easy to undo by accident and worth naming here. Every
+timestamp is a `UtcDateTimeField`, not a plain `DateTimeField`, because these
+columns are `timestamp without time zone` holding UTC instants and Django
+would otherwise hand back a naive datetime that the next `.astimezone()` reads
+as machine-local. That cost five and a half hours on every instant the API
+returned, with every test passing. See school/fields.py before changing one
+back.
+
 `manage.py check_models` is what proves this file still matches the tables. It
 reads a row from each and touches every field, because the failure mode here is
 a column that does not exist and is never selected.
@@ -27,6 +35,9 @@ a commit of its own, not as a side effect of something else.
 
 from django.db import models
 
+from .enums import StudentStatus, UserStatus
+from .fields import UtcDateTimeField
+
 class AcademicYear(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
@@ -34,8 +45,8 @@ class AcademicYear(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     is_current = models.BooleanField()
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -53,13 +64,13 @@ class Announcement(models.Model):
     channels = models.CharField(max_length=20)
     expires_at = models.DateField(blank=True, null=True)
     published_by = models.ForeignKey('User', models.DO_NOTHING, db_column='published_by', blank=True, null=True)
-    published_at = models.DateTimeField()
+    published_at = UtcDateTimeField()
     recipients_count = models.IntegerField()
     sms_count = models.IntegerField()
     in_app_count = models.IntegerField()
-    deleted_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    deleted_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -75,8 +86,8 @@ class Attendance(models.Model):
     status = models.CharField(max_length=255)
     remarks = models.CharField(max_length=255, blank=True, null=True)
     marked_by = models.ForeignKey('User', models.DO_NOTHING, db_column='marked_by', blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -89,8 +100,8 @@ class ClassSection(models.Model):
     name = models.CharField(max_length=10)
     room_number = models.CharField(max_length=20, blank=True, null=True)
     class_teacher = models.ForeignKey('User', models.DO_NOTHING, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -106,8 +117,8 @@ class CommunicationSetting(models.Model):
     leave_alerts_enabled = models.BooleanField()
     provider = models.CharField(max_length=50)
     sender_id = models.CharField(max_length=20, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -123,9 +134,9 @@ class DailyTeachingReport(models.Model):
     homework = models.CharField(max_length=500, blank=True, null=True)
     remarks = models.CharField(max_length=500, blank=True, null=True)
     reviewed_by = models.ForeignKey('User', models.DO_NOTHING, db_column='reviewed_by', related_name='dailyteachingreports_reviewed_by_set', blank=True, null=True)
-    reviewed_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    reviewed_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -137,8 +148,8 @@ class Department(models.Model):
     school = models.ForeignKey('School', models.DO_NOTHING)
     name = models.CharField(max_length=100)
     hod_user = models.ForeignKey('User', models.DO_NOTHING, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -153,8 +164,8 @@ class Driver(models.Model):
     licence_number = models.CharField(max_length=50)
     licence_expiry = models.DateField(blank=True, null=True)
     status = models.CharField(max_length=20)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -177,9 +188,9 @@ class EarlyAccessRequest(models.Model):
     notes = models.TextField(blank=True, null=True)
     converted_school = models.ForeignKey('School', models.DO_NOTHING, blank=True, null=True)
     reviewed_by = models.ForeignKey('User', models.DO_NOTHING, db_column='reviewed_by', blank=True, null=True)
-    reviewed_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    reviewed_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -192,8 +203,8 @@ class Holiday(models.Model):
     type = models.CharField(max_length=20)
     start_date = models.DateField()
     end_date = models.DateField()
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -216,10 +227,10 @@ class Message(models.Model):
     provider_message_id = models.CharField(max_length=100, blank=True, null=True)
     failure_reason = models.CharField(max_length=255, blank=True, null=True)
     created_by = models.ForeignKey('User', models.DO_NOTHING, db_column='created_by', related_name='messages_created_by_set', blank=True, null=True)
-    sent_at = models.DateTimeField(blank=True, null=True)
-    read_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    sent_at = UtcDateTimeField(blank=True, null=True)
+    read_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
     announcement = models.ForeignKey(Announcement, models.DO_NOTHING, blank=True, null=True)
     subject = models.CharField(max_length=150, blank=True, null=True)
 
@@ -234,8 +245,8 @@ class MessageTemplate(models.Model):
     body = models.TextField()
     is_active = models.BooleanField()
     updated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -254,10 +265,10 @@ class Payment(models.Model):
     notes = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=255)
     created_by = models.ForeignKey('User', models.DO_NOTHING, db_column='created_by')
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    receipt_sent_at = models.DateTimeField(blank=True, null=True)
+    receipt_sent_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -269,13 +280,43 @@ class Period(models.Model):
     period_number = models.SmallIntegerField()
     start_time = models.TimeField()
     end_time = models.TimeField()
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'periods'
         unique_together = (('school', 'period_number'),)
+
+class PersonalAccessToken(models.Model):
+    """The one framework table this backend describes.
+
+    M7 dropped every table Laravel's framework owns - queue, cache, sessions -
+    because this backend will grow its own. This one is the exception, and on
+    purpose: it is where a signed-in session lives, and both backends have to
+    be able to read the same one or a cutover signs everybody out. See
+    school/tokens.py, which issues rows Sanctum accepts and accepts rows
+    Sanctum issued.
+
+    `tokenable` is a Laravel polymorphic relation, not a foreign key, so it
+    stays as the two plain columns the database actually has rather than
+    being dressed up as a Django GenericForeignKey that nothing would use.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    tokenable_type = models.CharField(max_length=255)
+    tokenable_id = models.BigIntegerField()
+    name = models.TextField()
+    token = models.CharField(unique=True, max_length=64)
+    abilities = models.TextField(blank=True, null=True)
+    last_used_at = UtcDateTimeField(blank=True, null=True)
+    expires_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'personal_access_tokens'
 
 class School(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -291,8 +332,8 @@ class School(models.Model):
     currency_code = models.CharField(max_length=3)
     logo_url = models.CharField(max_length=255, blank=True, null=True)
     status = models.CharField(max_length=255)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
     timezone = models.CharField(max_length=64)
     latitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
@@ -302,14 +343,17 @@ class School(models.Model):
         managed = False
         db_table = 'schools'
 
+    def is_branch(self) -> bool:
+        return self.parent_school_id is not None
+
 class SchoolClass(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
     academic_year = models.ForeignKey(AcademicYear, models.DO_NOTHING)
     name = models.CharField(max_length=50)
     level = models.SmallIntegerField()
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -326,8 +370,8 @@ class StaffAttendance(models.Model):
     check_out = models.TimeField(blank=True, null=True)
     remarks = models.CharField(max_length=255, blank=True, null=True)
     marked_by = models.ForeignKey('User', models.DO_NOTHING, db_column='marked_by', blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -346,8 +390,8 @@ class StaffLeave(models.Model):
     applied_by = models.ForeignKey('User', models.DO_NOTHING, db_column='applied_by')
     reviewed_by = models.ForeignKey('User', models.DO_NOTHING, db_column='reviewed_by', related_name='staffleaves_reviewed_by_set', blank=True, null=True)
     review_remarks = models.CharField(max_length=500, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -362,8 +406,8 @@ class StaffProfile(models.Model):
     designation = models.CharField(max_length=100, blank=True, null=True)
     joining_date = models.DateField()
     address = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -382,13 +426,20 @@ class Student(models.Model):
     guardian_mobile = models.CharField(max_length=20, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=255)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'students'
         unique_together = (('school', 'admission_number'),)
+
+    @property
+    def name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def is_active(self) -> bool:
+        return self.status == StudentStatus.ACTIVE
 
 class StudentTransportAssignment(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -396,8 +447,8 @@ class StudentTransportAssignment(models.Model):
     student = models.OneToOneField('Student', models.DO_NOTHING)
     route = models.ForeignKey('TransportRoute', models.DO_NOTHING)
     transport_stop = models.ForeignKey('TransportStop', models.DO_NOTHING)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -412,8 +463,8 @@ class Subject(models.Model):
     min_class_level = models.SmallIntegerField()
     max_class_level = models.SmallIntegerField()
     lead_teacher = models.ForeignKey('User', models.DO_NOTHING, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -426,8 +477,8 @@ class SyllabusTopic(models.Model):
     subject = models.ForeignKey(Subject, models.DO_NOTHING)
     title = models.CharField(max_length=255)
     sequence_number = models.IntegerField()
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -440,9 +491,9 @@ class SyllabusTopicProgress(models.Model):
     syllabus_topic = models.ForeignKey('SyllabusTopic', models.DO_NOTHING)
     class_section = models.ForeignKey(ClassSection, models.DO_NOTHING)
     completed_by = models.ForeignKey('User', models.DO_NOTHING, db_column='completed_by')
-    completed_at = models.DateTimeField()
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    completed_at = UtcDateTimeField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -457,8 +508,8 @@ class TimetableEntry(models.Model):
     day_of_week = models.CharField(max_length=255)
     subject = models.ForeignKey(Subject, models.DO_NOTHING)
     teacher = models.ForeignKey('User', models.DO_NOTHING)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -472,8 +523,8 @@ class TransportRoute(models.Model):
     vehicle = models.OneToOneField('Vehicle', models.DO_NOTHING, blank=True, null=True)
     driver = models.OneToOneField(Driver, models.DO_NOTHING, blank=True, null=True)
     status = models.CharField(max_length=20)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -488,8 +539,8 @@ class TransportStop(models.Model):
     sequence_number = models.SmallIntegerField()
     pickup_time = models.TimeField(blank=True, null=True)
     drop_time = models.TimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -507,10 +558,10 @@ class TransportTrip(models.Model):
     status = models.CharField(max_length=20)
     current_stop = models.ForeignKey(TransportStop, models.DO_NOTHING, blank=True, null=True)
     started_by = models.ForeignKey('User', models.DO_NOTHING, db_column='started_by')
-    started_at = models.DateTimeField()
-    ended_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    started_at = UtcDateTimeField()
+    ended_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -526,10 +577,10 @@ class TransportTripEvent(models.Model):
     student = models.ForeignKey(Student, models.DO_NOTHING, blank=True, null=True)
     student_name = models.CharField(max_length=150, blank=True, null=True)
     recorded_by = models.ForeignKey('User', models.DO_NOTHING, db_column='recorded_by')
-    recorded_at = models.DateTimeField()
+    recorded_at = UtcDateTimeField()
     note = models.CharField(max_length=255, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -543,10 +594,10 @@ class TransportTripRider(models.Model):
     stop_name = models.CharField(max_length=100)
     stop_sequence_number = models.SmallIntegerField()
     status = models.CharField(max_length=20)
-    boarded_at = models.DateTimeField(blank=True, null=True)
-    dropped_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    boarded_at = UtcDateTimeField(blank=True, null=True)
+    dropped_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -556,11 +607,11 @@ class TransportTripRider(models.Model):
 class User(models.Model):
     id = models.BigAutoField(primary_key=True)
     email = models.CharField(unique=True, max_length=255)
-    email_verified_at = models.DateTimeField(blank=True, null=True)
+    email_verified_at = UtcDateTimeField(blank=True, null=True)
     password = models.CharField(max_length=255)
     remember_token = models.CharField(max_length=100, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     mobile = models.CharField(max_length=255, blank=True, null=True)
@@ -574,6 +625,34 @@ class User(models.Model):
         managed = False
         db_table = 'users'
 
+    # -- behaviour, ported from the Eloquent User model --------------------
+    #
+    # Kept on the model for the reason Eloquent keeps it there: every caller
+    # that has a User has these, and a helper module would let one place
+    # answer "is this account active?" differently from another.
+
+    @property
+    def name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def is_active(self) -> bool:
+        return self.status == UserStatus.ACTIVE
+
+    @property
+    def is_authenticated(self) -> bool:
+        """What DRF's permission classes ask of request.user.
+
+        Always True, and that is not a shortcut: an instance of this model
+        only ever reaches a view because authentication.py produced it from a
+        valid token. An unauthenticated request carries None instead - see
+        UNAUTHENTICATED_USER in the REST_FRAMEWORK settings.
+        """
+        return True
+
+    @property
+    def is_anonymous(self) -> bool:
+        return False
+
 class Vehicle(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey(School, models.DO_NOTHING)
@@ -581,8 +660,8 @@ class Vehicle(models.Model):
     registration_number = models.CharField(max_length=30)
     capacity = models.SmallIntegerField()
     status = models.CharField(max_length=20)
-    created_at = models.DateTimeField(blank=True, null=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False

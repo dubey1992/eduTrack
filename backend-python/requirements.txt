@@ -11,3 +11,14 @@ psycopg[binary]==3.2.3
 
 # Test data, the equivalent of Laravel's factories.
 factory-boy==3.3.1
+
+# Passwords, in Laravel's format - see school/hashing.py. Both backends run
+# against the same users table while the rollback window is open, so a password
+# set by one has to be readable by the other.
+bcrypt==4.2.1
+
+# CORS. The Flutter web app is served from a different origin than the API, so
+# the browser preflights every request; Laravel answers those through its own
+# config/cors.php and this is the same allowance. Hand-rolling it was the
+# alternative, and a preflight handled almost correctly is a security bug.
+django-cors-headers==4.6.0

@@ -1,6 +1,6 @@
 # Migrating to Python and PostgreSQL
 
-**Status: M1 complete, M2 next.** Decided to proceed on 2026-09-16.
+**Status: M8 passed — the gate is met.** Decided to proceed on 2026-09-16.
 
 | Phase | |
 |---|---|
@@ -9,8 +9,11 @@
 | M2 Portability fixes | **Done** 2026-09-16 |
 | M3 Data migration rehearsal | **Done** 2026-09-16 |
 | M4 Both databases in CI | **Done** — green in CI |
+| M5 Staging | Conditional — see M5 |
 | M6 Contract suite | **Done** — 153/153 endpoints |
-| M3 onwards | Not started |
+| M7 Skeleton | **Done** — 33 models, round-tripped |
+| M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
+| M9 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework. **Still open: whether the
 host can run any of this** — nobody has asked the provider yet, and phases M5
@@ -577,6 +580,85 @@ isolation test passes.
 spent a month rather than six. The remaining modules are more of the same work —
 if this was painful, the rest will be too, and that is worth knowing now.
 
+### The gate was met — 2026-09-16
+
+All three conditions, checked rather than asserted:
+
+- **The Flutter app, unmodified.** The only difference from the build served on
+  `:5000` is `--dart-define=API_BASE_URL`. It signs in, lists the roll,
+  searches it, and deactivates and reinstates a student, all against Django.
+  Not one line of Dart was touched.
+- **The contract tests pass** for these endpoints: 19 of the 21 in
+  `test_contract.py`'s auth, envelope, student and isolation classes. The other
+  two ask `/schools` and `/payments` for a 403; Django answers 404 because
+  those are M9 endpoints it does not serve yet.
+- **167 Django tests**, of which 48 are ALLOW/DENY pairs over `SchoolScope` and
+  `StudentPolicy`. Verified by sabotage: making every admin unrestricted for
+  one run turned 22 of them red.
+- **Both backends answer identically.** `GET /students` against the same rows
+  returns field-for-field identical JSON from Laravel and from Django — 16
+  fields per student, byte for byte. This is what found the timestamp bug
+  below, and it is now the check worth repeating for every module in M9–M11.
+
+**It was not miserable**, which is the answer the gate exists to produce.
+
+### The bug the gate caught, and why nothing else could have
+
+Django and Laravel were asked for the same student and their answers were
+compared field by field. Fifteen of sixteen fields matched. `created_at` was
+five and a half hours early.
+
+Laravel's timestamp columns are `timestamp without time zone` holding UTC
+instants — a naive column is a fine place for a UTC instant as long as
+everybody agrees that is what it means. Django does not agree by default: it
+expects `timestamptz`, so psycopg hands back a **naive** datetime, and
+`.astimezone()` on a naive value assumes the *machine's* local zone. On a
+laptop in Asia/Kolkata, every instant the API returned was shifted by the
+local offset.
+
+**All 156 Django tests passed the whole time, and always would have.** The
+test database is built from the models, where Django creates the column as
+`timestamp with time zone` — so in a test the value comes back already aware
+and the bug cannot occur. It only exists against a schema Laravel built.
+
+The same flaw had a second, worse instance: `has_expired()` compared a naive
+`expires_at` to an aware `now()`, which raises `TypeError`. It would have
+crashed on the first token anybody set an expiry on, and no test would have
+shown it.
+
+Fixed once, at the field: `school/fields.py` attaches UTC on read, and all 82
+timestamp columns go through it. The regression tests in
+`school/tests/test_instants.py` deliberately do not touch the database for the
+thing they assert — they hand the conversion a naive datetime directly, which
+is the case the test database will never produce.
+
+Two lessons, both already in the plan and now paid for:
+
+- **A test database built from the models proves the models agree with
+  themselves, not that they agree with Laravel.** That was written in M7's
+  README as a caution. This is what it looks like when it bites.
+- **Comparing the two backends' actual answers is worth more than either
+  one's test suite.** Both `/students` endpoints now return field-for-field
+  identical JSON against the same rows, which is a stronger statement than
+  any number of green tests.
+
+### Findings that changed the plan rather than the code
+
+1. **Nobody has to be signed out at cutover.** See M12 — Sanctum's tokens turn
+   out to be portable, and this was checked against a live server in both
+   directions rather than reasoned about.
+2. **The contract suite can now test one backend while building its world
+   through another** (`CONTRACT_SETUP_BASE_URL`). Without that it could not run
+   against Python until the very last module, because it creates the school it
+   works in through the API. This is what lets M9–M11 be verified as they land
+   instead of all at once at the end.
+
+What is *not* done, and is honest about it: the Add Student dialog cannot be
+completed through the UI, because its class picker calls `/classes` — an M9
+endpoint. The `POST /students` endpoint itself works and is covered both by
+Django tests and by the contract suite; only the form that feeds it is waiting
+on the next phase.
+
 ## M9 · Wave 1 — foundations
 
 Schools, school groups, payments, users and admin accounts, academic years,
@@ -611,14 +693,43 @@ averaged — and must be ported with their tests, not re-derived.
 
 ## M12 · Cutover and decommission
 
-**Everyone is signed out** — which currently means nobody. Sanctum's
-`personal_access_tokens` hashes cannot be validated by any Python auth, so every
-signed-in user is logged out the moment you cut over. That was the sharpest edge
-in this plan while a school was expected to be live; with nobody signed in it
-costs nothing.
+**Nobody is signed out.** Corrected at M8, 2026-09-16.
 
-It comes back the day a school does go live, so it stays written down: schedule
-outside school hours, and tell them they will need to sign in again.
+Every earlier revision of this plan said the opposite: that Sanctum's
+`personal_access_tokens` hashes could not be validated by any Python auth, so
+every signed-in user would be logged out the moment you cut over. That was
+wrong, and the reason is worth stating precisely because it was a reasonable
+thing to assume.
+
+**Sanctum does not hash a token the way it hashes a password.** A password is
+bcrypt. A token is a plain SHA-256 of the random half, stored in a 64-character
+column, with the client holding `{id}|{random}` — see
+`vendor/laravel/sanctum/src/PersonalAccessToken.php`. SHA-256 is SHA-256 in any
+language, so `backend-python/school/tokens.py` issues rows Sanctum accepts and
+accepts rows Sanctum issued.
+
+Passwords cross the same boundary, for a different reason: Python's `bcrypt`
+verifies PHP's `$2y$` digests and PHP's `password_verify` accepts what Python
+writes. Both directions were checked against the two running servers on the
+same database, not reasoned about:
+
+| | |
+|---|---|
+| A password hashed by PHP | accepted by Django |
+| A password hashed by Python | accepted by Laravel |
+| A token issued by Django | accepted on a Laravel route |
+| A token issued by Laravel | accepted on a Django route |
+
+What this changes: **the cutover is a document-root switch and nothing else**,
+and so is the rollback. Neither signs anybody out, and neither has to be
+scheduled outside school hours for that reason. It also means the two backends
+can serve the same session at the same time, which is what made M8 verifiable
+at all.
+
+The tests are in `backend-python/school/tests/test_interop.py`, asserted
+against fixed values the running Laravel app produced rather than against
+something the Python side generated — a round trip through one library proves
+only that the library agrees with itself.
 
 **Work:** maintenance page, final data sync, document root or DNS switched,
 sequences reset and asserted, smoke test as a real user.

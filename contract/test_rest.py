@@ -450,11 +450,23 @@ class EarlyAccess(RestTest):
         self.assertIn(response.status, (200, 201), f"POST /early-access\n{response!r}")
 
     def test_a_super_admin_reads_and_reviews_the_queue(self):
+        # Applies first, rather than reading whatever is already queued.
+        #
+        # This used to skip when the queue was empty, and it never was - every
+        # earlier run had left applications behind, so there was always one to
+        # find. Rebuilding the database emptied it, the test skipped, and
+        # coverage quietly fell to 151/153: two endpoints that had looked
+        # covered for weeks were only covered by litter. Tests also run in
+        # alphabetical order, which puts this one *before* the one that
+        # applies - so on any fresh database it could never have worked.
+        self.test_anybody_can_apply_without_an_account()
+
         listed = self.w.super_admin.get("/early-access")
         shapes.assert_paginated(self, listed, "GET /early-access")
 
-        if not listed.data:
-            self.skipTest("no early access request to review")
+        self.assertGreaterEqual(
+            len(listed.data), 1, "an application was just made; it should be in the queue"
+        )
 
         for request in listed.data:
             shapes.assert_shape(self, request, shapes.EARLY_ACCESS, "a request in the queue")

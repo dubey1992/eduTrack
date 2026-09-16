@@ -21,11 +21,17 @@ import factory
 from django.utils.timezone import now
 from factory.django import DjangoModelFactory
 
-from . import models
+from . import hashing, models
 
 # Anything this suite writes is throwaway, and the password is only ever set on
 # a row that a test created. It is not a credential for anything.
-TEST_PASSWORD_HASH = "$2y$04$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+#
+# Hashed once, at import, and shared by every account the factories build.
+# Laravel's cost of 12 takes about a fifth of a second, and a suite that hashed
+# per user would spend most of its runtime doing it - but hashing it for real
+# is what lets the auth tests sign in, which a placeholder could not.
+TEST_PASSWORD = "FactoryPassword!2026"
+TEST_PASSWORD_HASH = hashing.make(TEST_PASSWORD)
 
 
 class SchoolFactory(DjangoModelFactory):

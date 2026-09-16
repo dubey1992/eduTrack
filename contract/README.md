@@ -90,10 +90,44 @@ violations rather than the collision they are.
 
 | Variable | Meaning |
 |---|---|
-| `CONTRACT_BASE_URL` | Where the API is. Default `http://127.0.0.1:8000/api/v1` |
+| `CONTRACT_BASE_URL` | The backend under test. Default `http://127.0.0.1:8000/api/v1` |
+| `CONTRACT_SETUP_BASE_URL` | The backend the world is *built* through. Defaults to the one under test |
 | `CONTRACT_DISPOSABLE_DB` | Must be `yes`. There is no default, on purpose |
 | `CONTRACT_SUPER_ADMIN_EMAIL` | An account that can onboard a school |
 | `CONTRACT_SUPER_ADMIN_PASSWORD` | Its password |
+
+## Testing a backend that cannot build its own world yet
+
+Added at M8, and it is what makes this suite useful *during* the port rather
+than only at the end of it.
+
+The suite creates the school it works in through the API — two schools, their
+accounts, a class, a section, a student. The Python backend grows one module at
+a time, so for most of the migration it can serve the endpoints under test
+while being quite unable to create the school they are about. Without a way to
+split those, none of these tests could run against Python until the very last
+module landed, which is the worst possible moment to find out.
+
+So setup and assertion can point at different instances:
+
+```bash
+CONTRACT_BASE_URL=http://127.0.0.1:8002/api/v1        \
+CONTRACT_SETUP_BASE_URL=http://127.0.0.1:8001/api/v1  \
+CONTRACT_DISPOSABLE_DB=yes                            \
+CONTRACT_SUPER_ADMIN_EMAIL=contract.root@example.invalid \
+CONTRACT_SUPER_ADMIN_PASSWORD='the-one-you-chose'     \
+python -m unittest test_contract.Authentication test_contract.Students \
+                   test_contract.Envelopes test_contract.SchoolIsolation
+```
+
+Laravel on 8001 builds the school; Django on 8002 is the one being judged.
+**Both must be on the same database**, which is the whole reason the PostgreSQL
+move came first and the two backends stay runnable side by side.
+
+Two things stay honest under the split. Each client signs in on the backend it
+will be used against — so a run pointed at Django proves Django can issue a
+token for a password Laravel hashed. And coverage is only recorded for the
+backend under test, so building a world elsewhere cannot flatter the figure.
 
 ## The files
 
@@ -112,6 +146,39 @@ request the client makes is recorded and matched against `endpoints.py`, so the
 number cannot drift from what the suite actually does. `python contract/run.py`
 prints it, along with anything still missing and anything called that the
 manifest does not declare.
+
+## Rebuild the database periodically, and not only for tidiness
+
+Every run leaves records behind, so the throwaway database grows — it reached
+40 schools, 103 users and 56 students before being rebuilt on 2026-09-16.
+
+That is worth doing for a reason beyond housekeeping. **Accumulated litter can
+make the coverage figure lie.** `test_a_super_admin_reads_and_reviews_the_queue`
+skipped itself when the early-access queue was empty, and it never was: earlier
+runs had always left an application behind. On the rebuilt database it skipped,
+and coverage fell to 151/153 — two endpoints that had read as covered for weeks
+were only ever reached by leftovers. Worse, tests run in alphabetical order,
+which puts that test *before* the one that applies, so on any genuinely fresh
+database it could never have worked.
+
+The test now creates what it needs, which is the same lesson as `world.shared()`:
+depend on nothing that a previous run happened to leave lying around.
+
+To rebuild, from `backend/`:
+
+```bash
+set -a; . ./.env.contract; set +a          # DB_CONNECTION=pgsql lives here
+php artisan migrate:fresh --database=pgsql --force
+php artisan db:seed --class=SuperAdminSeeder --database=pgsql --force
+```
+
+**Check what that is pointing at before running it.** The default connection in
+this project is MySQL, which is the development database with real data in it;
+`--database=pgsql` and the `DB_CONNECTION` in `.env.contract` both have to say
+PostgreSQL. `backend/.env.contract` is gitignored and holds the contract
+instance's settings — it exists because the Super Admin password used to live
+only in whichever shell had seeded the database, and when that shell closed the
+only way back in was to reset the account.
 
 ## One thing it found already
 
