@@ -6,7 +6,8 @@
 |---|---|
 | M0 Decisions | Partly answered — see below |
 | M1 PostgreSQL locally, schema parity | **Done** 2026-09-16 |
-| M2 Portability fixes | In progress |
+| M2 Portability fixes | **Done** 2026-09-16 |
+| M3 Data migration rehearsal | **Done** 2026-09-16 |
 | M3 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework. **Still open: whether the
@@ -293,6 +294,53 @@ on a copy of the pilot database**, and the verification script passes both
 times with no manual steps.
 
 **Rollback:** it is a copy.
+
+### What happened — 2026-09-16
+
+**Done. Three clean runs**, each from an empty database, each ending in the
+verification passing with no manual step: 34 tables, 165 rows, 33 sequences.
+
+**pgloader turned out to be the wrong tool, and not narrowly.** It is a Linux
+and macOS program: it does not run on Windows, where this is developed, and it
+is not installable on the shared cPanel host where the real cutover has to
+happen. A tool that cannot run in the place it is needed is not a plan. The
+import is `php artisan db:copy` instead — version-controlled, reviewable,
+tested, and able to run anywhere PHP does, which is the one thing production is
+guaranteed to have. The schema is not its problem; `migrate` builds that, and
+M1 proved the result identical.
+
+It has to get three things right, and each is a way a migration fails quietly:
+
+- **Order.** Rows arrive so that foreign keys always have something to point
+  at, worked out from the target's own constraints rather than a hardcoded
+  list that goes stale the first time somebody adds a table.
+- **Booleans.** MySQL hands back `0` and `1` where PostgreSQL wants
+  `true`/`false` and will not take the integers.
+- **Sequences.** `setval` on all 33, then **asserted** — the verification fails
+  if any sequence sits below its table's highest id.
+
+**Proved rather than assumed.** After an import the highest school id was 114;
+an insert then received 115, not a collision. That is the actual claim, and it
+is the one the row counts cannot make.
+
+Two bugs the rehearsal found, which is what rehearsals are for:
+
+- `pg_get_serial_sequence` **raises** rather than returning null for a table
+  with no `id` column, so `password_reset_tokens` — keyed on the address —
+  aborted the run after every row had already copied.
+- `getTableListing()` on MySQL returns tables from **every schema the account
+  can see**. On a machine with a test database beside the real one that is the
+  same table twice, and no ordering can resolve it: the command aborted with a
+  bogus "circular foreign keys" error. The listing is scoped to one schema now.
+
+`CopyDatabaseCommandTest` pins the ordering, the exclusions and the
+token-carrying decision, so none of it depends on somebody remembering to
+rehearse again.
+
+**One deliberate inclusion.** `personal_access_tokens` is copied. This phase
+moves database but keeps the application, so Sanctum's tokens stay valid and
+nobody is signed out — unlike M12, where the Python backend cannot read them
+and everybody signs in again.
 
 ## M4 · Both databases in CI
 

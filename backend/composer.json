@@ -50,6 +50,14 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
+        "test:pgsql": [
+            "@php artisan config:clear --ansi @no_additional_args",
+            "@php artisan test -c phpunit.pgsql.xml"
+        ],
+        "test:both": [
+            "@composer test",
+            "@composer test:pgsql"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
