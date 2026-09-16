@@ -303,3 +303,90 @@ LEAVE = {
     "reason": "str?",
     "status": "str",
 }
+
+# -- transport ---------------------------------------------------------------
+
+VEHICLE = {
+    "id": "int",
+    "school_id": "int",
+    "name": "str",
+    "registration_number": "str",
+    "capacity": "int",
+    "status": "str",
+    "route_id": "int?",
+    "route_name": "str?",
+}
+
+DRIVER = {
+    "id": "int",
+    "school_id": "int",
+    "name": "str",
+    "mobile": "str?",
+    "licence_number": "str?",
+    "licence_expiry": "str?",
+    "status": "str",
+    "route_id": "int?",
+    "route_name": "str?",
+}
+
+ROUTE = {
+    "id": "int",
+    "school_id": "int",
+    "name": "str",
+    "status": "str",
+    "vehicle_id": "int?",
+    "vehicle_name": "str?",
+    "driver_id": "int?",
+    "driver_name": "str?",
+    "stops_count": "int",
+    "students_count": "int",
+}
+
+# The detail view adds the collections the list deliberately leaves out. A list
+# that started nesting them would make one screen fetch every stop of every
+# route; a detail that stopped would leave the route page unable to draw itself.
+ROUTE_DETAIL = {**ROUTE, "stops": "list"}
+
+STOP = {
+    "id": "int",
+    "route_id": "int",
+    "name": "str",
+    "sequence_number": "int",
+    "pickup_time": "str?",
+    "drop_time": "str?",
+}
+
+ROUTE_STUDENT = {
+    "student_id": "int",
+    "admission_number": "str",
+    "name": "str",
+    "stop_id": "int?",
+    "stop_name": "str?",
+}
+
+TRIP = {
+    "id": "int",
+    "school_id": "int",
+    "route_id": "int",
+    "route_name": "str?",
+    "trip_date": "str",
+    "direction": "str",
+    "status": "str",
+    "riders_count": "int",
+}
+
+TRIP_DETAIL = {**TRIP, "riders": "list", "stops": "list"}
+
+# A rider on a running trip. `boarded_at` is nullable because "not yet" is the
+# normal state for most of a journey, and a client that cannot represent it
+# cannot draw the screen.
+TRIP_RIDER = {
+    "student_id": "int",
+    "name": "str",
+    "stop_id": "int?",
+    "stop_name": "str?",
+    "status": "str",
+    "boarded_at": "str?",
+    "dropped_at": "str?",
+}
+
