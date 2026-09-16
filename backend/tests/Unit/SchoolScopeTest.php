@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\User;
 use App\Support\SchoolScope;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -18,6 +19,14 @@ use Tests\TestCase;
  */
 class SchoolScopeTest extends TestCase
 {
+    // Needs the schema, though almost nothing here needs a row in it.
+    // Resolving an admin's scope reads the schools table to find the group,
+    // so these assertions cannot be made against no database at all - which
+    // is how they passed on a developer machine whose test database still had
+    // tables from an earlier run, and failed the moment CI ran them on a
+    // fresh one.
+    use RefreshDatabase;
+
     private function actor(UserRole $role, ?int $schoolId): User
     {
         // Not persisted, and deliberately with no School attached: every

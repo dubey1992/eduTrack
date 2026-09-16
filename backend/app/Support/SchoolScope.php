@@ -18,9 +18,16 @@ use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
  * So it is asked here instead, once. A SUPER_ADMIN is unrestricted; everybody
  * else is pinned to their own school. Nothing else knows the difference.
  *
- * Deliberately a value object with no query of its own: it is built from a
- * User that is already loaded, so resolving a scope costs nothing and can be
- * done freely inside a policy called once per record.
+ * Mostly a value object built from a User that is already loaded. The
+ * exception is an admin role, which has to ask which schools are in its
+ * group - so building one of those reads the `schools` table. Once per
+ * request rather than once per check: the school relation is cached on the
+ * User and the group on the School (see School::groupSchoolIds()), so a
+ * policy called for every row in a list still pays for one query.
+ *
+ * That was not true before school groups existed, and the claim that it was
+ * outlived the change by long enough to break a unit test that had no
+ * database at all. Worth stating plainly rather than quietly.
  */
 final class SchoolScope
 {
