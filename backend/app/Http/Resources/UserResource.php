@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\User;
 use App\Support\SchoolClock;
+use App\Support\SchoolScope;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -39,6 +40,18 @@ class UserResource extends JsonResource
             // change-password screen until it chooses one of its own.
             'must_change_password' => $this->must_change_password,
             'school_name' => $this->whenLoaded('school', fn () => $this->school?->name),
+            // Whether "my school" is ambiguous for this account, so the
+            // client knows to ask which branch a record belongs to. True for
+            // an admin of a school in a group, false for a standalone one -
+            // which is why the client cannot work it out from the role alone.
+            //
+            // Only ever computed for the signed-in user reading their own
+            // session: it costs a query, and a paginated user list would pay
+            // it per row for something no row needs.
+            'manages_branches' => $this->when(
+                $request->user()?->getKey() === $this->getKey(),
+                fn () => SchoolScope::for($this->resource)->coversAGroup(),
+            ),
             // The session's clock. The client measures every date it shows or
             // defaults to against these two, never against the browser's own
             // timezone. A Super Admin belongs to no school and gets the

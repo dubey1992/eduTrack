@@ -82,7 +82,7 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final picksSchool = ref.watch(authNotifierProvider).value?.role.picksSchool ?? false;
+    final picksSchool = ref.watch(authNotifierProvider).value?.picksSchool ?? false;
     final pickerSchoolId = _isEdit ? (picksSchool ? widget.route!.schoolId : null) : _schoolId;
 
     return AlertDialog(

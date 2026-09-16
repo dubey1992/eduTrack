@@ -132,12 +132,22 @@ void main() {
   });
 
   group('the branch filter', () {
-    Widget wrap(UserRole role, List<School> schools) {
+    // Whether the filter appears is decided by the session's
+    // managesBranches, not by the role: the same SCHOOL_ADMIN spans a group
+    // or a single school depending on the school they sit in, and only the
+    // server knows which.
+    Widget wrap(UserRole role, List<School> schools, {bool managesBranches = false}) {
       return ProviderScope(
         overrides: [
           authRepositoryProvider.overrideWithValue(
             FakeAuthRepository(
-              sessionOnRestore: AuthenticatedUser(id: 1, name: 'Someone', email: 'someone@example.test', role: role),
+              sessionOnRestore: AuthenticatedUser(
+                id: 1,
+                name: 'Someone',
+                email: 'someone@example.test',
+                role: role,
+                managesBranches: managesBranches,
+              ),
             ),
           ),
           schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository(schools: schools)),
@@ -150,7 +160,15 @@ void main() {
     }
 
     testWidgets('a group admin gets one, worded as branches', (tester) async {
-      await tester.pumpWidget(wrap(UserRole.groupAdmin, [_group, _north]));
+      await tester.pumpWidget(wrap(UserRole.groupAdmin, [_group, _north], managesBranches: true));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filter by branch'), findsOneWidget);
+      expect(find.text('Whole group'), findsWidgets);
+    });
+
+    testWidgets('a school admin in a group gets the same one', (tester) async {
+      await tester.pumpWidget(wrap(UserRole.schoolAdmin, [_group, _north], managesBranches: true));
       await tester.pumpAndSettle();
 
       expect(find.text('Filter by branch'), findsOneWidget);
@@ -165,8 +183,17 @@ void main() {
       expect(find.text('All Schools'), findsWidgets);
     });
 
-    testWidgets('nobody else gets one at all', (tester) async {
+    testWidgets('an admin of a standalone school gets none', (tester) async {
       await tester.pumpWidget(wrap(UserRole.schoolAdmin, [_group]));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DropdownButtonFormField<int?>), findsNothing);
+    });
+
+    testWidgets('a teacher in a group gets none either', (tester) async {
+      // The group is an administrative idea. Nothing about it reaches a
+      // teacher, whatever their school is part of.
+      await tester.pumpWidget(wrap(UserRole.teacher, [_group, _north]));
       await tester.pumpAndSettle();
 
       expect(find.byType(DropdownButtonFormField<int?>), findsNothing);

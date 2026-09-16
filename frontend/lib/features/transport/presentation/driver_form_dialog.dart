@@ -102,7 +102,7 @@ class _DriverFormDialogState extends ConsumerState<DriverFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final picksSchool = ref.watch(authNotifierProvider).value?.role.picksSchool ?? false;
+    final picksSchool = ref.watch(authNotifierProvider).value?.picksSchool ?? false;
 
     return AlertDialog(
       title: Text(_isEdit ? 'Edit Driver' : 'Add Driver'),

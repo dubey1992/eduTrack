@@ -155,7 +155,7 @@ class GroupAdminTest extends TestCase
 
     public function test_a_group_admin_must_say_which_branch(): void
     {
-        // Unlike a School Admin, "my school" is ambiguous for them.
+        // "My school" is ambiguous for anybody reaching several.
         $payload = $this->studentPayload($this->north);
         unset($payload['school_id']);
 
@@ -242,42 +242,48 @@ class GroupAdminTest extends TestCase
         ])->assertForbidden();
     }
 
-    // -- the regression the other design would have introduced ------------
+    // -- a School Admin in the same group ---------------------------------
+    //
+    // These three used to assert the opposite: a School Admin saw one school
+    // and nothing else, whichever school it was. That changed on 2026-09-16
+    // - an admin of a school in a group answers for the whole group, the same
+    // as a Group Admin does. The full matrix lives in SchoolAdminGroupTest;
+    // these stay here because this is the file that says what a group means.
 
-    public function test_a_school_admin_at_the_parent_still_cannot_see_a_branch(): void
+    public function test_a_school_admin_at_the_parent_reads_a_branch(): void
     {
-        // This is the whole reason GROUP_ADMIN exists as its own role: if a
-        // parent's School Admin could see downwards, every existing
-        // permission would have quietly changed meaning.
         $parentAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($this->group)->create();
         $student = $this->studentAt($this->north);
 
         $this->actingAs($parentAdmin, 'sanctum')
             ->getJson("/api/v1/students/{$student->id}")
-            ->assertForbidden();
+            ->assertOk();
     }
 
-    public function test_a_school_admin_at_a_branch_cannot_see_its_sister(): void
+    public function test_a_school_admin_at_a_branch_reads_its_sister(): void
     {
         $northAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($this->north)->create();
         $student = $this->studentAt($this->south);
 
         $this->actingAs($northAdmin, 'sanctum')
             ->getJson("/api/v1/students/{$student->id}")
-            ->assertForbidden();
+            ->assertOk();
     }
 
-    public function test_a_branch_admins_list_is_still_only_their_own_branch(): void
+    public function test_a_branch_admins_list_spans_the_group(): void
     {
         $this->studentAt($this->north, 'North');
         $this->studentAt($this->south, 'South');
+        $this->studentAt($this->outsider, 'Outsider');
         $northAdmin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($this->north)->create();
 
         $names = collect(
             $this->actingAs($northAdmin, 'sanctum')->getJson('/api/v1/students')->assertOk()->json('data')
         )->pluck('first_name');
 
-        $this->assertSame(['North'], $names->all());
+        // The group, and the group only - the unrelated school's student is
+        // the one that must never appear.
+        $this->assertSame(['North', 'South'], $names->sort()->values()->all());
     }
 
     // -- users ------------------------------------------------------------
@@ -467,11 +473,20 @@ class GroupAdminTest extends TestCase
         $this->assertNotContains('Elsewhere High', $names->all());
     }
 
-    public function test_a_school_admin_still_cannot_list_schools_at_all(): void
+    public function test_a_school_admin_in_the_group_lists_the_group(): void
     {
+        // They need it: with more than one branch in reach, every form has to
+        // ask which one, and this is where the picker's options come from.
+        // A standalone School Admin still has nothing to pick and is still
+        // refused - see SchoolAdminGroupTest.
         $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($this->north)->create();
 
-        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/schools')->assertForbidden();
+        $names = collect(
+            $this->actingAs($admin, 'sanctum')->getJson('/api/v1/schools')->assertOk()->json('data')
+        )->pluck('name');
+
+        $this->assertNotContains('Elsewhere High', $names->all());
+        $this->assertCount(3, $names);
     }
 
     // -- a group of one ----------------------------------------------------

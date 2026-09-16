@@ -77,7 +77,7 @@ class _VehicleFormDialogState extends ConsumerState<VehicleFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final picksSchool = ref.watch(authNotifierProvider).value?.role.picksSchool ?? false;
+    final picksSchool = ref.watch(authNotifierProvider).value?.picksSchool ?? false;
 
     return AlertDialog(
       title: Text(_isEdit ? 'Edit Vehicle' : 'Add Vehicle'),

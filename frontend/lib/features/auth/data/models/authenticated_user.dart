@@ -9,6 +9,7 @@ class AuthenticatedUser {
     required this.role,
     this.isSubAdmin = false,
     this.mustChangePassword = false,
+    this.managesBranches = false,
     SchoolClock? clock,
   }) : _clock = clock;
 
@@ -26,6 +27,7 @@ class AuthenticatedUser {
       ),
       isSubAdmin: json['is_sub_admin'] as bool? ?? false,
       mustChangePassword: json['must_change_password'] as bool? ?? false,
+      managesBranches: json['manages_branches'] as bool? ?? false,
     );
   }
 
@@ -53,4 +55,20 @@ class AuthenticatedUser {
   /// generated password. The router keeps them on the change-password
   /// screen until they pick one of their own.
   final bool mustChangePassword;
+
+  /// True when this account answers for more than one school - an admin of a
+  /// school that belongs to a group. Sent by the server, because the role
+  /// alone cannot tell you: a School Admin spans a group or a single school
+  /// depending on whether their school has branches at all.
+  ///
+  /// Mirrors the backend's SchoolScope::coversAGroup().
+  final bool managesBranches;
+
+  /// True when "my school" is ambiguous for this user, so a form has to ask
+  /// which one. A Super Admin belongs to no school; an admin in a group
+  /// belongs to several.
+  ///
+  /// Mirrors the backend's SchoolScope::defaultSchoolId() being null, which
+  /// is what makes school_id a required field on the request.
+  bool get picksSchool => role == UserRole.superAdmin || managesBranches;
 }

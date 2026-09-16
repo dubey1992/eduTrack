@@ -20,8 +20,11 @@ class SchoolScopeTest extends TestCase
 {
     private function actor(UserRole $role, ?int $schoolId): User
     {
-        // Not persisted: a scope is built from a User that is already in
-        // memory and never queries anything.
+        // Not persisted, and deliberately with no School attached: every
+        // assertion in this file is about the rules themselves, so nothing
+        // here should depend on a row existing. For an admin role that means
+        // these exercise the fallback in groupOf() - which is the point of
+        // the test below.
         $user = new User;
         $user->role = $role;
         $user->school_id = $schoolId;
@@ -99,6 +102,31 @@ class SchoolScopeTest extends TestCase
             'staff' => [UserRole::Staff],
             'transport manager' => [UserRole::TransportManager],
         ];
+    }
+
+    public function test_an_admin_whose_school_cannot_be_read_keeps_their_own(): void
+    {
+        // A School Admin normally resolves to their school's whole group,
+        // which needs the school row. Without one - deleted underneath them,
+        // or an account built in memory - they fall back to the id on the
+        // account rather than to nothing, so they still see their own
+        // records instead of an empty screen with no explanation.
+        $scope = SchoolScope::for($this->actor(UserRole::SchoolAdmin, 4));
+
+        $this->assertSame([4], $scope->ids());
+        $this->assertSame(4, $scope->defaultSchoolId());
+    }
+
+    public function test_an_account_with_no_school_at_all_sees_nothing(): void
+    {
+        // Never "no filter": a null school_id must not quietly match every
+        // record whose school_id is also null.
+        $scope = SchoolScope::for($this->actor(UserRole::SchoolAdmin, null));
+
+        $this->assertFalse($scope->isUnrestricted());
+        $this->assertSame([], $scope->ids());
+        $this->assertFalse($scope->allows(null));
+        $this->assertNull($scope->defaultSchoolId());
     }
 
     public function test_a_pinned_query_is_limited_to_that_school(): void

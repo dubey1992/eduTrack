@@ -15,10 +15,7 @@ void main() {
       home: Scaffold(
         body: SizedBox(
           width: width,
-          child: MarketingNavBar(
-            onNavigate: {for (final label in links) label: () {}},
-            onJoinEarlyAccess: () {},
-          ),
+          child: MarketingNavBar(onNavigate: {for (final label in links) label: () {}}, onJoinEarlyAccess: () {}),
         ),
       ),
     );

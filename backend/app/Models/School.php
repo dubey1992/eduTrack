@@ -27,6 +27,14 @@ class School extends Model
     /** @use HasFactory<SchoolFactory> */
     use HasFactory;
 
+    /**
+     * Memoised by groupSchoolIds(). Not an attribute - it is derived, and
+     * lives only as long as this instance does.
+     *
+     * @var array<int, int>|null
+     */
+    private ?array $groupSchoolIds = null;
+
     protected function casts(): array
     {
         return [
@@ -69,13 +77,18 @@ class School extends Model
      * query here and everywhere that calls it, and buys nothing a school has
      * asked for. Validation stops the data ever becoming deeper than this.
      *
+     * Held on the instance after the first call. Every School Admin's scope
+     * now resolves through here, and a scope is built once per policy check -
+     * so a list of fifty students would otherwise ask the same question fifty
+     * times (CLAUDE.md rule 22).
+     *
      * @return array<int, int>
      */
     public function groupSchoolIds(): array
     {
         $rootId = $this->parent_school_id ?? $this->id;
 
-        return School::query()
+        return $this->groupSchoolIds ??= School::query()
             ->where('id', $rootId)
             ->orWhere('parent_school_id', $rootId)
             ->orderBy('id')

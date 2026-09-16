@@ -58,11 +58,13 @@ class DashboardService
             UserRole::SuperAdmin => $schoolId === null
                 ? $this->platform($clock)
                 : $this->school($schoolId, $today),
-            // A branch they named, or the group as a whole.
-            UserRole::GroupAdmin => $schoolId === null
+            // A branch they named, or the group as a whole. An admin of a
+            // standalone school never reaches the group arm: their scope is
+            // one school, so schoolIdFor() has already resolved it for them
+            // and they land on their own figures as they always have.
+            UserRole::GroupAdmin, UserRole::SchoolAdmin => $schoolId === null
                 ? $this->group($actor, $today)
                 : $this->school($schoolId, $today),
-            UserRole::SchoolAdmin => $this->school((int) $actor->school_id, $today),
             UserRole::Hod => $this->hod($actor, $today),
             UserRole::Teacher => $this->teacher($actor, $today),
             UserRole::TransportManager => $this->transport((int) $actor->school_id, $today),

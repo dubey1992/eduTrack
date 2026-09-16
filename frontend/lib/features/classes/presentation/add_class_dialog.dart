@@ -7,9 +7,8 @@ import '../../../core/widgets/async_value_view.dart';
 import '../../academic_years/application/academic_year_picker_provider.dart';
 import '../../academic_years/data/models/academic_year.dart';
 import '../../auth/application/auth_notifier.dart';
-import '../../schools/application/school_list_notifier.dart';
-import '../../schools/data/models/school.dart';
 import '../application/school_class_list_notifier.dart';
+import '../../../core/widgets/school_picker.dart';
 
 class AddClassDialog extends ConsumerStatefulWidget {
   const AddClassDialog({super.key});
@@ -67,7 +66,7 @@ class _AddClassDialogState extends ConsumerState<AddClassDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final picksSchool = ref.watch(authNotifierProvider).value?.role.picksSchool ?? false;
+    final picksSchool = ref.watch(authNotifierProvider).value?.picksSchool ?? false;
 
     return AlertDialog(
       title: const Text('Add Class'),
@@ -84,7 +83,7 @@ class _AddClassDialogState extends ConsumerState<AddClassDialog> {
                   const SizedBox(height: 12),
                 ],
                 if (picksSchool) ...[
-                  _SchoolPicker(
+                  SchoolPicker(
                     selected: _schoolId,
                     onChanged: (value) => setState(() {
                       _schoolId = value;
@@ -133,39 +132,6 @@ class _AddClassDialogState extends ConsumerState<AddClassDialog> {
               : const Text('Save'),
         ),
       ],
-    );
-  }
-}
-
-class _SchoolPicker extends ConsumerWidget {
-  const _SchoolPicker({required this.selected, required this.onChanged});
-
-  final int? selected;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final schoolsState = ref.watch(schoolListNotifierProvider);
-
-    return AsyncValueView<List<School>>(
-      value: schoolsState,
-      data: (context, schools) {
-        final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
-        return DropdownButtonFormField<int>(
-          initialValue: selected,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'School'),
-          items: [
-            for (final school in activeSchools)
-              DropdownMenuItem(
-                value: school.id,
-                child: Text(school.name, overflow: TextOverflow.ellipsis, maxLines: 1),
-              ),
-          ],
-          onChanged: onChanged,
-          validator: (v) => v == null ? 'School is required' : null,
-        );
-      },
     );
   }
 }

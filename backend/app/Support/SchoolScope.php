@@ -33,16 +33,44 @@ final class SchoolScope
     {
         return match ($actor->role) {
             UserRole::SuperAdmin => self::unrestricted(),
-            // A group admin is attached to the parent and reaches every
-            // branch beneath it - and nothing outside that group, however
-            // the request is edited.
-            UserRole::GroupAdmin => self::of($actor->school?->groupSchoolIds() ?? []),
-            // Everybody else lives in exactly one school. An account with no
-            // school at all - which should not happen outside a half-finished
-            // fixture - can see nothing, rather than mysteriously matching
-            // every record whose school_id is also null.
+            // Both admin roles answer for a whole group: a Group Admin from
+            // the parent it is attached to, a School Admin from whichever
+            // branch it sits in. Either way it is that school's group and
+            // nothing outside it, however the request is edited.
+            //
+            // For a standalone school - which is most of them - the group is
+            // just that school, so this resolves to exactly what it always
+            // did and nothing about those schools changes.
+            UserRole::GroupAdmin, UserRole::SchoolAdmin => self::groupOf($actor),
+            // Everybody else lives in exactly one school. A Teacher at North
+            // teaches at North; the group is an administrative idea, not a
+            // teaching one. An account with no school at all - which should
+            // not happen outside a half-finished fixture - can see nothing,
+            // rather than mysteriously matching every record whose school_id
+            // is also null.
             default => new self($actor->school_id === null ? [] : [$actor->school_id]),
         };
+    }
+
+    /**
+     * The group an admin answers for: their school, plus its parent and
+     * sisters, or its branches.
+     *
+     * Falls back to the school id on the account when the school itself
+     * cannot be read - a row deleted out from under it, or a user built
+     * without one. "Their own school and no other" is the right answer for an
+     * admin whatever else is wrong; resolving to nothing would hide their own
+     * records from them with no error to explain it.
+     */
+    private static function groupOf(User $actor): self
+    {
+        $group = $actor->school?->groupSchoolIds();
+
+        if ($group === null) {
+            return new self($actor->school_id === null ? [] : [$actor->school_id]);
+        }
+
+        return self::of($group);
     }
 
     public static function unrestricted(): self

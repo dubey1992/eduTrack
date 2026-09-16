@@ -7,11 +7,10 @@ import '../../../core/widgets/async_value_view.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../departments/application/department_picker_provider.dart';
 import '../../departments/data/models/department.dart';
-import '../../schools/application/school_list_notifier.dart';
-import '../../schools/data/models/school.dart';
 import '../../users/application/teacher_picker_provider.dart';
 import '../../users/data/models/app_user.dart';
 import '../application/subject_list_notifier.dart';
+import '../../../core/widgets/school_picker.dart';
 
 class AddSubjectDialog extends ConsumerStatefulWidget {
   const AddSubjectDialog({super.key});
@@ -84,7 +83,7 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final picksSchool = ref.watch(authNotifierProvider).value?.role.picksSchool ?? false;
+    final picksSchool = ref.watch(authNotifierProvider).value?.picksSchool ?? false;
 
     return AlertDialog(
       title: const Text('Add Subject'),
@@ -101,7 +100,7 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
                   const SizedBox(height: 12),
                 ],
                 if (picksSchool) ...[
-                  _SchoolPicker(
+                  SchoolPicker(
                     selected: _schoolId,
                     onChanged: (value) => setState(() {
                       _schoolId = value;
@@ -191,39 +190,6 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
     final parsed = int.tryParse(v ?? '');
     if (parsed == null || parsed < 0 || parsed > 12) return '0-12';
     return null;
-  }
-}
-
-class _SchoolPicker extends ConsumerWidget {
-  const _SchoolPicker({required this.selected, required this.onChanged});
-
-  final int? selected;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final schoolsState = ref.watch(schoolListNotifierProvider);
-
-    return AsyncValueView<List<School>>(
-      value: schoolsState,
-      data: (context, schools) {
-        final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
-        return DropdownButtonFormField<int>(
-          initialValue: selected,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'School'),
-          items: [
-            for (final school in activeSchools)
-              DropdownMenuItem(
-                value: school.id,
-                child: Text(school.name, overflow: TextOverflow.ellipsis, maxLines: 1),
-              ),
-          ],
-          onChanged: onChanged,
-          validator: (v) => v == null ? 'School is required' : null,
-        );
-      },
-    );
   }
 }
 

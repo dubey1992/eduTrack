@@ -286,11 +286,41 @@ class GroupReportsTest extends TestCase
 
     // ── everybody else ──────────────────────────────────────────────────
 
-    public function test_a_school_admin_never_gets_a_group_report(): void
+    public function test_a_school_admin_in_a_group_gets_the_group_report(): void
+    {
+        // Was the opposite until 2026-09-16, when a School Admin in a group
+        // gained the group. Reports follow the scope rather than the role, so
+        // this needed no change beyond the scope itself.
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($this->north)->create();
+        $this->studentsAt($this->north, 1);
+        $this->studentsAt($this->south, 1);
+
+        $response = $this->actingAs($admin, 'sanctum')->getJson($this->url())->assertOk();
+
+        $this->assertNotNull($response->json('group'));
+        $this->assertCount(2, $response->json('rows'));
+    }
+
+    public function test_a_school_admin_in_a_group_can_still_report_on_one_branch(): void
     {
         $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($this->north)->create();
         $this->studentsAt($this->north, 1);
         $this->studentsAt($this->south, 1);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->getJson($this->url('student-attendance', ['school_id' => $this->south->id]))
+            ->assertOk();
+
+        $this->assertNull($response->json('group'));
+        $this->assertCount(1, $response->json('rows'));
+    }
+
+    public function test_a_standalone_school_admin_still_gets_a_plain_report(): void
+    {
+        $lone = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($lone)->create();
+        $this->studentsAt($lone, 1);
+        $this->studentsAt($this->north, 1);
 
         $response = $this->actingAs($admin, 'sanctum')->getJson($this->url())->assertOk();
 

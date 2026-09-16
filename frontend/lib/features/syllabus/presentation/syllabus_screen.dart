@@ -7,8 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../classes/application/class_section_picker_provider.dart';
-import '../../schools/application/school_list_notifier.dart';
-import '../../schools/data/models/school.dart';
 import '../../subjects/data/models/subject.dart';
 import '../../timetable/application/subject_picker_provider.dart';
 import '../application/syllabus_checklist_notifier.dart';
@@ -16,6 +14,7 @@ import '../data/models/syllabus_checklist.dart';
 import '../data/syllabus_topic_repository.dart';
 import 'widgets/add_topic_dialog.dart';
 import 'widgets/edit_topic_dialog.dart';
+import '../../../core/widgets/school_picker.dart';
 
 /// Phase 12 - a subject's curriculum outline (ordered topics) plus one
 /// class section's completion checklist against it. Outline management
@@ -40,7 +39,7 @@ class _SyllabusScreenState extends ConsumerState<SyllabusScreen> {
     final actor = ref.watch(authNotifierProvider).value;
     if (actor == null) return const SizedBox.shrink();
 
-    final picksSchool = actor.role.picksSchool;
+    final picksSchool = actor.picksSchool;
     final canManageOutline = _outlineManagerRoles.contains(actor.role);
 
     return SingleChildScrollView(
@@ -66,7 +65,8 @@ class _SyllabusScreenState extends ConsumerState<SyllabusScreen> {
                   if (picksSchool)
                     SizedBox(
                       width: 240,
-                      child: _SchoolPicker(
+                      child: SchoolPicker(
+                        required: false,
                         selected: _schoolId,
                         onChanged: (value) => setState(() {
                           _schoolId = value;
@@ -113,38 +113,6 @@ class _SyllabusScreenState extends ConsumerState<SyllabusScreen> {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _SchoolPicker extends ConsumerWidget {
-  const _SchoolPicker({required this.selected, required this.onChanged});
-
-  final int? selected;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final schoolsState = ref.watch(schoolListNotifierProvider);
-
-    return AsyncValueView<List<School>>(
-      value: schoolsState,
-      data: (context, schools) {
-        final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
-        return DropdownButtonFormField<int>(
-          initialValue: selected,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'School'),
-          items: [
-            for (final school in activeSchools)
-              DropdownMenuItem(
-                value: school.id,
-                child: Text(school.name, overflow: TextOverflow.ellipsis, maxLines: 1),
-              ),
-          ],
-          onChanged: onChanged,
-        );
-      },
     );
   }
 }

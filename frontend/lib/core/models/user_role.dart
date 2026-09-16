@@ -16,13 +16,13 @@ enum UserRole {
   final String apiValue;
   final String label;
 
-  /// True when "my school" is ambiguous for this actor, so a form has to ask
-  /// which one. A Super Admin belongs to none and a Group Admin to several.
-  /// Mirrors the backend's SchoolScope::defaultSchoolId() being null.
-  bool get picksSchool => this == UserRole.superAdmin || this == UserRole.groupAdmin;
+  /// Whether a form has to ask which school is deliberately *not* here: a
+  /// School Admin spans a group or a single school depending on the school
+  /// they are in, which a role cannot know. See
+  /// AuthenticatedUser.picksSchool.
 
-  /// Administers schools' own affairs - one school for a School Admin, every
-  /// branch in the group for a Group Admin. Mirrors the backend's
+  /// Administers schools' own affairs - their own school, and every branch in
+  /// its group where there is one. Mirrors the backend's
   /// UserRole::administersSchool().
   bool get administersSchool => this == UserRole.schoolAdmin || this == UserRole.groupAdmin;
 

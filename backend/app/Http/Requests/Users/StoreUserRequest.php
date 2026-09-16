@@ -51,10 +51,11 @@ class StoreUserRequest extends FormRequest
                     ? [UserRole::SchoolAdmin->value, UserRole::GroupAdmin->value]
                     : [UserRole::SchoolAdmin->value]),
             ],
-            // A SUPER_ADMIN actor must pick a school explicitly; a School
-            // Admin actor creating a Sub Admin is always scoped to their
-            // own school server-side (see UserService::create()) - never
-            // trusted from this field either way.
+            // Anybody who answers for more than one school must pick one
+            // explicitly - a SUPER_ADMIN, and an admin of a school in a
+            // group. An admin of a standalone school is scoped to it
+            // server-side (see UserService::create()) and need not say.
+            // Never trusted from this field in either case.
             'school_id' => $this->schoolIdRules(),
         ];
     }

@@ -105,9 +105,34 @@ A new `UserRole::GroupAdmin`, attached to the parent school.
   stays `SUPER_ADMIN` — it is a platform-shape change, not a school operation.
 - **Cannot** reach a school outside its own group, under any request.
 
-`SCHOOL_ADMIN` keeps meaning precisely what it means today: one school, one
-boundary. That is deliberate — no existing permission changes meaning, so no
-existing isolation test has to be re-read.
+### And SCHOOL_ADMIN, from 2026-09-16
+
+`SCHOOL_ADMIN` **also spans its group**, in both directions: the head office
+looks down at its branches, and a branch looks up at the parent and sideways
+at its sisters. Reads and writes alike, on the same terms as a Group Admin —
+a write still names exactly one branch.
+
+This reverses the original decision, which kept a School Admin to one school
+whichever school it was. The reasoning for the change: whoever runs a school
+in a group is running it *as part of* that group, and the people asking for
+branches are the same people administering them.
+
+**For a standalone school — which is nearly every school — nothing changes
+at all.** `groupSchoolIds()` on a school with no parent and no branches
+returns just that school, so the scope resolves to exactly what it always did.
+That is the property to protect, and there are regression tests that say so.
+
+**What it costs, knowingly:** an admin at one branch can read and edit another
+branch's students, staff and payroll. If branches are ever run by separate
+people, franchised, or sold, that is not recoverable by editing a role — it
+needs a narrower scope and the migration that goes with it. Named here so the
+decision is not rediscovered as a surprise.
+
+It also leaves `GROUP_ADMIN` and `SCHOOL_ADMIN` with identical scope. The role
+is kept rather than retired: it is attached to the parent and cannot be
+attached to a branch, so it still carries a meaning ("this account is the
+group's"), and deleting a role that live accounts hold is a migration, not a
+tidy-up.
 
 ### Tests this needs
 
@@ -118,10 +143,15 @@ that matter most here:
 - A Group Admin reads a school in *another* group. **DENY**
 - A Group Admin writes to a sister branch by naming it. **ALLOW**
 - A Group Admin creates a school. **DENY**
-- A School Admin at a parent reads a child branch. **DENY** — this is the
-  regression the "parent sees all" option would have introduced, and the test
-  exists to keep it impossible.
-- A School Admin at a branch reads its parent. **DENY**
+- A School Admin at a parent reads a child branch. **ALLOW** (was DENY before
+  2026-09-16)
+- A School Admin at a branch reads its parent and its sisters. **ALLOW**
+- A School Admin reads a school in another group. **DENY**
+- A School Admin of a *standalone* school reads another school. **DENY**, and
+  needs no `school_id` to write — the regression guard that the change is
+  invisible to schools that are not in a group.
+- A Teacher at a branch reads a sister branch. **DENY** — the group is an
+  administrative idea, not a teaching one.
 
 ## What stays per-branch
 
@@ -215,10 +245,13 @@ Sweeping the `SuperAdmin` call sites left two scope decisions keyed on
 Both are covered by tests now. Neither would have been found by adding the
 role to 154 branching points by hand.
 
-## Where a Group Admin's limits are enforced
+## Where a group admin's limits are enforced
 
-- **Scope** (which schools): `App\Support\SchoolScope`. A Group Admin
-  resolves to `School::groupSchoolIds()` - the parent and its branches.
+- **Scope** (which schools): `App\Support\SchoolScope`. Both admin roles
+  resolve to `School::groupSchoolIds()` - the school's group, reached from
+  either the parent or any branch. Memoised on the School instance, because a
+  scope is built once per policy check and every School Admin now goes
+  through it.
 - **Capability** (what they may do): `UserRole::administersSchool()`, which is
   true for a School Admin and a Group Admin alike, plus the `ADMIN_ROLES`
   constants on each policy. `SchoolPolicy` and `PaymentPolicy` deliberately
@@ -226,6 +259,19 @@ role to 154 branching points by hand.
 - **Which branch a write lands in**: `SchoolScope::writableSchoolId()`, and
   `ScopesSchool::schoolIdRules()` makes `school_id` required for anybody whose
   scope covers more than one school.
+- **Whether the client asks which branch**: `manages_branches` on the
+  signed-in user's own `/me` payload, which is `SchoolScope::coversAGroup()`.
+  The client cannot infer this from the role - the same `SCHOOL_ADMIN` spans a
+  group or a single school depending on the school it sits in - so the server
+  says. It is computed only for the user reading their own session, never per
+  row of a user list.
+- **How the question is worded**: one `SchoolPicker`
+  (`lib/core/widgets/school_picker.dart`), used by every form and filter that
+  has to ask. A Super Admin is choosing between schools and a grouped admin
+  between branches, so the label and its validation message follow the reader
+  - the same distinction the filter above it already made. It was twelve
+  identical private copies until the wording had to differ, at which point
+  twelve places to change was twelve chances to miss one.
 
 ## Deliberately out of scope
 

@@ -28,8 +28,10 @@ class BulkImportRequest extends FormRequest
             // Two megabytes is several thousand rows of text, well past the
             // 2,000-row ceiling the import itself enforces.
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
-            // A school user imports into their own school and cannot say
-            // otherwise. Only a Super Admin, who belongs to none, names one.
+            // An actor with one school imports into it and cannot say
+            // otherwise. Anybody reaching several - a Super Admin, or an
+            // admin of a school in a group - names the one they mean. A
+            // spreadsheet is filed into a branch, never into a group.
             'school_id' => $this->schoolIdRules(),
         ];
     }

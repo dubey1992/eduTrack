@@ -4,13 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/password_field.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../../auth/application/auth_notifier.dart';
-import '../../schools/application/school_list_notifier.dart';
-import '../../schools/data/models/school.dart';
 import '../application/user_list_notifier.dart';
+import '../../../core/widgets/school_picker.dart';
 
 /// Onboards an admin-tier account - always SCHOOL_ADMIN, the only role
 /// this dialog creates (mirrors the backend's StoreUserRequest). A
@@ -91,10 +89,12 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final actorRole = ref.watch(authNotifierProvider).value?.role;
-    // Two different questions: who must name a school, and who may hand out
-    // the group-level role. Only a Super Admin does the second.
-    final picksSchool = actorRole?.picksSchool ?? false;
+    final actor = ref.watch(authNotifierProvider).value;
+    final actorRole = actor?.role;
+    // Two different questions: who must name a school - anybody answering
+    // for more than one, which now includes a School Admin in a group - and
+    // who may hand out the group-level role. Only a Super Admin does that.
+    final picksSchool = actor?.picksSchool ?? false;
     final isSuperAdmin = actorRole == UserRole.superAdmin;
 
     return AlertDialog(
@@ -157,7 +157,7 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
                 // SUPER_ADMIN, who has no "own school", must choose one.
                 if (picksSchool) ...[
                   const SizedBox(height: 10),
-                  _SchoolPicker(selected: _schoolId, onChanged: (value) => setState(() => _schoolId = value)),
+                  SchoolPicker(selected: _schoolId, onChanged: (value) => setState(() => _schoolId = value)),
                 ],
               ],
             ),
@@ -177,39 +177,6 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
               : const Text('Create'),
         ),
       ],
-    );
-  }
-}
-
-class _SchoolPicker extends ConsumerWidget {
-  const _SchoolPicker({required this.selected, required this.onChanged});
-
-  final int? selected;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final schoolsState = ref.watch(schoolListNotifierProvider);
-
-    return AsyncValueView<List<School>>(
-      value: schoolsState,
-      data: (context, schools) {
-        final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
-        return DropdownButtonFormField<int>(
-          initialValue: selected,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'School'),
-          items: [
-            for (final school in activeSchools)
-              DropdownMenuItem(
-                value: school.id,
-                child: Text(school.name, overflow: TextOverflow.ellipsis, maxLines: 1),
-              ),
-          ],
-          onChanged: onChanged,
-          validator: (v) => v == null ? 'School is required' : null,
-        );
-      },
     );
   }
 }
