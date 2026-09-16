@@ -1,0 +1,13 @@
+# The Python backend, pinned. Versions matter more than usual here: this has to
+# reproduce an API the Flutter apps already depend on, and a silent upgrade that
+# changes how DRF renders an error would be a contract break nobody asked for.
+
+Django==5.1.4
+djangorestframework==3.15.2
+
+# psycopg 3, binary build - no local libpq or compiler needed, which matters on
+# Windows and on shared hosting alike.
+psycopg[binary]==3.2.3
+
+# Test data, the equivalent of Laravel's factories.
+factory-boy==3.3.1

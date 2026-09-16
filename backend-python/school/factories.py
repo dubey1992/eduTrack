@@ -1,0 +1,163 @@
+"""Test data, the way Laravel's factories make it.
+
+The Laravel suite has 31 of these and leans on them in almost every test; the
+Python suite will do the same, so they arrive with the skeleton rather than
+being invented one at a time as each module is ported.
+
+Everything defaults to something valid, and any of it can be overridden -
+`SchoolFactory(name="St Mary's North", parent_school=group)` reads the same way
+`School::factory()->branchOf($group)` does, which matters because these tests
+are being written by people holding the old ones in their heads.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+
+import factory
+# Imported as a bare name, not as `timezone`: SchoolFactory has a field
+# called `timezone`, and inside a class body that shadows the module - so
+# `timezone.now` would resolve to the string "Asia/Kolkata".
+from django.utils.timezone import now
+from factory.django import DjangoModelFactory
+
+from . import models
+
+# Anything this suite writes is throwaway, and the password is only ever set on
+# a row that a test created. It is not a credential for anything.
+TEST_PASSWORD_HASH = "$2y$04$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+
+
+class SchoolFactory(DjangoModelFactory):
+    class Meta:
+        model = models.School
+
+    name = factory.Sequence(lambda n: f"Test School {n}")
+    email = factory.Sequence(lambda n: f"school{n}@example.invalid")
+    phone = "+91 9000000000"
+    address = "1 Test Road"
+    city = "Testville"
+    state = "Testing"
+    country = "India"
+    postal_code = "000000"
+    currency_code = "INR"
+    timezone = "Asia/Kolkata"
+    status = "active"
+
+    # Null for a standalone school, which is most of them. A branch is made by
+    # passing the parent: SchoolFactory(parent_school=group). See
+    # ../../docs/branches.md - a branch is a school row with a parent, and
+    # nothing else distinguishes it.
+    parent_school = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class UserFactory(DjangoModelFactory):
+    class Meta:
+        model = models.User
+
+    first_name = "Test"
+    last_name = factory.Sequence(lambda n: f"User {n}")
+    email = factory.Sequence(lambda n: f"user{n}@example.invalid")
+    password = TEST_PASSWORD_HASH
+    mobile = None
+    role = "SCHOOL_ADMIN"
+    status = "active"
+    is_sub_admin = False
+    must_change_password = False
+    school = factory.SubFactory(SchoolFactory)
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class DepartmentFactory(DjangoModelFactory):
+    class Meta:
+        model = models.Department
+
+    school = factory.SubFactory(SchoolFactory)
+    name = factory.Sequence(lambda n: f"Department {n}")
+    hod_user = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class StaffProfileFactory(DjangoModelFactory):
+    class Meta:
+        model = models.StaffProfile
+
+    # The login and the employment record are created together, the way the
+    # Add Employee screen does it - a profile without an account is somebody
+    # who exists on a roster and cannot sign in.
+    user = factory.SubFactory(UserFactory, role="TEACHER")
+    school = factory.LazyAttribute(lambda o: o.user.school)
+    employee_id = factory.Sequence(lambda n: f"EMP-{n:04d}")
+    department = None
+    designation = "Teacher"
+    joining_date = dt.date(2026, 4, 1)
+    address = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class AcademicYearFactory(DjangoModelFactory):
+    class Meta:
+        model = models.AcademicYear
+
+    school = factory.SubFactory(SchoolFactory)
+    name = factory.Sequence(lambda n: f"20{26 + n % 5}-{27 + n % 5}")
+    start_date = dt.date(2026, 4, 1)
+    end_date = dt.date(2027, 3, 31)
+    is_current = True
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class SchoolClassFactory(DjangoModelFactory):
+    class Meta:
+        model = models.SchoolClass
+
+    academic_year = factory.SubFactory(AcademicYearFactory)
+    school = factory.LazyAttribute(lambda o: o.academic_year.school)
+    name = factory.Sequence(lambda n: f"Grade {n % 12 + 1}")
+    level = factory.Sequence(lambda n: n % 12 + 1)
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class ClassSectionFactory(DjangoModelFactory):
+    class Meta:
+        model = models.ClassSection
+
+    school_class = factory.SubFactory(SchoolClassFactory)
+    name = "A"
+    room_number = None
+    class_teacher = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class StudentFactory(DjangoModelFactory):
+    class Meta:
+        model = models.Student
+
+    class_section = factory.SubFactory(ClassSectionFactory)
+    school = factory.LazyAttribute(lambda o: o.class_section.school_class.school)
+    admission_number = factory.Sequence(lambda n: f"STU-{n:04d}")
+    first_name = "Aarav"
+    last_name = factory.Sequence(lambda n: f"Sharma {n}")
+    roll_number = None
+    guardian_name = "Meera Sharma"
+    guardian_mobile = None
+    address = None
+    status = "active"
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

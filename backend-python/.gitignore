@@ -1,0 +1,6 @@
+# The virtualenv is a build artefact of whichever machine created it.
+# requirements.txt is the thing that gets committed.
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
