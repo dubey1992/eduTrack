@@ -8,6 +8,7 @@ use App\Models\ClassSection;
 use App\Models\Department;
 use App\Models\School;
 use App\Models\SchoolClass;
+use App\Models\StaffProfile;
 use App\Models\Subject;
 use App\Models\Student;
 use App\Models\User;
@@ -143,6 +144,25 @@ class StableOrderingTest extends TestCase
         }
 
         $this->assertEachRecordAppearsOnce('/api/v1/subjects', 6);
+    }
+
+    public function test_paging_through_staff_who_share_an_employee_id_shows_each_once(): void
+    {
+        // An employee id is unique within a school and not across them, so
+        // EMP-001 exists at every school on the platform.
+        foreach (range(1, 6) as $index) {
+            $school = School::factory()->create(['email' => 'staff'.$index.'@example.invalid']);
+
+            StaffProfile::factory()->create([
+                'school_id' => $school->id,
+                'user_id' => User::factory()->role(UserRole::Teacher)->forSchool($school)->create([
+                    'email' => 'teacher'.$index.'@example.invalid',
+                ])->id,
+                'employee_id' => 'EMP-001',
+            ]);
+        }
+
+        $this->assertEachRecordAppearsOnce('/api/v1/staff', 6);
     }
 
     /**

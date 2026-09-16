@@ -49,6 +49,10 @@ class StaffProfileService
                     );
             })
             ->orderBy('employee_id')
+            // A tiebreaker. An employee id is unique within a school and
+            // not across them, so a Super Admin's roster ties. See
+            // StableOrderingTest.
+            ->orderBy('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
