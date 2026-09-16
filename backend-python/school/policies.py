@@ -139,6 +139,66 @@ class SubjectPolicy(SchoolOwnedPolicy):
     pass
 
 
+class SchoolClassPolicy(SchoolOwnedPolicy):
+    pass
+
+
+class HolidayPolicy(SchoolOwnedPolicy):
+    pass
+
+
+class PeriodPolicy(SchoolOwnedPolicy):
+    pass
+
+
+class ClassSectionPolicy:
+    """A section has no school of its own - it reaches one through its class.
+
+    So this cannot inherit SchoolOwnedPolicy, which reads `record.school_id`.
+    Written out rather than bent to fit, because a policy that silently read a
+    missing attribute as None would allow everything for a scope that permits
+    None, and that is the worst possible failure here.
+    """
+
+    @staticmethod
+    def create(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES
+
+    @classmethod
+    def update(cls, actor: User, section) -> bool:
+        return cls._manages(actor, section)
+
+    @classmethod
+    def delete(cls, actor: User, section) -> bool:
+        return cls._manages(actor, section)
+
+    @classmethod
+    def view_attendance(cls, actor: User, section) -> bool:
+        """Admins, and the teacher who actually has the class.
+
+        Attendance is M10's work; the ability lives here because it is a
+        question about a section and this is where those are answered.
+        """
+        return cls._manages(actor, section) or cls._is_class_teacher(actor, section)
+
+    @classmethod
+    def mark_attendance(cls, actor: User, section) -> bool:
+        return cls.view_attendance(actor, section)
+
+    @staticmethod
+    def _manages(actor: User, section) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
+            section.school_class.school_id
+        )
+
+    @staticmethod
+    def _is_class_teacher(actor: User, section) -> bool:
+        return actor.role == UserRole.TEACHER and actor.id == section.class_teacher_id
+
+
 class AcademicYearPolicy(SchoolOwnedPolicy):
     """The shared shape, plus the one action that is not a field edit.
 

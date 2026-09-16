@@ -59,6 +59,18 @@ class Unauthenticated(ApiError):
     error_code = "UNAUTHENTICATED"
 
 
+class HolidayOverlap(ApiError):
+    """Two holidays covering the same day.
+
+    Refused rather than merged: which one a date belongs to decides what the
+    calendar says it is, and guessing would put the wrong reason next to a
+    closed day.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "HOLIDAY_OVERLAP"
+
+
 class HasDependentRecords(ApiError):
     """Something is still built on top of this, so it cannot be removed.
 

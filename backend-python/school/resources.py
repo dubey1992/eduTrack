@@ -40,6 +40,88 @@ def timestamp(value) -> str | None:
     return as_utc(value).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
+def period_resource(period) -> dict:
+    return {
+        "id": period.id,
+        "school_id": period.school_id,
+        "period_number": period.period_number,
+        # "09:00", not "09:00:00" - a clock time in the school's own day,
+        # rendered the way the timetable shows it.
+        "start_time": period.start_time.strftime("%H:%M"),
+        "end_time": period.end_time.strftime("%H:%M"),
+    }
+
+
+def holiday_resource(holiday, affected_records=None) -> dict:
+    body = {
+        "id": holiday.id,
+        "school_id": holiday.school_id,
+        "name": holiday.name,
+        "type": holiday.type,
+        "start_date": holiday.start_date.isoformat(),
+        "end_date": holiday.end_date.isoformat(),
+        # Inclusive of both ends: a holiday that starts and finishes on the
+        # same date is one day, not none.
+        "days": (holiday.end_date - holiday.start_date).days + 1,
+        "created_at": timestamp(holiday.created_at),
+    }
+
+    if loaded(holiday, "school"):
+        body["school_name"] = holiday.school.name
+
+    # Only on a write. Reading the calendar should not count attendance rows
+    # for every holiday on the page.
+    if affected_records is not None:
+        body["affected_records"] = affected_records
+
+    return body
+
+
+def class_section_resource(section) -> dict:
+    body = {
+        "id": section.id,
+        "school_class_id": section.school_class_id,
+        "name": section.name,
+        "room_number": section.room_number,
+        "class_teacher_id": section.class_teacher_id,
+    }
+
+    if loaded(section, "class_teacher"):
+        body["class_teacher_name"] = (
+            section.class_teacher.name if section.class_teacher else None
+        )
+
+    return body
+
+
+def school_class_resource(school_class, sections=None) -> dict:
+    """A class, with its sections where they have been fetched.
+
+    `sections` is passed in rather than read off the instance: it is a
+    prefetch, and a resource that walked the relation itself would fire a
+    query per class in a list.
+    """
+    body = {
+        "id": school_class.id,
+        "school_id": school_class.school_id,
+        "academic_year_id": school_class.academic_year_id,
+        "name": school_class.name,
+        "level": school_class.level,
+        "created_at": timestamp(school_class.created_at),
+    }
+
+    if loaded(school_class, "school"):
+        body["school_name"] = school_class.school.name
+
+    if loaded(school_class, "academic_year"):
+        body["academic_year_name"] = school_class.academic_year.name
+
+    if sections is not None:
+        body["sections"] = [class_section_resource(section) for section in sections]
+
+    return body
+
+
 def department_resource(department) -> dict:
     body = {
         "id": department.id,

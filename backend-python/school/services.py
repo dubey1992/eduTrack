@@ -14,10 +14,17 @@ from django.utils import timezone
 from . import hashing, tokens
 from .clock import SchoolClock
 from .enums import SchoolStatus, StudentStatus, UserRole, UserStatus
-from .errors import AccountInactive, HasDependentRecords, Unauthenticated
+from .errors import AccountInactive, HasDependentRecords, HolidayOverlap, Unauthenticated
 from .models import (
     AcademicYear,
+    Attendance,
+    ClassSection,
+    DailyTeachingReport,
     Department,
+    Holiday,
+    Period,
+    StaffAttendance,
+    TimetableEntry,
     EarlyAccessRequest,
     PersonalAccessToken,
     School,
@@ -175,6 +182,253 @@ class SchoolService:
     @staticmethod
     def branch_count(school: School) -> int:
         return School.objects.filter(parent_school_id=school.id).count()
+
+
+class PeriodService:
+    """The school day's shape. Not paginated - a school has eight or nine
+    periods, and paging a list that short would be a control nobody uses."""
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        periods = Period.objects.all()
+
+        periods = SchoolScope.for_actor(actor).apply_to(periods, filters.get("school_id"))
+
+        return periods.order_by("period_number", "id")
+
+    @staticmethod
+    def create(data: dict, actor: User) -> Period:
+        data = dict(data)
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+        now = timezone.now()
+
+        return Period.objects.create(
+            school_id=school_id,
+            period_number=data["period_number"],
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            created_at=now,
+            updated_at=now,
+        )
+
+    @staticmethod
+    def update(period: Period, data: dict) -> Period:
+        for field, value in data.items():
+            setattr(period, field, value)
+
+        period.updated_at = timezone.now()
+        period.save()
+
+        return period
+
+    @staticmethod
+    def delete(period: Period) -> None:
+        if TimetableEntry.objects.filter(period_id=period.id).exists():
+            raise HasDependentRecords(
+                "This period still has timetable entries scheduled against it. "
+                "Remove them first."
+            )
+
+        period.delete()
+
+
+class HolidayService:
+    """The school holiday calendar.
+
+    The working-day questions every date-driven module asks of it - is this a
+    working day, which dates in a range are - arrive with the modules that ask
+    them, in M10. What is here is the calendar itself.
+    """
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        holidays = Holiday.objects.select_related("school")
+
+        holidays = SchoolScope.for_actor(actor).apply_to(holidays, filters.get("school_id"))
+
+        # A range filter that overlaps, not one that contains: a holiday
+        # running across the boundary of the window is still in the window.
+        if filters.get("date_from"):
+            holidays = holidays.filter(end_date__gte=filters["date_from"])
+
+        if filters.get("date_to"):
+            holidays = holidays.filter(start_date__lte=filters["date_to"])
+
+        return holidays.order_by("start_date", "id")
+
+    @classmethod
+    def create(cls, data: dict, actor: User) -> Holiday:
+        data = dict(data)
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+
+        cls._assert_no_overlap(school_id, data["start_date"], data["end_date"])
+
+        now = timezone.now()
+
+        return Holiday.objects.create(
+            school_id=school_id,
+            name=data["name"],
+            type=data["type"],
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            created_at=now,
+            updated_at=now,
+        )
+
+    @classmethod
+    def update(cls, holiday: Holiday, data: dict) -> Holiday:
+        start = data.get("start_date", holiday.start_date)
+        end = data.get("end_date", holiday.end_date)
+
+        cls._assert_no_overlap(holiday.school_id, start, end, ignoring=holiday.pk)
+
+        for field, value in data.items():
+            setattr(holiday, field, value)
+
+        holiday.updated_at = timezone.now()
+        holiday.save()
+
+        return holiday
+
+    @staticmethod
+    def delete(holiday: Holiday) -> None:
+        holiday.delete()
+
+    @staticmethod
+    def affected_records(holiday: Holiday) -> dict:
+        """The day's records that now sit on a non-working day.
+
+        A holiday declared after the fact is a legitimate correction - a
+        strike day, a closure nobody knew about on the morning. What is not
+        legitimate is doing it silently: those records stop counting towards
+        every working-day figure in the product, so whoever declared it is
+        told how many there are and can go and clear them.
+        """
+        between = (holiday.start_date, holiday.end_date)
+
+        return {
+            "attendance": Attendance.objects.filter(
+                school_id=holiday.school_id, attendance_date__range=between
+            ).count(),
+            "staff_attendance": StaffAttendance.objects.filter(
+                school_id=holiday.school_id, attendance_date__range=between
+            ).count(),
+            "teaching_reports": DailyTeachingReport.objects.filter(
+                school_id=holiday.school_id, report_date__range=between
+            ).count(),
+        }
+
+    @staticmethod
+    def _assert_no_overlap(school_id, start, end, ignoring=None) -> None:
+        overlapping = Holiday.objects.filter(
+            school_id=school_id, start_date__lte=end, end_date__gte=start
+        )
+
+        if ignoring is not None:
+            overlapping = overlapping.exclude(pk=ignoring)
+
+        clash = overlapping.first()
+
+        if clash is not None:
+            raise HolidayOverlap(f'These dates overlap the existing holiday "{clash.name}".')
+
+
+class SchoolClassService:
+    WITH = ("school", "academic_year")
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        classes = SchoolClass.objects.select_related(*cls.WITH)
+
+        classes = SchoolScope.for_actor(actor).apply_to(classes, filters.get("school_id"))
+
+        if filters.get("academic_year_id"):
+            classes = classes.filter(academic_year_id=filters["academic_year_id"])
+
+        # By level then name, which is the order a school reads its own
+        # timetable in. Both repeat across schools and years, hence the id.
+        return classes.order_by("level", "name", "id")
+
+    @staticmethod
+    def sections_of(class_ids) -> dict:
+        """Every section of the given classes, grouped by class.
+
+        One query for a whole page rather than one per class, which is what a
+        resource walking the relation itself would cost (CLAUDE.md rule 22).
+        """
+        grouped: dict[int, list] = {}
+
+        for section in ClassSection.objects.select_related("class_teacher").filter(
+            school_class_id__in=list(class_ids)
+        ).order_by("name", "id"):
+            grouped.setdefault(section.school_class_id, []).append(section)
+
+        return grouped
+
+    @staticmethod
+    def create(data: dict, actor: User) -> SchoolClass:
+        data = dict(data)
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+        now = timezone.now()
+
+        return SchoolClass.objects.create(
+            school_id=school_id,
+            academic_year_id=data["academic_year_id"],
+            name=data["name"],
+            level=data["level"],
+            created_at=now,
+            updated_at=now,
+        )
+
+    @staticmethod
+    def update(school_class: SchoolClass, data: dict) -> SchoolClass:
+        for field, value in data.items():
+            setattr(school_class, field, value)
+
+        school_class.updated_at = timezone.now()
+        school_class.save()
+
+        return school_class
+
+    @staticmethod
+    def delete(school_class: SchoolClass) -> None:
+        if ClassSection.objects.filter(school_class_id=school_class.id).exists():
+            raise HasDependentRecords("This class still has sections under it. Remove them first.")
+
+        school_class.delete()
+
+    @staticmethod
+    def add_section(school_class: SchoolClass, data: dict) -> ClassSection:
+        now = timezone.now()
+
+        return ClassSection.objects.create(
+            school_class_id=school_class.id,
+            name=data["name"],
+            room_number=data.get("room_number"),
+            class_teacher_id=data.get("class_teacher_id"),
+            created_at=now,
+            updated_at=now,
+        )
+
+    @staticmethod
+    def update_section(section: ClassSection, data: dict) -> ClassSection:
+        for field, value in data.items():
+            setattr(section, field, value)
+
+        section.updated_at = timezone.now()
+        section.save()
+
+        return section
+
+    @staticmethod
+    def delete_section(section: ClassSection) -> None:
+        if Student.objects.filter(class_section_id=section.id).exists():
+            raise HasDependentRecords(
+                "This section still has students assigned to it. "
+                "Reassign or remove them first."
+            )
+
+        section.delete()
 
 
 class DepartmentService:

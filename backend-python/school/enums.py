@@ -57,3 +57,10 @@ class StudentStatus(models.TextChoices):
 class SchoolStatus(models.TextChoices):
     ACTIVE = "active"
     INACTIVE = "inactive"
+
+
+class HolidayType(models.TextChoices):
+    NATIONAL = "national"
+    RELIGIOUS = "religious"
+    SCHOOL_EVENT = "school_event"
+    VACATION = "vacation"

@@ -20,6 +20,7 @@ from school.views import (
     academic_config,
     academic_years,
     auth,
+    classes,
     imports,
     schools,
     students,
@@ -32,6 +33,15 @@ urlpatterns = [
     path("api/v1/academic-years", academic_years.collection),
     path("api/v1/academic-years/<int:year_id>", academic_years.detail),
     path("api/v1/academic-years/<int:year_id>/set-current", academic_years.set_current),
+    # -- classes, sections, periods and holidays ---------------------------
+    path("api/v1/classes", classes.classes),
+    path("api/v1/classes/<int:class_id>", classes.school_class),
+    path("api/v1/classes/<int:class_id>/sections", classes.add_section),
+    path("api/v1/sections/<int:section_id>", classes.section),
+    path("api/v1/periods", classes.periods),
+    path("api/v1/periods/<int:period_id>", classes.period),
+    path("api/v1/holidays", classes.holidays),
+    path("api/v1/holidays/<int:holiday_id>", classes.holiday),
     # -- departments and subjects ------------------------------------------
     path("api/v1/departments", academic_config.departments),
     path("api/v1/departments/<int:department_id>", academic_config.department),

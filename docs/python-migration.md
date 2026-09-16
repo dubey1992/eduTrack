@@ -13,7 +13,7 @@
 | M6 Contract suite | **Done** — 153/153 endpoints |
 | M7 Skeleton | **Done** — 33 models, round-tripped |
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
-| M9 Wave 1 — foundations | **In progress** — 29 of 52 endpoints |
+| M9 Wave 1 — foundations | **45 of 52** — all but payments |
 | M10 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
@@ -713,19 +713,30 @@ Ported in dependency order, because everything downstream references them.
 | Users and admin accounts | 6 | **Done** |
 | Academic years | 6 | **Done** |
 | Departments, subjects | 10 | **Done** |
+| Classes, sections, periods, holidays | 17 | **Done** |
 | Payments | 7 | Sequenced behind the queue and the PDF renderer |
-| Classes, sections, periods, holidays | 17 | Not started |
 
 Each module is checked the way M8's bug was found: ask both backends the same
 question and diff the answers, with the host and the wall clock normalised
-away and nothing else. That found two things in this wave that no test on
-either side would have.
+away and nothing else. It found three things in this wave that no test on either side would
+have - and one of them would have crashed the Flutter client.
 
 **`meta.links` was missing from the Python pagination envelope.** Laravel's
 `LengthAwarePaginator` emits page-link descriptors inside `meta`, including
 the `...` elision for long lists. Nothing in the Flutter client reads them,
 which is exactly why it went unnoticed; the module claimed to reproduce the
 envelope and did not. Now ported from `UrlWindow` arm for arm.
+
+**A list came back in the wrong envelope.** `/periods` is not paginated - a
+school has eight or nine - and Laravel calls `JsonResource::withoutWrapping()`,
+so a non-paginated collection is a bare array. Django wrapped it in
+`{"data": [...]}`, which the Flutter client would have thrown on:
+`period_api.dart` does `response.data as List`. Every Django test passed,
+because the tests had been written against the wrapper.
+
+The rule, now written down where the next module will need it: **flat for a
+single resource and for a non-paginated collection; `{data, links, meta}` only
+from the paginator.**
 
 **The timezone list was wrong, and it was a calendar bug.** Django offered 598
 zones where Laravel offers 419: Python's `zoneinfo` includes the

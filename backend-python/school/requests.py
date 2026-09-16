@@ -18,10 +18,13 @@ from rest_framework import serializers
 import re
 
 from . import hashing
-from .enums import UserRole
+from .enums import HolidayType, UserRole
 from .models import (
+    AcademicYear,
     ClassSection,
     Department,
+    Holiday,
+    Period,
     EarlyAccessRequest,
     School,
     SchoolClass,
@@ -374,6 +377,246 @@ class UpdateSchoolRequest(SchoolForm):
         # checked and not written. Applied here rather than by declaring two
         # near-identical field lists, which is how the two forms drift apart.
         for name, field in self.fields.items():
+            field.required = False
+
+
+# -- periods and holidays ---------------------------------------------------
+
+
+class PeriodForm(ScopedSerializer):
+    period_number = LaravelIntegerField("period_number", min_value=1, max_value=20)
+    # "H:i" and nothing else. A period is a clock time in the school's own day,
+    # not an instant, so it carries no date and no zone.
+    start_time = serializers.TimeField(
+        format="%H:%M",
+        input_formats=["%H:%M"],
+        error_messages={"invalid": "The start time field must match the format H:i."},
+    )
+    end_time = serializers.TimeField(
+        format="%H:%M",
+        input_formats=["%H:%M"],
+        error_messages={"invalid": "The end time field must match the format H:i."},
+    )
+
+    def check(self, attrs, school_id, ignoring=None) -> dict:
+        errors = {}
+
+        if "period_number" in attrs:
+            taken = Period.objects.filter(
+                school_id=school_id, period_number=attrs["period_number"]
+            )
+
+            if ignoring is not None:
+                taken = taken.exclude(pk=ignoring)
+
+            if taken.exists():
+                errors["period_number"] = [already_taken("period_number")]
+
+        start = attrs.get("start_time")
+        end = attrs.get("end_time")
+
+        if start is not None and end is not None and end <= start:
+            errors["end_time"] = [must_be_after("end_time", "start_time")]
+
+        return errors
+
+
+class StorePeriodRequest(PeriodForm):
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        school_id = self.resolved_school_id()
+        errors = self.check(attrs, school_id)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = school_id
+
+        return attrs
+
+
+class UpdatePeriodRequest(PeriodForm):
+    def __init__(self, *args, period=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.period = period
+
+        for field in self.fields.values():
+            field.required = False
+
+    def validate(self, attrs):
+        # Whichever end was not sent comes from the stored row, so moving one
+        # of them cannot invert the period.
+        attrs.setdefault("start_time", self.period.start_time)
+        attrs.setdefault("end_time", self.period.end_time)
+
+        errors = self.check(attrs, self.period.school_id, ignoring=self.period.pk)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+class HolidayForm(ScopedSerializer):
+    name = LaravelCharField("name", max_length=100)
+    type = LaravelCharField("type", max_length=20)
+    start_date = LaravelDateField("start_date")
+    end_date = LaravelDateField("end_date")
+
+    def check(self, attrs) -> dict:
+        errors = {}
+
+        if "type" in attrs and attrs["type"] not in HolidayType.values:
+            errors["type"] = [selected_is_invalid("type")]
+
+        start = attrs.get("start_date")
+        end = attrs.get("end_date")
+
+        # after_or_equal, not after: a one-day holiday starts and ends on the
+        # same date.
+        if start is not None and end is not None and end < start:
+            errors["end_date"] = [
+                "The end date field must be a date after or equal to start date."
+            ]
+
+        return errors
+
+
+class StoreHolidayRequest(HolidayForm):
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        errors = self.check(attrs)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = self.resolved_school_id()
+
+        return attrs
+
+
+class UpdateHolidayRequest(HolidayForm):
+    def __init__(self, *args, holiday=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.holiday = holiday
+
+        for field in self.fields.values():
+            field.required = False
+
+    def validate(self, attrs):
+        attrs.setdefault("start_date", self.holiday.start_date)
+        attrs.setdefault("end_date", self.holiday.end_date)
+
+        errors = self.check(attrs)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+# -- classes and sections ---------------------------------------------------
+
+
+class StoreSchoolClassRequest(ScopedSerializer):
+    academic_year_id = LaravelIntegerField("academic_year_id")
+    name = LaravelCharField("name", max_length=50)
+    level = LaravelIntegerField("level", min_value=0, max_value=12)
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        school_id = self.resolved_school_id()
+        errors = {}
+
+        if not AcademicYear.objects.filter(
+            pk=attrs["academic_year_id"], school_id=school_id
+        ).exists():
+            errors["academic_year_id"] = [does_not_exist("academic_year_id")]
+
+        # Unique within the year, not the school: "Grade 8" exists again next
+        # year and is a different class.
+        if SchoolClass.objects.filter(
+            academic_year_id=attrs["academic_year_id"], name=attrs["name"]
+        ).exists():
+            errors["name"] = [already_taken("name")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = school_id
+
+        return attrs
+
+
+class UpdateSchoolClassRequest(ScopedSerializer):
+    """The year a class belongs to is fixed at creation - moving a class
+    between years would take its sections and students with it."""
+
+    name = LaravelCharField("name", max_length=50, required=False)
+    level = LaravelIntegerField("level", min_value=0, max_value=12, required=False)
+
+    def __init__(self, *args, school_class=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.school_class = school_class
+
+    def validate(self, attrs):
+        if "name" in attrs and SchoolClass.objects.filter(
+            academic_year_id=self.school_class.academic_year_id, name=attrs["name"]
+        ).exclude(pk=self.school_class.pk).exists():
+            raise serializers.ValidationError({"name": [already_taken("name")]})
+
+        return attrs
+
+
+class ClassSectionForm(serializers.Serializer):
+    name = LaravelCharField("name", max_length=10)
+    room_number = optional_text("room_number", 20)
+    class_teacher_id = LaravelIntegerField("class_teacher_id", required=False, allow_null=True)
+
+    def __init__(self, *args, school_class=None, section=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.school_class = school_class
+        self.section = section
+
+    def validate(self, attrs):
+        school_class = self.school_class or self.section.school_class
+        errors = {}
+
+        if "name" in attrs:
+            taken = ClassSection.objects.filter(school_class_id=school_class.id, name=attrs["name"])
+
+            if self.section is not None:
+                taken = taken.exclude(pk=self.section.pk)
+
+            if taken.exists():
+                errors["name"] = [already_taken("name")]
+
+        class_teacher_id = attrs.get("class_teacher_id")
+
+        if class_teacher_id is not None and not teaches_at(class_teacher_id, school_class.school_id):
+            errors["class_teacher_id"] = [does_not_exist("class_teacher_id")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+class StoreClassSectionRequest(ClassSectionForm):
+    pass
+
+
+class UpdateClassSectionRequest(ClassSectionForm):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        for field in self.fields.values():
             field.required = False
 
 
