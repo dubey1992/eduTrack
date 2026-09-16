@@ -93,6 +93,17 @@ jobs:
       - name: Test against ${{ matrix.database }}
         env:
           APP_ENV: testing
+          # The drivers a test run needs. .env.example describes a *running*
+          # instance, where cache, sessions and the queue all live in the
+          # database - and under RefreshDatabase that means a queue whose jobs
+          # never run. Messages then sit at "queued" where the tests expect
+          # "sent", which is exactly how the first CI run failed.
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+          BROADCAST_CONNECTION: 'null'
+          MAIL_MAILER: array
+          BCRYPT_ROUNDS: '4'
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
