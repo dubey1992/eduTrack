@@ -15,8 +15,12 @@
 host can run any of this** — nobody has asked the provider yet, and phases M5
 and M12 cannot happen until somebody does.
 
-Replacing the Laravel/PHP backend with Python, and MySQL with PostgreSQL, on a
-system that already has a school using it in production.
+Replacing the Laravel/PHP backend with Python, and MySQL with PostgreSQL.
+
+**No school is using this yet.** Corrected on 2026-09-16: nobody goes live until
+every module is finished, which removes most of what made the back half of this
+plan dangerous. Earlier revisions were written around a live pilot school and
+were wrong about it. What that changes is set out under M5.
 
 CLAUDE.md §6 names PHP, Laravel and MySQL, and explicitly excludes PostgreSQL.
 This document supersedes that section once Phase M1 lands; until then §6 still
@@ -77,8 +81,9 @@ reversible.
    early.
 4. **No phase touches production** except M5 and M12, and both have a written
    rollback.
-5. **The pilot school's data is never the test subject.** Migrations are
-   rehearsed on a copy, every time.
+5. **Real data is never the test subject.** Migrations are rehearsed on a
+   copy, every time. There is no live school's data to lose today, and this
+   rule is what keeps that true on the day there is.
 
 ---
 
@@ -371,64 +376,72 @@ property CI exists to remove. Worth closing before the Python track starts,
 because from M7 onwards two backends have to stay in step and nobody can hold
 that in their head.
 
-## M5 · Production moves to PostgreSQL — *still Laravel*
+## M5 · Production on PostgreSQL
 
-The first phase that touches production. Small, well-rehearsed, and reversible
-within minutes.
+**Reduced on 2026-09-16, when it turned out no school is live.**
 
-**Work:** maintenance page up (`php artisan down` — the custom page already
-exists), final export, import, sequence reset, verification script, maintenance
-page down.
+This was the risky phase: take a working school offline, move its records, and
+hope. With nothing in production to move, almost all of that goes away.
 
-**Done when:** the pilot school is working on Postgres and the verification
-script has passed against production.
+**What is left depends on one fact** - whether anything is deployed at all.
 
-**Rollback:** point `.env` back at MySQL, which is still there, still current as
-of the export, and untouched. Minutes, not hours.
+- **Nothing deployed.** Then there is no migration. The first deployment simply
+  uses PostgreSQL, and this phase is a line in `docs/deployment.md` rather than
+  a window: create a PostgreSQL database instead of a MySQL one, point `.env`
+  at it, run the migrations. `db:copy` is not needed, because there is nothing
+  to copy.
+- **Deployed but only seeded** - a Super Admin and nothing else. Same answer.
+  Rebuild it on PostgreSQL and re-run `SuperAdminSeeder`; recreating one
+  account is cheaper and safer than migrating it.
+- **Deployed with data somebody wants to keep.** Only then does the runbook
+  below apply, and `db:copy` earns its place.
 
-**At this point the database migration is complete and the Python decision is
-still entirely open.** If the project stops here it has still been worth doing.
+**What stops being true**, and is worth naming because earlier revisions of
+this document leaned on all of it:
 
-### The runbook
+- No cutover window, no evenings or weekends, nobody to tell.
+- No downtime that costs anything.
+- **Nobody is signed out at M12.** That was the sharpest edge in the whole plan
+  - the Python backend cannot read Sanctum's tokens - and it does not cut
+  anybody if there is nobody signed in.
+- The rollback stops being a race. Its cost was losing records created after
+  the switch, and there are none.
 
-Written 2026-09-16, when the host was confirmed to offer PostgreSQL. **Not yet
-performed.**
+**What was still worth building.** `db:copy` and `schema:diff` were written for
+a migration that may now never need them, and they are still the right thing to
+have: they are how the first real deployment gets verified, they are how any
+future move between databases is done, and `schema:diff` is what proved M1's
+claim in the first place. Three rehearsals against real data also found two bugs
+that would otherwise have been found by a school.
+
+### The runbook, if there is ever data to move
+
+Kept for the third case above, and for any later migration.
 
 #### Before the window — checks, not steps
 
-Every one of these can be done on an ordinary working day, and any of them
-failing means the window does not open.
-
 1. **`pdo_pgsql` on the host's PHP.** "The plan offers PostgreSQL" and "PHP on
    this account can talk to it" are two different facts, and only the second
-   one matters here. `php -m | grep pdo_pgsql` over SSH, or a one-line
-   `phpinfo()`. If it is missing, ask the host to enable it; nothing below
-   works without it.
+   one matters here. `php -m | grep pdo_pgsql` over SSH. If it is missing, ask
+   the host to enable it; nothing below works without it.
 2. **A PostgreSQL database and user exist**, created through cPanel, with the
-   account prefix (e.g. `acct_edutrack_pg`).
-3. **The deployed commit is current.** M5 needs `db:copy` and `schema:diff`,
-   which production does not have yet. Deploying is itself a change to a live
-   system: do it in the same window, not casually beforehand.
-4. **A rehearsal on a copy of production.** Take a dump of the production
-   MySQL database, restore it somewhere disposable, and run the whole sequence
-   against it. The number that matters is the row count, and finding out it is
-   wrong should happen here rather than at 6am.
-5. **Tell the school.** They lose access for the length of the window. Nobody
-   is signed out - the tokens carry over, because this changes the database and
-   not the application - but they cannot work while it runs.
+   account prefix.
+3. **The deployed commit is current.** The runbook needs `db:copy` and
+   `schema:diff`.
+4. **A rehearsal on a copy of production.** The number that matters is the row
+   count, and finding out it is wrong should happen here rather than in the
+   window.
 
 #### The window
 
 ```bash
-# 1. Stop the world. MAINTENANCE_UNTIL makes the page say when to come back,
-#    in PLATFORM_TIMEZONE. See docs/error-pages.md.
+# 1. Stop the world.
 php artisan down
 
 # 2. Deploy the current commit, if it is not already deployed.
 git pull && composer install --no-dev --optimize-autoloader
 
 # 3. Point PG_* at the new database in .env, leaving DB_* alone.
-#    DB_CONNECTION stays mysql for now - nothing has moved yet.
 
 # 4. Build the schema on PostgreSQL.
 php artisan migrate --database=pgsql --force
@@ -439,35 +452,23 @@ php artisan schema:diff --from=mysql --to=pgsql
 # 6. Copy the data. Resets every sequence and verifies row counts itself.
 php artisan db:copy --from=mysql --to=pgsql
 
-# 7. Switch. This is the only irreversible-feeling moment, and it is one line.
-#    Set DB_CONNECTION=pgsql in .env, then:
+# 7. Set DB_CONNECTION=pgsql in .env, then:
 php artisan config:clear
 
-# 8. Look at it as a person, not as a script: sign in, open the student list,
-#    open a register, add something and delete it again. The sequence reset is
-#    what that last step is really testing.
+# 8. Look at it as a person: sign in, open a list, add something and delete it
+#    again. That last step is what really tests the sequence reset.
 php artisan up
 ```
 
-#### Rollback, and the hour it stops being free
+#### Rollback
 
-Set `DB_CONNECTION=mysql` in `.env`, `php artisan config:clear`, done. MySQL is
-untouched and current as of step 6.
+Set `DB_CONNECTION=mysql`, `php artisan config:clear`, done. MySQL is untouched
+and current as of step 6.
 
-**That is only true while nobody has used the system.** Every record created
-after step 8 exists on PostgreSQL alone, and rolling back leaves it behind. So
-the rollback is free during the window and costly after it - which is the
-argument for doing step 8's manual check inside the window rather than
-discovering a problem at nine the next morning.
-
-Keep the MySQL database for a fortnight regardless. It costs nothing and it is
-the only copy of the pre-migration state.
-
-#### What this phase does *not* do
-
-Nobody is signed out. Sanctum's tokens live in a table like any other and are
-copied with everything else, because this changes the database and keeps the
-application. That is M12's problem, not this one.
+That is only clean while nobody has used the system: every record created after
+step 8 exists on PostgreSQL alone. Keep the MySQL database for a fortnight
+either way - it costs nothing and it is the only copy of the pre-migration
+state.
 
 ---
 
@@ -583,15 +584,17 @@ averaged — and must be ported with their tests, not re-derived.
 
 ## M12 · Cutover and decommission
 
-**Everyone is signed out.** Sanctum's `personal_access_tokens` hashes cannot be
-validated by any Python auth. Every signed-in user at the pilot school is logged
-out the moment you cut over — fine at 6am on a Saturday, a disaster at 9am on a
-Monday while attendance is being marked. This is a planned consequence, not an
-incident: schedule it outside school hours and tell the school beforehand that
-they will need to sign in again.
+**Everyone is signed out** — which currently means nobody. Sanctum's
+`personal_access_tokens` hashes cannot be validated by any Python auth, so every
+signed-in user is logged out the moment you cut over. That was the sharpest edge
+in this plan while a school was expected to be live; with nobody signed in it
+costs nothing.
+
+It comes back the day a school does go live, so it stays written down: schedule
+outside school hours, and tell them they will need to sign in again.
 
 **Work:** maintenance page, final data sync, document root or DNS switched,
-sequences reset and asserted, smoke test as a real user of the pilot school.
+sequences reset and asserted, smoke test as a real user.
 
 **Rollback:** the PHP app stays deployed and the old database stays readable for
 a fortnight. Reverting is a document-root switch.
@@ -616,7 +619,9 @@ twice, in both stacks, is the fastest way to double the number.
 2. **A policy is ported subtly wrong** and one school can read another's data.
    The contract tests in M6 and the ALLOW/DENY pairs are the whole defence.
 3. **Feature work does not actually freeze.** Everything gets built twice and
-   the timeline doubles.
+   the timeline doubles. Sharper now than it looked: with no school waiting,
+   the pressure to keep shipping features is lower, but so is the forcing
+   function that would make anybody notice the rewrite stalling.
 4. **The rewrite is abandoned half-finished**, leaving two backends to maintain.
    The gates at M0 and M8 exist to make stopping a decision rather than a drift.
 5. **Report arithmetic drifts.** Attendance percentages and group roll-ups are
