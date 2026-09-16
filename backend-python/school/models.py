@@ -318,6 +318,33 @@ class PersonalAccessToken(models.Model):
         managed = False
         db_table = 'personal_access_tokens'
 
+class QueuedJob(models.Model):
+    """Work the API defers so a request does not wait for it.
+
+    Not Laravel's `jobs` table: that one holds a serialized PHP object, which
+    only PHP can unserialize. This one holds a job *name* and a JSON payload,
+    which anything can read. See the migration for why they are separate.
+
+    `payload` is a JSONField rather than the TextField inspectdb guessed -
+    the column is `json`, and reading it as text would hand every caller a
+    string to parse for itself.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    queue = models.CharField(max_length=64)
+    name = models.CharField(max_length=100)
+    payload = models.JSONField()
+    attempts = models.SmallIntegerField()
+    last_error = models.TextField(blank=True, null=True)
+    available_at = UtcDateTimeField()
+    reserved_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'queued_jobs'
+
 class School(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=255)

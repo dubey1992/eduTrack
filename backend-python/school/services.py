@@ -8,12 +8,12 @@ rather than about the web, and can be tested without one.
 from __future__ import annotations
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q, Sum
 from django.utils import timezone
 
-from . import hashing, tokens
+from . import hashing, jobs, money, queue, tokens
 from .clock import SchoolClock
-from .enums import SchoolStatus, StudentStatus, UserRole, UserStatus
+from .enums import PaymentStatus, SchoolStatus, StudentStatus, UserRole, UserStatus
 from .errors import AccountInactive, HasDependentRecords, HolidayOverlap, Unauthenticated
 from .models import (
     AcademicYear,
@@ -22,6 +22,7 @@ from .models import (
     DailyTeachingReport,
     Department,
     Holiday,
+    Payment,
     Period,
     StaffAttendance,
     TimetableEntry,
@@ -182,6 +183,158 @@ class SchoolService:
     @staticmethod
     def branch_count(school: School) -> int:
         return School.objects.filter(parent_school_id=school.id).count()
+
+
+class PaymentService:
+    """Payments a school has made to the platform.
+
+    Not a subscription system and not an accounting one (CLAUDE.md rule 4):
+    this records money that arrived. No plans, no renewals, and nothing here
+    decides whether a school can use the product.
+    """
+
+    WITH = ("school", "created_by")
+
+    @classmethod
+    def visible_to(cls, filters: dict):
+        # No SchoolScope: only a Super Admin reaches payments at all, and a
+        # Super Admin is unrestricted. The school filter is an ordinary filter
+        # rather than a scope narrowing.
+        payments = Payment.objects.select_related(*cls.WITH)
+
+        for field in ("school_id", "status", "payment_type"):
+            if filters.get(field):
+                payments = payments.filter(**{field: filters[field]})
+
+        # Newest first, and already deterministic - `id` breaks the tie.
+        return payments.order_by("-payment_date", "-id")
+
+    @classmethod
+    def create(cls, data: dict, actor: User) -> Payment:
+        data = dict(data)
+        school = School.objects.get(pk=data["school_id"])
+
+        total = money.amount(data["amount"])
+        paid = money.paid_amount_for(data, total)
+        now = timezone.now()
+
+        with transaction.atomic():
+            payment = Payment.objects.create(
+                school_id=school.id,
+                payment_type=data["payment_type"],
+                amount=total,
+                paid_amount=paid,
+                # Derived from the figures rather than taken at face value, so
+                # a payment can never read "Paid" with a balance outstanding.
+                status=money.status_for(total, paid, data.get("status")),
+                # Never trusted from the client - always the owning school's
+                # currency at the moment of payment (CLAUDE.md rule 5).
+                currency_code=school.currency_code,
+                payment_date=data["payment_date"],
+                payment_mode=data["payment_mode"],
+                reference_number=data.get("reference_number"),
+                notes=data.get("notes"),
+                created_by_id=actor.id,
+                created_at=now,
+                updated_at=now,
+            )
+
+            cls.send_receipt(payment)
+
+        return payment
+
+    @classmethod
+    def update(cls, payment: Payment, data: dict) -> Payment:
+        total = money.amount(data.get("amount", payment.amount))
+        paid = money.paid_amount_for(data, total, fallback=money.amount(payment.paid_amount))
+
+        before = (money.amount(payment.amount), money.amount(payment.paid_amount), payment.status)
+
+        with transaction.atomic():
+            for field, value in data.items():
+                setattr(payment, field, value)
+
+            payment.amount = total
+            payment.paid_amount = paid
+            payment.status = money.status_for(total, paid, data.get("status"))
+            payment.updated_at = timezone.now()
+            payment.save()
+
+            after = (payment.amount, payment.paid_amount, payment.status)
+
+            # Only when the money or the standing changed. Re-sending a receipt
+            # because somebody corrected a reference number would be noise.
+            if before != after:
+                cls.send_receipt(payment)
+
+        return payment
+
+    @staticmethod
+    def send_receipt(payment: Payment) -> None:
+        """Queues the receipt email.
+
+        Queued, not sent: rendering a PDF and talking to an SMTP server has no
+        business holding up the person recording the payment, and a mail
+        server being down must never be why a payment fails to save.
+
+        The row is written inside the caller's transaction, so the job exists
+        if and only if the payment it is about was committed.
+        """
+        queue.push(jobs.SEND_PAYMENT_RECEIPT, {"payment_id": payment.id})
+
+    @staticmethod
+    def collection_summary() -> dict:
+        """Totals for the payments dashboard.
+
+        **Every figure is grouped by currency and never summed across them**
+        (CLAUDE.md rule 5). This is a recording system, not a forex one, and a
+        single blended total would be a number that is true in no currency.
+        """
+        platform_now = SchoolClock.platform().now()
+
+        # Collected means money that actually arrived, so it sums paid_amount
+        # and counts a part-payment for the part that was paid. Summing
+        # `amount` over settled rows only would miss those entirely.
+        def collected():
+            return (
+                Payment.objects.exclude(status=PaymentStatus.CANCELLED)
+                .values("currency_code")
+                .annotate(total=Sum("paid_amount"))
+                .filter(total__gt=0)
+                .order_by("currency_code")
+            )
+
+        monthly = collected().filter(
+            # Cross-school totals belong to no single school, so "this month"
+            # is the platform's month.
+            payment_date__year=platform_now.year,
+            payment_date__month=platform_now.month,
+        )
+
+        # Outstanding is what is still owed, which includes the unpaid part of
+        # a partial payment - not only the rows nobody has paid at all.
+        outstanding = Payment.objects.filter(
+            status__in=[PaymentStatus.PENDING, PaymentStatus.PARTIAL]
+        )
+
+        by_currency = (
+            outstanding.values("currency_code")
+            .annotate(total=Sum(F("amount") - F("paid_amount")))
+            .filter(total__gt=0)
+            .order_by("currency_code")
+        )
+
+        return {
+            "total_by_currency": [as_total(row) for row in collected()],
+            "monthly_by_currency": [as_total(row) for row in monthly],
+            "pending_by_currency": [as_total(row) for row in by_currency],
+            "pending_count": outstanding.count(),
+        }
+
+
+def as_total(row: dict) -> dict:
+    """One currency's total, as a string. See payment_resource for why."""
+    return {"currency_code": row["currency_code"], "total": str(money.amount(row["total"]))}
 
 
 class PeriodService:

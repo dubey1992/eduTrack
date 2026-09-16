@@ -22,3 +22,8 @@ bcrypt==4.2.1
 # config/cors.php and this is the same allowance. Hand-rolling it was the
 # alternative, and a preflight handled almost correctly is a security bug.
 django-cors-headers==4.6.0
+
+# The PDF receipt. Pure Python on purpose: shared hosting has no cairo or
+# pango, which rules out WeasyPrint. Like dompdf on the Laravel side it
+# understands only simple CSS, so the receipt template came across unchanged.
+xhtml2pdf==0.2.16

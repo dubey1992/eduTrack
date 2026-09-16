@@ -15,10 +15,11 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+import decimal
 import re
 
 from . import hashing
-from .enums import HolidayType, UserRole
+from .enums import HolidayType, PaymentMode, PaymentStatus, PaymentType, UserRole
 from .models import (
     AcademicYear,
     ClassSection,
@@ -43,9 +44,11 @@ from .validation import (
     TimezoneField,
     UrlField,
     already_taken,
+    at_least,
     bad_format,
     confirmation_does_not_match,
     does_not_exist,
+    must_be_a_number,
     must_be_after,
     normalise,
     not_an_email,
@@ -378,6 +381,134 @@ class UpdateSchoolRequest(SchoolForm):
         # near-identical field lists, which is how the two forms drift apart.
         for name, field in self.fields.items():
             field.required = False
+
+
+# -- payments ---------------------------------------------------------------
+
+
+class MoneyField(serializers.Field):
+    """A `decimal(12,2)` figure, kept as a Decimal all the way to the column.
+
+    Two places a float would be wrong in this product are money and
+    coordinates, and this is the one somebody eventually reconciles by hand.
+    """
+
+    def __init__(self, field_name: str, minimum="0", **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._field_name = field_name
+        self._minimum = decimal.Decimal(minimum)
+
+    def to_internal_value(self, data):
+        if data is None or data == "":
+            return None
+
+        try:
+            value = decimal.Decimal(str(data))
+        except (decimal.InvalidOperation, TypeError, ValueError):
+            raise serializers.ValidationError(must_be_a_number(self._field_name))
+
+        if not value.is_finite():
+            raise serializers.ValidationError(must_be_a_number(self._field_name))
+
+        # Two decimal places, no more. A third would be silently rounded by
+        # the column, which is how a ledger stops adding up.
+        if value.as_tuple().exponent < -2:
+            raise serializers.ValidationError(bad_format(self._field_name))
+
+        if value < self._minimum:
+            raise serializers.ValidationError(at_least(self._field_name, self._minimum))
+
+        return value.quantize(decimal.Decimal("0.01"))
+
+    def to_representation(self, value):
+        return None if value is None else str(value)
+
+
+class PaymentForm(serializers.Serializer):
+    payment_type = LaravelCharField("payment_type", max_length=50)
+    amount = MoneyField("amount", minimum="0.01")
+    payment_date = LaravelDateField("payment_date")
+    payment_mode = LaravelCharField("payment_mode", max_length=50)
+    reference_number = optional_text("reference_number", 100)
+    notes = optional_text("notes", 1000)
+    # How much has actually arrived. The status is derived from it, so the two
+    # can never contradict each other; `status` is still accepted because
+    # Cancelled is a decision rather than a consequence of the figures.
+    paid_amount = MoneyField("paid_amount", required=False, allow_null=True)
+    status = LaravelCharField("status", max_length=20)
+
+    def __init__(self, *args, payment=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.payment = payment
+
+    def check(self, attrs) -> dict:
+        errors = {}
+
+        for field, choices in (
+            ("payment_type", PaymentType),
+            ("payment_mode", PaymentMode),
+            ("status", PaymentStatus),
+        ):
+            if field in attrs and attrs[field] not in choices.values:
+                errors[field] = [selected_is_invalid(field)]
+
+        total = attrs.get("amount")
+
+        if total is None and self.payment is not None:
+            total = self.payment.amount
+
+        paid = attrs.get("paid_amount")
+
+        if paid is not None and total is not None and paid > total:
+            errors["paid_amount"] = [
+                "The amount received cannot be more than the payment amount."
+            ]
+
+        return errors
+
+
+class StorePaymentRequest(PaymentForm):
+    school_id = LaravelIntegerField("school_id")
+
+    def validate(self, attrs):
+        errors = self.check(attrs)
+
+        # A Super Admin belongs to no school, so there is no scope to fall
+        # back on: the payment has to name the school it is against, and it
+        # has to be a real one.
+        if not School.objects.filter(pk=attrs["school_id"]).exists():
+            errors["school_id"] = [does_not_exist("school_id")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+class UpdatePaymentRequest(PaymentForm):
+    """`school_id` and `currency_code` are fixed at creation.
+
+    The currency especially: it is copied from the school at the moment of
+    payment and stays with the record, so a historical payment stays correct
+    even if the school's currency is later changed (CLAUDE.md rule 5).
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        for field in self.fields.values():
+            field.required = False
+
+    def validate(self, attrs):
+        errors = self.check(attrs)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
 
 # -- periods and holidays ---------------------------------------------------

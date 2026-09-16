@@ -6,10 +6,10 @@ nothing here assumes it owns the database or the port.
 
 ## What exists so far
 
-**Auth, tenancy and Students** — M8, the gate phase. The other 143 endpoints
-arrive module by module from M9, each landing only when its contract tests pass
-([../contract/README.md](../contract/README.md)). Anything not listed below
-answers a `NOT_FOUND` envelope, not an HTML page.
+**M8 and M9: auth, tenancy, and all of Wave 1** — 52 endpoints. The rest
+arrive module by module from M10, each landing only when its contract tests
+pass ([../contract/README.md](../contract/README.md)). Anything not listed
+below answers a `NOT_FOUND` envelope, not an HTML page.
 
 | Endpoint | |
 |---|---|
@@ -23,6 +23,11 @@ answers a `NOT_FOUND` envelope, not an HTML page.
 | `GET`/`POST /users`, `GET`/`PATCH /users/{id}` | admin accounts, on a two-tier hierarchy |
 | `PATCH /users/{id}/activate`, `/deactivate` | deactivating signs them out everywhere |
 | `GET /timezones` | the picker's list — **PHP's**, not Python's |
+| `GET`/`POST /academic-years`, `…/{id}`, `…/{id}/set-current` | one year is current per school |
+| `GET`/`POST /departments`, `/subjects`, and their `{id}` routes | academic configuration |
+| `GET`/`POST /classes`, `…/{id}/sections`, `/sections/{id}` | a class carries its sections |
+| `GET`/`POST /periods`, `/holidays`, and their `{id}` routes | the school day and the calendar |
+| `GET`/`POST /payments`, `…/summary`, `…/{id}`, `…/{id}/receipt` | platform business, Super Admin only |
 
 | File | |
 |---|---|
@@ -36,7 +41,10 @@ answers a `NOT_FOUND` envelope, not an HTML page.
 | `school/requests.py` / `validation.py` | the same 422s, in Laravel's own wording |
 | `school/fields.py` | the one field that knows a naive column holds UTC — read its docstring |
 | `school/zones.py` | the timezone list, generated from PHP because Python's is a different list |
-| `school/models.py` | 33 models, all `managed = False` |
+| `school/queue.py` | the job queue — a table and a cron, because the host has no broker |
+| `school/receipts.py` | the payment receipt, rendered by `xhtml2pdf` |
+| `school/money.py` | every figure a `Decimal`, never a float |
+| `school/models.py` | 34 models, all `managed = False` |
 | `school/factories.py` | `factory_boy` equivalents of Laravel's factories |
 | `config/test_runner.py` | builds the test database from unmanaged models |
 | `manage.py check_models` | proves the models still match the real tables |
@@ -58,8 +66,9 @@ the running Laravel app rather than by the Python side.
 ## Django does not own the schema
 
 Every table already exists, created by Laravel's migrations. M1 proved the
-PostgreSQL schema identical to MySQL's across 40 tables and 399 columns, so
-there is nothing for Django to build — and `managed = False` on all 33 models
+PostgreSQL schema identical to MySQL's, and `schema:diff` still reports no
+differences across 41 tables and 409 columns, so
+there is nothing for Django to build — and `managed = False` on all 34 models
 says so. Every relation is `DO_NOTHING` for the same reason: the foreign keys
 carry their own `ON DELETE` rules, enforced by PostgreSQL, and restating them
 here would mean keeping one decision in two places.
@@ -104,6 +113,11 @@ PG_PASSWORD=... .venv/Scripts/python manage.py test school
 
 # Its own port, so Laravel on 8000 and the contract instance on 8001 keep running.
 PG_PASSWORD=... .venv/Scripts/python manage.py runserver 127.0.0.1:8002
+
+# Deferred work - receipts, and later the messages and bulk imports. Drains
+# the queue and exits, which is what makes it safe to run from cron:
+#   * * * * * cd /path/to/backend-python && .venv/bin/python manage.py work_queue
+PG_PASSWORD=... .venv/Scripts/python manage.py work_queue
 ```
 
 `check_models` writes nothing. `test` builds and drops its own database and

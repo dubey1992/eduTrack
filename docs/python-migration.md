@@ -13,7 +13,7 @@
 | M6 Contract suite | **Done** — 153/153 endpoints |
 | M7 Skeleton | **Done** — 33 models, round-tripped |
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
-| M9 Wave 1 — foundations | **45 of 52** — all but payments |
+| M9 Wave 1 — foundations | **Done** — 52 of 52 |
 | M10 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
@@ -714,7 +714,7 @@ Ported in dependency order, because everything downstream references them.
 | Academic years | 6 | **Done** |
 | Departments, subjects | 10 | **Done** |
 | Classes, sections, periods, holidays | 17 | **Done** |
-| Payments | 7 | Sequenced behind the queue and the PDF renderer |
+| Payments | 7 | **Done** — with the queue and the PDF renderer it needed |
 
 Each module is checked the way M8's bug was found: ask both backends the same
 question and diff the answers, with the host and the wall clock normalised
@@ -747,20 +747,42 @@ list, and **fall back to UTC** — moving every attendance date for that school
 by five and a half hours. The canonical list is now generated from PHP and
 committed as `backend-python/school/zones.py`.
 
-### Payments waits on infrastructure, not on a decision
+### The infrastructure payments needed, built once
 
-The decision landed — cPanel — so payments is no longer blocked, it is
-*sequenced*. Five of its seven endpoints are ordinary. The other two need
-things no module should build for itself:
+Payments was the last module in this wave because two of its seven endpoints
+needed things no module should build for itself. Both now exist, and both are
+shared: communication, announcements and bulk imports will all queue work.
 
-- `GET /payments/{payment}/receipt` renders a **PDF**.
-- `POST /payments/{payment}/receipt` **queues an email**, as does every create
-  and update that changes the money.
+**A queue.** A `queued_jobs` table, a worker management command, and a cron
+entry - the same shape Laravel runs (`QUEUE_CONNECTION=database` plus
+`queue:work --stop-when-empty`), because that is the shape cPanel allows.
 
-Both belong to the shared background-work and document-rendering pieces
-described under M0. Payments lands once those exist; porting the five and
-stubbing the two would mean a module that looks finished and silently stops
-sending receipts.
+It is a *second* table rather than Laravel's own `jobs`, and that is the
+interesting decision. Laravel's payload is a serialized PHP object: the
+payload *is* the class, and nothing but PHP can unserialize it. Two producers
+writing two formats into one table is how a queue starts silently dropping
+work. So `queued_jobs` holds a job *name* and a JSON payload, readable by
+anything.
+
+Created by a Laravel migration even though only Python uses it, because
+Laravel's migrations own this schema until the cutover. Letting Django create
+one table would put a table in PostgreSQL that MySQL does not have, and
+`schema:diff` - the check that proved the two databases identical at M1 -
+would be right to complain. It now compares 41 tables and 409 columns with no
+differences.
+
+Two rules make it safe to run from cron, where two invocations overlap if one
+run takes longer than the gap between them. **Reserving is a single
+conditional UPDATE**, so two workers racing for a row means one wins and the
+other moves on rather than both sending the same receipt. And **a job that
+throws is retried with a growing backoff**, then left reserved with its error
+on the row - visible in the table rather than only in a log, and no longer
+costing a worker on every pass.
+
+**A PDF renderer.** `xhtml2pdf`, pure Python: shared hosting has no cairo or
+pango, which rules out WeasyPrint. Like dompdf on the Laravel side it
+understands only simple CSS, so the receipt template came across unchanged and
+the document a school files looks the same after the cutover as before it.
 
 ### The ordering bug this wave found in Laravel
 

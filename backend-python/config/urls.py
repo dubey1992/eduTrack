@@ -22,6 +22,7 @@ from school.views import (
     auth,
     classes,
     imports,
+    payments,
     schools,
     students,
     timezones,
@@ -52,6 +53,12 @@ urlpatterns = [
     path("api/v1/auth/logout", auth.logout),
     path("api/v1/auth/change-password", auth.change_password),
     path("api/v1/me", auth.me),
+    # -- payments ----------------------------------------------------------
+    # `summary` before `<int:payment_id>` so the word is not read as an id.
+    path("api/v1/payments", payments.collection),
+    path("api/v1/payments/summary", payments.summary),
+    path("api/v1/payments/<int:payment_id>", payments.detail),
+    path("api/v1/payments/<int:payment_id>/receipt", payments.receipt),
     # -- schools -----------------------------------------------------------
     # No DELETE, and not by omission: erasing a school's records is not
     # something a school management system should offer.

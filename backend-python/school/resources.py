@@ -15,6 +15,7 @@ it is reproducing.
 
 from __future__ import annotations
 
+from . import money
 from .clock import SchoolClock
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
@@ -38,6 +39,42 @@ def timestamp(value) -> str | None:
         return None
 
     return as_utc(value).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
+
+
+def payment_resource(payment) -> dict:
+    body = {
+        "id": payment.id,
+        "school_id": payment.school_id,
+        "payment_type": payment.payment_type,
+        # Strings, always. Money through a JSON number is money through a
+        # float, and the client formats it rather than doing arithmetic on it.
+        "amount": str(payment.amount),
+        "paid_amount": str(payment.paid_amount),
+        "remaining_amount": str(
+            money.remaining(
+                money.amount(payment.amount), money.amount(payment.paid_amount), payment.status
+            )
+        ),
+        # Never absent, and never a converted total. Each payment carries the
+        # currency its school used at the time (CLAUDE.md rule 5).
+        "currency_code": payment.currency_code,
+        "payment_date": payment.payment_date.isoformat(),
+        "payment_mode": payment.payment_mode,
+        "reference_number": payment.reference_number,
+        "notes": payment.notes,
+        "status": payment.status,
+        "created_by": payment.created_by_id,
+        "receipt_sent_at": timestamp(payment.receipt_sent_at),
+        "created_at": timestamp(payment.created_at),
+    }
+
+    if loaded(payment, "school"):
+        body["school_name"] = payment.school.name
+
+    if loaded(payment, "created_by"):
+        body["created_by_name"] = payment.created_by.name
+
+    return body
 
 
 def period_resource(period) -> dict:

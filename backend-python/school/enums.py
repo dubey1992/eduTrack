@@ -59,6 +59,30 @@ class SchoolStatus(models.TextChoices):
     INACTIVE = "inactive"
 
 
+class PaymentType(models.TextChoices):
+    # The labels are what a receipt prints, so they are part of a document a
+    # school files rather than a display detail.
+    SETUP_FEE = "setup_fee", "Setup Fee"
+    ANNUAL_MAINTENANCE = "annual_maintenance", "Annual Maintenance"
+    ADDITIONAL_SERVICE = "additional_service", "Additional Service"
+    OTHER = "other", "Other"
+
+
+class PaymentMode(models.TextChoices):
+    CASH = "cash", "Cash"
+    BANK_TRANSFER = "bank_transfer", "Bank Transfer"
+    UPI = "upi", "UPI"
+    CHEQUE = "cheque", "Cheque"
+    ONLINE = "online", "Online Transfer"
+
+
+class PaymentStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    PAID = "paid", "Paid"
+    PARTIAL = "partial", "Partially Paid"
+    CANCELLED = "cancelled", "Cancelled"
+
+
 class HolidayType(models.TextChoices):
     NATIONAL = "national"
     RELIGIOUS = "religious"

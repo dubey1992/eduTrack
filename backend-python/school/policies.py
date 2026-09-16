@@ -139,6 +139,31 @@ class SubjectPolicy(SchoolOwnedPolicy):
     pass
 
 
+class PaymentPolicy:
+    """Platform business, and nobody else's.
+
+    Onboarding a school and recording what it paid are things the platform
+    does, not things a school does - so this is the one module where a School
+    Admin has no access at all, not even to their own school's rows.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
+
+    @staticmethod
+    def view(actor: User, payment=None) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
+
+    @staticmethod
+    def create(actor: User) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
+
+    @staticmethod
+    def update(actor: User, payment=None) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
+
+
 class SchoolClassPolicy(SchoolOwnedPolicy):
     pass
 
