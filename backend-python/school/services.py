@@ -7,14 +7,32 @@ rather than about the web, and can be tested without one.
 
 from __future__ import annotations
 
+import datetime as dt
+
 from django.db import transaction
 from django.db.models import Count, F, Q, Sum
 from django.utils import timezone
 
-from . import hashing, jobs, money, queue, tokens
+from . import hashing, jobs, money, notifications, queue, tokens
 from .clock import SchoolClock
-from .enums import PaymentStatus, SchoolStatus, StudentStatus, UserRole, UserStatus
-from .errors import AccountInactive, HasDependentRecords, HolidayOverlap, Unauthenticated
+from .enums import (
+    AttendanceStatus,
+    MessageEvent,
+    PaymentStatus,
+    SchoolStatus,
+    StudentStatus,
+    UserRole,
+    UserStatus,
+)
+from .errors import (
+    AccountInactive,
+    AttendanceAlreadySubmitted,
+    AttendanceOnHoliday,
+    HasDependentRecords,
+    HolidayOverlap,
+    NonWorkingDay,
+    Unauthenticated,
+)
 from .models import (
     AcademicYear,
     Attendance,
@@ -183,6 +201,208 @@ class SchoolService:
     @staticmethod
     def branch_count(school: School) -> int:
         return School.objects.filter(parent_school_id=school.id).count()
+
+
+class AttendanceService:
+    """The daily register.
+
+    Two rules carry the risk here, and both are about a day rather than a
+    student.
+
+    **A register can only be taken for a day the school actually ran.** A
+    holiday names itself in the refusal; a weekend is refused too, because
+    every working-day figure in the product excludes both and a Saturday
+    register that no percentage counts is worse than none.
+
+    **Submitting is not the same action as correcting.** A first submission
+    for a class and day is refused if one already exists, so a duplicate tap
+    cannot silently overwrite a different set of marks.
+    """
+
+    @staticmethod
+    def register(section: ClassSection, date) -> dict:
+        """The class's active roster for one day, each student paired with
+        their existing mark - or null where the day has not been submitted.
+        """
+        students = Student.objects.filter(
+            class_section_id=section.id, status=StudentStatus.ACTIVE
+        ).order_by("first_name", "id")
+
+        existing = {
+            row.student_id: row
+            for row in Attendance.objects.filter(
+                class_section_id=section.id, attendance_date=date
+            )
+        }
+
+        holiday = HolidayService.holiday_on(section.school_class.school_id, date)
+
+        return {
+            "class_section_id": section.id,
+            "attendance_date": str(date),
+            "submitted": bool(existing),
+            "holiday": None if holiday is None else holiday_summary(holiday),
+            "students": [
+                {
+                    "student_id": student.id,
+                    "name": student.name,
+                    "roll_number": student.roll_number,
+                    "status": existing[student.id].status if student.id in existing else None,
+                    "remarks": existing[student.id].remarks if student.id in existing else None,
+                }
+                for student in students
+            ],
+        }
+
+    @classmethod
+    def submit(cls, section: ClassSection, data: dict, actor: User) -> dict:
+        already = Attendance.objects.filter(
+            class_section_id=section.id, attendance_date=data["attendance_date"]
+        ).exists()
+
+        if already:
+            raise AttendanceAlreadySubmitted("Attendance has already been submitted.")
+
+        return cls.save(section, data, actor)
+
+    @classmethod
+    def update(cls, section: ClassSection, data: dict, actor: User) -> dict:
+        """Corrects an already-submitted day, or fills in a student the first
+        submission missed. An explicit, separate action from submit()."""
+        return cls.save(section, data, actor)
+
+    @classmethod
+    def save(cls, section: ClassSection, data: dict, actor: User) -> dict:
+        # Never trusted from the client - taken from the section's own class,
+        # the same way a payment's currency is taken from its school.
+        school_id = section.school_class.school_id
+        academic_year_id = section.school_class.academic_year_id
+        date = data["attendance_date"]
+
+        cls.assert_school_is_open(school_id, date)
+
+        with transaction.atomic():
+            changed = {}
+
+            for record in data["records"]:
+                attendance, created = Attendance.objects.get_or_create(
+                    class_section_id=section.id,
+                    student_id=record["student_id"],
+                    attendance_date=date,
+                    defaults={
+                        "school_id": school_id,
+                        "academic_year_id": academic_year_id,
+                        "status": record["status"],
+                        "remarks": record.get("remarks"),
+                        "marked_by_id": actor.id,
+                        "created_at": timezone.now(),
+                        "updated_at": timezone.now(),
+                    },
+                )
+
+                if created:
+                    changed[attendance.student_id] = attendance.status
+                else:
+                    was = attendance.status
+
+                    attendance.status = record["status"]
+                    attendance.remarks = record.get("remarks")
+                    attendance.marked_by_id = actor.id
+                    attendance.updated_at = timezone.now()
+                    attendance.save()
+
+                    # Only a new mark or a changed one alerts the guardian, so
+                    # correcting a remark does not text a parent twice.
+                    if was != attendance.status:
+                        changed[attendance.student_id] = attendance.status
+
+            cls.alert_guardians(section, date, changed, actor)
+
+            return cls.register(section, date)
+
+    @staticmethod
+    def assert_school_is_open(school_id: int, date) -> None:
+        holiday = HolidayService.holiday_on(school_id, date)
+
+        if holiday is not None:
+            raise AttendanceOnHoliday(
+                f"Attendance cannot be marked on {holiday.name} - it is a holiday."
+            )
+
+        if not HolidayService.is_working_day(school_id, date):
+            raise NonWorkingDay(
+                "Attendance cannot be marked on a weekend - the school is closed."
+            )
+
+    @staticmethod
+    def alert_guardians(section: ClassSection, date, changed: dict, actor: User) -> None:
+        """Tells guardians what was marked.
+
+        Which statuses actually go out is the school's choice, and the sending
+        is queued - marking a register is never held up by a gateway.
+        """
+        if not changed:
+            return
+
+        events = {
+            AttendanceStatus.ABSENT: MessageEvent.ATTENDANCE_ABSENT,
+            AttendanceStatus.PRESENT: MessageEvent.ATTENDANCE_PRESENT,
+        }
+
+        for student in Student.objects.select_related("school").filter(id__in=changed):
+            event = events.get(changed[student.id])
+
+            # A student marked "leave" is not news to the person who asked for
+            # it, so there is no event for it.
+            if event is None:
+                continue
+
+            notifications.notify_guardian(
+                event,
+                student,
+                {
+                    "class_name": f"{section.school_class.name} {section.name}".strip(),
+                    "date": as_date(date).strftime("%m/%d/%Y"),
+                },
+                actor=actor,
+            )
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        marks = Attendance.objects.select_related(
+            "student", "class_section__school_class", "marked_by"
+        )
+
+        marks = SchoolScope.for_actor(actor).apply_to(marks, filters.get("school_id"))
+
+        # A teacher only ever sees attendance for sections they are the class
+        # teacher of - never another class, regardless of filters.
+        if actor.role == UserRole.TEACHER:
+            marks = marks.filter(class_section__class_teacher_id=actor.id)
+
+        for field in ("class_section_id", "student_id", "status"):
+            if filters.get(field):
+                marks = marks.filter(**{field: filters[field]})
+
+        if filters.get("date_from"):
+            marks = marks.filter(attendance_date__gte=filters["date_from"])
+
+        if filters.get("date_to"):
+            marks = marks.filter(attendance_date__lte=filters["date_to"])
+
+        return marks.order_by("-attendance_date", "student_id", "id")
+
+
+def holiday_summary(holiday) -> dict:
+    """Just enough of a holiday for the register screen to name it.
+
+    Three fields, matching Laravel's holidayPayload() exactly. The first
+    version of this returned the dates too, which no client reads and which
+    the cross-backend diff would not have caught - neither date it compared
+    happened to be a holiday. Extra fields are harmless to the contract suite
+    by design, which is precisely why adding them quietly is easy.
+    """
+    return {"id": holiday.id, "name": holiday.name, "type": holiday.type}
 
 
 class StaffProfileService:
@@ -565,6 +785,56 @@ class HolidayService:
                 school_id=holiday.school_id, report_date__range=between
             ).count(),
         }
+
+    # -- the working-day questions every date-driven module asks ----------
+    #
+    # A working day is a Monday-to-Friday date not covered by a holiday.
+    # Weekends are fixed, matching the Monday-to-Friday timetable, and both
+    # halves matter: every working-day figure in the product excludes both, so
+    # a Saturday register that no percentage counts is worse than none.
+
+    @staticmethod
+    def holiday_on(school_id: int, date):
+        return Holiday.objects.filter(
+            school_id=school_id, start_date__lte=date, end_date__gte=date
+        ).first()
+
+    @classmethod
+    def is_working_day(cls, school_id: int, date) -> bool:
+        return bool(cls.working_dates(school_id, date, date))
+
+    @staticmethod
+    def working_dates(school_id: int, start, end) -> list:
+        """Every working date from `start` to `end` inclusive, in order.
+
+        Empty when `start` is after `end`, rather than an error: a report for
+        a range nobody has chosen yet asks this before it has both ends.
+        """
+        start = as_date(start)
+        end = as_date(end)
+
+        if start > end:
+            return []
+
+        holidays = list(
+            Holiday.objects.filter(
+                school_id=school_id, start_date__lte=end, end_date__gte=start
+            ).values_list("start_date", "end_date")
+        )
+
+        dates = []
+        day = start
+
+        while day <= end:
+            # Monday is 0, Saturday 5, Sunday 6.
+            if day.weekday() < 5 and not any(
+                first <= day <= last for first, last in holidays
+            ):
+                dates.append(day)
+
+            day += dt.timedelta(days=1)
+
+        return dates
 
     @staticmethod
     def _assert_no_overlap(school_id, start, end, ignoring=None) -> None:
@@ -1074,3 +1344,11 @@ class StudentService:
         student.save(update_fields=["status", "updated_at"])
 
         return student
+
+
+def as_date(value) -> dt.date:
+    """A date from either a date or a `YYYY-MM-DD` string."""
+    if isinstance(value, dt.date):
+        return value
+
+    return dt.date.fromisoformat(str(value)[:10])

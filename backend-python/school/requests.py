@@ -19,7 +19,15 @@ import decimal
 import re
 
 from . import hashing
-from .enums import HolidayType, PaymentMode, PaymentStatus, PaymentType, UserRole
+from .enums import (
+    AttendanceStatus,
+    HolidayType,
+    PaymentMode,
+    PaymentStatus,
+    PaymentType,
+    StudentStatus,
+    UserRole,
+)
 from .models import (
     AcademicYear,
     ClassSection,
@@ -37,6 +45,7 @@ from .models import (
 from .scope import SchoolScope
 from .validation import (
     CoordinateField,
+    attribute,
     LaravelBooleanField,
     LaravelCharField,
     LaravelDateField,
@@ -382,6 +391,124 @@ class UpdateSchoolRequest(SchoolForm):
         # near-identical field lists, which is how the two forms drift apart.
         for name, field in self.fields.items():
             field.required = False
+
+
+# -- student attendance -----------------------------------------------------
+
+
+class SchoolDateField(LaravelDateField):
+    """A date that cannot be in the future - measured at the *school*.
+
+    Laravel's `before_or_equal:today` resolves "today" from the server, which
+    runs in UTC. A teacher in Asia/Kolkata marking the register at 7am is five
+    and a half hours ahead of that, so before 05:30 UTC the server would
+    reject a perfectly ordinary morning as being in the future.
+    """
+
+    def __init__(self, field_name: str, **kwargs) -> None:
+        super().__init__(field_name, **kwargs)
+        self._field_name = field_name
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+        today = self.context.get("school_today")
+
+        if today is not None and value > today:
+            raise serializers.ValidationError(
+                f"The {attribute(self._field_name)} field must be a date "
+                f"before or equal to {today.isoformat()}."
+            )
+
+        return value
+
+
+class AttendanceRecordSerializer(serializers.Serializer):
+    student_id = LaravelIntegerField("student_id")
+    status = LaravelCharField("status", max_length=20)
+    remarks = optional_text("remarks", 255)
+
+
+class AttendanceRegisterRequest(serializers.Serializer):
+    """`class_section_id` is body data, not a route-bound model.
+
+    So a bad id fails validation with a 422, and ownership is checked in the
+    view once the section is known to be real - a 403 about a section that
+    does not exist would tell a caller it does.
+    """
+
+    class_section_id = LaravelIntegerField("class_section_id")
+    date = SchoolDateField("date")
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_class_section_id(self, value):
+        if not ClassSection.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(does_not_exist("class_section_id"))
+
+        return value
+
+
+class MarkAttendanceRequest(serializers.Serializer):
+    class_section_id = LaravelIntegerField("class_section_id")
+    attendance_date = SchoolDateField("attendance_date")
+    records = AttendanceRecordSerializer(many=True)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_class_section_id(self, value):
+        if not ClassSection.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(does_not_exist("class_section_id"))
+
+        return value
+
+    def validate_records(self, value):
+        if not value:
+            raise serializers.ValidationError(required("records"))
+
+        student_ids = [record["student_id"] for record in value]
+
+        if len(student_ids) != len(set(student_ids)):
+            raise serializers.ValidationError(
+                "Each student can only appear once in the attendance records."
+            )
+
+        return value
+
+    def validate(self, attrs):
+        errors = {}
+
+        for record in attrs["records"]:
+            if record["status"] not in AttendanceStatus.values:
+                errors["records"] = [selected_is_invalid("status")]
+                break
+
+        # Every student named has to be an active student of *this* section.
+        # A mark against somebody else's student would be a row nobody's
+        # register shows and every percentage counts.
+        named = {record["student_id"] for record in attrs["records"]}
+        belong = set(
+            Student.objects.filter(
+                id__in=named,
+                class_section_id=attrs["class_section_id"],
+                status=StudentStatus.ACTIVE,
+            ).values_list("id", flat=True)
+        )
+
+        if named - belong:
+            errors.setdefault("records", []).append(selected_is_invalid("student_id"))
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
 
 # -- teachers and staff -----------------------------------------------------

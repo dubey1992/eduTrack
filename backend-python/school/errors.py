@@ -71,6 +71,31 @@ class HolidayOverlap(ApiError):
     error_code = "HOLIDAY_OVERLAP"
 
 
+class AttendanceAlreadySubmitted(ApiError):
+    """A register for this class and day already exists.
+
+    Refused rather than overwritten: a duplicate tap must not silently
+    replace a different set of marks. Correcting a day is its own action.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ATTENDANCE_ALREADY_SUBMITTED"
+
+
+class AttendanceOnHoliday(ApiError):
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ATTENDANCE_ON_HOLIDAY"
+
+
+class NonWorkingDay(ApiError):
+    """A weekend. Refused for the same reason a holiday is: every
+    working-day figure in the product excludes both, so a Saturday register
+    that no percentage counts is worse than none."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "NON_WORKING_DAY"
+
+
 class HasDependentRecords(ApiError):
     """Something is still built on top of this, so it cannot be removed.
 

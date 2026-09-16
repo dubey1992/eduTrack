@@ -26,6 +26,7 @@ import zoneinfo
 from django.conf import settings
 from django.utils import timezone
 
+from .enums import UserRole
 from .models import School, User
 
 KNOWN_ZONES = zoneinfo.available_timezones()
@@ -65,6 +66,23 @@ class SchoolClock:
             return cls.for_school(user.school)
 
         return cls.for_school(user.school_id)
+
+    @classmethod
+    def for_scope(cls, actor, school_id) -> "SchoolClock":
+        """The clock a scoped listing should be read on.
+
+        A school user always means their own school. A Super Admin means
+        whichever school they have filtered to, or the platform's zone when
+        they are looking across all of them - "today" across four countries
+        cannot be any one school's today.
+        """
+        if actor.role != UserRole.SUPER_ADMIN:
+            return cls.for_school(actor.school_id)
+
+        if school_id is None or school_id == "":
+            return cls.platform()
+
+        return cls.for_school(int(school_id))
 
     @classmethod
     def platform(cls) -> "SchoolClock":

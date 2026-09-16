@@ -41,6 +41,36 @@ def timestamp(value) -> str | None:
     return as_utc(value).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
+def attendance_resource(mark) -> dict:
+    section = mark.class_section
+
+    body = {
+        "id": mark.id,
+        "school_id": mark.school_id,
+        "academic_year_id": mark.academic_year_id,
+        "class_section_id": mark.class_section_id,
+        "class_section_name": (
+            f"{section.school_class.name} {section.name}".strip()
+            if section is not None and loaded(section, "school_class")
+            else None
+        ),
+        "student_id": mark.student_id,
+        "attendance_date": mark.attendance_date.isoformat(),
+        "status": mark.status,
+        "remarks": mark.remarks,
+        "marked_by": mark.marked_by_id,
+        "created_at": timestamp(mark.created_at),
+    }
+
+    if loaded(mark, "student"):
+        body["student_name"] = mark.student.name if mark.student else None
+
+    if loaded(mark, "marked_by"):
+        body["marked_by_name"] = mark.marked_by.name if mark.marked_by else None
+
+    return body
+
+
 def staff_profile_resource(profile, class_teacher_of=None) -> dict:
     """An employee: their employment record and the login behind it.
 

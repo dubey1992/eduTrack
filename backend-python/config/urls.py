@@ -19,6 +19,7 @@ from django.urls import path
 from school.views import (
     academic_config,
     academic_years,
+    attendance,
     auth,
     classes,
     imports,
@@ -49,6 +50,10 @@ urlpatterns = [
     path("api/v1/departments/<int:department_id>", academic_config.department),
     path("api/v1/subjects", academic_config.subjects),
     path("api/v1/subjects/<int:subject_id>", academic_config.subject),
+    # -- student attendance ------------------------------------------------
+    # `register` before the collection so the word is not read as a filter.
+    path("api/v1/attendance/register", attendance.register),
+    path("api/v1/attendance", attendance.collection),
     # -- auth --------------------------------------------------------------
     path("api/v1/auth/login", auth.login),
     path("api/v1/auth/logout", auth.logout),

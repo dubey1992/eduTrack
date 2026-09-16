@@ -14,7 +14,7 @@
 | M7 Skeleton | **Done** — 33 models, round-tripped |
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
 | M9 Wave 1 — foundations | **Done** — 52 of 52 |
-| M10 Wave 2 — people and daily operations | **In progress** — 4 of 20, plus the notification core |
+| M10 Wave 2 — people and daily operations | **In progress** — 8 of 20, plus the notification core |
 | M11 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
@@ -822,6 +822,8 @@ written.
 | Schools | Branches of a group share a name |
 | Academic years | Every school in a group starts on the same April day |
 | Departments, subjects | A name is unique *within* a school, not across them |
+| Staff | An employee id is unique within a school; EMP-001 exists at every one |
+| Holidays | Every school in a country closes on the same national holiday |
 
 Each was fixed on both backends when its module landed, with a case added to
 `StableOrderingTest`. The remaining lists are fixed the same way as the port
@@ -840,7 +842,7 @@ minutes if it is wrong.
 | Module | Endpoints | |
 |---|---|---|
 | Teachers and staff | 4 | **Done** |
-| Student attendance | 4 | Not started |
+| Student attendance | 4 | **Done** |
 | Staff attendance | 4 | Not started |
 | Leave management | 5 | Not started |
 | Timetable | 3 | Not started |
