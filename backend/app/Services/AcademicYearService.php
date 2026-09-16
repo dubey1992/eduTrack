@@ -38,7 +38,15 @@ class AcademicYearService
                 $this->clearCurrentFor($data['school_id']);
             }
 
-            return AcademicYear::create($data);
+            // Refreshed so the response describes the stored row rather than
+            // the half-filled model that was handed to create(). `is_current`
+            // is NOT NULL with a default of false in the database, but a
+            // request that omits it leaves the in-memory attribute unset - so
+            // the API was answering `"is_current": null` for a column that
+            // cannot be null, and a client reading it as a boolean would fail
+            // on its own contract. Found by the contract suite, which omits
+            // the field where the Flutter client happens always to send it.
+            return AcademicYear::create($data)->refresh();
         });
     }
 

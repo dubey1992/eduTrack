@@ -22,6 +22,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
+import coverage
+
 DEFAULT_BASE_URL = "http://127.0.0.1:8000/api/v1"
 
 
@@ -88,6 +90,10 @@ class Client:
         return f"{path}{joiner}{encoded}"
 
     def _send(self, method: str, path: str, payload: dict | None = None) -> Response:
+        # Recorded here because this is the only place a request is made, so
+        # the coverage figure cannot disagree with what the suite actually did.
+        coverage.record(method, path)
+
         url = f"{base_url()}/{path.lstrip('/')}"
         body = None if payload is None else json.dumps(payload).encode()
 

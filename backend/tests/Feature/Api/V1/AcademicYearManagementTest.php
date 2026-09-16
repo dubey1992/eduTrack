@@ -250,4 +250,25 @@ class AcademicYearManagementTest extends TestCase
 
         $response->assertUnprocessable()->assertJsonStructure(['details' => ['errors' => ['name']]]);
     }
+
+    public function test_a_created_year_reports_is_current_rather_than_null(): void
+    {
+        // `is_current` is NOT NULL with a default of false, so the API must
+        // never answer null for it. It used to, whenever a request omitted the
+        // field: the response described the half-filled model handed to
+        // create() rather than the stored row. The Flutter client reads it as
+        // a plain bool and would have thrown on the null - it only escaped
+        // because that client always sends the field.
+        $school = School::factory()->create();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/academic-years', [
+                'name' => '2030-31',
+                'start_date' => '2030-04-01',
+                'end_date' => '2031-03-31',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('is_current', false);
+    }
 }

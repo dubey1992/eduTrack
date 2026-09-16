@@ -166,3 +166,79 @@ STAFF = {
     "role": "str",
     "status": "str",
 }
+
+# -- academic configuration --------------------------------------------------
+#
+# Taken from the API resources rather than guessed at, which is the difference
+# between a contract and a hope. `?` means the field may be null - the client
+# reads it either way, and a field that vanishes entirely is a break.
+
+ACADEMIC_YEAR = {
+    "id": "int",
+    "school_id": "int",
+    "school_name": "str?",
+    "name": "str",
+    "start_date": "str",
+    "end_date": "str",
+    "is_current": "bool",
+}
+
+DEPARTMENT = {
+    "id": "int",
+    "school_id": "int",
+    "school_name": "str?",
+    "name": "str",
+    "hod_user_id": "int?",
+    "hod_name": "str?",
+}
+
+SUBJECT = {
+    "id": "int",
+    "school_id": "int",
+    "code": "str",
+    "name": "str",
+    "department_id": "int?",
+    "department_name": "str?",
+    "min_class_level": "int?",
+    "max_class_level": "int?",
+    "lead_teacher_id": "int?",
+    "lead_teacher_name": "str?",
+}
+
+SCHOOL_CLASS = {
+    "id": "int",
+    "school_id": "int",
+    "academic_year_id": "int",
+    "academic_year_name": "str?",
+    "name": "str",
+    "level": "int",
+    "sections": "list",
+}
+
+CLASS_SECTION = {
+    "id": "int",
+    "school_class_id": "int",
+    "name": "str",
+    "room_number": "str?",
+    "class_teacher_id": "int?",
+    "class_teacher_name": "str?",
+}
+
+PERIOD = {
+    "id": "int",
+    "school_id": "int",
+    "period_number": "int",
+    "start_time": "str",
+    "end_time": "str",
+}
+
+HOLIDAY = {
+    "id": "int",
+    "school_id": "int",
+    "school_name": "str?",
+    "name": "str",
+    "type": "str",
+    "start_date": "str",
+    "end_date": "str",
+    "days": "int",
+}

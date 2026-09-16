@@ -86,6 +86,9 @@ class World:
     admin_email: str
     other_school_id: int
     other_admin: Client
+    academic_year_id: int
+    department_id: int
+    school_class_id: int
     class_section_id: int
     student_id: int
     created_user_ids: list[int] = field(default_factory=list)
@@ -111,7 +114,8 @@ def build() -> World:
     admin = sign_in(admin_email, TEST_PASSWORD)
     other_admin = sign_in(other_email, TEST_PASSWORD)
 
-    section_id = _make_class_section(admin, school_id, tag)
+    department_id = _make_department(admin, school_id, tag)
+    year_id, class_id, section_id = _make_class_section(admin, school_id, tag)
     student_id = _make_student(admin, school_id, section_id, tag)
 
     return World(
@@ -121,6 +125,9 @@ def build() -> World:
         admin_email=admin_email,
         other_school_id=other_school_id,
         other_admin=other_admin,
+        academic_year_id=year_id,
+        department_id=department_id,
+        school_class_id=class_id,
         class_section_id=section_id,
         student_id=student_id,
         created_user_ids=[admin_id, other_id],
@@ -195,7 +202,20 @@ def _make_admin(root: Client, school_id: int, email: str) -> int:
     return body["id"]
 
 
-def _make_class_section(admin: Client, school_id: int, tag: str) -> int:
+def _make_department(admin: Client, school_id: int, tag: str) -> int:
+    """A subject has to belong to one, so the world needs one before it can
+    have subjects."""
+    body = _created(
+        admin.post("/departments", {"school_id": school_id, "name": "Contract Dept " + tag}),
+        "a department",
+    )
+
+    return body["id"]
+
+
+def _make_class_section(admin: Client, school_id: int, tag: str) -> tuple[int, int, int]:
+    """The year, the class and the section - all three, because the academic
+    tests need to hang things off each of them."""
     year = _created(
         admin.post(
             "/academic-years",
@@ -230,7 +250,7 @@ def _make_class_section(admin: Client, school_id: int, tag: str) -> int:
         "a class section",
     )
 
-    return section["id"]
+    return year["id"], school_class["id"], section["id"]
 
 
 def _make_student(admin: Client, school_id: int, section_id: int, tag: str) -> int:

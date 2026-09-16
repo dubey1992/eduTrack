@@ -16,6 +16,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import coverage  # noqa: E402
 from client import base_url  # noqa: E402
 
 
@@ -24,6 +25,9 @@ def main() -> int:
 
     suite = unittest.defaultTestLoader.discover(HERE, pattern="test_*.py")
     result = unittest.TextTestRunner(verbosity=2).run(suite)
+
+    print()
+    print(coverage.summarise())
 
     return 0 if result.wasSuccessful() else 1
 
