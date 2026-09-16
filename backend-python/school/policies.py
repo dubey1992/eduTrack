@@ -139,6 +139,40 @@ class SubjectPolicy(SchoolOwnedPolicy):
     pass
 
 
+class StaffProfilePolicy:
+    """Employment records.
+
+    Admins only, even to read: a teacher does not browse their colleagues'
+    joining dates and addresses. That is the one way this differs from the
+    school-owned shape, which lets every role read.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES
+
+    @classmethod
+    def view(cls, actor: User, profile) -> bool:
+        return cls._manages(actor, profile)
+
+    @staticmethod
+    def create(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES
+
+    @classmethod
+    def update(cls, actor: User, profile) -> bool:
+        return cls._manages(actor, profile)
+
+    @staticmethod
+    def _manages(actor: User, profile) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
+            profile.school_id
+        )
+
+
 class PaymentPolicy:
     """Platform business, and nobody else's.
 

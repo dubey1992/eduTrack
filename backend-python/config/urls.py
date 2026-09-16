@@ -24,6 +24,7 @@ from school.views import (
     imports,
     payments,
     schools,
+    staff,
     students,
     timezones,
     users,
@@ -72,6 +73,11 @@ urlpatterns = [
     path("api/v1/users/<int:user_id>", users.detail),
     path("api/v1/users/<int:user_id>/activate", users.activate),
     path("api/v1/users/<int:user_id>/deactivate", users.deactivate),
+    # -- teachers and staff ------------------------------------------------
+    # No delete: somebody who has left is deactivated through /users, which
+    # keeps their attendance, their leave and last year's timetable intact.
+    path("api/v1/staff", staff.collection),
+    path("api/v1/staff/<int:profile_id>", staff.detail),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

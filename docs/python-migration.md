@@ -14,7 +14,8 @@
 | M7 Skeleton | **Done** — 33 models, round-tripped |
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
 | M9 Wave 1 — foundations | **Done** — 52 of 52 |
-| M10 onwards | Not started |
+| M10 Wave 2 — people and daily operations | **In progress** — 4 of 20 |
+| M11 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
 (decided 2026-09-16). AWS is a later plan, not a parallel one — so nothing
@@ -833,6 +834,26 @@ timetable.
 
 The highest-traffic part of the product and the part a school notices within
 minutes if it is wrong.
+
+### Progress
+
+| Module | Endpoints | |
+|---|---|---|
+| Teachers and staff | 4 | **Done** |
+| Student attendance | 4 | Not started |
+| Staff attendance | 4 | Not started |
+| Leave management | 5 | Not started |
+| Timetable | 3 | Not started |
+
+Teachers and staff came first because everything else in this wave hangs off
+an employment record: attendance is marked against one, leave is taken by one,
+and a timetable entry names one as the teacher.
+
+It is also the module where the two-rows-or-neither rule lives. The Add
+Employee screen is one form and creates a login *and* an employment profile in
+one transaction, because half an employee is not a state the product has a
+screen for - a login with no profile is invisible to Attendance and Leave, and
+a profile with no login is somebody on a roster who cannot sign in.
 
 ## M11 · Wave 3 — derived and outbound
 

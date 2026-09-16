@@ -29,6 +29,7 @@ from .models import (
     EarlyAccessRequest,
     School,
     SchoolClass,
+    StaffProfile,
     Student,
     Subject,
     User,
@@ -381,6 +382,148 @@ class UpdateSchoolRequest(SchoolForm):
         # near-identical field lists, which is how the two forms drift apart.
         for name, field in self.fields.items():
             field.required = False
+
+
+# -- teachers and staff -----------------------------------------------------
+
+# What "add an employee" may create. Never an admin account, whoever is doing
+# the adding - that is the Users screen's job, and it derives the admin tier
+# from the actor rather than from a field.
+STAFF_ROLES = (UserRole.HOD, UserRole.TEACHER, UserRole.STAFF, UserRole.TRANSPORT_MANAGER)
+
+
+class StoreStaffRequest(ScopedSerializer):
+    """One form, two records: the login and the employment profile.
+
+    The prototype's Add Employee screen is a single form, and the two are
+    created in one transaction - a login with no employment record is
+    invisible to Attendance and Leave, and a profile with no login is somebody
+    on a roster who cannot sign in.
+    """
+
+    first_name = LaravelCharField("first_name", max_length=100)
+    last_name = LaravelCharField("last_name", max_length=100)
+    email = LaravelCharField("email", max_length=255)
+    mobile = MobileField("mobile")
+    password = LaravelCharField("password", min_length=8)
+    role = LaravelCharField("role")
+    employee_id = LaravelCharField("employee_id", max_length=30)
+    department_id = LaravelIntegerField("department_id", required=False, allow_null=True)
+    designation = optional_text("designation", 100)
+    joining_date = LaravelDateField("joining_date")
+    address = optional_text("address", 500)
+
+    def validate_email(self, value: str) -> str:
+        value = value.strip().lower()
+
+        if not EMAIL_PATTERN.match(value):
+            raise serializers.ValidationError(not_an_email("email"))
+
+        return value
+
+    def validate(self, attrs):
+        errors = {}
+
+        try:
+            self.validate_school_id_field()
+        except serializers.ValidationError as invalid:
+            errors.update(invalid.detail)
+
+        school_id = self.resolved_school_id()
+
+        if attrs.get("role") not in STAFF_ROLES:
+            errors["role"] = [selected_is_invalid("role")]
+
+        if User.objects.filter(email=attrs["email"]).exists():
+            errors["email"] = [already_taken("email")]
+
+        if StaffProfile.objects.filter(
+            school_id=school_id, employee_id=attrs["employee_id"]
+        ).exists():
+            errors["employee_id"] = [already_taken("employee_id")]
+
+        department_id = attrs.get("department_id")
+
+        if department_id is not None and not Department.objects.filter(
+            pk=department_id, school_id=school_id
+        ).exists():
+            errors["department_id"] = [does_not_exist("department_id")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = school_id
+
+        return attrs
+
+    def user_data(self) -> dict:
+        """The half that becomes the login.
+
+        `school_id` is included and is the *resolved* one, not whatever the
+        request sent. Without it a Super Admin - who belongs to no school, so
+        has nothing to fall back on - would create an employee attached to no
+        school at all.
+        """
+        return {
+            field: self.validated_data[field]
+            for field in (
+                "first_name",
+                "last_name",
+                "email",
+                "mobile",
+                "password",
+                "role",
+                "school_id",
+            )
+            if field in self.validated_data
+        }
+
+    def profile_data(self) -> dict:
+        """The half that becomes the employment record."""
+        return {
+            field: self.validated_data.get(field)
+            for field in ("employee_id", "department_id", "designation", "joining_date", "address")
+        }
+
+
+class UpdateStaffProfileRequest(ScopedSerializer):
+    """The employment record only.
+
+    The login behind it - name, email, role - is edited through the Users
+    endpoints, so that the admin hierarchy is enforced in one place rather
+    than two.
+    """
+
+    employee_id = LaravelCharField("employee_id", max_length=30, required=False)
+    department_id = LaravelIntegerField("department_id", required=False, allow_null=True)
+    designation = optional_text("designation", 100)
+    joining_date = LaravelDateField("joining_date", required=False)
+    address = optional_text("address", 500)
+
+    def __init__(self, *args, profile=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.profile = profile
+
+    def validate(self, attrs):
+        school_id = self.profile.school_id
+        errors = {}
+
+        if "employee_id" in attrs and StaffProfile.objects.filter(
+            school_id=school_id, employee_id=attrs["employee_id"]
+        ).exclude(pk=self.profile.pk).exists():
+            errors["employee_id"] = [already_taken("employee_id")]
+
+        department_id = attrs.get("department_id")
+
+        if department_id is not None and not Department.objects.filter(
+            pk=department_id, school_id=school_id
+        ).exists():
+            errors["department_id"] = [does_not_exist("department_id")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
 
 # -- payments ---------------------------------------------------------------

@@ -185,6 +185,101 @@ class SchoolService:
         return School.objects.filter(parent_school_id=school.id).count()
 
 
+class StaffProfileService:
+    """Teachers and other staff: the login and the employment record together.
+
+    The Add Employee screen is one form and this is why - a login with no
+    employment record is invisible to Attendance and Leave, and a profile with
+    no login is somebody on a roster who cannot sign in.
+    """
+
+    WITH = ("user", "school", "department")
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        staff = StaffProfile.objects.select_related(*cls.WITH)
+
+        staff = SchoolScope.for_actor(actor).apply_to(staff, filters.get("school_id"))
+
+        # Never the placeholder profile a School Admin account gets so it can
+        # use Leave and Staff Attendance (see UserService.create). This list
+        # is real employment records only - the ones Add Employee produces.
+        staff = staff.exclude(user__role=UserRole.SCHOOL_ADMIN)
+
+        if filters.get("department_id"):
+            staff = staff.filter(department_id=filters["department_id"])
+
+        if filters.get("role"):
+            staff = staff.filter(user__role=filters["role"])
+
+        if filters.get("status"):
+            staff = staff.filter(user__status=filters["status"])
+
+        search = filters.get("search")
+
+        if search:
+            # icontains on both databases - see StudentService for why a bare
+            # LIKE cannot be trusted across the two.
+            staff = staff.filter(
+                Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(user__email__icontains=search)
+            )
+
+        # `employee_id` is unique within a school but not across them, so a
+        # Super Admin's roster ties - EMP-001 exists at every school.
+        return staff.order_by("employee_id", "id")
+
+    @staticmethod
+    def classes_taught_by(user_ids) -> dict:
+        """Which classes each of these people is class teacher of.
+
+        One query for a whole page. The value is what the screen shows -
+        "Grade 8 A" - rather than ids the client would have to join itself.
+        """
+        taught: dict[int, list[str]] = {}
+
+        for section in ClassSection.objects.select_related("school_class").filter(
+            class_teacher_id__in=list(user_ids)
+        ).order_by("school_class__name", "name"):
+            label = f"{section.school_class.name} {section.name}".strip()
+            taught.setdefault(section.class_teacher_id, []).append(label)
+
+        return taught
+
+    @staticmethod
+    def create_employee(user_data: dict, profile_data: dict, actor: User) -> StaffProfile:
+        """Both rows, in one transaction. Half an employee is not a state the
+        product has a screen for."""
+        with transaction.atomic():
+            user = UserService.create(actor, user_data)
+            now = timezone.now()
+
+            return StaffProfile.objects.create(
+                user_id=user.id,
+                # Always the account's own school, resolved by UserService
+                # above - never re-derived from client input here.
+                school_id=user.school_id,
+                employee_id=profile_data["employee_id"],
+                department_id=profile_data.get("department_id"),
+                designation=profile_data.get("designation"),
+                joining_date=profile_data["joining_date"],
+                address=profile_data.get("address"),
+                created_at=now,
+                updated_at=now,
+            )
+
+    @staticmethod
+    def update(profile: StaffProfile, data: dict) -> StaffProfile:
+        for field, value in data.items():
+            setattr(profile, field, value)
+
+        profile.updated_at = timezone.now()
+        profile.save()
+
+        return profile
+
+
 class PaymentService:
     """Payments a school has made to the platform.
 

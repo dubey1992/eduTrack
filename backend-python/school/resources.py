@@ -41,6 +41,40 @@ def timestamp(value) -> str | None:
     return as_utc(value).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
+def staff_profile_resource(profile, class_teacher_of=None) -> dict:
+    """An employee: their employment record and the login behind it.
+
+    One resource for two rows, because the Add Employee screen is one form.
+    `class_teacher_of` is passed in for the same reason `sections` is on a
+    class - it is a prefetch, and a resource that walked the relation would
+    fire a query per employee in a list.
+    """
+    user = profile.user
+
+    return {
+        "id": profile.id,
+        "user_id": profile.user_id,
+        "employee_id": profile.employee_id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "name": user.name,
+        "email": user.email,
+        "mobile": user.mobile,
+        "role": user.role,
+        "status": user.status,
+        "school_id": profile.school_id,
+        "school_name": profile.school.name if profile.school_id else None,
+        "department_id": profile.department_id,
+        "department_name": profile.department.name if profile.department_id else None,
+        "designation": profile.designation,
+        "joining_date": profile.joining_date.isoformat(),
+        "address": profile.address,
+        # "Assigned classes" - derived from the class teacher a section names,
+        # not a table of its own.
+        "class_teacher_of": class_teacher_of or [],
+    }
+
+
 def payment_resource(payment) -> dict:
     body = {
         "id": payment.id,
