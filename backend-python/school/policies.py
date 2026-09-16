@@ -139,6 +139,122 @@ class SubjectPolicy(SchoolOwnedPolicy):
     pass
 
 
+class StaffAttendancePolicy:
+    """Who marks the staff register.
+
+    An HOD marks it as well as an admin, which is the one place in the
+    product an HOD writes something outside their own record - they run a
+    department and its register is theirs. *Which* staff they may mark is
+    narrowed to their own departments by the service, not here.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES or actor.role == UserRole.HOD
+
+    @staticmethod
+    def manage(actor: User, school_id) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        marks_the_register = UserRole.administers_school(actor.role) or actor.role == UserRole.HOD
+
+        return marks_the_register and SchoolScope.for_actor(actor).allows(school_id)
+
+
+class StaffLeavePolicy:
+    """Applying and reviewing, deliberately two abilities.
+
+    Unlike the staff register's single `manage`: applying is self-service for
+    anyone with an employment record, reviewing is an action on somebody
+    else's request, and one actor is never both for the same leave.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        """Every role reads leave. What they actually get back is narrowed by
+        StaffLeaveService.visible_to - own, department, school, everything -
+        so a coarse role gate here would only duplicate it badly."""
+        return True
+
+    @staticmethod
+    def apply(actor: User) -> bool:
+        """Role only. Whether the actor has a StaffProfile to apply against is
+        a data precondition, not an authorization question - the view answers
+        that separately, with a sentence naming the fix.
+
+        SCHOOL_ADMIN is in the list because a School Admin takes leave too;
+        they get a minimal profile on account creation for exactly this. A
+        Super Admin never applies - there is no school to apply against.
+        """
+        return actor.role in (
+            UserRole.TEACHER,
+            UserRole.STAFF,
+            UserRole.HOD,
+            UserRole.TRANSPORT_MANAGER,
+            UserRole.SCHOOL_ADMIN,
+        )
+
+    @staticmethod
+    def review(actor: User, leave) -> bool:
+        # An HOD heads the department they belong to, so without this line
+        # they would pass the department check below for their own request.
+        # Nobody reviews their own leave, whatever their role.
+        profile = actor.staff_profile
+
+        if profile is not None and leave.staff_profile_id == profile.id:
+            return False
+
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        if UserRole.administers_school(actor.role):
+            return SchoolScope.for_actor(actor).allows(leave.school_id)
+
+        if actor.role == UserRole.HOD:
+            applicant = leave.staff_profile
+
+            return (
+                applicant is not None
+                and applicant.department_id is not None
+                and applicant.department.hod_user_id == actor.id
+            )
+
+        return False
+
+
+
+class TimetableEntryPolicy:
+    """The grid: everybody reads it, admins edit it.
+
+    Reading is open by role because a teacher needs the grid to find their own
+    schedule; *whose* grid they get is checked against the target's school in
+    the view. Editing follows the other academic-config policies - a class, a
+    subject and a period are all admin-only, and the grid that arranges them
+    is no different.
+
+    `manage` is asked about a school rather than an entry because an upsert
+    may be creating the first one for that cell.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return True
+
+    @staticmethod
+    def manage(actor: User, school_id) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(
+            actor
+        ).allows(school_id)
+
+    @classmethod
+    def delete(cls, actor: User, entry) -> bool:
+        return cls.manage(actor, entry.school_id)
+
+
 class StaffProfilePolicy:
     """Employment records.
 

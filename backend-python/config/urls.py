@@ -23,10 +23,13 @@ from school.views import (
     auth,
     classes,
     imports,
+    leave,
     payments,
     schools,
     staff,
+    staff_attendance,
     students,
+    timetable,
     timezones,
     users,
 )
@@ -83,6 +86,19 @@ urlpatterns = [
     # keeps their attendance, their leave and last year's timetable intact.
     path("api/v1/staff", staff.collection),
     path("api/v1/staff/<int:profile_id>", staff.detail),
+    # -- staff attendance --------------------------------------------------
+    path("api/v1/staff-attendance/register", staff_attendance.register),
+    path("api/v1/staff-attendance", staff_attendance.collection),
+    # -- leave -------------------------------------------------------------
+    # /leaves/summary before /leaves so the stat cards are not read as a
+    # leave named "summary" - the same order routes/api.php declares them in.
+    path("api/v1/leaves/summary", leave.summary),
+    path("api/v1/leaves", leave.collection),
+    path("api/v1/leaves/<int:leave_id>/approve", leave.approve),
+    path("api/v1/leaves/<int:leave_id>/reject", leave.reject),
+    # -- timetable ---------------------------------------------------------
+    path("api/v1/timetable", timetable.collection),
+    path("api/v1/timetable/<int:entry_id>", timetable.entry),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

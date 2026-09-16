@@ -167,3 +167,66 @@ class StudentFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+class StaffLeaveFactory(DjangoModelFactory):
+    class Meta:
+        model = models.StaffLeave
+
+    staff_profile = factory.SubFactory(StaffProfileFactory)
+    school = factory.LazyAttribute(lambda o: o.staff_profile.school)
+    leave_type = "casual"
+    start_date = dt.date(2026, 9, 21)
+    end_date = dt.date(2026, 9, 22)
+    reason = "Family function."
+    status = "pending"
+    applied_by = factory.LazyAttribute(lambda o: o.staff_profile.user)
+    reviewed_by = None
+    review_remarks = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class PeriodFactory(DjangoModelFactory):
+    class Meta:
+        model = models.Period
+
+    school = factory.SubFactory(SchoolFactory)
+    period_number = factory.Sequence(lambda n: n % 8 + 1)
+    start_time = dt.time(9, 0)
+    end_time = dt.time(9, 45)
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class SubjectFactory(DjangoModelFactory):
+    class Meta:
+        model = models.Subject
+
+    department = factory.SubFactory(DepartmentFactory)
+    school = factory.LazyAttribute(lambda o: o.department.school)
+    code = factory.Sequence(lambda n: f"SUB{n:03d}")
+    name = "Mathematics"
+    min_class_level = 1
+    max_class_level = 12
+    lead_teacher = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class TimetableEntryFactory(DjangoModelFactory):
+    class Meta:
+        model = models.TimetableEntry
+
+    class_section = factory.SubFactory(ClassSectionFactory)
+    school = factory.LazyAttribute(lambda o: o.class_section.school_class.school)
+    period = factory.SubFactory(PeriodFactory)
+    day_of_week = "monday"
+    subject = factory.SubFactory(SubjectFactory)
+    teacher = factory.SubFactory(UserFactory, role="TEACHER")
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

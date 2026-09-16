@@ -65,6 +65,15 @@ class AttendanceStatus(models.TextChoices):
     LEAVE = "leave"
 
 
+class StaffAttendanceStatus(models.TextChoices):
+    PRESENT = "present"
+    ABSENT = "absent"
+    LEAVE = "leave"
+    # A staff-only status. Students are present, absent or on leave; a member
+    # of staff can also work half a day.
+    HALF_DAY = "half_day"
+
+
 class MessageChannel(models.TextChoices):
     SMS = "sms"
     IN_APP = "in_app"
@@ -216,3 +225,39 @@ class HolidayType(models.TextChoices):
     RELIGIOUS = "religious"
     SCHOOL_EVENT = "school_event"
     VACATION = "vacation"
+
+
+class LeaveStatus(models.TextChoices):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class LeaveType(models.TextChoices):
+    CASUAL = "casual"
+    MEDICAL = "medical"
+    EARNED = "earned"
+    HALF_DAY = "half_day"
+
+    @classmethod
+    def label_for(cls, leave_type: str) -> str:
+        """How the type reads inside a message to the applicant.
+
+        Lower case and hyphenated rather than the stored value, because it is
+        dropped mid-sentence: "Your half-day leave from ... has been
+        approved." Not TextChoices' own `.label`, which title-cases.
+        """
+        return "half-day" if leave_type == cls.HALF_DAY else leave_type
+
+
+class DayOfWeek(models.TextChoices):
+    """The school week. Five days, because Saturday and Sunday are not
+    working days anywhere in the product - the holiday calendar already
+    refuses attendance on them, and a grid column nobody can mark is
+    furniture."""
+
+    MONDAY = "monday"
+    TUESDAY = "tuesday"
+    WEDNESDAY = "wednesday"
+    THURSDAY = "thursday"
+    FRIDAY = "friday"

@@ -21,10 +21,13 @@ import re
 from . import hashing
 from .enums import (
     AttendanceStatus,
+    DayOfWeek,
     HolidayType,
+    LeaveType,
     PaymentMode,
     PaymentStatus,
     PaymentType,
+    StaffAttendanceStatus,
     StudentStatus,
     UserRole,
 )
@@ -63,7 +66,9 @@ from .validation import (
     normalise,
     not_an_email,
     optional_text,
+    prohibits,
     required,
+    required_without,
     selected_is_invalid,
 )
 
@@ -509,6 +514,262 @@ class MarkAttendanceRequest(serializers.Serializer):
             raise serializers.ValidationError(errors)
 
         return attrs
+
+
+# -- staff attendance -------------------------------------------------------
+
+
+class ClockTimeField(serializers.TimeField):
+    """"08:05" and nothing else - a clock time in the school's own day."""
+
+    def __init__(self, field_name: str, **kwargs) -> None:
+        kwargs.setdefault("required", False)
+        kwargs.setdefault("allow_null", True)
+        super().__init__(
+            format="%H:%M",
+            input_formats=["%H:%M"],
+            error_messages={
+                "invalid": f"The {attribute(field_name)} field must match the format H:i."
+            },
+            **kwargs,
+        )
+
+
+class StaffAttendanceRecordSerializer(serializers.Serializer):
+    staff_profile_id = LaravelIntegerField("staff_profile_id")
+    status = LaravelCharField("status", max_length=20)
+    check_in = ClockTimeField("check_in")
+    check_out = ClockTimeField("check_out")
+    remarks = optional_text("remarks", 255)
+
+
+class StaffAttendanceScopedRequest(ScopedSerializer):
+    """The half these three forms share: whose school, and which department.
+
+    A Super Admin names the school; everybody else is scoped to their own
+    whatever they send.
+    """
+
+    department_id = LaravelIntegerField("department_id", required=False, allow_null=True)
+
+    def check_department(self, attrs, errors) -> None:
+        department_id = attrs.get("department_id")
+
+        if department_id is not None and not Department.objects.filter(
+            pk=department_id
+        ).exists():
+            errors["department_id"] = [does_not_exist("department_id")]
+
+
+class StaffAttendanceRegisterRequest(StaffAttendanceScopedRequest):
+    date = SchoolDateField("date")
+
+    def validate(self, attrs):
+        errors = {}
+        self.check_department(attrs, errors)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+class MarkStaffAttendanceRequest(StaffAttendanceScopedRequest):
+    attendance_date = SchoolDateField("attendance_date")
+    records = StaffAttendanceRecordSerializer(many=True)
+
+    def validate_records(self, value):
+        if not value:
+            raise serializers.ValidationError(required("records"))
+
+        ids = [record["staff_profile_id"] for record in value]
+
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError(
+                "Each staff member can only appear once in the attendance records."
+            )
+
+        return value
+
+    def validate(self, attrs):
+        errors = {}
+        self.check_department(attrs, errors)
+
+        school_id = self.resolved_school_id()
+
+        for record in attrs["records"]:
+            if record["status"] not in StaffAttendanceStatus.values:
+                errors["records"] = [selected_is_invalid("status")]
+                break
+
+        # Whose register this actor may mark. An HOD is narrowed to the
+        # departments they head - never another department in the same school
+        # - which is the same rule the roster applies, enforced here so a
+        # hand-made request cannot get round it.
+        markable = StaffProfile.objects.filter(school_id=school_id)
+
+        if self.actor.role == UserRole.HOD:
+            markable = markable.filter(department__hod_user_id=self.actor.id)
+
+        named = {record["staff_profile_id"] for record in attrs["records"]}
+        allowed = set(markable.filter(id__in=named).values_list("id", flat=True))
+
+        if named - allowed:
+            errors.setdefault("records", []).append(selected_is_invalid("staff_profile_id"))
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+# -- timetable --------------------------------------------------------------
+
+
+class TimetableGridRequest(ScopedSerializer):
+    """Which way to slice the week.
+
+    By class section (one class's whole week, the Timetable screen) or by
+    teacher ("my timetable", the same grid sliced the other way). Exactly one
+    of the two: both together would be two different questions in one request,
+    and neither leaves nothing to draw.
+
+    Whether the actor may *see* that class or that teacher is not asked here.
+    A bad id is a 422; somebody else's id is a 404, decided once the target is
+    loaded - see views/timetable.py.
+    """
+
+    class_section_id = LaravelIntegerField(
+        "class_section_id", required=False, allow_null=True
+    )
+    teacher_id = LaravelIntegerField("teacher_id", required=False, allow_null=True)
+
+    def validate(self, attrs):
+        section = attrs.get("class_section_id")
+        teacher = attrs.get("teacher_id")
+        errors = {}
+
+        if section is None and teacher is None:
+            errors["class_section_id"] = [
+                required_without("class_section_id", "teacher_id")
+            ]
+            errors["teacher_id"] = [required_without("teacher_id", "class_section_id")]
+        elif section is not None and teacher is not None:
+            errors["class_section_id"] = [prohibits("class_section_id", "teacher_id")]
+
+        if section is not None and not ClassSection.objects.filter(pk=section).exists():
+            errors.setdefault("class_section_id", []).append(
+                selected_is_invalid("class_section_id")
+            )
+
+        if teacher is not None and not User.objects.filter(pk=teacher).exists():
+            errors.setdefault("teacher_id", []).append(selected_is_invalid("teacher_id"))
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+class UpsertTimetableEntryRequest(ScopedSerializer):
+    """One cell of the grid.
+
+    Every id is checked against the school this write lands in, not merely
+    against its own table: a period, a subject or a teacher from another
+    school is as wrong as one that does not exist, and "the selected period is
+    invalid" is the honest answer to both.
+
+    A class section has no school of its own - it belongs to a class, which
+    belongs to a school - so that one is checked through its class.
+    """
+
+    class_section_id = LaravelIntegerField("class_section_id")
+    period_id = LaravelIntegerField("period_id")
+    day_of_week = LaravelCharField("day_of_week", max_length=255)
+    subject_id = LaravelIntegerField("subject_id")
+    teacher_id = LaravelIntegerField("teacher_id")
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        school_id = self.resolved_school_id()
+        errors = {}
+
+        in_this_school = SchoolClass.objects.filter(school_id=school_id).values("id")
+
+        if not ClassSection.objects.filter(
+            pk=attrs["class_section_id"], school_class_id__in=in_this_school
+        ).exists():
+            errors["class_section_id"] = [selected_is_invalid("class_section_id")]
+
+        if not Period.objects.filter(pk=attrs["period_id"], school_id=school_id).exists():
+            errors["period_id"] = [selected_is_invalid("period_id")]
+
+        if attrs["day_of_week"] not in DayOfWeek.values:
+            errors["day_of_week"] = [selected_is_invalid("day_of_week")]
+
+        if not Subject.objects.filter(
+            pk=attrs["subject_id"], school_id=school_id
+        ).exists():
+            errors["subject_id"] = [selected_is_invalid("subject_id")]
+
+        # Only somebody who teaches. An admin account is not a name that
+        # belongs in a timetable cell, whatever else it may do in the school.
+        if not User.objects.filter(
+            pk=attrs["teacher_id"],
+            school_id=school_id,
+            role__in=(UserRole.TEACHER, UserRole.HOD),
+        ).exists():
+            errors["teacher_id"] = [selected_is_invalid("teacher_id")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = school_id
+
+        return attrs
+
+
+# -- leave ------------------------------------------------------------------
+
+
+class ApplyStaffLeaveRequest(ScopedSerializer):
+    """A staff member's own leave request.
+
+    No `school_id` and no `staff_profile_id`: both are read off the actor's
+    employment record by the view. The same rule as school context - who this
+    leave belongs to is derived from who is asking, never sent.
+    """
+
+    leave_type = LaravelCharField("leave_type", max_length=255)
+    start_date = LaravelDateField("start_date")
+    end_date = LaravelDateField("end_date")
+    reason = LaravelCharField("reason", max_length=500)
+
+    def validate(self, attrs):
+        errors = {}
+
+        if attrs["leave_type"] not in LeaveType.values:
+            errors["leave_type"] = [selected_is_invalid("leave_type")]
+
+        # after_or_equal, not after: a one-day leave starts and ends on the
+        # same date.
+        if attrs["end_date"] < attrs["start_date"]:
+            errors["end_date"] = [
+                "The end date field must be a date after or equal to start date."
+            ]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+class ReviewStaffLeaveRequest(ScopedSerializer):
+    """Approving or rejecting. The decision itself is the route, so the only
+    thing the body carries is why."""
+
+    remarks = optional_text("remarks", 500)
 
 
 # -- teachers and staff -----------------------------------------------------

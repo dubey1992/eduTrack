@@ -146,6 +146,14 @@ def must_be_after(field: str, other: str) -> str:
     return f"The {attribute(field)} field must be a date after {attribute(other)}."
 
 
+def required_without(field: str, other: str) -> str:
+    return f"The {attribute(field)} field is required when {attribute(other)} is not present."
+
+
+def prohibits(field: str, other: str) -> str:
+    return f"The {attribute(field)} field prohibits {attribute(other)} from being present."
+
+
 def not_a_boolean(field: str) -> str:
     return f"The {attribute(field)} field must be true or false."
 

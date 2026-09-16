@@ -21,7 +21,12 @@ import logging
 
 from django.http import Http404, JsonResponse
 from rest_framework import status
-from rest_framework.exceptions import APIException, NotAuthenticated, PermissionDenied
+from rest_framework.exceptions import (
+    APIException,
+    NotAuthenticated,
+    NotFound,
+    PermissionDenied,
+)
 from rest_framework.exceptions import ValidationError as DrfValidationError
 from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
@@ -126,6 +131,58 @@ class BulkImportFailed(ApiError):
         )
 
 
+class LeaveOverlap(ApiError):
+    """A second live request for days already spoken for.
+
+    Refused rather than merged: a staff member's history should never carry
+    two pending or approved requests covering the same day, because the
+    attendance sync would then have two answers for what that day was.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "LEAVE_OVERLAP"
+
+
+class LeaveAlreadyReviewed(ApiError):
+    """Approve or reject, once. A decision is not re-taken through the same
+    endpoint that took it, so a second reviewer's click cannot quietly
+    overturn the first's."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "LEAVE_ALREADY_REVIEWED"
+
+
+class LeaveOnNonWorkingDays(ApiError):
+    """A range with no working day in it. There is nothing to take leave
+    from: weekends and holidays are already not attendance days."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "LEAVE_ON_NON_WORKING_DAYS"
+
+
+class StaffProfileRequired(ApiError):
+    """The actor has no employment record to apply against.
+
+    409 and a sentence naming the fix, rather than the 403 the shape invites:
+    the role is allowed to apply, the data simply is not there yet, and
+    "forbidden" would send the user arguing with the wrong person.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "STAFF_PROFILE_REQUIRED"
+
+
+class TeacherScheduleConflict(ApiError):
+    """One teacher, two class sections, the same period of the same day.
+
+    The one clash the table's own unique key cannot catch: it guards a class
+    section's grid, and this is a collision between two of them.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "TEACHER_SCHEDULE_CONFLICT"
+
+
 def envelope(status_code: int, code: str, message: str, details: dict | None = None) -> Response:
     return Response(
         {
@@ -171,7 +228,11 @@ def handler(exc, context):
             "You are not authorized to perform this action.",
         )
 
-    if isinstance(exc, Http404):
+    # Both spellings of "not here": Django's, which get_object_or_404 raises,
+    # and DRF's, which a view raises directly. They are the same answer to the
+    # client and must read the same - the cross-backend diff caught the day
+    # they did not, with one of them saying "Not found." under a generic code.
+    if isinstance(exc, (Http404, NotFound)):
         return envelope(
             status.HTTP_404_NOT_FOUND,
             "NOT_FOUND",

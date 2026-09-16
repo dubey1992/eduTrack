@@ -13,13 +13,16 @@ from django.db import transaction
 from django.db.models import Count, F, Q, Sum
 from django.utils import timezone
 
-from . import hashing, jobs, money, notifications, queue, tokens
+from . import hashing, jobs, money, notifications, queue, tokens, working_hours
 from .clock import SchoolClock
 from .enums import (
     AttendanceStatus,
+    LeaveStatus,
+    LeaveType,
     MessageEvent,
     PaymentStatus,
     SchoolStatus,
+    StaffAttendanceStatus,
     StudentStatus,
     UserRole,
     UserStatus,
@@ -30,7 +33,11 @@ from .errors import (
     AttendanceOnHoliday,
     HasDependentRecords,
     HolidayOverlap,
+    LeaveAlreadyReviewed,
+    LeaveOnNonWorkingDays,
+    LeaveOverlap,
     NonWorkingDay,
+    TeacherScheduleConflict,
     Unauthenticated,
 )
 from .models import (
@@ -43,6 +50,7 @@ from .models import (
     Payment,
     Period,
     StaffAttendance,
+    StaffLeave,
     TimetableEntry,
     EarlyAccessRequest,
     PersonalAccessToken,
@@ -403,6 +411,495 @@ def holiday_summary(holiday) -> dict:
     by design, which is precisely why adding them quietly is easy.
     """
     return {"id": holiday.id, "name": holiday.name, "type": holiday.type}
+
+
+class StaffAttendanceService:
+    """The staff register.
+
+    The same day-rules as the student one - no holiday, no weekend, and
+    submitting is not correcting - plus one of its own: **an HOD's roster is
+    always narrowed to the departments they head**, whatever `department_id`
+    was asked for. Never trusted from the client, the same principle as a
+    teacher only seeing their own sections.
+    """
+
+    @staticmethod
+    def roster(school_id: int, department_id, actor: User):
+        staff = (
+            StaffProfile.objects.select_related("user", "department")
+            .filter(school_id=school_id, user__status=UserStatus.ACTIVE)
+            .order_by("employee_id", "id")
+        )
+
+        if actor.role == UserRole.HOD:
+            return staff.filter(department__hod_user_id=actor.id)
+
+        if department_id:
+            staff = staff.filter(department_id=department_id)
+
+        return staff
+
+    @classmethod
+    def register(cls, school_id: int, department_id, date, actor: User) -> dict:
+        staff = list(cls.roster(school_id, department_id, actor))
+
+        existing = {
+            row.staff_profile_id: row
+            for row in StaffAttendance.objects.filter(
+                school_id=school_id,
+                attendance_date=date,
+                staff_profile_id__in=[profile.id for profile in staff],
+            )
+        }
+
+        holiday = HolidayService.holiday_on(school_id, date)
+
+        return {
+            "school_id": school_id,
+            "attendance_date": str(date),
+            "submitted": bool(existing),
+            "holiday": None if holiday is None else holiday_summary(holiday),
+            "staff": [
+                {
+                    "staff_profile_id": profile.id,
+                    "employee_id": profile.employee_id,
+                    "name": profile.user.name,
+                    "department_name": (
+                        profile.department.name if profile.department_id else None
+                    ),
+                    "status": mark(existing, profile, "status"),
+                    "check_in": working_hours.clock(mark(existing, profile, "check_in")),
+                    "check_out": working_hours.clock(mark(existing, profile, "check_out")),
+                    "working_hours": working_hours.format_span(
+                        working_hours.clock(mark(existing, profile, "check_in")),
+                        working_hours.clock(mark(existing, profile, "check_out")),
+                    ),
+                    "remarks": mark(existing, profile, "remarks"),
+                }
+                for profile in staff
+            ],
+        }
+
+    @classmethod
+    def submit(cls, school_id: int, data: dict, actor: User) -> dict:
+        already = StaffAttendance.objects.filter(
+            school_id=school_id,
+            attendance_date=data["attendance_date"],
+            staff_profile_id__in=[r["staff_profile_id"] for r in data["records"]],
+        ).exists()
+
+        if already:
+            raise AttendanceAlreadySubmitted("Attendance has already been submitted.")
+
+        return cls.save(school_id, data, actor)
+
+    @classmethod
+    def update(cls, school_id: int, data: dict, actor: User) -> dict:
+        return cls.save(school_id, data, actor)
+
+    @classmethod
+    def save(cls, school_id: int, data: dict, actor: User) -> dict:
+        AttendanceService.assert_school_is_open(school_id, data["attendance_date"])
+
+        with transaction.atomic():
+            for record in data["records"]:
+                now = timezone.now()
+
+                StaffAttendance.objects.update_or_create(
+                    staff_profile_id=record["staff_profile_id"],
+                    attendance_date=data["attendance_date"],
+                    defaults={
+                        "school_id": school_id,
+                        "status": record["status"],
+                        "check_in": record.get("check_in"),
+                        "check_out": record.get("check_out"),
+                        "remarks": record.get("remarks"),
+                        "marked_by_id": actor.id,
+                        "updated_at": now,
+                    },
+                    create_defaults={
+                        "school_id": school_id,
+                        "status": record["status"],
+                        "check_in": record.get("check_in"),
+                        "check_out": record.get("check_out"),
+                        "remarks": record.get("remarks"),
+                        "marked_by_id": actor.id,
+                        "created_at": now,
+                        "updated_at": now,
+                    },
+                )
+
+            # No guardian to tell. Staff attendance is a record the school
+            # keeps, not news anybody is waiting for - which is why this
+            # module has no notification step and the student one does.
+            return cls.register(school_id, data.get("department_id"), data["attendance_date"], actor)
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        marks = StaffAttendance.objects.select_related(
+            "staff_profile__user", "staff_profile__department", "marked_by"
+        )
+
+        marks = SchoolScope.for_actor(actor).apply_to(marks, filters.get("school_id"))
+
+        # An HOD only ever sees attendance for staff in the departments they
+        # head - never another department, regardless of filters.
+        if actor.role == UserRole.HOD:
+            marks = marks.filter(staff_profile__department__hod_user_id=actor.id)
+
+        if filters.get("staff_profile_id"):
+            marks = marks.filter(staff_profile_id=filters["staff_profile_id"])
+
+        if filters.get("department_id"):
+            marks = marks.filter(staff_profile__department_id=filters["department_id"])
+
+        if filters.get("status"):
+            marks = marks.filter(status=filters["status"])
+
+        if filters.get("date_from"):
+            marks = marks.filter(attendance_date__gte=filters["date_from"])
+
+        if filters.get("date_to"):
+            marks = marks.filter(attendance_date__lte=filters["date_to"])
+
+        return marks.order_by("-attendance_date", "staff_profile_id", "id")
+
+
+def mark(existing: dict, profile, field: str):
+    """One field of a staff member's mark, or None when the day is unmarked."""
+    row = existing.get(profile.id)
+
+    return None if row is None else getattr(row, field)
+
+
+class StaffLeaveService:
+    """Applying for leave, and deciding it.
+
+    Two things here are not bookkeeping.
+
+    **Approving writes attendance.** Every working day in an approved range is
+    marked `leave` on the staff register, so an approved request and the
+    register can never quietly disagree about whether somebody was expected
+    in. Weekends and holidays inside the range are left alone - they are not
+    attendance days, and marking them would contradict the holiday calendar.
+
+    **A School Admin's own request approves itself.** Nobody else has standing
+    to review the head of a school: a Sub Admin cannot manage an admin
+    account, and a peer School Admin reviewing the actual head is backwards.
+    So it is approved on application with a remark saying why, rather than
+    sitting pending for ever. A Sub Admin is still subordinate to the School
+    Admin who created them and goes through the normal flow.
+    """
+
+    WITH = ("staff_profile__user", "staff_profile__department", "applied_by", "reviewed_by")
+
+    @classmethod
+    def apply(cls, profile: StaffProfile, data: dict, actor: User):
+        cls.assert_covers_a_working_day(
+            profile.school_id, data["start_date"], data["end_date"]
+        )
+        cls.assert_no_overlap(profile.id, data["start_date"], data["end_date"])
+
+        is_school_head = actor.role == UserRole.SCHOOL_ADMIN and not actor.is_sub_admin
+
+        with transaction.atomic():
+            now = timezone.now()
+
+            leave = StaffLeave.objects.create(
+                school_id=profile.school_id,
+                staff_profile_id=profile.id,
+                leave_type=data["leave_type"],
+                start_date=data["start_date"],
+                end_date=data["end_date"],
+                reason=data["reason"],
+                status=LeaveStatus.APPROVED if is_school_head else LeaveStatus.PENDING,
+                applied_by_id=actor.id,
+                reviewed_by_id=actor.id if is_school_head else None,
+                review_remarks=(
+                    "Auto-approved - School Admin is the head of the school."
+                    if is_school_head
+                    else None
+                ),
+                created_at=now,
+                updated_at=now,
+            )
+
+            if is_school_head:
+                cls.sync_attendance(leave, actor)
+
+            return cls.fresh(leave)
+
+    @classmethod
+    def approve(cls, leave, actor: User, remarks):
+        cls.assert_pending(leave)
+
+        with transaction.atomic():
+            cls.record_decision(leave, LeaveStatus.APPROVED, actor, remarks)
+
+            cls.sync_attendance(leave, actor)
+            cls.notify_applicant(leave, MessageEvent.LEAVE_APPROVED, actor)
+
+            return cls.fresh(leave)
+
+    @classmethod
+    def reject(cls, leave, actor: User, remarks):
+        cls.assert_pending(leave)
+
+        cls.record_decision(leave, LeaveStatus.REJECTED, actor, remarks)
+
+        cls.notify_applicant(leave, MessageEvent.LEAVE_REJECTED, actor)
+
+        return cls.fresh(leave)
+
+    @staticmethod
+    def record_decision(leave, status: str, actor: User, remarks) -> None:
+        leave.status = status
+        leave.reviewed_by_id = actor.id
+        leave.review_remarks = remarks
+        leave.updated_at = timezone.now()
+        leave.save(update_fields=["status", "reviewed_by", "review_remarks", "updated_at"])
+
+    @classmethod
+    def fresh(cls, leave):
+        """The row again, with every relation the resource reads.
+
+        Re-fetched rather than reusing the instance in hand: the one being
+        returned has to carry the names, and an instance built by `create()`
+        has none of them cached.
+        """
+        return StaffLeave.objects.select_related(*cls.WITH).get(pk=leave.pk)
+
+    @staticmethod
+    def notify_applicant(leave, event: str, actor: User) -> None:
+        """Tells the staff member what was decided, in their inbox and by SMS.
+
+        The reviewer's own action is never held up by the send - the message
+        is written and queued, and the cron worker does the talking.
+        """
+        applicant = leave.staff_profile.user if leave.staff_profile_id else None
+
+        if applicant is None:
+            return
+
+        notifications.notify_staff(
+            event,
+            applicant,
+            {
+                "leave_type": LeaveType.label_for(leave.leave_type),
+                "start_date": leave.start_date.strftime("%m/%d/%Y"),
+                "end_date": leave.end_date.strftime("%m/%d/%Y"),
+                "days": str((leave.end_date - leave.start_date).days + 1),
+                "remarks": leave.review_remarks,
+            },
+            actor=actor,
+        )
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        leaves = StaffLeave.objects.select_related(*cls.WITH)
+
+        leaves = cls.scoped(leaves, actor, filters.get("school_id"))
+
+        if filters.get("staff_profile_id"):
+            leaves = leaves.filter(staff_profile_id=filters["staff_profile_id"])
+
+        if filters.get("department_id"):
+            leaves = leaves.filter(staff_profile__department_id=filters["department_id"])
+
+        if filters.get("status"):
+            leaves = leaves.filter(status=filters["status"])
+
+        # Newest first, and id to break the tie: two requests applied for in
+        # the same second would otherwise be in no fixed order, which shows
+        # one row twice and skips another as the reviewer pages through.
+        return leaves.order_by("-created_at", "-id")
+
+    @classmethod
+    def summary(cls, actor: User, filters: dict) -> dict:
+        """The stat cards above the leave list.
+
+        Counted over the same visibility the list uses, not over the page in
+        front of the reviewer - "3 pending" means three they can act on.
+        """
+        base = cls.scoped(StaffLeave.objects.all(), actor, filters.get("school_id"))
+
+        # start_date and end_date are calendar dates at the school, so "today"
+        # and "this month" are read on the school's calendar too.
+        clock = SchoolClock.for_scope(actor, filters.get("school_id"))
+        today = clock.date()
+        month_start = clock.now().date().replace(day=1)
+
+        return {
+            "pending": base.filter(status=LeaveStatus.PENDING).count(),
+            "approved_this_month": base.filter(
+                status=LeaveStatus.APPROVED, start_date__gte=month_start
+            ).count(),
+            "rejected": base.filter(status=LeaveStatus.REJECTED).count(),
+            "on_leave_today": base.filter(
+                status=LeaveStatus.APPROVED, start_date__lte=today, end_date__gte=today
+            ).count(),
+        }
+
+    @staticmethod
+    def scoped(leaves, actor: User, school_id_filter):
+        leaves = SchoolScope.for_actor(actor).apply_to(leaves, school_id_filter)
+
+        # An HOD only ever sees leave for staff in the departments they head -
+        # the same rule the staff register applies.
+        if actor.role == UserRole.HOD:
+            return leaves.filter(staff_profile__department__hod_user_id=actor.id)
+
+        # A Teacher, Staff member or Transport Manager only ever sees their
+        # own history. They are not reviewers; this screen is self-service.
+        if actor.role in (UserRole.TEACHER, UserRole.STAFF, UserRole.TRANSPORT_MANAGER):
+            profile = actor.staff_profile
+
+            return leaves.filter(staff_profile_id=profile.id if profile else 0)
+
+        return leaves
+
+    @staticmethod
+    def assert_no_overlap(staff_profile_id: int, start, end) -> None:
+        overlaps = StaffLeave.objects.filter(
+            staff_profile_id=staff_profile_id,
+            status__in=(LeaveStatus.PENDING, LeaveStatus.APPROVED),
+            start_date__lte=end,
+            end_date__gte=start,
+        ).exists()
+
+        if overlaps:
+            raise LeaveOverlap(
+                "This staff member already has a leave request overlapping these dates."
+            )
+
+    @staticmethod
+    def assert_pending(leave) -> None:
+        if leave.status != LeaveStatus.PENDING:
+            raise LeaveAlreadyReviewed("This leave request has already been reviewed.")
+
+    @staticmethod
+    def assert_covers_a_working_day(school_id: int, start, end) -> None:
+        if not HolidayService.working_dates(school_id, start, end):
+            raise LeaveOnNonWorkingDays(
+                "The selected dates fall entirely on weekends or holidays - "
+                "there is no working day to take leave from."
+            )
+
+    @staticmethod
+    def sync_attendance(leave, actor: User) -> None:
+        """Marks the approved range on the staff register.
+
+        Only working days get a mark: a weekend or a holiday inside the range
+        is not an attendance day, and marking it would contradict the holiday
+        calendar, which refuses attendance on exactly those days.
+        """
+        now = timezone.now()
+
+        for date in HolidayService.working_dates(
+            leave.school_id, leave.start_date, leave.end_date
+        ):
+            StaffAttendance.objects.update_or_create(
+                staff_profile_id=leave.staff_profile_id,
+                attendance_date=date,
+                defaults={
+                    "school_id": leave.school_id,
+                    "status": StaffAttendanceStatus.LEAVE,
+                    "marked_by_id": actor.id,
+                    "updated_at": now,
+                },
+                create_defaults={
+                    "school_id": leave.school_id,
+                    "status": StaffAttendanceStatus.LEAVE,
+                    "marked_by_id": actor.id,
+                    "created_at": now,
+                    "updated_at": now,
+                },
+            )
+
+
+
+class TimetableService:
+    """The week's grid, edited one cell at a time.
+
+    One cell rather than a whole week submitted at once, because that is how
+    the screen works: a person drops a subject into Tuesday's third period and
+    expects that to be the change. A week-shaped write would also have to
+    decide what an omitted cell means, and "the teacher forgot to scroll" is
+    not a decision worth making.
+    """
+
+    WITH = ("class_section__school_class", "period", "subject", "teacher")
+
+    @classmethod
+    def for_class_section(cls, class_section_id: int):
+        """One class's whole week, in no particular order - the client lays it
+        out against the school's periods itself, because it already has them
+        for the header row."""
+        return TimetableEntry.objects.select_related(*cls.WITH).filter(
+            class_section_id=class_section_id
+        )
+
+    @classmethod
+    def for_teacher(cls, teacher_id: int):
+        """One teacher's periods across every class they teach."""
+        return TimetableEntry.objects.select_related(*cls.WITH).filter(
+            teacher_id=teacher_id
+        )
+
+    @classmethod
+    def upsert(cls, data: dict):
+        cls.assert_the_teacher_is_free(data)
+
+        now = timezone.now()
+
+        entry, _ = TimetableEntry.objects.update_or_create(
+            class_section_id=data["class_section_id"],
+            period_id=data["period_id"],
+            day_of_week=data["day_of_week"],
+            defaults={
+                "school_id": data["school_id"],
+                "subject_id": data["subject_id"],
+                "teacher_id": data["teacher_id"],
+                "updated_at": now,
+            },
+            create_defaults={
+                "school_id": data["school_id"],
+                "subject_id": data["subject_id"],
+                "teacher_id": data["teacher_id"],
+                "created_at": now,
+                "updated_at": now,
+            },
+        )
+
+        return TimetableEntry.objects.select_related(*cls.WITH).get(pk=entry.pk)
+
+    @staticmethod
+    def delete(entry) -> None:
+        entry.delete()
+
+    @staticmethod
+    def assert_the_teacher_is_free(data: dict) -> None:
+        """Nobody teaches two class sections at once.
+
+        The one clash the table's own unique key cannot catch: that key guards
+        a single class section's grid, and this is a collision between two of
+        them.
+        """
+        clashes = (
+            TimetableEntry.objects.filter(
+                teacher_id=data["teacher_id"],
+                day_of_week=data["day_of_week"],
+                period_id=data["period_id"],
+            )
+            .exclude(class_section_id=data["class_section_id"])
+            .exists()
+        )
+
+        if clashes:
+            raise TeacherScheduleConflict(
+                "This teacher is already scheduled for another class section "
+                "at this day and period."
+            )
 
 
 class StaffProfileService:

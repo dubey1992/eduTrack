@@ -14,7 +14,7 @@
 | M7 Skeleton | **Done** — 33 models, round-tripped |
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
 | M9 Wave 1 — foundations | **Done** — 52 of 52 |
-| M10 Wave 2 — people and daily operations | **In progress** — 8 of 20, plus the notification core |
+| M10 Wave 2 — people and daily operations | **Done** — 20 of 20, plus the notification core |
 | M11 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
@@ -843,9 +843,9 @@ minutes if it is wrong.
 |---|---|---|
 | Teachers and staff | 4 | **Done** |
 | Student attendance | 4 | **Done** |
-| Staff attendance | 4 | Not started |
-| Leave management | 5 | Not started |
-| Timetable | 3 | Not started |
+| Staff attendance | 4 | **Done** |
+| Leave management | 5 | **Done** |
+| Timetable | 3 | **Done** |
 
 Teachers and staff came first because everything else in this wave hangs off
 an employment record: attendance is marked against one, leave is taken by one,
@@ -901,6 +901,55 @@ Employee screen is one form and creates a login *and* an employment profile in
 one transaction, because half an employee is not a state the product has a
 screen for - a login with no profile is invisible to Attendance and Leave, and
 a profile with no login is somebody on a roster who cannot sign in.
+
+### Leave is the module that writes into another module
+
+Approving leave marks every working day in its range as `leave` on the staff
+attendance register. That is the point of it: an approved request and the
+register can never quietly disagree about whether somebody was expected in.
+
+Two details of that sync are easy to drop in a port and both were kept.
+Weekends and holidays inside the range get **no** mark, because they are not
+attendance days and the calendar already refuses attendance on them - marking
+them would put a row where the rest of the product says there can be none. And
+a **School Admin's own request approves itself** on application, with a remark
+saying why: nobody else has standing to review the head of a school. A Sub
+Admin is still subordinate to the admin who created them and waits like
+everyone else.
+
+The other rule worth naming: **nobody reviews their own leave.** An HOD heads
+the department they belong to, so without an explicit check they would pass
+the department test for their own request.
+
+### The refusals are where a port drifts
+
+A happy path gets copied carefully. An error path gets copied from memory - so
+leave and timetable were diffed on their refusals as well as their answers,
+with a second comparer alongside `compare.py` that sends the same *rejected*
+request to both backends. Every one of those writes nothing, so it is safe to
+send twice: an unknown leave type, a reason past the column, an end date
+before the start, a range that is all weekend, days already spoken for, a
+decision taken twice, a teacher reviewing themselves, a leave that is not
+there. Eleven cases for leave and seven for the timetable, identical in status
+and body.
+
+That is how the timetable's 404 was caught. A grid asked for with somebody
+else's `class_section_id` answers **404, not 403** - the id came from a query
+string, and a stranger should not learn that it is real. Both backends
+answered 404 and the bodies differed:
+
+    - "code": "NOT_FOUND",      "message": "The requested resource was not found."
+    + "code": "HTTP_ERROR",     "message": "Not found."
+
+The handler mapped Django's `Http404`, which `get_object_or_404` raises, and
+not DRF's own `NotFound`, which a view raises directly. Both are the same
+answer to a client and now read the same. No test on either side could have
+seen it: each backend was internally consistent, and the contract suite only
+asserts the status.
+
+The timetable's own rule is the one its unique key cannot enforce: that key
+guards a single class section's grid, so **a teacher standing in two rooms at
+once** is a collision between two of them and only the service can see it.
 
 ## M11 · Wave 3 — derived and outbound
 

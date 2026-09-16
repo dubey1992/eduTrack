@@ -15,7 +15,7 @@ it is reproducing.
 
 from __future__ import annotations
 
-from . import money
+from . import money, working_hours
 from .clock import SchoolClock
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
@@ -69,6 +69,93 @@ def attendance_resource(mark) -> dict:
         body["marked_by_name"] = mark.marked_by.name if mark.marked_by else None
 
     return body
+
+
+def staff_attendance_resource(mark) -> dict:
+    profile = mark.staff_profile
+
+    body = {
+        "id": mark.id,
+        "school_id": mark.school_id,
+        "staff_profile_id": mark.staff_profile_id,
+        "employee_id": profile.employee_id if profile else None,
+        "attendance_date": mark.attendance_date.isoformat(),
+        "status": mark.status,
+        "check_in": working_hours.clock(mark.check_in),
+        "check_out": working_hours.clock(mark.check_out),
+        "working_hours": working_hours.format_span(mark.check_in, mark.check_out),
+        "remarks": mark.remarks,
+        "marked_by": mark.marked_by_id,
+        "created_at": timestamp(mark.created_at),
+    }
+
+    if loaded(mark, "staff_profile"):
+        body["staff_name"] = profile.user.name if profile else None
+        body["department_name"] = (
+            profile.department.name if profile and profile.department_id else None
+        )
+
+    if loaded(mark, "marked_by"):
+        body["marked_by_name"] = mark.marked_by.name if mark.marked_by else None
+
+    return body
+
+
+def staff_leave_resource(leave) -> dict:
+    """One leave request, as the Staff Leave Management screen reads it.
+
+    Every relation this touches is eager-loaded by the service before a
+    resource is ever built, so the names are always here rather than
+    sometimes - Laravel's `whenLoaded` on the same fields is belt and braces
+    against a caller that forgot, not a shape that varies in practice.
+    """
+    profile = leave.staff_profile
+
+    return {
+        "id": leave.id,
+        "school_id": leave.school_id,
+        "staff_profile_id": leave.staff_profile_id,
+        "employee_id": profile.employee_id if profile else None,
+        "staff_name": profile.user.name if profile else None,
+        "department_name": (
+            profile.department.name if profile and profile.department_id else None
+        ),
+        "leave_type": leave.leave_type,
+        "start_date": leave.start_date.isoformat(),
+        "end_date": leave.end_date.isoformat(),
+        "reason": leave.reason,
+        "status": leave.status,
+        "applied_by_name": leave.applied_by.name if leave.applied_by_id else None,
+        "reviewed_by_name": leave.reviewed_by.name if leave.reviewed_by_id else None,
+        "review_remarks": leave.review_remarks,
+        "created_at": timestamp(leave.created_at),
+    }
+
+
+def timetable_entry_resource(entry) -> dict:
+    """One cell of the week's grid.
+
+    The names travel with the ids because the grid is drawn from this alone -
+    a client that had to look up each subject and teacher would fire a request
+    per cell.
+    """
+    section = entry.class_section
+
+    return {
+        "id": entry.id,
+        "school_id": entry.school_id,
+        "class_section_id": entry.class_section_id,
+        "class_section_name": (
+            f"{section.school_class.name} {section.name}" if section else None
+        ),
+        "period_id": entry.period_id,
+        "period_number": entry.period.period_number if entry.period_id else None,
+        "day_of_week": entry.day_of_week,
+        "subject_id": entry.subject_id,
+        "subject_name": entry.subject.name if entry.subject_id else None,
+        "teacher_id": entry.teacher_id,
+        "teacher_name": entry.teacher.name if entry.teacher_id else None,
+    }
 
 
 def staff_profile_resource(profile, class_teacher_of=None) -> dict:

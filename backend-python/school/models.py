@@ -680,6 +680,21 @@ class User(models.Model):
     def is_anonymous(self) -> bool:
         return False
 
+    @property
+    def staff_profile(self):
+        """The employment record behind this login, or None.
+
+        Eloquent's `$user->staffProfile` yields null when there is none and
+        Django's reverse one-to-one *raises*, so every `?->staffProfile` in
+        the PHP would be a crash if ported literally. Answered here once, in
+        the same place Eloquent answers it, rather than in each caller.
+        """
+        try:
+            return self.staffprofile
+        except StaffProfile.DoesNotExist:
+            return None
+
+
 class Vehicle(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey(School, models.DO_NOTHING)
