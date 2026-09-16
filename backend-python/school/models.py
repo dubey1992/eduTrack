@@ -36,7 +36,7 @@ a commit of its own, not as a side effect of something else.
 from django.db import models
 
 from .enums import StudentStatus, UserStatus
-from .fields import UtcDateTimeField
+from .fields import LaravelJSONField, UtcDateTimeField
 
 class AcademicYear(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -333,7 +333,7 @@ class QueuedJob(models.Model):
     id = models.BigAutoField(primary_key=True)
     queue = models.CharField(max_length=64)
     name = models.CharField(max_length=100)
-    payload = models.JSONField()
+    payload = LaravelJSONField()
     attempts = models.SmallIntegerField()
     last_error = models.TextField(blank=True, null=True)
     available_at = UtcDateTimeField()

@@ -59,6 +59,134 @@ class SchoolStatus(models.TextChoices):
     INACTIVE = "inactive"
 
 
+class AttendanceStatus(models.TextChoices):
+    PRESENT = "present"
+    ABSENT = "absent"
+    LEAVE = "leave"
+
+
+class MessageChannel(models.TextChoices):
+    SMS = "sms"
+    IN_APP = "in_app"
+
+
+class MessageStatus(models.TextChoices):
+    QUEUED = "queued"
+    SENT = "sent"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class MessageCategory(models.TextChoices):
+    ATTENDANCE = "attendance"
+    TRANSPORT = "transport"
+    LEAVE = "leave"
+    ANNOUNCEMENT = "announcement"
+
+
+class AttendanceAlertMode(models.TextChoices):
+    OFF = "off"
+    ABSENT_ONLY = "absent"
+    PRESENT_AND_ABSENT = "both"
+
+
+class MessageEvent(models.TextChoices):
+    """Every automatic message the product can send.
+
+    Each event owns its default wording, the tokens that wording may use, the
+    log category and the channels it goes out on. A school can override the
+    wording but not the token list, so a reworded template can never reference
+    data the sender does not have.
+    """
+
+    ATTENDANCE_PRESENT = "attendance.present", "Marked present"
+    ATTENDANCE_ABSENT = "attendance.absent", "Marked absent"
+    TRANSPORT_BOARDED = "transport.boarded", "Boarded the bus"
+    TRANSPORT_DROPPED = "transport.dropped", "Dropped off"
+    TRANSPORT_ABSENT = "transport.absent", "Did not board"
+    LEAVE_APPROVED = "leave.approved", "Leave approved"
+    LEAVE_REJECTED = "leave.rejected", "Leave rejected"
+    ANNOUNCEMENT_PUBLISHED = "announcement.published", "Announcement"
+
+    @classmethod
+    def category(cls, event: str) -> str:
+        if event.startswith("attendance."):
+            return MessageCategory.ATTENDANCE
+
+        if event.startswith("transport."):
+            return MessageCategory.TRANSPORT
+
+        if event.startswith("leave."):
+            return MessageCategory.LEAVE
+
+        return MessageCategory.ANNOUNCEMENT
+
+    @classmethod
+    def channels(cls, event: str) -> list[str]:
+        """Guardians have no login, so student alerts are SMS only. Staff
+        alerts also land in the in-app inbox."""
+        category = cls.category(event)
+
+        if category in (MessageCategory.LEAVE, MessageCategory.ANNOUNCEMENT):
+            return [MessageChannel.IN_APP, MessageChannel.SMS]
+
+        return [MessageChannel.SMS]
+
+    @classmethod
+    def default_body(cls, event: str) -> str:
+        return DEFAULT_BODIES[event]
+
+    @classmethod
+    def tokens(cls, event: str) -> list[str]:
+        return TOKENS[cls.category(event)] if event != cls.TRANSPORT_ABSENT else TRANSPORT_ABSENT_TOKENS
+
+
+DEFAULT_BODIES = {
+    MessageEvent.ATTENDANCE_PRESENT: "{student_name} was marked PRESENT on {date}. - {school_name}",
+    MessageEvent.ATTENDANCE_ABSENT: (
+        "{student_name} was marked ABSENT on {date}. "
+        "Please contact the school office if this is unexpected. - {school_name}"
+    ),
+    MessageEvent.TRANSPORT_BOARDED: (
+        "{student_name} boarded {vehicle_name} at {stop_name} at {time}. - {school_name}"
+    ),
+    MessageEvent.TRANSPORT_DROPPED: (
+        "{student_name} was dropped off at {stop_name} at {time}. - {school_name}"
+    ),
+    MessageEvent.TRANSPORT_ABSENT: (
+        "{student_name} did not board {vehicle_name} for the {direction} trip today. - {school_name}"
+    ),
+    MessageEvent.LEAVE_APPROVED: (
+        "Your {leave_type} leave from {start_date} to {end_date} has been approved."
+    ),
+    MessageEvent.LEAVE_REJECTED: (
+        "Your {leave_type} leave from {start_date} to {end_date} was not approved."
+    ),
+    MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
+}
+
+TOKENS = {
+    MessageCategory.ATTENDANCE: [
+        "student_name", "class_name", "date", "school_name", "guardian_name",
+    ],
+    MessageCategory.TRANSPORT: [
+        "student_name", "stop_name", "vehicle_name", "route_name", "time", "date",
+        "school_name", "guardian_name",
+    ],
+    MessageCategory.LEAVE: [
+        "staff_name", "leave_type", "start_date", "end_date", "days", "remarks", "school_name",
+    ],
+    MessageCategory.ANNOUNCEMENT: ["title", "body", "school_name", "audience"],
+}
+
+# The one event whose tokens differ from its category's: it names a direction
+# rather than a time, because nothing was boarded.
+TRANSPORT_ABSENT_TOKENS = [
+    "student_name", "stop_name", "vehicle_name", "route_name", "direction", "date",
+    "school_name", "guardian_name",
+]
+
+
 class PaymentType(models.TextChoices):
     # The labels are what a receipt prints, so they are part of a document a
     # school files rather than a display detail.

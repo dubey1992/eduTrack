@@ -14,7 +14,7 @@
 | M7 Skeleton | **Done** — 33 models, round-tripped |
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
 | M9 Wave 1 — foundations | **Done** — 52 of 52 |
-| M10 Wave 2 — people and daily operations | **In progress** — 4 of 20 |
+| M10 Wave 2 — people and daily operations | **In progress** — 4 of 20, plus the notification core |
 | M11 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
@@ -848,6 +848,51 @@ minutes if it is wrong.
 Teachers and staff came first because everything else in this wave hangs off
 an employment record: attendance is marked against one, leave is taken by one,
 and a timetable entry names one as the teacher.
+
+### The plan had communication in the wrong phase
+
+M11 lists communication. But **marking a register alerts a guardian**,
+approving leave alerts the person who asked for it, and a bus trip alerts
+both - so three of M10's five modules depend on it. Porting attendance first
+would have given a school a backend that looks finished and silently stops
+sending absence alerts, which is the same failure that kept payments waiting
+for its queue.
+
+So the notification *core* moved forward and landed before attendance:
+template rendering, the school's alert switches, the message log, the SMS
+gateway abstraction (CLAUDE.md rule 14) and the send job. The communication
+**endpoints** stay in M11 - only the part other modules call came early.
+
+The rule it exists to protect, and the one most easily lost in a port: **a
+switched-off alert is not logged at all.** It is not "skipped" - the school
+never wanted the message, and one row per student per day would bury the log
+that exists to be read. Only a message the school *did* want but that could
+not be delivered earns a row.
+
+### A second column-type trap, found the same way as the first
+
+`manage.py check_models` refused the new `queued_jobs` table:
+
+    QueuedJob   the JSON object must be str, bytes or bytearray, not dict
+
+Laravel's `$table->json()` creates a **`json`** column on PostgreSQL. Django's
+JSONField assumes **`jsonb`**: with psycopg3 it registers a loader so `jsonb`
+arrives as a raw string it decodes itself, and that registration does not
+cover `json`. A `json` column therefore arrives already decoded, and Django
+hands a dict to `json.loads`.
+
+**All 461 tests passed**, because the test database is built from the models
+and Django creates `jsonb` there. Exactly the blind spot the timestamp bug
+had at M8, in a different column type.
+
+Fixed at the field, like the timestamps. Changing the column to `jsonb` would
+also have worked and was rejected: it is the better column type, but it would
+make PostgreSQL and MySQL disagree, and `schema:diff` proving those two
+identical is load-bearing for the whole migration.
+
+The pattern is now named where it will be needed again: **any time Django's
+default column type differs from Laravel's, the test suite is blind to it and
+`check_models` is not.**
 
 It is also the module where the two-rows-or-neither rule lives. The Add
 Employee screen is one form and creates a login *and* an employment profile in

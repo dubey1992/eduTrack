@@ -14,14 +14,69 @@ import logging
 from django.core.mail import EmailMessage
 from django.utils import timezone
 
-from . import receipts
-from .enums import UserRole, UserStatus
-from .models import Payment, User
+from . import notifications, receipts, sms
+from .enums import MessageChannel, MessageStatus, UserRole, UserStatus
+from .models import Message, Payment, User
 from .queue import handler
 
 logger = logging.getLogger(__name__)
 
 SEND_PAYMENT_RECEIPT = "payment_receipt"
+
+
+@handler(notifications.SEND_MESSAGE)
+def send_message(message_id: int) -> None:
+    """Hands one message to its gateway and records what happened.
+
+    The message row is written before this runs and is the thing the school
+    reads in its log, so whatever happens here it ends in an honest state:
+    sent, failed with a reason, or skipped with a reason. Never left at
+    "queued" - a message stuck in queued looks like one still on its way.
+    """
+    message = Message.objects.select_related("school").filter(pk=message_id).first()
+
+    # Already handled, or handled by a worker that beat this one to it.
+    if message is None or message.status != MessageStatus.QUEUED:
+        return
+
+    now = timezone.now()
+
+    # The in-app inbox has no gateway - the row *is* the delivery.
+    if message.channel == MessageChannel.IN_APP:
+        Message.objects.filter(pk=message.pk).update(
+            status=MessageStatus.SENT, sent_at=now, updated_at=now
+        )
+
+        return
+
+    if not message.recipient_mobile:
+        Message.objects.filter(pk=message.pk).update(
+            status=MessageStatus.SKIPPED,
+            failure_reason="No mobile number on record.",
+            updated_at=now,
+        )
+
+        return
+
+    setting = notifications.settings_for(message.school_id)
+    result = sms.gateway(message.provider).send(
+        message.recipient_mobile, message.body, setting.sender_id
+    )
+
+    if result.accepted:
+        Message.objects.filter(pk=message.pk).update(
+            status=MessageStatus.SENT,
+            sent_at=now,
+            provider_message_id=result.provider_message_id,
+            failure_reason=None,
+            updated_at=now,
+        )
+    else:
+        Message.objects.filter(pk=message.pk).update(
+            status=MessageStatus.FAILED,
+            failure_reason=result.failure_reason,
+            updated_at=now,
+        )
 
 
 @handler(SEND_PAYMENT_RECEIPT)

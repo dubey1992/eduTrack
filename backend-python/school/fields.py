@@ -56,3 +56,37 @@ class UtcDateTimeField(models.DateTimeField):
 
     def from_db_value(self, value, expression, connection):
         return as_utc(value)
+
+
+class LaravelJSONField(models.JSONField):
+    """A JSONField that reads a `json` column as well as a `jsonb` one.
+
+    The same shape of bug as the timestamps above, found the same way and
+    worth the same warning.
+
+    Laravel's `$table->json()` creates a **`json`** column on PostgreSQL.
+    Django's JSONField assumes **`jsonb`**: with psycopg3 it registers a
+    loader so `jsonb` arrives as a raw string, which Django then decodes
+    itself. That registration does not cover `json`, so a `json` column
+    arrives already decoded into a dict - and Django's `json.loads` is handed
+    a dict and raises `TypeError: the JSON object must be str, bytes or
+    bytearray, not dict`.
+
+    Invisible in the test suite, because the test database is built from these
+    models and Django creates `jsonb` there. It only appears against a schema
+    Laravel built, which is what `manage.py check_models` is for - and is what
+    caught it.
+
+    Reading a value that has already been decoded is the whole fix. Changing
+    the column to `jsonb` would also work and was rejected: it is the better
+    column type, but it would make PostgreSQL and MySQL disagree about a
+    type, and `schema:diff` proving those two identical is load-bearing for
+    the whole migration.
+    """
+
+    def from_db_value(self, value, expression, connection):
+        # Already a Python value - psycopg decoded a `json` column for us.
+        if value is None or isinstance(value, (dict, list, int, float, bool)):
+            return value
+
+        return super().from_db_value(value, expression, connection)
