@@ -5,6 +5,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/debounced_search_field.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../../../core/widgets/pagination_controls.dart';
 import '../../../core/widgets/responsive.dart';
@@ -35,17 +36,6 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  List<Student> _applyFilter(List<Student> students) {
-    final search = _searchController.text.trim().toLowerCase();
-    if (search.isEmpty) return students;
-    return students
-        .where(
-          (student) =>
-              student.name.toLowerCase().contains(search) || student.admissionNumber.toLowerCase().contains(search),
-        )
-        .toList();
   }
 
   @override
@@ -85,14 +75,10 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: SizedBox(
             width: 280,
-            child: TextField(
+            child: DebouncedSearchField(
               controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search by name / admission ID',
-                prefixIcon: Icon(Icons.search, size: 20),
-                isDense: true,
-              ),
-              onChanged: (_) => setState(() {}),
+              label: 'Search by name / admission ID',
+              onSearch: (value) => ref.read(studentListNotifierProvider.notifier).setSearch(value),
             ),
           ),
         ),
@@ -102,19 +88,22 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
             value: studentsState,
             onRetry: () => ref.read(studentListNotifierProvider.notifier).refresh(),
             isEmpty: (page) => page.items.isEmpty,
-            emptyBuilder: (context) => const Center(child: Text('No students admitted yet.')),
+            // Two very different emptinesses, and telling somebody their
+            // school has no students when they have simply mistyped a name is
+            // the sort of thing that gets reported as data loss.
+            emptyBuilder: (context) => Center(
+              child: Text(
+                _searchController.text.trim().isEmpty ? 'No students admitted yet.' : 'No students match this search.',
+              ),
+            ),
             data: (context, page) {
-              final filtered = _applyFilter(page.items);
-
               return Column(
                 children: [
                   Expanded(
-                    child: filtered.isEmpty
-                        ? const Center(child: Text('No students match this search.'))
-                        : ResponsiveBuilder(
-                            mobile: (context) => _StudentListMobile(students: filtered, canManage: canManage),
-                            desktop: (context) => _StudentListDesktop(students: filtered, canManage: canManage),
-                          ),
+                    child: ResponsiveBuilder(
+                      mobile: (context) => _StudentListMobile(students: page.items, canManage: canManage),
+                      desktop: (context) => _StudentListDesktop(students: page.items, canManage: canManage),
+                    ),
                   ),
                   PaginationControls(
                     currentPage: page.currentPage,

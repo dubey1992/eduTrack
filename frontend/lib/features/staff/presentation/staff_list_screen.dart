@@ -5,6 +5,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/debounced_search_field.dart';
 import '../../../core/widgets/kpi_card.dart';
 import '../../../core/widgets/pagination_controls.dart';
 import '../../../core/widgets/responsive.dart';
@@ -35,6 +36,11 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
   int? _departmentFilter;
   UserRole? _roleFilter;
   int? _schoolFilter;
+
+  /// Whether anything is narrowing the list, so an empty page can say which
+  /// kind of empty it is. "No teachers or staff added yet" is alarming to read
+  /// when the truth is that a name was mistyped.
+  bool get _isFiltered => _searchController.text.trim().isNotEmpty || _departmentFilter != null || _roleFilter != null;
 
   @override
   void dispose() {
@@ -75,12 +81,36 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
             ),
           ],
         ),
+        // Outside the AsyncValueView below, and deliberately: a search puts
+        // the list into its loading state, and anything drawn inside that
+        // view is torn down and rebuilt when it does. With the search box in
+        // there it lost the keyboard focus the moment the results came back,
+        // mid-word - and an empty result took the box away altogether,
+        // leaving no way to clear the search that caused it.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _Filters(
+            searchController: _searchController,
+            departmentFilter: _departmentFilter,
+            roleFilter: _roleFilter,
+            onSearchChanged: (value) {
+              ref.read(staffListNotifierProvider.notifier).setSearch(value);
+            },
+            onDepartmentChanged: (value) {
+              setState(() => _departmentFilter = value);
+              ref.read(staffListNotifierProvider.notifier).setDepartmentFilter(value);
+            },
+            onRoleChanged: (value) {
+              setState(() => _roleFilter = value);
+              ref.read(staffListNotifierProvider.notifier).setRoleFilter(value);
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
         Expanded(
           child: AsyncValueView<PagedList<StaffProfile>>(
             value: staffState,
             onRetry: () => ref.read(staffListNotifierProvider.notifier).refresh(),
-            isEmpty: (page) => page.items.isEmpty,
-            emptyBuilder: (context) => const Center(child: Text('No teachers or staff added yet.')),
             data: (context, page) {
               final staff = page.items;
 
@@ -96,30 +126,14 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                             child: _StatRow(staff: staff),
                           ),
                           const SizedBox(height: 12),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: _Filters(
-                              searchController: _searchController,
-                              departmentFilter: _departmentFilter,
-                              roleFilter: _roleFilter,
-                              onSearchChanged: (value) {
-                                ref.read(staffListNotifierProvider.notifier).setSearch(value);
-                              },
-                              onDepartmentChanged: (value) {
-                                setState(() => _departmentFilter = value);
-                                ref.read(staffListNotifierProvider.notifier).setDepartmentFilter(value);
-                              },
-                              onRoleChanged: (value) {
-                                setState(() => _roleFilter = value);
-                                ref.read(staffListNotifierProvider.notifier).setRoleFilter(value);
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 12),
                           if (staff.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.all(32),
-                              child: Center(child: Text('No employees match these filters.')),
+                            Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Center(
+                                child: Text(
+                                  _isFiltered ? 'No employees match these filters.' : 'No teachers or staff added yet.',
+                                ),
+                              ),
                             )
                           else
                             ResponsiveBuilder(
@@ -200,14 +214,10 @@ class _Filters extends ConsumerWidget {
       children: [
         SizedBox(
           width: 220,
-          child: TextField(
+          child: DebouncedSearchField(
             controller: searchController,
-            decoration: const InputDecoration(
-              labelText: 'Search employee',
-              prefixIcon: Icon(Icons.search, size: 20),
-              isDense: true,
-            ),
-            onChanged: onSearchChanged,
+            label: 'Search employee',
+            onSearch: onSearchChanged,
           ),
         ),
         SizedBox(

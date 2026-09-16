@@ -13,8 +13,15 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
   /// Set only by a SUPER_ADMIN via [setSchoolFilter] - every other role is
   /// already scoped to their own school server-side.
   int? _schoolId;
+  String? _search;
   int _page = 1;
   int _perPage = 20;
+
+  /// Which fetch is the current one. Two searches can be in flight at once -
+  /// a slow reply for "Abhi" must not land on top of a fast one for
+  /// "Abhishek" and leave the list showing the wrong answer to a question
+  /// nobody asked any more.
+  int _fetchId = 0;
 
   @override
   Future<PagedList<Student>> build() => _fetch();
@@ -22,7 +29,7 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
   Future<PagedList<Student>> _fetch() async {
     final response = await ref
         .read(studentRepositoryProvider)
-        .listPage(schoolId: _schoolId, page: _page, perPage: _perPage);
+        .listPage(schoolId: _schoolId, search: _search, page: _page, perPage: _perPage);
 
     return PagedList(
       items: response.items,
@@ -34,12 +41,27 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
   }
 
   Future<void> refresh() async {
+    final id = ++_fetchId;
+
     state = const AsyncLoading();
-    state = await AsyncValue.guard(_fetch);
+    final result = await AsyncValue.guard(_fetch);
+
+    // Something newer was asked for while this was away; it owns the state.
+    if (id != _fetchId) return;
+    state = result;
   }
 
   Future<void> setSchoolFilter(int? schoolId) async {
     _schoolId = schoolId;
+    _page = 1;
+    await refresh();
+  }
+
+  /// Searched server-side, across every page. It used to filter the list the
+  /// screen already held, which quietly only ever searched the twenty rows
+  /// on show - a student on page three could not be found at all.
+  Future<void> setSearch(String? search) async {
+    _search = (search == null || search.trim().isEmpty) ? null : search.trim();
     _page = 1;
     await refresh();
   }

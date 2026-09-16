@@ -20,6 +20,12 @@ class StaffListNotifier extends AsyncNotifier<PagedList<StaffProfile>> {
   int _page = 1;
   int _perPage = 20;
 
+  /// Which fetch is the current one. Two searches can be in flight at once -
+  /// a slow reply for "Abhi" must not land on top of a fast one for
+  /// "Abhishek" and leave the list showing the wrong answer to a question
+  /// nobody asked any more.
+  int _fetchId = 0;
+
   @override
   Future<PagedList<StaffProfile>> build() => _fetch();
 
@@ -45,8 +51,14 @@ class StaffListNotifier extends AsyncNotifier<PagedList<StaffProfile>> {
   }
 
   Future<void> refresh() async {
+    final id = ++_fetchId;
+
     state = const AsyncLoading();
-    state = await AsyncValue.guard(_fetch);
+    final result = await AsyncValue.guard(_fetch);
+
+    // Something newer was asked for while this was away; it owns the state.
+    if (id != _fetchId) return;
+    state = result;
   }
 
   Future<void> setSchoolFilter(int? schoolId) async {

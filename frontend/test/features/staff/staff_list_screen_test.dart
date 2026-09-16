@@ -78,6 +78,16 @@ Widget wrap(FakeStaffRepository fake, {FakeUserRepository? userRepositoryFake}) 
   );
 }
 
+/// Types into the search box and waits out the debounce.
+///
+/// pumpAndSettle alone is not enough: while the debounce timer counts down
+/// nothing has a frame scheduled, so it returns before the timer fires.
+Future<void> _search(WidgetTester tester, String term) async {
+  await tester.enterText(find.widgetWithText(TextField, 'Search employee'), term);
+  await tester.pump(const Duration(milliseconds: 500));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('shows an empty state when there is no staff yet', (tester) async {
     await tester.pumpWidget(wrap(FakeStaffRepository()));
@@ -131,11 +141,41 @@ void main() {
     expect(find.textContaining('Priya Sharma'), findsOneWidget);
     expect(find.textContaining('Rahul Verma'), findsOneWidget);
 
-    await tester.enterText(find.widgetWithText(TextField, 'Search employee'), 'Priya');
-    await tester.pumpAndSettle();
+    await _search(tester, 'Priya');
 
     expect(find.textContaining('Priya Sharma'), findsOneWidget);
     expect(find.textContaining('Rahul Verma'), findsNothing);
+  });
+
+  testWidgets('searching keeps the search box on screen, with what was typed in it', (tester) async {
+    // The filters used to be drawn inside the list's AsyncValueView, so a
+    // search tore them down and rebuilt them - losing the keyboard focus
+    // mid-word - and a search that matched nobody removed the box entirely,
+    // leaving no way to undo the search that had emptied the screen.
+    await tester.pumpWidget(wrap(FakeStaffRepository(staff: [_teacher])));
+    await tester.pumpAndSettle();
+
+    final field = find.widgetWithText(TextField, 'Search employee');
+    await tester.enterText(field, 'Nobody at all');
+
+    // While the request is in flight.
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(field, findsOneWidget);
+
+    await tester.pumpAndSettle();
+
+    expect(field, findsOneWidget);
+    expect(tester.widget<TextField>(field).controller!.text, 'Nobody at all');
+    expect(find.text('No employees match these filters.'), findsOneWidget);
+    expect(find.text('No teachers or staff added yet.'), findsNothing);
+  });
+
+  testWidgets('an empty list with nothing searched says nobody has been added', (tester) async {
+    await tester.pumpWidget(wrap(FakeStaffRepository()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No teachers or staff added yet.'), findsOneWidget);
+    expect(find.text('No employees match these filters.'), findsNothing);
   });
 
   testWidgets('tapping Edit on a row opens the edit dialog for that employee', (tester) async {

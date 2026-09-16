@@ -76,6 +76,17 @@ Widget wrap(FakeStudentRepository fake) {
 /// The row action buttons only render in the desktop DataTable layout (see
 /// [Breakpoints.desktop]) - the mobile card layout opens the edit dialog on
 /// a plain row tap instead and has no deactivate/activate control at all.
+/// Types into the search box and waits out the debounce.
+///
+/// pumpAndSettle alone is not enough: while the debounce timer counts down
+/// nothing has a frame scheduled, so pumpAndSettle returns before it fires.
+/// The clock has to be moved on deliberately.
+Future<void> _search(WidgetTester tester, String term) async {
+  await tester.enterText(find.widgetWithText(TextField, 'Search by name / admission ID'), term);
+  await tester.pump(const Duration(milliseconds: 500));
+  await tester.pumpAndSettle();
+}
+
 void _useDesktopLayout(WidgetTester tester) {
   tester.view.physicalSize = const Size(1400, 900);
   tester.view.devicePixelRatio = 1.0;
@@ -119,11 +130,101 @@ void main() {
     await tester.pumpWidget(wrap(FakeStudentRepository(students: [_student, other])));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextField, 'Search by name / admission ID'), 'Arjun');
-    await tester.pumpAndSettle();
+    await _search(tester, 'Arjun');
 
     expect(find.textContaining('Arjun Kumar'), findsOneWidget);
     expect(find.textContaining('Aarav Mehta'), findsNothing);
+  });
+
+  testWidgets('asks the server once the typing stops, not once per letter', (tester) async {
+    // The bug this exists to prevent: wired to onChanged, "Arjun" was five
+    // requests, four of them for a prefix nobody wanted - and their replies
+    // could arrive in any order.
+    final fake = FakeStudentRepository(students: [_student]);
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    final before = fake.searchCalls.length;
+    final field = find.widgetWithText(TextField, 'Search by name / admission ID');
+
+    for (final prefix in ['A', 'Ar', 'Arj', 'Arju', 'Arjun']) {
+      await tester.enterText(field, prefix);
+      await tester.pump(const Duration(milliseconds: 80));
+    }
+
+    // Still nothing: the field has not been quiet long enough.
+    expect(fake.searchCalls.length, before);
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    expect(fake.searchCalls.length, before + 1);
+    expect(fake.searchCalls.last, 'Arjun');
+  });
+
+  testWidgets('searches every page, not just the rows on screen', (tester) async {
+    // It used to filter the list the screen already held, so a student on any
+    // page but this one simply could not be found.
+    final many = [
+      for (var i = 0; i < 25; i++)
+        Student(
+          id: 100 + i,
+          schoolId: 1,
+          schoolName: 'Sunrise Public School',
+          classSectionId: 1,
+          classSectionName: 'Grade 8 A',
+          admissionNumber: 'STU-01$i',
+          firstName: 'Filler',
+          lastName: '$i',
+          name: 'Filler $i',
+          rollNumber: '$i',
+          guardianName: 'Guardian $i',
+          guardianMobile: null,
+          address: null,
+          status: StudentStatus.active,
+        ),
+      _student,
+    ];
+
+    final fake = FakeStudentRepository(students: many);
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    // Page one holds twenty rows; Arjun is not among them.
+    expect(find.textContaining('Arjun Kumar'), findsNothing);
+
+    await _search(tester, 'Arjun');
+
+    expect(find.textContaining('Arjun Kumar'), findsOneWidget);
+  });
+
+  testWidgets('a search that finds nothing says so, rather than "none admitted"', (tester) async {
+    await tester.pumpWidget(wrap(FakeStudentRepository(students: [_student])));
+    await tester.pumpAndSettle();
+
+    await _search(tester, 'Nobody');
+
+    expect(find.text('No students match this search.'), findsOneWidget);
+    expect(find.text('No students admitted yet.'), findsNothing);
+  });
+
+  testWidgets('clearing the search brings everyone back at once', (tester) async {
+    final fake = FakeStudentRepository(students: [_student]);
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    await _search(tester, 'Nobody');
+    expect(find.textContaining('Arjun Kumar'), findsNothing);
+
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pump();
+
+    // No waiting for the debounce: clearing is the user saying they are done.
+    // Null rather than empty - the notifier drops a blank term rather than
+    // sending the server a search for nothing.
+    expect(fake.searchCalls.last, isNull);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Arjun Kumar'), findsOneWidget);
   });
 
   testWidgets('tapping the row action button opens the edit dialog', (tester) async {

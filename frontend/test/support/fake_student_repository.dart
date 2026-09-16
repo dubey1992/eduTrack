@@ -24,14 +24,28 @@ class FakeStudentRepository implements StudentRepository {
 
   List<Student> get students => List.unmodifiable(_students);
 
-  List<Student> _filtered({int? schoolId}) {
-    return schoolId == null ? _students : _students.where((s) => s.schoolId == schoolId).toList();
+  /// Every search term listPage has been asked for, in order. Searching is
+  /// the server's job, so a test that wants to know the screen actually asked
+  /// - and how many times - has to look here.
+  final List<String?> searchCalls = [];
+
+  List<Student> _filtered({int? schoolId, String? search}) {
+    var found = schoolId == null ? _students : _students.where((s) => s.schoolId == schoolId).toList();
+
+    if (search != null && search.trim().isNotEmpty) {
+      final term = search.trim().toLowerCase();
+      found = found
+          .where((s) => s.name.toLowerCase().contains(term) || s.admissionNumber.toLowerCase().contains(term))
+          .toList();
+    }
+
+    return found.toList();
   }
 
   @override
   Future<List<Student>> list({int? schoolId, int? classSectionId, String? search}) async {
     if (failListWith != null) throw failListWith!;
-    return List.unmodifiable(_filtered(schoolId: schoolId));
+    return List.unmodifiable(_filtered(schoolId: schoolId, search: search));
   }
 
   @override
@@ -42,9 +56,10 @@ class FakeStudentRepository implements StudentRepository {
     required int page,
     required int perPage,
   }) async {
+    searchCalls.add(search);
     if (failListWith != null) throw failListWith!;
     return paginateFake(
-      _filtered(schoolId: schoolId),
+      _filtered(schoolId: schoolId, search: search),
       page: page,
       perPage: perPage,
     );
