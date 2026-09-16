@@ -10,6 +10,7 @@ use App\Models\Holiday;
 use App\Models\Department;
 use App\Models\School;
 use App\Models\SchoolClass;
+use App\Models\StaffLeave;
 use App\Models\StaffProfile;
 use App\Models\Subject;
 use App\Models\Student;
@@ -214,6 +215,27 @@ class StableOrderingTest extends TestCase
         $response->assertOk();
         $this->assertCount(2, $response->json('data'));
         $this->assertSame(2, $response->json('meta.per_page'));
+    }
+
+    public function test_paging_through_leave_applied_for_together_shows_each_once(): void
+    {
+        // A leave list is ordered newest first, and created_at is where this
+        // one ties: a school admin applying on behalf of several staff, or a
+        // seeded import, writes rows within the same second.
+        $department = Department::factory()->create(['school_id' => $this->school->id]);
+        $applied = now();
+
+        foreach (range(1, 6) as $index) {
+            $user = User::factory()->role(UserRole::Teacher)->forSchool($this->school)->create([
+                'email' => 'leave'.$index.'@example.invalid',
+            ]);
+
+            StaffLeave::factory()
+                ->forStaff(StaffProfile::factory()->forUser($user)->forDepartment($department)->create())
+                ->create(['created_at' => $applied, 'updated_at' => $applied]);
+        }
+
+        $this->assertEachRecordAppearsOnce('/api/v1/leaves', 6);
     }
 
     /**

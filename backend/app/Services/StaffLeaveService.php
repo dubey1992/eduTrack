@@ -156,7 +156,11 @@ class StaffLeaveService
                 )
             )
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            // Newest first, and id to break the tie: two requests applied for
+            // in the same second are otherwise in no fixed order, which shows
+            // one row twice and skips another as the reviewer pages through.
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
