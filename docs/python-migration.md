@@ -8,6 +8,7 @@
 | M1 PostgreSQL locally, schema parity | **Done** 2026-09-16 |
 | M2 Portability fixes | **Done** 2026-09-16 |
 | M3 Data migration rehearsal | **Done** 2026-09-16 |
+| M4 Both databases in CI | **Half done** — needs a CI decision |
 | M3 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework. **Still open: whether the
@@ -346,9 +347,29 @@ and everybody signs in again.
 
 **Work:** the test suite runs against MySQL *and* Postgres on every commit.
 
-**Done when:** 851 × 2 green. This is the phase that makes the rest of the
-project safe, because from here on any behavioural difference between the two
-databases fails a test rather than reaching a school.
+**Done when:** the whole suite is green on both. This is the phase that makes
+the rest of the project safe, because from here on any behavioural difference
+between the two databases fails a test rather than reaching a school.
+
+### Half done — 2026-09-16
+
+**The mechanism exists.** `composer test:both` runs the suite against MySQL and
+then PostgreSQL in one command, using `phpunit.pgsql.xml` from M1. Verified:
+**868 passed plus 3 skipped on MySQL, 871 on PostgreSQL.** The three skips are
+the PostgreSQL storage guards, which have nothing to describe on MySQL.
+
+**"On every commit" is not done, and cannot be finished here.** This repository
+has no CI at all — no workflows, no pipeline. Adding one is a new capability for
+the project rather than a step in this migration: it runs on somebody's
+account, it needs MySQL and PostgreSQL service containers, and it will take a
+few passes to go green. That is a decision to be taken deliberately, not
+slipped in under a database migration.
+
+Until it is taken, `composer test:both` before pushing is the whole of the
+guarantee, and it depends on somebody remembering — which is exactly the
+property CI exists to remove. Worth closing before the Python track starts,
+because from M7 onwards two backends have to stay in step and nobody can hold
+that in their head.
 
 ## M5 · Production moves to PostgreSQL — *still Laravel*
 
