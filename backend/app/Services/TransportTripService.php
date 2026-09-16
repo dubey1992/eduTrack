@@ -289,7 +289,17 @@ class TransportTripService
     private function assertNobodyOnBoard(TransportTrip $trip, bool $lock = false): void
     {
         $riders = $trip->riders()->where('status', TripRiderStatus::Boarded);
-        $onBoard = $lock ? $riders->lockForUpdate()->count() : $riders->count();
+
+        // Locking reads the rows and counts what came back, rather than asking
+        // for a locked count. `SELECT count(*) ... FOR UPDATE` is accepted by
+        // MySQL and rejected outright by PostgreSQL - "FOR UPDATE is not
+        // allowed with aggregate functions" - and this says the intent better
+        // anyway: it is those rider rows that must hold still, and a lock on
+        // an aggregate does not name any of them. A bus holds a busload, so
+        // reading the keys costs nothing.
+        $onBoard = $lock
+            ? $riders->lockForUpdate()->get(['id'])->count()
+            : $riders->count();
 
         if ($onBoard > 0) {
             throw TripRuleException::ridersOnBoard($onBoard);
