@@ -130,6 +130,18 @@ def not_a_timezone(field: str) -> str:
     return f"The {attribute(field)} field must be a valid timezone."
 
 
+def not_a_date(field: str) -> str:
+    return f"The {attribute(field)} field must be a valid date."
+
+
+def must_be_after(field: str, other: str) -> str:
+    return f"The {attribute(field)} field must be a date after {attribute(other)}."
+
+
+def not_a_boolean(field: str) -> str:
+    return f"The {attribute(field)} field must be true or false."
+
+
 def must_differ(field: str, other: str) -> str:
     return f"The {attribute(field)} field and {attribute(other)} must be different."
 
@@ -298,6 +310,39 @@ class TimezoneField(LaravelCharField):
             raise serializers.ValidationError(not_a_timezone(self._field_name))
 
         return value
+
+
+class LaravelDateField(serializers.DateField):
+    """A calendar date - `2026-04-01`, never an instant.
+
+    A school year starts on a date, not at a moment: the day it begins is the
+    same day everywhere, and attaching a time to it would drag it across a
+    boundary for a school far enough east or west. The column is a DATE and
+    this keeps it one.
+    """
+
+    def __init__(self, field_name: str, **kwargs) -> None:
+        super().__init__(
+            error_messages={
+                "required": required(field_name),
+                "null": required(field_name),
+                "invalid": not_a_date(field_name),
+                "datetime": not_a_date(field_name),
+            },
+            **kwargs,
+        )
+
+
+class LaravelBooleanField(serializers.BooleanField):
+    def __init__(self, field_name: str, **kwargs) -> None:
+        super().__init__(
+            error_messages={
+                "required": required(field_name),
+                "null": required(field_name),
+                "invalid": not_a_boolean(field_name),
+            },
+            **kwargs,
+        )
 
 
 def optional_text(field_name: str, max_length: int) -> serializers.CharField:

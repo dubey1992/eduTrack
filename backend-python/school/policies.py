@@ -63,6 +63,50 @@ class SchoolPolicy:
         return actor.role == UserRole.SUPER_ADMIN
 
 
+class AcademicYearPolicy:
+    """Admins manage their own school's years; everybody else reads them.
+
+    The read side is deliberately open to every role: an academic year is the
+    filter almost every other screen hangs off, so a teacher who cannot list
+    them cannot use attendance or the timetable either.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return True
+
+    @staticmethod
+    def view(actor: User, year) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(
+            year.school_id
+        )
+
+    @staticmethod
+    def create(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES
+
+    @classmethod
+    def update(cls, actor: User, year) -> bool:
+        return cls._manages(actor, year)
+
+    @classmethod
+    def set_current(cls, actor: User, year) -> bool:
+        return cls._manages(actor, year)
+
+    @classmethod
+    def delete(cls, actor: User, year) -> bool:
+        return cls._manages(actor, year)
+
+    @staticmethod
+    def _manages(actor: User, year) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
+            year.school_id
+        )
+
+
 class UserPolicy:
     """Who may manage which accounts.
 

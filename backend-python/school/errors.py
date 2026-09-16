@@ -59,6 +59,18 @@ class Unauthenticated(ApiError):
     error_code = "UNAUTHENTICATED"
 
 
+class HasDependentRecords(ApiError):
+    """Something is still built on top of this, so it cannot be removed.
+
+    409 rather than 422: the request was well formed and the record is real -
+    the answer is no because of what else exists. The message names what is in
+    the way, because "cannot delete" without a reason sends somebody hunting.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "HAS_DEPENDENT_RECORDS"
+
+
 class BulkImportFailed(ApiError):
     """A file that could not be imported, and every reason why.
 

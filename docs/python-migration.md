@@ -9,37 +9,57 @@
 | M2 Portability fixes | **Done** 2026-09-16 |
 | M3 Data migration rehearsal | **Done** 2026-09-16 |
 | M4 Both databases in CI | **Done** — green in CI |
-| M5 Staging | Conditional — see M5 |
+| M5 Staging | **Deleted** — nothing is deployed |
 | M6 Contract suite | **Done** — 153/153 endpoints |
 | M7 Skeleton | **Done** — 33 models, round-tripped |
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
-| M9 Wave 1 — foundations | **In progress** — 13 of 52 endpoints |
+| M9 Wave 1 — foundations | **In progress** — 19 of 52 endpoints |
 | M10 onwards | Not started |
 
-**Answered at M0:** Django + DRF is the framework. **Open, and deliberately
-not blocking: where this is hosted.** cPanel or AWS is under discussion
-(2026-09-16). Nothing in M9–M11 depends on the answer — those phases are
-application code against a database — so the port continues while that is
-settled. Only **M5 and M12 wait**, and what they become differs sharply:
+**Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
+(decided 2026-09-16). AWS is a later plan, not a parallel one — so nothing
+here is built twice, and the constraints below are real constraints rather
+than a hedge.
 
-| | cPanel | AWS |
-|---|---|---|
-| M5 staging | a second document root, if the plan allows one | trivial — a second environment |
-| M12 cutover | document-root switch | DNS or load-balancer switch |
-| Background work (CLAUDE.md §15) | cron, with the fallback already designed | real queue workers; the fallback stops being needed |
-| Python process | Passenger, one persistent process | whatever is chosen |
+What cPanel settles:
 
-The one thing to avoid is designing for both. The queue fallback and the
-"no Docker, no Redis" constraint in CLAUDE.md §6 exist because of cPanel; if
-AWS wins, several of those constraints can be dropped, and that is a
-simplification to make *once*, deliberately, not a fork to carry.
+| | |
+|---|---|
+| Background work | **cron**, not a broker. No Celery, no Redis — CLAUDE.md §6 stands |
+| The Python process | Passenger, one persistent process |
+| M12 | the **first deployment**, not a cutover — nothing is live to switch from |
+
+**What that unblocks, and what it now requires.** Three things were waiting on
+this answer, and all three are now specified rather than open:
+
+- **A queue.** Laravel runs `QUEUE_CONNECTION=database` with a cron calling
+  `queue:work --stop-when-empty`. Django ships no equivalent, so the Python
+  side needs a jobs table, a worker management command, and a cron entry —
+  the same shape, deliberately, because it is the shape the host allows.
+- **A PDF renderer.** The payment receipt is a Blade view through
+  `barryvdh/laravel-dompdf`. The Python analogue has to be pure Python:
+  shared hosting has no cairo or pango, which rules out WeasyPrint.
+  `xhtml2pdf` takes the same HTML-and-CSS input dompdf does.
+- **Mail.** `MAIL_MAILER=log` in development today, so nothing is actually
+  delivered; the Python side needs to reach the same SMTP settings, not
+  invent a provider.
+
+These are shared infrastructure rather than one module's problem — payments,
+communication, announcements and bulk imports all queue work — so they are
+built once, as their own piece, rather than inside whichever module reaches
+them first.
+
+When AWS is planned later, the queue is the piece worth revisiting: real
+workers would replace the cron, and that is a simplification to make *once*,
+deliberately. Nothing else on this list changes shape.
 
 Replacing the Laravel/PHP backend with Python, and MySQL with PostgreSQL.
 
 **No school is using this yet.** Corrected on 2026-09-16: nobody goes live until
 every module is finished, which removes most of what made the back half of this
 plan dangerous. Earlier revisions were written around a live pilot school and
-were wrong about it. What that changes is set out under M5.
+were wrong about it. Hosting happens only once every phase is complete
+(confirmed 2026-09-16), which is what deleted M5 outright.
 
 CLAUDE.md §6 names PHP, Laravel and MySQL, and explicitly excludes PostgreSQL.
 This document supersedes that section once Phase M1 lands; until then §6 still
@@ -59,7 +79,7 @@ The database move can be done first, on the backend that exists, proven by the
 851 tests that already exist. Doing both at once means a broken report tells you
 nothing about which change broke it.
 
-So the phases below run in three tracks, in order: **get to Postgres** (M0–M5),
+So the phases below run in three tracks, in order: **get to Postgres** (M0–M4),
 **freeze the contract** (M6), **replace the language** (M7–M12).
 
 ## What is being moved
@@ -98,8 +118,8 @@ reversible.
    **GATE** end at a decision. Reaching a gate and finding the answer is no
    should stop the project cheaply, which is the whole point of putting them
    early.
-4. **No phase touches production** except M5 and M12, and both have a written
-   rollback.
+4. **No phase touches production** except M12, which is the first deployment
+   there has ever been. Nothing is live until every phase is done.
 5. **Real data is never the test subject.** Migrations are rehearsed on a
    copy, every time. There is no live school's data to lose today, and this
    rule is what keeps that true on the day there is.
@@ -198,7 +218,7 @@ configured with.
 ## M2 · Portability fixes, still green on MySQL
 
 Every change here is written so it is correct on **both** databases. This is
-what keeps M1–M5 reversible: at no point is there a commit that only works on
+what keeps M1–M4 reversible: at no point is there a commit that only works on
 Postgres.
 
 **The four real differences found in this codebase.** The generic list is long;
@@ -395,25 +415,26 @@ property CI exists to remove. Worth closing before the Python track starts,
 because from M7 onwards two backends have to stay in step and nobody can hold
 that in their head.
 
-## M5 · Production on PostgreSQL
+## M5 · Production on PostgreSQL — **deleted**
 
-**Reduced on 2026-09-16, when it turned out no school is live.**
+**This phase no longer exists. Confirmed 2026-09-16: nothing has ever been
+deployed, and hosting happens only once every phase is complete.**
 
-This was the risky phase: take a working school offline, move its records, and
-hope. With nothing in production to move, almost all of that goes away.
+It was written as the risky one - take a working school offline, move its
+records, and hope. There is no working school, no staging to run alongside a
+live system, and no records in production to move. A phase that cannot be
+started is worse than no phase: it sits in the plan looking like work
+somebody has forgotten.
 
-**What is left depends on one fact** - whether anything is deployed at all.
+**What replaces it is a line in `docs/deployment.md`, not a window:** the
+first deployment creates a PostgreSQL database instead of a MySQL one, points
+`.env` at it, and runs the migrations. `db:copy` is not needed, because there
+is nothing to copy.
 
-- **Nothing deployed.** Then there is no migration. The first deployment simply
-  uses PostgreSQL, and this phase is a line in `docs/deployment.md` rather than
-  a window: create a PostgreSQL database instead of a MySQL one, point `.env`
-  at it, run the migrations. `db:copy` is not needed, because there is nothing
-  to copy.
-- **Deployed but only seeded** - a Super Admin and nothing else. Same answer.
-  Rebuild it on PostgreSQL and re-run `SuperAdminSeeder`; recreating one
-  account is cheaper and safer than migrating it.
-- **Deployed with data somebody wants to keep.** Only then does the runbook
-  below apply, and `db:copy` earns its place.
+This also settles what M12 is. With nothing to cut over *from*, **M12 is the
+first deployment** rather than a switch between two running systems - so its
+rollback, its maintenance window and its "tell the school" step all fall away
+with it.
 
 **What stops being true**, and is worth naming because earlier revisions of
 this document leaned on all of it:
@@ -690,8 +711,9 @@ Ported in dependency order, because everything downstream references them.
 | Schools | 6 | **Done** — identical to Laravel, envelope included |
 | Timezones | 1 | **Done** |
 | Users and admin accounts | 6 | **Done** |
-| Payments | 7 | **Blocked** — see below |
-| Academic years, departments, subjects | 16 | Not started |
+| Academic years | 6 | **Done** |
+| Payments | 7 | Sequenced behind the queue and the PDF renderer |
+| Departments, subjects | 10 | Not started |
 | Classes, sections, periods, holidays | 17 | Not started |
 
 Each module is checked the way M8's bug was found: ask both backends the same
@@ -714,20 +736,20 @@ list, and **fall back to UTC** — moving every attendance date for that school
 by five and a half hours. The canonical list is now generated from PHP and
 committed as `backend-python/school/zones.py`.
 
-### Payments is blocked, and on the hosting decision
+### Payments waits on infrastructure, not on a decision
 
-Five of its seven endpoints are ordinary. The other two are not:
+The decision landed — cPanel — so payments is no longer blocked, it is
+*sequenced*. Five of its seven endpoints are ordinary. The other two need
+things no module should build for itself:
 
-- `GET /payments/{payment}/receipt` renders a **PDF**. Python has no equivalent
-  of the PHP renderer in the tree, so this needs a new dependency — and
-  CLAUDE.md §6 asks that one be justified rather than assumed.
-- `POST /payments/{payment}/receipt` **queues an email**, as does every
-  create and update that changes the money. Queues are M0's open question:
-  cron under cPanel, or real workers under AWS.
+- `GET /payments/{payment}/receipt` renders a **PDF**.
+- `POST /payments/{payment}/receipt` **queues an email**, as does every create
+  and update that changes the money.
 
-Porting the five and stubbing the two would mean a module that looks finished
-and silently stops sending receipts. Left until the hosting answer lands,
-rather than half-built.
+Both belong to the shared background-work and document-rendering pieces
+described under M0. Payments lands once those exist; porting the five and
+stubbing the two would mean a module that looks finished and silently stops
+sending receipts.
 
 ### The ordering bug this wave found in Laravel
 
@@ -751,11 +773,15 @@ modules ported so far — students, schools and users — because fixing one
 backend alone would have been exactly the kind of behaviour difference this
 migration exists not to introduce.
 
-`StableOrderingTest` covers all three and fails without the fix on either
-database. **The remaining twelve lists have the same latent bug** and are
-fixed as their modules are ported, so that every change to the live backend
-arrives with a cross-backend check of the same endpoint rather than on its
-own.
+`StableOrderingTest` covers each and fails without the fix on either
+database. **The remaining lists have the same latent bug** and are fixed as
+their modules are ported, so that every change to the live backend arrives
+with a cross-backend check of the same endpoint rather than on its own.
+
+Academic years was the next to show it, and the most prone to it of any list
+in the product: it orders by `start_date`, and every school in a group starts
+its year on the same April day, so almost every row ties with almost every
+other. Fixed the same way when that module landed.
 
 ## M10 · Wave 2 — people and daily operations
 
@@ -780,7 +806,16 @@ averaged — and must be ported with their tests, not re-derived.
 **Done when:** 153 of 153 endpoints answer identically, and the Flutter suite of
 705 tests passes against the Python backend.
 
-## M12 · Cutover and decommission
+## M12 · The first deployment
+
+**Not a cutover.** Confirmed 2026-09-16: nothing has ever been deployed, and
+hosting happens only once every phase is complete. So there is no running
+system to switch away from, no rollback window, no decommissioning, and
+nothing to tell anybody. What is left is an ordinary first deploy - to cPanel,
+with PostgreSQL and the Python backend - documented in `docs/deployment.md`.
+
+The two paragraphs below are kept because they stop being true the moment a
+school does go live, and that is exactly when somebody will want them.
 
 **Nobody is signed out.** Corrected at M8, 2026-09-16.
 

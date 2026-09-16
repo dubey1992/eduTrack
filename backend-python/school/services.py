@@ -7,17 +7,20 @@ rather than about the web, and can be tested without one.
 
 from __future__ import annotations
 
+from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 
 from . import hashing, tokens
 from .clock import SchoolClock
 from .enums import SchoolStatus, StudentStatus, UserRole, UserStatus
-from .errors import AccountInactive, Unauthenticated
+from .errors import AccountInactive, HasDependentRecords, Unauthenticated
 from .models import (
+    AcademicYear,
     EarlyAccessRequest,
     PersonalAccessToken,
     School,
+    SchoolClass,
     StaffProfile,
     Student,
     User,
@@ -170,6 +173,86 @@ class SchoolService:
     @staticmethod
     def branch_count(school: School) -> int:
         return School.objects.filter(parent_school_id=school.id).count()
+
+
+class AcademicYearService:
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        years = AcademicYear.objects.select_related("school")
+
+        years = SchoolScope.for_actor(actor).apply_to(years, filters.get("school_id"))
+
+        # Newest first - the year somebody is working in is almost always the
+        # latest one. `id` breaks the tie, since two years can start on the
+        # same date at different schools.
+        return years.order_by("-start_date", "-id")
+
+    @classmethod
+    def create(cls, data: dict, actor: User) -> AcademicYear:
+        data = dict(data)
+
+        # Never the client's school_id (CLAUDE.md rule 10).
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+        is_current = data.pop("is_current", False)
+        now = timezone.now()
+
+        with transaction.atomic():
+            if is_current:
+                cls._clear_current_for(school_id)
+
+            return AcademicYear.objects.create(
+                school_id=school_id,
+                name=data["name"],
+                start_date=data["start_date"],
+                end_date=data["end_date"],
+                # Never None. The column is NOT NULL with a default of false,
+                # and a request that omits the field used to leave the API
+                # answering `"is_current": null` for a column that cannot be
+                # null - a client reading it as a boolean would fail on the
+                # backend's own contract. Found by the contract suite, which
+                # omits the field where the Flutter client always sends it.
+                is_current=bool(is_current),
+                created_at=now,
+                updated_at=now,
+            )
+
+    @staticmethod
+    def update(year: AcademicYear, data: dict) -> AcademicYear:
+        for field, value in data.items():
+            setattr(year, field, value)
+
+        year.updated_at = timezone.now()
+        year.save()
+
+        return year
+
+    @classmethod
+    def set_current(cls, year: AcademicYear) -> AcademicYear:
+        with transaction.atomic():
+            cls._clear_current_for(year.school_id)
+
+            year.is_current = True
+            year.updated_at = timezone.now()
+            year.save(update_fields=["is_current", "updated_at"])
+
+        return year
+
+    @staticmethod
+    def delete(year: AcademicYear) -> None:
+        if SchoolClass.objects.filter(academic_year_id=year.id).exists():
+            raise HasDependentRecords(
+                "This academic year still has classes set up under it. Remove them first."
+            )
+
+        year.delete()
+
+    @staticmethod
+    def _clear_current_for(school_id) -> None:
+        """Exactly one year is current per school, so setting one clears the
+        rest in the same transaction."""
+        AcademicYear.objects.filter(school_id=school_id).update(
+            is_current=False, updated_at=timezone.now()
+        )
 
 
 class UserService:

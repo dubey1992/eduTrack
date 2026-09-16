@@ -16,9 +16,13 @@ does not call.
 
 from django.urls import path
 
-from school.views import auth, imports, schools, students, timezones, users
+from school.views import academic_years, auth, imports, schools, students, timezones, users
 
 urlpatterns = [
+    # -- academic years ----------------------------------------------------
+    path("api/v1/academic-years", academic_years.collection),
+    path("api/v1/academic-years/<int:year_id>", academic_years.detail),
+    path("api/v1/academic-years/<int:year_id>/set-current", academic_years.set_current),
     # -- auth --------------------------------------------------------------
     path("api/v1/auth/login", auth.login),
     path("api/v1/auth/logout", auth.logout),

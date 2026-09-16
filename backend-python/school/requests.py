@@ -23,7 +23,9 @@ from .models import ClassSection, EarlyAccessRequest, School, SchoolClass, Stude
 from .scope import SchoolScope
 from .validation import (
     CoordinateField,
+    LaravelBooleanField,
     LaravelCharField,
+    LaravelDateField,
     LaravelIntegerField,
     MobileField,
     TimezoneField,
@@ -32,6 +34,7 @@ from .validation import (
     bad_format,
     confirmation_does_not_match,
     does_not_exist,
+    must_be_after,
     normalise,
     not_an_email,
     optional_text,
@@ -363,6 +366,56 @@ class UpdateSchoolRequest(SchoolForm):
         # near-identical field lists, which is how the two forms drift apart.
         for name, field in self.fields.items():
             field.required = False
+
+
+# -- academic years ---------------------------------------------------------
+
+
+class StoreAcademicYearRequest(ScopedSerializer):
+    name = LaravelCharField("name", max_length=50)
+    start_date = LaravelDateField("start_date")
+    end_date = LaravelDateField("end_date")
+    is_current = LaravelBooleanField("is_current", required=False, default=False)
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        if attrs["end_date"] <= attrs["start_date"]:
+            raise serializers.ValidationError(
+                {"end_date": [must_be_after("end_date", "start_date")]}
+            )
+
+        attrs["school_id"] = self.resolved_school_id()
+
+        return attrs
+
+
+class UpdateAcademicYearRequest(ScopedSerializer):
+    """`school_id` is fixed at creation, and `is_current` is only ever changed
+    through the dedicated set-current action - a year becoming current makes
+    another one stop being current, which is not something a field edit should
+    do quietly."""
+
+    name = LaravelCharField("name", max_length=50, required=False)
+    start_date = LaravelDateField("start_date", required=False)
+    end_date = LaravelDateField("end_date", required=False)
+
+    def __init__(self, *args, year=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.year = year
+
+    def validate(self, attrs):
+        # Compared against what is stored for whichever end was not sent, so
+        # moving one date cannot silently invert the year.
+        start = attrs.get("start_date", self.year.start_date)
+        end = attrs.get("end_date", self.year.end_date)
+
+        if end <= start:
+            raise serializers.ValidationError(
+                {"end_date": ["The end date must be after the start date."]}
+            )
+
+        return attrs
 
 
 # -- users ------------------------------------------------------------------

@@ -40,6 +40,25 @@ def timestamp(value) -> str | None:
     return as_utc(value).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
+def academic_year_resource(year) -> dict:
+    body = {
+        "id": year.id,
+        "school_id": year.school_id,
+        "name": year.name,
+        # Dates, not instants: `2026-04-01` is the same day everywhere, and
+        # rendering it through a timezone would move it.
+        "start_date": year.start_date.isoformat(),
+        "end_date": year.end_date.isoformat(),
+        "is_current": year.is_current,
+        "created_at": timestamp(year.created_at),
+    }
+
+    if loaded(year, "school"):
+        body["school_name"] = year.school.name
+
+    return body
+
+
 def school_resource(school: School, branch_count: int | None = None) -> dict:
     """A school, or a branch of one.
 
