@@ -389,6 +389,86 @@ of the export, and untouched. Minutes, not hours.
 **At this point the database migration is complete and the Python decision is
 still entirely open.** If the project stops here it has still been worth doing.
 
+### The runbook
+
+Written 2026-09-16, when the host was confirmed to offer PostgreSQL. **Not yet
+performed.**
+
+#### Before the window — checks, not steps
+
+Every one of these can be done on an ordinary working day, and any of them
+failing means the window does not open.
+
+1. **`pdo_pgsql` on the host's PHP.** "The plan offers PostgreSQL" and "PHP on
+   this account can talk to it" are two different facts, and only the second
+   one matters here. `php -m | grep pdo_pgsql` over SSH, or a one-line
+   `phpinfo()`. If it is missing, ask the host to enable it; nothing below
+   works without it.
+2. **A PostgreSQL database and user exist**, created through cPanel, with the
+   account prefix (e.g. `acct_edutrack_pg`).
+3. **The deployed commit is current.** M5 needs `db:copy` and `schema:diff`,
+   which production does not have yet. Deploying is itself a change to a live
+   system: do it in the same window, not casually beforehand.
+4. **A rehearsal on a copy of production.** Take a dump of the production
+   MySQL database, restore it somewhere disposable, and run the whole sequence
+   against it. The number that matters is the row count, and finding out it is
+   wrong should happen here rather than at 6am.
+5. **Tell the school.** They lose access for the length of the window. Nobody
+   is signed out - the tokens carry over, because this changes the database and
+   not the application - but they cannot work while it runs.
+
+#### The window
+
+```bash
+# 1. Stop the world. MAINTENANCE_UNTIL makes the page say when to come back,
+#    in PLATFORM_TIMEZONE. See docs/error-pages.md.
+php artisan down
+
+# 2. Deploy the current commit, if it is not already deployed.
+git pull && composer install --no-dev --optimize-autoloader
+
+# 3. Point PG_* at the new database in .env, leaving DB_* alone.
+#    DB_CONNECTION stays mysql for now - nothing has moved yet.
+
+# 4. Build the schema on PostgreSQL.
+php artisan migrate --database=pgsql --force
+
+# 5. Prove it is the same schema before putting anything in it.
+php artisan schema:diff --from=mysql --to=pgsql
+
+# 6. Copy the data. Resets every sequence and verifies row counts itself.
+php artisan db:copy --from=mysql --to=pgsql
+
+# 7. Switch. This is the only irreversible-feeling moment, and it is one line.
+#    Set DB_CONNECTION=pgsql in .env, then:
+php artisan config:clear
+
+# 8. Look at it as a person, not as a script: sign in, open the student list,
+#    open a register, add something and delete it again. The sequence reset is
+#    what that last step is really testing.
+php artisan up
+```
+
+#### Rollback, and the hour it stops being free
+
+Set `DB_CONNECTION=mysql` in `.env`, `php artisan config:clear`, done. MySQL is
+untouched and current as of step 6.
+
+**That is only true while nobody has used the system.** Every record created
+after step 8 exists on PostgreSQL alone, and rolling back leaves it behind. So
+the rollback is free during the window and costly after it - which is the
+argument for doing step 8's manual check inside the window rather than
+discovering a problem at nine the next morning.
+
+Keep the MySQL database for a fortnight regardless. It costs nothing and it is
+the only copy of the pre-migration state.
+
+#### What this phase does *not* do
+
+Nobody is signed out. Sanctum's tokens live in a table like any other and are
+copied with everything else, because this changes the database and keeps the
+application. That is M12's problem, not this one.
+
 ---
 
 # Track 2 — The safety rail

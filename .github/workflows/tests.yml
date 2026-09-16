@@ -117,7 +117,24 @@ jobs:
           PG_PASSWORD: postgres
         # phpunit.pgsql.xml overrides DB_CONNECTION with force="true", which is
         # what points this at PostgreSQL. See M1 in docs/python-migration.md.
-        run: php artisan test -c ${{ matrix.phpunit }}
+        #
+        # The output is copied into the job summary as well as the log, because
+        # the log needs a token to read even on a public repository - so a
+        # failure here was, briefly, undiagnosable from outside.
+        run: |
+          set -o pipefail
+          php artisan test -c ${{ matrix.phpunit }} 2>&1 | tee test-output.txt
+
+      - name: Report what happened
+        if: always()
+        run: |
+          {
+            echo "## ${{ matrix.database }}"
+            echo ""
+            echo '```'
+            tail -c 3000 test-output.txt || echo "no output captured"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   frontend:
     name: Frontend
