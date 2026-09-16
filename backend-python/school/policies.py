@@ -63,12 +63,16 @@ class SchoolPolicy:
         return actor.role == UserRole.SUPER_ADMIN
 
 
-class AcademicYearPolicy:
-    """Admins manage their own school's years; everybody else reads them.
+class SchoolOwnedPolicy:
+    """The shape most school-owned records share.
 
-    The read side is deliberately open to every role: an academic year is the
-    filter almost every other screen hangs off, so a teacher who cannot list
-    them cannot use attendance or the timetable either.
+    Admins manage their own school's records; everybody else may read them.
+    Departments, subjects, classes, periods and holidays all answer exactly
+    this, and writing it five times is how one of them quietly ends up
+    different from the other four.
+
+    Subclasses exist so a call site names the thing it is asking about, and so
+    a record that later needs its own rule has somewhere to put it.
     """
 
     @staticmethod
@@ -76,9 +80,9 @@ class AcademicYearPolicy:
         return True
 
     @staticmethod
-    def view(actor: User, year) -> bool:
+    def view(actor: User, record) -> bool:
         return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(
-            year.school_id
+            record.school_id
         )
 
     @staticmethod
@@ -86,25 +90,66 @@ class AcademicYearPolicy:
         return actor.role in ADMIN_ROLES
 
     @classmethod
-    def update(cls, actor: User, year) -> bool:
-        return cls._manages(actor, year)
+    def update(cls, actor: User, record) -> bool:
+        return cls._manages(actor, record)
 
     @classmethod
-    def set_current(cls, actor: User, year) -> bool:
-        return cls._manages(actor, year)
-
-    @classmethod
-    def delete(cls, actor: User, year) -> bool:
-        return cls._manages(actor, year)
+    def delete(cls, actor: User, record) -> bool:
+        return cls._manages(actor, record)
 
     @staticmethod
-    def _manages(actor: User, year) -> bool:
+    def _manages(actor: User, record) -> bool:
         if actor.role == UserRole.SUPER_ADMIN:
             return True
 
         return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
-            year.school_id
+            record.school_id
         )
+
+
+class DepartmentPolicy(SchoolOwnedPolicy):
+    """Departments, plus the department report the HOD screens need.
+
+    The report is the one place this diverges: an admin sees any department of
+    their school, an HOD only the ones they actually head.
+    """
+
+    @staticmethod
+    def view_any_report(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES or actor.role == UserRole.HOD
+
+    @staticmethod
+    def view_report(actor: User, department) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        if not SchoolScope.for_actor(actor).allows(department.school_id):
+            return False
+
+        if UserRole.administers_school(actor.role):
+            return True
+
+        if actor.role == UserRole.HOD:
+            return department.hod_user_id == actor.id
+
+        return False
+
+
+class SubjectPolicy(SchoolOwnedPolicy):
+    pass
+
+
+class AcademicYearPolicy(SchoolOwnedPolicy):
+    """The shared shape, plus the one action that is not a field edit.
+
+    Making a year current makes another year stop being current, so it has its
+    own ability rather than riding on `update` - the permission and the
+    side effect belong together.
+    """
+
+    @classmethod
+    def set_current(cls, actor: User, year) -> bool:
+        return cls._manages(actor, year)
 
 
 class UserPolicy:

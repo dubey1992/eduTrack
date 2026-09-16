@@ -13,7 +13,7 @@
 | M6 Contract suite | **Done** — 153/153 endpoints |
 | M7 Skeleton | **Done** — 33 models, round-tripped |
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
-| M9 Wave 1 — foundations | **In progress** — 19 of 52 endpoints |
+| M9 Wave 1 — foundations | **In progress** — 29 of 52 endpoints |
 | M10 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
@@ -712,8 +712,8 @@ Ported in dependency order, because everything downstream references them.
 | Timezones | 1 | **Done** |
 | Users and admin accounts | 6 | **Done** |
 | Academic years | 6 | **Done** |
+| Departments, subjects | 10 | **Done** |
 | Payments | 7 | Sequenced behind the queue and the PDF renderer |
-| Departments, subjects | 10 | Not started |
 | Classes, sections, periods, holidays | 17 | Not started |
 
 Each module is checked the way M8's bug was found: ask both backends the same
@@ -778,10 +778,20 @@ database. **The remaining lists have the same latent bug** and are fixed as
 their modules are ported, so that every change to the live backend arrives
 with a cross-backend check of the same endpoint rather than on its own.
 
-Academic years was the next to show it, and the most prone to it of any list
-in the product: it orders by `start_date`, and every school in a group starts
-its year on the same April day, so almost every row ties with almost every
-other. Fixed the same way when that module landed.
+It has appeared in every module ported since, which is the point worth
+recording: this is not three unlucky lists, it is how all of them were
+written.
+
+| List | What ties |
+|---|---|
+| Students, users | People share first names |
+| Schools | Branches of a group share a name |
+| Academic years | Every school in a group starts on the same April day |
+| Departments, subjects | A name is unique *within* a school, not across them |
+
+Each was fixed on both backends when its module landed, with a case added to
+`StableOrderingTest`. The remaining lists are fixed the same way as the port
+reaches them.
 
 ## M10 · Wave 2 — people and daily operations
 

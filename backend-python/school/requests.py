@@ -19,7 +19,16 @@ import re
 
 from . import hashing
 from .enums import UserRole
-from .models import ClassSection, EarlyAccessRequest, School, SchoolClass, Student, User
+from .models import (
+    ClassSection,
+    Department,
+    EarlyAccessRequest,
+    School,
+    SchoolClass,
+    Student,
+    Subject,
+    User,
+)
 from .scope import SchoolScope
 from .validation import (
     CoordinateField,
@@ -366,6 +375,162 @@ class UpdateSchoolRequest(SchoolForm):
         # near-identical field lists, which is how the two forms drift apart.
         for name, field in self.fields.items():
             field.required = False
+
+
+# -- departments and subjects -----------------------------------------------
+
+# Who may head a department or lead a subject. Not an admin: leading a subject
+# is a teaching role, and an admin who also teaches has a TEACHER or HOD
+# account for that.
+TEACHING_ROLES = (UserRole.HOD, UserRole.TEACHER)
+
+
+def teaches_at(user_id, school_id) -> bool:
+    return User.objects.filter(
+        pk=user_id, school_id=school_id, role__in=TEACHING_ROLES
+    ).exists()
+
+
+class StoreDepartmentRequest(ScopedSerializer):
+    name = LaravelCharField("name", max_length=100)
+    hod_user_id = LaravelIntegerField("hod_user_id", required=False, allow_null=True)
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        school_id = self.resolved_school_id()
+        errors = {}
+
+        # Unique per school, not globally: two schools may each have a
+        # Science department and neither is wrong.
+        if Department.objects.filter(school_id=school_id, name=attrs["name"]).exists():
+            errors["name"] = [already_taken("name")]
+
+        hod_user_id = attrs.get("hod_user_id")
+
+        if hod_user_id is not None and not teaches_at(hod_user_id, school_id):
+            errors["hod_user_id"] = [does_not_exist("hod_user_id")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = school_id
+
+        return attrs
+
+
+class UpdateDepartmentRequest(ScopedSerializer):
+    name = LaravelCharField("name", max_length=100, required=False)
+    hod_user_id = LaravelIntegerField("hod_user_id", required=False, allow_null=True)
+
+    def __init__(self, *args, department=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.department = department
+
+    def validate(self, attrs):
+        school_id = self.department.school_id
+        errors = {}
+
+        if "name" in attrs and Department.objects.filter(
+            school_id=school_id, name=attrs["name"]
+        ).exclude(pk=self.department.pk).exists():
+            errors["name"] = [already_taken("name")]
+
+        hod_user_id = attrs.get("hod_user_id")
+
+        if hod_user_id is not None and not teaches_at(hod_user_id, school_id):
+            errors["hod_user_id"] = [does_not_exist("hod_user_id")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+class SubjectForm(ScopedSerializer):
+    """The fields a subject is described by, shared by create and edit."""
+
+    department_id = LaravelIntegerField("department_id")
+    code = LaravelCharField("code", max_length=20)
+    name = LaravelCharField("name", max_length=100)
+    # A class level, 0 to 12 - 0 being a nursery or reception year. The pair
+    # says which classes may be taught this subject at all.
+    min_class_level = LaravelIntegerField("min_class_level", min_value=0, max_value=12)
+    max_class_level = LaravelIntegerField("max_class_level", min_value=0, max_value=12)
+    lead_teacher_id = LaravelIntegerField("lead_teacher_id", required=False, allow_null=True)
+
+    def check(self, attrs, school_id, ignoring=None) -> dict:
+        errors = {}
+
+        if "department_id" in attrs and not Department.objects.filter(
+            pk=attrs["department_id"], school_id=school_id
+        ).exists():
+            errors["department_id"] = [does_not_exist("department_id")]
+
+        if "code" in attrs:
+            taken = Subject.objects.filter(school_id=school_id, code=attrs["code"])
+
+            if ignoring is not None:
+                taken = taken.exclude(pk=ignoring)
+
+            if taken.exists():
+                errors["code"] = [already_taken("code")]
+
+        lead_teacher_id = attrs.get("lead_teacher_id")
+
+        if lead_teacher_id is not None and not teaches_at(lead_teacher_id, school_id):
+            errors["lead_teacher_id"] = [does_not_exist("lead_teacher_id")]
+
+        # Only when both are present and both are good - a range check on a
+        # missing bound would be a second error about the same mistake.
+        low = attrs.get("min_class_level")
+        high = attrs.get("max_class_level")
+
+        if low is not None and high is not None and high < low:
+            errors["max_class_level"] = [
+                "The max class level must be at or above the min class level."
+            ]
+
+        return errors
+
+
+class StoreSubjectRequest(SubjectForm):
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        school_id = self.resolved_school_id()
+        errors = self.check(attrs, school_id)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = school_id
+
+        return attrs
+
+
+class UpdateSubjectRequest(SubjectForm):
+    def __init__(self, *args, subject=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.subject = subject
+
+        for field in self.fields.values():
+            field.required = False
+
+    def validate(self, attrs):
+        school_id = self.subject.school_id
+
+        # Whichever bound was not sent is taken from the stored row, so
+        # raising just the minimum above the stored maximum is still caught.
+        attrs.setdefault("min_class_level", self.subject.min_class_level)
+        attrs.setdefault("max_class_level", self.subject.max_class_level)
+
+        errors = self.check(attrs, school_id, ignoring=self.subject.pk)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
 
 # -- academic years ---------------------------------------------------------

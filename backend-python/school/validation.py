@@ -130,6 +130,14 @@ def not_a_timezone(field: str) -> str:
     return f"The {attribute(field)} field must be a valid timezone."
 
 
+def at_least(field: str, minimum) -> str:
+    return f"The {attribute(field)} field must be at least {minimum}."
+
+
+def at_most(field: str, maximum) -> str:
+    return f"The {attribute(field)} field must not be greater than {maximum}."
+
+
 def not_a_date(field: str) -> str:
     return f"The {attribute(field)} field must be a valid date."
 
@@ -202,14 +210,19 @@ class LaravelCharField(serializers.CharField):
 
 class LaravelIntegerField(serializers.IntegerField):
     def __init__(self, field_name: str, **kwargs) -> None:
-        super().__init__(
-            error_messages={
-                "required": required(field_name),
-                "null": required(field_name),
-                "invalid": must_be_an_integer(field_name),
-            },
-            **kwargs,
-        )
+        messages = {
+            "required": required(field_name),
+            "null": required(field_name),
+            "invalid": must_be_an_integer(field_name),
+        }
+
+        if "min_value" in kwargs:
+            messages["min_value"] = at_least(field_name, kwargs["min_value"])
+
+        if "max_value" in kwargs:
+            messages["max_value"] = at_most(field_name, kwargs["max_value"])
+
+        super().__init__(error_messages=messages, **kwargs)
 
 
 class MobileField(LaravelCharField):

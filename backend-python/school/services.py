@@ -17,12 +17,14 @@ from .enums import SchoolStatus, StudentStatus, UserRole, UserStatus
 from .errors import AccountInactive, HasDependentRecords, Unauthenticated
 from .models import (
     AcademicYear,
+    Department,
     EarlyAccessRequest,
     PersonalAccessToken,
     School,
     SchoolClass,
     StaffProfile,
     Student,
+    Subject,
     User,
 )
 from .scope import SchoolScope
@@ -173,6 +175,104 @@ class SchoolService:
     @staticmethod
     def branch_count(school: School) -> int:
         return School.objects.filter(parent_school_id=school.id).count()
+
+
+class DepartmentService:
+    WITH = ("school", "hod_user")
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        departments = Department.objects.select_related(*cls.WITH)
+
+        departments = SchoolScope.for_actor(actor).apply_to(departments, filters.get("school_id"))
+
+        # `name` is unique per school but not across them, so the id still
+        # matters - see StudentService.visible_to.
+        return departments.order_by("name", "id")
+
+    @staticmethod
+    def create(data: dict, actor: User) -> Department:
+        data = dict(data)
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+        now = timezone.now()
+
+        return Department.objects.create(
+            school_id=school_id,
+            name=data["name"],
+            hod_user_id=data.get("hod_user_id"),
+            created_at=now,
+            updated_at=now,
+        )
+
+    @staticmethod
+    def update(department: Department, data: dict) -> Department:
+        for field, value in data.items():
+            setattr(department, field, value)
+
+        department.updated_at = timezone.now()
+        department.save()
+
+        return department
+
+    @staticmethod
+    def delete(department: Department) -> None:
+        if Subject.objects.filter(department_id=department.id).exists():
+            raise HasDependentRecords(
+                "This department still has subjects assigned to it. "
+                "Reassign or remove them first."
+            )
+
+        department.delete()
+
+
+class SubjectService:
+    WITH = ("school", "department", "lead_teacher")
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        subjects = Subject.objects.select_related(*cls.WITH)
+
+        subjects = SchoolScope.for_actor(actor).apply_to(subjects, filters.get("school_id"))
+
+        if filters.get("department_id"):
+            subjects = subjects.filter(department_id=filters["department_id"])
+
+        return subjects.order_by("name", "id")
+
+    @staticmethod
+    def create(data: dict, actor: User) -> Subject:
+        data = dict(data)
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+        now = timezone.now()
+
+        return Subject.objects.create(
+            school_id=school_id,
+            department_id=data["department_id"],
+            code=data["code"],
+            name=data["name"],
+            min_class_level=data["min_class_level"],
+            max_class_level=data["max_class_level"],
+            lead_teacher_id=data.get("lead_teacher_id"),
+            created_at=now,
+            updated_at=now,
+        )
+
+    @staticmethod
+    def update(subject: Subject, data: dict) -> Subject:
+        for field, value in data.items():
+            setattr(subject, field, value)
+
+        subject.updated_at = timezone.now()
+        subject.save()
+
+        return subject
+
+    @staticmethod
+    def delete(subject: Subject) -> None:
+        # No dependency check, matching Laravel. A subject is removed from the
+        # catalogue; the timetable entries and syllabus topics that referenced
+        # it are handled by the database's own foreign keys.
+        subject.delete()
 
 
 class AcademicYearService:

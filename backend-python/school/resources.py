@@ -40,6 +40,49 @@ def timestamp(value) -> str | None:
     return as_utc(value).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
+def department_resource(department) -> dict:
+    body = {
+        "id": department.id,
+        "school_id": department.school_id,
+        "name": department.name,
+        "hod_user_id": department.hod_user_id,
+        "created_at": timestamp(department.created_at),
+    }
+
+    if loaded(department, "school"):
+        body["school_name"] = department.school.name
+
+    if loaded(department, "hod_user"):
+        body["hod_name"] = department.hod_user.name if department.hod_user else None
+
+    return body
+
+
+def subject_resource(subject) -> dict:
+    body = {
+        "id": subject.id,
+        "school_id": subject.school_id,
+        "department_id": subject.department_id,
+        "code": subject.code,
+        "name": subject.name,
+        "min_class_level": subject.min_class_level,
+        "max_class_level": subject.max_class_level,
+        "lead_teacher_id": subject.lead_teacher_id,
+        "created_at": timestamp(subject.created_at),
+    }
+
+    if loaded(subject, "school"):
+        body["school_name"] = subject.school.name
+
+    if loaded(subject, "department"):
+        body["department_name"] = subject.department.name
+
+    if loaded(subject, "lead_teacher"):
+        body["lead_teacher_name"] = subject.lead_teacher.name if subject.lead_teacher else None
+
+    return body
+
+
 def academic_year_resource(year) -> dict:
     body = {
         "id": year.id,
