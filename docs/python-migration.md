@@ -957,6 +957,45 @@ Daily teaching reports, syllabus tracking, HOD monitoring, transport (master
 data and trips), communication, announcements, early access, dashboards and the
 four reports.
 
+### Progress
+
+Sliced in dependency order, so each slice only builds on what already exists.
+
+| # | Slice | Endpoints | |
+|---|---|---|---|
+| 1 | Daily teaching reports | 4 | **Done** |
+| 2 | Syllabus topics and progress | 6 | Not started |
+| 3 | HOD department report | 1 | Not started |
+| 4 | Communication and the in-app inbox | 13 | Not started |
+| 5 | Announcements | 5 | Not started |
+| 6 | Transport master data and student assignment | 16 | Not started |
+| 7 | Transport trips | 7 | Not started |
+| 8 | Early access, forgot and reset password | 6 | Not started |
+| 9 | Dashboard and the four reports | 5 | Not started |
+
+Forgot and reset password were never in this phase's list and are not served
+by Python yet either, so they ride with early access - both send mail.
+
+### Teaching reports
+
+A report belongs to a period the teacher actually taught: their own
+timetable entry (a 403 otherwise, because that is ownership), on that period's
+weekday, not in the future on the *school's* calendar, and not on a holiday or
+a weekend. Nobody reviews their own report - the same HOD trap as leave.
+
+Laravel lists every failing rule on a field, so a future date on the wrong
+weekday gets two messages, and a bad date is still reported when the topic is
+missing too. DRF skips `validate()` as soon as any field fails, which would
+have hidden the date; both rules run in the field's own validator instead.
+
+The list ordered by date and then teacher, and a teacher files one report per
+period - so on any busy day those tie on every row. `StableOrderingTest`
+gained a case; without the tiebreaker PostgreSQL paged `1,1,3,4,5,6`.
+
+Compared live as root, a school admin, a teacher and another school: 25 reads
+and refusals identical, and the file-then-review path identical with only the
+id, date and timestamp masked.
+
 Reports last, on purpose: they read from everything above, so they are the
 broadest end-to-end proof that the port is faithful. The per-branch group
 reporting rules in `docs/reports.md` and `docs/branches.md` are the subtlest

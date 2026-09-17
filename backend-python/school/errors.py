@@ -183,6 +183,27 @@ class TeacherScheduleConflict(ApiError):
     error_code = "TEACHER_SCHEDULE_CONFLICT"
 
 
+class TeachingReportOnHoliday(ApiError):
+    """Nothing was taught, so there is nothing to report. Named separately
+    from a weekend so the refusal can say which holiday."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "TEACHING_REPORT_ON_HOLIDAY"
+
+
+class TeachingReportAlreadySubmitted(ApiError):
+    """One report per period per day. A second tap must not file a second
+    report that the HOD then has to work out which of to believe."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "TEACHING_REPORT_ALREADY_SUBMITTED"
+
+
+class TeachingReportAlreadyReviewed(ApiError):
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "TEACHING_REPORT_ALREADY_REVIEWED"
+
+
 def envelope(status_code: int, code: str, message: str, details: dict | None = None) -> Response:
     return Response(
         {

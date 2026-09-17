@@ -255,6 +255,54 @@ class TimetableEntryPolicy:
         return cls.manage(actor, entry.school_id)
 
 
+class DailyTeachingReportPolicy:
+    """Filing and reviewing, deliberately two abilities - the same split as
+    leave. Filing is self-service for whoever taught the period; reviewing is
+    an action on somebody else's report.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        """Not every role, unlike leave. Staff and Transport Managers are never
+        a scheduled teacher and have no reason to browse these; what everyone
+        else gets back is narrowed further by the service."""
+        return actor.role in (*ADMIN_ROLES, UserRole.HOD, UserRole.TEACHER)
+
+    @staticmethod
+    def create(actor: User, entry) -> bool:
+        """Role *and* ownership, folded into one 403. Being a teacher is not
+        enough - it has to be their period, the same way a teacher of 8A is
+        kept out of 9A's register."""
+        if actor.role not in (UserRole.TEACHER, UserRole.HOD):
+            return False
+
+        return entry.teacher_id == actor.id
+
+    @staticmethod
+    def review(actor: User, report) -> bool:
+        # An HOD teaches in the department they head, so without this line
+        # they would pass the department check below for their own report.
+        if report.teacher_id == actor.id:
+            return False
+
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        if UserRole.administers_school(actor.role):
+            return SchoolScope.for_actor(actor).allows(report.school_id)
+
+        if actor.role == UserRole.HOD:
+            profile = report.teacher.staff_profile
+
+            return (
+                profile is not None
+                and profile.department_id is not None
+                and profile.department.hod_user_id == actor.id
+            )
+
+        return False
+
+
 class StaffProfilePolicy:
     """Employment records.
 

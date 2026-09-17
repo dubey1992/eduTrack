@@ -43,6 +43,7 @@ from .models import (
     StaffProfile,
     Student,
     Subject,
+    TimetableEntry,
     User,
 )
 from .scope import SchoolScope
@@ -728,6 +729,81 @@ class UpsertTimetableEntryRequest(ScopedSerializer):
         attrs["school_id"] = school_id
 
         return attrs
+
+
+# -- daily teaching reports -------------------------------------------------
+
+
+class StoreDailyTeachingReportRequest(ScopedSerializer):
+    """What was taught in one period.
+
+    Structural checks only: does the period exist, is the date one it was
+    scheduled on. Whether it is *this* teacher's period is ownership, which
+    the policy answers with a 403 rather than a 422 here.
+    """
+
+    timetable_entry_id = LaravelIntegerField("timetable_entry_id")
+    report_date = LaravelDateField("report_date")
+    topic_taught = LaravelCharField("topic_taught", max_length=255)
+    homework = optional_text("homework", 500)
+    remarks = optional_text("remarks", 500)
+
+    def validate_timetable_entry_id(self, value):
+        if not TimetableEntry.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(selected_is_invalid("timetable_entry_id"))
+
+        return value
+
+    def validate_report_date(self, value):
+        """Both date rules, reported together the way Laravel reports them.
+
+        A field-level check rather than `validate()`, because DRF skips
+        `validate()` as soon as any field fails - a missing topic would then
+        hide a future date, where Laravel lists both.
+        """
+        problems = []
+        today = self.context.get("school_today")
+
+        if today is not None and value > today:
+            problems.append(
+                f"The {attribute('report_date')} field must be a date "
+                f"before or equal to {today.isoformat()}."
+            )
+
+        try:
+            entry_id = int(str(self.initial_data.get("timetable_entry_id")))
+        except ValueError:
+            entry_id = None
+
+        entry = (
+            None if entry_id is None else TimetableEntry.objects.filter(pk=entry_id).first()
+        )
+
+        if entry is not None:
+            weekday = value.strftime("%A").lower()
+
+            if weekday != entry.day_of_week:
+                problems.append(
+                    "The report date must fall on the day this period is scheduled "
+                    f"({entry.day_of_week.capitalize()})."
+                )
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return value
+
+
+class TeachingReportSummaryRequest(serializers.Serializer):
+    """The day the KPI row is about."""
+
+    date = LaravelDateField("date")
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
 
 
 # -- leave ------------------------------------------------------------------

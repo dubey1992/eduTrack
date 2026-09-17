@@ -29,6 +29,7 @@ from school.views import (
     staff,
     staff_attendance,
     students,
+    teaching_reports,
     timetable,
     timezones,
     users,
@@ -99,6 +100,10 @@ urlpatterns = [
     # -- timetable ---------------------------------------------------------
     path("api/v1/timetable", timetable.collection),
     path("api/v1/timetable/<int:entry_id>", timetable.entry),
+    # -- daily teaching reports --------------------------------------------
+    path("api/v1/teaching-reports/summary", teaching_reports.summary),
+    path("api/v1/teaching-reports", teaching_reports.collection),
+    path("api/v1/teaching-reports/<int:report_id>/review", teaching_reports.review),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

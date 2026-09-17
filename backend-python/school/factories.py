@@ -230,3 +230,21 @@ class TimetableEntryFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+class DailyTeachingReportFactory(DjangoModelFactory):
+    class Meta:
+        model = models.DailyTeachingReport
+
+    timetable_entry = factory.SubFactory(TimetableEntryFactory)
+    school = factory.LazyAttribute(lambda o: o.timetable_entry.school)
+    teacher = factory.LazyAttribute(lambda o: o.timetable_entry.teacher)
+    report_date = dt.date(2026, 9, 14)
+    topic_taught = "Linear equations"
+    homework = None
+    remarks = None
+    reviewed_by = None
+    reviewed_at = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

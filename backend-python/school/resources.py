@@ -158,6 +158,32 @@ def timetable_entry_resource(entry) -> dict:
     }
 
 
+def daily_teaching_report_resource(report) -> dict:
+    """One period's report, with enough of the period to recognise it by."""
+    entry = report.timetable_entry
+    section = entry.class_section if entry else None
+
+    return {
+        "id": report.id,
+        "school_id": report.school_id,
+        "timetable_entry_id": report.timetable_entry_id,
+        "class_section_name": (
+            f"{section.school_class.name} {section.name}" if section else None
+        ),
+        "period_number": entry.period.period_number if entry else None,
+        "subject_name": entry.subject.name if entry else None,
+        "teacher_id": report.teacher_id,
+        "teacher_name": report.teacher.name if report.teacher_id else None,
+        "report_date": report.report_date.isoformat(),
+        "topic_taught": report.topic_taught,
+        "homework": report.homework,
+        "remarks": report.remarks,
+        "reviewed_by": report.reviewed_by_id,
+        "reviewed_by_name": report.reviewed_by.name if report.reviewed_by_id else None,
+        "reviewed_at": timestamp(report.reviewed_at),
+    }
+
+
 def staff_profile_resource(profile, class_teacher_of=None) -> dict:
     """An employee: their employment record and the login behind it.
 

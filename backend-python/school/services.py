@@ -38,6 +38,9 @@ from .errors import (
     LeaveOverlap,
     NonWorkingDay,
     TeacherScheduleConflict,
+    TeachingReportAlreadyReviewed,
+    TeachingReportAlreadySubmitted,
+    TeachingReportOnHoliday,
     Unauthenticated,
 )
 from .models import (
@@ -900,6 +903,142 @@ class TimetableService:
                 "This teacher is already scheduled for another class section "
                 "at this day and period."
             )
+
+
+
+class DailyTeachingReportService:
+    """What each period actually covered, filed by the teacher who taught it.
+
+    Scheduled comes from the timetable and submitted from this table, both
+    counted over the same visibility, so "3 pending" on the KPI row means
+    three periods this viewer could chase. There is no separate "conducted"
+    figure: the system has no signal for it other than a report being filed.
+    """
+
+    WITH = (
+        "timetable_entry__class_section__school_class",
+        "timetable_entry__period",
+        "timetable_entry__subject",
+        "teacher",
+        "reviewed_by",
+    )
+
+    @classmethod
+    def create(cls, entry, data: dict, actor: User):
+        holiday = HolidayService.holiday_on(entry.school_id, data["report_date"])
+
+        if holiday is not None:
+            raise TeachingReportOnHoliday(
+                f"No periods are taught on {holiday.name} - it is a holiday."
+            )
+
+        # The timetable runs Monday to Friday, so a weekend period is not a
+        # period that existed to be taught.
+        if not HolidayService.is_working_day(entry.school_id, data["report_date"]):
+            raise NonWorkingDay("No periods are taught at the weekend - the school is closed.")
+
+        already = DailyTeachingReport.objects.filter(
+            timetable_entry_id=entry.id, report_date=data["report_date"]
+        ).exists()
+
+        if already:
+            raise TeachingReportAlreadySubmitted(
+                "A report has already been submitted for this period and date."
+            )
+
+        now = timezone.now()
+
+        report = DailyTeachingReport.objects.create(
+            school_id=entry.school_id,
+            timetable_entry_id=entry.id,
+            teacher_id=actor.id,
+            report_date=data["report_date"],
+            topic_taught=data["topic_taught"],
+            homework=data.get("homework"),
+            remarks=data.get("remarks"),
+            created_at=now,
+            updated_at=now,
+        )
+
+        return cls.fresh(report)
+
+    @classmethod
+    def review(cls, report, actor: User):
+        if report.reviewed_by_id is not None:
+            raise TeachingReportAlreadyReviewed("This report has already been reviewed.")
+
+        now = timezone.now()
+        report.reviewed_by_id = actor.id
+        report.reviewed_at = now
+        report.updated_at = now
+        report.save(update_fields=["reviewed_by", "reviewed_at", "updated_at"])
+
+        return cls.fresh(report)
+
+    @classmethod
+    def fresh(cls, report):
+        return DailyTeachingReport.objects.select_related(*cls.WITH).get(pk=report.pk)
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        reports = cls.scoped(
+            DailyTeachingReport.objects.select_related(*cls.WITH),
+            actor,
+            filters.get("school_id"),
+        )
+
+        if filters.get("teacher_id"):
+            reports = reports.filter(teacher_id=filters["teacher_id"])
+
+        if filters.get("report_date"):
+            reports = reports.filter(report_date=filters["report_date"])
+
+        # One teacher files a report per period, so a teacher and a date are
+        # nowhere near unique - id breaks the tie, or paging repeats a report
+        # and skips another.
+        return reports.order_by("-report_date", "teacher_id", "id")
+
+    @classmethod
+    def summary(cls, actor: User, filters: dict, date) -> dict:
+        school_id = SchoolScope.for_actor(actor).writable_school_id(
+            SchoolScope.requested_id(filters.get("school_id"))
+        )
+
+        # Only nameable when the question is about one school: a Super Admin
+        # looking across every school has no single calendar to consult.
+        holiday = None if school_id is None else HolidayService.holiday_on(school_id, date)
+
+        if holiday is not None:
+            scheduled = 0
+        else:
+            scheduled = cls.scoped(
+                TimetableEntry.objects.all(), actor, filters.get("school_id")
+            ).filter(day_of_week=date.strftime("%A").lower()).count()
+
+        submitted = cls.scoped(
+            DailyTeachingReport.objects.all(), actor, filters.get("school_id")
+        ).filter(report_date=date).count()
+
+        return {
+            "scheduled": scheduled,
+            "submitted": submitted,
+            "pending": max(0, scheduled - submitted),
+            "holiday": holiday.name if holiday else None,
+        }
+
+    @staticmethod
+    def scoped(rows, actor: User, school_id_filter):
+        """Reports and timetable entries narrow the same way: an HOD to the
+        departments they head, a teacher to their own."""
+        rows = SchoolScope.for_actor(actor).apply_to(rows, school_id_filter)
+
+        if actor.role == UserRole.HOD:
+            return rows.filter(teacher__staffprofile__department__hod_user_id=actor.id)
+
+        if actor.role == UserRole.TEACHER:
+            return rows.filter(teacher_id=actor.id)
+
+        return rows
 
 
 class StaffProfileService:
