@@ -62,6 +62,29 @@ const platformDashboard = Dashboard(
   attention: [],
 );
 
+/// A Super Admin's platform view with money in three currencies - the card
+/// that used to wrap mid-amount.
+const moneyDashboard = Dashboard(
+  role: 'SUPER_ADMIN',
+  asOf: '2026-09-17',
+  isWorkingDay: false,
+  holiday: null,
+  schoolId: null,
+  cards: [
+    DashboardCard(key: 'schools', label: 'Schools', value: '60', hint: '44 active', tone: 'neutral'),
+    DashboardCard(
+      key: 'collected',
+      label: 'Collected',
+      value: 'INR 2,002,000.00 + NGN 45,000.01 + USD 1,234.50',
+      hint: 'money received',
+      tone: 'neutral',
+    ),
+    DashboardCard(key: 'outstanding', label: 'Payments owing', value: '14', hint: 'pending or part paid', tone: 'warning'),
+  ],
+  attendanceTrend: [],
+  attention: [],
+);
+
 /// The same school on a holiday: nothing marked, and that is expected.
 const holidayDashboard = Dashboard(
   role: 'SCHOOL_ADMIN',

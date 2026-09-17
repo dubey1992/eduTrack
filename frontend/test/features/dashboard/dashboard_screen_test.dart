@@ -4,6 +4,7 @@ import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/dashboard/data/dashboard_repository.dart';
+import 'package:edutrack_app/features/dashboard/data/models/dashboard.dart';
 import 'package:edutrack_app/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +45,63 @@ void main() {
     expect(find.text('842'), findsOneWidget);
     expect(find.text('Attendance today'), findsOneWidget);
     expect(find.text('94.8%'), findsOneWidget);
+  });
+
+  testWidgets('money in several currencies gets a line each, and every card in the row is level', (tester) async {
+    // It used to print "INR 2,002,000.00 + NGN 45,000.01 + USD 1,234.50" at
+    // headline size, wrapping mid-amount and making the card twice as tall as
+    // its neighbours.
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(wrap(FakeDashboardRepository(dashboard: moneyDashboard)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('INR 2,002,000.00'), findsOneWidget);
+    expect(find.text('NGN 45,000.01'), findsOneWidget);
+    expect(find.text('USD 1,234.50'), findsOneWidget);
+    expect(find.textContaining(' + '), findsNothing);
+    expect(tester.takeException(), isNull, reason: 'no overflow');
+
+    final heights = [
+      for (final label in ['Schools', 'Collected', 'Payments owing'])
+        tester.getSize(find.ancestor(of: find.text(label), matching: find.byType(Card)).first).height,
+    ];
+    expect(heights.toSet(), hasLength(1), reason: 'card heights were $heights');
+
+    // No line wraps: every currency is one line tall.
+    expect(tester.getSize(find.text('INR 2,002,000.00')).height, tester.getSize(find.text('USD 1,234.50')).height);
+  });
+
+  testWidgets('a single large amount shrinks to fit rather than wrapping', (tester) async {
+    const dashboard = Dashboard(
+      role: 'SUPER_ADMIN',
+      asOf: '2026-09-17',
+      isWorkingDay: false,
+      holiday: null,
+      schoolId: null,
+      cards: [
+        DashboardCard(
+          key: 'collected',
+          label: 'Collected',
+          value: 'INR 123,456,789,012.00',
+          hint: 'money received',
+          tone: 'neutral',
+        ),
+      ],
+      attendanceTrend: [],
+      attention: [],
+    );
+
+    await tester.pumpWidget(wrap(FakeDashboardRepository(dashboard: dashboard)));
+    await tester.pumpAndSettle();
+
+    final line = find.text('INR 123,456,789,012.00');
+    expect(line, findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(line).height, lessThan(40), reason: 'one line, not wrapped');
   });
 
   testWidgets('lists what needs attention', (tester) async {

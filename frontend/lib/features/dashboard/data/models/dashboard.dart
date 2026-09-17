@@ -74,6 +74,12 @@ class DashboardCard {
   final String value;
   final String? hint;
 
+  /// The value as the lines it should be drawn on. Money collected in several
+  /// currencies arrives as "INR 2,002,000.00 + USD 1,234.50" - grouped by
+  /// currency and never blended (CLAUDE.md rule 5) - and each currency gets a
+  /// line of its own rather than wrapping mid-amount.
+  List<String> get valueLines => value.split(' + ');
+
   /// 'warning' when the figure is something to act on, 'ok' when it is
   /// settled, 'neutral' when it is just a number.
   final String tone;

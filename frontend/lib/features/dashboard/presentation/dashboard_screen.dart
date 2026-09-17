@@ -161,35 +161,53 @@ class _ClosedBanner extends StatelessWidget {
 class _StatCard extends StatelessWidget {
   const _StatCard({required this.card});
 
+  static const double width = 240;
+
+  /// A label, three currency lines at 18 and a hint inside the padding: 156
+  /// in the app's Poppins, a little less in the test font.
+  static const double minHeight = 160;
+
   final DashboardCard card;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final lines = card.valueLines;
+    // Several currencies share the space one figure normally has, so each is
+    // drawn smaller - and every line shrinks to fit rather than wrapping, so a
+    // large amount never breaks across lines either.
+    final valueStyle = TextStyle(
+      fontSize: lines.length > 1 ? 18 : 26,
+      fontWeight: FontWeight.w800,
+      color: card.isWarning ? scheme.error : scheme.onSurface,
+    );
 
     return SizedBox(
-      width: 240,
+      width: width,
       child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(card.label, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
-              const SizedBox(height: 6),
-              Text(
-                card.value,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: card.isWarning ? scheme.error : scheme.onSurface,
-                ),
-              ),
-              if (card.hint != null) ...[
-                const SizedBox(height: 4),
-                Text(card.hint!, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+        child: ConstrainedBox(
+          // Enough for a card holding three currencies, so a row of cards stays
+          // level in the common case instead of one towering over the rest.
+          constraints: const BoxConstraints(minHeight: minHeight),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(card.label, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 6),
+                for (final line in lines)
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(line, maxLines: 1, style: valueStyle),
+                  ),
+                if (card.hint != null) ...[
+                  const SizedBox(height: 4),
+                  Text(card.hint!, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

@@ -18,6 +18,7 @@ from .range import ReportRange
 class TransportUsageReport:
     def build(self, report_range: ReportRange, filters: dict) -> dict:
         trips = self._trips_by_route(report_range)
+        days_run_by_route = self._days_run_by_route(report_range)
         riders = self._riders_by_route(report_range)
         days = report_range.working_day_count()
 
@@ -36,9 +37,7 @@ class TransportUsageReport:
             def trips_with(status, route_trips=route_trips):
                 return sum(trip["total"] for trip in route_trips if trip["status"] == status)
 
-            # As Laravel counts it: the most distinct days any one status of
-            # trip ran on.
-            days_run = max((trip["days"] for trip in route_trips), default=0)
+            days_run = days_run_by_route.get(route.id, 0)
 
             rows.append({
                 "route_id": route.id,
@@ -101,8 +100,7 @@ class TransportUsageReport:
 
     @staticmethod
     def _trips_by_route(report_range: ReportRange) -> dict[int, list[dict]]:
-        """Trip counts per route and status, with the distinct days each
-        status ran on."""
+        """Trip counts per route and status."""
         trips: dict[int, list[dict]] = {}
 
         grouped = (
@@ -111,13 +109,35 @@ class TransportUsageReport:
                 trip_date__range=(report_range.start, report_range.end),
             )
             .values("route_id", "status")
-            .annotate(total=Count("id"), days=Count("trip_date", distinct=True))
+            .annotate(total=Count("id"))
         )
 
         for row in grouped:
             trips.setdefault(row["route_id"], []).append(row)
 
         return trips
+
+    @staticmethod
+    def _days_run_by_route(report_range: ReportRange) -> dict[int, int]:
+        """The working days on which each route set off: distinct dates with
+        a trip that was started, whether or not it has finished.
+
+        A cancelled trip never ran, so a route cancelled every morning reads as
+        not having run. A trip on a weekend or holiday is not a working day
+        run - counting it would let days run exceed the days it is measured
+        against.
+        """
+        return dict(
+            TransportTrip.objects.filter(
+                school_id=report_range.school_id,
+                trip_date__range=(report_range.start, report_range.end),
+                trip_date__in=report_range.working_dates,
+                status__in=(TripStatus.IN_PROGRESS, TripStatus.COMPLETED),
+            )
+            .values("route_id")
+            .annotate(days=Count("trip_date", distinct=True))
+            .values_list("route_id", "days")
+        )
 
     @staticmethod
     def _riders_by_route(report_range: ReportRange) -> dict[int, dict[str, int]]:

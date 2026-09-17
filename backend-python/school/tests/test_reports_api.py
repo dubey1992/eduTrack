@@ -354,6 +354,35 @@ class TransportUsage(ReportTestCase):
         )
 
 
+class DaysRun(ReportTestCase):
+    def test_days_run_are_the_working_days_a_route_actually_set_off(self):
+        vehicle = factories.VehicleFactory(school=self.school)
+        driver = factories.DriverFactory(school=self.school)
+        route = factories.TransportRouteFactory(school=self.school, vehicle=vehicle, driver=driver)
+        holiday(self.school, "2026-09-10")
+
+        for day, status, direction in (
+            ("2026-09-07", "completed", "pickup"),
+            ("2026-09-07", "completed", "drop"),  # two trips, one day
+            ("2026-09-08", "in_progress", "pickup"),  # set off, never closed
+            ("2026-09-09", "cancelled", "pickup"),  # never ran
+            ("2026-09-10", "completed", "pickup"),  # a holiday
+            ("2026-09-12", "completed", "pickup"),  # a Saturday
+        ):
+            TransportTrip.objects.create(
+                school=self.school, route=route, vehicle=vehicle, driver=driver, trip_date=day, direction=direction,
+                status=status, started_by=self.admin, started_at=NOW, created_at=NOW, updated_at=NOW,
+            )
+
+        row = self.get(self.admin, "transport-usage", to="2026-09-13").data["rows"][0]
+
+        # Five weekdays less the holiday is four working days; it set off on two.
+        self.assertEqual(
+            {"working_days": 4, "days_run": 2, "days_not_run": 2, "trips_completed": 4, "trips_cancelled": 1, "trips_in_progress": 1},
+            {key: row[key] for key in ("working_days", "days_run", "days_not_run", "trips_completed", "trips_cancelled", "trips_in_progress")},
+        )
+
+
 class WhoMayLook(ReportTestCase):
     def test_each_report_has_its_own_audience(self):
         allowed = {

@@ -69,7 +69,13 @@ for a Super Admin, who belongs to no school and must name one.
   That is what keeps the figure honest when a holiday removes a day.
 - **Syllabus completion** is not bounded by the range. A syllabus is cumulative
   progress through a year, so "35% covered" means 35% of the course.
-- **Days not run** (transport) is measured against working days, so a route is
+- **Days run** (transport) are the distinct working days on which the route
+  set off - a trip in progress or completed. A cancelled trip never ran, and a
+  trip on a weekend or holiday is not a working day run, so days run never
+  exceed working days. Decided 2026-09-17; before that it was the most days any
+  one trip status ran on, which undercounted a route whose trips finished on
+  some days and not others.
+- **Days not run** (transport) is working days less days run, so a route is
   never marked as having missed a holiday.
 - A **half day** counts as half a day present, which is the figure payroll will
   want in Phase 19.

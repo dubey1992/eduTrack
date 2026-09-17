@@ -1296,11 +1296,12 @@ differs - type-strict: 76 single-school cases, 24 group cases, 11 CSV downloads
 byte for byte including filenames, and the four importers' templates, bad rows
 and good rows (with each imported account signing in on both backends).
 
-**Left as Laravel does it, and worth a product decision.** Transport usage's
-`days_run` is the most days any one trip status ran on, not the days the route
-ran: a route that completed a trip on Monday and was still in progress on
-Tuesday reads as one day run. Trips on non-working days also count toward it.
-Ported faithfully; changing it changes a figure schools read.
+**Transport usage's `days_run`, decided after the port.** It was the most days
+any one trip status ran on, so a route that completed a trip on Monday and was
+still in progress on Tuesday read as one day run, and weekend trips counted.
+Decided 2026-09-17: the distinct working days with a trip in progress or
+completed. Changed on both backends with the same test, and re-diffed live -
+identical. See `docs/reports.md`.
 
 ### M11's done-when, checked
 
