@@ -942,6 +942,42 @@ class ToggleSyllabusProgressRequest(serializers.Serializer):
         return value
 
 
+# -- HOD department report --------------------------------------------------
+
+# Laravel's date_format:Y-m, which also re-formats what it parsed and compares:
+# "2026-9" parses but formats as "2026-09", so it fails, and "2026-13" rolls
+# over into the next year and fails the same way.
+YEAR_MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+class HodDepartmentReportRequest(ScopedSerializer):
+    department_id = LaravelIntegerField("department_id", required=False, allow_null=True)
+    month = LaravelCharField("month", max_length=255, required=False, allow_null=True)
+
+    def validate_department_id(self, value):
+        # A department of the school being reported on. A real one from
+        # another school is a 422 here, not a 403 later.
+        if value is not None and not Department.objects.filter(
+            pk=value, school_id=self.resolved_school_id()
+        ).exists():
+            raise serializers.ValidationError(selected_is_invalid("department_id"))
+
+        return value
+
+    def validate_month(self, value):
+        if value is not None and not YEAR_MONTH.match(value):
+            raise serializers.ValidationError(
+                f"The {attribute('month')} field must match the format Y-m."
+            )
+
+        return value
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        return attrs
+
+
 # -- leave ------------------------------------------------------------------
 
 

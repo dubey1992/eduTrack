@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 
 from school import factories, tokens
 from school.enums import UserRole
-from school.pagination import LaravelPagination, resolve_per_page
+from school.pagination import LaravelPagination, resolve_page, resolve_per_page
 
 from .test_scope import section_in
 
@@ -152,3 +152,50 @@ class ThePageSize(TestCase):
     def test_it_is_capped(self):
         self.assertEqual(100, resolve_per_page(5000))
         self.assertEqual(50, resolve_per_page(50))
+
+
+class PageNumberTest(TestCase):
+    """What counts as a page number - PHP's FILTER_VALIDATE_INT, then >= 1."""
+
+    def test_a_plain_number_is_that_page(self):
+        self.assertEqual(3, resolve_page("3"))
+
+    def test_whitespace_and_a_plus_sign_are_tolerated(self):
+        self.assertEqual(2, resolve_page(" 2"))
+        self.assertEqual(2, resolve_page("+2"))
+
+    def test_anything_else_is_the_first_page_rather_than_an_error(self):
+        for junk in (None, "", "abc", "0", "-2", "2.5", "1e1", "02"):
+            self.assertEqual(1, resolve_page(junk), junk)
+
+
+class PastTheEnd(TestCase):
+    """Laravel answers a page that does not exist with an empty page, not 404."""
+
+    setUp = TheLinks.setUp
+
+    def test_a_page_past_the_end_is_empty_rather_than_not_found(self):
+        response = self.client.get("/api/v1/students?per_page=2&page=9")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual([], response.data["data"])
+        self.assertEqual(9, response.data["meta"]["current_page"])
+        self.assertEqual(2, response.data["meta"]["last_page"])
+        self.assertIsNone(response.data["meta"]["from"])
+        self.assertIsNone(response.data["meta"]["to"])
+        self.assertTrue(response.data["links"]["prev"].endswith("?page=8"))
+        self.assertIsNone(response.data["links"]["next"])
+
+    def test_junk_zero_and_negative_pages_are_the_first_page(self):
+        for junk in ("abc", "0", "-2", "2.5"):
+            response = self.client.get(f"/api/v1/students?per_page=2&page={junk}")
+
+            with self.subTest(page=junk):
+                self.assertEqual(200, response.status_code)
+                self.assertEqual(1, response.data["meta"]["current_page"])
+                self.assertEqual(2, len(response.data["data"]))
+
+    def test_the_last_real_page_still_counts_its_rows(self):
+        response = self.client.get("/api/v1/students?per_page=2&page=2")
+
+        self.assertEqual((3, 3), (response.data["meta"]["from"], response.data["meta"]["to"]))

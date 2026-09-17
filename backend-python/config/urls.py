@@ -22,6 +22,7 @@ from school.views import (
     attendance,
     auth,
     classes,
+    hod,
     imports,
     leave,
     payments,
@@ -109,6 +110,8 @@ urlpatterns = [
     path("api/v1/syllabus-topics", syllabus.topics),
     path("api/v1/syllabus-topics/<int:topic_id>", syllabus.topic),
     path("api/v1/syllabus-progress", syllabus.progress),
+    # -- HOD --------------------------------------------------------------
+    path("api/v1/hod/department-report", hod.department_report),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

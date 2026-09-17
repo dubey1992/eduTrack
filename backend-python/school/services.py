@@ -8,10 +8,10 @@ rather than about the web, and can be tested without one.
 from __future__ import annotations
 
 import datetime as dt
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
-from django.db.models import Count, F, Q, Sum
+from django.db.models import Count, F, Min, Q, Sum
 from django.utils import timezone
 
 from . import hashing, jobs, money, notifications, queue, tokens, working_hours
@@ -1172,6 +1172,292 @@ class SyllabusProgressService:
                 "updated_at": now,
             },
         )
+
+
+
+def php_number(value):
+    """A number as PHP's json_encode writes it.
+
+    PHP drops a whole float's fraction - 50.0 goes out as `50`, 0.0 as `0` -
+    and Python's json keeps it. A client that reads the field as an int
+    would break on `50.0`, so whole floats become ints here.
+    """
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+
+    return value
+
+
+def php_round_1(value: float) -> float:
+    """PHP 8.3's round($value, 1).
+
+    Halves go away from zero, where Python's round() goes to even (6.25 is
+    6.3 in PHP and 6.2 in Python). And PHP first pre-rounds to 15 significant
+    digits, so a float a hair under a half, the way binary arithmetic leaves
+    them, still rounds up. `.15g` is that pre-round.
+    """
+    return float(Decimal(f"{value:.15g}").quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+
+
+class HodReportService:
+    """One month of a department's teaching, computed from what the earlier
+    modules already record. Nothing here is stored.
+
+    The definitions were fixed on 2026-09-09 and are the contract:
+
+    - **Working days**: weekdays in the month that are not school holidays,
+      and for the current month only up to today - today at the *school*.
+    - **Attendance %**: (present + half a day for each half-day) / working
+      days. Every present or half-day mark in the month counts, including one
+      on a date a later holiday removed from the working days - the numerator
+      is the register as it stands.
+    - **Leave days**: approved leave on working days, clipped to the month; a
+      half-day leave is half a day.
+    - **Late marks**: check-ins after the school's earliest period starts.
+    - **Classes assigned**: timetable slots on working days; **taught**: those
+      on days the teacher was present or on a half day.
+    - **Syllabus %**: completed over total topics across every subject and
+      section the teacher is timetabled for - cumulative, not this month's.
+    - **Status**: "review" when reports await review or fewer were filed than
+      classes taught; otherwise "on_track".
+    """
+
+    TEACHING_ROLES = (UserRole.TEACHER, UserRole.HOD)
+
+    @classmethod
+    def department_report(cls, actor: User, school, department, month: str, page: int, per_page: int) -> dict:
+        departments = cls.departments_in_scope(actor, school, department)
+        department_ids = [row.id for row in departments]
+
+        year, month_number = (int(part) for part in month.split("-"))
+        month_start = dt.date(year, month_number, 1)
+        month_end = (month_start + dt.timedelta(days=32)).replace(day=1) - dt.timedelta(days=1)
+
+        # Never count working days the school has not reached yet.
+        today = SchoolClock.for_school(school).now().date()
+        working_dates = HolidayService.working_dates(school.id, month_start, min(month_end, today))
+        weekdays = [date.strftime("%A").lower() for date in working_dates]
+
+        late_after = Period.objects.filter(school_id=school.id).aggregate(first=Min("start_time"))["first"]
+
+        teachers = StaffProfile.objects.filter(
+            school_id=school.id,
+            department_id__in=department_ids,
+            user__role__in=cls.TEACHING_ROLES,
+            user__status=UserStatus.ACTIVE,
+        )
+        scoped_ids = list(teachers.values_list("id", flat=True))
+
+        leaves = list(
+            StaffLeave.objects.filter(
+                staff_profile_id__in=scoped_ids,
+                status=LeaveStatus.APPROVED,
+                start_date__lte=month_end,
+                end_date__gte=month_start,
+            )
+        )
+
+        total = len(scoped_ids)
+        last_page = max(1, -(-total // per_page))
+        offset = (page - 1) * per_page
+
+        # First name, then id - the id so two teachers called Priya page
+        # without repeating one and skipping the other.
+        profiles = list(
+            teachers.select_related("user", "department").order_by("user__first_name", "id")[
+                offset : offset + per_page
+            ]
+        )
+        profile_ids = [profile.id for profile in profiles]
+        user_ids = [profile.user_id for profile in profiles]
+
+        attendance = {}
+        for row in StaffAttendance.objects.filter(
+            staff_profile_id__in=profile_ids, attendance_date__range=(month_start, month_end)
+        ):
+            attendance.setdefault(row.staff_profile_id, []).append(row)
+
+        entries = {}
+        for entry in TimetableEntry.objects.filter(school_id=school.id, teacher_id__in=user_ids).values(
+            "teacher_id", "day_of_week", "subject_id", "class_section_id"
+        ):
+            entries.setdefault(entry["teacher_id"], []).append(entry)
+
+        reports = {
+            row["teacher_id"]: row
+            for row in DailyTeachingReport.objects.filter(
+                teacher_id__in=user_ids, report_date__range=(month_start, month_end)
+            )
+            .values("teacher_id")
+            .annotate(submitted=Count("id"), pending=Count("id", filter=Q(reviewed_by__isnull=True)))
+        }
+
+        syllabus = cls.syllabus_coverage([entry for rows in entries.values() for entry in rows])
+
+        rows = [
+            cls.teacher_row(
+                profile,
+                working_dates,
+                weekdays,
+                late_after,
+                attendance.get(profile.id, []),
+                [leave for leave in leaves if leave.staff_profile_id == profile.id],
+                entries.get(profile.user_id, []),
+                reports.get(profile.user_id),
+                syllabus,
+            )
+            for profile in profiles
+        ]
+
+        working_days = len(working_dates)
+        credit = cls.attendance_credit(scoped_ids, month_start, month_end)
+
+        return {
+            "month": month,
+            "school_id": school.id,
+            "departments": [{"id": row.id, "name": row.name} for row in departments],
+            "working_days": working_days,
+            "teacher_count": total,
+            "avg_attendance_percent": php_number(
+                0.0
+                if working_days == 0 or total == 0
+                else php_round_1(credit / (working_days * total) * 100)
+            ),
+            "leave_days": php_number(sum((cls.leave_days_within(leave, working_dates) for leave in leaves), 0)),
+            "late_marks": cls.late_marks(scoped_ids, month_start, month_end, late_after),
+            "data": rows,
+            "meta": {
+                "current_page": page,
+                "last_page": last_page,
+                "total": total,
+                "per_page": per_page,
+            },
+        }
+
+    @classmethod
+    def teacher_row(cls, profile, working_dates, weekdays, late_after, attendance, leaves, entries, reports, syllabus) -> dict:
+        status_by_date = {row.attendance_date: row.status for row in attendance}
+        present = sum(1 for row in attendance if row.status == StaffAttendanceStatus.PRESENT)
+        half_day = sum(1 for row in attendance if row.status == StaffAttendanceStatus.HALF_DAY)
+        working_days = len(working_dates)
+
+        slots_by_day = {}
+        for entry in entries:
+            slots_by_day[entry["day_of_week"]] = slots_by_day.get(entry["day_of_week"], 0) + 1
+
+        assigned = 0
+        taught = 0
+        for date, weekday in zip(working_dates, weekdays):
+            slots = slots_by_day.get(weekday, 0)
+            assigned += slots
+
+            if status_by_date.get(date) in (StaffAttendanceStatus.PRESENT, StaffAttendanceStatus.HALF_DAY):
+                taught += slots
+
+        submitted = reports["submitted"] if reports else 0
+        pending = reports["pending"] if reports else 0
+
+        topics_total = 0
+        topics_completed = 0
+        for subject_id, section_id in dict.fromkeys(
+            (entry["subject_id"], entry["class_section_id"]) for entry in entries
+        ):
+            topics_total += syllabus["totals"].get(subject_id, 0)
+            topics_completed += syllabus["completed"].get((subject_id, section_id), 0)
+
+        return {
+            "staff_profile_id": profile.id,
+            "user_id": profile.user_id,
+            "teacher_name": profile.user.name,
+            "employee_id": profile.employee_id,
+            "department_id": profile.department_id,
+            "department_name": profile.department.name if profile.department_id else None,
+            "attendance_percent": php_number(
+                0.0 if working_days == 0 else php_round_1((present + 0.5 * half_day) / working_days * 100)
+            ),
+            "leave_days": php_number(sum((cls.leave_days_within(leave, working_dates) for leave in leaves), 0)),
+            "late_marks": 0
+            if late_after is None
+            else sum(1 for row in attendance if row.check_in is not None and row.check_in > late_after),
+            "classes_assigned": assigned,
+            "classes_taught": taught,
+            "reports_submitted": submitted,
+            "reports_pending_review": pending,
+            "syllabus_percent": percent_of(topics_completed, topics_total),
+            "status": "review" if pending > 0 or submitted < taught else "on_track",
+        }
+
+    @staticmethod
+    def departments_in_scope(actor: User, school, department) -> list:
+        if department is not None:
+            return [department]
+
+        departments = Department.objects.filter(school_id=school.id)
+
+        if actor.role == UserRole.HOD:
+            departments = departments.filter(hod_user_id=actor.id)
+
+        return list(departments.order_by("name"))
+
+    @staticmethod
+    def leave_days_within(leave, working_dates) -> float:
+        days = sum(1 for date in working_dates if leave.start_date <= date <= leave.end_date)
+
+        return days * 0.5 if leave.leave_type == LeaveType.HALF_DAY else float(days)
+
+    @staticmethod
+    def attendance_credit(profile_ids, start, end) -> float:
+        """Day credits across the whole scope: present 1, half day 0.5."""
+        counts = dict(
+            StaffAttendance.objects.filter(
+                staff_profile_id__in=profile_ids,
+                attendance_date__range=(start, end),
+                status__in=(StaffAttendanceStatus.PRESENT, StaffAttendanceStatus.HALF_DAY),
+            )
+            .values_list("status")
+            .annotate(total=Count("id"))
+        )
+
+        return counts.get(StaffAttendanceStatus.PRESENT, 0) + 0.5 * counts.get(StaffAttendanceStatus.HALF_DAY, 0)
+
+    @staticmethod
+    def late_marks(profile_ids, start, end, late_after) -> int:
+        if late_after is None:
+            return 0
+
+        return StaffAttendance.objects.filter(
+            staff_profile_id__in=profile_ids,
+            attendance_date__range=(start, end),
+            check_in__isnull=False,
+            check_in__gt=late_after,
+        ).count()
+
+    @staticmethod
+    def syllabus_coverage(entries) -> dict:
+        """Topic totals per subject, and completed counts per subject and
+        section, for every pair the page's teachers are timetabled for."""
+        subject_ids = {entry["subject_id"] for entry in entries}
+        section_ids = {entry["class_section_id"] for entry in entries}
+
+        if not subject_ids:
+            return {"totals": {}, "completed": {}}
+
+        totals = dict(
+            SyllabusTopic.objects.filter(subject_id__in=subject_ids)
+            .values_list("subject_id")
+            .annotate(total=Count("id"))
+        )
+
+        completed = {
+            (row["syllabus_topic__subject_id"], row["class_section_id"]): row["done"]
+            for row in SyllabusTopicProgress.objects.filter(
+                syllabus_topic__subject_id__in=subject_ids, class_section_id__in=section_ids
+            )
+            .values("syllabus_topic__subject_id", "class_section_id")
+            .annotate(done=Count("id"))
+        }
+
+        return {"totals": totals, "completed": completed}
 
 
 class StaffProfileService:

@@ -965,7 +965,7 @@ Sliced in dependency order, so each slice only builds on what already exists.
 |---|---|---|---|
 | 1 | Daily teaching reports | 4 | **Done** |
 | 2 | Syllabus topics and progress | 6 | **Done** |
-| 3 | HOD department report | 1 | Not started |
+| 3 | HOD department report | 1 | **Done** |
 | 4 | Communication and the in-app inbox | 13 | Not started |
 | 5 | Announcements | 5 | Not started |
 | 6 | Transport master data and student assignment | 16 | Not started |
@@ -1034,6 +1034,50 @@ explicit half-up and a test that fails under `round()`.
 
 Compared live on 29 reads and refusals, including the two DENY cases, and on
 the add, edit, tick, read and remove path with ids and timestamps masked -
+identical.
+
+### The HOD report, and four things it turned up
+
+One endpoint, and the densest arithmetic ported so far. Laravel's own August
+fixture was ported number for number - 18 working days, 8.3% attendance, 2.5
+leave days, 15 classes assigned and 3 taught, 33% syllabus - so a metric
+computed differently fails before it reaches a diff.
+
+**Laravel: a shorter month asked for late in a month computed the next one.**
+`Carbon::createFromFormat('Y-m', ...)` takes the missing day from today, so
+February asked for on March 30th parsed as March 2nd and the report showed
+March's figures under February's label. Fixed with `'!Y-m'`, which
+`DateFormats` already used; the test fails at 21 working days without it.
+
+**Laravel: today never counted at a school east of UTC.**
+`HolidayService::workingDates` walked from one end to the other comparing
+*instants*, and callers handed it UTC midnight for one end and the school's
+midnight for the other. Midnight on the 17th in Kolkata is 18:30 on the 16th
+in UTC, so the 17th never passed - every school in India lost today from its
+current-month attendance denominator, and the reports module lost it from any
+range ending today. Found only because the Python port compares calendar dates
+and the live diff said 12 against 13. Fixed at the root, so every caller is
+fixed at once; the callers that already passed UTC dates are unaffected. Tests
+in the HOD report and the reports suite fail without it (11 and 6).
+
+**Python: every paginated list answered 404 for a page that does not exist.**
+DRF's paginator refuses junk, zero, negative and past-the-end page numbers;
+Laravel treats the first three as page 1 and answers the last with an empty
+page. Wrong since M8 and never seen, because no test and no diff had asked for
+a page outside the range. Fixed in `LaravelPagination`, and all 14 ported
+lists compared live on five page edge cases each - 70 identical.
+
+**The diff tool itself was blind to number types.** Python compares `50 ==
+50.0` and `True == 1` as equal, so `compare.py` could not have seen PHP writing
+`50` where Python writes `50.0` - which it does for every whole-number float.
+The comparer is now type-strict, and every earlier slice's comparison was
+re-run under it: identical. The port writes whole floats as ints (`php_number`)
+and rounds to one place the way PHP 8.3 does (`php_round_1`: half away from
+zero, after pre-rounding to 15 significant digits) - 6.25% is 6.3 in PHP and
+6.2 from Python's `round()`, and the live data was seeded to land on exactly
+that.
+
+18 cases compared live against Laravel after the fixes, type-strict -
 identical.
 
 ## M12 · The first deployment

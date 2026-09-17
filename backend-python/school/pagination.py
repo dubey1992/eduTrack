@@ -16,8 +16,10 @@ dereference in a client nobody is allowed to change.
 
 from __future__ import annotations
 
+import re
 from collections import OrderedDict
 
+from django.core.paginator import Page, Paginator
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
@@ -43,6 +45,34 @@ def resolve_per_page(requested) -> int:
     return min(MAX_PER_PAGE, value) if value > 0 else DEFAULT_PER_PAGE
 
 
+# What PHP's FILTER_VALIDATE_INT accepts once surrounding whitespace is gone:
+# an optional sign and plain decimal digits, with no leading zeros. "2.5",
+# "1e1" and "02" are not integers to it.
+PHP_INTEGER = re.compile(r"^[+-]?(0|[1-9][0-9]*)$")
+
+
+def resolve_page(requested) -> int:
+    """Reads `page` off a query string the way Laravel's paginator does.
+
+    Anything that is not a whole number of at least 1 is page 1, never an
+    error - junk, zero and negatives included. DRF's own paginator answers 404
+    to all of those, and to a page past the end, which is how every Python
+    list disagreed with Laravel from M8 until this was found: no test and no
+    diff had ever asked for a page that did not exist.
+    """
+    if requested is None:
+        return 1
+
+    text = str(requested).strip(" \t\n\r\x0b\x0c")
+
+    if not PHP_INTEGER.match(text):
+        return 1
+
+    number = int(text)
+
+    return number if number >= 1 else 1
+
+
 class LaravelPagination(PageNumberPagination):
     page_size = DEFAULT_PER_PAGE
     page_size_query_param = "per_page"
@@ -55,6 +85,26 @@ class LaravelPagination(PageNumberPagination):
 
         return resolve_per_page(request.query_params[self.page_size_query_param])
 
+    def paginate_queryset(self, queryset, request, view=None):
+        """One page of rows, and never a 404.
+
+        A page past the end is an empty page that still reports the number
+        asked for, exactly as Laravel's LengthAwarePaginator does - so a client
+        that deletes the last row on the last page, and asks for that page
+        again, gets an empty list rather than an error.
+        """
+        self.request = request
+
+        paginator = Paginator(queryset, self.get_page_size(request))
+        number = resolve_page(request.query_params.get(self.page_query_param))
+
+        if number <= paginator.num_pages:
+            self.page = paginator.page(number)
+        else:
+            self.page = Page([], number, paginator)
+
+        return list(self.page)
+
     def get_paginated_response(self, data) -> Response:
         page = self.page
         paginator = page.paginator
@@ -62,8 +112,10 @@ class LaravelPagination(PageNumberPagination):
         # Laravel counts from 1 and reports `from`/`to` as null on an empty
         # page rather than 0. A client that renders "showing 0 to 0 of 0" is
         # reading a different backend.
-        first_on_page = page.start_index() or None
-        last_on_page = page.end_index() or None
+        # Django's own start/end index would count positions on a page past
+        # the end; Laravel says null for any page with nothing on it.
+        first_on_page = page.start_index() if len(page.object_list) else None
+        last_on_page = page.end_index() if len(page.object_list) else None
 
         return Response(
             OrderedDict(
