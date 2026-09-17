@@ -3,16 +3,16 @@
 One pair of endpoints covers every kind of record, because the only thing that
 differs between importing students and importing vehicles is the importer.
 
-M8 registers students. The other four kinds - staff, subjects, vehicles,
-drivers - arrive with their own modules, because each one's importer leans on
-that module's create rules and porting it early would mean porting those
-rules twice.
+Students came with M8; staff, subjects, vehicles and drivers with M11, each
+leaning on its own module's create service so an imported record is exactly
+what the single-record form would have made.
 """
 
 from __future__ import annotations
 
-from ..models import Student
-from ..policies import StudentPolicy
+from ..models import Driver, StaffProfile, Student, Subject, Vehicle
+from ..policies import StaffProfilePolicy, StudentPolicy, SubjectPolicy, TransportMasterPolicy
+from .people_and_fleet import DriverImporter, StaffImporter, SubjectImporter, VehicleImporter
 from .students import StudentImporter
 
 # Each type names the importer and the policy that already decides who may add
@@ -20,6 +20,10 @@ from .students import StudentImporter
 # there is no separate set of import rules to keep in step.
 TYPES = {
     "students": {"importer": StudentImporter, "model": Student, "policy": StudentPolicy},
+    "staff": {"importer": StaffImporter, "model": StaffProfile, "policy": StaffProfilePolicy},
+    "subjects": {"importer": SubjectImporter, "model": Subject, "policy": SubjectPolicy},
+    "vehicles": {"importer": VehicleImporter, "model": Vehicle, "policy": TransportMasterPolicy},
+    "drivers": {"importer": DriverImporter, "model": Driver, "policy": TransportMasterPolicy},
 }
 
 

@@ -6,18 +6,15 @@ segment in the path rather than a separate controller per type.
 
 from __future__ import annotations
 
-import csv
-import io
-
 from django.http import Http404, HttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.exceptions import ValidationError
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import imports
+from .. import csv_export, imports
 from ..imports import reader
 from ..policies import authorize
 from ..scope import SchoolScope
@@ -35,25 +32,16 @@ def template(request, kind: str) -> HttpResponse:
     a date or a phone number should look."""
     importer = importer_for(request, kind)
 
-    buffer = io.StringIO()
-    writer = csv.writer(buffer, lineterminator="\r\n")
-    writer.writerow(importer.headings())
-    writer.writerow(importer.sample())
-
-    response = HttpResponse(
-        # Excel reads a CSV as the system codepage unless the file opens with
-        # a byte order mark, which mangles any non-ASCII name.
-        buffer.getvalue().encode("utf-8-sig"),
-        content_type="text/csv; charset=UTF-8",
-    )
-    response["Content-Disposition"] = f'attachment; filename="{kind}-template.csv"'
-
-    return response
+    # The sample row goes through the same cell rules as a report does, which
+    # changes nothing for strings and keeps the two writers one writer.
+    return csv_export.response(f"{kind}-template.csv", importer.headings(), [importer.sample()])
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
+# JSON too: a body that is not a form still has to reach the check below and
+# be told the file is missing, as Laravel tells it, rather than get a 415.
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def store(request, kind: str) -> Response:
     importer = importer_for(request, kind)
     upload = request.FILES.get("file")

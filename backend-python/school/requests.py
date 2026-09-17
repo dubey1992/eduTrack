@@ -63,8 +63,10 @@ from .models import (
     Vehicle,
     User,
 )
+from .clock import SchoolClock
 from .scope import SchoolScope
 from .validation import (
+    PHP_INTEGER,
     CoordinateField,
     attribute,
     LaravelBooleanField,
@@ -81,7 +83,9 @@ from .validation import (
     does_not_exist,
     must_be_a_number,
     must_be_after,
+    must_be_an_integer,
     normalise,
+    not_a_date,
     not_an_email,
     optional_text,
     prohibits,
@@ -1576,10 +1580,21 @@ INTERNATIONAL_PHONE = re.compile(r"^\+[1-9][0-9 ]{6,17}$")
 
 
 class EmailField(LaravelCharField):
-    """Laravel's `email` rule, as permissive as it is - see EMAIL_PATTERN."""
+    """Laravel's `email` rule, as permissive as it is - see EMAIL_PATTERN.
+
+    `lowercase` is Laravel's LowercasesEmail: the forms that look an account up
+    by address ask in the form the address is stored in.
+    """
+
+    def __init__(self, field_name: str, lowercase: bool = False, **kwargs) -> None:
+        super().__init__(field_name, **kwargs)
+        self._lowercase = lowercase
 
     def to_internal_value(self, data):
         value = super().to_internal_value(data)
+
+        if self._lowercase:
+            value = value.strip().lower()
 
         if not EMAIL_PATTERN.match(value):
             raise serializers.ValidationError(not_an_email(self._field_name))
@@ -1636,7 +1651,7 @@ class ReviewEarlyAccessRequest(PartialForm):
 
 
 class ForgotPasswordRequest(serializers.Serializer):
-    email = EmailField("email", max_length=255)
+    email = EmailField("email", lowercase=True, max_length=255)
 
     def __init__(self, *args, **kwargs) -> None:
         if "data" in kwargs:
@@ -1647,7 +1662,7 @@ class ForgotPasswordRequest(serializers.Serializer):
 
 class ResetPasswordRequest(serializers.Serializer):
     token = LaravelCharField("token", max_length=None)
-    email = EmailField("email", max_length=None)
+    email = EmailField("email", lowercase=True, max_length=None)
     password = LaravelCharField("password", max_length=None, trim_whitespace=False)
 
     def __init__(self, *args, **kwargs) -> None:
@@ -2615,3 +2630,113 @@ class ChangePasswordRequest(serializers.Serializer):
             raise serializers.ValidationError(errors)
 
         return attrs
+
+
+# -- reports ----------------------------------------------------------------
+
+
+class ReportRequest(serializers.Serializer):
+    """ReportRequest: which school, over what range, in what format.
+
+    Written as one pass over the fields rather than as field declarations,
+    because two of its rules depend on others - `to` on `from`, and every date
+    on which school's calendar "today" is read from - and DRF drops a
+    cross-field check the moment any single field fails, where Laravel reports
+    everything at once. `from` is also a Python keyword.
+
+    Every check runs in Laravel's rule order, with its messages, including the
+    four the form overrides.
+    """
+
+    def __init__(self, *args, actor=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.actor = actor
+
+    def to_internal_value(self, data):
+        errors: dict[str, list[str]] = {}
+        values: dict = {}
+        today = self._school_today(data.get("school_id"))
+
+        school_messages = self._school_id_messages(data.get("school_id"))
+        if school_messages:
+            errors["school_id"] = school_messages
+
+        for field, future_message in (
+            ("from", "A report cannot start on a date that has not happened yet."),
+            ("to", "A report cannot run past today."),
+        ):
+            if data.get(field) is None:
+                continue
+
+            try:
+                values[field] = LaravelDateField(field).to_internal_value(data[field])
+            except serializers.ValidationError:
+                errors[field] = [not_a_date(field)]
+                continue
+
+            messages = []
+            if values[field] > today:
+                messages.append(future_message)
+
+            # after_or_equal:from - measured only against a `from` that is a
+            # date; Laravel compares with nothing, and so passes, otherwise.
+            if field == "to" and "from" in values and values["to"] < values["from"]:
+                messages.append("The end of the range must not be before its start.")
+
+            if messages:
+                errors[field] = messages
+
+        for field, model in (("class_section_id", ClassSection), ("department_id", Department)):
+            value = data.get(field)
+
+            if value is None:
+                continue
+
+            if not PHP_INTEGER.match(str(value)):
+                errors[field] = [must_be_an_integer(field)]
+            elif not model.objects.filter(pk=int(value)).exists():
+                errors[field] = [does_not_exist(field)]
+            else:
+                values[field] = int(value)
+
+        if data.get("format") is not None and data["format"] not in ("json", "csv"):
+            errors["format"] = [selected_is_invalid("format")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        values["wants_csv"] = data.get("format") == "csv"
+
+        return values
+
+    def _school_id_messages(self, value) -> list[str]:
+        """readableSchoolIdRules(): a Super Admin names a school that exists;
+        anybody else may name one, as a number, or leave it out."""
+        unrestricted = SchoolScope.for_actor(self.actor).is_unrestricted()
+
+        if value is None:
+            return ["Pick a school to report on."] if unrestricted else []
+
+        if not PHP_INTEGER.match(str(value)):
+            return [must_be_an_integer("school_id")]
+
+        if unrestricted and not School.objects.filter(pk=int(value)).exists():
+            return [does_not_exist("school_id")]
+
+        return []
+
+    def _school_today(self, school_id):
+        """ChecksSchoolDates::schoolToday() - the acting school's date, or for
+        a Super Admin the date at the school they named (the platform's when
+        they named none, and UTC for one that does not exist)."""
+        if self.actor.role != UserRole.SUPER_ADMIN:
+            clock = SchoolClock.for_school(self.actor.school_id)
+        elif school_id is None:
+            clock = SchoolClock.platform()
+        else:
+            clock = SchoolClock.for_school(php_int(school_id))
+
+        return clock.now().date()

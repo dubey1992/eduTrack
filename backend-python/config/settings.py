@@ -119,6 +119,10 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "school.errors.handler",
     "DEFAULT_PAGINATION_CLASS": "school.pagination.LaravelPagination",
     "PAGE_SIZE": 20,
+    # `?format=` is DRF's renderer override by default, which would answer a
+    # report's `?format=csv` with a 404 before the view ran. The API has one
+    # renderer, and `format` is the reports' own parameter, as it is Laravel's.
+    "URL_FORMAT_OVERRIDE": None,
 }
 
 # The Flutter web app is served from a different origin than the API - 5000

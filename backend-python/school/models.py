@@ -692,6 +692,20 @@ class User(models.Model):
     def is_anonymous(self) -> bool:
         return False
 
+    def save(self, *args, **kwargs):
+        """Addresses are stored lowercase, always - Laravel's email mutator.
+
+        One address is one person, and PostgreSQL compares case-sensitively:
+        without this, Head@school.test and head@school.test would be two
+        accounts, and sign-in (which lowercases what is typed) could reach
+        neither of a mixed-case one. On the model rather than in the forms, so
+        a bulk import cannot route around it.
+        """
+        if self.email is not None:
+            self.email = self.email.strip().lower()
+
+        super().save(*args, **kwargs)
+
     @property
     def staff_profile(self):
         """The employment record behind this login, or None.

@@ -107,7 +107,7 @@ def validate(rows: list[dict], importer, school_id: int) -> list[dict]:
     seen = {}
 
     for row in rows:
-        messages = importer.check_fields(row["data"])
+        messages = importer.check_fields(row["data"], school_id)
 
         # Cross-column checks only make sense once the columns themselves are
         # known good - otherwise a blank class produces both "the class is

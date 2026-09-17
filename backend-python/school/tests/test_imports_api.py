@@ -229,6 +229,12 @@ class ABadFile(ImportTest):
         self.assertEqual(422, response.status_code, response.data)
         self.assertIn("file", response.data["details"]["errors"])
 
+    def test_a_json_body_is_told_the_file_is_missing(self):
+        response = self.client.post("/api/v1/imports/students", {}, format="json")
+
+        self.assertEqual(422, response.status_code, response.data)
+        self.assertEqual(["The file field is required."], response.data["details"]["errors"]["file"])
+
     def test_something_that_is_not_a_csv_is_refused(self):
         response = self.client.post(
             "/api/v1/imports/students",

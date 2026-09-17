@@ -269,6 +269,17 @@ class PasswordResetTest(PublicTestCase):
         login = APIClient().post("/api/v1/auth/login", {"email": self.user.email, "password": "brand-new-password"}, format="json")
         self.assertEqual(200, login.status_code)
 
+    def test_an_address_typed_with_capitals_is_the_same_account(self):
+        # Addresses are stored lowercase; the forms ask in the same form.
+        self.forgot("  Priya.Sharma@Example.com ")
+        self.assertEqual(["priya.sharma@example.com"], mail.outbox[0].to)
+
+        response = self.reset(self.token_from_mail(), email="PRIYA.SHARMA@EXAMPLE.COM")
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.user.refresh_from_db()
+        self.assertTrue(hashing.check("brand-new-password", self.user.password))
+
     def test_a_wrong_token_changes_nothing_and_answers_with_an_object_for_details(self):
         self.forgot()
 

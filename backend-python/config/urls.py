@@ -24,12 +24,14 @@ from school.views import (
     auth,
     classes,
     communication,
+    dashboard,
     early_access,
     hod,
     imports,
     inbox,
     leave,
     payments,
+    reports,
     schools,
     staff,
     staff_attendance,
@@ -120,6 +122,13 @@ urlpatterns = [
     path("api/v1/syllabus-progress", syllabus.progress),
     # -- HOD --------------------------------------------------------------
     path("api/v1/hod/department-report", hod.department_report),
+    # Phase 18 - the landing screen, and the four reports behind it. Each
+    # report also answers ?format=csv with the same figures.
+    path("api/v1/dashboard", dashboard.index),
+    path("api/v1/reports/student-attendance", reports.student_attendance),
+    path("api/v1/reports/staff-attendance", reports.staff_attendance),
+    path("api/v1/reports/teaching-coverage", reports.teaching_coverage),
+    path("api/v1/reports/transport-usage", reports.transport_usage),
     # -- communication -----------------------------------------------------
     path("api/v1/communication/messages", communication.messages),
     path("api/v1/communication/summary", communication.summary),

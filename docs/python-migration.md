@@ -15,7 +15,8 @@
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
 | M9 Wave 1 — foundations | **Done** — 52 of 52 |
 | M10 Wave 2 — people and daily operations | **Done** — 20 of 20, plus the notification core |
-| M11 onwards | Not started |
+| M11 Wave 3 — derived and outbound | **Done** — 9 of 9 slices, contract suite green on both; Flutter against Python still to run |
+| M12 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
 (decided 2026-09-16). AWS is a later plan, not a parallel one — so nothing
@@ -971,7 +972,7 @@ Sliced in dependency order, so each slice only builds on what already exists.
 | 6 | Transport master data and student assignment | 21 | **Done** |
 | 7 | Transport trips | 7 | **Done** |
 | 8 | Early access, forgot and reset password | 6 | **Done** |
-| 9 | Dashboard, the four reports, and the staff and subject importers | 5 + importers | Not started |
+| 9 | Dashboard, the four reports, and the staff and subject importers | 5 + importers | **Done** |
 
 Forgot and reset password were never in this phase's list and are not served
 by Python yet either, so they ride with early access - both send mail.
@@ -1230,6 +1231,76 @@ it; the contract says `{}`. Fixed, with a test that fails without it.
 M8 with the note that the rest would arrive with their modules. Staff and
 subjects never did, and the contract suite's import tests say so. They join
 the last slice.
+
+### Dashboard, the four reports, and the last importers
+
+The dashboard, the four reports (`school/reports/`, one module each, with
+`ReportRange` and the group stitching beside them), and bulk upload for staff,
+subjects, vehicles and drivers. With them the contract suite passes against
+both backends - 127 tests, 153 of 153 endpoints - for the first time.
+
+**Laravel: a head of department who heads nothing saw the whole school.** The
+staff-attendance and teaching-coverage reports narrow an HOD with
+`->when($filters['department_ids'] ?? null, ...)`, and an empty list is falsy -
+so an HOD with no department was not narrowed at all and got every employee
+and every subject. Confirmed against the running API before changing
+anything, then fixed on both backends: an empty scope is a scope. The tests
+fail without the fix on both sides.
+
+**Python: a capital letter in an address locked the account out.** Laravel
+stores every address lowercase through a mutator on `User`; the port only
+lowercased in the forms that had been written by hand. The importer went
+around them, so `Kavya.D@...` was stored as typed and sign-in - which does
+lowercase - could never find it. Wrong for any create path that skipped a form,
+since M8. Now `User.save()` lowercases like the mutator, and forgot/reset
+password lowercase like `LowercasesEmail`. The two mixed-case accounts the
+importer had made in the throwaway database were corrected by hand.
+
+**Both: spreadsheets are checked case-blind, as they are read.** The importers
+look departments and teachers up ignoring case - a spreadsheet cell is not a
+dropdown - but validated them with `exists`, which compares with `=`. MySQL's
+collation hid that; on PostgreSQL "science" was refused, and a staff address
+differing from an existing one only in case passed `unique` and then hit the
+unique index mid-import with a 500. `MatchesIgnoringCase` (Laravel) and
+`rules.matching` (Python) compare `LOWER(column)`. Other unique codes -
+employee ids, subject codes - still compare exactly on PostgreSQL where MySQL
+did not; that is a wider question than the importers and is left open.
+
+**Both: tied rows in a fixed order.** Students sharing a name, staff sharing a
+name (sorted in PHP after the query, so the query needed its own order),
+subjects sharing a name, and branches sharing a name now break ties by id; a
+`StableOrderingTest` case per report fails on PostgreSQL without each one. Route
+names are unique per school, so routes needed nothing. The dashboard's money
+card lists currencies alphabetically - its test cannot fail without the
+ordering, because PostgreSQL's grouping happened to sort, but it pins the
+contract.
+
+**Python: `?format=csv` was a 404 before the view ran.** DRF reads `format` as
+its renderer override. `URL_FORMAT_OVERRIDE` is off; the reports own the name.
+
+**Python: an import posted as JSON was a 415.** Laravel reads any body and says
+the file is missing; the view now accepts JSON too. The last contract failure.
+
+**Arithmetic, ported to fail loudly.** Every rate is PHP's `round($x, 1)`
+(`php_round_1`) and goes out as PHP writes a float; the staff rate rounds
+present-plus-half-days half *up* - 2.5 days is 3, which Python's `round()` makes
+2; names sort the way PHP's `<=>` compares strings; an employee with no leave
+has `"leave_by_type": []`, PHP's empty array; group totals are recomputed from
+counts, never averaged. Each of these has a test that was run broken - 16
+sabotages, all caught.
+
+Compared live against Laravel on seeded data chosen to land on the edges - a
+holiday declared over marked days, half days, 16.7/27.8/33.3/37.5% rates, three
+currencies, an HOD, a group whose branches sit 14 hours apart so their "today"
+differs - type-strict: 76 single-school cases, 24 group cases, 11 CSV downloads
+byte for byte including filenames, and the four importers' templates, bad rows
+and good rows (with each imported account signing in on both backends).
+
+**Left as Laravel does it, and worth a product decision.** Transport usage's
+`days_run` is the most days any one trip status ran on, not the days the route
+ran: a route that completed a trip on Monday and was still in progress on
+Tuesday reads as one day run. Trips on non-working days also count toward it.
+Ported faithfully; changing it changes a figure schools read.
 
 ## M12 · The first deployment
 

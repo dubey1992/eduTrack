@@ -3309,7 +3309,9 @@ class UserService:
             role=data["role"],
             school_id=school_id,
             is_sub_admin=is_sub_admin,
-            must_change_password=False,
+            # Only a bulk import sets this: the employee signs in with a
+            # temporary password nobody chose and is made to replace it.
+            must_change_password=data.get("must_change_password", False),
             status=UserStatus.ACTIVE,
             created_at=now,
             updated_at=now,

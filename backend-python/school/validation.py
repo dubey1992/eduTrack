@@ -78,6 +78,11 @@ def must_be_a_string(field: str) -> str:
     return f"The {attribute(field)} field must be a string."
 
 
+# PHP's FILTER_VALIDATE_INT, which is what Laravel's `integer` rule uses on a
+# string: an optional sign, and no leading zeros, decimals or exponent.
+PHP_INTEGER = re.compile(r"^[+-]?(0|[1-9][0-9]*)$")
+
+
 def must_be_an_integer(field: str) -> str:
     return f"The {attribute(field)} field must be an integer."
 

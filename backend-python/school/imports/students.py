@@ -38,7 +38,7 @@ class StudentImporter:
     def unique_columns(self) -> list[str]:
         return ["admission_number"]
 
-    def check_fields(self, row: dict) -> list[str]:
+    def check_fields(self, row: dict, school_id: int | None = None) -> list[str]:
         """The per-column rules, in the same words the single-record form uses.
 
         Written out rather than run through a serializer because a row reports
