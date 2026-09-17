@@ -21,6 +21,7 @@ use App\Models\SyllabusTopicProgress;
 use App\Models\TimetableEntry;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class HodDepartmentReportTest extends TestCase
@@ -443,6 +444,34 @@ class HodDepartmentReportTest extends TestCase
             ->getJson(self::ENDPOINT.'?month='.now()->format('Y-m'))
             ->assertOk()
             ->assertJsonPath('working_days', $expected);
+    }
+
+    public function test_a_shorter_month_asked_for_late_in_a_month_is_still_that_month(): void
+    {
+        // Asked for on March 30th, February must not overflow into March.
+        // February 2026 has 20 weekdays; March up to the 30th has 21.
+        $this->travelTo('2026-03-30 10:00:00');
+        [, , $hod] = $this->makeDepartment();
+
+        $this->actingAs($hod, 'sanctum')
+            ->getJson(self::ENDPOINT.'?month=2026-02')
+            ->assertOk()
+            ->assertJsonPath('month', '2026-02')
+            ->assertJsonPath('working_days', 20);
+    }
+
+    public function test_today_at_a_school_east_of_utc_counts_as_a_working_day(): void
+    {
+        // 20:00 UTC on Tue 15 September is already Wed 16th in Kolkata, so the
+        // school has reached twelve working days. Comparing instants across
+        // the two zones used to stop at the 15th and answer eleven.
+        $this->travelTo(Carbon::parse('2026-09-15 20:00:00', 'UTC'));
+        [, , $hod] = $this->makeDepartment(School::factory()->create(['timezone' => 'Asia/Kolkata']));
+
+        $this->actingAs($hod, 'sanctum')
+            ->getJson(self::ENDPOINT.'?month=2026-09')
+            ->assertOk()
+            ->assertJsonPath('working_days', 12);
     }
 
     public function test_a_future_month_has_no_working_days_yet(): void

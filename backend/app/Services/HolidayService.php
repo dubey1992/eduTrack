@@ -129,8 +129,15 @@ class HolidayService
      */
     public function workingDates(int $schoolId, Carbon $from, Carbon $to): Collection
     {
-        $from = $from->copy()->startOfDay();
-        $to = $to->copy()->startOfDay();
+        // Both ends as calendar dates, in one zone. A caller may hand over
+        // UTC midnight for one end and the school's midnight for the other -
+        // "today at the school" is the usual culprit - and walking from one
+        // to the other by comparing *instants* stops a day short wherever the
+        // school is east of UTC: midnight on the 17th in Kolkata is 18:30 on
+        // the 16th in UTC, so the 17th never passed the `lte`. Every school in
+        // India lost today from its current-month figures.
+        $from = Carbon::parse($from->toDateString());
+        $to = Carbon::parse($to->toDateString());
         if ($from->gt($to)) {
             return collect();
         }

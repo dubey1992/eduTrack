@@ -59,7 +59,11 @@ class HodReportService
         $departments = $this->departmentsInScope($actor, $school, $department);
         $departmentIds = $departments->pluck('id')->all();
 
-        $monthStart = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        // '!' resets every field the format does not name. Without it the
+        // missing day is taken from today, so on the 29th-31st a shorter month
+        // overflows: February asked for on March 30th parses as March 2nd and
+        // the report quietly computes March under February's label.
+        $monthStart = Carbon::createFromFormat('!Y-m', $month)->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth()->startOfDay();
         $range = [$monthStart->toDateString(), $monthEnd->toDateString()];
 

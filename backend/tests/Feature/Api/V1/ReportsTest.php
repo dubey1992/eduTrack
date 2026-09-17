@@ -183,6 +183,23 @@ class ReportsTest extends TestCase
             ->assertJsonPath('rows.0.attendance_rate', null);
     }
 
+    public function test_a_range_ending_today_includes_today_at_a_school_east_of_utc(): void
+    {
+        // 20:00 UTC on Monday 14th is Tuesday 15th in Kolkata. A range asked
+        // for up to the 15th covers Monday 7th to Tuesday 15th: seven working
+        // days. Walking UTC midnights against the school's midnight used to
+        // stop at the 14th and count six.
+        Carbon::setTestNow(Carbon::parse('2026-09-14 20:00:00', 'UTC'));
+        $f = $this->makeSchool();
+        $f['school']->update(['timezone' => 'Asia/Kolkata']);
+
+        $this->actingAs($f['admin'], 'sanctum')
+            ->getJson($this->url('student-attendance', ['to' => '2026-09-15']))
+            ->assertOk()
+            ->assertJsonPath('range.to', '2026-09-15')
+            ->assertJsonPath('range.working_days', 7);
+    }
+
     public function test_a_report_cannot_run_past_today(): void
     {
         $f = $this->makeSchool();
