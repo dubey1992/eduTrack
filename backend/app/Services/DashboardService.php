@@ -96,6 +96,8 @@ class DashboardService
             ->selectRaw('currency_code, SUM(paid_amount) as total')
             ->groupBy('currency_code')
             ->havingRaw('SUM(paid_amount) > 0')
+            // "INR 4,50,000.00 + USD 12,000.00" reads the same every time.
+            ->orderBy('currency_code')
             ->get()
             ->map(fn ($row) => $row->currency_code.' '.number_format((float) $row->total, 2))
             ->implode(' + ');
@@ -128,7 +130,7 @@ class DashboardService
     private function group(User $actor, string $today): array
     {
         $schoolIds = $actor->school?->groupSchoolIds() ?? [];
-        $branches = School::query()->whereIn('id', $schoolIds)->orderBy('name')->get();
+        $branches = School::query()->whereIn('id', $schoolIds)->orderBy('name')->orderBy('id')->get();
 
         $students = Student::whereIn('school_id', $schoolIds)->where('status', StudentStatus::Active)->count();
         $staff = StaffProfile::whereIn('school_id', $schoolIds)->count();

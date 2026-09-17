@@ -31,6 +31,7 @@ class StudentAttendanceReport implements CombinesTotals
             ->with(['classSection.schoolClass'])
             ->orderBy('first_name')
             ->orderBy('last_name')
+            ->orderBy('id')
             ->get();
 
         $marks = $this->marksByStudent($range, $students->pluck('id'));

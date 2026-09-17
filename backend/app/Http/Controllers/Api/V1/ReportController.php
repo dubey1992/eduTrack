@@ -124,7 +124,7 @@ class ReportController extends Controller
      */
     private function group(SchoolScope $scope, object $report, array $filters): array
     {
-        $schools = School::query()->whereIn('id', $scope->ids() ?? [])->orderBy('name')->get();
+        $schools = School::query()->whereIn('id', $scope->ids() ?? [])->orderBy('name')->orderBy('id')->get();
 
         return GroupReport::build(
             $schools,

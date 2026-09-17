@@ -15,6 +15,7 @@ use App\Models\SchoolClass;
 use App\Models\StaffAttendance;
 use App\Models\StaffProfile;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -299,6 +300,25 @@ class ReportsTest extends TestCase
             ->json('rows');
 
         $this->assertSame(['EMP-MINE'], array_column($rows, 'employee_id'));
+    }
+
+    public function test_a_head_of_department_who_heads_nothing_sees_nobody(): void
+    {
+        $f = $this->makeSchool();
+        $hod = User::factory()->role(UserRole::Hod)->forSchool($f['school'])->create();
+        $department = Department::factory()->forSchool($f['school'])->create();
+
+        StaffProfile::factory()->forUser(User::factory()->role(UserRole::Teacher)->forSchool($f['school'])->create())
+            ->create(['department_id' => $department->id, 'employee_id' => 'EMP-THEIRS']);
+        Subject::factory()->create(['school_id' => $f['school']->id, 'department_id' => $department->id]);
+
+        // No departments is an empty scope, not the absence of one - reading
+        // it as "no filter" would hand them the whole school.
+        foreach (['staff-attendance', 'teaching-coverage'] as $report) {
+            $this->actingAs($hod, 'sanctum')->getJson($this->url($report))
+                ->assertOk()
+                ->assertJsonPath('rows', []);
+        }
     }
 
     public function test_a_transport_manager_sees_transport_and_nothing_else(): void

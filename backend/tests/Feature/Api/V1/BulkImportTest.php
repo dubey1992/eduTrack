@@ -462,6 +462,52 @@ class BulkImportTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_an_email_that_differs_only_in_capitals_is_the_same_address(): void
+    {
+        $school = School::factory()->create();
+        Department::factory()->create(['school_id' => $school->id, 'name' => 'Science']);
+        User::factory()->create(['email' => 'priya.nair@example.com']);
+
+        // Stored lowercase, so this is the account that already exists - and
+        // letting it through would fail on the unique index mid-import.
+        $this->actingAs($this->admin($school), 'sanctum')->post('/api/v1/imports/staff', [
+            'file' => $this->csv(self::STAFF_HEADINGS, [$this->staffRow(['email' => 'Priya.Nair@Example.com'])]),
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('details.rows.0.messages', ['The email has already been taken.']);
+    }
+
+    public function test_an_imported_address_is_stored_lowercase_and_signs_in(): void
+    {
+        $school = School::factory()->create();
+        Department::factory()->create(['school_id' => $school->id, 'name' => 'Science']);
+
+        $response = $this->actingAs($this->admin($school), 'sanctum')->post('/api/v1/imports/staff', [
+            'file' => $this->csv(self::STAFF_HEADINGS, [$this->staffRow(['email' => 'Priya.Nair@Example.com'])]),
+        ])->assertCreated();
+
+        $this->assertSame('priya.nair@example.com', $response->json('details.0.email'));
+
+        $this->app['auth']->forgetGuards();
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'Priya.Nair@Example.com',
+            'password' => $response->json('details.0.temporary_password'),
+        ])->assertOk();
+    }
+
+    public function test_a_department_is_matched_however_it_is_capitalised(): void
+    {
+        $school = School::factory()->create();
+        $department = Department::factory()->create(['school_id' => $school->id, 'name' => 'Science']);
+
+        $this->actingAs($this->admin($school), 'sanctum')->post('/api/v1/imports/staff', [
+            'file' => $this->csv(self::STAFF_HEADINGS, [$this->staffRow(['department' => 'science'])]),
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('staff_profiles', ['employee_id' => 'EMP-1', 'department_id' => $department->id]);
+    }
+
     // ── subjects, vehicles and drivers ──────────────────────────────────
 
     public function test_a_school_admin_imports_subjects(): void
@@ -485,6 +531,45 @@ class BulkImportTest extends TestCase
             'min_class_level' => 5,
             'max_class_level' => 8,
         ]);
+    }
+
+    public function test_a_lead_teacher_and_department_are_matched_however_they_are_capitalised(): void
+    {
+        $school = School::factory()->create();
+        $department = Department::factory()->create(['school_id' => $school->id, 'name' => 'Science']);
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($school)->create(['email' => 'lead@example.com']);
+
+        $this->actingAs($this->admin($school), 'sanctum')->post('/api/v1/imports/subjects', [
+            'file' => $this->csv(
+                ['code', 'name', 'department', 'min_class_level', 'max_class_level', 'lead_teacher_email'],
+                [['SCI-05', 'Science', 'SCIENCE', '5', '8', 'Lead@Example.com']],
+            ),
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('subjects', ['code' => 'SCI-05', 'department_id' => $department->id, 'lead_teacher_id' => $teacher->id]);
+    }
+
+    public function test_a_lead_teacher_at_another_school_or_in_another_role_is_not_found(): void
+    {
+        $school = School::factory()->create();
+        Department::factory()->create(['school_id' => $school->id, 'name' => 'Science']);
+        User::factory()->role(UserRole::Teacher)->forSchool(School::factory()->create())->create(['email' => 'elsewhere@example.com']);
+        User::factory()->role(UserRole::Staff)->forSchool($school)->create(['email' => 'clerk@example.com']);
+
+        $this->actingAs($this->admin($school), 'sanctum')->post('/api/v1/imports/subjects', [
+            'file' => $this->csv(
+                ['code', 'name', 'department', 'min_class_level', 'max_class_level', 'lead_teacher_email'],
+                [
+                    ['SCI-05', 'Science', 'Science', '5', '8', 'Elsewhere@example.com'],
+                    ['SCI-06', 'Science', 'Science', '5', '8', 'clerk@example.com'],
+                    ['SCI-07', 'Science', 'Science', '5', '8', 'not-an-address'],
+                ],
+            ),
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('details.rows.0.messages', ['The selected lead teacher email is invalid.'])
+            ->assertJsonPath('details.rows.1.messages', ['The selected lead teacher email is invalid.'])
+            ->assertJsonPath('details.rows.2.messages', ['The lead teacher email field must be a valid email address.']);
     }
 
     public function test_a_subject_whose_class_range_runs_backwards_is_refused(): void

@@ -36,12 +36,15 @@ class TeachingCoverageReport implements CombinesTotals
 
         $subjects = Subject::query()
             ->where('school_id', $range->schoolId)
+            // Present but empty: a head of department who heads nothing sees no
+            // subjects, not all of them.
             ->when(
-                $filters['department_ids'] ?? null,
-                fn (Builder $query, array $ids) => $query->whereIn('department_id', $ids)
+                array_key_exists('department_ids', $filters),
+                fn (Builder $query) => $query->whereIn('department_id', $filters['department_ids'])
             )
             ->with('department')
             ->orderBy('name')
+            ->orderBy('id')
             ->get();
 
         $rows = $subjects->map(function (Subject $subject) use ($scheduled, $reported, $syllabus) {

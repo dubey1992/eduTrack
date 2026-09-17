@@ -4,6 +4,7 @@ namespace App\Services\Imports;
 
 use App\Models\Department;
 use App\Models\User;
+use App\Rules\MatchesIgnoringCase;
 use App\Services\StaffProfileService;
 use App\Support\DateFormats;
 use Illuminate\Support\Str;
@@ -57,7 +58,9 @@ class StaffImporter implements RowImporter
             ],
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            // Addresses are stored lowercase, so "Priya.Nair@" is the account
+            // "priya.nair@" already holds.
+            'email' => ['required', 'email', 'max:255', MatchesIgnoringCase::unique(User::query(), 'email')],
             'mobile' => ['nullable', 'string', 'max:20', 'regex:/^\+[1-9][0-9 ]{6,17}$/'],
             // Spelt out rather than Rule::in so "Teacher" works as well as
             // "TEACHER" - a spreadsheet cell is not a dropdown.
@@ -68,7 +71,7 @@ class StaffImporter implements RowImporter
             }],
             'department' => [
                 'nullable', 'string',
-                Rule::exists('departments', 'name')->where(fn ($query) => $query->where('school_id', $schoolId)),
+                MatchesIgnoringCase::exists(Department::query()->where('school_id', $schoolId), 'name'),
             ],
             'designation' => ['nullable', 'string', 'max:100'],
             'joining_date' => ['required', 'date_format:'.DateFormats::INPUT_DATES],

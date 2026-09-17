@@ -31,6 +31,9 @@ class StaffAttendanceReport implements CombinesTotals
     {
         $staff = $this->staffQuery($range->schoolId, $filters)
             ->with(['user', 'department'])
+            // The sort by name below is stable, so equal names keep this order
+            // rather than whatever order the database felt like.
+            ->orderBy('id')
             ->get()
             ->sortBy(fn (StaffProfile $profile) => $profile->user?->name ?? '')
             ->values();
@@ -121,9 +124,11 @@ class StaffAttendanceReport implements CombinesTotals
             )
             ->when(
                 // A head of department sees their own departments and no
-                // others, however they came to call this report.
-                $filters['department_ids'] ?? null,
-                fn (Builder $query, array $ids) => $query->whereIn('department_id', $ids)
+                // others, however they came to call this report. Present but
+                // empty means they head none, so they see nobody - not
+                // everybody, which is what a truthiness check would give.
+                array_key_exists('department_ids', $filters),
+                fn (Builder $query) => $query->whereIn('department_id', $filters['department_ids'])
             );
     }
 

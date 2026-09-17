@@ -6,22 +6,22 @@ use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\ClassSection;
-use App\Models\Holiday;
-use App\Models\Period;
 use App\Models\DailyTeachingReport;
 use App\Models\Department;
 use App\Models\Driver;
+use App\Models\Holiday;
+use App\Models\Period;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\StaffLeave;
 use App\Models\StaffProfile;
+use App\Models\Student;
 use App\Models\StudentTransportAssignment;
 use App\Models\Subject;
 use App\Models\TimetableEntry;
 use App\Models\TransportRoute;
 use App\Models\TransportStop;
 use App\Models\TransportTrip;
-use App\Models\Student;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -369,6 +369,49 @@ class StableOrderingTest extends TestCase
         }
 
         $this->assertEachRecordAppearsOnce('/api/v1/transport/trips', 6);
+    }
+
+    public function test_report_rows_that_share_a_name_come_back_in_a_fixed_order(): void
+    {
+        // Not paged, but the same bug: a report downloaded twice, or from the
+        // two backends, must list tied rows the same way. The rows are written
+        // with falling ids, so the order they sit in the table - which is what
+        // a database hands back when nothing else decides - is the reverse of
+        // the order the ids give. Codes run the other way again, because the
+        // unique (school, code) index is another order a scan can come back in.
+        $section = $this->section();
+        $department = Department::factory()->create(['school_id' => $this->school->id]);
+        $ids = ['students' => [], 'staff' => [], 'subjects' => []];
+
+        foreach (range(6, 1) as $index) {
+            $ids['students'][] = Student::factory()->create([
+                'id' => 9000 + $index,
+                'school_id' => $this->school->id, 'class_section_id' => $section->id,
+                'first_name' => 'Aarav', 'last_name' => 'Sharma', 'admission_number' => 'TIE-'.$index,
+            ])->id;
+            $ids['staff'][] = StaffProfile::factory()
+                ->forUser(User::factory()->role(UserRole::Teacher)->forSchool($this->school)->create(['first_name' => 'Priya', 'last_name' => 'Nair']))
+                ->create(['id' => 9000 + $index, 'employee_id' => 'TIE-'.(7 - $index)])->id;
+            $ids['subjects'][] = Subject::factory()->create([
+                'id' => 9000 + $index,
+                'school_id' => $this->school->id, 'department_id' => $department->id, 'name' => 'Science', 'code' => 'TIE-'.(7 - $index),
+            ])->id;
+        }
+
+        $reports = [
+            'students' => ['student-attendance', 'student_id'],
+            'staff' => ['staff-attendance', 'staff_profile_id'],
+            'subjects' => ['teaching-coverage', 'subject_id'],
+        ];
+
+        foreach ($reports as $kind => [$report, $key]) {
+            $rows = $this->actingAs($this->root)
+                ->getJson('/api/v1/reports/'.$report.'?school_id='.$this->school->id)
+                ->assertOk()
+                ->json('rows');
+
+            $this->assertSame(array_reverse($ids[$kind]), array_column($rows, $key), $report.' listed tied rows out of order');
+        }
     }
 
     /**

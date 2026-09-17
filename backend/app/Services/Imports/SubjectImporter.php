@@ -5,6 +5,7 @@ namespace App\Services\Imports;
 use App\Enums\UserRole;
 use App\Models\Department;
 use App\Models\User;
+use App\Rules\MatchesIgnoringCase;
 use App\Services\SubjectService;
 use Illuminate\Validation\Rule;
 
@@ -47,16 +48,17 @@ class SubjectImporter implements RowImporter
             'name' => ['required', 'string', 'max:100'],
             'department' => [
                 'required', 'string',
-                Rule::exists('departments', 'name')->where(fn ($query) => $query->where('school_id', $schoolId)),
+                MatchesIgnoringCase::exists(Department::query()->where('school_id', $schoolId), 'name'),
             ],
             'min_class_level' => ['required', 'integer', 'min:0', 'max:12'],
             'max_class_level' => ['required', 'integer', 'min:0', 'max:12'],
             'lead_teacher_email' => [
-                'nullable', 'email',
-                Rule::exists('users', 'email')->where(function ($query) use ($schoolId) {
-                    $query->where('school_id', $schoolId)
-                        ->whereIn('role', [UserRole::Hod->value, UserRole::Teacher->value]);
-                }),
+                // bail: an address that is not an address is not also "not found".
+                'bail', 'nullable', 'email',
+                MatchesIgnoringCase::exists(
+                    User::query()->where('school_id', $schoolId)->whereIn('role', [UserRole::Hod->value, UserRole::Teacher->value]),
+                    'email',
+                ),
             ],
         ];
     }
