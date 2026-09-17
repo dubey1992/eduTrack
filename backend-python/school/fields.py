@@ -90,3 +90,24 @@ class LaravelJSONField(models.JSONField):
             return value
 
         return super().from_db_value(value, expression, connection)
+
+
+@models.CharField.register_lookup
+@models.TextField.register_lookup
+class ILike(models.Lookup):
+    """`column ILIKE value`, with the value's own % and _ left alone.
+
+    Laravel's whereLike(..., caseSensitive: false) on PostgreSQL is exactly
+    this, and it does not escape the term - so searching the message log for
+    "%" matches everything. Django's icontains escapes both wildcards and
+    would match a literal percent sign instead. Use as
+    `field__ilike="%term%"`.
+    """
+
+    lookup_name = "ilike"
+
+    def as_sql(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
+        rhs, rhs_params = self.process_rhs(compiler, connection)
+
+        return f"{lhs}::text ILIKE {rhs}", [*lhs_params, *rhs_params]

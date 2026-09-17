@@ -15,8 +15,9 @@ it is reproducing.
 
 from __future__ import annotations
 
-from . import money, working_hours
-from .clock import SchoolClock
+from . import money, sms, working_hours
+from .clock import DATE, TIME, SchoolClock
+from .enums import AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
 from .scope import SchoolScope
@@ -192,6 +193,79 @@ def syllabus_topic_resource(topic) -> dict:
         "subject_name": topic.subject.name,
         "title": topic.title,
         "sequence_number": topic.sequence_number,
+    }
+
+
+def message_resource(message) -> dict:
+    """One row of the message log, or one message in an inbox.
+
+    The times are rendered server-side on the school's clock, so the log
+    agrees with the time written inside the message itself.
+    """
+    clock = SchoolClock.for_school(message.school if loaded(message, "school") else message.school_id)
+
+    return {
+        "id": message.id,
+        "school_id": message.school_id,
+        "event": message.event,
+        "event_label": MessageEvent(message.event).label,
+        "category": message.category,
+        "category_label": MessageCategory.label_for(message.category),
+        "channel": message.channel,
+        "channel_label": MessageChannel(message.channel).label,
+        "recipient_name": message.recipient_name,
+        "recipient_mobile": message.recipient_mobile,
+        "student_id": message.student_id,
+        "student_name": message.student_name,
+        "announcement_id": message.announcement_id,
+        "subject": message.subject,
+        "body": message.body,
+        "status": message.status,
+        "status_label": MessageStatus.label_for(message.status),
+        "provider": message.provider,
+        "provider_label": None if message.provider is None else sms.label(message.provider),
+        "failure_reason": message.failure_reason,
+        "sent_at": timestamp(message.sent_at),
+        "read_at": timestamp(message.read_at),
+        "created_at": timestamp(message.created_at),
+        "created_at_label": clock.format(message.created_at, TIME),
+        "created_on_label": clock.format(message.created_at, DATE),
+        "sent_at_label": clock.format(message.sent_at, TIME),
+        "timezone": clock.timezone(),
+    }
+
+
+def message_template_resource(row: dict) -> dict:
+    event = row["event"]
+
+    return {
+        "event": event,
+        "event_label": MessageEvent(event).label,
+        "category": MessageEvent.category(event),
+        "channels": list(MessageEvent.channels(event)),
+        "body": row["body"],
+        "default_body": row["default_body"],
+        "is_custom": row["is_custom"],
+        "tokens": MessageEvent.tokens(event),
+        "updated_at": timestamp(row["updated_at"]),
+        "updated_by_name": row["updated_by_name"],
+    }
+
+
+def communication_setting_resource(setting) -> dict:
+    return {
+        "school_id": setting.school_id,
+        "sms_enabled": setting.sms_enabled,
+        "attendance_alerts": setting.attendance_alerts,
+        "attendance_alerts_label": AttendanceAlertMode(setting.attendance_alerts).label,
+        "transport_alerts_enabled": setting.transport_alerts_enabled,
+        "leave_alerts_enabled": setting.leave_alerts_enabled,
+        "provider": setting.provider,
+        "provider_label": sms.label(setting.provider),
+        "sender_id": setting.sender_id,
+        "available_providers": sms.available(),
+        # Whether the school has ever saved these, or is looking at defaults.
+        "is_saved": setting.pk is not None,
     }
 
 

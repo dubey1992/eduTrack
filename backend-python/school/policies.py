@@ -390,6 +390,40 @@ class SyllabusTopicPolicy:
         return False
 
 
+class MessagePolicy:
+    """The message log holds guardians' phone numbers and what was said to
+    them, so only the admins who run the school read it. Everybody reads
+    their own inbox, which is a different thing and is not gated here."""
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES
+
+    @classmethod
+    def view(cls, actor: User, message) -> bool:
+        return cls.manages(actor, message.school_id)
+
+    @classmethod
+    def retry(cls, actor: User, message) -> bool:
+        return cls.manages(actor, message.school_id)
+
+    @classmethod
+    def configure(cls, actor: User, school_id) -> bool:
+        """Reading or changing a school's templates and alert switches."""
+        return cls.manages(actor, school_id)
+
+    @staticmethod
+    def manages(actor: User, school_id) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return (
+            UserRole.administers_school(actor.role)
+            and school_id is not None
+            and SchoolScope.for_actor(actor).allows(school_id)
+        )
+
+
 class StaffProfilePolicy:
     """Employment records.
 

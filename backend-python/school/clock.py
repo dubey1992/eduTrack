@@ -21,15 +21,23 @@ how instants are stored.
 
 from __future__ import annotations
 
+import datetime as dt
+
 import zoneinfo
 
 from django.conf import settings
 from django.utils import timezone
 
+from .fields import as_utc
+
 from .enums import UserRole
 from .models import School, User
 
 KNOWN_ZONES = zoneinfo.available_timezones()
+
+# DateFormats::TIME and DateFormats::DATE: "7:42 AM" and "09/17/2026".
+TIME = "g:i A"
+DATE = "m/d/Y"
 
 
 class SchoolClock:
@@ -103,6 +111,39 @@ class SchoolClock:
         already on tomorrow while a server in UTC is not.
         """
         return self.now().strftime("%Y-%m-%d")
+
+    def format(self, instant, pattern: str) -> str | None:
+        """An instant as the school's wall clock shows it, or None for None.
+
+        `pattern` is one of the TIME/DATE shapes below - PHP's DateFormats,
+        spelled out because strftime has no hour without a leading zero.
+        """
+        if instant is None:
+            return None
+
+        local = as_utc(instant).astimezone(zoneinfo.ZoneInfo(self._timezone))
+
+        if pattern == TIME:
+            return f"{local.hour % 12 or 12}:{local.minute:02d} {'AM' if local.hour < 12 else 'PM'}"
+
+        return local.strftime("%m/%d/%Y")
+
+    def start_of_day_utc(self, day) -> dt.datetime:
+        """The UTC instant a school-local calendar day begins."""
+        midnight = dt.datetime.combine(day, dt.time(), tzinfo=zoneinfo.ZoneInfo(self._timezone))
+
+        return midnight.astimezone(dt.timezone.utc)
+
+    def end_of_day_utc(self, day) -> dt.datetime:
+        """The UTC instant the *next* school-local day begins - an exclusive
+        end. Across a daylight-saving change that is 23 or 25 hours away, not
+        24, which is why it is not simply start + 1 day."""
+        return self.start_of_day_utc(day + dt.timedelta(days=1))
+
+    def today_range(self) -> tuple[dt.datetime, dt.datetime]:
+        today = self.now().date()
+
+        return self.start_of_day_utc(today), self.end_of_day_utc(today)
 
     def now_iso8601(self) -> str:
         """The instant in the form Laravel's toIso8601String() produces -

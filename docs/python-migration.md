@@ -966,7 +966,7 @@ Sliced in dependency order, so each slice only builds on what already exists.
 | 1 | Daily teaching reports | 4 | **Done** |
 | 2 | Syllabus topics and progress | 6 | **Done** |
 | 3 | HOD department report | 1 | **Done** |
-| 4 | Communication and the in-app inbox | 13 | Not started |
+| 4 | Communication and the in-app inbox | 13 | **Done** |
 | 5 | Announcements | 5 | Not started |
 | 6 | Transport master data and student assignment | 16 | Not started |
 | 7 | Transport trips | 7 | Not started |
@@ -1079,6 +1079,38 @@ that.
 
 18 cases compared live against Laravel after the fixes, type-strict -
 identical.
+
+### Communication and the inbox
+
+Nine endpoints for the Communication Center - the message log, its tiles, the
+templates and the alert switches - and four for the inbox. The notification
+core that writes messages came across before attendance; this slice is the
+part people read and configure.
+
+**The order of checks differs endpoint to endpoint, and is contract.** The log
+authorizes before it validates, so a teacher with junk filters is a 403.
+Rewording a template checks the event before anything else, so an event that
+does not exist is a 404 even to somebody who may not configure. Saving the
+switches authorizes, validates, then looks for the school. And a Super Admin
+with no school reads settings for school `0` - Laravel casts the missing id to
+an int - so the port does too.
+
+**A second pre-existing difference, in a shared field.** Laravel's `boolean`
+rule accepts `true`, `false`, `0`, `1`, `"0"` and `"1"` and nothing else;
+DRF's BooleanField also takes `"yes"`, `"true"`, `"on"` and more. So the
+syllabus tick and an academic year's `is_current` quietly accepted requests
+Laravel answers with a 422, since they were ported. Fixed in
+`LaravelBooleanField`, confirmed live on both backends before and after.
+
+**Search leaves wildcards alone.** Laravel's case-insensitive `whereLike` does
+not escape `%` or `_` in the term, so searching the log for `%` matches every
+row; Django's `icontains` escapes them. The port uses a small `ilike` lookup
+that behaves as Laravel's does.
+
+Compared live on 50 cases - reads from four accounts, every refusal captured
+from Laravel first, and writes that settle to the same state when sent twice
+(the same template body twice must leave `updated_at` alone on the second) -
+identical, type-strict.
 
 ## M12 · The first deployment
 

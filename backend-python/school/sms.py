@@ -50,6 +50,27 @@ class LogGateway:
 GATEWAYS = {LogGateway.name: LogGateway()}
 
 
+def resolve(name: str | None) -> str:
+    """The gateway that will really be used for a name: itself when it is
+    installed, the demo gateway otherwise - the same fallback `gateway()`
+    applies to sending, so the label on screen never names a gateway that
+    would not be the one carrying the message."""
+    return name if name in GATEWAYS else LogGateway.name
+
+
+def label(name: str | None) -> str:
+    return GATEWAYS[resolve(name)].label
+
+
+def delivers(name: str | None) -> bool:
+    return GATEWAYS[resolve(name)].delivers
+
+
+def available() -> list[dict]:
+    """Every installed gateway, for the settings screen's picker."""
+    return [{"value": key, "label": gateway.label} for key, gateway in GATEWAYS.items()]
+
+
 def gateway(name: str | None):
     """The gateway a school asked for, or the demo one.
 

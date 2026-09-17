@@ -14,13 +14,15 @@ from django.db import transaction
 from django.db.models import Count, F, Min, Q, Sum
 from django.utils import timezone
 
-from . import hashing, jobs, money, notifications, queue, tokens, working_hours
+from . import hashing, jobs, money, notifications, queue, sms, tokens, working_hours
 from .clock import SchoolClock
 from .enums import (
     AttendanceStatus,
     LeaveStatus,
     LeaveType,
+    MessageChannel,
     MessageEvent,
+    MessageStatus,
     PaymentStatus,
     SchoolStatus,
     StaffAttendanceStatus,
@@ -48,6 +50,9 @@ from .models import (
     AcademicYear,
     Attendance,
     ClassSection,
+    MessageTemplate,
+    Message,
+    CommunicationSetting,
     DailyTeachingReport,
     Department,
     Holiday,
@@ -1458,6 +1463,246 @@ class HodReportService:
         }
 
         return {"totals": totals, "completed": completed}
+
+
+
+def php_truthy(value) -> bool:
+    """PHP's truthiness for a query-string value: "" and "0" are false,
+    every other string is true - "false" included."""
+    if isinstance(value, str):
+        # Trimmed first, as Laravel's middleware trims every input.
+        value = value.strip()
+
+    return value not in (None, "", "0")
+
+
+class MessageService:
+    """Reading and re-driving the message log. Sending lives in
+    notifications.py; nothing here writes a message from scratch."""
+
+    @staticmethod
+    def scoped(actor: User, filters: dict):
+        clock = SchoolClock.for_scope(actor, filters.get("school_id"))
+        messages = SchoolScope.for_actor(actor).apply_to(Message.objects.all(), filters.get("school_id"))
+
+        for field in ("category", "channel", "status"):
+            if filters.get(field):
+                messages = messages.filter(**{field: filters[field]})
+
+        # The dates come off a date picker, so they are days at the school;
+        # created_at is a UTC instant. Windows are compared, not dates.
+        if filters.get("date_from"):
+            messages = messages.filter(created_at__gte=clock.start_of_day_utc(filters["date_from"]))
+
+        if filters.get("date_to"):
+            messages = messages.filter(created_at__lt=clock.end_of_day_utc(filters["date_to"]))
+
+        if filters.get("q"):
+            like = f"%{filters['q']}%"
+            messages = messages.filter(
+                Q(recipient_name__ilike=like)
+                | Q(student_name__ilike=like)
+                | Q(recipient_mobile__ilike=like)
+                | Q(body__ilike=like)
+            )
+
+        return messages
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        return (
+            cls.scoped(actor, filters)
+            .select_related("student", "user", "school")
+            .order_by("-created_at", "-id")
+        )
+
+    @classmethod
+    def summary(cls, actor: User, filters: dict) -> dict:
+        """The KPI tiles: today's volume, what landed, what failed, and what
+        never left the building - all counted on the school's day."""
+        start, end = SchoolClock.for_scope(actor, filters.get("school_id")).today_range()
+
+        school_id = SchoolScope.for_actor(actor).writable_school_id(filters.get("school_id"))
+        provider = CommunicationSetting.objects.filter(school_id=school_id).values_list("provider", flat=True).first()
+
+        today = cls.scoped(actor, filters).filter(created_at__gte=start, created_at__lt=end)
+
+        sent = today.filter(status=MessageStatus.SENT).count()
+        failed = today.filter(status=MessageStatus.FAILED).count()
+        attempted = sent + failed
+
+        return {
+            "sent_today": sent,
+            # "SMS Sent Today" on the tile, so the in-app copies beside them
+            # do not count.
+            "sms_sent_today": today.filter(status=MessageStatus.SENT, channel=MessageChannel.SMS).count(),
+            "queued_today": today.filter(status=MessageStatus.QUEUED).count(),
+            "failed_today": failed,
+            "skipped_today": today.filter(status=MessageStatus.SKIPPED).count(),
+            "delivery_rate": None if attempted == 0 else php_number(php_round_1(sent / attempted * 100)),
+            "total": cls.scoped(actor, filters).count(),
+            # What actually carries these messages. Until a real provider is
+            # set up it is a gateway that delivers nothing, and the screen has
+            # to say so next to the word "Sent".
+            "provider_label": sms.label(provider),
+            "provider_delivers": sms.delivers(provider),
+        }
+
+    @staticmethod
+    def retry(message):
+        """Back on the queue. The body is not rebuilt: the log must keep
+        showing what was actually sent."""
+        message.status = MessageStatus.QUEUED
+        message.failure_reason = None
+        message.updated_at = timezone.now()
+        message.save(update_fields=["status", "failure_reason", "updated_at"])
+
+        queue.push(notifications.SEND_MESSAGE, {"message_id": message.id})
+
+        return Message.objects.get(pk=message.pk)
+
+    @staticmethod
+    def inbox_of(actor: User):
+        """The in-app channel only. A leave decision also goes out by SMS, and
+        that copy belongs in the log, not the reader's inbox. An announcement
+        that was deleted or has expired drops out of the feed; its messages
+        stay in the log either way."""
+        today = SchoolClock.for_user(actor).date()
+
+        return Message.objects.filter(
+            Q(announcement_id__isnull=True)
+            | Q(
+                announcement__deleted_at__isnull=True,
+                announcement__isnull=False,
+            )
+            & (Q(announcement__expires_at__isnull=True) | Q(announcement__expires_at__gte=today)),
+            user_id=actor.id,
+            channel=MessageChannel.IN_APP,
+            status__in=(MessageStatus.SENT, MessageStatus.QUEUED),
+        )
+
+    @classmethod
+    def inbox(cls, actor: User, unread):
+        messages = cls.inbox_of(actor).select_related("school")
+
+        if php_truthy(unread):
+            messages = messages.filter(read_at__isnull=True)
+
+        return messages.order_by("-created_at", "-id")
+
+    @classmethod
+    def unread_count(cls, actor: User) -> int:
+        return cls.inbox_of(actor).filter(read_at__isnull=True).count()
+
+    @staticmethod
+    def mark_read(message):
+        if message.read_at is None:
+            now = timezone.now()
+            message.read_at = now
+            message.updated_at = now
+            message.save(update_fields=["read_at", "updated_at"])
+
+        return Message.objects.get(pk=message.pk)
+
+    @classmethod
+    def mark_all_read(cls, actor: User) -> int:
+        now = timezone.now()
+
+        return cls.inbox_of(actor).filter(read_at__isnull=True).update(read_at=now, updated_at=now)
+
+
+class MessageTemplateService:
+    """The wording of every automatic message. A school only has a row for an
+    event it rewords, so the defaults on MessageEvent stay the source of truth
+    for everybody else."""
+
+    @staticmethod
+    def list_for(school_id: int) -> list[dict]:
+        overrides = {
+            row.event: row
+            for row in MessageTemplate.objects.select_related("updated_by").filter(school_id=school_id)
+        }
+
+        rows = []
+
+        for event in MessageEvent.values:
+            override = overrides.get(event)
+            custom = override is not None and override.is_active
+
+            rows.append(
+                {
+                    "event": event,
+                    "body": override.body if custom else MessageEvent.default_body(event),
+                    "default_body": MessageEvent.default_body(event),
+                    "is_custom": custom,
+                    "updated_at": override.updated_at if override else None,
+                    "updated_by_name": (
+                        override.updated_by.name if override and override.updated_by_id else None
+                    ),
+                }
+            )
+
+        return rows
+
+    @classmethod
+    def row_for(cls, school_id: int, event: str) -> dict:
+        return next(row for row in cls.list_for(school_id) if row["event"] == event)
+
+    @staticmethod
+    def update(school_id: int, event: str, body: str, actor: User) -> None:
+        existing = MessageTemplate.objects.filter(school_id=school_id, event=event).first()
+        now = timezone.now()
+
+        if existing is None:
+            MessageTemplate.objects.create(
+                school_id=school_id, event=event, body=body, is_active=True,
+                updated_by_id=actor.id, created_at=now, updated_at=now,
+            )
+
+            return
+
+        # Eloquent writes nothing, updated_at included, when nothing changed.
+        if (existing.body, existing.is_active, existing.updated_by_id) != (body, True, actor.id):
+            existing.body = body
+            existing.is_active = True
+            existing.updated_by_id = actor.id
+            existing.updated_at = now
+            existing.save(update_fields=["body", "is_active", "updated_by", "updated_at"])
+
+    @staticmethod
+    def reset(school_id: int, event: str) -> None:
+        """Drops the override, so the event falls back to its shipped wording."""
+        MessageTemplate.objects.filter(school_id=school_id, event=event).delete()
+
+
+class CommunicationSettingService:
+    SWITCHES = ("sms_enabled", "attendance_alerts", "transport_alerts_enabled", "leave_alerts_enabled", "provider")
+
+    @classmethod
+    def update(cls, school_id: int, data: dict):
+        setting = notifications.settings_for(school_id)
+        values = {field: data[field] for field in cls.SWITCHES}
+
+        # Absent leaves the sender alone; an explicit null clears it.
+        if "sender_id" in data:
+            values["sender_id"] = data["sender_id"]
+
+        changed = [field for field, value in values.items() if getattr(setting, field) != value]
+        now = timezone.now()
+
+        for field in changed:
+            setattr(setting, field, values[field])
+
+        if setting.pk is None:
+            setting.school_id = school_id
+            setting.created_at = now
+            setting.updated_at = now
+            setting.save()
+        elif changed:
+            setting.updated_at = now
+            setting.save(update_fields=[*changed, "updated_at"])
+
+        return CommunicationSetting.objects.get(pk=setting.pk)
 
 
 class StaffProfileService:

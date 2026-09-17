@@ -261,3 +261,30 @@ class SyllabusTopicFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+class MessageFactory(DjangoModelFactory):
+    class Meta:
+        model = models.Message
+
+    school = factory.SubFactory(SchoolFactory)
+    event = "leave.approved"
+    category = "leave"
+    channel = "sms"
+    recipient_name = "Rahul Verma"
+    recipient_mobile = "+919800000001"
+    user = None
+    student = None
+    student_name = None
+    body = "Your casual leave from 09/07/2026 to 09/08/2026 has been approved."
+    status = "sent"
+    provider = "log"
+    failure_reason = None
+    created_by = None
+    sent_at = factory.LazyFunction(now)
+    read_at = None
+    announcement = None
+    subject = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

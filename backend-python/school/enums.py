@@ -74,9 +74,15 @@ class StaffAttendanceStatus(models.TextChoices):
     HALF_DAY = "half_day"
 
 
+def ucfirst(value: str) -> str:
+    """PHP's ucfirst: the first letter up, the rest untouched - not Python's
+    capitalize(), which also lowers everything after it."""
+    return value[:1].upper() + value[1:]
+
+
 class MessageChannel(models.TextChoices):
-    SMS = "sms"
-    IN_APP = "in_app"
+    SMS = "sms", "SMS"
+    IN_APP = "in_app", "In-app"
 
 
 class MessageStatus(models.TextChoices):
@@ -85,6 +91,10 @@ class MessageStatus(models.TextChoices):
     FAILED = "failed"
     SKIPPED = "skipped"
 
+    @classmethod
+    def label_for(cls, status: str) -> str:
+        return ucfirst(status)
+
 
 class MessageCategory(models.TextChoices):
     ATTENDANCE = "attendance"
@@ -92,11 +102,15 @@ class MessageCategory(models.TextChoices):
     LEAVE = "leave"
     ANNOUNCEMENT = "announcement"
 
+    @classmethod
+    def label_for(cls, category: str) -> str:
+        return ucfirst(category)
+
 
 class AttendanceAlertMode(models.TextChoices):
-    OFF = "off"
-    ABSENT_ONLY = "absent"
-    PRESENT_AND_ABSENT = "both"
+    OFF = "off", "No attendance alerts"
+    ABSENT_ONLY = "absent", "Absent only"
+    PRESENT_AND_ABSENT = "both", "Present + Absent"
 
 
 class MessageEvent(models.TextChoices):

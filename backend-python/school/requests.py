@@ -18,9 +18,14 @@ from rest_framework import serializers
 import decimal
 import re
 
-from . import hashing
+from . import hashing, notifications, sms
 from .enums import (
+    AttendanceAlertMode,
     AttendanceStatus,
+    MessageCategory,
+    MessageChannel,
+    MessageEvent,
+    MessageStatus,
     DayOfWeek,
     HolidayType,
     LeaveType,
@@ -976,6 +981,164 @@ class HodDepartmentReportRequest(ScopedSerializer):
         self.validate_school_id_field()
 
         return attrs
+
+
+# -- communication ----------------------------------------------------------
+
+# Three SMS segments. Templates are refused past it before they are saved.
+MAX_BODY_LENGTH = 480
+
+SENDER_ID = re.compile(r"^[A-Za-z0-9-]+$")
+
+
+def php_int(value) -> int:
+    """PHP's (int) cast of a query-string value: the leading run of digits,
+    with an optional sign, and 0 when there is none - "12abc" is 12, "abc" is
+    0. The controllers that read `school_id` raw rely on exactly this."""
+    match = re.match(r"^\s*([+-]?\d+)", str(value))
+
+    return int(match.group(1)) if match else 0
+
+
+def requested_school(actor, value):
+    """Which school a communication screen is about.
+
+    Absent means the actor's own school; anything sent is cast the way PHP
+    casts it. The policy then decides whether that school is theirs - there is
+    no scoping here, on purpose, because Laravel has none at this step either.
+    """
+    return actor.school_id if value is None else php_int(value)
+
+
+def enum_choice(field_name: str, choices):
+    """A nullable enum filter, refused with Laravel's sentence."""
+
+    def check(value):
+        if value is not None and value not in choices:
+            raise serializers.ValidationError(selected_is_invalid(field_name))
+
+        return value
+
+    return check
+
+
+class MessageIndexRequest(serializers.Serializer):
+    """The message log's filters. Unlike the other lists, a bad `per_page` is
+    a 422 here rather than a silent default - the form request says so."""
+
+    school_id = LaravelIntegerField("school_id", required=False, allow_null=True)
+    category = LaravelCharField("category", max_length=255, required=False, allow_null=True)
+    channel = LaravelCharField("channel", max_length=255, required=False, allow_null=True)
+    status = LaravelCharField("status", max_length=255, required=False, allow_null=True)
+    date_from = LaravelDateField("date_from", required=False, allow_null=True)
+    date_to = LaravelDateField("date_to", required=False, allow_null=True)
+    q = LaravelCharField("q", max_length=100, required=False, allow_null=True)
+    per_page = LaravelIntegerField("per_page", required=False, allow_null=True, min_value=1, max_value=100)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_school_id(self, value):
+        if value is not None and not School.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(selected_is_invalid("school_id"))
+
+        return value
+
+    validate_category = staticmethod(enum_choice("category", MessageCategory.values))
+    validate_channel = staticmethod(enum_choice("channel", MessageChannel.values))
+    validate_status = staticmethod(enum_choice("status", MessageStatus.values))
+
+    def validate_date_to(self, value):
+        # Only when date_from is itself a date - Laravel says nothing about
+        # the order of two dates when one of them is not a date at all.
+        try:
+            start = self.fields["date_from"].to_internal_value(self.initial_data.get("date_from"))
+        except serializers.ValidationError:
+            start = None
+
+        if value is not None and start is not None and value < start:
+            raise serializers.ValidationError(
+                "The date to field must be a date after or equal to date from."
+            )
+
+        return value
+
+
+class UpdateMessageTemplateRequest(serializers.Serializer):
+    body = LaravelCharField("body", max_length=MAX_BODY_LENGTH, allow_blank=False)
+
+    def __init__(self, *args, event=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.event = event
+
+    def validate_body(self, value):
+        """Every failing rule, as Laravel lists them: too short, then any
+        placeholder this event does not provide."""
+        problems = []
+
+        if len(value) < 10:
+            problems.append("The body field must be at least 10 characters.")
+
+        allowed = MessageEvent.tokens(self.event)
+        unknown = notifications.unknown_tokens(value, allowed)
+
+        if unknown:
+            problems.append(
+                "This message can only use these placeholders: {"
+                + "}, {".join(allowed)
+                + "}. Remove {"
+                + "}, {".join(unknown)
+                + "}."
+            )
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return value
+
+
+class UpdateCommunicationSettingRequest(serializers.Serializer):
+    school_id = LaravelIntegerField("school_id", required=False, allow_null=True)
+    sms_enabled = LaravelBooleanField("sms_enabled")
+    attendance_alerts = LaravelCharField("attendance_alerts", max_length=255)
+    transport_alerts_enabled = LaravelBooleanField("transport_alerts_enabled")
+    leave_alerts_enabled = LaravelBooleanField("leave_alerts_enabled")
+    provider = LaravelCharField("provider", max_length=255)
+    sender_id = LaravelCharField("sender_id", max_length=20, required=False, allow_null=True)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_school_id(self, value):
+        if value is not None and not School.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(selected_is_invalid("school_id"))
+
+        return value
+
+    validate_attendance_alerts = staticmethod(enum_choice("attendance_alerts", AttendanceAlertMode.values))
+
+    def validate_provider(self, value):
+        if value not in sms.GATEWAYS:
+            raise serializers.ValidationError("That SMS gateway is not available.")
+
+        return value
+
+    def validate_sender_id(self, value):
+        if value is not None and not SENDER_ID.match(value):
+            raise serializers.ValidationError(
+                "A sender ID can only contain letters, numbers and hyphens."
+            )
+
+        return value
 
 
 # -- leave ------------------------------------------------------------------

@@ -355,6 +355,17 @@ class LaravelDateField(serializers.DateField):
 
 
 class LaravelBooleanField(serializers.BooleanField):
+    """Laravel's `boolean` rule: true, false, 0, 1, "0" or "1", and nothing
+    else.
+
+    DRF's own BooleanField is far more forgiving - "yes", "true", "on", "t"
+    all pass - so a request Laravel answers with a 422 used to be quietly
+    accepted here. A float is refused too, as PHP's strict in_array refuses
+    1.0.
+    """
+
+    ACCEPTED = {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
+
     def __init__(self, field_name: str, **kwargs) -> None:
         super().__init__(
             error_messages={
@@ -364,6 +375,15 @@ class LaravelBooleanField(serializers.BooleanField):
             },
             **kwargs,
         )
+
+    def to_internal_value(self, data):
+        if isinstance(data, bool):
+            return data
+
+        if (type(data) is int or isinstance(data, str)) and data in self.ACCEPTED:
+            return self.ACCEPTED[data]
+
+        self.fail("invalid")
 
 
 def optional_text(field_name: str, max_length: int) -> serializers.CharField:

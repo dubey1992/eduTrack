@@ -204,6 +204,15 @@ class TeachingReportAlreadyReviewed(ApiError):
     error_code = "TEACHING_REPORT_ALREADY_REVIEWED"
 
 
+class MessageNotRetryable(ApiError):
+    """Only a failed message goes back on the queue. Re-sending anything else
+    would either duplicate what was delivered or race the worker already
+    holding it."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "MESSAGE_NOT_RETRYABLE"
+
+
 def envelope(status_code: int, code: str, message: str, details: dict | None = None) -> Response:
     return Response(
         {

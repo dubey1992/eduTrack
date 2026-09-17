@@ -22,8 +22,10 @@ from school.views import (
     attendance,
     auth,
     classes,
+    communication,
     hod,
     imports,
+    inbox,
     leave,
     payments,
     schools,
@@ -112,6 +114,19 @@ urlpatterns = [
     path("api/v1/syllabus-progress", syllabus.progress),
     # -- HOD --------------------------------------------------------------
     path("api/v1/hod/department-report", hod.department_report),
+    # -- communication -----------------------------------------------------
+    path("api/v1/communication/messages", communication.messages),
+    path("api/v1/communication/summary", communication.summary),
+    path("api/v1/communication/messages/<int:message_id>", communication.message),
+    path("api/v1/communication/messages/<int:message_id>/retry", communication.retry),
+    path("api/v1/communication/templates", communication.templates),
+    path("api/v1/communication/templates/<str:event>", communication.template),
+    path("api/v1/communication/settings", communication.settings),
+    # -- the inbox ---------------------------------------------------------
+    path("api/v1/inbox", inbox.messages),
+    path("api/v1/inbox/unread-count", inbox.unread_count),
+    path("api/v1/inbox/read-all", inbox.read_all),
+    path("api/v1/inbox/<int:message_id>/read", inbox.read),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),
