@@ -61,6 +61,9 @@ class TransportTripService
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->orderByDesc('trip_date')
             ->orderByDesc('started_at')
+            // started_at is stored to the second, and a school's buses leave
+            // together - two trips started in the same second tie.
+            ->orderByDesc('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 
@@ -106,6 +109,10 @@ class TransportTripService
 
             $assignments = StudentTransportAssignment::query()
                 ->where('route_id', $route->id)
+                // In a fixed order, so the riders' ids - which order the
+                // riders at one stop - follow the assignments rather than
+                // whatever order the database returned them in.
+                ->orderBy('id')
                 ->with(['student', 'stop'])
                 ->get()
                 ->filter(fn (StudentTransportAssignment $a) => $a->student->status === StudentStatus::Active);

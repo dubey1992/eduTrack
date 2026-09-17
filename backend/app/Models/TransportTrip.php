@@ -84,7 +84,9 @@ class TransportTrip extends Model
      */
     public function riders(): HasMany
     {
-        return $this->hasMany(TransportTripRider::class, 'trip_id')->orderBy('stop_sequence_number');
+        // A stop has many riders; id keeps the ones at the same stop in a
+        // fixed order from one read of the trip to the next.
+        return $this->hasMany(TransportTripRider::class, 'trip_id')->orderBy('stop_sequence_number')->orderBy('id');
     }
 
     /**

@@ -20,6 +20,7 @@ use App\Models\Subject;
 use App\Models\TimetableEntry;
 use App\Models\TransportRoute;
 use App\Models\TransportStop;
+use App\Models\TransportTrip;
 use App\Models\Student;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -341,6 +342,33 @@ class StableOrderingTest extends TestCase
         }
 
         $this->assertCount(6, array_unique($seen), 'students on the route repeated: '.implode(',', $seen));
+    }
+
+    public function test_paging_through_trips_started_in_the_same_second_shows_each_once(): void
+    {
+        $started = '2026-09-14 02:00:00';
+
+        foreach (range(1, 6) as $index) {
+            $vehicle = Vehicle::query()->create([
+                'school_id' => $this->school->id, 'name' => 'Bus '.$index, 'registration_number' => 'TRIP-'.$index,
+                'capacity' => 40, 'status' => 'active',
+            ]);
+            $driver = Driver::query()->create([
+                'school_id' => $this->school->id, 'name' => 'Driver '.$index, 'licence_number' => 'TRIP-'.$index, 'status' => 'active',
+            ]);
+            $route = TransportRoute::query()->create([
+                'school_id' => $this->school->id, 'name' => 'Route '.$index, 'vehicle_id' => $vehicle->id,
+                'driver_id' => $driver->id, 'status' => 'active',
+            ]);
+
+            TransportTrip::query()->create([
+                'school_id' => $this->school->id, 'route_id' => $route->id, 'vehicle_id' => $vehicle->id,
+                'driver_id' => $driver->id, 'trip_date' => '2026-09-14', 'direction' => 'pickup',
+                'status' => 'completed', 'started_by' => $this->root->id, 'started_at' => $started,
+            ]);
+        }
+
+        $this->assertEachRecordAppearsOnce('/api/v1/transport/trips', 6);
     }
 
     /**
