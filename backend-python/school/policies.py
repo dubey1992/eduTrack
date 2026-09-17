@@ -18,7 +18,7 @@ from __future__ import annotations
 from rest_framework.exceptions import PermissionDenied
 
 from .enums import UserRole
-from .models import Student, User
+from .models import Student, TimetableEntry, User
 from .scope import SchoolScope
 
 ADMIN_ROLES = (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN)
@@ -299,6 +299,93 @@ class DailyTeachingReportPolicy:
                 and profile.department_id is not None
                 and profile.department.hod_user_id == actor.id
             )
+
+        return False
+
+
+class SyllabusTopicPolicy:
+    """Two concerns under one policy, the way Laravel registers it.
+
+    **The outline** - which topics a subject has, in what order - is managed
+    by whoever manages the subject: an admin of its school, or the HOD of its
+    department.
+
+    **Marking a topic done for one class section** is broader: also the
+    teacher actually timetabled for that subject in that section. Checked
+    against the live timetable rather than a stored assignment, so moving a
+    subject to another teacher takes effect at once.
+
+    Staff and Transport Managers read neither; nothing here is theirs.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return actor.role in (*ADMIN_ROLES, UserRole.HOD, UserRole.TEACHER)
+
+    @classmethod
+    def create(cls, actor: User, subject) -> bool:
+        return cls.manages_subject(actor, subject)
+
+    @classmethod
+    def update(cls, actor: User, topic) -> bool:
+        return cls.manages_subject(actor, topic.subject)
+
+    @classmethod
+    def delete(cls, actor: User, topic) -> bool:
+        return cls.manages_subject(actor, topic.subject)
+
+    @classmethod
+    def view_checklist(cls, actor: User, section) -> bool:
+        """Anyone who may read the outline, in the section's school. A teacher
+        looking at another section's pace is not a concern the way editing it
+        would be."""
+        if not cls.view_any(actor):
+            return False
+
+        return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(
+            section.school_class.school_id
+        )
+
+    @staticmethod
+    def mark(actor: User, topic, section) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        if not SchoolScope.for_actor(actor).allows(section.school_class.school_id):
+            return False
+
+        if UserRole.administers_school(actor.role):
+            return True
+
+        if actor.role == UserRole.HOD:
+            department = topic.subject.department
+
+            return department is not None and department.hod_user_id == actor.id
+
+        if actor.role == UserRole.TEACHER:
+            return TimetableEntry.objects.filter(
+                class_section_id=section.id,
+                subject_id=topic.subject_id,
+                teacher_id=actor.id,
+            ).exists()
+
+        return False
+
+    @staticmethod
+    def manages_subject(actor: User, subject) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        if not SchoolScope.for_actor(actor).allows(subject.school_id):
+            return False
+
+        if UserRole.administers_school(actor.role):
+            return True
+
+        if actor.role == UserRole.HOD:
+            department = subject.department
+
+            return department is not None and department.hod_user_id == actor.id
 
         return False
 

@@ -964,7 +964,7 @@ Sliced in dependency order, so each slice only builds on what already exists.
 | # | Slice | Endpoints | |
 |---|---|---|---|
 | 1 | Daily teaching reports | 4 | **Done** |
-| 2 | Syllabus topics and progress | 6 | Not started |
+| 2 | Syllabus topics and progress | 6 | **Done** |
 | 3 | HOD department report | 1 | Not started |
 | 4 | Communication and the in-app inbox | 13 | Not started |
 | 5 | Announcements | 5 | Not started |
@@ -1004,6 +1004,37 @@ averaged — and must be ported with their tests, not re-derived.
 
 **Done when:** 153 of 153 endpoints answer identically, and the Flutter suite of
 705 tests passes against the Python backend.
+
+### Syllabus, and a leak found before porting it
+
+Reading Laravel's syllabus code to port it turned up two reads that never
+checked the school. Both take a `subject_id` in the query string, and `exists`
+only proves a subject is real:
+
+- the **outline list** returned any school's topics to anyone who changed the
+  id;
+- the **checklist** checked the *section* against the actor's school but not
+  the subject, so another school's subject paired with one of the actor's own
+  sections handed over that school's topic list.
+
+Both were confirmed against the running Laravel API before anything changed,
+then fixed on both backends together rather than ported: a subject outside the
+actor's schools is a **404**, the same answer the timetable grid gives for an
+id from a query string. Each fix has an ALLOW and a DENY test on both sides,
+and the DENY tests were run without the fix to prove they fail - 200 on
+Laravel, a failure on Django.
+
+This is a behaviour change to the live contract, and a deliberate one: no
+client could legitimately depend on reading another school's syllabus.
+
+One arithmetic trap: the checklist's `progress_percent` uses PHP's `round()`,
+which takes halves away from zero, and Python's rounds them to even. One topic
+of eight is 12.5% - 13 in PHP, 12 from a bare `round()`. Ported with an
+explicit half-up and a test that fails under `round()`.
+
+Compared live on 29 reads and refusals, including the two DENY cases, and on
+the add, edit, tick, read and remove path with ids and timestamps masked -
+identical.
 
 ## M12 · The first deployment
 

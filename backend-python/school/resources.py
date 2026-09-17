@@ -184,6 +184,17 @@ def daily_teaching_report_resource(report) -> dict:
     }
 
 
+def syllabus_topic_resource(topic) -> dict:
+    return {
+        "id": topic.id,
+        "school_id": topic.school_id,
+        "subject_id": topic.subject_id,
+        "subject_name": topic.subject.name,
+        "title": topic.title,
+        "sequence_number": topic.sequence_number,
+    }
+
+
 def staff_profile_resource(profile, class_teacher_of=None) -> dict:
     """An employee: their employment record and the login behind it.
 

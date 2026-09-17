@@ -43,6 +43,7 @@ from .models import (
     StaffProfile,
     Student,
     Subject,
+    SyllabusTopic,
     TimetableEntry,
     User,
 )
@@ -804,6 +805,141 @@ class TeachingReportSummaryRequest(serializers.Serializer):
             kwargs["data"] = normalise(kwargs["data"])
 
         super().__init__(*args, **kwargs)
+
+
+# -- syllabus ---------------------------------------------------------------
+#
+# Most checks below are field-level validators rather than one `validate()`.
+# Laravel reports every failing field at once, and DRF skips `validate()` the
+# moment any single field fails - so a title that is too long would otherwise
+# hide a sequence number that is already taken.
+
+
+def as_id(value):
+    """An id off raw input, or None - the way `Model::find()` treats junk."""
+    try:
+        return int(str(value))
+    except ValueError:
+        return None
+
+
+class SyllabusTopicListRequest(serializers.Serializer):
+    subject_id = LaravelIntegerField("subject_id")
+
+    def validate_subject_id(self, value):
+        if not Subject.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(selected_is_invalid("subject_id"))
+
+        return value
+
+
+class StoreSyllabusTopicRequest(ScopedSerializer):
+    subject_id = LaravelIntegerField("subject_id")
+    title = LaravelCharField("title", max_length=255)
+    sequence_number = LaravelIntegerField("sequence_number", min_value=1)
+
+    def validate_subject_id(self, value):
+        # A subject of the school this topic is filed under - another
+        # school's is as invalid as one that does not exist.
+        if not Subject.objects.filter(pk=value, school_id=self.resolved_school_id()).exists():
+            raise serializers.ValidationError(selected_is_invalid("subject_id"))
+
+        return value
+
+    def validate_sequence_number(self, value):
+        # Against the subject as sent, as Laravel's rule reads it: unique
+        # within a subject, so every subject can start at 1.
+        taken = SyllabusTopic.objects.filter(
+            subject_id=as_id(self.initial_data.get("subject_id")), sequence_number=value
+        ).exists()
+
+        if taken:
+            raise serializers.ValidationError(already_taken("sequence_number"))
+
+        return value
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        return attrs
+
+
+class UpdateSyllabusTopicRequest(serializers.Serializer):
+    """The subject is fixed at creation: moving a topic to another subject
+    is a new topic, not an edit."""
+
+    title = LaravelCharField("title", max_length=255, required=False)
+    sequence_number = LaravelIntegerField("sequence_number", min_value=1, required=False)
+
+    def __init__(self, *args, topic=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.topic = topic
+
+    def validate_sequence_number(self, value):
+        taken = (
+            SyllabusTopic.objects.filter(subject_id=self.topic.subject_id, sequence_number=value)
+            .exclude(pk=self.topic.pk)
+            .exists()
+        )
+
+        if taken:
+            raise serializers.ValidationError(already_taken("sequence_number"))
+
+        return value
+
+
+class SyllabusChecklistRequest(serializers.Serializer):
+    class_section_id = LaravelIntegerField("class_section_id")
+    subject_id = LaravelIntegerField("subject_id")
+
+    def validate_class_section_id(self, value):
+        if not ClassSection.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(selected_is_invalid("class_section_id"))
+
+        return value
+
+    def validate_subject_id(self, value):
+        if not Subject.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(selected_is_invalid("subject_id"))
+
+        return value
+
+
+class ToggleSyllabusProgressRequest(serializers.Serializer):
+    syllabus_topic_id = LaravelIntegerField("syllabus_topic_id")
+    class_section_id = LaravelIntegerField("class_section_id")
+    completed = LaravelBooleanField("completed")
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_syllabus_topic_id(self, value):
+        if not SyllabusTopic.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(selected_is_invalid("syllabus_topic_id"))
+
+        return value
+
+    def validate_class_section_id(self, value):
+        # A section of the topic's own school. With no such topic there is no
+        # school, and so no section can match - the same answer Laravel gives.
+        topic = SyllabusTopic.objects.filter(
+            pk=as_id(self.initial_data.get("syllabus_topic_id"))
+        ).first()
+
+        in_that_school = topic is not None and ClassSection.objects.filter(
+            pk=value, school_class__school_id=topic.school_id
+        ).exists()
+
+        if not in_that_school:
+            raise serializers.ValidationError(selected_is_invalid("class_section_id"))
+
+        return value
 
 
 # -- leave ------------------------------------------------------------------

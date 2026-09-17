@@ -248,3 +248,16 @@ class DailyTeachingReportFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+class SyllabusTopicFactory(DjangoModelFactory):
+    class Meta:
+        model = models.SyllabusTopic
+
+    subject = factory.SubFactory(SubjectFactory)
+    school = factory.LazyAttribute(lambda o: o.subject.school)
+    title = factory.Sequence(lambda n: f"Chapter {n}")
+    sequence_number = factory.Sequence(lambda n: n + 1)
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

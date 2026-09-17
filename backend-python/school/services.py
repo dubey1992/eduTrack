@@ -8,6 +8,7 @@ rather than about the web, and can be tested without one.
 from __future__ import annotations
 
 import datetime as dt
+from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Count, F, Q, Sum
@@ -54,6 +55,8 @@ from .models import (
     Period,
     StaffAttendance,
     StaffLeave,
+    SyllabusTopic,
+    SyllabusTopicProgress,
     TimetableEntry,
     EarlyAccessRequest,
     PersonalAccessToken,
@@ -64,6 +67,7 @@ from .models import (
     Subject,
     User,
 )
+from .resources import timestamp
 from .scope import SchoolScope
 
 
@@ -1039,6 +1043,135 @@ class DailyTeachingReportService:
             return rows.filter(teacher_id=actor.id)
 
         return rows
+
+
+class SyllabusTopicService:
+    """A subject's outline: its topics, in teaching order."""
+
+    @staticmethod
+    def for_subject(subject_id: int):
+        return (
+            SyllabusTopic.objects.select_related("subject")
+            .filter(subject_id=subject_id)
+            .order_by("sequence_number")
+        )
+
+    @staticmethod
+    def create(subject, data: dict):
+        now = timezone.now()
+
+        topic = SyllabusTopic.objects.create(
+            school_id=subject.school_id,
+            subject_id=subject.id,
+            title=data["title"],
+            sequence_number=data["sequence_number"],
+            created_at=now,
+            updated_at=now,
+        )
+
+        return SyllabusTopic.objects.select_related("subject").get(pk=topic.pk)
+
+    @staticmethod
+    def update(topic, data: dict):
+        changed = [field for field, value in data.items() if getattr(topic, field) != value]
+
+        # Eloquent saves nothing, timestamp included, when nothing changed;
+        # an edit that sends back the same title is not an edit.
+        if changed:
+            for field in changed:
+                setattr(topic, field, data[field])
+
+            topic.updated_at = timezone.now()
+            topic.save(update_fields=[*changed, "updated_at"])
+
+        return SyllabusTopic.objects.select_related("subject").get(pk=topic.pk)
+
+    @staticmethod
+    def delete(topic) -> None:
+        topic.delete()
+
+
+def percent_of(part: int, whole: int) -> int:
+    """A whole-number percentage, halves rounded *up*.
+
+    PHP's round() takes 12.5 to 13; Python's round() takes it to 12, because
+    it rounds halves to even. One topic of eight is exactly that case, so a
+    bare round() here would disagree with Laravel on an ordinary syllabus.
+    """
+    if whole == 0:
+        return 0
+
+    return int(Decimal(part * 100) / Decimal(whole) + Decimal("0.5"))
+
+
+class SyllabusProgressService:
+    @staticmethod
+    def checklist(subject, section) -> dict:
+        """A subject's topics in order, each with this section's completion
+        mark or none - the syllabus equivalent of the attendance register."""
+        topics = list(SyllabusTopic.objects.filter(subject_id=subject.id).order_by("sequence_number"))
+
+        marks = {
+            mark.syllabus_topic_id: mark
+            for mark in SyllabusTopicProgress.objects.select_related("completed_by").filter(
+                class_section_id=section.id, syllabus_topic_id__in=[topic.id for topic in topics]
+            )
+        }
+
+        return {
+            "subject_id": subject.id,
+            "subject_name": subject.name,
+            "class_section_id": section.id,
+            "total_topics": len(topics),
+            "completed_topics": len(marks),
+            "progress_percent": percent_of(len(marks), len(topics)),
+            "topics": [
+                {
+                    "id": topic.id,
+                    "title": topic.title,
+                    "sequence_number": topic.sequence_number,
+                    "completed": topic.id in marks,
+                    "completed_by_name": (
+                        marks[topic.id].completed_by.name if topic.id in marks else None
+                    ),
+                    "completed_at": (
+                        timestamp(marks[topic.id].completed_at) if topic.id in marks else None
+                    ),
+                }
+                for topic in topics
+            ],
+        }
+
+    @staticmethod
+    def toggle(topic, section, completed: bool, actor: User) -> None:
+        """Ticking records who and when, again if it was already ticked;
+        unticking removes the mark rather than keeping a "not done" row."""
+        if not completed:
+            SyllabusTopicProgress.objects.filter(
+                syllabus_topic_id=topic.id, class_section_id=section.id
+            ).delete()
+
+            return
+
+        now = timezone.now()
+
+        SyllabusTopicProgress.objects.update_or_create(
+            syllabus_topic_id=topic.id,
+            class_section_id=section.id,
+            defaults={
+                "school_id": topic.school_id,
+                "completed_by_id": actor.id,
+                "completed_at": now,
+                "updated_at": now,
+            },
+            create_defaults={
+                "school_id": topic.school_id,
+                "completed_by_id": actor.id,
+                "completed_at": now,
+                "created_at": now,
+                "updated_at": now,
+            },
+        )
 
 
 class StaffProfileService:
