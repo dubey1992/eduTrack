@@ -16,8 +16,8 @@ it is reproducing.
 from __future__ import annotations
 
 from . import money, sms, working_hours
-from .clock import DATE, TIME, SchoolClock
-from .enums import AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus
+from .clock import DATE, DATE_TIME, TIME, SchoolClock
+from .enums import AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
 from .scope import SchoolScope
@@ -266,6 +266,34 @@ def communication_setting_resource(setting) -> dict:
         "available_providers": sms.available(),
         # Whether the school has ever saved these, or is looking at defaults.
         "is_saved": setting.pk is not None,
+    }
+
+
+def announcement_resource(announcement) -> dict:
+    clock = SchoolClock.for_school(
+        announcement.school if loaded(announcement, "school") else announcement.school_id
+    )
+
+    return {
+        "id": announcement.id,
+        "school_id": announcement.school_id,
+        "school_name": announcement.school.name,
+        "title": announcement.title,
+        "body": announcement.body,
+        "audience_type": announcement.audience_type,
+        "audience_id": announcement.audience_id,
+        "audience_label": announcement.audience_label,
+        "channels": announcement.channels,
+        "channels_label": AnnouncementChannels(announcement.channels).label,
+        "expires_at": announcement.expires_at.isoformat() if announcement.expires_at else None,
+        # Expired means before today *at the school*.
+        "has_expired": announcement.expires_at is not None and announcement.expires_at.isoformat() < clock.date(),
+        "published_by_name": announcement.published_by.name if announcement.published_by_id else None,
+        "published_at": timestamp(announcement.published_at),
+        "published_at_label": clock.format(announcement.published_at, DATE_TIME),
+        "recipients_count": announcement.recipients_count,
+        "sms_count": announcement.sms_count,
+        "in_app_count": announcement.in_app_count,
     }
 
 

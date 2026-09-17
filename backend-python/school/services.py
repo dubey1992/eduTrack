@@ -17,6 +17,8 @@ from django.utils import timezone
 from . import hashing, jobs, money, notifications, queue, sms, tokens, working_hours
 from .clock import SchoolClock
 from .enums import (
+    AnnouncementAudience,
+    AnnouncementChannels,
     AttendanceStatus,
     LeaveStatus,
     LeaveType,
@@ -41,6 +43,7 @@ from .errors import (
     LeaveOverlap,
     NonWorkingDay,
     TeacherScheduleConflict,
+    UnreachableAudience,
     TeachingReportAlreadyReviewed,
     TeachingReportAlreadySubmitted,
     TeachingReportOnHoliday,
@@ -48,6 +51,7 @@ from .errors import (
 )
 from .models import (
     AcademicYear,
+    Announcement,
     Attendance,
     ClassSection,
     MessageTemplate,
@@ -72,6 +76,7 @@ from .models import (
     Subject,
     User,
 )
+from .requests import php_int
 from .resources import timestamp
 from .scope import SchoolScope
 
@@ -1703,6 +1708,220 @@ class CommunicationSettingService:
             setting.save(update_fields=[*changed, "updated_at"])
 
         return CommunicationSetting.objects.get(pk=setting.pk)
+
+
+
+def php_filter_bool(value) -> bool:
+    """PHP's filter_var(..., FILTER_VALIDATE_BOOLEAN): "1", "true", "on" and
+    "yes", in any case, are true; everything else is false."""
+    return str(value).strip().lower() in ("1", "true", "on", "yes") if value is not None else False
+
+
+class AnnouncementService:
+    """Publishing a notice to part of a school. The audience is counted here;
+    turning it into messages runs on the queue, so a whole-school notice does
+    not hold up the request."""
+
+    CHUNK = 200
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        announcements = SchoolScope.for_actor(actor).apply_to(
+            Announcement.objects.select_related("school", "published_by").filter(deleted_at__isnull=True),
+            filters.get("school_id"),
+        )
+
+        # A head of department manages their own department's notices and
+        # nothing else, so the list must not show them the rest.
+        if actor.role == UserRole.HOD:
+            announcements = announcements.filter(
+                audience_type=AnnouncementAudience.DEPARTMENT,
+                audience_id__in=Department.objects.filter(
+                    school_id=actor.school_id, hod_user_id=actor.id
+                ).values("id"),
+            )
+
+        if filters.get("audience_type"):
+            announcements = announcements.filter(audience_type=filters["audience_type"])
+
+        if filters.get("q"):
+            like = f"%{filters['q']}%"
+            announcements = announcements.filter(Q(title__ilike=like) | Q(body__ilike=like))
+
+        # "Still showing" means at the school: an expiry is a day on its
+        # calendar, not the server's.
+        if php_filter_bool(filters.get("active_only")):
+            raw = filters.get("school_id")
+            today = SchoolClock.for_scope(actor, None if raw in (None, "") else php_int(raw)).date()
+            announcements = announcements.filter(Q(expires_at__isnull=True) | Q(expires_at__gte=today))
+
+        return announcements.order_by("-published_at", "-id")
+
+    @classmethod
+    def publish(cls, data: dict, actor: User):
+        school_id = data["school_id"]
+        audience = data["audience_type"]
+        channels = data["channels"]
+        target = data.get("audience_id") if AnnouncementAudience.needs_target(audience) else None
+
+        counts = cls.count_recipients(school_id, audience, target, channels)
+
+        if counts["recipients"] == 0:
+            raise UnreachableAudience(cls.unreachable_reason(audience, channels))
+
+        now = timezone.now()
+
+        with transaction.atomic():
+            announcement = Announcement.objects.create(
+                school_id=school_id,
+                title=data["title"],
+                body=data["body"],
+                audience_type=audience,
+                audience_id=target,
+                audience_label=cls.audience_label(school_id, audience, target),
+                channels=channels,
+                expires_at=data.get("expires_at"),
+                published_by_id=actor.id,
+                published_at=now,
+                recipients_count=counts["recipients"],
+                sms_count=counts["sms"],
+                in_app_count=counts["in_app"],
+                created_at=now,
+                updated_at=now,
+            )
+
+            # In the same transaction: the fan-out is queued if and only if
+            # the announcement it is for was committed.
+            queue.push(PUBLISH_ANNOUNCEMENT, {"announcement_id": announcement.id, "actor_id": actor.id})
+
+        return Announcement.objects.select_related("school", "published_by").get(pk=announcement.pk)
+
+    @classmethod
+    def fan_out(cls, announcement, actor) -> None:
+        """Turns the audience into messages, a chunk at a time."""
+        tokens = {
+            "title": announcement.title,
+            "body": announcement.body,
+            "school_name": announcement.school.name if announcement.school_id else None,
+            "audience": announcement.audience_label,
+        }
+        audience = announcement.audience_type
+
+        if AnnouncementChannels.includes_sms(announcement.channels) and AnnouncementAudience.reaches_guardians(audience):
+            # No mobile filter here on purpose: a guardian with no number still
+            # gets a "skipped" row, so an admin can see who was missed.
+            students = cls.students(announcement.school_id, audience, announcement.audience_id)
+
+            for student in cls.chunked(students):
+                notifications.notify_guardian(
+                    MessageEvent.ANNOUNCEMENT_PUBLISHED, student, tokens, actor,
+                    channels=[MessageChannel.SMS], announcement=announcement,
+                )
+
+        if AnnouncementAudience.reaches_staff(audience):
+            users = cls.users(announcement.school_id, audience, announcement.audience_id).select_related("school")
+
+            for user in cls.chunked(users):
+                notifications.notify_staff(
+                    MessageEvent.ANNOUNCEMENT_PUBLISHED, user, tokens, actor,
+                    channels=AnnouncementChannels.message_channels(announcement.channels),
+                    announcement=announcement,
+                )
+
+    @classmethod
+    def chunked(cls, rows):
+        """Laravel's chunkById: by id, a page at a time, so a school with a
+        thousand students is never one huge read."""
+        last = 0
+
+        while True:
+            page = list(rows.filter(pk__gt=last).order_by("pk")[: cls.CHUNK])
+
+            if not page:
+                return
+
+            yield from page
+            last = page[-1].pk
+
+    @staticmethod
+    def delete(announcement) -> None:
+        """Out of the in-app feed. Messages already sent stay in the log."""
+        now = timezone.now()
+        announcement.deleted_at = now
+        announcement.updated_at = now
+        announcement.save(update_fields=["deleted_at", "updated_at"])
+
+    @classmethod
+    def count_recipients(cls, school_id: int, audience: str, target, channels: str) -> dict:
+        guardians = 0
+        staff = 0
+
+        if AnnouncementChannels.includes_sms(channels) and AnnouncementAudience.reaches_guardians(audience):
+            guardians = cls.students(school_id, audience, target).filter(guardian_mobile__isnull=False).count()
+
+        if AnnouncementAudience.reaches_staff(audience):
+            staff = cls.users(school_id, audience, target).count()
+
+        return {
+            "recipients": guardians + staff,
+            "sms": guardians + (staff if AnnouncementChannels.includes_sms(channels) else 0),
+            "in_app": staff if AnnouncementChannels.includes_in_app(channels) else 0,
+        }
+
+    @staticmethod
+    def audience_label(school_id: int, audience: str, target) -> str:
+        """The name a class or department target goes by - looked up inside
+        this school only. A target that is not this school's gets the same
+        generic label as one that does not exist, so a preview cannot be used
+        to read another school's class and department names."""
+        if audience == AnnouncementAudience.CLASS_SECTION:
+            section = (
+                ClassSection.objects.select_related("school_class")
+                .filter(pk=target, school_class__school_id=school_id)
+                .first()
+            )
+
+            return "Class" if section is None else f"{section.school_class.name} {section.name}".strip()
+
+        if audience == AnnouncementAudience.DEPARTMENT:
+            department = Department.objects.filter(pk=target, school_id=school_id).first()
+
+            return "Department" if department is None else department.name
+
+        return AnnouncementAudience(audience).label
+
+    @staticmethod
+    def students(school_id: int, audience: str, target):
+        students = Student.objects.filter(school_id=school_id, status=StudentStatus.ACTIVE)
+
+        if audience == AnnouncementAudience.CLASS_SECTION:
+            students = students.filter(class_section_id=target)
+
+        return students
+
+    @staticmethod
+    def users(school_id: int, audience: str, target):
+        """Active accounts of this school only - never the platform's Super
+        Admins, who belong to none."""
+        users = User.objects.filter(school_id=school_id, status=UserStatus.ACTIVE)
+
+        if audience == AnnouncementAudience.TEACHERS:
+            users = users.filter(role__in=(UserRole.TEACHER, UserRole.HOD))
+
+        if audience == AnnouncementAudience.DEPARTMENT:
+            users = users.filter(staffprofile__department_id=target)
+
+        return users
+
+    @staticmethod
+    def unreachable_reason(audience: str, channels: str) -> str:
+        if channels == AnnouncementChannels.IN_APP_ONLY and not AnnouncementAudience.reaches_staff(audience):
+            return "Guardians have no app login, so this audience can only be reached by SMS."
+
+        return "Nobody in this audience can be reached right now."
+
+
+PUBLISH_ANNOUNCEMENT = "publish_announcement"
 
 
 class StaffProfileService:

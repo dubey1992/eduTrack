@@ -136,3 +136,23 @@ def send_payment_receipt(payment_id: int) -> None:
     # sent" line on the payment screen reads. Written with update() so it
     # cannot collide with an edit made while the mail was going out.
     Payment.objects.filter(pk=payment.id).update(receipt_sent_at=timezone.now())
+
+
+@handler("publish_announcement")
+def publish_announcement(announcement_id: int, actor_id: int | None = None) -> None:
+    """The fan-out behind a published announcement.
+
+    Nothing to do if the notice has gone, and nothing if it was deleted
+    before it went out: somebody took it back, and that is honoured.
+    """
+    from .models import Announcement
+    from .services import AnnouncementService
+
+    announcement = Announcement.objects.select_related("school").filter(pk=announcement_id).first()
+
+    if announcement is None or announcement.deleted_at is not None:
+        return
+
+    actor = None if actor_id is None else User.objects.filter(pk=actor_id).first()
+
+    AnnouncementService.fan_out(announcement, actor)

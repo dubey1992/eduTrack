@@ -275,3 +275,45 @@ class DayOfWeek(models.TextChoices):
     WEDNESDAY = "wednesday"
     THURSDAY = "thursday"
     FRIDAY = "friday"
+
+
+class AnnouncementAudience(models.TextChoices):
+    ALL_SCHOOL = "all_school", "All School"
+    TEACHERS = "teachers", "Teachers"
+    PARENTS = "parents", "Parents"
+    CLASS_SECTION = "class_section", "A class section"
+    DEPARTMENT = "department", "A department"
+
+    @classmethod
+    def needs_target(cls, audience: str) -> bool:
+        return audience in (cls.CLASS_SECTION, cls.DEPARTMENT)
+
+    @classmethod
+    def reaches_guardians(cls, audience: str) -> bool:
+        return audience in (cls.ALL_SCHOOL, cls.PARENTS, cls.CLASS_SECTION)
+
+    @classmethod
+    def reaches_staff(cls, audience: str) -> bool:
+        return audience in (cls.ALL_SCHOOL, cls.TEACHERS, cls.DEPARTMENT)
+
+
+class AnnouncementChannels(models.TextChoices):
+    SMS_AND_IN_APP = "sms_in_app", "SMS + In-app"
+    SMS_ONLY = "sms", "SMS Only"
+    IN_APP_ONLY = "in_app", "In-app Only"
+
+    @classmethod
+    def includes_sms(cls, channels: str) -> bool:
+        return channels != cls.IN_APP_ONLY
+
+    @classmethod
+    def includes_in_app(cls, channels: str) -> bool:
+        return channels != cls.SMS_ONLY
+
+    @classmethod
+    def message_channels(cls, channels: str) -> list[str]:
+        return {
+            cls.SMS_AND_IN_APP: [MessageChannel.IN_APP, MessageChannel.SMS],
+            cls.SMS_ONLY: [MessageChannel.SMS],
+            cls.IN_APP_ONLY: [MessageChannel.IN_APP],
+        }[channels]

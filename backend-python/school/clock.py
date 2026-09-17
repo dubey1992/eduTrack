@@ -38,6 +38,7 @@ KNOWN_ZONES = zoneinfo.available_timezones()
 # DateFormats::TIME and DateFormats::DATE: "7:42 AM" and "09/17/2026".
 TIME = "g:i A"
 DATE = "m/d/Y"
+DATE_TIME = "m/d/Y g:i A"
 
 
 class SchoolClock:
@@ -123,8 +124,13 @@ class SchoolClock:
 
         local = as_utc(instant).astimezone(zoneinfo.ZoneInfo(self._timezone))
 
+        time = f"{local.hour % 12 or 12}:{local.minute:02d} {'AM' if local.hour < 12 else 'PM'}"
+
         if pattern == TIME:
-            return f"{local.hour % 12 or 12}:{local.minute:02d} {'AM' if local.hour < 12 else 'PM'}"
+            return time
+
+        if pattern == DATE_TIME:
+            return f"{local.strftime('%m/%d/%Y')} {time}"
 
         return local.strftime("%m/%d/%Y")
 

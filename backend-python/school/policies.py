@@ -18,7 +18,7 @@ from __future__ import annotations
 from rest_framework.exceptions import PermissionDenied
 
 from .enums import UserRole
-from .models import Student, TimetableEntry, User
+from .models import Department, Student, TimetableEntry, User
 from .scope import SchoolScope
 
 ADMIN_ROLES = (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN)
@@ -422,6 +422,62 @@ class MessagePolicy:
             and school_id is not None
             and SchoolScope.for_actor(actor).allows(school_id)
         )
+
+
+class AnnouncementPolicy:
+    """Admins announce to anyone in their school. A Head of Department only
+    reaches their own department - the boundary they already have over its
+    teaching reports."""
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES or actor.role == UserRole.HOD
+
+    @classmethod
+    def view(cls, actor: User, announcement) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        if not SchoolScope.for_actor(actor).allows(announcement.school_id):
+            return False
+
+        if actor.role == UserRole.HOD:
+            return announcement.audience_type == "department" and cls.heads_department(
+                actor, announcement.audience_id
+            )
+
+        return UserRole.administers_school(actor.role)
+
+    @classmethod
+    def publish(cls, actor: User, audience: str, target, school_id) -> bool:
+        """Checked against the audience, not just the role."""
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        if school_id is not None and not SchoolScope.for_actor(actor).allows(school_id):
+            return False
+
+        if UserRole.administers_school(actor.role):
+            return True
+
+        return (
+            actor.role == UserRole.HOD
+            and audience == "department"
+            and cls.heads_department(actor, target)
+        )
+
+    @classmethod
+    def delete(cls, actor: User, announcement) -> bool:
+        return cls.view(actor, announcement)
+
+    @staticmethod
+    def heads_department(actor: User, department_id) -> bool:
+        if department_id is None:
+            return False
+
+        return SchoolScope.for_actor(actor).apply_to(
+            Department.objects.filter(pk=department_id, hod_user_id=actor.id)
+        ).exists()
 
 
 class StaffProfilePolicy:

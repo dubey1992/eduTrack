@@ -967,7 +967,7 @@ Sliced in dependency order, so each slice only builds on what already exists.
 | 2 | Syllabus topics and progress | 6 | **Done** |
 | 3 | HOD department report | 1 | **Done** |
 | 4 | Communication and the in-app inbox | 13 | **Done** |
-| 5 | Announcements | 5 | Not started |
+| 5 | Announcements | 5 | **Done** |
 | 6 | Transport master data and student assignment | 16 | Not started |
 | 7 | Transport trips | 7 | Not started |
 | 8 | Early access, forgot and reset password | 6 | Not started |
@@ -1110,6 +1110,31 @@ that behaves as Laravel's does.
 Compared live on 50 cases - reads from four accounts, every refusal captured
 from Laravel first, and writes that settle to the same state when sent twice
 (the same template body twice must leave `updated_at` alone on the second) -
+identical, type-strict.
+
+### Announcements, and the third cross-school read
+
+Publishing counts the audience in the request and fans it out on the queue, a
+chunk at a time; a notice deleted before the worker reaches it is not sent.
+Laravel's own fixture is ported number for number - 6 reached, 4 in-app and 7
+SMS copies, 2 of them skipped for want of a number.
+
+**Laravel: the preview named another school's classes and departments.**
+`audience_id` comes straight off the query string, the policy lets any admin
+through, and the label was looked up unscoped - so an admin of one school read
+another school's department and class names by trying ids. Confirmed live
+before the change: school 33's admin read "Contract Dept 7k72giz8" and "Grade
+7k A" from school 25. The label is now looked up inside the school being
+announced to; a foreign id gets the same generic "Department" or "Class" as an
+id that does not exist, so trying ids tells a caller nothing. Publishing is
+unaffected, because its target was already validated to the school. ALLOW and
+DENY tests on both backends; each DENY test fails with the fix removed.
+
+That is the third read found this way - syllabus, then the checklist, now this
+- and all three had the same shape: an id taken from the request, checked for
+existence, never for ownership.
+
+Compared live on 36 cases and on publish, delete and read-after-delete -
 identical, type-strict.
 
 ## M12 · The first deployment

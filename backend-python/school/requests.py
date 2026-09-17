@@ -20,6 +20,8 @@ import re
 
 from . import hashing, notifications, sms
 from .enums import (
+    AnnouncementAudience,
+    AnnouncementChannels,
     AttendanceAlertMode,
     AttendanceStatus,
     MessageCategory,
@@ -1139,6 +1141,113 @@ class UpdateCommunicationSettingRequest(serializers.Serializer):
             )
 
         return value
+
+
+# -- announcements ----------------------------------------------------------
+
+
+class PublishAnnouncementRequest(ScopedSerializer):
+    """A notice and who it is for.
+
+    Mostly field-level checks, so every failing field is reported together
+    the way Laravel reports them. The target has to belong to the school
+    being announced to - an id from another school is refused with the same
+    sentence as one that does not exist.
+    """
+
+    title = LaravelCharField("title", max_length=150)
+    body = LaravelCharField("body", max_length=2000)
+    audience_type = LaravelCharField("audience_type", max_length=255)
+    # A None default so the field's own check still runs when it is left out:
+    # DRF skips validate_<field> for an absent field with no default, and the
+    # "pick a target" rule is exactly about the field being absent.
+    audience_id = serializers.JSONField(required=False, allow_null=True, default=None)
+    channels = LaravelCharField("channels", max_length=255)
+    expires_at = serializers.JSONField(required=False, allow_null=True, default=None)
+
+    def __init__(self, *args, school_today=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.school_today = school_today
+
+    def audience(self):
+        value = self.initial_data.get("audience_type")
+
+        return value if value in AnnouncementAudience.values else None
+
+    def validate_title(self, value):
+        if len(value) < 3:
+            raise serializers.ValidationError("The title field must be at least 3 characters.")
+
+        return value
+
+    def validate_body(self, value):
+        if len(value) < 10:
+            raise serializers.ValidationError("The body field must be at least 10 characters.")
+
+        return value
+
+    validate_audience_type = staticmethod(enum_choice("audience_type", AnnouncementAudience.values))
+    validate_channels = staticmethod(enum_choice("channels", AnnouncementChannels.values))
+
+    def validate_audience_id(self, value):
+        audience = self.audience()
+
+        if value is None:
+            if audience is not None and AnnouncementAudience.needs_target(audience):
+                raise serializers.ValidationError("Pick the class or department this announcement is for.")
+
+            return None
+
+        # An integer, as Laravel's rule reads one: a JSON number with no
+        # fraction, or a string of digits.
+        if isinstance(value, bool) or not (
+            (isinstance(value, int)) or (isinstance(value, str) and re.fullmatch(r"[+-]?\d+", value.strip()))
+        ):
+            raise serializers.ValidationError("The audience id field must be an integer.")
+
+        target = int(value)
+        school_id = self.resolved_school_id()
+
+        if audience == AnnouncementAudience.CLASS_SECTION:
+            found = ClassSection.objects.filter(pk=target, school_class__academic_year__school_id=school_id).exists()
+        elif audience == AnnouncementAudience.DEPARTMENT:
+            found = Department.objects.filter(pk=target, school_id=school_id).exists()
+        else:
+            found = True
+
+        if not found:
+            raise serializers.ValidationError("That class or department does not belong to this school.")
+
+        return target
+
+    def validate_expires_at(self, value):
+        if value is None:
+            return None
+
+        problems = []
+
+        try:
+            day = LaravelDateField("expires_at").to_internal_value(value)
+        except serializers.ValidationError:
+            day = None
+            problems.append("The expires at field must be a valid date.")
+
+        # An unreadable date fails the "not in the past" rule as well, and
+        # Laravel says both.
+        if day is None or (self.school_today is not None and day < self.school_today):
+            problems.append("An expiry date cannot be in the past.")
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return day
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        attrs["school_id"] = self.resolved_school_id()
+
+        return attrs
 
 
 # -- leave ------------------------------------------------------------------

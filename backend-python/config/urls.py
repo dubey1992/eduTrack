@@ -19,6 +19,7 @@ from django.urls import path
 from school.views import (
     academic_config,
     academic_years,
+    announcements,
     attendance,
     auth,
     classes,
@@ -127,6 +128,10 @@ urlpatterns = [
     path("api/v1/inbox/unread-count", inbox.unread_count),
     path("api/v1/inbox/read-all", inbox.read_all),
     path("api/v1/inbox/<int:message_id>/read", inbox.read),
+    # -- announcements -----------------------------------------------------
+    path("api/v1/announcements", announcements.collection),
+    path("api/v1/announcements/preview", announcements.preview),
+    path("api/v1/announcements/<int:announcement_id>", announcements.detail),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

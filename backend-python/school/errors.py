@@ -213,6 +213,25 @@ class MessageNotRetryable(ApiError):
     error_code = "MESSAGE_NOT_RETRYABLE"
 
 
+class UnreachableAudience(ApiError):
+    """An announcement that would reach nobody. Refused rather than recorded
+    as sent to zero people, which would read as if something went out."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "UNREACHABLE_AUDIENCE"
+
+
+class UnprocessableRequest(ApiError):
+    """Laravel's bare `abort(422)`: no validator involved, so no field
+    errors - just the framework's generic sentence under a generic code."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "HTTP_ERROR"
+
+    def __init__(self) -> None:
+        super().__init__("An error occurred while processing the request.")
+
+
 def envelope(status_code: int, code: str, message: str, details: dict | None = None) -> Response:
     return Response(
         {
