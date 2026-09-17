@@ -15,8 +15,11 @@ from django.db.models import Count, F, Min, Q, Sum
 from django.utils import timezone
 
 from . import hashing, jobs, money, notifications, queue, sms, tokens, working_hours
-from .clock import SchoolClock
+from .clock import TIME, SchoolClock
 from .enums import (
+    TripEventType,
+    TripRiderStatus,
+    TripStatus,
     TransportStatus,
     AnnouncementAudience,
     AnnouncementChannels,
@@ -46,6 +49,7 @@ from .errors import (
     TeacherScheduleConflict,
     UnreachableAudience,
     RouteCapacityFull,
+    TripRule,
     TeachingReportAlreadyReviewed,
     TeachingReportAlreadySubmitted,
     TeachingReportOnHoliday,
@@ -82,6 +86,8 @@ from .models import (
     TransportStop,
     TransportTrip,
     Vehicle,
+    TransportTripEvent,
+    TransportTripRider,
     User,
 )
 from .requests import php_int
@@ -2113,7 +2119,16 @@ class TransportRouteService:
         if StudentTransportAssignment.objects.filter(transport_stop_id=stop.pk).exists():
             raise HasDependentRecords("Students are still assigned to this stop. Move them to another stop first.")
 
-        stop.delete()
+        # A stop that trips have used can still go: riders and timeline events
+        # keep its name, and lose only the link. The real schema nulls those
+        # links itself (ON DELETE SET NULL); it is done here as well, in one
+        # transaction, because the test database has no such rule and a delete
+        # that only works in production is not a tested one.
+        with transaction.atomic():
+            TransportTrip.objects.filter(current_stop_id=stop.pk).update(current_stop=None)
+            TransportTripRider.objects.filter(stop_id=stop.pk).update(stop=None)
+            TransportTripEvent.objects.filter(stop_id=stop.pk).update(stop=None)
+            stop.delete()
 
 
 class StudentTransportService:
@@ -2152,6 +2167,254 @@ class StudentTransportService:
             .select_related("student__class_section__school_class", "transport_stop")
             # Two children called Aarav at the same stop are not unusual.
             .order_by("transport_stop__sequence_number", "student__first_name", "id")
+        )
+
+
+
+class TransportTripService:
+    """Running a bus trip: start it, reach its stops, board and drop its
+    riders, end or cancel it.
+
+    Each step that changes state is re-checked under a row lock, because the
+    person running it is tapping a phone on a moving bus: two taps on "Start",
+    or a board racing an end, must not both get through.
+    """
+
+    LIST = ("route", "vehicle", "driver", "current_stop", "school")
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        trips = SchoolScope.for_actor(actor).apply_to(
+            TransportTrip.objects.select_related(*cls.LIST).annotate(riders_count=Count("transporttriprider")),
+            filters.get("school_id"),
+        )
+
+        for field, column in (("route_id", "route_id"), ("date", "trip_date"), ("status", "status")):
+            if filters.get(field):
+                trips = trips.filter(**{column: filters[field]})
+
+        # Stored to the second, and a school's buses leave together.
+        return trips.order_by("-trip_date", "-started_at", "-id")
+
+    @staticmethod
+    def detail(trip_id: int) -> dict:
+        trip = TransportTrip.objects.select_related(
+            "route", "vehicle", "driver", "current_stop", "started_by", "school"
+        ).get(pk=trip_id)
+
+        return {
+            "trip": trip,
+            "riders": list(
+                TransportTripRider.objects.filter(trip_id=trip.pk)
+                .select_related("student__class_section__school_class")
+                .order_by("stop_sequence_number", "id")
+            ),
+            "events": list(
+                TransportTripEvent.objects.filter(trip_id=trip.pk).select_related("recorded_by").order_by("recorded_at", "id")
+            ),
+            "stops": list(TransportStop.objects.filter(route_id=trip.route_id).order_by("sequence_number")),
+        }
+
+    @classmethod
+    def start(cls, route, direction: str, actor: User) -> int:
+        # "Today" is the school's date. A 7am pickup in Kolkata happens on the
+        # previous UTC day.
+        today = SchoolClock.for_school(route.school_id).now().date()
+        vehicle = route.vehicle if route.vehicle_id else None
+        driver = route.driver if route.driver_id else None
+
+        if (
+            route.status != TransportStatus.ACTIVE
+            or vehicle is None or driver is None
+            or vehicle.status != TransportStatus.ACTIVE or driver.status != TransportStatus.ACTIVE
+        ):
+            raise TripRule.route_not_ready(route.name)
+
+        if not HolidayService.is_working_day(route.school_id, today):
+            raise TripRule.non_working_day()
+
+        cls.assert_route_is_free(route, direction, today)
+
+        with transaction.atomic():
+            # Two taps on "Start Trip" must not both get past the checks.
+            TransportRoute.objects.select_for_update().filter(pk=route.pk).first()
+            cls.assert_route_is_free(route, direction, today)
+
+            now = timezone.now()
+            trip = TransportTrip.objects.create(
+                school_id=route.school_id, route_id=route.pk, vehicle_id=route.vehicle_id, driver_id=route.driver_id,
+                trip_date=today, direction=direction, status=TripStatus.IN_PROGRESS,
+                started_by_id=actor.id, started_at=now, created_at=now, updated_at=now,
+            )
+
+            riders = [
+                assignment
+                for assignment in StudentTransportAssignment.objects.filter(route_id=route.pk)
+                .select_related("student", "transport_stop")
+                # In a fixed order, so riders' ids follow the assignments.
+                .order_by("id")
+                if assignment.student.status == StudentStatus.ACTIVE
+            ]
+
+            for assignment in riders:
+                TransportTripRider.objects.create(
+                    trip_id=trip.pk, student_id=assignment.student_id, stop_id=assignment.transport_stop_id,
+                    stop_name=assignment.transport_stop.name, stop_sequence_number=assignment.transport_stop.sequence_number,
+                    status=TripRiderStatus.PENDING, created_at=now, updated_at=now,
+                )
+
+            cls.record(trip, TripEventType.STARTED, actor, note=f"Trip started with {len(riders)} students expected")
+
+        return trip.pk
+
+    @staticmethod
+    def assert_route_is_free(route, direction: str, today) -> None:
+        if TransportTrip.objects.filter(route_id=route.pk, status=TripStatus.IN_PROGRESS).exists():
+            raise TripRule.already_in_progress(route.name)
+
+        already = (
+            TransportTrip.objects.filter(route_id=route.pk, trip_date=today, direction=direction)
+            .exclude(status=TripStatus.CANCELLED)
+            .exists()
+        )
+
+        if already:
+            raise TripRule.already_exists(route.name, direction)
+
+    @staticmethod
+    def locked(trip):
+        return TransportTrip.objects.select_for_update().get(pk=trip.pk)
+
+    @staticmethod
+    def assert_in_progress(trip) -> None:
+        if trip.status != TripStatus.IN_PROGRESS:
+            raise TripRule.not_in_progress()
+
+    @classmethod
+    def reach_stop(cls, trip, stop, actor: User) -> None:
+        cls.assert_in_progress(trip)
+
+        with transaction.atomic():
+            cls.assert_in_progress(cls.locked(trip))
+
+            trip.current_stop_id = stop.pk
+            trip.updated_at = timezone.now()
+            trip.save(update_fields=["current_stop", "updated_at"])
+
+            cls.record(trip, TripEventType.STOP_REACHED, actor, stop=stop)
+
+    @classmethod
+    def update_rider(cls, trip, student, status: str, actor: User) -> None:
+        cls.assert_in_progress(trip)
+
+        rider = TransportTripRider.objects.get(trip_id=trip.pk, student_id=student.pk)
+
+        if not TripRiderStatus.can_become(rider.status, status):
+            raise TripRule.invalid_rider_change(rider.status, status)
+
+        with transaction.atomic():
+            cls.assert_in_progress(cls.locked(trip))
+
+            # Re-read under a lock: two quick taps must not board the same
+            # student twice, or race a concurrent drop.
+            rider = TransportTripRider.objects.select_for_update().get(pk=rider.pk)
+
+            if not TripRiderStatus.can_become(rider.status, status):
+                raise TripRule.invalid_rider_change(rider.status, status)
+
+            now = timezone.now()
+            rider.status = status
+            rider.boarded_at = now if status == TripRiderStatus.BOARDED else rider.boarded_at
+            rider.dropped_at = now if status == TripRiderStatus.DROPPED else rider.dropped_at
+            rider.updated_at = now
+            rider.save(update_fields=["status", "boarded_at", "dropped_at", "updated_at"])
+
+            current_stop = TransportStop.objects.filter(pk=trip.current_stop_id).first() if trip.current_stop_id else None
+            cls.record(trip, status, actor, stop=current_stop, student=student)
+
+            cls.alert_guardian(trip, rider, status, student, actor)
+
+    @staticmethod
+    def alert_guardian(trip, rider, status: str, student, actor: User) -> None:
+        event = {
+            TripRiderStatus.BOARDED: MessageEvent.TRANSPORT_BOARDED,
+            TripRiderStatus.DROPPED: MessageEvent.TRANSPORT_DROPPED,
+            TripRiderStatus.ABSENT: MessageEvent.TRANSPORT_ABSENT,
+        }[status]
+
+        notifications.notify_guardian(
+            event,
+            student,
+            {
+                # The moment it happened, on the school's clock.
+                "time": SchoolClock.for_school(trip.school_id).format(timezone.now(), TIME),
+                "stop_name": rider.stop_name,
+                "vehicle_name": trip.vehicle.name,
+                "route_name": trip.route.name,
+                "direction": trip.direction,
+                "date": trip.trip_date.strftime("%m/%d/%Y"),
+            },
+            actor,
+        )
+
+    @classmethod
+    def end(cls, trip, actor: User) -> None:
+        cls.assert_in_progress(trip)
+        cls.assert_nobody_on_board(trip)
+
+        with transaction.atomic():
+            cls.assert_in_progress(cls.locked(trip))
+            # Somebody may have boarded between the check above and here.
+            cls.assert_nobody_on_board(trip, lock=True)
+
+            now = timezone.now()
+            marked_absent = TransportTripRider.objects.filter(
+                trip_id=trip.pk, status=TripRiderStatus.PENDING
+            ).update(status=TripRiderStatus.ABSENT, updated_at=now)
+
+            trip.status = TripStatus.COMPLETED
+            trip.ended_at = now
+            trip.updated_at = now
+            trip.save(update_fields=["status", "ended_at", "updated_at"])
+
+            note = f"Trip completed; {marked_absent} marked absent" if marked_absent > 0 else "Trip completed"
+            cls.record(trip, TripEventType.COMPLETED, actor, note=note)
+
+    @classmethod
+    def cancel(cls, trip, actor: User) -> None:
+        cls.assert_in_progress(trip)
+
+        with transaction.atomic():
+            cls.assert_in_progress(cls.locked(trip))
+
+            now = timezone.now()
+            trip.status = TripStatus.CANCELLED
+            trip.ended_at = now
+            trip.updated_at = now
+            trip.save(update_fields=["status", "ended_at", "updated_at"])
+
+            cls.record(trip, TripEventType.CANCELLED, actor, note="Trip cancelled")
+
+    @staticmethod
+    def assert_nobody_on_board(trip, lock: bool = False) -> None:
+        riders = TransportTripRider.objects.filter(trip_id=trip.pk, status=TripRiderStatus.BOARDED)
+
+        # Rows read and counted under the lock, not a locked count: PostgreSQL
+        # refuses FOR UPDATE on an aggregate.
+        on_board = len(riders.select_for_update().values_list("id", flat=True)) if lock else riders.count()
+
+        if on_board > 0:
+            raise TripRule.riders_on_board(on_board)
+
+    @staticmethod
+    def record(trip, event_type: str, actor: User, stop=None, student=None, note=None) -> None:
+        now = timezone.now()
+
+        TransportTripEvent.objects.create(
+            school_id=trip.school_id, trip_id=trip.pk, type=event_type,
+            stop_id=stop.pk if stop else None, stop_name=stop.name if stop else None,
+            student_id=student.pk if student else None, student_name=student.name if student else None,
+            recorded_by_id=actor.id, recorded_at=now, note=note, created_at=now, updated_at=now,
         )
 
 

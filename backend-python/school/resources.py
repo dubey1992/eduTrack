@@ -398,6 +398,109 @@ def route_student_resource(assignment) -> dict:
     }
 
 
+def transport_trip_resource(trip, riders_count=None, riders=None, events=None, stops=None) -> dict:
+    """One trip. The list passes a count; the detail passes the riders, the
+    events and the route's stops, and only then do the per-status counts,
+    `stops_left` and those three lists appear - as Laravel's resource adds
+    them only when the relations are loaded."""
+    clock = SchoolClock.for_school(trip.school if loaded(trip, "school") else trip.school_id)
+
+    body = {
+        "id": trip.id,
+        "school_id": trip.school_id,
+        "route_id": trip.route_id,
+        "route_name": trip.route.name,
+        "route_label": f"{trip.vehicle.name} - {trip.route.name}",
+        "vehicle_id": trip.vehicle_id,
+        "vehicle_name": trip.vehicle.name,
+        "vehicle_registration_number": trip.vehicle.registration_number,
+        "driver_id": trip.driver_id,
+        "driver_name": trip.driver.name,
+        "driver_mobile": trip.driver.mobile,
+        "trip_date": trip.trip_date.isoformat(),
+        "direction": trip.direction,
+        "status": trip.status,
+        "current_stop_id": trip.current_stop_id,
+        "current_stop_name": trip.current_stop.name if trip.current_stop_id else None,
+    }
+
+    if riders is not None:
+        body["started_by_name"] = trip.started_by.name
+
+    body.update({
+        "started_at": timestamp(trip.started_at),
+        "ended_at": timestamp(trip.ended_at),
+        "started_at_label": clock.format(trip.started_at, TIME),
+        "ended_at_label": clock.format(trip.ended_at, TIME),
+        "timezone": clock.timezone(),
+        "riders_count": len(riders) if riders is not None else riders_count,
+    })
+
+    if riders is None:
+        return body
+
+    for status in ("pending", "boarded", "dropped", "absent"):
+        body[f"{status}_count"] = sum(1 for rider in riders if rider.status == status)
+
+    reached = list(dict.fromkeys(
+        event.stop_id for event in events if event.type == "stop_reached" and event.stop_id is not None
+    ))
+
+    body["stops_left"] = sum(1 for stop in stops if stop.id not in reached)
+    body["riders"] = [trip_rider_resource(rider, clock) for rider in riders]
+    body["events"] = [trip_event_resource(event, clock) for event in events]
+    body["stops"] = [
+        {
+            "id": stop.id,
+            "name": stop.name,
+            "sequence_number": stop.sequence_number,
+            "pickup_time": stop.pickup_time.strftime("%H:%M") if stop.pickup_time else None,
+            "drop_time": stop.drop_time.strftime("%H:%M") if stop.drop_time else None,
+            "reached": stop.id in reached,
+        }
+        for stop in stops
+    ]
+
+    return body
+
+
+def trip_rider_resource(rider, clock) -> dict:
+    student = rider.student
+    section = student.class_section
+
+    return {
+        "student_id": rider.student_id,
+        "admission_number": student.admission_number,
+        "name": student.name,
+        "class_section_name": None if section is None else f"{section.school_class.name} {section.name}".strip(),
+        "guardian_name": student.guardian_name,
+        "guardian_mobile": student.guardian_mobile,
+        "stop_id": rider.stop_id,
+        "stop_name": rider.stop_name,
+        "stop_sequence_number": rider.stop_sequence_number,
+        "status": rider.status,
+        "boarded_at": timestamp(rider.boarded_at),
+        "dropped_at": timestamp(rider.dropped_at),
+        "boarded_at_label": clock.format(rider.boarded_at, TIME),
+        "dropped_at_label": clock.format(rider.dropped_at, TIME),
+    }
+
+
+def trip_event_resource(event, clock) -> dict:
+    return {
+        "id": event.id,
+        "type": event.type,
+        "stop_id": event.stop_id,
+        "stop_name": event.stop_name,
+        "student_id": event.student_id,
+        "student_name": event.student_name,
+        "recorded_by_name": event.recorded_by.name,
+        "recorded_at": timestamp(event.recorded_at),
+        "recorded_at_label": clock.format(event.recorded_at, TIME),
+        "note": event.note,
+    }
+
+
 def staff_profile_resource(profile, class_teacher_of=None) -> dict:
     """An employee: their employment record and the login behind it.
 

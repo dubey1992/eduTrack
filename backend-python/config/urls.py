@@ -38,6 +38,7 @@ from school.views import (
     timetable,
     timezones,
     transport,
+    trips,
     users,
 )
 
@@ -144,6 +145,13 @@ urlpatterns = [
     path("api/v1/transport/routes/<int:route_id>/stops", transport.add_stop),
     path("api/v1/transport/stops/<int:stop_id>", transport.stop),
     path("api/v1/students/<int:student_id>/transport", transport.student_transport),
+    # -- transport trips ---------------------------------------------------
+    path("api/v1/transport/trips", trips.collection),
+    path("api/v1/transport/trips/<int:trip_id>", trips.detail),
+    path("api/v1/transport/trips/<int:trip_id>/stops/<int:stop_id>/reached", trips.reach_stop),
+    path("api/v1/transport/trips/<int:trip_id>/riders/<int:student_id>", trips.rider),
+    path("api/v1/transport/trips/<int:trip_id>/end", trips.end),
+    path("api/v1/transport/trips/<int:trip_id>/cancel", trips.cancel),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

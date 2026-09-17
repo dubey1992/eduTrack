@@ -322,3 +322,40 @@ class AnnouncementChannels(models.TextChoices):
 class TransportStatus(models.TextChoices):
     ACTIVE = "active"
     INACTIVE = "inactive"
+
+
+class TripDirection(models.TextChoices):
+    PICKUP = "pickup"
+    DROP = "drop"
+
+
+class TripStatus(models.TextChoices):
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class TripEventType(models.TextChoices):
+    STARTED = "started"
+    STOP_REACHED = "stop_reached"
+    BOARDED = "boarded"
+    DROPPED = "dropped"
+    ABSENT = "absent"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class TripRiderStatus(models.TextChoices):
+    PENDING = "pending"
+    BOARDED = "boarded"
+    DROPPED = "dropped"
+    ABSENT = "absent"
+
+    @classmethod
+    def can_become(cls, current: str, following: str) -> bool:
+        """Pending boards or is absent; boarded is dropped; dropped and absent
+        are final."""
+        return following in {
+            cls.PENDING: (cls.BOARDED, cls.ABSENT),
+            cls.BOARDED: (cls.DROPPED,),
+        }.get(current, ())

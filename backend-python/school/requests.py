@@ -21,6 +21,8 @@ import re
 
 from . import hashing, notifications, sms
 from .enums import (
+    TripDirection,
+    TripRiderStatus,
     TransportStatus,
     AnnouncementAudience,
     AnnouncementChannels,
@@ -1534,6 +1536,37 @@ class AssignStudentTransportRequest(serializers.Serializer):
             raise serializers.ValidationError("The selected stop is not on the selected route.")
 
         return value
+
+
+# -- transport trips --------------------------------------------------------
+
+
+class StartTripRequest(ScopedSerializer):
+    route_id = LaravelIntegerField("route_id")
+    direction = LaravelCharField("direction", max_length=255)
+
+    def validate_route_id(self, value):
+        if not self.scope.apply_to(TransportRoute.objects.filter(pk=value)).exists():
+            raise serializers.ValidationError("The selected route does not belong to this school.")
+
+        return value
+
+    validate_direction = staticmethod(enum_choice("direction", TripDirection.values))
+
+
+class UpdateTripRiderRequest(serializers.Serializer):
+    # "pending" is the starting state, never something a person sets.
+    status = LaravelCharField("status", max_length=255)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    validate_status = staticmethod(enum_choice(
+        "status", (TripRiderStatus.BOARDED, TripRiderStatus.DROPPED, TripRiderStatus.ABSENT)
+    ))
 
 
 # -- leave ------------------------------------------------------------------

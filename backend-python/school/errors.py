@@ -241,6 +241,47 @@ class RouteCapacityFull(ApiError):
     error_code = "ROUTE_CAPACITY_FULL"
 
 
+class TripRule(ApiError):
+    """A rule of running a bus trip. One class, several codes, as Laravel's
+    TripRuleException has them - each named by the constructor below it."""
+
+    status_code = status.HTTP_409_CONFLICT
+
+    def __init__(self, code: str, message: str) -> None:
+        self.error_code = code
+        super().__init__(message)
+
+    @classmethod
+    def route_not_ready(cls, route_name: str):
+        return cls("ROUTE_NOT_READY", f"{route_name} needs an active vehicle and driver before a trip can start.")
+
+    @classmethod
+    def non_working_day(cls):
+        return cls("TRIP_ON_NON_WORKING_DAY", "Trips do not run on weekends or holidays.")
+
+    @classmethod
+    def already_in_progress(cls, route_name: str):
+        return cls("TRIP_ALREADY_IN_PROGRESS", f"{route_name} already has a trip in progress. End or cancel it first.")
+
+    @classmethod
+    def already_exists(cls, route_name: str, direction: str):
+        return cls("TRIP_ALREADY_EXISTS", f"Today's {direction} trip for {route_name} has already been run.")
+
+    @classmethod
+    def not_in_progress(cls):
+        return cls("TRIP_NOT_IN_PROGRESS", "This trip is no longer in progress.")
+
+    @classmethod
+    def riders_on_board(cls, count: int):
+        noun = "student is" if count == 1 else "students are"
+
+        return cls("TRIP_RIDERS_ON_BOARD", f"{count} {noun} still on board. Drop them off before ending the trip.")
+
+    @classmethod
+    def invalid_rider_change(cls, current: str, following: str):
+        return cls("INVALID_RIDER_STATUS_CHANGE", f"A {current} student cannot be marked {following}.")
+
+
 def envelope(status_code: int, code: str, message: str, details: dict | None = None) -> Response:
     return Response(
         {

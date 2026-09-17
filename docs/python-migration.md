@@ -969,7 +969,7 @@ Sliced in dependency order, so each slice only builds on what already exists.
 | 4 | Communication and the in-app inbox | 13 | **Done** |
 | 5 | Announcements | 5 | **Done** |
 | 6 | Transport master data and student assignment | 21 | **Done** |
-| 7 | Transport trips | 7 | Not started |
+| 7 | Transport trips | 7 | **Done** |
 | 8 | Early access, forgot and reset password | 6 | Not started |
 | 9 | Dashboard and the four reports | 5 | Not started |
 
@@ -1168,6 +1168,37 @@ Django's idea of the schema, not the schema.
 Compared live on 48 reads and refusals, and on a full build-and-tear-down -
 vehicle, driver, route, stop, a rider moved on and back, and every delete -
 identical, type-strict, with ids masked.
+
+### Transport trips
+
+Starting a trip, reaching its stops, boarding and dropping its riders, ending
+or cancelling it. A route runs one trip per direction per day, one at a time,
+on a working day at the school, with an active vehicle and driver; a rider
+boards then drops, or is absent, and never goes back; a trip does not end with
+anybody aboard, and ending it marks everybody who never boarded absent. Every
+state change is re-checked under a row lock, because it is somebody on a bus
+tapping a phone. Guardians are told, on the school's clock.
+
+**Two more orderings made fixed, on both backends.** The trip list ordered by
+date and start time, stored to the second - and a school's buses leave
+together; PostgreSQL paged `1,1,3,4,5,6`. And a trip's riders ordered by stop
+alone, created from an unordered query, so the riders at one stop came back in
+whatever order the database chose. Riders are now created in assignment order
+and read back by stop and then id.
+
+**The test database has no SET NULL either.** Deleting a stop nulls three
+references to it in the real schema - a trip's current stop, a rider's stop,
+an event's stop - so that trip history keeps the stop's *name* after the stop
+is gone. The test database, built from the models, has no such rule, and the
+port's stop delete would have failed there. It clears the three references
+itself, in one transaction, the same as the route delete's stops.
+
+With this slice every transport endpoint is served by Python, and all 83
+contract tests covering the ported modules pass against it.
+
+Compared live by running a whole trip day through each backend on identical
+routes - 21 steps from a refused start to a finished trip that refuses
+everything - identical but for the two messages that name the route.
 
 ## M12 · The first deployment
 

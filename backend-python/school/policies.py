@@ -521,6 +521,33 @@ class TransportRoutePolicy(TransportMasterPolicy):
         )
 
 
+class TransportTripPolicy:
+    """Everybody in transport reads the day's trips; admins and the transport
+    manager run them - start, stop by stop, board, drop, end."""
+
+    MANAGE_ROLES = (*ADMIN_ROLES, UserRole.TRANSPORT_MANAGER)
+
+    @staticmethod
+    def same_school_or_super(actor: User, school_id) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(school_id)
+
+    @classmethod
+    def view_any(cls, actor: User) -> bool:
+        return actor.role in TRANSPORT_VIEW_ROLES
+
+    @classmethod
+    def view(cls, actor: User, trip) -> bool:
+        return cls.view_any(actor) and cls.same_school_or_super(actor, trip.school_id)
+
+    @classmethod
+    def create(cls, actor: User, route) -> bool:
+        return actor.role in cls.MANAGE_ROLES and cls.same_school_or_super(actor, route.school_id)
+
+    @classmethod
+    def manage(cls, actor: User, trip) -> bool:
+        return actor.role in cls.MANAGE_ROLES and cls.same_school_or_super(actor, trip.school_id)
+
+
 class StaffProfilePolicy:
     """Employment records.
 
