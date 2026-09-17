@@ -15,7 +15,7 @@
 | M8 Auth, tenancy, Students — **GATE** | **Passed** 2026-09-16 |
 | M9 Wave 1 — foundations | **Done** — 52 of 52 |
 | M10 Wave 2 — people and daily operations | **Done** — 20 of 20, plus the notification core |
-| M11 Wave 3 — derived and outbound | **Done** — 9 of 9 slices, contract suite green on both; Flutter against Python still to run |
+| M11 Wave 3 — derived and outbound | **Done** 2026-09-17 — contract suite green on both, Flutter suite and integration test pass against Django |
 | M12 onwards | Not started |
 
 **Answered at M0:** Django + DRF is the framework, and **hosting is cPanel**
@@ -1301,6 +1301,27 @@ and good rows (with each imported account signing in on both backends).
 ran: a route that completed a trip on Monday and was still in progress on
 Tuesday reads as one day run. Trips on non-working days also count toward it.
 Ported faithfully; changing it changes a figure schools read.
+
+### M11's done-when, checked
+
+The Flutter unit and widget suite passes, 705 of 705. Those tests mock the
+API, so they prove the app is intact rather than that Python serves it. The
+end-to-end test does: `integration_test/staff_leave_flow_test.dart`, driven in
+a visible Chrome through `flutter drive -d web-server --browser-name=chrome`
+with `--dart-define=API_BASE_URL` pointing at Django, passes - a teacher signs
+in, applies for leave and signs out, and the HOD signs in and approves it,
+every request answered by Django, with the leave mark written to staff
+attendance. The same run against Laravel passes too.
+
+It had to be repaired first, and not because of Python: it was written before
+logging out gained a confirmation dialog, tapped the icon and never confirmed,
+so the next sign-in could not find the form - against either backend. It now
+presses "Log out" in the dialog.
+
+Two things to know when running it: `-d chrome` hangs at "Waiting for
+connection from debug service", so use `-d web-server` with chromedriver on
+4444; and Django's `DJANGO_CORS_ORIGINS` has to include the `--web-port`
+origin, where Laravel's development CORS allows any.
 
 ## M12 · The first deployment
 

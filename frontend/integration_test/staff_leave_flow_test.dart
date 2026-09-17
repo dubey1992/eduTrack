@@ -41,6 +41,10 @@ void main() {
 
   Future<void> logout(WidgetTester tester) async {
     await tester.tap(find.byTooltip('Log out'));
+    await tester.pumpAndSettle();
+
+    // Logging out asks first (see app_shell.dart's _confirmLogout).
+    await tester.tap(find.widgetWithText(FilledButton, 'Log out'));
     await tester.pumpAndSettle(const Duration(seconds: 3));
   }
 
