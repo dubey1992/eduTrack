@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_repository.dart';
+import '../../support/paginated_table.dart';
 
 EarlyAccessRequest _request({
   int id = 1,
@@ -326,6 +327,15 @@ void main() {
       expect(find.textContaining('has been onboarded'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Save'), findsNothing);
       expect(find.widgetWithText(OutlinedButton, 'Onboard this school'), findsNothing);
+    });
+
+    testWidgets('a full page of requests scrolls above the pagination bar on desktop', (tester) async {
+      useShortDesktopWindow(tester);
+      final requests = [for (var n = 1; n <= 20; n++) _request(id: n, schoolName: 'School $n')];
+      await tester.pumpWidget(wrap(_FakeEarlyAccessRepository(requests: requests)));
+      await tester.pumpAndSettle();
+
+      await expectLastRowScrollsAbovePagination(tester, find.text('School 20'));
     });
   });
 

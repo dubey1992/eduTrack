@@ -9,6 +9,7 @@ import '../../../core/widgets/pagination_controls.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../imports/presentation/bulk_import_button.dart';
 import '../application/subject_list_notifier.dart';
@@ -132,11 +133,10 @@ class _SubjectListDesktop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Card(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        child: HorizontalScrollTable(
           child: DataTable(
             columns: const [
               DataColumn(label: Text('Code')),

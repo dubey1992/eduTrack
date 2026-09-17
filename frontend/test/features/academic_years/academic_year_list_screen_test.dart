@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_academic_year_repository.dart';
 import '../../support/fake_auth_repository.dart';
+import '../../support/paginated_table.dart';
 
 final _year = AcademicYear(
   id: 1,
@@ -136,5 +137,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No academic years set up yet.'), findsOneWidget);
+  });
+
+  testWidgets('a full page of academic years scrolls above the pagination bar on desktop', (tester) async {
+    useShortDesktopWindow(tester);
+    final years = [
+      for (var n = 1; n <= 20; n++)
+        AcademicYear(
+          id: n,
+          schoolId: 1,
+          schoolName: 'Sunrise Public School',
+          name: 'Year $n',
+          startDate: DateTime(2026, 4, 1),
+          endDate: DateTime(2027, 3, 31),
+          isCurrent: false,
+        ),
+    ];
+    await tester.pumpWidget(wrap(FakeAcademicYearRepository(years: years)));
+    await tester.pumpAndSettle();
+
+    await expectLastRowScrollsAbovePagination(tester, find.text('Year 20'));
   });
 }

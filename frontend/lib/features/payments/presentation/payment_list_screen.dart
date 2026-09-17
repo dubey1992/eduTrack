@@ -18,6 +18,7 @@ import 'add_payment_dialog.dart';
 import 'edit_payment_dialog.dart';
 import 'payment_receipt_dialog.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/horizontal_scroll_table.dart';
 
 class PaymentListScreen extends ConsumerStatefulWidget {
   const PaymentListScreen({super.key});
@@ -188,11 +189,10 @@ class _PaymentListDesktop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Card(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        child: HorizontalScrollTable(
           child: DataTable(
             columns: const [
               DataColumn(label: Text('School')),

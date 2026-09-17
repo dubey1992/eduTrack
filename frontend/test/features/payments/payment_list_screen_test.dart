@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_payment_repository.dart';
 import '../../support/fake_school_repository.dart';
+import '../../support/paginated_table.dart';
 
 final _payment = Payment(
   id: 1,
@@ -92,5 +93,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No payments recorded yet.'), findsOneWidget);
+  });
+
+  testWidgets('a full page of payments scrolls above the pagination bar on desktop', (tester) async {
+    useShortDesktopWindow(tester);
+    final payments = [
+      for (var n = 1; n <= 20; n++)
+        Payment(
+          id: n,
+          schoolId: n,
+          schoolName: 'School $n',
+          paymentType: PaymentType.setupFee,
+          amount: 25000,
+          paidAmount: 25000,
+          remainingAmount: 0,
+          currencyCode: 'INR',
+          paymentDate: DateTime(2026, 9, 1),
+          paymentMode: PaymentMode.bankTransfer,
+          referenceNumber: 'TXN-$n',
+          notes: null,
+          status: PaymentStatus.paid,
+          createdByName: 'Test Admin',
+        ),
+    ];
+    await tester.pumpWidget(wrap(FakePaymentRepository(payments: payments)));
+    await tester.pumpAndSettle();
+
+    await expectLastRowScrollsAbovePagination(tester, find.text('School 20'));
   });
 }

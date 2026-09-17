@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_school_repository.dart';
+import '../../support/paginated_table.dart';
 
 const _school = School(
   id: 1,
@@ -82,5 +83,32 @@ void main() {
 
     expect(find.text('Sunrise Public School'), findsOneWidget);
     expect(find.text('Could not load schools.'), findsNothing);
+  });
+
+  testWidgets('a full page of schools scrolls above the pagination bar on desktop', (tester) async {
+    useShortDesktopWindow(tester);
+    final schools = [
+      for (var n = 1; n <= 20; n++)
+        School(
+          id: n,
+          name: 'School $n',
+          registrationNumber: null,
+          email: 'admin$n@school.edu',
+          phone: '+91 98765 43210',
+          address: '12 School Road',
+          city: 'New Delhi',
+          state: 'Delhi',
+          country: 'India',
+          postalCode: '110001',
+          currencyCode: 'INR',
+          timezone: 'UTC',
+          logoUrl: null,
+          status: SchoolStatus.active,
+        ),
+    ];
+    await tester.pumpWidget(wrap(FakeSchoolRepository(schools: schools)));
+    await tester.pumpAndSettle();
+
+    await expectLastRowScrollsAbovePagination(tester, find.text('School 20'));
   });
 }

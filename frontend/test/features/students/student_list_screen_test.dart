@@ -18,6 +18,7 @@ import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_class_repository.dart';
 import '../../support/fake_student_repository.dart';
 import '../../support/fake_transport_repository.dart';
+import '../../support/paginated_table.dart';
 
 final _student = Student(
   id: 1,
@@ -269,5 +270,32 @@ void main() {
 
     expect(find.text('Could not load students.'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('a full page of students scrolls above the pagination bar on desktop', (tester) async {
+    useShortDesktopWindow(tester);
+    final students = [
+      for (var n = 1; n <= 20; n++)
+        Student(
+          id: n,
+          schoolId: 1,
+          schoolName: 'Sunrise Public School',
+          classSectionId: 1,
+          classSectionName: 'Grade 8 A',
+          admissionNumber: 'STU-$n',
+          firstName: 'Student',
+          lastName: 'Number $n',
+          name: 'Student Number $n',
+          rollNumber: '$n',
+          guardianName: 'Guardian $n',
+          guardianMobile: '9876543210',
+          address: null,
+          status: StudentStatus.active,
+        ),
+    ];
+    await tester.pumpWidget(wrap(FakeStudentRepository(students: students)));
+    await tester.pumpAndSettle();
+
+    await expectLastRowScrollsAbovePagination(tester, find.text('Student Number 20'));
   });
 }

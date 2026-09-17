@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_staff_leave_repository.dart';
+import '../../support/paginated_table.dart';
 
 const _teacher = AuthenticatedUser(id: 1, name: 'Priya Sharma', email: 'priya@example.com', role: UserRole.teacher);
 const _schoolAdmin = AuthenticatedUser(id: 9, name: 'Admin', email: 'admin@example.com', role: UserRole.schoolAdmin);
@@ -131,5 +132,31 @@ void main() {
 
     expect(fake.lastApplyPayload, isNotNull);
     expect(find.text('Leave request approved automatically.'), findsOneWidget);
+  });
+  testWidgets('a full page of leave scrolls above the pagination bar on desktop', (tester) async {
+    useShortDesktopWindow(tester);
+    final leaves = [
+      for (var n = 1; n <= 20; n++)
+        StaffLeave(
+          id: n,
+          schoolId: 1,
+          staffProfileId: n,
+          employeeId: 'EMP-$n',
+          staffName: 'Staff Member $n',
+          departmentName: 'Mathematics',
+          leaveType: LeaveType.casual,
+          startDate: '2026-09-15',
+          endDate: '2026-09-16',
+          reason: 'Family function.',
+          status: LeaveStatus.approved,
+          appliedByName: 'Staff Member $n',
+          reviewedByName: null,
+          reviewRemarks: null,
+        ),
+    ];
+    await tester.pumpWidget(wrap(_schoolAdmin, staffLeave: FakeStaffLeaveRepository(leaves: leaves)));
+    await tester.pumpAndSettle();
+
+    await expectLastRowScrollsAbovePagination(tester, find.text('Staff Member 20'));
   });
 }

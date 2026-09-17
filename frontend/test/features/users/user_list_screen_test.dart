@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_user_repository.dart';
+import '../../support/paginated_table.dart';
 
 const _superAdmin = AuthenticatedUser(id: 99, name: 'Actor', email: 'actor@example.com', role: UserRole.superAdmin);
 const _schoolAdmin = AuthenticatedUser(id: 5, name: 'Admin', email: 'admin@example.com', role: UserRole.schoolAdmin);
@@ -198,5 +199,26 @@ void main() {
 
     expect(find.text('Inactive'), findsOneWidget);
     expect(find.text('Activate'), findsOneWidget);
+  });
+
+  testWidgets('a full page of users scrolls above the pagination bar on desktop', (tester) async {
+    useShortDesktopWindow(tester);
+    final users = [
+      for (var n = 1; n <= 20; n++)
+        AppUser(
+          id: n,
+          firstName: 'User',
+          lastName: 'Number $n',
+          name: 'User Number $n',
+          email: 'user$n@example.com',
+          mobile: null,
+          role: UserRole.teacher,
+          status: UserStatus.active,
+        ),
+    ];
+    await tester.pumpWidget(wrap(FakeUserRepository(users: users)));
+    await tester.pumpAndSettle();
+
+    await expectLastRowScrollsAbovePagination(tester, find.text('User Number 20'));
   });
 }

@@ -11,6 +11,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/staff_leave_list_notifier.dart';
 import '../application/staff_leave_summary_notifier.dart';
@@ -267,11 +268,10 @@ class _LeaveListDesktop extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Card(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        child: HorizontalScrollTable(
           child: DataTable(
             columns: const [
               DataColumn(label: Text('Staff')),

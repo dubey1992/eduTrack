@@ -138,36 +138,38 @@ class _RequestTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return HorizontalScrollTable(
-      child: DataTable(
-        columnSpacing: 22,
-        horizontalMargin: 20,
-        columns: const [
-          DataColumn(label: Text('School')),
-          DataColumn(label: Text('Contact')),
-          DataColumn(label: Text('Location')),
-          DataColumn(label: Text('Students'), numeric: true),
-          DataColumn(label: Text('Received')),
-          DataColumn(label: Text('Status')),
-          DataColumn(label: Text('Action')),
-        ],
-        rows: [
-          for (final request in requests)
-            DataRow(
-              cells: [
-                DataCell(Text(request.schoolName)),
-                DataCell(Text('${request.contactName}\n${request.email}')),
-                DataCell(Text(request.location)),
-                // A dash, not a zero: not knowing is different from none.
-                DataCell(Text(request.expectedStudents?.toString() ?? '-')),
-                DataCell(Text(request.submittedAt)),
-                DataCell(EarlyAccessStatusBadge(status: request.status)),
-                DataCell(
-                  TextButton(onPressed: () => showEarlyAccessDetail(context, request), child: const Text('View')),
-                ),
-              ],
-            ),
-        ],
+    return SingleChildScrollView(
+      child: HorizontalScrollTable(
+        child: DataTable(
+          columnSpacing: 22,
+          horizontalMargin: 20,
+          columns: const [
+            DataColumn(label: Text('School')),
+            DataColumn(label: Text('Contact')),
+            DataColumn(label: Text('Location')),
+            DataColumn(label: Text('Students'), numeric: true),
+            DataColumn(label: Text('Received')),
+            DataColumn(label: Text('Status')),
+            DataColumn(label: Text('Action')),
+          ],
+          rows: [
+            for (final request in requests)
+              DataRow(
+                cells: [
+                  DataCell(Text(request.schoolName)),
+                  DataCell(Text('${request.contactName}\n${request.email}')),
+                  DataCell(Text(request.location)),
+                  // A dash, not a zero: not knowing is different from none.
+                  DataCell(Text(request.expectedStudents?.toString() ?? '-')),
+                  DataCell(Text(request.submittedAt)),
+                  DataCell(EarlyAccessStatusBadge(status: request.status)),
+                  DataCell(
+                    TextButton(onPressed: () => showEarlyAccessDetail(context, request), child: const Text('View')),
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }

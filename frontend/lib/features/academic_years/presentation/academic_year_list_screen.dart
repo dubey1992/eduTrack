@@ -16,6 +16,7 @@ import '../data/models/academic_year.dart';
 import 'add_academic_year_dialog.dart';
 import 'edit_academic_year_dialog.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/horizontal_scroll_table.dart';
 
 const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
@@ -136,11 +137,10 @@ class _AcademicYearListDesktop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Card(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        child: HorizontalScrollTable(
           child: DataTable(
             columns: const [
               DataColumn(label: Text('Name')),

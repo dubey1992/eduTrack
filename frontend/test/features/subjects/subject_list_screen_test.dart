@@ -19,6 +19,7 @@ import '../../support/fake_auth_repository.dart';
 import '../../support/fake_department_repository.dart';
 import '../../support/fake_subject_repository.dart';
 import '../../support/fake_user_repository.dart';
+import '../../support/paginated_table.dart';
 
 const _department = Department(
   id: 2,
@@ -151,5 +152,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No subjects set up yet.'), findsOneWidget);
+  });
+
+  testWidgets('a full page of subjects scrolls above the pagination bar on desktop', (tester) async {
+    useShortDesktopWindow(tester);
+    final subjects = [
+      for (var n = 1; n <= 20; n++)
+        Subject(
+          id: n,
+          schoolId: 1,
+          schoolName: 'Sunrise Public School',
+          departmentId: 2,
+          departmentName: 'Mathematics',
+          code: 'SUB$n',
+          name: 'Subject $n',
+          minClassLevel: 7,
+          maxClassLevel: 10,
+          leadTeacherId: 9,
+          leadTeacherName: 'Priya Sharma',
+        ),
+    ];
+    await tester.pumpWidget(wrap(FakeSubjectRepository(subjects: subjects)));
+    await tester.pumpAndSettle();
+
+    await expectLastRowScrollsAbovePagination(tester, find.text('Subject 20'));
   });
 }

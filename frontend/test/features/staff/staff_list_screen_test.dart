@@ -20,6 +20,7 @@ import '../../support/fake_auth_repository.dart';
 import '../../support/fake_department_repository.dart';
 import '../../support/fake_staff_repository.dart';
 import '../../support/fake_user_repository.dart';
+import '../../support/paginated_table.dart';
 
 final _teacher = StaffProfile(
   id: 1,
@@ -241,5 +242,36 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No teachers or staff added yet.'), findsOneWidget);
+  });
+
+  testWidgets('a full page of staff scrolls above the pagination bar on desktop', (tester) async {
+    useShortDesktopWindow(tester);
+    final staff = [
+      for (var n = 1; n <= 20; n++)
+        StaffProfile(
+          id: n,
+          userId: n,
+          employeeId: 'TCH-$n',
+          firstName: 'Staff',
+          lastName: 'Member $n',
+          name: 'Staff Member $n',
+          email: 'staff$n@example.com',
+          mobile: '9876543210',
+          role: UserRole.teacher,
+          status: UserStatus.active,
+          schoolId: 1,
+          schoolName: 'Sunrise Public School',
+          departmentId: 1,
+          departmentName: 'Mathematics',
+          designation: null,
+          joiningDate: DateTime(2024, 6, 1),
+          address: null,
+          classTeacherOf: const [],
+        ),
+    ];
+    await tester.pumpWidget(wrap(FakeStaffRepository(staff: staff)));
+    await tester.pumpAndSettle();
+
+    await expectLastRowScrollsAbovePagination(tester, find.text('Staff Member 20'));
   });
 }
