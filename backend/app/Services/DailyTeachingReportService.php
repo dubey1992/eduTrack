@@ -77,6 +77,9 @@ class DailyTeachingReportService
             ->when($filters['report_date'] ?? null, fn ($query, $date) => $query->where('report_date', $date))
             ->orderByDesc('report_date')
             ->orderBy('teacher_id')
+            // A teacher files one report per period, so a teacher and a date
+            // tie on every row of a busy day - id keeps paging honest.
+            ->orderBy('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 

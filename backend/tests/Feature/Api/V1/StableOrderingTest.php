@@ -7,12 +7,15 @@ use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\ClassSection;
 use App\Models\Holiday;
+use App\Models\Period;
+use App\Models\DailyTeachingReport;
 use App\Models\Department;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\StaffLeave;
 use App\Models\StaffProfile;
 use App\Models\Subject;
+use App\Models\TimetableEntry;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -236,6 +239,48 @@ class StableOrderingTest extends TestCase
         }
 
         $this->assertEachRecordAppearsOnce('/api/v1/leaves', 6);
+    }
+
+    public function test_paging_through_one_teachers_reports_for_a_day_shows_each_once(): void
+    {
+        // One report per period: a teacher with six periods on a Monday files
+        // six reports that share a teacher and a date.
+        $year = AcademicYear::factory()->create(['school_id' => $this->school->id]);
+        $class = SchoolClass::factory()->create(['school_id' => $this->school->id, 'academic_year_id' => $year->id]);
+        $section = ClassSection::factory()->create(['school_class_id' => $class->id]);
+        $department = Department::factory()->create(['school_id' => $this->school->id]);
+        $subject = Subject::factory()->create(['school_id' => $this->school->id, 'department_id' => $department->id]);
+        $teacher = User::factory()->role(UserRole::Teacher)->forSchool($this->school)->create();
+
+        foreach (range(1, 6) as $number) {
+            $entry = TimetableEntry::factory()->create([
+                'school_id' => $this->school->id,
+                'class_section_id' => $section->id,
+                // Not the factory: it draws period numbers from a unique pool
+                // of eight shared across the whole run.
+                'period_id' => Period::query()->create([
+                    'school_id' => $this->school->id,
+                    'period_number' => $number,
+                    'start_time' => sprintf('%02d:00', 7 + $number),
+                    'end_time' => sprintf('%02d:45', 7 + $number),
+                ])->id,
+                'day_of_week' => 'monday',
+                'subject_id' => $subject->id,
+                'teacher_id' => $teacher->id,
+            ]);
+
+            // Directly for the same reason: the report factory builds a
+            // timetable entry, and so a period, of its own on every call.
+            DailyTeachingReport::query()->create([
+                'school_id' => $this->school->id,
+                'timetable_entry_id' => $entry->id,
+                'teacher_id' => $teacher->id,
+                'report_date' => '2026-09-14',
+                'topic_taught' => 'Linear equations',
+            ]);
+        }
+
+        $this->assertEachRecordAppearsOnce('/api/v1/teaching-reports', 6);
     }
 
     /**
