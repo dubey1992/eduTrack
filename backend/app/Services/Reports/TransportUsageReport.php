@@ -33,14 +33,15 @@ class TransportUsageReport implements CombinesTotals
             ->get();
 
         $trips = $this->tripsByRoute($range);
+        $daysRun = $this->daysRunByRoute($range);
         $riders = $this->ridersByRoute($range);
 
-        $rows = $routes->map(function (TransportRoute $route) use ($trips, $riders, $range) {
+        $rows = $routes->map(function (TransportRoute $route) use ($trips, $daysRun, $riders, $range) {
             $routeTrips = $trips->get($route->id, collect());
             $completed = (int) $routeTrips->where('status_value', TripStatus::Completed->value)->sum('total');
             $cancelled = (int) $routeTrips->where('status_value', TripStatus::Cancelled->value)->sum('total');
             $inProgress = (int) $routeTrips->where('status_value', TripStatus::InProgress->value)->sum('total');
-            $daysRun = (int) ($routeTrips->max('days') ?? 0);
+            $routeDaysRun = (int) ($daysRun[$route->id] ?? 0);
             $counts = $riders->get($route->id, collect());
 
             return [
@@ -49,10 +50,10 @@ class TransportUsageReport implements CombinesTotals
                 'vehicle' => $route->vehicle?->name,
                 'driver' => $route->driver?->name,
                 'working_days' => $range->workingDayCount(),
-                'days_run' => $daysRun,
+                'days_run' => $routeDaysRun,
                 // Working days on which this route never started a trip at
                 // all - the figure that says a bus quietly stopped running.
-                'days_not_run' => max(0, $range->workingDayCount() - $daysRun),
+                'days_not_run' => max(0, $range->workingDayCount() - $routeDaysRun),
                 'trips_completed' => $completed,
                 'trips_cancelled' => $cancelled,
                 'trips_in_progress' => $inProgress,
@@ -106,8 +107,7 @@ class TransportUsageReport implements CombinesTotals
     }
 
     /**
-     * Trip counts per route and status, plus how many distinct days the route
-     * ran at all.
+     * Trip counts per route and status.
      *
      * @return Collection<int, Collection<int, object>>
      */
@@ -118,10 +118,36 @@ class TransportUsageReport implements CombinesTotals
         return TransportTrip::query()
             ->where('school_id', $range->schoolId)
             ->whereBetween('trip_date', [$from, $to])
-            ->selectRaw('route_id, status as status_value, COUNT(*) as total, COUNT(DISTINCT trip_date) as days')
+            ->selectRaw('route_id, status as status_value, COUNT(*) as total')
             ->groupBy('route_id', 'status')
             ->get()
             ->groupBy('route_id');
+    }
+
+    /**
+     * The working days on which each route set off: distinct dates with a
+     * trip that was started, whether or not it has finished.
+     *
+     * A cancelled trip never ran, so a route cancelled every morning reads as
+     * not having run rather than as having run every day. And a trip on a
+     * weekend or a holiday is not a working day run - counting it would let
+     * days run exceed the working days it is measured against.
+     *
+     * @return Collection<int, int>
+     */
+    private function daysRunByRoute(ReportRange $range): Collection
+    {
+        [$from, $to] = $range->bounds();
+
+        return TransportTrip::query()
+            ->where('school_id', $range->schoolId)
+            ->whereBetween('trip_date', [$from, $to])
+            ->whereIn('trip_date', $range->workingDates)
+            ->whereIn('status', [TripStatus::InProgress, TripStatus::Completed])
+            ->selectRaw('route_id, COUNT(DISTINCT trip_date) as days')
+            ->groupBy('route_id')
+            ->pluck('days', 'route_id')
+            ->map(fn ($days) => (int) $days);
     }
 
     /**

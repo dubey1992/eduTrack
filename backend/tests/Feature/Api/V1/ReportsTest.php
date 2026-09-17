@@ -4,11 +4,13 @@ namespace Tests\Feature\Api\V1;
 
 use App\Enums\AttendanceStatus;
 use App\Enums\StaffAttendanceStatus;
+use App\Enums\TripStatus;
 use App\Enums\UserRole;
 use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\ClassSection;
 use App\Models\Department;
+use App\Models\Driver;
 use App\Models\Holiday;
 use App\Models\School;
 use App\Models\SchoolClass;
@@ -16,7 +18,10 @@ use App\Models\StaffAttendance;
 use App\Models\StaffProfile;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Models\TransportRoute;
+use App\Models\TransportTrip;
 use App\Models\User;
+use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -260,6 +265,48 @@ class ReportsTest extends TestCase
             ->assertJsonPath('rows.0.half_day', 1);
 
         $this->assertEqualsWithDelta(80, $response->json('rows.0.attendance_rate'), 0.01);
+    }
+
+    // -- transport usage -------------------------------------------------
+
+    public function test_days_run_are_the_working_days_a_route_actually_set_off(): void
+    {
+        $f = $this->makeSchool();
+        $vehicle = Vehicle::query()->create([
+            'school_id' => $f['school']->id, 'name' => 'Bus 1', 'registration_number' => 'KA-1', 'capacity' => 40, 'status' => 'active',
+        ]);
+        $driver = Driver::query()->create([
+            'school_id' => $f['school']->id, 'name' => 'Ramesh', 'licence_number' => 'DL-1', 'status' => 'active',
+        ]);
+        $route = TransportRoute::query()->create([
+            'school_id' => $f['school']->id, 'name' => 'Route A', 'vehicle_id' => $vehicle->id, 'driver_id' => $driver->id, 'status' => 'active',
+        ]);
+        Holiday::factory()->forSchool($f['school'])->create(['start_date' => '2026-09-10', 'end_date' => '2026-09-10']);
+
+        $trip = fn (string $date, TripStatus $status, string $direction = 'pickup') => TransportTrip::query()->create([
+            'school_id' => $f['school']->id, 'route_id' => $route->id, 'vehicle_id' => $vehicle->id,
+            'driver_id' => $driver->id, 'trip_date' => $date, 'direction' => $direction, 'status' => $status,
+            'started_by' => $f['admin']->id, 'started_at' => '2026-09-07 02:00:00',
+        ]);
+
+        $trip('2026-09-07', TripStatus::Completed);
+        $trip('2026-09-07', TripStatus::Completed, 'drop'); // two trips, one day
+        $trip('2026-09-08', TripStatus::InProgress);        // set off, never closed
+        $trip('2026-09-09', TripStatus::Cancelled);         // never ran
+        $trip('2026-09-10', TripStatus::Completed);         // a holiday
+        $trip('2026-09-12', TripStatus::Completed);         // a Saturday
+
+        // Monday to Sunday: five weekdays less the holiday is four working
+        // days, of which the route set off on two.
+        $row = $this->actingAs($f['admin'], 'sanctum')
+            ->getJson($this->url('transport-usage', ['to' => '2026-09-13']))
+            ->assertOk()
+            ->json('rows.0');
+
+        $this->assertSame(
+            ['working_days' => 4, 'days_run' => 2, 'days_not_run' => 2, 'trips_completed' => 4, 'trips_cancelled' => 1, 'trips_in_progress' => 1],
+            array_intersect_key($row, array_flip(['working_days', 'days_run', 'days_not_run', 'trips_completed', 'trips_cancelled', 'trips_in_progress'])),
+        );
     }
 
     // -- who may look -----------------------------------------------------
