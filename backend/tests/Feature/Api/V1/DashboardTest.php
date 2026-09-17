@@ -22,6 +22,22 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_an_accountant_signs_in_to_an_employee_dashboard(): void
+    {
+        // The role belongs to payroll on the Python backend. This one only has
+        // to read the row and not throw on it - an enum cast or a match
+        // without the case would fail every request the account makes.
+        $accountant = User::factory()->role(UserRole::Accountant)->forSchool(School::factory()->create())->create();
+
+        $this->actingAs($accountant, 'sanctum')
+            ->getJson('/api/v1/dashboard')
+            ->assertOk()
+            ->assertJsonPath('role', 'ACCOUNTANT')
+            ->assertJsonPath('cards.0.key', 'leave');
+
+        $this->actingAs($accountant, 'sanctum')->getJson('/api/v1/me')->assertOk()->assertJsonPath('role', 'ACCOUNTANT');
+    }
+
     public function test_money_collected_is_listed_per_currency_in_a_fixed_order(): void
     {
         $root = User::factory()->role(UserRole::SuperAdmin)->create(['school_id' => null]);

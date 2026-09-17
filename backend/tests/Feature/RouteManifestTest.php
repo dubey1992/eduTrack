@@ -95,7 +95,11 @@ class RouteManifestTest extends TestCase
         // Each entry is a ("METHOD", "uri") tuple on its own line. Parsed with
         // a regex rather than by running Python, so this test needs nothing
         // installed beyond PHP.
-        preg_match_all('/\("([A-Z]+)",\s*"([^"]+)"\)/', (string) file_get_contents($path), $matches, PREG_SET_ORDER);
+        // Only what comes before PYTHON_ONLY_ENDPOINTS: those are features
+        // built on the Python backend after this one was frozen, and this
+        // backend is not expected to serve them.
+        $source = explode('PYTHON_ONLY_ENDPOINTS', (string) file_get_contents($path))[0];
+        preg_match_all('/\("([A-Z]+)",\s*"([^"]+)"\)/', $source, $matches, PREG_SET_ORDER);
 
         $listed = array_map(fn (array $m) => $m[1].' '.$m[2], $matches);
         sort($listed);

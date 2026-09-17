@@ -18,6 +18,10 @@ enum UserRole: string
     case Teacher = 'TEACHER';
     case Staff = 'STAFF';
     case TransportManager = 'TRANSPORT_MANAGER';
+    // Runs payroll, which is built on the Python backend only (docs/payroll.md).
+    // Declared here so this backend can still read a user row holding the role
+    // while both serve the same database; nothing here grants it anything.
+    case Accountant = 'ACCOUNTANT';
 
     /**
      * Administers schools' own affairs - their own school, and every branch

@@ -68,7 +68,9 @@ class DashboardService
             UserRole::Hod => $this->hod($actor, $today),
             UserRole::Teacher => $this->teacher($actor, $today),
             UserRole::TransportManager => $this->transport((int) $actor->school_id, $today),
-            UserRole::Staff => $this->staff($actor, $today),
+            // Payroll figures are the Python backend's; here an Accountant is
+            // an employee like any other.
+            UserRole::Staff, UserRole::Accountant => $this->staff($actor, $today),
         };
 
         return [
