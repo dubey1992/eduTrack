@@ -104,7 +104,9 @@ void main() {
     expect(find.text('Staff Attendance'), findsNothing);
   });
 
-  testWidgets('an accountant sees what every employee sees, plus Reports, and nothing of admin or teaching', (tester) async {
+  testWidgets('an accountant sees what every employee sees, plus Reports, and nothing of admin or teaching', (
+    tester,
+  ) async {
     _useTallViewport(tester);
     await tester.pumpWidget(wrap(UserRole.accountant));
     await tester.pumpAndSettle();
@@ -112,7 +114,14 @@ void main() {
     for (final label in ['Dashboard', 'Reports', 'Staff Leave', 'My Inbox', 'Timetable']) {
       expect(find.text(label), findsOneWidget, reason: '$label is for every employee');
     }
-    for (final label in ['Students', 'Student Attendance', 'Staff Attendance', 'Teachers & Staff', 'Trips', 'Payments']) {
+    for (final label in [
+      'Students',
+      'Student Attendance',
+      'Staff Attendance',
+      'Teachers & Staff',
+      'Trips',
+      'Payments',
+    ]) {
       expect(find.text(label), findsNothing, reason: '$label is not for an accountant');
     }
   });

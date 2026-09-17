@@ -150,7 +150,12 @@ class EmployeeSalary {
 }
 
 class MissingSalary {
-  const MissingSalary({required this.staffProfileId, required this.employeeId, required this.name, required this.reason});
+  const MissingSalary({
+    required this.staffProfileId,
+    required this.employeeId,
+    required this.name,
+    required this.reason,
+  });
 
   factory MissingSalary.fromJson(Map<String, dynamic> json) {
     return MissingSalary(
@@ -336,7 +341,9 @@ class Payslip {
       paymentMode: mode == null ? null : PaymentMode.fromApiValue(mode),
       paymentReference: json['payment_reference'] as String?,
       emailedAt: json['emailed_at'] as String?,
-      lines: [for (final line in (json['lines'] as List?) ?? const []) PayslipLine.fromJson(line as Map<String, dynamic>)],
+      lines: [
+        for (final line in (json['lines'] as List?) ?? const []) PayslipLine.fromJson(line as Map<String, dynamic>),
+      ],
     );
   }
 
@@ -369,7 +376,10 @@ class Payslip {
 
   bool get isPaid => status == PayslipStatus.paid;
 
-  List<PayslipLine> linesOf(PayComponentType type) => [for (final line in lines) if (line.type == type) line];
+  List<PayslipLine> linesOf(PayComponentType type) => [
+    for (final line in lines)
+      if (line.type == type) line,
+  ];
 }
 
 /// "1.5" rather than "1.5000" or "2.0" - how a day count reads.

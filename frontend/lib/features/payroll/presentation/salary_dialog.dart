@@ -93,7 +93,8 @@ class _SalaryDialogState extends State<SalaryDialog> {
 
     try {
       await widget.onSave(_basic.text.trim(), [
-        for (final row in _rows) SalaryComponent(type: row.type, name: row.name.text.trim(), amount: row.amount.text.trim()),
+        for (final row in _rows)
+          SalaryComponent(type: row.type, name: row.name.text.trim(), amount: row.amount.text.trim()),
       ]);
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
@@ -181,7 +182,11 @@ class _SalaryDialogState extends State<SalaryDialog> {
                 const Divider(),
                 _TotalLine(label: 'Gross monthly', value: formatCurrency(basic + earnings, currency)),
                 _TotalLine(label: 'Deductions', value: formatCurrency(deductions, currency)),
-                _TotalLine(label: 'Net monthly', value: formatCurrency(basic + earnings - deductions, currency), bold: true),
+                _TotalLine(
+                  label: 'Net monthly',
+                  value: formatCurrency(basic + earnings - deductions, currency),
+                  bold: true,
+                ),
                 const SizedBox(height: 4),
                 Text(
                   "A month's pay is pro-rated from these by the days paid.",
@@ -239,7 +244,13 @@ class _SalaryDialogState extends State<SalaryDialog> {
             return Column(
               children: [
                 name,
-                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: amount), ?remove]),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: amount),
+                    ?remove,
+                  ],
+                ),
               ],
             );
           }
@@ -274,7 +285,9 @@ class _TotalLine extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: style, overflow: TextOverflow.ellipsis)),
+          Expanded(
+            child: Text(label, style: style, overflow: TextOverflow.ellipsis),
+          ),
           const SizedBox(width: 8),
           Text(value, style: style),
         ],

@@ -37,7 +37,12 @@ class _PayDialogState extends ConsumerState<PayDialog> {
 
   Future<void> _pickDate() async {
     final today = ref.read(schoolClockProvider).today;
-    final picked = await showDatePicker(context: context, initialDate: _paidOn, firstDate: DateTime(2020), lastDate: today);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _paidOn,
+      firstDate: DateTime(2020),
+      lastDate: today,
+    );
 
     if (picked != null) setState(() => _paidOn = picked);
   }
@@ -80,7 +85,10 @@ class _PayDialogState extends ConsumerState<PayDialog> {
             InkWell(
               onTap: _pickDate,
               child: InputDecorator(
-                decoration: const InputDecoration(labelText: 'Paid on', suffixIcon: Icon(Icons.calendar_today, size: 18)),
+                decoration: const InputDecoration(
+                  labelText: 'Paid on',
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                ),
                 child: Text(formatDate(_paidOn)),
               ),
             ),

@@ -30,7 +30,8 @@ class MyPayslipsScreen extends ConsumerWidget {
             value: state,
             onRetry: notifier.refresh,
             isEmpty: (page) => page.items.isEmpty,
-            emptyBuilder: (context) => const Center(child: Text('No payslips yet. They appear once payroll is finalized.')),
+            emptyBuilder: (context) =>
+                const Center(child: Text('No payslips yet. They appear once payroll is finalized.')),
             data: (context, page) => Column(
               children: [
                 Expanded(

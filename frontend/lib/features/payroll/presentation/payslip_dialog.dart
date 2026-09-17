@@ -80,7 +80,13 @@ class _PayslipDialogState extends ConsumerState<PayslipDialog> {
       context: context,
       builder: (_) => AdjustmentDialog(
         onSave: (type, name, amount, note) async {
-          updated = await repository.addAdjustment(widget.payslipId, type: type, name: name, amount: amount, note: note);
+          updated = await repository.addAdjustment(
+            widget.payslipId,
+            type: type,
+            name: name,
+            amount: amount,
+            note: note,
+          );
         },
       ),
     );
@@ -103,7 +109,10 @@ class _PayslipDialogState extends ConsumerState<PayslipDialog> {
 
     if (!confirmed) return;
 
-    await _apply(() => ref.read(payrollRepositoryProvider).removeAdjustment(widget.payslipId, line.id), 'Adjustment removed.');
+    await _apply(
+      () => ref.read(payrollRepositoryProvider).removeAdjustment(widget.payslipId, line.id),
+      'Adjustment removed.',
+    );
   }
 
   Future<void> _pay() async {
@@ -240,8 +249,7 @@ class _PayslipDialogState extends ConsumerState<PayslipDialog> {
                     ),
                     trailing: Text(cash(line.amount), style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
-                if (payslip.linesOf(type).isEmpty)
-                  Text('None', style: TextStyle(color: scheme.onSurfaceVariant)),
+                if (payslip.linesOf(type).isEmpty) Text('None', style: TextStyle(color: scheme.onSurfaceVariant)),
                 const SizedBox(height: 8),
               ],
               const Divider(),
@@ -293,7 +301,10 @@ class _PayslipDialogState extends ConsumerState<PayslipDialog> {
           OutlinedButton(
             onPressed: _busy
                 ? null
-                : () => _apply(() => ref.read(payrollRepositoryProvider).emailPayslip(payslip.id), 'Payslip emailed to the employee.'),
+                : () => _apply(
+                    () => ref.read(payrollRepositoryProvider).emailPayslip(payslip.id),
+                    'Payslip emailed to the employee.',
+                  ),
             child: const Text('Email Payslip'),
           ),
         if (widget.canManage && !draft && !payslip.isPaid)
@@ -314,8 +325,14 @@ class _Fact extends StatelessWidget {
     return Text.rich(
       TextSpan(
         children: [
-          TextSpan(text: '$label: ', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          TextSpan(text: value, style: const TextStyle(fontWeight: FontWeight.w700)),
+          TextSpan(
+            text: '$label: ',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          TextSpan(
+            text: value,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
@@ -338,7 +355,9 @@ class _Total extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: style, overflow: TextOverflow.ellipsis)),
+          Expanded(
+            child: Text(label, style: style, overflow: TextOverflow.ellipsis),
+          ),
           const SizedBox(width: 8),
           Text(value, style: style),
         ],

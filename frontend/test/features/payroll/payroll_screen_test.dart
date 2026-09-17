@@ -16,7 +16,8 @@ import '../../support/fake_auth_repository.dart';
 import '../../support/fake_payroll_repository.dart';
 import '../../support/fake_school_repository.dart';
 
-AuthenticatedUser actor(UserRole role) => AuthenticatedUser(id: 9, name: 'Meena Iyer', email: 'meena@example.com', role: role);
+AuthenticatedUser actor(UserRole role) =>
+    AuthenticatedUser(id: 9, name: 'Meena Iyer', email: 'meena@example.com', role: role);
 
 Widget wrap(FakePayrollRepository fake, {UserRole role = UserRole.accountant, Widget screen = const PayrollScreen()}) {
   return ProviderScope(
@@ -26,7 +27,10 @@ Widget wrap(FakePayrollRepository fake, {UserRole role = UserRole.accountant, Wi
       schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository()),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: actor(role))),
     ],
-    child: MaterialApp(theme: AppTheme.light(), home: Scaffold(body: screen)),
+    child: MaterialApp(
+      theme: AppTheme.light(),
+      home: Scaffold(body: screen),
+    ),
   );
 }
 
@@ -111,7 +115,10 @@ void main() {
     testWidgets('a draft names who is missing a salary', (tester) async {
       useDesktop(tester);
       final fake = await withDraft(
-        employees: [fakeEmployee(basic: '30000'), fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1')],
+        employees: [
+          fakeEmployee(basic: '30000'),
+          fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1'),
+        ],
       );
       await tester.pumpWidget(wrap(fake));
       await tester.pumpAndSettle();
@@ -330,7 +337,10 @@ void main() {
     testWidgets('only employees without a salary, on request', (tester) async {
       useDesktop(tester);
       final fake = FakePayrollRepository(
-        employees: [fakeEmployee(basic: '30000'), fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1')],
+        employees: [
+          fakeEmployee(basic: '30000'),
+          fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1'),
+        ],
       );
       await tester.pumpWidget(wrap(fake));
       await tester.pumpAndSettle();
@@ -356,7 +366,10 @@ void main() {
     testWidgets('runs, a run, its payslip and the salaries all fit without overflowing', (tester) async {
       usePhone(tester);
       final fake = await withDraft(
-        employees: [fakeEmployee(basic: '30000'), fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1')],
+        employees: [
+          fakeEmployee(basic: '30000'),
+          fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1'),
+        ],
       );
       await tester.pumpWidget(wrap(fake));
       await tester.pumpAndSettle();

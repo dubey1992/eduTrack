@@ -133,7 +133,12 @@ class FakePayrollRepository implements PayrollRepository {
   }
 
   @override
-  Future<PaginatedResponse<Payslip>> runPayslips(int runId, {String? search, required int page, required int perPage}) async {
+  Future<PaginatedResponse<Payslip>> runPayslips(
+    int runId, {
+    String? search,
+    required int page,
+    required int perPage,
+  }) async {
     _enter('runPayslips');
     return paginateFake(payslipsByRun[runId] ?? [], page: page, perPage: perPage);
   }
@@ -183,7 +188,14 @@ class FakePayrollRepository implements PayrollRepository {
     _enter('addAdjustment');
     final slip = _find(payslipId);
     final value = double.parse(amount);
-    final line = PayslipLine(id: 900 + slip.lines.length, type: type, name: name, amount: value.toStringAsFixed(2), isAdjustment: true, note: note);
+    final line = PayslipLine(
+      id: 900 + slip.lines.length,
+      type: type,
+      name: name,
+      amount: value.toStringAsFixed(2),
+      isAdjustment: true,
+      note: note,
+    );
     final net = double.parse(slip.netPay) + (type == PayComponentType.earning ? value : -value);
 
     return _replace(_payslip(slip.id, _runOf(slip), null, net, lines: [...slip.lines, line], from: slip));
@@ -198,12 +210,27 @@ class FakePayrollRepository implements PayrollRepository {
     final net = double.parse(slip.netPay) - (line.type == PayComponentType.earning ? value : -value);
 
     return _replace(
-      _payslip(slip.id, _runOf(slip), null, net, lines: [for (final l in slip.lines) if (l.id != lineId) l], from: slip),
+      _payslip(
+        slip.id,
+        _runOf(slip),
+        null,
+        net,
+        lines: [
+          for (final l in slip.lines)
+            if (l.id != lineId) l,
+        ],
+        from: slip,
+      ),
     );
   }
 
   @override
-  Future<Payslip> payPayslip(int payslipId, {required DateTime paidOn, required PaymentMode mode, String? reference}) async {
+  Future<Payslip> payPayslip(
+    int payslipId, {
+    required DateTime paidOn,
+    required PaymentMode mode,
+    String? reference,
+  }) async {
     _enter('payPayslip');
     return _replace(_paid(_find(payslipId), mode, reference));
   }
@@ -250,7 +277,10 @@ class FakePayrollRepository implements PayrollRepository {
     final index = storedRuns.indexWhere((r) => r.id == runId);
     final old = storedRuns[index];
     storedRuns[index] = _run(id: old.id, year: old.year, month: old.month, status: status);
-    payslipsByRun[runId] = [for (final slip in payslipsByRun[runId]!) _payslip(slip.id, storedRuns[index], null, double.parse(slip.netPay), lines: slip.lines, from: slip)];
+    payslipsByRun[runId] = [
+      for (final slip in payslipsByRun[runId]!)
+        _payslip(slip.id, storedRuns[index], null, double.parse(slip.netPay), lines: slip.lines, from: slip),
+    ];
   }
 
   PayrollRun _withTotals(PayrollRun run) {
@@ -288,7 +318,20 @@ class FakePayrollRepository implements PayrollRepository {
   }
 
   PayrollRun _run({required int id, required int year, required int month, required PayrollRunStatus status}) {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
 
     return PayrollRun(
       id: id,
@@ -309,7 +352,14 @@ class FakePayrollRepository implements PayrollRepository {
     );
   }
 
-  Payslip _payslip(int id, PayrollRun run, EmployeeSalary? employee, double net, {List<PayslipLine>? lines, Payslip? from}) {
+  Payslip _payslip(
+    int id,
+    PayrollRun run,
+    EmployeeSalary? employee,
+    double net, {
+    List<PayslipLine>? lines,
+    Payslip? from,
+  }) {
     return Payslip(
       id: id,
       payrollRunId: run.id,
@@ -333,7 +383,8 @@ class FakePayrollRepository implements PayrollRepository {
       paidOn: from?.paidOn,
       paymentMode: from?.paymentMode,
       paymentReference: from?.paymentReference,
-      lines: lines ??
+      lines:
+          lines ??
           [
             PayslipLine(
               id: id * 10,

@@ -85,9 +85,8 @@ class SalaryListNotifier extends AsyncNotifier<PagedList<EmployeeSalary>> {
     }
 
     state = state.whenData(
-      (page) => page.withItems([
-        for (final row in page.items) row.staffProfileId == updated.staffProfileId ? updated : row,
-      ]),
+      (page) =>
+          page.withItems([for (final row in page.items) row.staffProfileId == updated.staffProfileId ? updated : row]),
     );
   }
 }
@@ -153,8 +152,9 @@ class PayrollRunView {
   final PagedList<Payslip> payslips;
 }
 
-final payrollRunNotifierProvider = AsyncNotifierProvider.autoDispose
-    .family<PayrollRunNotifier, PayrollRunView, int>(PayrollRunNotifier.new);
+final payrollRunNotifierProvider = AsyncNotifierProvider.autoDispose.family<PayrollRunNotifier, PayrollRunView, int>(
+  PayrollRunNotifier.new,
+);
 
 class PayrollRunNotifier extends AsyncNotifier<PayrollRunView> {
   PayrollRunNotifier(this.runId);

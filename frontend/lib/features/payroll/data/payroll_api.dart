@@ -45,7 +45,10 @@ class PayrollApi {
   }) async {
     final response = await _dio.put(
       '/payroll/salaries/$staffProfileId',
-      data: {'basic_salary': basicSalary, 'components': [for (final component in components) component.toJson()]},
+      data: {
+        'basic_salary': basicSalary,
+        'components': [for (final component in components) component.toJson()],
+      },
     );
 
     return EmployeeSalary.fromJson(response.data as Map<String, dynamic>);
@@ -63,10 +66,7 @@ class PayrollApi {
   }
 
   Future<PayrollRun> generate({required int year, required int month, int? schoolId}) async {
-    final response = await _dio.post(
-      '/payroll/runs',
-      data: {'year': year, 'month': month, 'school_id': ?schoolId},
-    );
+    final response = await _dio.post('/payroll/runs', data: {'year': year, 'month': month, 'school_id': ?schoolId});
 
     return PayrollRun.fromJson(response.data as Map<String, dynamic>);
   }
@@ -91,12 +91,7 @@ class PayrollApi {
 
   Future<void> deleteRun(int runId) => _dio.delete('/payroll/runs/$runId');
 
-  Future<PayrollRun> payRun(
-    int runId, {
-    required DateTime paidOn,
-    required PaymentMode mode,
-    String? reference,
-  }) async {
+  Future<PayrollRun> payRun(int runId, {required DateTime paidOn, required PaymentMode mode, String? reference}) async {
     final response = await _dio.post('/payroll/runs/$runId/pay', data: _payment(paidOn, mode, reference));
     return PayrollRun.fromJson(response.data as Map<String, dynamic>);
   }

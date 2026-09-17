@@ -108,7 +108,8 @@ class _AdjustmentDialogState extends State<AdjustmentDialog> {
                 controller: _note,
                 maxLength: 255,
                 decoration: InputDecoration(labelText: 'Reason', errorText: _serverError('note')),
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Say why - it goes on the payslip' : null,
+                validator: (value) =>
+                    (value == null || value.trim().isEmpty) ? 'Say why - it goes on the payslip' : null,
               ),
             ],
           ),

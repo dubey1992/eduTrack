@@ -51,11 +51,7 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> {
     final canManage = PayrollScreen.managerRoles.contains(role);
 
     if (_openRunId != null) {
-      return _RunView(
-        runId: _openRunId!,
-        canManage: canManage,
-        onBack: () => setState(() => _openRunId = null),
-      );
+      return _RunView(runId: _openRunId!, canManage: canManage, onBack: () => setState(() => _openRunId = null));
     }
 
     return DefaultTabController(
@@ -69,7 +65,10 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> {
               if (canManage)
                 FilledButton.icon(
                   onPressed: () async {
-                    final run = await showDialog<PayrollRun>(context: context, builder: (_) => const GenerateRunDialog());
+                    final run = await showDialog<PayrollRun>(
+                      context: context,
+                      builder: (_) => const GenerateRunDialog(),
+                    );
                     if (run != null && context.mounted) {
                       ScaffoldMessenger.of(context)
                         ..clearSnackBars()
@@ -92,7 +91,13 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> {
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
-            child: TabBar(isScrollable: true, tabs: [Tab(text: 'Runs'), Tab(text: 'Salaries')]),
+            child: TabBar(
+              isScrollable: true,
+              tabs: [
+                Tab(text: 'Runs'),
+                Tab(text: 'Salaries'),
+              ],
+            ),
           ),
           Expanded(
             child: TabBarView(
@@ -231,9 +236,8 @@ class _SalariesTabState extends ConsumerState<_SalariesTab> {
       builder: (_) => SalaryDialog(
         employee: employee,
         readOnly: !widget.canManage,
-        onSave: (basic, components) => ref
-            .read(salaryListNotifierProvider.notifier)
-            .save(employee, basicSalary: basic, components: components),
+        onSave: (basic, components) =>
+            ref.read(salaryListNotifierProvider.notifier).save(employee, basicSalary: basic, components: components),
       ),
     );
 
@@ -260,7 +264,11 @@ class _SalariesTabState extends ConsumerState<_SalariesTab> {
             children: [
               SizedBox(
                 width: 280,
-                child: DebouncedSearchField(controller: _search, onSearch: notifier.setSearch, label: 'Search name / employee ID'),
+                child: DebouncedSearchField(
+                  controller: _search,
+                  onSearch: notifier.setSearch,
+                  label: 'Search name / employee ID',
+                ),
               ),
               FilterChip(
                 label: const Text('No salary yet'),
@@ -323,16 +331,28 @@ class _SalariesTabState extends ConsumerState<_SalariesTab> {
                                     DataCell(Text(employee.role.label)),
                                     DataCell(Text(employee.departmentName ?? '-')),
                                     DataCell(
-                                      Text(employee.salary == null ? '-' : money(employee.salary!.basicSalary, employee.salary!.currencyCode)),
+                                      Text(
+                                        employee.salary == null
+                                            ? '-'
+                                            : money(employee.salary!.basicSalary, employee.salary!.currencyCode),
+                                      ),
                                     ),
                                     DataCell(
-                                      Text(employee.salary == null ? '-' : money(employee.salary!.netMonthly, employee.salary!.currencyCode)),
+                                      Text(
+                                        employee.salary == null
+                                            ? '-'
+                                            : money(employee.salary!.netMonthly, employee.salary!.currencyCode),
+                                      ),
                                     ),
                                     DataCell(_SalaryBadge(employee: employee)),
                                     DataCell(
                                       TextButton(
                                         onPressed: () => _open(employee),
-                                        child: Text(widget.canManage ? (employee.salary == null ? 'Set Salary' : 'Edit Salary') : 'View'),
+                                        child: Text(
+                                          widget.canManage
+                                              ? (employee.salary == null ? 'Set Salary' : 'Edit Salary')
+                                              : 'View',
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -478,72 +498,77 @@ class _RunViewState extends ConsumerState<_RunView> {
         final page = view.payslips;
 
         final header = <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 20, 0),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                IconButton(tooltip: 'Back to runs', icon: const Icon(Icons.arrow_back), onPressed: widget.onBack),
+                Text('Payroll · ${run.periodLabel}', style: Theme.of(context).textTheme.titleLarge),
+                StatusBadge(label: run.status.label, tone: runTone(run.status)),
+                Text(run.schoolName, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                KpiCard(label: 'Employees', value: '${run.employees}'),
+                KpiCard(label: 'Working days', value: '${run.workingDays}'),
+                KpiCard(label: 'Gross', value: money(run.grossTotal, run.currencyCode)),
+                KpiCard(label: 'Deductions', value: money(run.deductionsTotal, run.currencyCode)),
+                KpiCard(label: 'Net pay', value: money(run.netTotal, run.currencyCode)),
+                KpiCard(label: 'Paid', value: '${run.paidCount}/${run.employees}'),
+              ],
+            ),
+          ),
+          if (widget.canManage)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  IconButton(tooltip: 'Back to runs', icon: const Icon(Icons.arrow_back), onPressed: widget.onBack),
-                  Text('Payroll · ${run.periodLabel}', style: Theme.of(context).textTheme.titleLarge),
-                  StatusBadge(label: run.status.label, tone: runTone(run.status)),
-                  Text(run.schoolName, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  KpiCard(label: 'Employees', value: '${run.employees}'),
-                  KpiCard(label: 'Working days', value: '${run.workingDays}'),
-                  KpiCard(label: 'Gross', value: money(run.grossTotal, run.currencyCode)),
-                  KpiCard(label: 'Deductions', value: money(run.deductionsTotal, run.currencyCode)),
-                  KpiCard(label: 'Net pay', value: money(run.netTotal, run.currencyCode)),
-                  KpiCard(label: 'Paid', value: '${run.paidCount}/${run.employees}'),
-                ],
-              ),
-            ),
-            if (widget.canManage)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (run.isDraft) ...[
-                      OutlinedButton.icon(
-                        onPressed: _busy ? null : () => _perform(_notifier.regenerate, 'Draft regenerated from current salaries and attendance.'),
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text('Regenerate'),
-                      ),
-                      FilledButton.icon(
-                        onPressed: _busy || run.employees == 0 ? null : () => _finalize(run),
-                        icon: const Icon(Icons.lock_outline, size: 18),
-                        label: const Text('Finalize'),
-                      ),
-                      TextButton(onPressed: _busy ? null : () => _delete(run), child: const Text('Delete Draft')),
-                    ],
-                    if (run.status == PayrollRunStatus.finalized && run.unpaidCount > 0)
-                      FilledButton.icon(
-                        onPressed: _busy ? null : () => _payAll(run),
-                        icon: const Icon(Icons.payments_outlined, size: 18),
-                        label: const Text('Mark All Paid'),
-                      ),
+                  if (run.isDraft) ...[
+                    OutlinedButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : () => _perform(
+                              _notifier.regenerate,
+                              'Draft regenerated from current salaries and attendance.',
+                            ),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Regenerate'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _busy || run.employees == 0 ? null : () => _finalize(run),
+                      icon: const Icon(Icons.lock_outline, size: 18),
+                      label: const Text('Finalize'),
+                    ),
+                    TextButton(onPressed: _busy ? null : () => _delete(run), child: const Text('Delete Draft')),
                   ],
-                ),
-              ),
-            if (run.isDraft && run.missingSalaries.isNotEmpty) _MissingSalaries(missing: run.missingSalaries),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: SizedBox(
-                width: 280,
-                child: DebouncedSearchField(controller: _search, onSearch: _notifier.setSearch, label: 'Search payslips'),
+                  if (run.status == PayrollRunStatus.finalized && run.unpaidCount > 0)
+                    FilledButton.icon(
+                      onPressed: _busy ? null : () => _payAll(run),
+                      icon: const Icon(Icons.payments_outlined, size: 18),
+                      label: const Text('Mark All Paid'),
+                    ),
+                ],
               ),
             ),
+          if (run.isDraft && run.missingSalaries.isNotEmpty) _MissingSalaries(missing: run.missingSalaries),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: SizedBox(
+              width: 280,
+              child: DebouncedSearchField(controller: _search, onSearch: _notifier.setSearch, label: 'Search payslips'),
+            ),
+          ),
         ];
         final pagination = PaginationControls(
           currentPage: page.currentPage,
@@ -554,8 +579,16 @@ class _RunViewState extends ConsumerState<_RunView> {
           onPerPageChanged: _notifier.setPerPage,
         );
         final table = page.items.isEmpty
-            ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No payslips on this run.')))
-            : _PayslipTable(run: run, payslips: page.items, canManage: widget.canManage, onChanged: _notifier.payslipChanged);
+            ? const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: Text('No payslips on this run.')),
+              )
+            : _PayslipTable(
+                run: run,
+                payslips: page.items,
+                canManage: widget.canManage,
+                onChanged: _notifier.payslipChanged,
+              );
 
         // On a phone the figures, actions and warnings above the payslips
         // are taller than the screen, so the whole view scrolls as one list.
@@ -564,7 +597,11 @@ class _RunViewState extends ConsumerState<_RunView> {
           mobile: (context) => ListView(children: [...header, table, pagination]),
           desktop: (context) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [...header, Expanded(child: table), pagination],
+            children: [
+              ...header,
+              Expanded(child: table),
+              pagination,
+            ],
           ),
         );
       },
@@ -597,7 +634,10 @@ class _MissingSalaries extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               for (final row in missing)
-                Text('${row.name} (${row.employeeId}): ${row.reason}', style: TextStyle(color: scheme.onErrorContainer)),
+                Text(
+                  '${row.name} (${row.employeeId}): ${row.reason}',
+                  style: TextStyle(color: scheme.onErrorContainer),
+                ),
               const SizedBox(height: 4),
               Text(
                 'Set their salary on the Salaries tab, then regenerate.',
@@ -646,8 +686,10 @@ class _PayslipTable extends StatelessWidget {
           return Card(
             child: ListTile(
               title: Text(payslip.employeeName),
-              subtitle: Text('${payslip.employeeCode} · ${formatDays(payslip.paidDays)} paid days\n'
-                  'Net ${money(payslip.netPay, payslip.currencyCode)}'),
+              subtitle: Text(
+                '${payslip.employeeCode} · ${formatDays(payslip.paidDays)} paid days\n'
+                'Net ${money(payslip.netPay, payslip.currencyCode)}',
+              ),
               isThreeLine: true,
               trailing: _badge(payslip),
               onTap: () => _open(context, payslip),

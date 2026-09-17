@@ -21,7 +21,12 @@ ProviderContainer containerWith(FakePayrollRepository fake) {
 void main() {
   group('salaries', () {
     test('saving replaces the row in place', () async {
-      final fake = FakePayrollRepository(employees: [fakeEmployee(), fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1')]);
+      final fake = FakePayrollRepository(
+        employees: [
+          fakeEmployee(),
+          fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1'),
+        ],
+      );
       final container = containerWith(fake);
       final subscription = container.listen(salaryListNotifierProvider, (_, _) {});
       addTearDown(subscription.close);
@@ -38,7 +43,12 @@ void main() {
     });
 
     test('with "no salary yet" on, a saved employee leaves the list', () async {
-      final fake = FakePayrollRepository(employees: [fakeEmployee(), fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1')]);
+      final fake = FakePayrollRepository(
+        employees: [
+          fakeEmployee(),
+          fakeEmployee(id: 2, name: 'Asha Rao', employeeId: 'STF-1'),
+        ],
+      );
       final container = containerWith(fake);
       final subscription = container.listen(salaryListNotifierProvider, (_, _) {});
       addTearDown(subscription.close);
