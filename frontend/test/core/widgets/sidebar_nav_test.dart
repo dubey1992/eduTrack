@@ -39,7 +39,7 @@ Widget wrap(UserRole role) {
 /// nav grows, which would silently make find.text() miss items further down
 /// without this. Tall enough for the sidebar to render in full.
 void _useTallViewport(WidgetTester tester) {
-  tester.view.physicalSize = const Size(800, 1400);
+  tester.view.physicalSize = const Size(800, 1800);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -103,6 +103,42 @@ void main() {
     expect(find.text('Staff Leave'), findsOneWidget);
     expect(find.text('Staff Attendance'), findsNothing);
   });
+
+  testWidgets('an accountant sees what every employee sees, plus Reports, and nothing of admin or teaching', (tester) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(wrap(UserRole.accountant));
+    await tester.pumpAndSettle();
+
+    for (final label in ['Dashboard', 'Reports', 'Staff Leave', 'My Inbox', 'Timetable']) {
+      expect(find.text(label), findsOneWidget, reason: '$label is for every employee');
+    }
+    for (final label in ['Students', 'Student Attendance', 'Staff Attendance', 'Teachers & Staff', 'Trips', 'Payments']) {
+      expect(find.text(label), findsNothing, reason: '$label is not for an accountant');
+    }
+  });
+
+  // Payroll is run by an accountant or an admin and read by a super admin;
+  // every employee has payslips. One test per role - a ProviderScope keeps the
+  // first session it was given, so re-pumping cannot switch roles.
+  for (final (role, payroll, payslips) in [
+    (UserRole.accountant, true, true),
+    (UserRole.schoolAdmin, true, true),
+    (UserRole.groupAdmin, true, true),
+    (UserRole.superAdmin, true, false),
+    (UserRole.teacher, false, true),
+    (UserRole.hod, false, true),
+    (UserRole.transportManager, false, true),
+    (UserRole.staff, false, true),
+  ]) {
+    testWidgets('payroll in the sidebar for a ${role.label}', (tester) async {
+      _useTallViewport(tester);
+      await tester.pumpWidget(wrap(role));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Payroll'), payroll ? findsOneWidget : findsNothing);
+      expect(find.text('My Payslips'), payslips ? findsOneWidget : findsNothing);
+    });
+  }
 
   testWidgets('an hod sees both Staff Attendance and Staff Leave', (tester) async {
     _useTallViewport(tester);

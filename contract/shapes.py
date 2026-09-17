@@ -392,6 +392,63 @@ TRIP_RIDER = {
 
 # -- money, messages, teaching, platform -------------------------------------
 
+EMPLOYEE_SALARY = {
+    "staff_profile_id": "int",
+    "employee_id": "str",
+    "name": "str",
+    "role": "str",
+    "school_id": "int",
+    "school_currency_code": "str",
+    # Null until one is set - the screen lists who cannot be paid yet.
+    "salary": "dict?",
+}
+
+SALARY = {
+    "basic_salary": "str",
+    "currency_code": "str",
+    "components": "list",
+    "total_earnings": "str",
+    "total_deductions": "str",
+    "gross_monthly": "str",
+    "net_monthly": "str",
+}
+
+PAYROLL_RUN = {
+    "id": "int",
+    "school_id": "int",
+    "year": "int",
+    "month": "int",
+    "period_label": "str",
+    "status": "str",
+    "currency_code": "str",
+    "working_days": "int",
+    "employees": "int",
+    "paid_count": "int",
+    "unpaid_count": "int",
+    "gross_total": "str",
+    "deductions_total": "str",
+    "net_total": "str",
+}
+
+PAYSLIP = {
+    "id": "int",
+    "payroll_run_id": "int",
+    "period_label": "str",
+    "run_status": "str",
+    "staff_profile_id": "int",
+    "employee_name": "str",
+    "employee_code": "str",
+    "currency_code": "str",
+    "working_days": "float",
+    "paid_days": "float",
+    "gross_earnings": "str",
+    "total_deductions": "str",
+    "net_pay": "str",
+    "shortfall": "str",
+    "status": "str",
+    "paid_on": "str?",
+}
+
 PAYMENT = {
     "id": "int",
     "school_id": "int",

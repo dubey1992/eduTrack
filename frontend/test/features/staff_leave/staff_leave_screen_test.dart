@@ -48,6 +48,16 @@ Widget wrap(AuthenticatedUser actor, {FakeStaffLeaveRepository? staffLeave}) {
 }
 
 void main() {
+  testWidgets('an accountant applies for leave like any employee and reviews nobody', (tester) async {
+    const accountant = AuthenticatedUser(id: 3, name: 'Meena Iyer', email: 'meena@example.com', role: UserRole.accountant);
+    await tester.pumpWidget(wrap(accountant));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Apply Leave'), findsOneWidget);
+    expect(find.text('Approve'), findsNothing);
+    expect(find.text('Reject'), findsNothing);
+  });
+
   testWidgets('a teacher sees the Apply Leave action but no approve/reject controls', (tester) async {
     await tester.pumpWidget(wrap(_teacher));
     await tester.pumpAndSettle();

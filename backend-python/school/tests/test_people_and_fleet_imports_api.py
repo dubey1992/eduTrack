@@ -190,7 +190,7 @@ class StaffImport(ImporterTest):
                 "The first name field is required.",
                 "The email field must be a valid email address.",
                 "The mobile field format is invalid.",
-                "The role must be one of: HOD, TEACHER, STAFF, TRANSPORT_MANAGER.",
+                "The role must be one of: HOD, TEACHER, STAFF, TRANSPORT_MANAGER, ACCOUNTANT.",
                 "The selected department is invalid.",
                 "The joining date field must match the format m/d/Y.",
             ]],
@@ -421,7 +421,7 @@ class ImportAccess(ImporterTest):
     def test_only_admins_import_any_of_the_four(self):
         # A transport manager runs the fleet but does not add to it in bulk;
         # an HOD leads staff but does not hire them.
-        for role in (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER):
+        for role in (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT):
             client = self.as_user(factories.UserFactory(school=self.school, role=role))
 
             for kind, headings, row in (

@@ -843,14 +843,17 @@ class StaffLeaveService:
         if actor.role == UserRole.HOD:
             return leaves.filter(staff_profile__department__hod_user_id=actor.id)
 
-        # A Teacher, Staff member or Transport Manager only ever sees their
-        # own history. They are not reviewers; this screen is self-service.
-        if actor.role in (UserRole.TEACHER, UserRole.STAFF, UserRole.TRANSPORT_MANAGER):
-            profile = actor.staff_profile
+        # Admins see their whole scope, already applied above.
+        if actor.role == UserRole.SUPER_ADMIN or UserRole.administers_school(actor.role):
+            return leaves
 
-            return leaves.filter(staff_profile_id=profile.id if profile else 0)
+        # Everybody else - Teacher, Staff, Transport Manager, Accountant, and
+        # any role added later - only ever sees their own history. Listed the
+        # other way round, a new role would have seen the whole school's leave
+        # until somebody remembered to add it.
+        profile = actor.staff_profile
 
-        return leaves
+        return leaves.filter(staff_profile_id=profile.id if profile else 0)
 
     @staticmethod
     def assert_no_overlap(staff_profile_id: int, start, end) -> None:

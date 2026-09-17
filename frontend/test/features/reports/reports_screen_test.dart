@@ -114,6 +114,17 @@ void main() {
     expect(find.widgetWithText(ChoiceChip, 'Staff attendance & leave'), findsNothing);
   });
 
+  testWidgets('offers an accountant staff attendance only - the register payroll is computed from', (tester) async {
+    useDesktop(tester);
+    const accountant = AuthenticatedUser(id: 7, name: 'Meena', email: 'm@example.com', role: UserRole.accountant);
+    await tester.pumpWidget(wrap(FakeReportRepository(), actor: accountant));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(ChoiceChip, 'Staff attendance & leave'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Student attendance'), findsNothing);
+    expect(find.widgetWithText(ChoiceChip, 'Transport usage'), findsNothing);
+  });
+
   testWidgets('tells a role with no reports plainly', (tester) async {
     useDesktop(tester);
     const teacher = AuthenticatedUser(id: 9, name: 'Priya', email: 'p@example.com', role: UserRole.teacher);

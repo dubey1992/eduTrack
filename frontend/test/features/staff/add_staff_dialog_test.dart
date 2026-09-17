@@ -86,6 +86,26 @@ void main() {
     expect(find.text('Employee added.'), findsOneWidget);
   });
 
+  testWidgets('an accountant can be added from Teachers & Staff', (tester) async {
+    final fake = FakeStaffRepository();
+    await tester.pumpWidget(wrap(fake));
+    await _openDialog(tester);
+
+    await _fillRequiredFields(tester);
+    final roleField = find.widgetWithText(DropdownButtonFormField<UserRole>, 'Teacher');
+    await tester.ensureVisible(roleField);
+    await tester.pumpAndSettle();
+    await tester.tap(roleField);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Accountant').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final created = await fake.list();
+    expect(created.single.role, UserRole.accountant);
+  });
+
   testWidgets('shows the failure message and keeps the dialog open when the repository throws', (tester) async {
     final fake = FakeStaffRepository(
       failCreateWith: const Failure(code: 'STAFF_CREATE_FAILED', message: 'Could not add the employee.'),

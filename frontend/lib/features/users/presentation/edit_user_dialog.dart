@@ -12,7 +12,13 @@ import '../data/models/app_user.dart';
 
 /// Roles a SCHOOL_ADMIN may assign - mirrors the backend's
 /// UpdateUserRequest::SCHOOL_ADMIN_ASSIGNABLE_ROLES.
-const _schoolAdminAssignableRoles = [UserRole.hod, UserRole.teacher, UserRole.staff, UserRole.transportManager];
+const _schoolAdminAssignableRoles = [
+  UserRole.hod,
+  UserRole.teacher,
+  UserRole.staff,
+  UserRole.transportManager,
+  UserRole.accountant,
+];
 
 class EditUserDialog extends ConsumerStatefulWidget {
   const EditUserDialog({super.key, required this.user});

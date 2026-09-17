@@ -16,7 +16,7 @@ import '../../../core/widgets/school_picker.dart';
 /// (non-sub) School Admin actor creates a Sub Admin for their own school -
 /// same role and permissions everywhere else, but the Sub Admin can't use
 /// this dialog themselves (see UserPolicy::create()). HOD/Teacher/Staff/
-/// Transport Manager accounts are onboarded via Teachers & Staff instead,
+/// Transport Manager/Accountant accounts are onboarded via Teachers & Staff instead,
 /// which creates the StaffProfile this dialog deliberately doesn't - a
 /// Teacher created here would be invisible to Attendance/Leave.
 class AddUserDialog extends ConsumerStatefulWidget {

@@ -49,6 +49,7 @@ class AppNav {
     UserRole.teacher,
     UserRole.staff,
     UserRole.transportManager,
+    UserRole.accountant,
   };
 
   static const overview = NavGroup(
@@ -67,13 +68,15 @@ class AppNav {
         label: 'Reports',
         icon: Icons.insights_outlined,
         // The roles ReportController lets through. A teacher sees their own
-        // class on the attendance screen instead of a school-wide report.
+        // class on the attendance screen instead of a school-wide report; an
+        // accountant reads staff attendance, which payroll is computed from.
         allowedRoles: {
           UserRole.superAdmin,
           UserRole.groupAdmin,
           UserRole.schoolAdmin,
           UserRole.hod,
           UserRole.transportManager,
+          UserRole.accountant,
         },
         pageTitle: 'Reports',
         pageSubtitle: 'Attendance, teaching and transport over a period',
@@ -206,6 +209,7 @@ class AppNav {
           UserRole.teacher,
           UserRole.staff,
           UserRole.transportManager,
+          UserRole.accountant,
         },
         pageTitle: 'Staff Leave',
         pageSubtitle: 'Leave requests, approvals and attendance sync',
@@ -233,6 +237,33 @@ class AppNav {
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod},
         pageTitle: 'HOD / Staff Reports',
         pageSubtitle: 'Attendance and teaching performance by department',
+      ),
+      NavItem(
+        path: '/payroll',
+        label: 'Payroll',
+        icon: Icons.account_balance_wallet_outlined,
+        // Run by an Accountant or an admin; a Super Admin reads it. See
+        // docs/payroll.md - served by the Python backend only.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Payroll',
+        pageSubtitle: 'Salaries, monthly runs and payslips',
+      ),
+      NavItem(
+        path: '/my-payslips',
+        label: 'My Payslips',
+        icon: Icons.receipt_long_outlined,
+        // Everybody employed by a school - never the Super Admin, who is not.
+        allowedRoles: {
+          UserRole.groupAdmin,
+          UserRole.schoolAdmin,
+          UserRole.hod,
+          UserRole.teacher,
+          UserRole.staff,
+          UserRole.transportManager,
+          UserRole.accountant,
+        },
+        pageTitle: 'My Payslips',
+        pageSubtitle: 'Your finalized payslips',
       ),
     ],
   );

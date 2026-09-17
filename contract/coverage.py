@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 
-from endpoints import ENDPOINTS
+from endpoints import ENDPOINTS, PYTHON_ONLY_ENDPOINTS
 
 # Every (method, path) the suite has actually called this run. Filled in by
 # Client._send, which is the only place a request is made.
@@ -50,13 +50,22 @@ def matches(called: str, declared: str) -> bool:
     return all(want == "{}" or want == got for got, want in zip(a, b))
 
 
+# Set by the first contract test that finds the backend serves the Python-only
+# endpoints, so a run against Laravel is not charged for what it never had.
+PYTHON_ONLY_SERVED = False
+
+
+def served() -> list[tuple[str, str]]:
+    return ENDPOINTS + (PYTHON_ONLY_ENDPOINTS if PYTHON_ONLY_SERVED else [])
+
+
 def record(method: str, path: str) -> None:
     CALLED.add((method.upper(), shape(path)))
 
 
 def report() -> tuple[int, int, dict[str, list[str]]]:
     """Covered, total, and what is missing grouped by module."""
-    declared = [(m.upper(), shape(u)) for m, u in ENDPOINTS]
+    declared = [(m.upper(), shape(u)) for m, u in served()]
 
     covered = {
         route
@@ -84,8 +93,10 @@ def summarise() -> str:
             lines.append(f"  {module:<20} {len(missing[module])}")
 
     # Anything called that the manifest does not declare means the manifest is
-    # stale, or a test is calling something that is not a real endpoint.
-    declared = [(m.upper(), shape(u)) for m, u in ENDPOINTS]
+    # stale, or a test is calling something that is not a real endpoint. The
+    # Python-only list always counts as declared: probing whether a backend
+    # serves it is not a wrong path.
+    declared = [(m.upper(), shape(u)) for m, u in ENDPOINTS + PYTHON_ONLY_ENDPOINTS]
     unknown = sorted(
         call
         for call in CALLED

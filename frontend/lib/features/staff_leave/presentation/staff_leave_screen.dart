@@ -44,6 +44,7 @@ class _StaffLeaveScreenState extends ConsumerState<StaffLeaveScreen> {
     UserRole.staff,
     UserRole.hod,
     UserRole.transportManager,
+    UserRole.accountant,
     UserRole.schoolAdmin,
   };
 

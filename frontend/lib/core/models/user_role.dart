@@ -9,7 +9,11 @@ enum UserRole {
   hod('HOD', 'HOD'),
   teacher('TEACHER', 'Teacher'),
   staff('STAFF', 'Staff'),
-  transportManager('TRANSPORT_MANAGER', 'Transport Manager');
+  transportManager('TRANSPORT_MANAGER', 'Transport Manager'),
+
+  /// Runs payroll for their own school; otherwise an ordinary employee.
+  /// See docs/payroll.md.
+  accountant('ACCOUNTANT', 'Accountant');
 
   const UserRole(this.apiValue, this.label);
 

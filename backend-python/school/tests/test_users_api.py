@@ -264,7 +264,7 @@ class TheAdminHierarchy(UserApiTest):
 
         self.assertEqual(422, response.status_code, response.data)
         self.assertEqual(
-            "A school admin can only assign the HOD, Teacher, Staff, or Transport Manager role.",
+            "A school admin can only assign the HOD, Teacher, Staff, Transport Manager or Accountant role.",
             response.data["details"]["errors"]["role"][0],
         )
 

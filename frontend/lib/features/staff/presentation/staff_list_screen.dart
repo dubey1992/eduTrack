@@ -22,7 +22,7 @@ import 'add_staff_dialog.dart';
 import 'edit_staff_profile_dialog.dart';
 
 const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
-const _staffRoles = [UserRole.teacher, UserRole.hod, UserRole.staff, UserRole.transportManager];
+const _staffRoles = [UserRole.teacher, UserRole.hod, UserRole.staff, UserRole.transportManager, UserRole.accountant];
 
 class StaffListScreen extends ConsumerStatefulWidget {
   const StaffListScreen({super.key});
@@ -170,7 +170,9 @@ class _StatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final teachers = staff.where((m) => m.role == UserRole.teacher).length;
-    final nonTeaching = staff.where((m) => m.role == UserRole.staff || m.role == UserRole.transportManager).length;
+    final nonTeaching = staff
+        .where((m) => {UserRole.staff, UserRole.transportManager, UserRole.accountant}.contains(m.role))
+        .length;
     final hods = staff.where((m) => m.role == UserRole.hod).length;
     final active = staff.where((m) => m.status == UserStatus.active).length;
 

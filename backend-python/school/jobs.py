@@ -233,3 +233,40 @@ def send_password_reset_link(user_id: int) -> None:
     message = EmailMultiAlternatives(subject="Reset your password", body=text, to=[user.email])
     message.attach_alternative(body, "text/html")
     message.send()
+
+
+@handler("payslip_email")
+def send_payslip(payslip_id: int) -> None:
+    """Emails an employee their own payslip, queued when a run is finalized
+    or when somebody asks for it to be sent again.
+
+    Only to the employee - pay is personal - and only from a run that is no
+    longer a draft, since a draft can still change after it is read.
+    """
+    from .enums import PayrollRunStatus
+    from .models import Payslip
+    from .payroll import payslips
+
+    slip = (
+        Payslip.objects.select_related("payroll_run", "school", "staff_profile__user").filter(pk=payslip_id).first()
+    )
+
+    if slip is None or slip.payroll_run.status == PayrollRunStatus.DRAFT:
+        return
+
+    user = slip.staff_profile.user
+
+    if user.status != UserStatus.ACTIVE or not user.email:
+        logger.info("No active address to send payslip %s to", slip.id)
+
+        return
+
+    message = EmailMessage(
+        subject=f"Your payslip for {slip.payroll_run.year}-{slip.payroll_run.month:02d} - {slip.school.name}",
+        body=f"Hello {user.first_name},\n\nYour payslip is attached.\n\n{slip.school.name}",
+        to=[user.email],
+    )
+    message.attach(payslips.file_name(slip), payslips.render(slip), "application/pdf")
+    message.send()
+
+    Payslip.objects.filter(pk=slip.id).update(emailed_at=timezone.now())

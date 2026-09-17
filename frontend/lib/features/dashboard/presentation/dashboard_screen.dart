@@ -262,6 +262,7 @@ class _ReportsLink extends StatelessWidget {
     UserRole.schoolAdmin,
     UserRole.hod,
     UserRole.transportManager,
+    UserRole.accountant,
   };
 
   @override

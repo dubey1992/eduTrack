@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from rest_framework.exceptions import PermissionDenied
 
-from .enums import UserRole
+from .enums import PayrollRunStatus, UserRole
 from .models import Department, Student, TimetableEntry, User
 from .scope import SchoolScope
 
@@ -192,6 +192,7 @@ class StaffLeavePolicy:
             UserRole.STAFF,
             UserRole.HOD,
             UserRole.TRANSPORT_MANAGER,
+            UserRole.ACCOUNTANT,
             UserRole.SCHOOL_ADMIN,
         )
 
@@ -582,6 +583,48 @@ class StaffProfilePolicy:
         )
 
 
+class PayrollPolicy:
+    """Payroll (docs/payroll.md): run by an Accountant for their own school,
+    and by a School or Group Admin across their scope. A Super Admin reads any
+    school's payroll and changes none of it. Every employee reads their own
+    payslips once a run is finalized - never a draft, which can still change.
+
+    Payroll is money and personal pay, so "may manage payroll" never falls
+    back to a broader permission: a role not named here has none of it.
+    """
+
+    MANAGERS = (UserRole.ACCOUNTANT, UserRole.SCHOOL_ADMIN, UserRole.GROUP_ADMIN)
+
+    @classmethod
+    def view_any(cls, actor: User) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN or actor.role in cls.MANAGERS
+
+    @classmethod
+    def manage_any(cls, actor: User) -> bool:
+        return actor.role in cls.MANAGERS
+
+    @classmethod
+    def view(cls, actor: User, school_id: int) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return actor.role in cls.MANAGERS and SchoolScope.for_actor(actor).allows(school_id)
+
+    @classmethod
+    def manage(cls, actor: User, school_id: int) -> bool:
+        return actor.role in cls.MANAGERS and SchoolScope.for_actor(actor).allows(school_id)
+
+    @classmethod
+    def view_payslip(cls, actor: User, payslip) -> bool:
+        if cls.view(actor, payslip.school_id):
+            return True
+
+        return (
+            payslip.staff_profile.user_id == actor.id
+            and payslip.payroll_run.status != PayrollRunStatus.DRAFT
+        )
+
+
 class PaymentPolicy:
     """Platform business, and nobody else's.
 
@@ -695,7 +738,7 @@ class UserPolicy:
     has the same permissions everywhere else but can create no admin account
     at all.
 
-    Operational staff (HOD/TEACHER/STAFF/TRANSPORT_MANAGER) are onboarded
+    Operational staff (HOD/TEACHER/STAFF/TRANSPORT_MANAGER/ACCOUNTANT) are onboarded
     through Teachers & Staff instead, which creates the login and the
     employment record together. One created here would have no StaffProfile
     and be invisible to Attendance and Leave, so that path is deliberately not

@@ -394,6 +394,7 @@ void main() {
         UserRole.teacher,
         UserRole.staff,
         UserRole.transportManager,
+        UserRole.accountant,
       ]) {
         expect(item.allows(role), isFalse, reason: '${role.label} must not see early access requests');
       }

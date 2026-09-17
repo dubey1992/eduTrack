@@ -42,6 +42,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       UserRole.superAdmin || UserRole.groupAdmin || UserRole.schoolAdmin => ReportKind.values,
       UserRole.hod => [ReportKind.staffAttendance, ReportKind.teachingCoverage],
       UserRole.transportManager => [ReportKind.transportUsage],
+      UserRole.accountant => [ReportKind.staffAttendance],
       _ => const [],
     };
   }

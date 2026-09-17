@@ -14,6 +14,7 @@ of them needs to find waiting:
     itest-hod@example.com        HOD            heads Science, which the teacher is in
     itest-transport@example.com  Transport Mgr  a route with a bus, a driver, a stop, two riders
     itest-root@example.com       Super Admin    the school to record a payment against
+    itest-accountant@example.com Accountant     staff to set salaries for and run payroll on
 
 `seed` cleans first, so every run starts from the same place - a test that
 approves "the" pending leave or starts "today's" trip can only do it once.
@@ -40,6 +41,7 @@ from school.clock import SchoolClock
 from school.enums import UserRole
 from school.models import (
     AcademicYear,
+    AuditLog,
     Announcement,
     Attendance,
     ClassSection,
@@ -52,8 +54,13 @@ from school.models import (
     MessageTemplate,
     PasswordResetToken,
     Payment,
+    PayrollRun,
+    Payslip,
+    PayslipLine,
     Period,
     PersonalAccessToken,
+    SalaryComponent,
+    SalaryProfile,
     School,
     SchoolClass,
     StaffAttendance,
@@ -85,6 +92,7 @@ EMAILS = {
     "staff": "itest-staff@example.com",
     "transport": "itest-transport@example.com",
     "root": "itest-root@example.com",
+    "accountant": "itest-accountant@example.com",
 }
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday")
 
@@ -128,11 +136,13 @@ def seed() -> School:
     clerk = person("staff", UserRole.STAFF, "Sunil", "Staff")
     person("transport", UserRole.TRANSPORT_MANAGER, "Tomas", "Transport")
     person("root", UserRole.SUPER_ADMIN, "Rhea", "Root", school=None)
+    accountant = person("accountant", UserRole.ACCOUNTANT, "Anita", "Accountant")
 
     science = factories.DepartmentFactory(school=school, name="Science", hod_user=hod)
     factories.StaffProfileFactory(user=hod, department=science, employee_id="ITEST-HOD")
     factories.StaffProfileFactory(user=teacher, department=science, employee_id="ITEST-TEACHER")
     clerk_profile = factories.StaffProfileFactory(user=clerk, department=None, employee_id="ITEST-STAFF", designation="Clerk")
+    factories.StaffProfileFactory(user=accountant, department=None, employee_id="ITEST-ACC", designation="Accountant")
 
     year = factories.AcademicYearFactory(school=school, name="2026-27", is_current=True)
     section = factories.ClassSectionFactory(
@@ -191,6 +201,14 @@ def clean() -> None:
     students = Student.objects.filter(in_school)
     profiles = StaffProfile.objects.filter(Q(school_id__in=schools) | Q(user_id__in=users))
     sections = ClassSection.objects.filter(school_class__school_id__in=schools)
+
+    runs = PayrollRun.objects.filter(in_school)
+    PayslipLine.objects.filter(payslip__payroll_run__in=runs).delete()
+    Payslip.objects.filter(Q(payroll_run__in=runs) | Q(school_id__in=schools)).delete()
+    runs.delete()
+    SalaryComponent.objects.filter(salary_profile__school_id__in=schools).delete()
+    SalaryProfile.objects.filter(in_school).delete()
+    AuditLog.objects.filter(Q(school_id__in=schools) | Q(user_id__in=users)).delete()
 
     TransportTripEvent.objects.filter(Q(trip__in=trips) | Q(school_id__in=schools)).delete()
     TransportTripRider.objects.filter(trip__in=trips).delete()

@@ -44,7 +44,7 @@ below answers a `NOT_FOUND` envelope, not an HTML page.
 | `school/queue.py` | the job queue — a table and a cron, because the host has no broker |
 | `school/receipts.py` | the payment receipt, rendered by `xhtml2pdf` |
 | `school/money.py` | every figure a `Decimal`, never a float |
-| `school/models.py` | 34 models, all `managed = False` |
+| `school/models.py` | 41 models, all `managed = False` |
 | `school/factories.py` | `factory_boy` equivalents of Laravel's factories |
 | `config/test_runner.py` | builds the test database from unmanaged models |
 | `manage.py check_models` | proves the models still match the real tables |
@@ -67,8 +67,8 @@ the running Laravel app rather than by the Python side.
 
 Every table already exists, created by Laravel's migrations. M1 proved the
 PostgreSQL schema identical to MySQL's, and `schema:diff` still reports no
-differences across 41 tables and 409 columns, so
-there is nothing for Django to build — and `managed = False` on all 34 models
+differences across 47 tables and 486 columns, so
+there is nothing for Django to build — and `managed = False` on all 41 models
 says so. Every relation is `DO_NOTHING` for the same reason: the foreign keys
 carry their own `ON DELETE` rules, enforced by PostgreSQL, and restating them
 here would mean keeping one decision in two places.

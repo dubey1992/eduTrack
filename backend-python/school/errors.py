@@ -221,6 +221,41 @@ class UnreachableAudience(ApiError):
     error_code = "UNREACHABLE_AUDIENCE"
 
 
+class PayrollRunExists(ApiError):
+    """One run per school per month - the second would pay everybody twice."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "PAYROLL_RUN_EXISTS"
+
+
+class PayrollRunLocked(ApiError):
+    """A finalized run is a record of what people were told they are paid.
+    Nothing about it changes except whether each payslip has been paid."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "PAYROLL_RUN_LOCKED"
+
+
+class PayrollRunNotFinalized(ApiError):
+    """Money leaves the school only against a finalized run."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "PAYROLL_RUN_NOT_FINALIZED"
+
+
+class PayrollRunEmpty(ApiError):
+    """A run with no payslips has nothing to finalize - most likely no salary
+    has been set yet."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "PAYROLL_RUN_EMPTY"
+
+
+class PayslipAlreadyPaid(ApiError):
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "PAYSLIP_ALREADY_PAID"
+
+
 class UnprocessableRequest(ApiError):
     """Laravel's bare `abort(422)`: no validator involved, so no field
     errors - just the framework's generic sentence under a generic code."""

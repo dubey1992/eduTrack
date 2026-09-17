@@ -309,7 +309,7 @@ class SchoolIsolation(AcademicYearApiTest):
     def test_every_role_may_read_the_list(self):
         # An academic year is the filter almost every other screen hangs off,
         # so a teacher who cannot list them cannot use attendance either.
-        for role in (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER):
+        for role in (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT):
             with self.subTest(role=role):
                 client = self.as_user(factories.UserFactory(school=self.school, role=role))
 

@@ -60,7 +60,7 @@ class WhoMayReadTheRoll(TestCase):
         self.assertFalse(StudentPolicy.view(teacher, self.student))
 
     def test_roles_with_no_student_access_have_none(self):
-        for role in (UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER):
+        for role in (UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT):
             with self.subTest(role=role):
                 actor = self.admin(role=role)
 

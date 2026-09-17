@@ -346,3 +346,33 @@ class TransportStopFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+class SalaryProfileFactory(DjangoModelFactory):
+    """A monthly salary. Components are added with SalaryComponentFactory."""
+
+    class Meta:
+        model = models.SalaryProfile
+
+    staff_profile = factory.SubFactory(StaffProfileFactory)
+    school = factory.LazyAttribute(lambda o: o.staff_profile.school)
+    basic_salary = "30000.00"
+    currency_code = factory.LazyAttribute(lambda o: o.school.currency_code)
+    updated_by = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class SalaryComponentFactory(DjangoModelFactory):
+    class Meta:
+        model = models.SalaryComponent
+
+    salary_profile = factory.SubFactory(SalaryProfileFactory)
+    type = "earning"
+    name = factory.Sequence(lambda n: f"Allowance {n}")
+    amount = "1000.00"
+    sort_order = 0
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

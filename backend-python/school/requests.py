@@ -1725,7 +1725,7 @@ class ReviewStaffLeaveRequest(ScopedSerializer):
 # What "add an employee" may create. Never an admin account, whoever is doing
 # the adding - that is the Users screen's job, and it derives the admin tier
 # from the actor rather than from a field.
-STAFF_ROLES = (UserRole.HOD, UserRole.TEACHER, UserRole.STAFF, UserRole.TRANSPORT_MANAGER)
+STAFF_ROLES = (UserRole.HOD, UserRole.TEACHER, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT)
 
 
 class StoreStaffRequest(ScopedSerializer):
@@ -2446,6 +2446,7 @@ SCHOOL_ADMIN_ASSIGNABLE_ROLES = (
     UserRole.TEACHER,
     UserRole.STAFF,
     UserRole.TRANSPORT_MANAGER,
+    UserRole.ACCOUNTANT,
 )
 
 
@@ -2555,7 +2556,7 @@ class UpdateUserRequest(ScopedSerializer):
             ):
                 errors["role"] = [
                     "A school admin can only assign the HOD, Teacher, Staff, "
-                    "or Transport Manager role."
+                    "Transport Manager or Accountant role."
                 ]
 
         if errors:

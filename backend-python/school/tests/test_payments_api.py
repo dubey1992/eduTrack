@@ -409,6 +409,7 @@ class OnlyThePlatformSeesPayments(PaymentApiTest):
             UserRole.TEACHER,
             UserRole.STAFF,
             UserRole.TRANSPORT_MANAGER,
+            UserRole.ACCOUNTANT,
         ):
             with self.subTest(role=role):
                 client = self.as_user(factories.UserFactory(school=self.school, role=role))

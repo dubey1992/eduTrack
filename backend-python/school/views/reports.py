@@ -36,7 +36,8 @@ def student_attendance(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def staff_attendance(request):
-    return respond(request, StaffAttendanceReport(), "staff-attendance", (*ADMINS, UserRole.HOD))
+    # The Accountant reads it too: it is the register payroll is computed from.
+    return respond(request, StaffAttendanceReport(), "staff-attendance", (*ADMINS, UserRole.HOD, UserRole.ACCOUNTANT))
 
 
 @api_view(["GET"])

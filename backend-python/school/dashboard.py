@@ -21,6 +21,8 @@ from .enums import (
     MessageChannel,
     MessageStatus,
     PaymentStatus,
+    PayrollRunStatus,
+    PayslipStatus,
     SchoolStatus,
     StudentStatus,
     TransportStatus,
@@ -35,6 +37,8 @@ from .models import (
     Department,
     Message,
     Payment,
+    PayrollRun,
+    Payslip,
     School,
     StaffLeave,
     StaffProfile,
@@ -44,6 +48,7 @@ from .models import (
     TransportTrip,
     User,
 )
+from .payroll.service import PayrollRunService, period_label
 from .requests import php_int
 from .scope import SchoolScope, group_school_ids
 from .services import HolidayService, php_number, php_round_1
@@ -71,6 +76,8 @@ class DashboardService:
             payload = cls._teacher(actor, today)
         elif role == UserRole.TRANSPORT_MANAGER:
             payload = cls._transport(actor.school_id, today)
+        elif role == UserRole.ACCOUNTANT:
+            payload = cls._accountant(actor, today)
         else:
             payload = cls._staff(actor)
 
@@ -243,6 +250,42 @@ class DashboardService:
             ],
             "attendance_trend": [],
             "attention": [],
+        }
+
+    @classmethod
+    def _accountant(cls, actor: User, today: dt.date) -> dict:
+        """Payroll first - this month's run, who cannot be paid yet, what is
+        still owed - then the two cards every employee has."""
+        school = School.objects.get(pk=actor.school_id)
+        run = PayrollRun.objects.filter(school=school, year=today.year, month=today.month).first()
+        _, missing = PayrollRunService.eligible(school)
+        unpaid = Payslip.objects.filter(
+            school=school, status=PayslipStatus.UNPAID, payroll_run__status=PayrollRunStatus.FINALIZED
+        ).count()
+        employee = cls._staff(actor)
+
+        notes = []
+        if missing:
+            notes.append(note("salaries", f"{len(missing)} employees cannot be paid until their salary is set."))
+        if unpaid:
+            notes.append(note("unpaid", f"{unpaid} finalized payslips have not been marked paid."))
+
+        return {
+            "cards": [
+                card(
+                    "payroll", "Payroll this month", "Not started" if run is None else PayrollRunStatus(run.status).label,
+                    period_label(today.year, today.month),
+                    "ok" if run is not None and run.status == PayrollRunStatus.PAID else "neutral",
+                ),
+                card(
+                    "salaries", "Salaries not set", str(len(missing)), "cannot be paid yet",
+                    "warning" if missing else "ok",
+                ),
+                card("unpaid", "Unpaid payslips", str(unpaid), "finalized, not paid", "warning" if unpaid else "ok"),
+                *employee["cards"],
+            ],
+            "attendance_trend": [],
+            "attention": notes,
         }
 
     @classmethod

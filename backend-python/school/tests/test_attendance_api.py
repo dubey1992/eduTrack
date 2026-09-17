@@ -429,7 +429,7 @@ class WhoMayMarkIt(AttendanceTest):
         self.assertEqual([], response.data["data"])
 
     def test_a_role_with_no_attendance_access_is_refused(self):
-        for role in (UserRole.STAFF, UserRole.TRANSPORT_MANAGER):
+        for role in (UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT):
             with self.subTest(role=role):
                 client = self.as_user(factories.UserFactory(school=self.school, role=role))
 

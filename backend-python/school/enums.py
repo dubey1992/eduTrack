@@ -29,6 +29,9 @@ class UserRole(models.TextChoices):
     TEACHER = "TEACHER"
     STAFF = "STAFF"
     TRANSPORT_MANAGER = "TRANSPORT_MANAGER"
+    # Runs payroll for their own school - salaries, a month's run, payslips.
+    # Otherwise an ordinary employee with a staff profile. See docs/payroll.md.
+    ACCOUNTANT = "ACCOUNTANT"
 
     @classmethod
     def administers_school(cls, role: str) -> bool:
@@ -225,6 +228,32 @@ class PaymentMode(models.TextChoices):
     UPI = "upi", "UPI"
     CHEQUE = "cheque", "Cheque"
     ONLINE = "online", "Online Transfer"
+
+
+class PayComponentType(models.TextChoices):
+    """A salary component or payslip line: added to pay, or taken from it."""
+
+    EARNING = "earning", "Earning"
+    DEDUCTION = "deduction", "Deduction"
+
+
+class PayslipLineSource(models.TextChoices):
+    """Where a payslip line came from. Only an adjustment can be removed."""
+
+    BASIC = "basic", "Basic"
+    COMPONENT = "component", "Component"
+    ADJUSTMENT = "adjustment", "Adjustment"
+
+
+class PayrollRunStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    FINALIZED = "finalized", "Finalized"
+    PAID = "paid", "Paid"
+
+
+class PayslipStatus(models.TextChoices):
+    UNPAID = "unpaid", "Unpaid"
+    PAID = "paid", "Paid"
 
 
 class PaymentStatus(models.TextChoices):

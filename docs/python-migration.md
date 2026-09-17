@@ -1324,6 +1324,18 @@ connection from debug service", so use `-d web-server` with chromedriver on
 4444; and Django's `DJANGO_CORS_ORIGINS` has to include the `--web-port`
 origin, where Laravel's development CORS allows any.
 
+## After M11 · New phases on Python only
+
+Decided 2026-09-17: Phases 19-21 are built on Django alone. Laravel stays the
+frozen reference, but its migrations still own the schema, so each new table
+is a Laravel migration kept identical on MySQL and PostgreSQL by
+`schema:diff`, and each new role is added to Laravel's enum so it can still
+read the row. Laravel's route manifest ignores `PYTHON_ONLY_ENDPOINTS` in
+`contract/endpoints.py`, and the contract suite skips those routes when it
+points at Laravel.
+
+Phase 19, Payroll, is the first: see [payroll.md](payroll.md).
+
 ## M12 · The first deployment
 
 **Not a cutover.** Confirmed 2026-09-16: nothing has ever been deployed, and

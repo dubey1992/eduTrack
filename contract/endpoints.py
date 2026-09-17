@@ -232,5 +232,33 @@ ENDPOINTS: list[tuple[str, str]] = [
 ]
 
 
+# Served by the Python backend only - features built after the port froze the
+# Laravel one (docs/python-migration.md). Kept out of ENDPOINTS, which is the
+# list RouteManifestTest holds Laravel to; that test reads only what comes
+# before this marker. Counted towards coverage when the backend under test
+# serves them.
+PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
+    # -- payroll (Phase 19, docs/payroll.md) -----------------------
+    ("GET", "payroll/salaries"),
+    ("GET", "payroll/salaries/{staffProfile}"),
+    ("PUT", "payroll/salaries/{staffProfile}"),
+    ("GET", "payroll/runs"),
+    ("POST", "payroll/runs"),
+    ("GET", "payroll/runs/{run}"),
+    ("DELETE", "payroll/runs/{run}"),
+    ("GET", "payroll/runs/{run}/payslips"),
+    ("POST", "payroll/runs/{run}/regenerate"),
+    ("POST", "payroll/runs/{run}/finalize"),
+    ("POST", "payroll/runs/{run}/pay"),
+    ("GET", "payroll/payslips/{payslip}"),
+    ("POST", "payroll/payslips/{payslip}/adjustments"),
+    ("DELETE", "payroll/payslips/{payslip}/adjustments/{line}"),
+    ("POST", "payroll/payslips/{payslip}/pay"),
+    ("GET", "payroll/payslips/{payslip}/pdf"),
+    ("POST", "payroll/payslips/{payslip}/email"),
+    ("GET", "payroll/my-payslips"),
+]
+
+
 def count() -> int:
     return len(ENDPOINTS)

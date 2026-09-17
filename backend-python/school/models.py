@@ -53,6 +53,27 @@ class AcademicYear(models.Model):
         db_table = 'academic_years'
         unique_together = (('school', 'name'),)
 
+class AuditLog(models.Model):
+    """Who changed what, and what it was before (CLAUDE.md §13). Append-only:
+    there is no updated_at, and nothing here edits a row. See school/audit.py."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING, blank=True, null=True)
+    user = models.ForeignKey('User', models.DO_NOTHING, blank=True, null=True)
+    action = models.CharField(max_length=64)
+    module = models.CharField(max_length=32)
+    entity_type = models.CharField(max_length=64)
+    entity_id = models.BigIntegerField(blank=True, null=True)
+    old_values = LaravelJSONField(blank=True, null=True)
+    new_values = LaravelJSONField(blank=True, null=True)
+    ip = models.CharField(max_length=45, blank=True, null=True)
+    created_at = UtcDateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'audit_logs'
+
+
 class Announcement(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
@@ -286,6 +307,83 @@ class Payment(models.Model):
         managed = False
         db_table = 'payments'
 
+class PayrollRun(models.Model):
+    """One school's payroll for one month. See docs/payroll.md."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    year = models.SmallIntegerField()
+    month = models.SmallIntegerField()
+    status = models.CharField(max_length=16)
+    currency_code = models.CharField(max_length=3)
+    working_days = models.SmallIntegerField()
+    generated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='generated_by', blank=True, null=True, related_name='+')
+    finalized_by = models.ForeignKey('User', models.DO_NOTHING, db_column='finalized_by', blank=True, null=True, related_name='+')
+    finalized_at = UtcDateTimeField(blank=True, null=True)
+    paid_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'payroll_runs'
+        unique_together = (('school', 'year', 'month'),)
+
+
+class Payslip(models.Model):
+    """A snapshot: nothing on it is re-derived once its run is finalized."""
+
+    id = models.BigAutoField(primary_key=True)
+    payroll_run = models.ForeignKey('PayrollRun', models.DO_NOTHING, related_name='payslips')
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    staff_profile = models.ForeignKey('StaffProfile', models.DO_NOTHING)
+    employee_name = models.CharField(max_length=255)
+    employee_code = models.CharField(max_length=30)
+    designation = models.CharField(max_length=100, blank=True, null=True)
+    department_name = models.CharField(max_length=255, blank=True, null=True)
+    currency_code = models.CharField(max_length=3)
+    working_days = models.DecimalField(max_digits=5, decimal_places=1)
+    paid_days = models.DecimalField(max_digits=5, decimal_places=1)
+    absent_days = models.DecimalField(max_digits=5, decimal_places=1)
+    half_days = models.SmallIntegerField()
+    unmarked_days = models.SmallIntegerField()
+    gross_earnings = models.DecimalField(max_digits=12, decimal_places=2)
+    total_deductions = models.DecimalField(max_digits=12, decimal_places=2)
+    net_pay = models.DecimalField(max_digits=12, decimal_places=2)
+    shortfall = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=16)
+    paid_on = models.DateField(blank=True, null=True)
+    payment_mode = models.CharField(max_length=32, blank=True, null=True)
+    payment_reference = models.CharField(max_length=100, blank=True, null=True)
+    emailed_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'payslips'
+        unique_together = (('payroll_run', 'staff_profile'),)
+
+
+class PayslipLine(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    payslip = models.ForeignKey('Payslip', models.DO_NOTHING, related_name='lines')
+    type = models.CharField(max_length=16)
+    source = models.CharField(max_length=16)
+    name = models.CharField(max_length=100)
+    full_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    note = models.CharField(max_length=255, blank=True, null=True)
+    sort_order = models.SmallIntegerField()
+    created_by = models.ForeignKey('User', models.DO_NOTHING, db_column='created_by', blank=True, null=True, related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'payslip_lines'
+
+
 class Period(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
@@ -356,6 +454,39 @@ class QueuedJob(models.Model):
     class Meta:
         managed = False
         db_table = 'queued_jobs'
+
+class SalaryComponent(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    salary_profile = models.ForeignKey('SalaryProfile', models.DO_NOTHING, related_name='components')
+    type = models.CharField(max_length=16)
+    name = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    sort_order = models.SmallIntegerField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'salary_components'
+        unique_together = (('salary_profile', 'type', 'name'),)
+
+
+class SalaryProfile(models.Model):
+    """What one employee is paid each month. See docs/payroll.md."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    staff_profile = models.OneToOneField('StaffProfile', models.DO_NOTHING, related_name='salary')
+    basic_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    currency_code = models.CharField(max_length=3)
+    updated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True, related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'salary_profiles'
+
 
 class School(models.Model):
     id = models.BigAutoField(primary_key=True)

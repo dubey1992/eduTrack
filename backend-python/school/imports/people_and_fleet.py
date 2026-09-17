@@ -20,7 +20,7 @@ from ..models import Department, Driver, StaffProfile, Subject, User, Vehicle
 from ..services import DriverService, StaffProfileService, SubjectService, VehicleService
 from .rules import Row, matching, to_iso
 
-STAFF_ROLES = ("HOD", "TEACHER", "STAFF", "TRANSPORT_MANAGER")
+STAFF_ROLES = ("HOD", "TEACHER", "STAFF", "TRANSPORT_MANAGER", "ACCOUNTANT")
 
 
 def names_to_ids(queryset, field: str) -> dict[str, int]:

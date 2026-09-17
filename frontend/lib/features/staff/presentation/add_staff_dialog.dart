@@ -16,7 +16,7 @@ import '../application/staff_list_notifier.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/school_picker.dart';
 
-const _staffRoles = [UserRole.teacher, UserRole.hod, UserRole.staff, UserRole.transportManager];
+const _staffRoles = [UserRole.teacher, UserRole.hod, UserRole.staff, UserRole.transportManager, UserRole.accountant];
 
 class AddStaffDialog extends ConsumerStatefulWidget {
   const AddStaffDialog({super.key});

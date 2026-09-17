@@ -156,7 +156,7 @@ class AddingAnEmployee(StaffApiTest):
 
     def test_every_operational_role_can_be_added(self):
         for index, role in enumerate(
-            (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER)
+            (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT)
         ):
             with self.subTest(role=role):
                 response = self.client.post(
@@ -333,7 +333,7 @@ class WhoMaySeeTheRoster(StaffApiTest):
         )
 
     def test_operational_roles_are_refused(self):
-        for role in (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER):
+        for role in (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT):
             with self.subTest(role=role):
                 client = self.as_user(factories.UserFactory(school=self.school, role=role))
 

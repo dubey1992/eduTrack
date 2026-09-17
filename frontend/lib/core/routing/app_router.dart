@@ -22,6 +22,8 @@ import '../../features/hod/presentation/hod_report_screen.dart';
 import '../../features/holidays/presentation/holiday_list_screen.dart';
 import '../../features/marketing/presentation/marketing_screen.dart';
 import '../../features/payments/presentation/payment_list_screen.dart';
+import '../../features/payroll/presentation/my_payslips_screen.dart';
+import '../../features/payroll/presentation/payroll_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
 import '../../features/staff/presentation/staff_list_screen.dart';
@@ -91,6 +93,8 @@ const appRoutePaths = {
   '/announcements',
   '/inbox',
   '/reports',
+  '/payroll',
+  '/my-payslips',
 };
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -153,6 +157,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/announcements', builder: (context, state) => const AnnouncementScreen()),
           GoRoute(path: '/inbox', builder: (context, state) => const InboxScreen()),
           GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
+          GoRoute(path: '/payroll', builder: (context, state) => const PayrollScreen()),
+          GoRoute(path: '/my-payslips', builder: (context, state) => const MyPayslipsScreen()),
         ],
       ),
     ],
