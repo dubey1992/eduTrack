@@ -281,6 +281,31 @@ class SyllabusTopicManagementTest extends TestCase
         $this->assertSame(['First', 'Second'], collect($response->json())->pluck('title')->all());
     }
 
+    public function test_a_school_admin_cannot_list_another_schools_topics(): void
+    {
+        [, , , $subject] = $this->makeSubjectWithHod();
+        SyllabusTopic::factory()->forSubject($subject)->atSequence(1)->create(['title' => 'Private']);
+        $outsider = User::factory()->role(UserRole::SchoolAdmin)->forSchool(School::factory()->create())->create();
+
+        $this->actingAs($outsider, 'sanctum')
+            ->getJson("/api/v1/syllabus-topics?subject_id={$subject->id}")
+            ->assertNotFound()
+            ->assertJsonPath('code', 'NOT_FOUND')
+            ->assertJsonMissing(['title' => 'Private']);
+    }
+
+    public function test_a_super_admin_can_list_any_schools_topics(): void
+    {
+        [, , , $subject] = $this->makeSubjectWithHod();
+        SyllabusTopic::factory()->forSubject($subject)->atSequence(1)->create();
+        $superAdmin = User::factory()->role(UserRole::SuperAdmin)->create(['school_id' => null]);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson("/api/v1/syllabus-topics?subject_id={$subject->id}")
+            ->assertOk()
+            ->assertJsonCount(1);
+    }
+
     public function test_a_staff_member_cannot_list_syllabus_topics(): void
     {
         [$school, , , $subject] = $this->makeSubjectWithHod();

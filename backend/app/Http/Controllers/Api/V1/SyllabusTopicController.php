@@ -9,11 +9,13 @@ use App\Http\Resources\SyllabusTopicResource;
 use App\Models\Subject;
 use App\Models\SyllabusTopic;
 use App\Services\SyllabusTopicService;
+use App\Support\SchoolScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class SyllabusTopicController extends Controller
 {
@@ -24,6 +26,15 @@ class SyllabusTopicController extends Controller
         Gate::authorize('viewAny', SyllabusTopic::class);
 
         $subject = Subject::findOrFail($request->validate(['subject_id' => ['required', 'integer', 'exists:subjects,id']])['subject_id']);
+
+        // `exists` only proves the subject is real, not that it is this
+        // actor's - without this, any school could read another's syllabus by
+        // changing the id. A 404 rather than a 403, the same answer the
+        // timetable grid gives: the id came from a query string, and a
+        // stranger should not learn that it exists.
+        if (! SchoolScope::for($request->user())->allows($subject->school_id)) {
+            throw new NotFoundHttpException;
+        }
 
         return SyllabusTopicResource::collection($this->syllabusTopicService->forSubject($subject)->load('subject'));
     }

@@ -218,6 +218,31 @@ class SyllabusProgressManagementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_another_schools_subject_cannot_be_read_through_ones_own_section(): void
+    {
+        // The section is the actor's own, so the policy passes - it is the
+        // subject that belongs to somebody else.
+        [, , , $foreignSubject] = $this->makeFixtures();
+        [$school, , , , , $ownSection] = $this->makeFixtures(School::factory()->create());
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/syllabus-progress?class_section_id={$ownSection->id}&subject_id={$foreignSubject->id}")
+            ->assertNotFound()
+            ->assertJsonPath('code', 'NOT_FOUND');
+    }
+
+    public function test_a_school_admin_reads_their_own_schools_checklist(): void
+    {
+        [$school, , , $subject, , $section] = $this->makeFixtures();
+        $admin = User::factory()->role(UserRole::SchoolAdmin)->forSchool($school)->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson("/api/v1/syllabus-progress?class_section_id={$section->id}&subject_id={$subject->id}")
+            ->assertOk()
+            ->assertJsonPath('total_topics', 1);
+    }
+
     public function test_a_super_admin_can_view_any_schools_checklist(): void
     {
         [, , , $subject, , $section] = $this->makeFixtures();
