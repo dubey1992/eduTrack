@@ -34,7 +34,9 @@ class PasswordResetController extends Controller
             return response()->json([
                 'code' => 'INVALID_RESET_TOKEN',
                 'message' => 'This password reset link is invalid or has expired.',
-                'details' => [],
+                // An empty object, like every other error: PHP writes an
+                // empty array as `[]`, and the envelope promises `{}`.
+                'details' => new \stdClass,
             ], 422);
         }
 

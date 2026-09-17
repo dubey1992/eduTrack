@@ -53,7 +53,10 @@ class PasswordResetTest extends TestCase
             'email' => $user->email,
             'token' => 'not-a-real-token',
             'password' => 'brand-new-password',
-        ])->assertUnprocessable()->assertJsonPath('code', 'INVALID_RESET_TOKEN');
+        ])->assertUnprocessable()
+            ->assertJsonPath('code', 'INVALID_RESET_TOKEN')
+            // An object, as every error's details are - never PHP's `[]`.
+            ->assertSee('"details":{}', escape: false);
 
         $this->postJson('/api/v1/auth/login', [
             'email' => $user->email,
