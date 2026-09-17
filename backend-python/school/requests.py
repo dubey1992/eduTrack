@@ -21,6 +21,7 @@ import re
 
 from . import hashing, notifications, sms
 from .enums import (
+    EarlyAccessStatus,
     TripDirection,
     TripRiderStatus,
     TransportStatus,
@@ -1567,6 +1568,99 @@ class UpdateTripRiderRequest(serializers.Serializer):
     validate_status = staticmethod(enum_choice(
         "status", (TripRiderStatus.BOARDED, TripRiderStatus.DROPPED, TripRiderStatus.ABSENT)
     ))
+
+
+# -- early access and password resets --------------------------------------
+
+INTERNATIONAL_PHONE = re.compile(r"^\+[1-9][0-9 ]{6,17}$")
+
+
+class EmailField(LaravelCharField):
+    """Laravel's `email` rule, as permissive as it is - see EMAIL_PATTERN."""
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+
+        if not EMAIL_PATTERN.match(value):
+            raise serializers.ValidationError(not_an_email(self._field_name))
+
+        return value
+
+
+class StoreEarlyAccessRequest(serializers.Serializer):
+    school_name = LaravelCharField("school_name", max_length=150)
+    contact_name = LaravelCharField("contact_name", max_length=150)
+    contact_role = optional_text("contact_role", 100)
+    email = EmailField("email", max_length=255)
+    phone = LaravelCharField("phone", max_length=20)
+    city = LaravelCharField("city", max_length=100)
+    country = LaravelCharField("country", max_length=100)
+    # Roughly how big they are - the most useful thing for deciding who to
+    # call first. Optional: plenty of people do not know.
+    expected_students = LaravelIntegerField("expected_students", required=False, allow_null=True, min_value=1)
+    current_software = optional_text("current_software", 150)
+    message = optional_text("message", 2000)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_phone(self, value):
+        if not INTERNATIONAL_PHONE.match(value):
+            raise serializers.ValidationError("Include the country code, like +91 9876543210.")
+
+        return value
+
+    def validate_expected_students(self, value):
+        if value is not None and value > 200000:
+            raise serializers.ValidationError(
+                "That is more students than any school we know of - please get in touch directly."
+            )
+
+        return value
+
+
+class ReviewEarlyAccessRequest(PartialForm):
+    status = LaravelCharField("status", max_length=255)
+    notes = LaravelCharField("notes", max_length=2000, allow_null=True)
+
+    def validate_status(self, value):
+        if value not in EarlyAccessStatus.settable():
+            raise serializers.ValidationError(
+                "A request becomes Converted by onboarding the school, not by saying so."
+            )
+
+        return value
+
+
+class ForgotPasswordRequest(serializers.Serializer):
+    email = EmailField("email", max_length=255)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+
+class ResetPasswordRequest(serializers.Serializer):
+    token = LaravelCharField("token", max_length=None)
+    email = EmailField("email", max_length=None)
+    password = LaravelCharField("password", max_length=None, trim_whitespace=False)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_password(self, value):
+        if len(value) < 8:
+            raise serializers.ValidationError("The password field must be at least 8 characters.")
+
+        return value
 
 
 # -- leave ------------------------------------------------------------------

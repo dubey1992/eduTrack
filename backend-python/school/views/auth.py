@@ -14,10 +14,16 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..requests import ChangePasswordRequest, LoginRequest
+from ..requests import ChangePasswordRequest, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest
 from ..resources import user_resource
-from ..services import AuthService
-from ..throttling import LoginAddressThrottle, LoginThrottle
+from ..errors import envelope
+from ..services import AuthService, PasswordResetService
+from ..throttling import (
+    LoginAddressThrottle,
+    LoginThrottle,
+    PasswordResetAddressThrottle,
+    PasswordResetThrottle,
+)
 
 
 @api_view(["POST"])
@@ -62,3 +68,36 @@ def logout(request) -> Response:
     AuthService.logout(request.auth)
 
     return Response({"message": "Logged out successfully."})
+
+
+@api_view(["POST"])
+@permission_classes([])
+@throttle_classes([PasswordResetThrottle, PasswordResetAddressThrottle])
+def forgot_password(request) -> Response:
+    form = ForgotPasswordRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
+    PasswordResetService.request_link(form.validated_data["email"])
+
+    # The same answer whether or not the address has an account.
+    return Response({"message": "If an account exists for that email, a password reset link has been sent."})
+
+
+@api_view(["POST"])
+@permission_classes([])
+@throttle_classes([PasswordResetThrottle, PasswordResetAddressThrottle])
+def reset_password(request) -> Response:
+    form = ResetPasswordRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
+    reset = PasswordResetService.reset(
+        form.validated_data["email"], form.validated_data["token"], form.validated_data["password"]
+    )
+
+    # One answer for a wrong token, an expired one and an address with no
+    # account - telling them apart would say which addresses exist.
+    if not reset:
+        return envelope(422, "INVALID_RESET_TOKEN", "This password reset link is invalid or has expired.")
+
+    return Response({"message": "Password reset successfully."})
+

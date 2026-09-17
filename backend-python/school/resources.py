@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from . import money, sms, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
-from .enums import AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus
+from .enums import EarlyAccessStatus, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
 from .scope import SchoolScope
@@ -498,6 +498,34 @@ def trip_event_resource(event, clock) -> dict:
         "recorded_at": timestamp(event.recorded_at),
         "recorded_at_label": clock.format(event.recorded_at, TIME),
         "note": event.note,
+    }
+
+
+def early_access_resource(request) -> dict:
+    """A signup request. It belongs to no school, so there is no school clock
+    to read it by - the platform's is the only honest one."""
+    clock = SchoolClock.platform()
+
+    return {
+        "id": request.id,
+        "school_name": request.school_name,
+        "contact_name": request.contact_name,
+        "contact_role": request.contact_role,
+        "email": request.email,
+        "phone": request.phone,
+        "city": request.city,
+        "country": request.country,
+        "expected_students": request.expected_students,
+        "current_software": request.current_software,
+        "message": request.message,
+        "status": request.status,
+        "status_label": EarlyAccessStatus(request.status).label,
+        "notes": request.notes,
+        "converted_school_id": request.converted_school_id,
+        "converted_school_name": request.converted_school.name if request.converted_school_id else None,
+        "reviewed_by_name": request.reviewed_by.name if request.reviewed_by_id else None,
+        "reviewed_at": clock.format(request.reviewed_at, DATE_TIME),
+        "submitted_at": clock.format(request.created_at, DATE_TIME),
     }
 
 

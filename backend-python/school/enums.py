@@ -359,3 +359,20 @@ class TripRiderStatus(models.TextChoices):
             cls.PENDING: (cls.BOARDED, cls.ABSENT),
             cls.BOARDED: (cls.DROPPED,),
         }.get(current, ())
+
+
+class EarlyAccessStatus(models.TextChoices):
+    NEW = "new", "New"
+    CONTACTED = "contacted", "Contacted"
+    CONVERTED = "converted", "Converted"
+    DECLINED = "declined", "Declined"
+
+    @classmethod
+    def settable(cls) -> tuple:
+        """Converted is not among them: it means a school exists, and the
+        system sets it when one does."""
+        return (cls.NEW, cls.CONTACTED, cls.DECLINED)
+
+    @classmethod
+    def open(cls) -> tuple:
+        return (cls.NEW, cls.CONTACTED)

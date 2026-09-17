@@ -24,6 +24,7 @@ from school.views import (
     auth,
     classes,
     communication,
+    early_access,
     hod,
     imports,
     inbox,
@@ -69,6 +70,8 @@ urlpatterns = [
     path("api/v1/auth/login", auth.login),
     path("api/v1/auth/logout", auth.logout),
     path("api/v1/auth/change-password", auth.change_password),
+    path("api/v1/auth/forgot-password", auth.forgot_password),
+    path("api/v1/auth/reset-password", auth.reset_password),
     path("api/v1/me", auth.me),
     # -- payments ----------------------------------------------------------
     # `summary` before `<int:payment_id>` so the word is not read as an id.
@@ -152,6 +155,9 @@ urlpatterns = [
     path("api/v1/transport/trips/<int:trip_id>/riders/<int:student_id>", trips.rider),
     path("api/v1/transport/trips/<int:trip_id>/end", trips.end),
     path("api/v1/transport/trips/<int:trip_id>/cancel", trips.cancel),
+    # -- early access ------------------------------------------------------
+    path("api/v1/early-access", early_access.collection),
+    path("api/v1/early-access/<int:request_id>", early_access.detail),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

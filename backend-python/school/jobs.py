@@ -156,3 +156,80 @@ def publish_announcement(announcement_id: int, actor_id: int | None = None) -> N
     actor = None if actor_id is None else User.objects.filter(pk=actor_id).first()
 
     AnnouncementService.fan_out(announcement, actor)
+
+
+@handler("password_reset_link")
+def send_password_reset_link(user_id: int) -> None:
+    """Makes a reset token and emails the link.
+
+    Laravel's broker rules: a second link within a minute of the first is not
+    sent, and issuing a new token replaces the old one. Only a bcrypt hash of
+    the token is stored; the token itself exists in this function and in the
+    email, nowhere else - and is never logged.
+    """
+    import html
+    import secrets
+    from datetime import timedelta
+
+    from django.conf import settings
+    from django.core.mail import EmailMultiAlternatives
+
+    from . import hashing
+    from .models import PasswordResetToken
+
+    user = User.objects.filter(pk=user_id).first()
+
+    if user is None:
+        return
+
+    now = timezone.now()
+    recent = PasswordResetToken.objects.filter(
+        email=user.email, created_at__gt=now - timedelta(seconds=settings.PASSWORD_RESET_THROTTLE_SECONDS)
+    ).exists()
+
+    if recent:
+        return
+
+    token = secrets.token_hex(32)
+
+    PasswordResetToken.objects.filter(email=user.email).delete()
+    PasswordResetToken.objects.create(email=user.email, token=hashing.make(token), created_at=now)
+
+    link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}&email={user.email}"
+    name = settings.APP_NAME
+    expiry = settings.PASSWORD_RESET_EXPIRE_MINUTES
+
+    text = (
+        f"{name}\n\n"
+        "Hello!\n\n"
+        "You are receiving this email because we received a password reset request for your account.\n\n"
+        f"Reset Password: {link}\n\n"
+        f"This password reset link will expire in {expiry} minutes.\n\n"
+        "If you did not request a password reset, no further action is required.\n\n"
+        f"Regards,\n{name}\n\n"
+        "Smarter Schools. Brighter Futures.\n"
+        f"\u00a9 {now.year} {name}. All rights reserved."
+    )
+
+    safe_link = html.escape(link)
+    body = (
+        '<div style="font-family:Arial,sans-serif;color:#1f2937;max-width:570px;margin:0 auto">'
+        f'<p style="font-size:19px;font-weight:bold">\U0001f393 {html.escape(name)}</p>'
+        "<p>Hello!</p>"
+        "<p>You are receiving this email because we received a password reset request for your account.</p>"
+        f'<p><a href="{safe_link}" style="background-color:#2563eb;border:8px solid #2563eb;'
+        'border-left-width:18px;border-right-width:18px;color:#ffffff;text-decoration:none;'
+        'border-radius:4px;display:inline-block">Reset Password</a></p>'
+        f"<p>This password reset link will expire in {expiry} minutes.</p>"
+        "<p>If you did not request a password reset, no further action is required.</p>"
+        f"<p>Regards,<br>{html.escape(name)}</p>"
+        '<p style="font-size:12px;color:#6b7280">If you\'re having trouble clicking the "Reset Password" button, '
+        f'copy and paste the URL below into your web browser: <a href="{safe_link}" style="color:#2563eb">{safe_link}</a></p>'
+        '<p style="font-size:12px;color:#6b7280;text-align:center">Smarter Schools. Brighter Futures.<br>'
+        f"\u00a9 {now.year} {html.escape(name)}. All rights reserved.</p>"
+        "</div>"
+    )
+
+    message = EmailMultiAlternatives(subject="Reset your password", body=text, to=[user.email])
+    message.attach_alternative(body, "text/html")
+    message.send()

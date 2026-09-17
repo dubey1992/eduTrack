@@ -137,3 +137,29 @@ CORS_ALLOWED_ORIGINS = [
 # are stored. This is the zone the few views that belong to no school are read
 # in - a Super Admin's cross-school totals. See school/clock.py.
 PLATFORM_TIMEZONE = os.environ.get("PLATFORM_TIMEZONE", "UTC")
+
+# -- mail ---------------------------------------------------------------------
+#
+# The product's name goes into every email it sends, and the reset link
+# points at the Flutter app's own screen, never a page this backend serves.
+APP_NAME = os.environ.get("APP_NAME", "School365ai")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+DEFAULT_FROM_EMAIL = os.environ.get("MAIL_FROM_ADDRESS", "hello@example.com")
+
+# Printed to the console while developing, as Laravel's `log` mailer writes to
+# its log - and real SMTP otherwise. The console copy of a reset email carries
+# a live link, which is acceptable on a developer's machine and nowhere else,
+# so it is never the default outside DEBUG.
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.environ.get("MAIL_HOST", "127.0.0.1")
+EMAIL_PORT = int(os.environ.get("MAIL_PORT", "25"))
+EMAIL_HOST_USER = os.environ.get("MAIL_USERNAME", "")
+EMAIL_HOST_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+
+# Laravel's password broker: a link lasts an hour, and a second one is not
+# sent within a minute of the first.
+PASSWORD_RESET_EXPIRE_MINUTES = 60
+PASSWORD_RESET_THROTTLE_SECONDS = 60

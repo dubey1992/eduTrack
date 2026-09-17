@@ -42,3 +42,39 @@ class LoginAddressThrottle(SimpleRateThrottle):
 
     def get_cache_key(self, request, view) -> str:
         return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
+
+
+class EarlyAccessThrottle(SimpleRateThrottle):
+    """The marketing page's signup form: a public write with no account behind
+    it. Five a minute is more than any school needs and less than any bot
+    wants. The panel's reads share the address but not the limit."""
+
+    scope = "early-access"
+    rate = "5/min"
+
+    def get_cache_key(self, request, view) -> str | None:
+        if request.method != "POST":
+            return None
+
+        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
+
+
+class PasswordResetThrottle(SimpleRateThrottle):
+    """Tighter than signing in: each attempt can send a real email, so this is
+    also a way to fill somebody's inbox."""
+
+    scope = "password-reset"
+    rate = "3/min"
+
+    def get_cache_key(self, request, view) -> str:
+        email = str(request.data.get("email", "")).strip().lower()
+
+        return self.cache_format % {"scope": self.scope, "ident": f"{email}|{self.get_ident(request)}"}
+
+
+class PasswordResetAddressThrottle(SimpleRateThrottle):
+    scope = "password-reset-address"
+    rate = "10/min"
+
+    def get_cache_key(self, request, view) -> str:
+        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}

@@ -17,6 +17,7 @@ from django.utils import timezone
 from . import hashing, jobs, money, notifications, queue, sms, tokens, working_hours
 from .clock import TIME, SchoolClock
 from .enums import (
+    EarlyAccessStatus,
     TripEventType,
     TripRiderStatus,
     TripStatus,
@@ -88,6 +89,7 @@ from .models import (
     Vehicle,
     TransportTripEvent,
     TransportTripRider,
+    PasswordResetToken,
     User,
 )
 from .requests import php_int
@@ -157,13 +159,74 @@ class AuthService:
 
 
 class EarlyAccessService:
-    """Only the one method the schools module needs.
+    """The marketing page's signups, and the Super Admin's queue of them."""
 
-    Early access is M11's module. `mark_converted` comes early because
-    `POST /schools` calls it - onboarding a school from a signup request has
-    to close the loop, or the panel shows "Converted" with no school behind
-    it. The rest of the service arrives with its own phase.
-    """
+    FIELDS = (
+        "school_name", "contact_name", "contact_role", "email", "phone", "city", "country",
+        "expected_students", "current_software", "message",
+    )
+
+    @classmethod
+    def record(cls, data: dict) -> None:
+        """A signup - or a correction to one still open.
+
+        The same address asking again, while its request is new or being
+        followed up, updates that request rather than queueing a second: their
+        latest answers win, and the request keeps its place and whatever
+        status somebody has already given it.
+        """
+        now = timezone.now()
+        existing = (
+            EarlyAccessRequest.objects.filter(email=data["email"], status__in=EarlyAccessStatus.open())
+            .order_by("-id")
+            .first()
+        )
+
+        if existing is None:
+            EarlyAccessRequest.objects.create(
+                **{field: data.get(field) for field in cls.FIELDS},
+                status=EarlyAccessStatus.NEW, created_at=now, updated_at=now,
+            )
+
+            return
+
+        changed = [field for field in cls.FIELDS if field in data and getattr(existing, field) != data[field]]
+
+        if changed:
+            for field in changed:
+                setattr(existing, field, data[field])
+
+            existing.updated_at = now
+            existing.save(update_fields=[*changed, "updated_at"])
+
+    @staticmethod
+    def visible_to(filters: dict):
+        requests = EarlyAccessRequest.objects.select_related("converted_school", "reviewed_by")
+
+        if filters.get("status"):
+            requests = requests.filter(status=filters["status"])
+
+        if filters.get("q"):
+            like = f"%{filters['q']}%"
+            requests = requests.filter(Q(school_name__ilike=like) | Q(contact_name__ilike=like) | Q(email__ilike=like))
+
+        # Newest first: the panel is a queue, and what nobody has looked at
+        # yet is what matters.
+        return requests.order_by("-id")
+
+    @staticmethod
+    def review(request, data: dict, actor: User):
+        now = timezone.now()
+
+        for field, value in data.items():
+            setattr(request, field, value)
+
+        request.reviewed_by_id = actor.id
+        request.reviewed_at = now
+        request.updated_at = now
+        request.save(update_fields=[*data.keys(), "reviewed_by", "reviewed_at", "updated_at"])
+
+        return EarlyAccessRequest.objects.select_related("converted_school", "reviewed_by").get(pk=request.pk)
 
     @staticmethod
     def mark_converted(request, school: School, actor: User):
@@ -2416,6 +2479,63 @@ class TransportTripService:
             student_id=student.pk if student else None, student_name=student.name if student else None,
             recorded_by_id=actor.id, recorded_at=now, note=note, created_at=now, updated_at=now,
         )
+
+
+
+SEND_PASSWORD_RESET = "password_reset_link"
+
+
+class PasswordResetService:
+    """Laravel's password broker, over the same table, so a link either
+    backend sends is one either backend honours.
+
+    The email itself goes on the queue with only the user's id in the job -
+    the token is made when the job runs, and never sits in a queue row. That
+    also keeps the endpoint equally quick whether or not the address has an
+    account, which a send inside the request would not.
+    """
+
+    @staticmethod
+    def request_link(email: str) -> None:
+        user = User.objects.filter(email=email).only("id").first()
+
+        if user is not None:
+            queue.push(SEND_PASSWORD_RESET, {"user_id": user.id})
+
+    @staticmethod
+    def reset(email: str, token: str, password: str) -> bool:
+        from django.conf import settings
+
+        user = User.objects.filter(email=email).first()
+
+        if user is None:
+            return False
+
+        row = PasswordResetToken.objects.filter(email=user.email).first()
+        expires = settings.PASSWORD_RESET_EXPIRE_MINUTES
+
+        if (
+            row is None
+            or row.created_at is None
+            or row.created_at + dt.timedelta(minutes=expires) < timezone.now()
+            or not hashing.check(token, row.token)
+        ):
+            return False
+
+        with transaction.atomic():
+            # Choosing a password is choosing a password, however the account
+            # got here - an imported employee who uses the link is no longer
+            # asked to change it again.
+            user.password = hashing.make(password)
+            user.must_change_password = False
+            user.updated_at = timezone.now()
+            user.save(update_fields=["password", "must_change_password", "updated_at"])
+
+            # Every session ends, and the link is spent.
+            PersonalAccessToken.objects.filter(tokenable_type=tokens.TOKENABLE_TYPE, tokenable_id=user.id).delete()
+            PasswordResetToken.objects.filter(email=user.email).delete()
+
+        return True
 
 
 class StaffProfileService:

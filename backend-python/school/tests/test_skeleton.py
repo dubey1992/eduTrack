@@ -15,13 +15,15 @@ from school import factories, models
 
 class TheSchemaIsDescribed(TestCase):
     def test_every_domain_table_has_a_model(self):
-        # 32 domain models, matching the 32 Eloquent ones exactly, plus two
+        # 32 domain models, matching the 32 Eloquent ones exactly, plus three
         # that are not domain tables:
         #
         #   personal_access_tokens - added at M8 so both backends can read the
         #   same signed-in session (school/tokens.py).
         #   queued_jobs - added at M9 for the work this backend defers, which
         #   Laravel's own `jobs` table cannot hold (see its migration).
+        #   password_reset_tokens - added at M11 so a reset link either backend
+        #   sends is one either backend honours (PasswordResetService).
         #
         # If this number moves again, either a table arrived without a model
         # or a model was invented for a table that is not there. Changing the
@@ -29,7 +31,7 @@ class TheSchemaIsDescribed(TestCase):
         # test pass.
         from django.apps import apps
 
-        self.assertEqual(34, len(list(apps.get_app_config("school").get_models())))
+        self.assertEqual(35, len(list(apps.get_app_config("school").get_models())))
 
     def test_django_does_not_own_the_tables(self):
         # The whole reason check_models exists. If this ever passes with
@@ -44,7 +46,7 @@ class TheSchemaIsDescribed(TestCase):
             declarations = [line for line in f if line.strip() == "managed = False"]
 
         self.assertEqual(
-            34,
+            35,
             len(declarations),
             "every model must declare managed = False; the test runner is the only place that changes it",
         )

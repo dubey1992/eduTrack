@@ -970,8 +970,8 @@ Sliced in dependency order, so each slice only builds on what already exists.
 | 5 | Announcements | 5 | **Done** |
 | 6 | Transport master data and student assignment | 21 | **Done** |
 | 7 | Transport trips | 7 | **Done** |
-| 8 | Early access, forgot and reset password | 6 | Not started |
-| 9 | Dashboard and the four reports | 5 | Not started |
+| 8 | Early access, forgot and reset password | 6 | **Done** |
+| 9 | Dashboard, the four reports, and the staff and subject importers | 5 + importers | Not started |
 
 Forgot and reset password were never in this phase's list and are not served
 by Python yet either, so they ride with early access - both send mail.
@@ -1199,6 +1199,37 @@ contract tests covering the ported modules pass against it.
 Compared live by running a whole trip day through each backend on identical
 routes - 21 steps from a refused start to a finished trip that refuses
 everything - identical but for the two messages that name the route.
+
+### Early access and password resets
+
+The endpoints a stranger can reach without an account. The signup form answers
+the same way whether a school is new or correcting a request still open, and
+is throttled; the queue is the Super Admin's, and *converted* is set only by
+onboarding a school.
+
+**A reset link either backend sends, either backend honours.** Laravel's
+broker keeps a bcrypt hash of each token in `password_reset_tokens`; the port
+uses the same table and the same hashing, a one-hour expiry, one use, a
+one-minute gap between links, and it signs the account out everywhere. Proved
+live in both directions: a link Laravel emailed reset the password through
+Django, and a link Django emailed reset it back through Laravel - each link
+then refused on the other backend once spent.
+
+**The email goes on the queue.** Laravel sends it inside the request, which
+makes "this address has an account" measurably slower than "it does not" - a
+way to find out which addresses exist. Queued, both return at once. The job
+carries only the user's id and makes the token when it runs, so a live token
+never sits in a queue row.
+
+**Laravel: the reset refusal broke the envelope.** The controller built its
+own response with `'details' => []`, which PHP writes as a JSON array - the
+one error in the API whose details were not an object. The client tolerated
+it; the contract says `{}`. Fixed, with a test that fails without it.
+
+**Two importers are still Laravel's.** Bulk upload was ported for students in
+M8 with the note that the rest would arrive with their modules. Staff and
+subjects never did, and the contract suite's import tests say so. They join
+the last slice.
 
 ## M12 · The first deployment
 

@@ -253,6 +253,18 @@ class MessageTemplate(models.Model):
         db_table = 'message_templates'
         unique_together = (('school', 'event'),)
 
+class PasswordResetToken(models.Model):
+    """Laravel's password broker table: one row per email, holding a bcrypt
+    hash of the token - never the token - and when it was issued."""
+
+    email = models.CharField(primary_key=True, max_length=255)
+    token = models.CharField(max_length=255)
+    created_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'password_reset_tokens'
+
 class Payment(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
