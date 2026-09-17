@@ -10,14 +10,19 @@ use App\Models\Holiday;
 use App\Models\Period;
 use App\Models\DailyTeachingReport;
 use App\Models\Department;
+use App\Models\Driver;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\StaffLeave;
 use App\Models\StaffProfile;
+use App\Models\StudentTransportAssignment;
 use App\Models\Subject;
 use App\Models\TimetableEntry;
+use App\Models\TransportRoute;
+use App\Models\TransportStop;
 use App\Models\Student;
 use App\Models\User;
+use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -281,6 +286,61 @@ class StableOrderingTest extends TestCase
         }
 
         $this->assertEachRecordAppearsOnce('/api/v1/teaching-reports', 6);
+    }
+
+    public function test_paging_through_vehicles_drivers_and_routes_that_share_a_name_shows_each_once(): void
+    {
+        // Every school has a Bus 1, a driver called Ramesh and a Route A, and
+        // a Super Admin's list is all of them at once.
+        foreach (range(1, 6) as $index) {
+            $school = School::factory()->create(['email' => 'transport'.$index.'@example.invalid']);
+
+            Vehicle::query()->create([
+                'school_id' => $school->id, 'name' => 'Bus 1', 'registration_number' => 'KA-'.$index,
+                'capacity' => 40, 'status' => 'active',
+            ]);
+            Driver::query()->create([
+                'school_id' => $school->id, 'name' => 'Ramesh', 'licence_number' => 'DL-'.$index, 'status' => 'active',
+            ]);
+            TransportRoute::query()->create(['school_id' => $school->id, 'name' => 'Route A', 'status' => 'active']);
+        }
+
+        $this->assertEachRecordAppearsOnce('/api/v1/transport/vehicles', 6);
+        $this->assertEachRecordAppearsOnce('/api/v1/transport/drivers', 6);
+        $this->assertEachRecordAppearsOnce('/api/v1/transport/routes', 6);
+    }
+
+    public function test_paging_through_students_at_one_stop_who_share_a_name_shows_each_once(): void
+    {
+        $section = $this->section();
+        $route = TransportRoute::query()->create(['school_id' => $this->school->id, 'name' => 'Route A', 'status' => 'active']);
+        $stop = TransportStop::query()->create([
+            'school_id' => $this->school->id, 'route_id' => $route->id, 'name' => 'Main gate', 'sequence_number' => 1,
+        ]);
+
+        foreach (range(1, 6) as $index) {
+            $student = Student::factory()->create([
+                'school_id' => $this->school->id,
+                'class_section_id' => $section->id,
+                'first_name' => 'Aarav',
+                'admission_number' => 'BUS-'.$index,
+            ]);
+
+            StudentTransportAssignment::query()->create([
+                'school_id' => $this->school->id, 'student_id' => $student->id,
+                'route_id' => $route->id, 'transport_stop_id' => $stop->id,
+            ]);
+        }
+
+        $seen = [];
+        foreach (range(1, 6) as $page) {
+            $seen[] = $this->actingAs($this->root)
+                ->getJson('/api/v1/transport/routes/'.$route->id.'/students?per_page=1&page='.$page)
+                ->assertOk()
+                ->json('data.0.student_id');
+        }
+
+        $this->assertCount(6, array_unique($seen), 'students on the route repeated: '.implode(',', $seen));
     }
 
     /**

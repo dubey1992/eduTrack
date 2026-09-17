@@ -21,7 +21,11 @@ class VehicleService
             ->with(['school', 'route'])
             ->tap(fn ($query) => SchoolScope::for($actor)->applyTo($query, $filters['school_id'] ?? null))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            // A name is unique within a school at most, and a Super Admin's
+            // list spans every school - "Bus 1" is at all of them. The id
+            // keeps paging from showing one twice and another never.
             ->orderBy('name')
+            ->orderBy('id')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
 

@@ -58,6 +58,8 @@ class StudentTransportService
             ->join('students', 'students.id', '=', 'student_transport_assignments.student_id')
             ->orderBy('transport_stops.sequence_number')
             ->orderBy('students.first_name')
+            // Two children called Aarav at the same stop are not unusual.
+            ->orderBy('student_transport_assignments.id')
             ->select('student_transport_assignments.*')
             ->paginate(perPage: Pagination::resolvePerPage($filters));
     }
