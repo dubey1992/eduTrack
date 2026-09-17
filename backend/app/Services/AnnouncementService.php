@@ -105,7 +105,7 @@ class AnnouncementService
                 'body' => $data['body'],
                 'audience_type' => $audience,
                 'audience_id' => $target,
-                'audience_label' => $this->audienceLabel($audience, $target),
+                'audience_label' => $this->audienceLabel($schoolId, $audience, $target),
                 'channels' => $channels,
                 'expires_at' => $data['expires_at'] ?? null,
                 'published_by' => $actor->id,
@@ -202,18 +202,32 @@ class AnnouncementService
         ];
     }
 
-    public function audienceLabel(AnnouncementAudience $audience, ?int $target): string
+    /**
+     * The name a class or department target goes by - looked up inside the
+     * school being announced to, and nowhere else.
+     *
+     * The preview hands this an `audience_id` straight off the query string,
+     * and before it was scoped an admin of one school could read another
+     * school's class and department names by trying ids. A target that is
+     * not this school's now gets the same generic label as one that does not
+     * exist, so trying ids tells a caller nothing.
+     */
+    public function audienceLabel(int $schoolId, AnnouncementAudience $audience, ?int $target): string
     {
         return match ($audience) {
-            AnnouncementAudience::ClassSection => $this->classSectionLabel($target),
-            AnnouncementAudience::Department => Department::find($target)?->name ?? 'Department',
+            AnnouncementAudience::ClassSection => $this->classSectionLabel($schoolId, $target),
+            AnnouncementAudience::Department => Department::query()
+                ->where('school_id', $schoolId)
+                ->find($target)?->name ?? 'Department',
             default => $audience->label(),
         };
     }
 
-    private function classSectionLabel(?int $target): string
+    private function classSectionLabel(int $schoolId, ?int $target): string
     {
-        $section = ClassSection::with('schoolClass')->find($target);
+        $section = ClassSection::with('schoolClass')
+            ->whereHas('schoolClass', fn (Builder $query) => $query->where('school_id', $schoolId))
+            ->find($target);
 
         return $section === null ? 'Class' : trim("{$section->schoolClass?->name} {$section->name}");
     }

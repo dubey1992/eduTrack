@@ -76,7 +76,7 @@ class AnnouncementController extends Controller
 
         return response()->json([
             ...$this->announcements->countRecipients($schoolId, $audience, $target, $channels),
-            'audience_label' => $this->announcements->audienceLabel($audience, $target),
+            'audience_label' => $this->announcements->audienceLabel($schoolId, $audience, $target),
         ]);
     }
 }

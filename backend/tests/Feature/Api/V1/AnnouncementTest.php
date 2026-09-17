@@ -468,6 +468,25 @@ class AnnouncementTest extends TestCase
             ->assertJsonPath('sms', 0);
     }
 
+    public function test_the_preview_never_names_another_schools_class_or_department(): void
+    {
+        $theirs = $this->makeSchool();
+        $ours = User::factory()->role(UserRole::SchoolAdmin)->forSchool(School::factory()->create())->create();
+
+        // The same generic label a target that does not exist at all gets, so
+        // trying ids reveals nothing about another school.
+        $this->actingAs($ours, 'sanctum')
+            ->getJson(self::ANNOUNCEMENTS.'/preview?audience_type=class_section&channels=sms_in_app&audience_id='.$theirs['section']->id)
+            ->assertOk()
+            ->assertJsonPath('recipients', 0)
+            ->assertJsonPath('audience_label', 'Class');
+
+        $this->actingAs($ours, 'sanctum')
+            ->getJson(self::ANNOUNCEMENTS.'/preview?audience_type=department&channels=in_app&audience_id='.$theirs['maths']->id)
+            ->assertOk()
+            ->assertJsonPath('audience_label', 'Department');
+    }
+
     public function test_a_head_of_department_cannot_preview_another_department(): void
     {
         $f = $this->makeSchool();
