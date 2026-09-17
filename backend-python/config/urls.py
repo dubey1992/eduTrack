@@ -37,6 +37,7 @@ from school.views import (
     teaching_reports,
     timetable,
     timezones,
+    transport,
     users,
 )
 
@@ -132,6 +133,17 @@ urlpatterns = [
     path("api/v1/announcements", announcements.collection),
     path("api/v1/announcements/preview", announcements.preview),
     path("api/v1/announcements/<int:announcement_id>", announcements.detail),
+    # -- transport master data ---------------------------------------------
+    path("api/v1/transport/vehicles", transport.vehicles),
+    path("api/v1/transport/vehicles/<int:record_id>", transport.vehicle),
+    path("api/v1/transport/drivers", transport.drivers),
+    path("api/v1/transport/drivers/<int:record_id>", transport.driver),
+    path("api/v1/transport/routes", transport.routes),
+    path("api/v1/transport/routes/<int:route_id>", transport.route),
+    path("api/v1/transport/routes/<int:route_id>/students", transport.route_students),
+    path("api/v1/transport/routes/<int:route_id>/stops", transport.add_stop),
+    path("api/v1/transport/stops/<int:stop_id>", transport.stop),
+    path("api/v1/students/<int:student_id>/transport", transport.student_transport),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

@@ -17,6 +17,7 @@ from django.utils import timezone
 from . import hashing, jobs, money, notifications, queue, sms, tokens, working_hours
 from .clock import SchoolClock
 from .enums import (
+    TransportStatus,
     AnnouncementAudience,
     AnnouncementChannels,
     AttendanceStatus,
@@ -44,6 +45,7 @@ from .errors import (
     NonWorkingDay,
     TeacherScheduleConflict,
     UnreachableAudience,
+    RouteCapacityFull,
     TeachingReportAlreadyReviewed,
     TeachingReportAlreadySubmitted,
     TeachingReportOnHoliday,
@@ -74,6 +76,12 @@ from .models import (
     StaffProfile,
     Student,
     Subject,
+    Driver,
+    StudentTransportAssignment,
+    TransportRoute,
+    TransportStop,
+    TransportTrip,
+    Vehicle,
     User,
 )
 from .requests import php_int
@@ -1922,6 +1930,229 @@ class AnnouncementService:
 
 
 PUBLISH_ANNOUNCEMENT = "publish_announcement"
+
+
+
+class FleetService:
+    """Vehicles and drivers: the same list, create, update and delete rules
+    over two tables. A record still on a route, or with trip history, is not
+    deleted - it is taken off the route, or deactivated."""
+
+    model = None
+    in_use = ""
+    has_history = ""
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        records = SchoolScope.for_actor(actor).apply_to(
+            cls.model.objects.select_related("school"), filters.get("school_id")
+        )
+
+        if filters.get("status"):
+            records = records.filter(status=filters["status"])
+
+        # A name is unique within a school at most, and a Super Admin's list
+        # spans every school - the id keeps paging honest.
+        return records.order_by("name", "id")
+
+    @classmethod
+    def route_of(cls, record):
+        return TransportRoute.objects.filter(**{cls.foreign_key: record.pk}).first()
+
+    @classmethod
+    def routes_of(cls, records) -> dict:
+        """One query for a whole page's routes."""
+        return {
+            getattr(route, cls.foreign_key): route
+            for route in TransportRoute.objects.filter(**{f"{cls.foreign_key}__in": [r.pk for r in records]})
+        }
+
+    @classmethod
+    def create(cls, data: dict):
+        now = timezone.now()
+        record = cls.model.objects.create(**data, status=TransportStatus.ACTIVE, created_at=now, updated_at=now)
+
+        return cls.model.objects.select_related("school").get(pk=record.pk)
+
+    @classmethod
+    def update(cls, record, data: dict):
+        changed = [field for field, value in data.items() if getattr(record, field) != value]
+
+        if changed:
+            for field in changed:
+                setattr(record, field, data[field])
+
+            record.updated_at = timezone.now()
+            record.save(update_fields=[*changed, "updated_at"])
+
+        return cls.model.objects.select_related("school").get(pk=record.pk)
+
+    @classmethod
+    def delete(cls, record) -> None:
+        if TransportRoute.objects.filter(**{cls.foreign_key: record.pk}).exists():
+            raise HasDependentRecords(cls.in_use)
+
+        if TransportTrip.objects.filter(**{cls.foreign_key: record.pk}).exists():
+            raise HasDependentRecords(cls.has_history)
+
+        record.delete()
+
+
+class VehicleService(FleetService):
+    model = Vehicle
+    foreign_key = "vehicle_id"
+    in_use = "This vehicle is still serving a route. Remove it from the route first."
+    has_history = "This vehicle has trip history and cannot be deleted. Deactivate it instead."
+
+
+class DriverService(FleetService):
+    model = Driver
+    foreign_key = "driver_id"
+    in_use = "This driver is still assigned to a route. Remove them from the route first."
+    has_history = "This driver has trip history and cannot be deleted. Deactivate them instead."
+
+
+class TransportRouteService:
+    @staticmethod
+    def with_counts(routes):
+        return routes.select_related("school", "vehicle", "driver").annotate(
+            stops_count=Count("transportstop", distinct=True),
+            students_count=Count("studenttransportassignment", distinct=True),
+        )
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        routes = SchoolScope.for_actor(actor).apply_to(TransportRoute.objects.all(), filters.get("school_id"))
+
+        if filters.get("status"):
+            routes = routes.filter(status=filters["status"])
+
+        return cls.with_counts(routes).order_by("name", "id")
+
+    @classmethod
+    def detail(cls, route_id: int):
+        route = cls.with_counts(TransportRoute.objects.filter(pk=route_id)).get()
+        stops = list(cls.stops_of(route.pk))
+
+        return route, stops
+
+    @staticmethod
+    def stops_of(route_id: int):
+        return (
+            TransportStop.objects.filter(route_id=route_id)
+            .annotate(students_count=Count("studenttransportassignment"))
+            .order_by("sequence_number")
+        )
+
+    @staticmethod
+    def create(data: dict):
+        now = timezone.now()
+
+        return TransportRoute.objects.create(**data, status=TransportStatus.ACTIVE, created_at=now, updated_at=now)
+
+    @staticmethod
+    def update(route, data: dict):
+        changed = [field for field, value in data.items() if getattr(route, field) != value]
+
+        if changed:
+            for field in changed:
+                setattr(route, field, data[field])
+
+            route.updated_at = timezone.now()
+            route.save(update_fields=[*changed, "updated_at"])
+
+        return route
+
+    @staticmethod
+    def delete(route) -> None:
+        if StudentTransportAssignment.objects.filter(route_id=route.pk).exists():
+            raise HasDependentRecords("Students are still assigned to this route. Move them to another route first.")
+
+        if TransportTrip.objects.filter(route_id=route.pk).exists():
+            raise HasDependentRecords("This route has trip history and cannot be deleted. Deactivate it instead.")
+
+        # Its stops go with it. The real schema cascades this on its own; it
+        # is spelled out anyway, in one transaction, because the test database
+        # is built from the models and has no ON DELETE CASCADE to lean on -
+        # a delete that only worked against production is not a tested one.
+        with transaction.atomic():
+            TransportStop.objects.filter(route_id=route.pk).delete()
+            route.delete()
+
+    @classmethod
+    def add_stop(cls, route, data: dict):
+        now = timezone.now()
+        stop = TransportStop.objects.create(
+            **data, route_id=route.pk, school_id=route.school_id, created_at=now, updated_at=now
+        )
+
+        return cls.stops_of(route.pk).get(pk=stop.pk)
+
+    @classmethod
+    def update_stop(cls, stop, data: dict):
+        changed = [field for field, value in data.items() if cls.stored(stop, field) != value]
+
+        if changed:
+            for field in changed:
+                setattr(stop, field, data[field])
+
+            stop.updated_at = timezone.now()
+            stop.save(update_fields=[*changed, "updated_at"])
+
+        return cls.stops_of(stop.route_id).get(pk=stop.pk)
+
+    @staticmethod
+    def stored(stop, field):
+        """A stop's value as a form would send it, so "07:30" matches 07:30."""
+        value = getattr(stop, field)
+
+        return value.strftime("%H:%M") if field in ("pickup_time", "drop_time") and value else value
+
+    @staticmethod
+    def delete_stop(stop) -> None:
+        if StudentTransportAssignment.objects.filter(transport_stop_id=stop.pk).exists():
+            raise HasDependentRecords("Students are still assigned to this stop. Move them to another stop first.")
+
+        stop.delete()
+
+
+class StudentTransportService:
+    @staticmethod
+    def assign(student, route, stop) -> None:
+        with transaction.atomic():
+            vehicle = route.vehicle if route.vehicle_id else None
+
+            # The student being moved is not counted against the seats: moving
+            # them between the route's own stops always works.
+            if vehicle is not None:
+                others = StudentTransportAssignment.objects.filter(route_id=route.pk).exclude(student_id=student.pk).count()
+
+                if others >= vehicle.capacity:
+                    label = f"{vehicle.name} - {route.name}"
+                    raise RouteCapacityFull(f"{label} is full - its vehicle seats {vehicle.capacity} students.")
+
+            now = timezone.now()
+            StudentTransportAssignment.objects.update_or_create(
+                student_id=student.pk,
+                defaults={"school_id": student.school_id, "route_id": route.pk, "transport_stop_id": stop.pk, "updated_at": now},
+                create_defaults={
+                    "school_id": student.school_id, "route_id": route.pk, "transport_stop_id": stop.pk,
+                    "created_at": now, "updated_at": now,
+                },
+            )
+
+    @staticmethod
+    def unassign(student) -> None:
+        StudentTransportAssignment.objects.filter(student_id=student.pk).delete()
+
+    @staticmethod
+    def students_on(route):
+        return (
+            StudentTransportAssignment.objects.filter(route_id=route.pk)
+            .select_related("student__class_section__school_class", "transport_stop")
+            # Two children called Aarav at the same stop are not unusual.
+            .order_by("transport_stop__sequence_number", "student__first_name", "id")
+        )
 
 
 class StaffProfileService:

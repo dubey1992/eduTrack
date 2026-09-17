@@ -480,6 +480,47 @@ class AnnouncementPolicy:
         ).exists()
 
 
+# Everybody who works with the buses reads the fleet: admins, heads, teachers
+# (who put children on them) and the transport manager. Only admins change it.
+TRANSPORT_VIEW_ROLES = (*ADMIN_ROLES, UserRole.HOD, UserRole.TEACHER, UserRole.TRANSPORT_MANAGER)
+
+
+class TransportMasterPolicy:
+    """Vehicles, drivers and routes share one shape: read by anybody in
+    transport at the same school, managed by that school's admins."""
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return actor.role in TRANSPORT_VIEW_ROLES
+
+    @classmethod
+    def view(cls, actor: User, record) -> bool:
+        return cls.view_any(actor) and (
+            actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(record.school_id)
+        )
+
+    @staticmethod
+    def create(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES
+
+    @staticmethod
+    def manage(actor: User, record) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(record.school_id)
+
+
+class TransportRoutePolicy(TransportMasterPolicy):
+    @staticmethod
+    def view_students(actor: User, route) -> bool:
+        """Who rides a route - guardians' numbers included - is for admins and
+        the transport manager, not every teacher."""
+        return actor.role in (*ADMIN_ROLES, UserRole.TRANSPORT_MANAGER) and (
+            actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(route.school_id)
+        )
+
+
 class StaffProfilePolicy:
     """Employment records.
 

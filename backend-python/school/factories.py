@@ -288,3 +288,61 @@ class MessageFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+class VehicleFactory(DjangoModelFactory):
+    class Meta:
+        model = models.Vehicle
+
+    school = factory.SubFactory(SchoolFactory)
+    name = factory.Sequence(lambda n: f"Bus {n}")
+    registration_number = factory.Sequence(lambda n: f"KA-01-{n:04d}")
+    capacity = 40
+    status = "active"
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class DriverFactory(DjangoModelFactory):
+    class Meta:
+        model = models.Driver
+
+    school = factory.SubFactory(SchoolFactory)
+    name = factory.Sequence(lambda n: f"Driver {n}")
+    mobile = "+91 9876543210"
+    licence_number = factory.Sequence(lambda n: f"DL-{n:05d}")
+    licence_expiry = None
+    status = "active"
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class TransportRouteFactory(DjangoModelFactory):
+    class Meta:
+        model = models.TransportRoute
+
+    school = factory.SubFactory(SchoolFactory)
+    name = factory.Sequence(lambda n: f"Route {n}")
+    vehicle = None
+    driver = None
+    status = "active"
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class TransportStopFactory(DjangoModelFactory):
+    class Meta:
+        model = models.TransportStop
+
+    route = factory.SubFactory(TransportRouteFactory)
+    school = factory.LazyAttribute(lambda o: o.route.school)
+    name = factory.Sequence(lambda n: f"Stop {n}")
+    sequence_number = factory.Sequence(lambda n: n + 1)
+    pickup_time = None
+    drop_time = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

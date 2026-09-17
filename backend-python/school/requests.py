@@ -13,6 +13,7 @@ quietly ignored - otherwise a write would land somewhere they cannot see.
 
 from __future__ import annotations
 
+from django.db.models import Q
 from rest_framework import serializers
 
 import decimal
@@ -20,6 +21,7 @@ import re
 
 from . import hashing, notifications, sms
 from .enums import (
+    TransportStatus,
     AnnouncementAudience,
     AnnouncementChannels,
     AttendanceAlertMode,
@@ -52,6 +54,10 @@ from .models import (
     Subject,
     SyllabusTopic,
     TimetableEntry,
+    Driver,
+    TransportRoute,
+    TransportStop,
+    Vehicle,
     User,
 )
 from .scope import SchoolScope
@@ -1248,6 +1254,286 @@ class PublishAnnouncementRequest(ScopedSerializer):
         attrs["school_id"] = self.resolved_school_id()
 
         return attrs
+
+
+# -- transport master data --------------------------------------------------
+#
+# Uniqueness and "belongs to this school" run in field-level validators, so
+# every failing field is reported at once as Laravel reports them. A field
+# that is not even an integer stops at that, as it does in Laravel.
+
+DRIVER_MOBILE = re.compile(r"^\+[1-9][0-9 ]{6,17}$")
+
+# PHP's date_format:H:i, which re-formats what it parsed and compares: "7:05"
+# formats back as "07:05" and fails, and "24:00" rolls over and fails too.
+CLOCK_TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+class PartialForm(serializers.Serializer):
+    """A PATCH form: Laravel's `sometimes|required` - absent is fine, present
+    and empty is "required"."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+        for field in self.fields.values():
+            field.required = False
+
+
+def taken(queryset, field_name: str):
+    if queryset.exists():
+        raise serializers.ValidationError(already_taken(field_name))
+
+
+def clock_time(field_name: str):
+    def check(value):
+        if value is not None and not CLOCK_TIME.match(value):
+            raise serializers.ValidationError(f"The {attribute(field_name)} field must match the format H:i.")
+
+        return value
+
+    return check
+
+
+class StoreVehicleRequest(ScopedSerializer):
+    name = LaravelCharField("name", max_length=50)
+    registration_number = LaravelCharField("registration_number", max_length=30)
+    capacity = LaravelIntegerField("capacity", min_value=1, max_value=200)
+
+    def validate_registration_number(self, value):
+        taken(Vehicle.objects.filter(school_id=self.resolved_school_id(), registration_number=value), "registration_number")
+
+        return value
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+        attrs["school_id"] = self.resolved_school_id()
+
+        return attrs
+
+
+class UpdateVehicleRequest(PartialForm):
+    name = LaravelCharField("name", max_length=50)
+    registration_number = LaravelCharField("registration_number", max_length=30)
+    capacity = LaravelIntegerField("capacity", min_value=1, max_value=200)
+    status = LaravelCharField("status", max_length=255)
+
+    def __init__(self, *args, vehicle=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.vehicle = vehicle
+
+    def validate_registration_number(self, value):
+        taken(
+            Vehicle.objects.filter(school_id=self.vehicle.school_id, registration_number=value).exclude(pk=self.vehicle.pk),
+            "registration_number",
+        )
+
+        return value
+
+    validate_status = staticmethod(enum_choice("status", TransportStatus.values))
+
+
+class DriverFields(serializers.Serializer):
+    name = LaravelCharField("name", max_length=150)
+    mobile = LaravelCharField("mobile", max_length=20, required=False, allow_null=True)
+    licence_number = LaravelCharField("licence_number", max_length=50)
+    licence_expiry = LaravelDateField("licence_expiry", required=False, allow_null=True)
+
+    def validate_mobile(self, value):
+        if value is not None and not DRIVER_MOBILE.match(value):
+            raise serializers.ValidationError(bad_format("mobile"))
+
+        return value
+
+
+class StoreDriverRequest(DriverFields, ScopedSerializer):
+    def validate_licence_number(self, value):
+        taken(Driver.objects.filter(school_id=self.resolved_school_id(), licence_number=value), "licence_number")
+
+        return value
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+        attrs["school_id"] = self.resolved_school_id()
+
+        return attrs
+
+
+class UpdateDriverRequest(DriverFields, PartialForm):
+    status = LaravelCharField("status", max_length=255)
+
+    def __init__(self, *args, driver=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.driver = driver
+
+    def validate_licence_number(self, value):
+        taken(
+            Driver.objects.filter(school_id=self.driver.school_id, licence_number=value).exclude(pk=self.driver.pk),
+            "licence_number",
+        )
+
+        return value
+
+    validate_status = staticmethod(enum_choice("status", TransportStatus.values))
+
+
+class RouteFields(serializers.Serializer):
+    """A route's vehicle and driver: an active one of this school, not already
+    on another route. Both failures are reported when both are true."""
+
+    name = LaravelCharField("name", max_length=100)
+    vehicle_id = LaravelIntegerField("vehicle_id", required=False, allow_null=True)
+    driver_id = LaravelIntegerField("driver_id", required=False, allow_null=True)
+
+    def route_school(self):
+        raise NotImplementedError
+
+    def current(self, field: str):
+        return None
+
+    def ignoring(self):
+        return None
+
+    def assignable(self, model, value, field, noun, verb):
+        problems = []
+        usable = model.objects.filter(pk=value, school_id=self.route_school())
+        keep = self.current(field)
+        usable = usable.filter(Q(status=TransportStatus.ACTIVE) | Q(pk=keep)) if keep else usable.filter(status=TransportStatus.ACTIVE)
+
+        if not usable.exists():
+            problems.append(f"The selected {noun} is not an active {noun} of this school.")
+
+        others = TransportRoute.objects.filter(**{field: value})
+        if self.ignoring() is not None:
+            others = others.exclude(pk=self.ignoring())
+
+        if others.exists():
+            problems.append(f"That {noun} is already {verb} another route.")
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return value
+
+    def validate_vehicle_id(self, value):
+        return None if value is None else self.assignable(Vehicle, value, "vehicle_id", "vehicle", "serving")
+
+    def validate_driver_id(self, value):
+        return None if value is None else self.assignable(Driver, value, "driver_id", "driver", "assigned to")
+
+
+class StoreTransportRouteRequest(RouteFields, ScopedSerializer):
+    def route_school(self):
+        return self.resolved_school_id()
+
+    def validate_name(self, value):
+        taken(TransportRoute.objects.filter(school_id=self.resolved_school_id(), name=value), "name")
+
+        return value
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+        attrs["school_id"] = self.resolved_school_id()
+
+        return attrs
+
+
+class UpdateTransportRouteRequest(RouteFields, PartialForm):
+    status = LaravelCharField("status", max_length=255)
+
+    def __init__(self, *args, route=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.route = route
+
+    def route_school(self):
+        return self.route.school_id
+
+    def current(self, field: str):
+        # Keeping what the route already has stays valid even if it has since
+        # been deactivated; "active" only applies to a new choice.
+        return getattr(self.route, field)
+
+    def ignoring(self):
+        return self.route.pk
+
+    def validate_name(self, value):
+        taken(TransportRoute.objects.filter(school_id=self.route.school_id, name=value).exclude(pk=self.route.pk), "name")
+
+        return value
+
+    validate_status = staticmethod(enum_choice("status", TransportStatus.values))
+
+
+class StopFields(serializers.Serializer):
+    name = LaravelCharField("name", max_length=100)
+    sequence_number = LaravelIntegerField("sequence_number", min_value=1, max_value=200)
+    pickup_time = LaravelCharField("pickup_time", max_length=255, required=False, allow_null=True)
+    drop_time = LaravelCharField("drop_time", max_length=255, required=False, allow_null=True)
+
+    validate_pickup_time = staticmethod(clock_time("pickup_time"))
+    validate_drop_time = staticmethod(clock_time("drop_time"))
+
+    def siblings(self):
+        raise NotImplementedError
+
+    def validate_name(self, value):
+        taken(self.siblings().filter(name=value), "name")
+
+        return value
+
+    def validate_sequence_number(self, value):
+        taken(self.siblings().filter(sequence_number=value), "sequence_number")
+
+        return value
+
+
+class StoreTransportStopRequest(StopFields):
+    def __init__(self, *args, route=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.route = route
+
+    def siblings(self):
+        return TransportStop.objects.filter(route_id=self.route.pk)
+
+
+class UpdateTransportStopRequest(StopFields, PartialForm):
+    def __init__(self, *args, stop=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.stop = stop
+
+    def siblings(self):
+        return TransportStop.objects.filter(route_id=self.stop.route_id).exclude(pk=self.stop.pk)
+
+
+class AssignStudentTransportRequest(serializers.Serializer):
+    route_id = LaravelIntegerField("route_id")
+    transport_stop_id = LaravelIntegerField("transport_stop_id")
+
+    def __init__(self, *args, student=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.student = student
+
+    def validate_route_id(self, value):
+        if not TransportRoute.objects.filter(pk=value, school_id=self.student.school_id).exists():
+            raise serializers.ValidationError("The selected route does not belong to this school.")
+
+        return value
+
+    def validate_transport_stop_id(self, value):
+        # Against the route as sent, whatever became of it - as Laravel reads it.
+        if not TransportStop.objects.filter(pk=value, route_id=as_id(self.initial_data.get("route_id"))).exists():
+            raise serializers.ValidationError("The selected stop is not on the selected route.")
+
+        return value
 
 
 # -- leave ------------------------------------------------------------------

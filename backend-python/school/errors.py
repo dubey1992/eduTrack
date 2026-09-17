@@ -232,6 +232,15 @@ class UnprocessableRequest(ApiError):
         super().__init__("An error occurred while processing the request.")
 
 
+class RouteCapacityFull(ApiError):
+    """Every seat on the route's vehicle is spoken for. A student already on
+    the route is not counted against it, so moving them between its own stops
+    always works."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ROUTE_CAPACITY_FULL"
+
+
 def envelope(status_code: int, code: str, message: str, details: dict | None = None) -> Response:
     return Response(
         {

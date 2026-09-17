@@ -317,3 +317,8 @@ class AnnouncementChannels(models.TextChoices):
             cls.SMS_ONLY: [MessageChannel.SMS],
             cls.IN_APP_ONLY: [MessageChannel.IN_APP],
         }[channels]
+
+
+class TransportStatus(models.TextChoices):
+    ACTIVE = "active"
+    INACTIVE = "inactive"

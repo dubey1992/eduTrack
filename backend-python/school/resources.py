@@ -297,6 +297,107 @@ def announcement_resource(announcement) -> dict:
     }
 
 
+def route_label(route) -> str:
+    """"Bus 3 - Route A", or just the route's name while it has no vehicle."""
+    return route.name if route.vehicle_id is None else f"{route.vehicle.name} - {route.name}"
+
+
+def fleet_resource(record, route, extra: dict) -> dict:
+    """A vehicle or a driver, and the route it is on if any."""
+    return {
+        "id": record.id,
+        "school_id": record.school_id,
+        "school_name": record.school.name,
+        "name": record.name,
+        **extra,
+        "status": record.status,
+        "route_id": route.id if route else None,
+        "route_name": route.name if route else None,
+        "created_at": timestamp(record.created_at),
+    }
+
+
+def vehicle_resource(vehicle, route) -> dict:
+    return fleet_resource(
+        vehicle, route,
+        {"registration_number": vehicle.registration_number, "capacity": vehicle.capacity},
+    )
+
+
+def driver_resource(driver, route) -> dict:
+    return fleet_resource(
+        driver, route,
+        {
+            "mobile": driver.mobile,
+            "licence_number": driver.licence_number,
+            "licence_expiry": driver.licence_expiry.isoformat() if driver.licence_expiry else None,
+        },
+    )
+
+
+def transport_stop_resource(stop, students_count: int) -> dict:
+    return {
+        "id": stop.id,
+        "route_id": stop.route_id,
+        "name": stop.name,
+        "sequence_number": stop.sequence_number,
+        "pickup_time": stop.pickup_time.strftime("%H:%M") if stop.pickup_time else None,
+        "drop_time": stop.drop_time.strftime("%H:%M") if stop.drop_time else None,
+        "students_count": students_count,
+    }
+
+
+def transport_route_resource(route, stops=None) -> dict:
+    """A route. `stops` is given for the detail view only: the list leaves the
+    key out entirely rather than sending an empty array, as Laravel does."""
+    vehicle = route.vehicle if route.vehicle_id else None
+    driver = route.driver if route.driver_id else None
+
+    body = {
+        "id": route.id,
+        "school_id": route.school_id,
+        "school_name": route.school.name,
+        "name": route.name,
+        "label": route_label(route),
+        "status": route.status,
+        "vehicle_id": route.vehicle_id,
+        "vehicle_name": vehicle.name if vehicle else None,
+        "vehicle_registration_number": vehicle.registration_number if vehicle else None,
+        "capacity": vehicle.capacity if vehicle else None,
+        "driver_id": route.driver_id,
+        "driver_name": driver.name if driver else None,
+        "driver_mobile": driver.mobile if driver else None,
+        "stops_count": route.stops_count,
+        "students_count": route.students_count,
+    }
+
+    if stops is not None:
+        body["stops"] = [transport_stop_resource(stop, stop.students_count) for stop in stops]
+
+    body["created_at"] = timestamp(route.created_at)
+
+    return body
+
+
+def route_student_resource(assignment) -> dict:
+    student = assignment.student
+    section = student.class_section
+
+    return {
+        "student_id": student.id,
+        "admission_number": student.admission_number,
+        "name": student.name,
+        "class_section_name": (
+            None if section is None else f"{section.school_class.name} {section.name}".strip()
+        ),
+        "guardian_name": student.guardian_name,
+        "guardian_mobile": student.guardian_mobile,
+        "stop_id": assignment.transport_stop_id,
+        "stop_name": assignment.transport_stop.name,
+        "stop_sequence_number": assignment.transport_stop.sequence_number,
+    }
+
+
 def staff_profile_resource(profile, class_teacher_of=None) -> dict:
     """An employee: their employment record and the login behind it.
 

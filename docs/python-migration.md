@@ -968,7 +968,7 @@ Sliced in dependency order, so each slice only builds on what already exists.
 | 3 | HOD department report | 1 | **Done** |
 | 4 | Communication and the in-app inbox | 13 | **Done** |
 | 5 | Announcements | 5 | **Done** |
-| 6 | Transport master data and student assignment | 16 | Not started |
+| 6 | Transport master data and student assignment | 21 | **Done** |
 | 7 | Transport trips | 7 | Not started |
 | 8 | Early access, forgot and reset password | 6 | Not started |
 | 9 | Dashboard and the four reports | 5 | Not started |
@@ -1136,6 +1136,38 @@ existence, never for ownership.
 
 Compared live on 36 cases and on publish, delete and read-after-delete -
 identical, type-strict.
+
+### Transport master data
+
+Vehicles, drivers, routes and their stops, and which student rides which
+route - 21 endpoints, not the 16 first counted.
+
+Read by everyone who works with the buses at a school; changed by its admins
+only. Nothing in use is deleted: a vehicle or driver on a route, a route with
+riders or trips, a stop with riders are each refused with a sentence naming
+what is in the way. A route keeps its own vehicle and driver even after they
+are deactivated, and a vehicle's seats limit how many students its route takes
+- except that moving a student already on the route between its stops always
+works.
+
+**Four more lists tied on a name.** Vehicles, drivers and routes ordered by
+name alone, which is unique within one school at most - every school has a
+Bus 1, so a Super Admin's list ties on every row. The riders on a route
+ordered by stop and first name. `StableOrderingTest` gained two cases; without
+the tiebreakers PostgreSQL paged `1,1,3,4,5,6` and `6,6,4,3,2,1`.
+
+**The test database has no cascades.** Laravel deletes a route's stops through
+the foreign key's `ON DELETE CASCADE`. The Django test database is built from
+the models, whose foreign keys cascade nothing, so the port's route delete
+failed in tests while it would have worked in production. The service now
+deletes the stops itself, in one transaction with the route - the same effect
+on the real schema, and a delete that is actually tested. The same family of
+blind spot as the timestamp and JSON column types: the test database is
+Django's idea of the schema, not the schema.
+
+Compared live on 48 reads and refusals, and on a full build-and-tear-down -
+vehicle, driver, route, stop, a rider moved on and back, and every delete -
+identical, type-strict, with ids masked.
 
 ## M12 · The first deployment
 
