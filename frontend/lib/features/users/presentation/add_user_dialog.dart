@@ -151,7 +151,7 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
                 const SizedBox(height: 10),
                 PhoneNumberField(controller: _mobileController, label: 'Mobile (optional)'),
                 const SizedBox(height: 10),
-                PasswordField(controller: _passwordController, helperText: 'At least 8 characters.'),
+                PasswordField(controller: _passwordController, helperText: newPasswordHint),
                 // A School Admin's Sub Admin always lands in their own
                 // school, resolved server-side - no picker needed. Only a
                 // SUPER_ADMIN, who has no "own school", must choose one.

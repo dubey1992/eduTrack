@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/change_password_dialog.dart';
+import '../../features/auth/presentation/signed_in_devices_dialog.dart';
 import '../routing/app_nav.dart';
 import 'confirm_dialog.dart';
 import 'responsive.dart';
@@ -82,6 +83,11 @@ class _Topbar extends ConsumerWidget {
             _Pill(text: user.name),
             const SizedBox(width: 8),
           ],
+          IconButton(
+            icon: const Icon(Icons.devices_outlined),
+            tooltip: 'Signed-in devices',
+            onPressed: () => showDialog(context: context, builder: (_) => const SignedInDevicesDialog()),
+          ),
           IconButton(
             icon: const Icon(Icons.lock_outline),
             tooltip: 'Change password',

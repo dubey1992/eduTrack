@@ -227,6 +227,62 @@ void main() {
     expect(find.widgetWithText(TextButton, 'Activate'), findsOneWidget);
   });
 
+  testWidgets('a locked-out employee can be unlocked from the roster (Phase 21)', (tester) async {
+    tester.view.physicalSize = const Size(1800, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final locked = StaffProfile(
+      id: 1,
+      userId: 1,
+      employeeId: 'TCH-012',
+      firstName: 'Priya',
+      lastName: 'Sharma',
+      name: 'Priya Sharma',
+      email: 'priya.sharma@example.com',
+      mobile: '9876543210',
+      role: UserRole.teacher,
+      status: UserStatus.active,
+      schoolId: 1,
+      schoolName: 'Sunrise Public School',
+      departmentId: 1,
+      departmentName: 'Mathematics',
+      designation: null,
+      joiningDate: DateTime(2024, 6, 1),
+      address: null,
+      classTeacherOf: const ['Grade 8 A'],
+      lockedUntil: '2026-09-18T10:15:00.000000Z',
+    );
+    final userRepositoryFake = FakeUserRepository(
+      users: [
+        const AppUser(
+          id: 1,
+          firstName: 'Priya',
+          lastName: 'Sharma',
+          name: 'Priya Sharma',
+          email: 'priya.sharma@example.com',
+          mobile: '9876543210',
+          role: UserRole.teacher,
+          status: UserStatus.active,
+          lockedUntil: '2026-09-18T10:15:00.000000Z',
+        ),
+      ],
+    );
+    await tester.pumpWidget(wrap(FakeStaffRepository(staff: [locked]), userRepositoryFake: userRepositoryFake));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(StatusBadge, 'Locked'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Unlock'));
+    await tester.pumpAndSettle();
+
+    expect(userRepositoryFake.unlockCalls, 1);
+    expect(find.widgetWithText(StatusBadge, 'Active'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Unlock'), findsNothing);
+    expect(find.text('Priya Sharma can sign in again.'), findsOneWidget);
+  });
+
   testWidgets('shows an error state with a retry button when the repository throws', (tester) async {
     final fake = FakeStaffRepository(
       failListPageWith: const Failure(code: 'STAFF_LIST_FAILED', message: 'Could not load staff.'),

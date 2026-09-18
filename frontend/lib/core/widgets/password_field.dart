@@ -1,5 +1,19 @@
 import 'package:flutter/material.dart';
 
+/// The rule for a password being chosen, as the API applies it (Phase 21):
+/// at least 8 characters, with a letter and a number. The API also refuses
+/// common passwords, which it says so itself - that list is not shipped here.
+String? newPasswordProblem(String? value) {
+  if (value == null || value.length < 8) return 'At least 8 characters';
+  if (!RegExp('[A-Za-z]').hasMatch(value) || !RegExp('[0-9]').hasMatch(value)) {
+    return 'Use at least one letter and one number';
+  }
+  return null;
+}
+
+/// What every new-password field says under itself.
+const newPasswordHint = 'At least 8 characters, with a letter and a number.';
+
 /// A password field with a reveal toggle.
 ///
 /// Hidden by default, because a password typed in an office is typed in front
@@ -39,7 +53,9 @@ class _PasswordFieldState extends State<PasswordField> {
       obscureText: _obscured,
       textInputAction: widget.textInputAction,
       onFieldSubmitted: widget.onFieldSubmitted,
-      validator: widget.validator ?? (value) => (value == null || value.length < 8) ? 'At least 8 characters' : null,
+      // Without a validator of its own, a field is one where a password is
+      // being chosen.
+      validator: widget.validator ?? newPasswordProblem,
       decoration: InputDecoration(
         labelText: widget.label,
         helperText: widget.helperText,

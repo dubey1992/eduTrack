@@ -187,6 +187,8 @@ jobs:
         working-directory: backend-python
         env:
           PG_HOST: 127.0.0.1
+          # Only for CI; production refuses to start without its own.
+          DJANGO_SECRET_KEY: ci-only-not-a-secret
           PG_PORT: '5432'
           PG_DATABASE: edutrack_test
           PG_USERNAME: postgres
@@ -220,6 +222,8 @@ jobs:
         working-directory: backend-python
         env:
           PG_HOST: 127.0.0.1
+          # Only for CI; production refuses to start without its own.
+          DJANGO_SECRET_KEY: ci-only-not-a-secret
           PG_PORT: '5432'
           PG_DATABASE: edutrack_test
           PG_USERNAME: postgres

@@ -88,6 +88,11 @@ class UserApi {
     return AppUser.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<AppUser> unlock(int userId) async {
+    final response = await _dio.post('/users/$userId/unlock');
+    return AppUser.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<AppUser> deactivate(int userId) async {
     final response = await _dio.patch('/users/$userId/deactivate');
     return AppUser.fromJson(response.data as Map<String, dynamic>);

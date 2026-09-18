@@ -71,6 +71,16 @@ void main() {
     expect(find.text('At least 8 characters'), findsOneWidget);
   });
 
+  testWidgets('a new password needs a letter and a number (Phase 21)', (tester) async {
+    for (final (typed, problem) in [
+      ('abcdefghij', 'Use at least one letter and one number'),
+      ('1234567890', 'Use at least one letter and one number'),
+      ('Blue-kettle-42', null),
+    ]) {
+      expect(newPasswordProblem(typed), problem, reason: typed);
+    }
+  });
+
   testWidgets('a caller can supply its own rule', (tester) async {
     // The edit-user form allows a blank value, meaning "keep the current one".
     final key = GlobalKey<FormState>();

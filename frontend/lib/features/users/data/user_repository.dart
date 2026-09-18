@@ -88,6 +88,15 @@ class UserRepository {
     }
   }
 
+  /// Lets a locked-out account sign in again straight away.
+  Future<AppUser> unlock(int userId) async {
+    try {
+      return await _api.unlock(userId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<AppUser> setActive(int userId, bool active) async {
     try {
       return active ? await _api.activate(userId) : await _api.deactivate(userId);

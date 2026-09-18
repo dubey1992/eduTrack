@@ -15,6 +15,8 @@ it is reproducing.
 
 from __future__ import annotations
 
+from django.utils import timezone
+
 from . import money, sms, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
 from .enums import EarlyAccessStatus, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus
@@ -550,6 +552,7 @@ def staff_profile_resource(profile, class_teacher_of=None) -> dict:
         "mobile": user.mobile,
         "role": user.role,
         "status": user.status,
+        "locked_until": locked_until(user),
         "school_id": profile.school_id,
         "school_name": profile.school.name if profile.school_id else None,
         "department_id": profile.department_id,
@@ -784,6 +787,15 @@ def school_resource(school: School, branch_count: int | None = None) -> dict:
     return body
 
 
+def locked_until(user: User) -> str | None:
+    """When a locked-out account may sign in again (Phase 21), or None when it
+    is not locked - a lock that has run out is no lock, so an administrator is
+    not offered an Unlock button that would do nothing."""
+    until = as_utc(user.locked_until) if user.locked_until else None
+
+    return timestamp(until) if until is not None and until > timezone.now() else None
+
+
 def user_resource(user: User, viewer: User | None = None) -> dict:
     """The session user - what login returns and what /me answers.
 
@@ -806,6 +818,7 @@ def user_resource(user: User, viewer: User | None = None) -> dict:
         "role": user.role,
         "is_sub_admin": user.is_sub_admin,
         "status": user.status,
+        "locked_until": locked_until(user),
         "school_id": user.school_id,
         # True for an account created by a bulk import, which was given a
         # generated password: the client keeps it on the change-password

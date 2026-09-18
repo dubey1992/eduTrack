@@ -21,6 +21,7 @@ from school.views import (
     academic_years,
     announcements,
     attendance,
+    audit_logs,
     auth,
     classes,
     communication,
@@ -75,6 +76,10 @@ urlpatterns = [
     path("api/v1/auth/change-password", auth.change_password),
     path("api/v1/auth/forgot-password", auth.forgot_password),
     path("api/v1/auth/reset-password", auth.reset_password),
+    # Phase 21 - Python only.
+    path("api/v1/auth/sessions", auth.sessions),
+    path("api/v1/auth/sessions/others", auth.end_other_sessions),
+    path("api/v1/auth/sessions/<int:session_id>", auth.end_session),
     path("api/v1/me", auth.me),
     # -- payments ----------------------------------------------------------
     # `summary` before `<int:payment_id>` so the word is not read as an id.
@@ -95,6 +100,7 @@ urlpatterns = [
     path("api/v1/users/<int:user_id>", users.detail),
     path("api/v1/users/<int:user_id>/activate", users.activate),
     path("api/v1/users/<int:user_id>/deactivate", users.deactivate),
+    path("api/v1/users/<int:user_id>/unlock", users.unlock),
     # -- teachers and staff ------------------------------------------------
     # No delete: somebody who has left is deactivated through /users, which
     # keeps their attendance, their leave and last year's timetable intact.
@@ -146,6 +152,9 @@ urlpatterns = [
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),
     path("api/v1/reports/transport-usage", reports.transport_usage),
+    # Phase 21 - Python only.
+    path("api/v1/audit-logs", audit_logs.collection),
+    path("api/v1/audit-logs/<int:entry_id>", audit_logs.detail),
     # Phase 20 - Python only.
     path("api/v1/reports/payroll-summary", reports.payroll_summary),
     path("api/v1/reports/leave-usage", reports.leave_usage),

@@ -1338,6 +1338,9 @@ Phase 19, Payroll, is the first: see [payroll.md](payroll.md).
 Phase 20, Advanced Reporting, adds no tables - three reports, PDF export and
 the previous-period comparison, all opt-in on the existing report endpoints:
 see [reports.md](reports.md#advanced-reporting-phase-20).
+Phase 21, Audit & Security, adds two lockout columns to `users` (a Laravel
+migration) and the audit viewer, sessions and unlock endpoints: see
+[security.md](security.md).
 
 ## M12 · The first deployment
 

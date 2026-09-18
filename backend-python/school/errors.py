@@ -59,6 +59,25 @@ class AccountInactive(ApiError):
         super().__init__("This account has been deactivated. Contact your school administrator.")
 
 
+class AccountLocked(ApiError):
+    """Too many wrong passwords in a row (Phase 21, docs/security.md).
+
+    423 Locked, and said plainly with how long is left: a person who has
+    forgotten their password should know to wait or reset it, not keep
+    guessing at a form that will refuse even the right answer.
+    """
+
+    status_code = 423
+    error_code = "ACCOUNT_LOCKED"
+
+    def __init__(self, minutes: int) -> None:
+        unit = "minute" if minutes == 1 else "minutes"
+        super().__init__(
+            f"Too many failed sign-in attempts. Try again in {minutes} {unit}, reset your password, "
+            "or ask your school administrator to unlock the account."
+        )
+
+
 class Unauthenticated(ApiError):
     status_code = status.HTTP_401_UNAUTHORIZED
     error_code = "UNAUTHENTICATED"

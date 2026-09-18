@@ -214,7 +214,7 @@ class PasswordResetTest(PublicTestCase):
     def token_from_mail(self) -> str:
         return re.search(r"token=([0-9a-f]+)&", mail.outbox[-1].body).group(1)
 
-    def reset(self, token, password="brand-new-password", email=None):
+    def reset(self, token, password="brand-new-password-26", email=None):
         return APIClient().post(
             "/api/v1/auth/reset-password",
             {"email": email or self.user.email, "token": token, "password": password},
@@ -258,15 +258,15 @@ class PasswordResetTest(PublicTestCase):
         token = self.token_from_mail()
 
         first = self.reset(token)
-        second = self.reset(token, password="another-new-one")
+        second = self.reset(token, password="another-new-one-26")
 
         self.assertEqual({"message": "Password reset successfully."}, first.data)
         self.assertEqual(422, second.status_code)
         self.user.refresh_from_db()
-        self.assertTrue(hashing.check("brand-new-password", self.user.password))
+        self.assertTrue(hashing.check("brand-new-password-26", self.user.password))
         self.assertFalse(self.user.must_change_password)
         self.assertFalse(PersonalAccessToken.objects.filter(tokenable_id=self.user.id).exists())
-        login = APIClient().post("/api/v1/auth/login", {"email": self.user.email, "password": "brand-new-password"}, format="json")
+        login = APIClient().post("/api/v1/auth/login", {"email": self.user.email, "password": "brand-new-password-26"}, format="json")
         self.assertEqual(200, login.status_code)
 
     def test_an_address_typed_with_capitals_is_the_same_account(self):
@@ -278,7 +278,7 @@ class PasswordResetTest(PublicTestCase):
 
         self.assertEqual(200, response.status_code, response.data)
         self.user.refresh_from_db()
-        self.assertTrue(hashing.check("brand-new-password", self.user.password))
+        self.assertTrue(hashing.check("brand-new-password-26", self.user.password))
 
     def test_a_wrong_token_changes_nothing_and_answers_with_an_object_for_details(self):
         self.forgot()

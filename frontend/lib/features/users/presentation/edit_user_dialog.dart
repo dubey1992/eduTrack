@@ -129,8 +129,8 @@ class _EditUserDialogState extends ConsumerState<EditUserDialog> {
                 PasswordField(
                   controller: _passwordController,
                   label: 'New password',
-                  helperText: 'Leave blank to keep the current one.',
-                  validator: (v) => (v != null && v.isNotEmpty && v.length < 8) ? 'At least 8 characters' : null,
+                  helperText: 'Leave blank to keep the current one. $newPasswordHint',
+                  validator: (v) => (v == null || v.isEmpty) ? null : newPasswordProblem(v),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<UserRole>(

@@ -19,7 +19,7 @@ from rest_framework import serializers
 import decimal
 import re
 
-from . import hashing, notifications, sms
+from . import audit, hashing, notifications, sms
 from .enums import (
     EarlyAccessStatus,
     TripDirection,
@@ -74,10 +74,12 @@ from .validation import (
     LaravelDateField,
     LaravelIntegerField,
     MobileField,
+    PasswordField,
     TimezoneField,
     UrlField,
     already_taken,
     at_least,
+    password_rules,
     bad_format,
     confirmation_does_not_match,
     does_not_exist,
@@ -1675,6 +1677,8 @@ class ResetPasswordRequest(serializers.Serializer):
         if len(value) < 8:
             raise serializers.ValidationError("The password field must be at least 8 characters.")
 
+        password_rules(value)
+
         return value
 
 
@@ -1741,7 +1745,7 @@ class StoreStaffRequest(ScopedSerializer):
     last_name = LaravelCharField("last_name", max_length=100)
     email = LaravelCharField("email", max_length=255)
     mobile = MobileField("mobile")
-    password = LaravelCharField("password", min_length=8)
+    password = PasswordField("password")
     role = LaravelCharField("role")
     employee_id = LaravelCharField("employee_id", max_length=30)
     department_id = LaravelIntegerField("department_id", required=False, allow_null=True)
@@ -2462,7 +2466,7 @@ class StoreUserRequest(ScopedSerializer):
     last_name = LaravelCharField("last_name", max_length=100)
     email = LaravelCharField("email", max_length=255)
     mobile = MobileField("mobile")
-    password = LaravelCharField("password", min_length=8)
+    password = PasswordField("password")
     role = LaravelCharField("role")
 
     def validate_email(self, value: str) -> str:
@@ -2522,7 +2526,7 @@ class UpdateUserRequest(ScopedSerializer):
     last_name = LaravelCharField("last_name", max_length=100, required=False)
     email = LaravelCharField("email", max_length=255, required=False)
     mobile = MobileField("mobile")
-    password = LaravelCharField("password", min_length=8, required=False)
+    password = PasswordField("password", required=False)
     role = LaravelCharField("role", required=False)
 
     def __init__(self, *args, user: User = None, **kwargs) -> None:
@@ -2601,7 +2605,7 @@ class ChangePasswordRequest(serializers.Serializer):
     """
 
     current_password = LaravelCharField("current_password")
-    password = LaravelCharField("password", min_length=8)
+    password = PasswordField("password")
     password_confirmation = LaravelCharField("password_confirmation", required=False, allow_null=True)
 
     def __init__(self, *args, actor=None, **kwargs) -> None:
@@ -2760,3 +2764,53 @@ class ReportRequest(serializers.Serializer):
             clock = SchoolClock.for_school(php_int(school_id))
 
         return clock.now().date()
+
+
+# -- audit log (Phase 21) ------------------------------------------------------
+
+
+class AuditLogFilterRequest(ScopedSerializer):
+    """What the audit screen may filter by. Every filter narrows; the school
+    scope is applied separately and cannot be widened by any of them."""
+
+    school_id = LaravelIntegerField("school_id", required=False, allow_null=True)
+    user_id = LaravelIntegerField("user_id", required=False, allow_null=True)
+    module = LaravelCharField("module", required=False, allow_null=True)
+    action = LaravelCharField("action", max_length=64, required=False, allow_null=True)
+    entity_type = LaravelCharField("entity_type", max_length=64, required=False, allow_null=True)
+    entity_id = LaravelIntegerField("entity_id", required=False, allow_null=True)
+    # `from` is a Python keyword, so these are mapped from the query below.
+    from_date = LaravelDateField("from", required=False, allow_null=True)
+    to_date = LaravelDateField("to", required=False, allow_null=True)
+    format = LaravelCharField("format", required=False, allow_null=True)
+
+    def to_internal_value(self, data):
+        data = dict(data)
+        for outer, inner in (("from", "from_date"), ("to", "to_date")):
+            if outer in data:
+                data[inner] = data.pop(outer)
+
+        # Every problem at once, the way Laravel reports them: DRF stops at
+        # the field checks and would never reach the choices below.
+        errors = {}
+        values = {}
+        try:
+            values = super().to_internal_value(data)
+        except serializers.ValidationError as error:
+            errors = dict(error.detail)
+
+        # Named as the client sent them, so a form marks the right field.
+        for outer, inner in (("from", "from_date"), ("to", "to_date")):
+            if inner in errors:
+                errors[outer] = errors.pop(inner)
+
+        if data.get("module") and data["module"] not in audit.MODULES:
+            errors["module"] = [selected_is_invalid("module")]
+        if data.get("format") and data["format"] not in ("json", "csv"):
+            errors["format"] = [selected_is_invalid("format")]
+        if values.get("from_date") and values.get("to_date") and values["to_date"] < values["from_date"]:
+            errors["to"] = ["The end of the range must not be before its start."]
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return values

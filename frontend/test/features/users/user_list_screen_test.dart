@@ -70,7 +70,37 @@ Widget wrap(FakeUserRepository fake, {AuthenticatedUser actor = _superAdmin}) {
   );
 }
 
+const _lockedTeacher = AppUser(
+  id: 4,
+  firstName: 'Tara',
+  lastName: 'Teacher',
+  name: 'Tara Teacher',
+  email: 'tara@example.com',
+  mobile: null,
+  role: UserRole.teacher,
+  status: UserStatus.active,
+  lockedUntil: '2026-09-18T10:15:00.000000Z',
+);
+
 void main() {
+  testWidgets('a locked account says so and can be unlocked (Phase 21)', (tester) async {
+    final fake = FakeUserRepository(users: [_lockedTeacher, _teacher]);
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Locked'), findsOneWidget);
+    // Only the locked account is offered the action.
+    expect(find.text('Unlock'), findsOneWidget);
+
+    await tester.tap(find.text('Unlock'));
+    await tester.pumpAndSettle();
+
+    expect(fake.unlockCalls, 1);
+    expect(find.text('Tara Teacher can sign in again.'), findsOneWidget);
+    expect(find.text('Locked'), findsNothing);
+    expect(find.text('Unlock'), findsNothing);
+  });
+
   testWidgets('a super admin sees the Add School Admin action', (tester) async {
     await tester.pumpWidget(wrap(FakeUserRepository()));
     await tester.pumpAndSettle();

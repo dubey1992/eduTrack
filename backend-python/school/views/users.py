@@ -22,7 +22,7 @@ from ..pagination import LaravelPagination
 from ..policies import UserPolicy, authorize
 from ..requests import StoreUserRequest, UpdateUserRequest
 from ..resources import user_resource
-from ..services import UserService
+from ..services import AuthService, UserService
 
 
 @api_view(["GET", "POST"])
@@ -103,6 +103,23 @@ def activate(request, user_id: int) -> Response:
 @permission_classes([IsAuthenticated])
 def deactivate(request, user_id: int) -> Response:
     return set_status(request, user_id, UserStatus.INACTIVE)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def unlock(request, user_id: int) -> Response:
+    """Lets a locked-out user sign in again straight away (Phase 21).
+
+    Whoever may switch the account on and off may unlock it - the same
+    decision about the same person.
+    """
+    user = get_object_or_404(User.objects.select_related("school"), pk=user_id)
+
+    authorize(UserPolicy.set_status(request.user, user))
+
+    AuthService.unlock(user)
+
+    return Response(user_resource(reload(user.id), viewer=request.user))
 
 
 def set_status(request, user_id: int, status_value: str) -> Response:

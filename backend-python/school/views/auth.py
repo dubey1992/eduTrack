@@ -11,12 +11,15 @@ leak by somebody adding a field later (CLAUDE.md rule 11).
 from __future__ import annotations
 
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..requests import ChangePasswordRequest, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest
-from ..resources import user_resource
+from ..resources import timestamp, user_resource
 from ..errors import envelope
+from .. import tokens
+from ..clock import DATE_TIME, SchoolClock
 from ..services import AuthService, PasswordResetService
 from ..throttling import (
     LoginAddressThrottle,
@@ -36,6 +39,7 @@ def login(request) -> Response:
     user, token = AuthService.login(
         form.validated_data["email"],
         form.validated_data["password"],
+        device=request.META.get("HTTP_USER_AGENT"),
     )
 
     return Response({"user": user_resource(user, viewer=user), "token": token})
@@ -65,9 +69,50 @@ def change_password(request) -> Response:
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout(request) -> Response:
-    AuthService.logout(request.auth)
+    AuthService.logout(request.user, request.auth)
 
     return Response({"message": "Logged out successfully."})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def sessions(request) -> Response:
+    """Where this person is signed in (Phase 21), most recently used first."""
+    clock = SchoolClock.for_user(request.user)
+
+    return Response({"data": [session_resource(row, request.auth, clock) for row in tokens.sessions_of(request.user)]})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def end_session(request, session_id: int) -> Response:
+    # Another person's session, or one already gone, is simply not found:
+    # nobody learns whether an id exists.
+    if not AuthService.end_session(request.user, session_id):
+        raise NotFound()
+
+    return Response({"message": "Signed out of that device."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def end_other_sessions(request) -> Response:
+    ended = AuthService.end_other_sessions(request.user, request.auth)
+
+    return Response({"message": "Signed out of all other devices.", "ended": ended})
+
+
+def session_resource(row, current, clock) -> dict:
+    # Labels on the holder's own clock, which the client cannot compute.
+    return {
+        "id": row.id,
+        "device": row.name,
+        "signed_in_at": timestamp(row.created_at),
+        "signed_in_label": clock.format(row.created_at, DATE_TIME),
+        "last_used_at": timestamp(row.last_used_at),
+        "last_used_label": clock.format(row.last_used_at, DATE_TIME),
+        "current": current is not None and row.pk == current.pk,
+    }
 
 
 @api_view(["POST"])

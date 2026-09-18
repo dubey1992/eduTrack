@@ -14,8 +14,9 @@ from django.db import transaction
 from django.db.models import Count, F, Min, Q, Sum
 from django.utils import timezone
 
-from . import hashing, jobs, money, notifications, queue, sms, tokens, working_hours
+from . import audit, hashing, jobs, money, notifications, queue, sms, tokens, working_hours
 from .clock import TIME, SchoolClock
+from .fields import as_utc
 from .enums import (
     EarlyAccessStatus,
     TripEventType,
@@ -39,6 +40,7 @@ from .enums import (
 )
 from .errors import (
     AccountInactive,
+    AccountLocked,
     AttendanceAlreadySubmitted,
     AttendanceOnHoliday,
     HasDependentRecords,
@@ -98,8 +100,10 @@ from .scope import SchoolScope
 
 
 class AuthService:
-    @staticmethod
-    def login(email: str, password: str) -> tuple[User, str]:
+    MODULE = "auth"
+
+    @classmethod
+    def login(cls, email: str, password: str, device: str | None = None) -> tuple[User, str]:
         """Checks credentials and issues a token.
 
         The same 401 for an address nobody has and for the wrong password: the
@@ -119,14 +123,74 @@ class AuthService:
         # round on a failed login and closes an oracle that the identical 401
         # message above was already trying to close.
         stored = user.password if user is not None else hashing.NO_SUCH_ACCOUNT
+        correct = hashing.check(password, stored)
 
-        if not hashing.check(password, stored) or user is None:
+        # A locked account refuses even the right password until the lock
+        # runs out - otherwise the lock would only slow a guesser down.
+        if user is not None and cls.locked_for(user):
+            raise AccountLocked(cls.locked_for(user))
+
+        if not correct or user is None:
+            cls._failed(user, email)
             raise Unauthenticated("These credentials do not match our records.")
 
         if not user.is_active():
             raise AccountInactive()
 
-        return user, tokens.issue(user)
+        User.objects.filter(pk=user.pk).update(failed_login_attempts=0, locked_until=None)
+        token = tokens.issue(user, device)
+        cls._record(user, "user.signed_in", {"device": tokens.describe_device(device)})
+
+        return user, token
+
+    @staticmethod
+    def locked_for(user: User) -> int:
+        """Whole minutes the account stays locked, rounded up; 0 when it is not."""
+        if user.locked_until is None:
+            return 0
+
+        remaining = (as_utc(user.locked_until) - timezone.now()).total_seconds()
+
+        return 0 if remaining <= 0 else -(-int(remaining) // 60)
+
+    @classmethod
+    def _failed(cls, user: User | None, email: str) -> None:
+        """Counts a wrong password, and locks the account at the limit.
+
+        Counted with an UPDATE ... + 1 so two guesses at once cannot both read
+        nine and both write ten. An address with no account has nothing to
+        count, but the attempt is still recorded - a run of them is exactly
+        what a security review looks for.
+        """
+        from django.conf import settings
+
+        if user is None:
+            audit.record(actor=None, action="user.sign_in_failed", module=cls.MODULE, entity_type="user",
+                         entity_id=None, school_id=None, new={"email": email})
+            return
+
+        User.objects.filter(pk=user.pk).update(failed_login_attempts=F("failed_login_attempts") + 1)
+        attempts = User.objects.values_list("failed_login_attempts", flat=True).get(pk=user.pk)
+        cls._record(user, "user.sign_in_failed", {"attempts": attempts})
+
+        if attempts >= settings.LOCKOUT_ATTEMPTS:
+            until = timezone.now() + dt.timedelta(minutes=settings.LOCKOUT_MINUTES)
+            User.objects.filter(pk=user.pk).update(failed_login_attempts=0, locked_until=until)
+            cls._record(user, "user.locked", {"locked_until": until, "attempts": attempts})
+
+    @classmethod
+    def unlock(cls, user: User) -> None:
+        """An administrator lets a locked-out user try again straight away."""
+        User.objects.filter(pk=user.pk).update(failed_login_attempts=0, locked_until=None)
+        audit.record(action="user.unlocked", module=cls.MODULE, entity_type="user", entity_id=user.id,
+                     school_id=user.school_id)
+
+    @classmethod
+    def _record(cls, user: User, action: str, new: dict | None = None) -> None:
+        # Sign-in happens before anybody is authenticated, so the actor is
+        # named rather than taken from the request.
+        audit.record(actor=user, action=action, module=cls.MODULE, entity_type="user", entity_id=user.id,
+                     school_id=user.school_id, new=new)
 
     @staticmethod
     def change_password(user: User, new_password: str, current_token: PersonalAccessToken) -> None:
@@ -143,19 +207,33 @@ class AuthService:
             updated_at=timezone.now(),
         )
 
-        others = PersonalAccessToken.objects.filter(
-            tokenable_type=tokens.TOKENABLE_TYPE, tokenable_id=user.pk
-        )
-
-        if current_token is not None:
-            others = others.exclude(pk=current_token.pk)
-
-        others.delete()
+        ended = tokens.revoke_all(user, keep=current_token)
+        AuthService._record(user, "user.password_changed", {"other_sessions_ended": ended})
 
     @staticmethod
-    def logout(current_token: PersonalAccessToken) -> None:
+    def logout(user: User, current_token: PersonalAccessToken) -> None:
         if current_token is not None:
             PersonalAccessToken.objects.filter(pk=current_token.pk).delete()
+            AuthService._record(user, "user.signed_out")
+
+    @staticmethod
+    def end_session(user: User, session_id: int) -> bool:
+        """Signs one of the user's own devices out. False when it is not theirs."""
+        deleted, _ = PersonalAccessToken.objects.filter(
+            pk=session_id, tokenable_type=tokens.TOKENABLE_TYPE, tokenable_id=user.pk
+        ).delete()
+
+        if deleted:
+            AuthService._record(user, "user.session_ended", {"session_id": session_id})
+
+        return bool(deleted)
+
+    @staticmethod
+    def end_other_sessions(user: User, current_token: PersonalAccessToken) -> int:
+        ended = tokens.revoke_all(user, keep=current_token)
+        AuthService._record(user, "user.other_sessions_ended", {"sessions_ended": ended})
+
+        return ended
 
 
 class EarlyAccessService:
@@ -183,10 +261,13 @@ class EarlyAccessService:
         )
 
         if existing is None:
-            EarlyAccessRequest.objects.create(
+            request = EarlyAccessRequest.objects.create(
                 **{field: data.get(field) for field in cls.FIELDS},
                 status=EarlyAccessStatus.NEW, created_at=now, updated_at=now,
             )
+            # Nobody is signed in to apply: the applicant is the actor, and
+            # they have no account yet.
+            audit.created("schools", request)
 
             return
 
@@ -216,6 +297,8 @@ class EarlyAccessService:
 
     @staticmethod
     def review(request, data: dict, actor: User):
+        before = audit.fields_of(request)
+
         now = timezone.now()
 
         for field, value in data.items():
@@ -225,6 +308,7 @@ class EarlyAccessService:
         request.reviewed_at = now
         request.updated_at = now
         request.save(update_fields=[*data.keys(), "reviewed_by", "reviewed_at", "updated_at"])
+        audit.updated("schools", request, before, action="early_access_request.reviewed")
 
         return EarlyAccessRequest.objects.select_related("converted_school", "reviewed_by").get(pk=request.pk)
 
@@ -243,6 +327,8 @@ class EarlyAccessService:
             reviewed_at=timezone.now(),
             updated_at=timezone.now(),
         )
+        audit.record(action="early_access_request.converted", module="schools", entity_type="early_access_request",
+                     entity_id=request.pk, school_id=None, new={"converted_school_id": school.id})
 
         return EarlyAccessRequest.objects.get(pk=request.pk)
 
@@ -270,17 +356,24 @@ class SchoolService:
     def create(data: dict) -> School:
         now = timezone.now()
 
-        return School.objects.create(
+        school = School.objects.create(
             status=SchoolStatus.ACTIVE, created_at=now, updated_at=now, **data
         )
 
+        audit.created("schools", school)
+
+        return school
+
     @staticmethod
     def update(school: School, data: dict) -> School:
+        before = audit.fields_of(school)
+
         for field, value in data.items():
             setattr(school, field, value)
 
         school.updated_at = timezone.now()
         school.save()
+        audit.updated("schools", school, before)
 
         return school
 
@@ -294,9 +387,13 @@ class SchoolService:
 
     @staticmethod
     def set_status(school: School, status: str) -> School:
+        before = audit.fields_of(school)
+
         school.status = status
         school.updated_at = timezone.now()
         school.save(update_fields=["status", "updated_at"])
+        action = "school.activated" if status == SchoolStatus.ACTIVE else "school.deactivated"
+        audit.updated("schools", school, before, action=action)
 
         return school
 
@@ -385,6 +482,7 @@ class AttendanceService:
 
         with transaction.atomic():
             changed = {}
+            previous = {}
 
             for record in data["records"]:
                 attendance, created = Attendance.objects.get_or_create(
@@ -417,6 +515,17 @@ class AttendanceService:
                     # correcting a remark does not text a parent twice.
                     if was != attendance.status:
                         changed[attendance.student_id] = attendance.status
+                        previous[attendance.student_id] = was
+
+            # One entry for the register, not one per child: "8 A, 14 Sep,
+            # these three changed" is what someone reviewing it needs.
+            if changed:
+                audit.record(
+                    action="attendance.corrected" if previous else "attendance.marked", module="attendance",
+                    entity_type="class_section", entity_id=section.id, school_id=school_id,
+                    old={"attendance_date": date, "marks": previous} if previous else None,
+                    new={"attendance_date": date, "marks": changed},
+                )
 
             cls.alert_guardians(section, date, changed, actor)
 
@@ -596,6 +705,13 @@ class StaffAttendanceService:
         AttendanceService.assert_school_is_open(school_id, data["attendance_date"])
 
         with transaction.atomic():
+            before = dict(
+                StaffAttendance.objects.filter(
+                    staff_profile_id__in=[record["staff_profile_id"] for record in data["records"]],
+                    attendance_date=data["attendance_date"],
+                ).values_list("staff_profile_id", "status")
+            )
+
             for record in data["records"]:
                 now = timezone.now()
 
@@ -621,6 +737,20 @@ class StaffAttendanceService:
                         "created_at": now,
                         "updated_at": now,
                     },
+                )
+
+            changed = {
+                record["staff_profile_id"]: record["status"]
+                for record in data["records"]
+                if before.get(record["staff_profile_id"]) != record["status"]
+            }
+            if changed:
+                corrected = {key: before[key] for key in changed if key in before}
+                audit.record(
+                    action="staff_attendance.corrected" if corrected else "staff_attendance.marked",
+                    module="staff_attendance", entity_type="school", entity_id=school_id, school_id=school_id,
+                    old={"attendance_date": data["attendance_date"], "marks": corrected} if corrected else None,
+                    new={"attendance_date": data["attendance_date"], "marks": changed},
                 )
 
             # No guardian to tell. Staff attendance is a record the school
@@ -717,6 +847,7 @@ class StaffLeaveService:
                 created_at=now,
                 updated_at=now,
             )
+            audit.created("leave", leave, action="staff_leave.applied")
 
             if is_school_head:
                 cls.sync_attendance(leave, actor)
@@ -747,11 +878,14 @@ class StaffLeaveService:
 
     @staticmethod
     def record_decision(leave, status: str, actor: User, remarks) -> None:
+        before = audit.fields_of(leave)
+
         leave.status = status
         leave.reviewed_by_id = actor.id
         leave.review_remarks = remarks
         leave.updated_at = timezone.now()
         leave.save(update_fields=["status", "reviewed_by", "review_remarks", "updated_at"])
+        audit.updated("leave", leave, before, action=f"staff_leave.{status}")
 
     @classmethod
     def fresh(cls, leave):
@@ -948,6 +1082,10 @@ class TimetableService:
         cls.assert_the_teacher_is_free(data)
 
         now = timezone.now()
+        existing = TimetableEntry.objects.filter(
+            class_section_id=data["class_section_id"], period_id=data["period_id"], day_of_week=data["day_of_week"]
+        ).first()
+        before = audit.fields_of(existing) if existing is not None else None
 
         entry, _ = TimetableEntry.objects.update_or_create(
             class_section_id=data["class_section_id"],
@@ -968,10 +1106,16 @@ class TimetableService:
             },
         )
 
+        if before is None:
+            audit.created("timetable", entry)
+        else:
+            audit.updated("timetable", entry, before)
+
         return TimetableEntry.objects.select_related(*cls.WITH).get(pk=entry.pk)
 
     @staticmethod
     def delete(entry) -> None:
+        audit.deleted("timetable", entry)
         entry.delete()
 
     @staticmethod
@@ -1053,11 +1197,14 @@ class DailyTeachingReportService:
             created_at=now,
             updated_at=now,
         )
+        audit.created("teaching", report)
 
         return cls.fresh(report)
 
     @classmethod
     def review(cls, report, actor: User):
+        before = audit.fields_of(report)
+
         if report.reviewed_by_id is not None:
             raise TeachingReportAlreadyReviewed("This report has already been reviewed.")
 
@@ -1066,6 +1213,7 @@ class DailyTeachingReportService:
         report.reviewed_at = now
         report.updated_at = now
         report.save(update_fields=["reviewed_by", "reviewed_at", "updated_at"])
+        audit.updated("teaching", report, before, action="daily_teaching_report.reviewed")
 
         return cls.fresh(report)
 
@@ -1158,11 +1306,14 @@ class SyllabusTopicService:
             created_at=now,
             updated_at=now,
         )
+        audit.created("syllabus", topic)
 
         return SyllabusTopic.objects.select_related("subject").get(pk=topic.pk)
 
     @staticmethod
     def update(topic, data: dict):
+        before = audit.fields_of(topic)
+
         changed = [field for field, value in data.items() if getattr(topic, field) != value]
 
         # Eloquent saves nothing, timestamp included, when nothing changed;
@@ -1173,11 +1324,13 @@ class SyllabusTopicService:
 
             topic.updated_at = timezone.now()
             topic.save(update_fields=[*changed, "updated_at"])
+            audit.updated("syllabus", topic, before)
 
         return SyllabusTopic.objects.select_related("subject").get(pk=topic.pk)
 
     @staticmethod
     def delete(topic) -> None:
+        audit.deleted("syllabus", topic)
         topic.delete()
 
 
@@ -1237,13 +1390,19 @@ class SyllabusProgressService:
         """Ticking records who and when, again if it was already ticked;
         unticking removes the mark rather than keeping a "not done" row."""
         if not completed:
-            SyllabusTopicProgress.objects.filter(
+            deleted, _ = SyllabusTopicProgress.objects.filter(
                 syllabus_topic_id=topic.id, class_section_id=section.id
             ).delete()
+
+            if deleted:
+                audit.record(action="syllabus_topic.unticked", module="syllabus", entity_type="syllabus_topic",
+                             entity_id=topic.id, school_id=topic.school_id, old={"class_section_id": section.id})
 
             return
 
         now = timezone.now()
+        audit.record(action="syllabus_topic.ticked", module="syllabus", entity_type="syllabus_topic",
+                     entity_id=topic.id, school_id=topic.school_id, new={"class_section_id": section.id})
 
         SyllabusTopicProgress.objects.update_or_create(
             syllabus_topic_id=topic.id,
@@ -1739,25 +1898,30 @@ class MessageTemplateService:
         now = timezone.now()
 
         if existing is None:
-            MessageTemplate.objects.create(
+            template = MessageTemplate.objects.create(
                 school_id=school_id, event=event, body=body, is_active=True,
                 updated_by_id=actor.id, created_at=now, updated_at=now,
             )
+            audit.created("communication", template)
 
             return
 
         # Eloquent writes nothing, updated_at included, when nothing changed.
         if (existing.body, existing.is_active, existing.updated_by_id) != (body, True, actor.id):
+            before = audit.fields_of(existing)
             existing.body = body
             existing.is_active = True
             existing.updated_by_id = actor.id
             existing.updated_at = now
             existing.save(update_fields=["body", "is_active", "updated_by", "updated_at"])
+            audit.updated("communication", existing, before)
 
     @staticmethod
     def reset(school_id: int, event: str) -> None:
         """Drops the override, so the event falls back to its shipped wording."""
-        MessageTemplate.objects.filter(school_id=school_id, event=event).delete()
+        for template in MessageTemplate.objects.filter(school_id=school_id, event=event):
+            audit.deleted("communication", template)
+            template.delete()
 
 
 class CommunicationSettingService:
@@ -1774,6 +1938,7 @@ class CommunicationSettingService:
 
         changed = [field for field, value in values.items() if getattr(setting, field) != value]
         now = timezone.now()
+        before = audit.fields_of(setting)
 
         for field in changed:
             setattr(setting, field, values[field])
@@ -1786,6 +1951,8 @@ class CommunicationSettingService:
         elif changed:
             setting.updated_at = now
             setting.save(update_fields=[*changed, "updated_at"])
+
+        audit.updated("communication", setting, before)
 
         return CommunicationSetting.objects.get(pk=setting.pk)
 
@@ -1869,6 +2036,7 @@ class AnnouncementService:
                 created_at=now,
                 updated_at=now,
             )
+            audit.created("announcements", announcement, action="announcement.published")
 
             # In the same transaction: the fan-out is queued if and only if
             # the announcement it is for was committed.
@@ -1926,10 +2094,13 @@ class AnnouncementService:
     @staticmethod
     def delete(announcement) -> None:
         """Out of the in-app feed. Messages already sent stay in the log."""
+        before = audit.fields_of(announcement)
+
         now = timezone.now()
         announcement.deleted_at = now
         announcement.updated_at = now
         announcement.save(update_fields=["deleted_at", "updated_at"])
+        audit.updated("announcements", announcement, before, action="announcement.deleted")
 
     @classmethod
     def count_recipients(cls, school_id: int, audience: str, target, channels: str) -> dict:
@@ -2043,11 +2214,14 @@ class FleetService:
     def create(cls, data: dict):
         now = timezone.now()
         record = cls.model.objects.create(**data, status=TransportStatus.ACTIVE, created_at=now, updated_at=now)
+        audit.created("transport", record)
 
         return cls.model.objects.select_related("school").get(pk=record.pk)
 
     @classmethod
     def update(cls, record, data: dict):
+        before = audit.fields_of(record)
+
         changed = [field for field, value in data.items() if getattr(record, field) != value]
 
         if changed:
@@ -2056,6 +2230,7 @@ class FleetService:
 
             record.updated_at = timezone.now()
             record.save(update_fields=[*changed, "updated_at"])
+            audit.updated("transport", record, before)
 
         return cls.model.objects.select_related("school").get(pk=record.pk)
 
@@ -2067,6 +2242,7 @@ class FleetService:
         if TransportTrip.objects.filter(**{cls.foreign_key: record.pk}).exists():
             raise HasDependentRecords(cls.has_history)
 
+        audit.deleted("transport", record)
         record.delete()
 
 
@@ -2120,10 +2296,16 @@ class TransportRouteService:
     def create(data: dict):
         now = timezone.now()
 
-        return TransportRoute.objects.create(**data, status=TransportStatus.ACTIVE, created_at=now, updated_at=now)
+        route = TransportRoute.objects.create(**data, status=TransportStatus.ACTIVE, created_at=now, updated_at=now)
+
+        audit.created("transport", route)
+
+        return route
 
     @staticmethod
     def update(route, data: dict):
+        before = audit.fields_of(route)
+
         changed = [field for field, value in data.items() if getattr(route, field) != value]
 
         if changed:
@@ -2132,6 +2314,7 @@ class TransportRouteService:
 
             route.updated_at = timezone.now()
             route.save(update_fields=[*changed, "updated_at"])
+            audit.updated("transport", route, before)
 
         return route
 
@@ -2149,6 +2332,7 @@ class TransportRouteService:
         # a delete that only worked against production is not a tested one.
         with transaction.atomic():
             TransportStop.objects.filter(route_id=route.pk).delete()
+            audit.deleted("transport", route)
             route.delete()
 
     @classmethod
@@ -2157,11 +2341,14 @@ class TransportRouteService:
         stop = TransportStop.objects.create(
             **data, route_id=route.pk, school_id=route.school_id, created_at=now, updated_at=now
         )
+        audit.created("transport", stop)
 
         return cls.stops_of(route.pk).get(pk=stop.pk)
 
     @classmethod
     def update_stop(cls, stop, data: dict):
+        before = audit.fields_of(stop)
+
         changed = [field for field, value in data.items() if cls.stored(stop, field) != value]
 
         if changed:
@@ -2170,6 +2357,7 @@ class TransportRouteService:
 
             stop.updated_at = timezone.now()
             stop.save(update_fields=[*changed, "updated_at"])
+            audit.updated("transport", stop, before)
 
         return cls.stops_of(stop.route_id).get(pk=stop.pk)
 
@@ -2194,6 +2382,7 @@ class TransportRouteService:
             TransportTrip.objects.filter(current_stop_id=stop.pk).update(current_stop=None)
             TransportTripRider.objects.filter(stop_id=stop.pk).update(stop=None)
             TransportTripEvent.objects.filter(stop_id=stop.pk).update(stop=None)
+            audit.deleted("transport", stop)
             stop.delete()
 
 
@@ -2213,7 +2402,10 @@ class StudentTransportService:
                     raise RouteCapacityFull(f"{label} is full - its vehicle seats {vehicle.capacity} students.")
 
             now = timezone.now()
-            StudentTransportAssignment.objects.update_or_create(
+            existing = StudentTransportAssignment.objects.filter(student_id=student.pk).first()
+            before = audit.fields_of(existing) if existing is not None else None
+
+            assignment, _ = StudentTransportAssignment.objects.update_or_create(
                 student_id=student.pk,
                 defaults={"school_id": student.school_id, "route_id": route.pk, "transport_stop_id": stop.pk, "updated_at": now},
                 create_defaults={
@@ -2222,9 +2414,18 @@ class StudentTransportService:
                 },
             )
 
+            if before is None:
+                audit.created("transport", assignment)
+            else:
+                audit.updated("transport", assignment, before)
+
     @staticmethod
     def unassign(student) -> None:
-        StudentTransportAssignment.objects.filter(student_id=student.pk).delete()
+        assignment = StudentTransportAssignment.objects.filter(student_id=student.pk).first()
+
+        if assignment is not None:
+            audit.deleted("transport", assignment)
+            assignment.delete()
 
     @staticmethod
     def students_on(route):
@@ -2312,6 +2513,7 @@ class TransportTripService:
                 trip_date=today, direction=direction, status=TripStatus.IN_PROGRESS,
                 started_by_id=actor.id, started_at=now, created_at=now, updated_at=now,
             )
+            audit.created("transport", trip, action="transport_trip.started")
 
             riders = [
                 assignment
@@ -2425,6 +2627,8 @@ class TransportTripService:
 
     @classmethod
     def end(cls, trip, actor: User) -> None:
+        before = audit.fields_of(trip)
+
         cls.assert_in_progress(trip)
         cls.assert_nobody_on_board(trip)
 
@@ -2442,12 +2646,15 @@ class TransportTripService:
             trip.ended_at = now
             trip.updated_at = now
             trip.save(update_fields=["status", "ended_at", "updated_at"])
+            audit.updated("transport", trip, before, action="transport_trip.completed")
 
             note = f"Trip completed; {marked_absent} marked absent" if marked_absent > 0 else "Trip completed"
             cls.record(trip, TripEventType.COMPLETED, actor, note=note)
 
     @classmethod
     def cancel(cls, trip, actor: User) -> None:
+        before = audit.fields_of(trip)
+
         cls.assert_in_progress(trip)
 
         with transaction.atomic():
@@ -2458,6 +2665,7 @@ class TransportTripService:
             trip.ended_at = now
             trip.updated_at = now
             trip.save(update_fields=["status", "ended_at", "updated_at"])
+            audit.updated("transport", trip, before, action="transport_trip.cancelled")
 
             cls.record(trip, TripEventType.CANCELLED, actor, note="Trip cancelled")
 
@@ -2531,12 +2739,18 @@ class PasswordResetService:
             # asked to change it again.
             user.password = hashing.make(password)
             user.must_change_password = False
+            # Proving you own the address is as good as an administrator's
+            # unlock: a locked-out person's way back in is this link.
+            user.failed_login_attempts = 0
+            user.locked_until = None
             user.updated_at = timezone.now()
-            user.save(update_fields=["password", "must_change_password", "updated_at"])
+            user.save(update_fields=["password", "must_change_password", "failed_login_attempts", "locked_until",
+                                     "updated_at"])
 
             # Every session ends, and the link is spent.
-            PersonalAccessToken.objects.filter(tokenable_type=tokens.TOKENABLE_TYPE, tokenable_id=user.id).delete()
+            tokens.revoke_all(user)
             PasswordResetToken.objects.filter(email=user.email).delete()
+            AuthService._record(user, "user.password_reset")
 
         return True
 
@@ -2611,7 +2825,7 @@ class StaffProfileService:
             user = UserService.create(actor, user_data)
             now = timezone.now()
 
-            return StaffProfile.objects.create(
+            profile = StaffProfile.objects.create(
                 user_id=user.id,
                 # Always the account's own school, resolved by UserService
                 # above - never re-derived from client input here.
@@ -2625,13 +2839,20 @@ class StaffProfileService:
                 updated_at=now,
             )
 
+            audit.created("staff", profile)
+
+            return profile
+
     @staticmethod
     def update(profile: StaffProfile, data: dict) -> StaffProfile:
+        before = audit.fields_of(profile)
+
         for field, value in data.items():
             setattr(profile, field, value)
 
         profile.updated_at = timezone.now()
         profile.save()
+        audit.updated("staff", profile, before)
 
         return profile
 
@@ -2689,6 +2910,7 @@ class PaymentService:
                 created_at=now,
                 updated_at=now,
             )
+            audit.created("payments", payment)
 
             cls.send_receipt(payment)
 
@@ -2696,6 +2918,8 @@ class PaymentService:
 
     @classmethod
     def update(cls, payment: Payment, data: dict) -> Payment:
+        audited = audit.fields_of(payment)
+
         total = money.amount(data.get("amount", payment.amount))
         paid = money.paid_amount_for(data, total, fallback=money.amount(payment.paid_amount))
 
@@ -2710,6 +2934,7 @@ class PaymentService:
             payment.status = money.status_for(total, paid, data.get("status"))
             payment.updated_at = timezone.now()
             payment.save()
+            audit.updated("payments", payment, audited)
 
             after = (payment.amount, payment.paid_amount, payment.status)
 
@@ -2806,7 +3031,7 @@ class PeriodService:
         school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
         now = timezone.now()
 
-        return Period.objects.create(
+        period = Period.objects.create(
             school_id=school_id,
             period_number=data["period_number"],
             start_time=data["start_time"],
@@ -2815,13 +3040,20 @@ class PeriodService:
             updated_at=now,
         )
 
+        audit.created("timetable", period)
+
+        return period
+
     @staticmethod
     def update(period: Period, data: dict) -> Period:
+        before = audit.fields_of(period)
+
         for field, value in data.items():
             setattr(period, field, value)
 
         period.updated_at = timezone.now()
         period.save()
+        audit.updated("timetable", period, before)
 
         return period
 
@@ -2833,6 +3065,7 @@ class PeriodService:
                 "Remove them first."
             )
 
+        audit.deleted("timetable", period)
         period.delete()
 
 
@@ -2869,7 +3102,7 @@ class HolidayService:
 
         now = timezone.now()
 
-        return Holiday.objects.create(
+        holiday = Holiday.objects.create(
             school_id=school_id,
             name=data["name"],
             type=data["type"],
@@ -2879,8 +3112,14 @@ class HolidayService:
             updated_at=now,
         )
 
+        audit.created("holidays", holiday)
+
+        return holiday
+
     @classmethod
     def update(cls, holiday: Holiday, data: dict) -> Holiday:
+        before = audit.fields_of(holiday)
+
         start = data.get("start_date", holiday.start_date)
         end = data.get("end_date", holiday.end_date)
 
@@ -2891,11 +3130,13 @@ class HolidayService:
 
         holiday.updated_at = timezone.now()
         holiday.save()
+        audit.updated("holidays", holiday, before)
 
         return holiday
 
     @staticmethod
     def delete(holiday: Holiday) -> None:
+        audit.deleted("holidays", holiday)
         holiday.delete()
 
     @staticmethod
@@ -3025,7 +3266,7 @@ class SchoolClassService:
         school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
         now = timezone.now()
 
-        return SchoolClass.objects.create(
+        school_class = SchoolClass.objects.create(
             school_id=school_id,
             academic_year_id=data["academic_year_id"],
             name=data["name"],
@@ -3034,13 +3275,20 @@ class SchoolClassService:
             updated_at=now,
         )
 
+        audit.created("academic", school_class)
+
+        return school_class
+
     @staticmethod
     def update(school_class: SchoolClass, data: dict) -> SchoolClass:
+        before = audit.fields_of(school_class)
+
         for field, value in data.items():
             setattr(school_class, field, value)
 
         school_class.updated_at = timezone.now()
         school_class.save()
+        audit.updated("academic", school_class, before)
 
         return school_class
 
@@ -3049,13 +3297,14 @@ class SchoolClassService:
         if ClassSection.objects.filter(school_class_id=school_class.id).exists():
             raise HasDependentRecords("This class still has sections under it. Remove them first.")
 
+        audit.deleted("academic", school_class)
         school_class.delete()
 
     @staticmethod
     def add_section(school_class: SchoolClass, data: dict) -> ClassSection:
         now = timezone.now()
 
-        return ClassSection.objects.create(
+        section = ClassSection.objects.create(
             school_class_id=school_class.id,
             name=data["name"],
             room_number=data.get("room_number"),
@@ -3064,13 +3313,20 @@ class SchoolClassService:
             updated_at=now,
         )
 
+        audit.created("academic", section)
+
+        return section
+
     @staticmethod
     def update_section(section: ClassSection, data: dict) -> ClassSection:
+        before = audit.fields_of(section)
+
         for field, value in data.items():
             setattr(section, field, value)
 
         section.updated_at = timezone.now()
         section.save()
+        audit.updated("academic", section, before)
 
         return section
 
@@ -3082,6 +3338,7 @@ class SchoolClassService:
                 "Reassign or remove them first."
             )
 
+        audit.deleted("academic", section)
         section.delete()
 
 
@@ -3104,7 +3361,7 @@ class DepartmentService:
         school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
         now = timezone.now()
 
-        return Department.objects.create(
+        department = Department.objects.create(
             school_id=school_id,
             name=data["name"],
             hod_user_id=data.get("hod_user_id"),
@@ -3112,13 +3369,20 @@ class DepartmentService:
             updated_at=now,
         )
 
+        audit.created("academic", department)
+
+        return department
+
     @staticmethod
     def update(department: Department, data: dict) -> Department:
+        before = audit.fields_of(department)
+
         for field, value in data.items():
             setattr(department, field, value)
 
         department.updated_at = timezone.now()
         department.save()
+        audit.updated("academic", department, before)
 
         return department
 
@@ -3130,6 +3394,7 @@ class DepartmentService:
                 "Reassign or remove them first."
             )
 
+        audit.deleted("academic", department)
         department.delete()
 
 
@@ -3153,7 +3418,7 @@ class SubjectService:
         school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
         now = timezone.now()
 
-        return Subject.objects.create(
+        subject = Subject.objects.create(
             school_id=school_id,
             department_id=data["department_id"],
             code=data["code"],
@@ -3165,13 +3430,20 @@ class SubjectService:
             updated_at=now,
         )
 
+        audit.created("academic", subject)
+
+        return subject
+
     @staticmethod
     def update(subject: Subject, data: dict) -> Subject:
+        before = audit.fields_of(subject)
+
         for field, value in data.items():
             setattr(subject, field, value)
 
         subject.updated_at = timezone.now()
         subject.save()
+        audit.updated("academic", subject, before)
 
         return subject
 
@@ -3180,6 +3452,7 @@ class SubjectService:
         # No dependency check, matching Laravel. A subject is removed from the
         # catalogue; the timetable entries and syllabus topics that referenced
         # it are handled by the database's own foreign keys.
+        audit.deleted("academic", subject)
         subject.delete()
 
 
@@ -3208,7 +3481,7 @@ class AcademicYearService:
             if is_current:
                 cls._clear_current_for(school_id)
 
-            return AcademicYear.objects.create(
+            year = AcademicYear.objects.create(
                 school_id=school_id,
                 name=data["name"],
                 start_date=data["start_date"],
@@ -3224,24 +3497,34 @@ class AcademicYearService:
                 updated_at=now,
             )
 
+            audit.created("academic", year)
+
+            return year
+
     @staticmethod
     def update(year: AcademicYear, data: dict) -> AcademicYear:
+        before = audit.fields_of(year)
+
         for field, value in data.items():
             setattr(year, field, value)
 
         year.updated_at = timezone.now()
         year.save()
+        audit.updated("academic", year, before)
 
         return year
 
     @classmethod
     def set_current(cls, year: AcademicYear) -> AcademicYear:
+        before = audit.fields_of(year)
+
         with transaction.atomic():
             cls._clear_current_for(year.school_id)
 
             year.is_current = True
             year.updated_at = timezone.now()
             year.save(update_fields=["is_current", "updated_at"])
+            audit.updated("academic", year, before, action="academic_year.set_current")
 
         return year
 
@@ -3252,6 +3535,7 @@ class AcademicYearService:
                 "This academic year still has classes set up under it. Remove them first."
             )
 
+        audit.deleted("academic", year)
         year.delete()
 
     @staticmethod
@@ -3338,10 +3622,14 @@ class UserService:
                 updated_at=now,
             )
 
+        audit.created("users", user)
+
         return user
 
     @staticmethod
     def update(user: User, data: dict) -> User:
+        before = audit.fields_of(user)
+
         for field, value in data.items():
             # The model has no hashing cast the way Eloquent does, so the one
             # field that must never be stored as typed is hashed here.
@@ -3349,6 +3637,19 @@ class UserService:
 
         user.updated_at = timezone.now()
         user.save()
+
+        # A new password, a new role or a new sign-in address ends every
+        # session: whoever held the old ones was signed in as somebody the
+        # account no longer is.
+        security_changed = "password" in data or user.role != before["role"] or user.email != before["email"]
+        if security_changed:
+            tokens.revoke_all(user)
+
+        audit.updated("users", user, before, action="user.role_changed" if user.role != before["role"] else None)
+        if "password" in data:
+            # The password itself is never recorded - only that it was set.
+            audit.record(action="user.password_set", module="users", entity_type="user", entity_id=user.id,
+                         school_id=user.school_id, new={"sessions_ended": security_changed})
 
         return user
 
@@ -3371,9 +3672,13 @@ class UserService:
 
     @staticmethod
     def set_status(user: User, status: str) -> User:
+        before = audit.fields_of(user)
         user.status = status
         user.updated_at = timezone.now()
         user.save(update_fields=["status", "updated_at"])
+
+        action = "user.activated" if status == UserStatus.ACTIVE else "user.deactivated"
+        audit.updated("users", user, before, action=action)
 
         return user
 
@@ -3442,7 +3747,7 @@ class StudentService:
         school_id = SchoolScope.for_actor(actor).writable_school_id(data.get("school_id"))
         now = timezone.now()
 
-        return Student.objects.create(
+        student = Student.objects.create(
             school_id=school_id,
             class_section_id=data.get("class_section_id"),
             admission_number=data["admission_number"],
@@ -3457,13 +3762,20 @@ class StudentService:
             updated_at=now,
         )
 
+        audit.created("students", student)
+
+        return student
+
     @staticmethod
     def update(student: Student, data: dict) -> Student:
+        before = audit.fields_of(student)
+
         for field, value in data.items():
             setattr(student, field, value)
 
         student.updated_at = timezone.now()
         student.save()
+        audit.updated("students", student, before)
 
         return student
 
@@ -3477,9 +3789,13 @@ class StudentService:
 
     @staticmethod
     def set_status(student: Student, status: str) -> Student:
+        before = audit.fields_of(student)
+
         student.status = status
         student.updated_at = timezone.now()
         student.save(update_fields=["status", "updated_at"])
+        action = "student.activated" if status == StudentStatus.ACTIVE else "student.deactivated"
+        audit.updated("students", student, before, action=action)
 
         return student
 

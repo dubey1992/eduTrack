@@ -104,6 +104,17 @@ class FakeUserRepository implements UserRepository {
     return updated;
   }
 
+  int unlockCalls = 0;
+
+  @override
+  Future<AppUser> unlock(int userId) async {
+    unlockCalls++;
+    final index = _users.indexWhere((u) => u.id == userId);
+    final updated = _users[index].copyWith(unlocked: true);
+    _users[index] = updated;
+    return updated;
+  }
+
   @override
   Future<AppUser> setActive(int userId, bool active) async {
     final index = _users.indexWhere((u) => u.id == userId);

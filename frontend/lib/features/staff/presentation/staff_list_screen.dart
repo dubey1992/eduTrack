@@ -355,6 +355,9 @@ class _StatusBadgeFor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Locked says more than Active: the account is on, but nobody can get in.
+    if (member.isLocked) return const StatusBadge(label: 'Locked', tone: BadgeTone.warning);
+
     final isActive = member.status == UserStatus.active;
     return StatusBadge(label: isActive ? 'Active' : 'Inactive', tone: isActive ? BadgeTone.success : BadgeTone.danger);
   }
@@ -379,6 +382,24 @@ class _StaffActions extends ConsumerWidget {
           ),
           child: const Text('Edit'),
         ),
+        if (member.isLocked)
+          TextButton(
+            onPressed: () async {
+              try {
+                await ref.read(staffListNotifierProvider.notifier).unlock(member);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text('${member.name} can sign in again.')));
+                }
+              } catch (error) {
+                if (context.mounted) {
+                  final failure = error is Failure ? error : Failure.unknown(error.toString());
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+                }
+              }
+            },
+            child: const Text('Unlock'),
+          ),
         TextButton(
           onPressed: () async {
             try {

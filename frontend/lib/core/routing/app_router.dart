@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/academic_years/presentation/academic_year_list_screen.dart';
 import '../../features/attendance/presentation/attendance_screen.dart';
+import '../../features/audit/presentation/audit_log_screen.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/announcements/presentation/announcement_screen.dart';
 import '../../features/auth/presentation/change_password_screen.dart';
@@ -95,6 +96,7 @@ const appRoutePaths = {
   '/reports',
   '/payroll',
   '/my-payslips',
+  '/audit-log',
 };
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -159,6 +161,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
           GoRoute(path: '/payroll', builder: (context, state) => const PayrollScreen()),
           GoRoute(path: '/my-payslips', builder: (context, state) => const MyPayslipsScreen()),
+          GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
         ],
       ),
     ],

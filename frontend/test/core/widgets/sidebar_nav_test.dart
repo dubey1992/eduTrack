@@ -149,6 +149,27 @@ void main() {
     });
   }
 
+  // The audit trail is read by the admins the audit-log API lets through, and
+  // nobody else. One test per role, for the same reason as above.
+  for (final (role, auditLog) in [
+    (UserRole.superAdmin, true),
+    (UserRole.groupAdmin, true),
+    (UserRole.schoolAdmin, true),
+    (UserRole.hod, false),
+    (UserRole.teacher, false),
+    (UserRole.staff, false),
+    (UserRole.transportManager, false),
+    (UserRole.accountant, false),
+  ]) {
+    testWidgets('audit log in the sidebar for a ${role.label}', (tester) async {
+      _useTallViewport(tester);
+      await tester.pumpWidget(wrap(role));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Audit Log'), auditLog ? findsOneWidget : findsNothing);
+    });
+  }
+
   testWidgets('an hod sees both Staff Attendance and Staff Leave', (tester) async {
     _useTallViewport(tester);
     await tester.pumpWidget(wrap(UserRole.hod));

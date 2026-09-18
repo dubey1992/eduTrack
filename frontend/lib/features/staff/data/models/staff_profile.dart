@@ -21,6 +21,7 @@ class StaffProfile {
     required this.joiningDate,
     required this.address,
     required this.classTeacherOf,
+    this.lockedUntil,
   });
 
   factory StaffProfile.fromJson(Map<String, dynamic> json) {
@@ -35,6 +36,7 @@ class StaffProfile {
       mobile: json['mobile'] as String?,
       role: UserRole.fromApiValue(json['role'] as String),
       status: UserStatus.fromApiValue(json['status'] as String),
+      lockedUntil: json['locked_until'] as String?,
       schoolId: json['school_id'] as int,
       schoolName: json['school_name'] as String?,
       departmentId: json['department_id'] as int?,
@@ -56,6 +58,13 @@ class StaffProfile {
   final String? mobile;
   final UserRole role;
   final UserStatus status;
+
+  /// When a locked-out account may sign in again, or null when it is not
+  /// locked (Phase 21: ten wrong passwords lock it for fifteen minutes). The
+  /// API only sends a lock that is still running.
+  final String? lockedUntil;
+
+  bool get isLocked => lockedUntil != null;
   final int schoolId;
   final String? schoolName;
   final int? departmentId;
@@ -65,7 +74,13 @@ class StaffProfile {
   final String? address;
   final List<String> classTeacherOf;
 
-  StaffProfile copyWith({UserStatus? status, String? designation, int? departmentId, String? departmentName}) {
+  StaffProfile copyWith({
+    UserStatus? status,
+    String? designation,
+    int? departmentId,
+    String? departmentName,
+    bool unlocked = false,
+  }) {
     return StaffProfile(
       id: id,
       userId: userId,
@@ -77,6 +92,7 @@ class StaffProfile {
       mobile: mobile,
       role: role,
       status: status ?? this.status,
+      lockedUntil: unlocked ? null : lockedUntil,
       schoolId: schoolId,
       schoolName: schoolName,
       departmentId: departmentId ?? this.departmentId,

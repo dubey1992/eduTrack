@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 
-from . import tokens
+from . import audit, tokens
 from .enums import UserStatus
 from .models import User
 
@@ -42,7 +42,13 @@ class SanctumTokenAuthentication(BaseAuthentication):
 
         token = tokens.find(header[1].decode(errors="replace"))
 
-        if token is None or tokens.has_expired(token):
+        if token is None:
+            return None
+
+        # An expired session is gone for good: deleting it here keeps the
+        # list of signed-in devices honest without a clean-up job.
+        if tokens.has_expired(token):
+            token.delete()
             return None
 
         # Sanctum's morph. Anything else in this column is a token for some
@@ -63,6 +69,7 @@ class SanctumTokenAuthentication(BaseAuthentication):
             return None
 
         tokens.touch(token)
+        audit.set_actor(user)
 
         return (user, token)
 

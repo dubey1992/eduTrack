@@ -18,17 +18,29 @@ Two things are deliberate and easy to undo by accident:
   enough east or west.
 """
 
+import sys
 from pathlib import Path
 import os
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Development only. The real one comes from the environment, and there is no
-# usable default on purpose - a deployment that forgets it should fail loudly
-# rather than run on a key that is in a public repository.
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-not-for-deployment")
+# Off unless a developer turns it on (Phase 21). DEBUG on a public server hands
+# a stack trace, with settings, to anybody who can trigger a 500 - so the safe
+# value is the one you get by forgetting to set it.
+DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
+# `manage.py test`: the suite runs without DEBUG, as production does, but
+# keeps some conveniences below that a live server must not have.
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+
+# The real one comes from the environment. Outside development and the test
+# suite there is no default at all: a deployment that forgets it fails at
+# start-up rather than running on a key that is in a public repository.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or ("dev-only-not-for-deployment" if DEBUG or TESTING else "")
+if not SECRET_KEY:
+    raise ImproperlyConfigured("Set DJANGO_SECRET_KEY (or DJANGO_DEBUG=true for development).")
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
@@ -51,7 +63,46 @@ MIDDLEWARE = [
     # and the browser reports it as a CORS failure rather than a redirect.
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # The API serves JSON, CSV and PDF, never a page: a policy that allows
+    # nothing costs nothing and stops a response being framed or scripted.
+    "school.security.ContentSecurityPolicyMiddleware",
+    # Lets the audit trail record where a change came from (school/audit.py).
+    "school.audit.AuditContextMiddleware",
 ]
+
+# -- transport security (Phase 21, docs/security.md) ---------------------------
+# On in production, off in development, where the servers are plain HTTP.
+SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SSL_REDIRECT", "false" if DEBUG or TESTING else "true").lower() == "true"
+SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "0" if DEBUG or TESTING else "31536000"))
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "no-referrer"
+X_FRAME_OPTIONS = "DENY"
+
+# `check --deploy` asks for CSRF middleware. It protects cookie sessions, and
+# this API has none: every request carries a bearer token a forged cross-site
+# request cannot attach. (Its HSTS subdomain and preload warnings are left
+# standing on purpose - they depend on the real domain, decided in Phase 22.)
+SILENCED_SYSTEM_CHECKS = ["security.W003"]
+
+# Only when the host terminates TLS in a proxy that says so. Trusting this
+# header without such a proxy lets any client claim its request was secure.
+if os.environ.get("DJANGO_BEHIND_TLS_PROXY", "false").lower() == "true":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Throttle counts are shared by every server process, so a guesser cannot
+# spread attempts across workers - and survive a restart. Files, because the
+# host has no Redis; an in-memory cache for the test suite, which clears it.
+CACHES = {
+    "default": (
+        {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+        if TESTING
+        else {
+            "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+            "LOCATION": os.environ.get("DJANGO_CACHE_DIR", str(BASE_DIR / "var" / "cache")),
+        }
+    )
+}
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
@@ -123,6 +174,12 @@ REST_FRAMEWORK = {
     # report's `?format=csv` with a 404 before the view ran. The API has one
     # renderer, and `format` is the reports' own parameter, as it is Laravel's.
     "URL_FORMAT_OVERRIDE": None,
+    # Who a throttle is counting (Phase 21). DRF's default trusts the whole
+    # X-Forwarded-For header, which the client writes - one invented address
+    # per request and the sign-in throttle never fires. Zero proxies means the
+    # connection's own address; set DJANGO_NUM_PROXIES to the number of proxies
+    # the host really has in front of the app.
+    "NUM_PROXIES": int(os.environ.get("DJANGO_NUM_PROXIES", "0")),
 }
 
 # The Flutter web app is served from a different origin than the API - 5000
@@ -166,4 +223,14 @@ EMAIL_HOST_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
 # Laravel's password broker: a link lasts an hour, and a second one is not
 # sent within a minute of the first.
 PASSWORD_RESET_EXPIRE_MINUTES = 60
+
+# Sessions (Phase 21, docs/security.md): a sign-in ends after this many days
+# without using the app, and this many days after it began regardless.
+SESSION_IDLE_DAYS = int(os.environ.get("SESSION_IDLE_DAYS", "7"))
+SESSION_MAX_DAYS = int(os.environ.get("SESSION_MAX_DAYS", "30"))
+
+# Account lockout: this many wrong passwords in a row lock sign-in for this
+# many minutes.
+LOCKOUT_ATTEMPTS = int(os.environ.get("LOCKOUT_ATTEMPTS", "10"))
+LOCKOUT_MINUTES = int(os.environ.get("LOCKOUT_MINUTES", "15"))
 PASSWORD_RESET_THROTTLE_SECONDS = 60

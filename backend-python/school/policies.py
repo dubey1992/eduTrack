@@ -848,3 +848,17 @@ class StudentPolicy:
         return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
             student.school_id
         )
+
+
+class AuditLogPolicy:
+    """Who may read the audit log (Phase 21, decided 2026-09-18).
+
+    Administrators, each within their own scope - the Super Admin across every
+    school, a Group Admin their group, a School Admin their school. Read-only
+    for everybody: nothing in the API edits or deletes an entry. Which rows an
+    administrator sees is SchoolScope's to decide, in views/audit_logs.py.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return actor.role in ADMIN_ROLES

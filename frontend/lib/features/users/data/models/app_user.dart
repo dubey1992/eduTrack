@@ -22,6 +22,7 @@ class AppUser {
     required this.role,
     required this.status,
     this.isSubAdmin = false,
+    this.lockedUntil,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -35,6 +36,7 @@ class AppUser {
       role: UserRole.fromApiValue(json['role'] as String),
       status: UserStatus.fromApiValue(json['status'] as String),
       isSubAdmin: json['is_sub_admin'] as bool? ?? false,
+      lockedUntil: json['locked_until'] as String?,
     );
   }
 
@@ -57,7 +59,14 @@ class AppUser {
   /// everywhere else, so the list needs this to tell them apart.
   String get displayRoleLabel => isSubAdmin ? 'Sub Admin' : role.label;
 
-  AppUser copyWith({UserStatus? status}) {
+  /// When a locked-out account may sign in again, or null when it is not
+  /// locked (Phase 21: ten wrong passwords lock it for fifteen minutes). The
+  /// API only sends a lock that is still running.
+  final String? lockedUntil;
+
+  bool get isLocked => lockedUntil != null;
+
+  AppUser copyWith({UserStatus? status, bool unlocked = false}) {
     return AppUser(
       id: id,
       firstName: firstName,
@@ -68,6 +77,7 @@ class AppUser {
       role: role,
       status: status ?? this.status,
       isSubAdmin: isSubAdmin,
+      lockedUntil: unlocked ? null : lockedUntil,
     );
   }
 }

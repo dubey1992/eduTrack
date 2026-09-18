@@ -114,7 +114,7 @@ class _UserListMobile extends StatelessWidget {
                 children: [
                   Flexible(child: Text(user.name, overflow: TextOverflow.ellipsis)),
                   const SizedBox(width: 8),
-                  _StatusBadge(status: user.status),
+                  _StatusBadge(user: user),
                 ],
               ),
               subtitle: Text('${user.email}\n${user.displayRoleLabel}'),
@@ -156,7 +156,7 @@ class _UserListDesktop extends StatelessWidget {
                     DataCell(Text(user.email)),
                     DataCell(Text(user.mobile ?? '-')),
                     DataCell(Text(user.displayRoleLabel)),
-                    DataCell(_StatusBadge(status: user.status)),
+                    DataCell(_StatusBadge(user: user)),
                     DataCell(_UserActions(user: user)),
                   ],
                 ),
@@ -169,13 +169,16 @@ class _UserListDesktop extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
+  const _StatusBadge({required this.user});
 
-  final UserStatus status;
+  final AppUser user;
 
   @override
   Widget build(BuildContext context) {
-    final isActive = status == UserStatus.active;
+    // Locked says more than Active: the account is on, but nobody can get in.
+    if (user.isLocked) return const StatusBadge(label: 'Locked', tone: BadgeTone.warning);
+
+    final isActive = user.status == UserStatus.active;
 
     return StatusBadge(label: isActive ? 'Active' : 'Inactive', tone: isActive ? BadgeTone.success : BadgeTone.danger);
   }
@@ -221,6 +224,24 @@ class _UserActions extends ConsumerWidget {
             builder: (_) => EditUserDialog(user: user),
           ),
         ),
+        if (user.isLocked)
+          TextButton(
+            onPressed: () async {
+              try {
+                await ref.read(userListNotifierProvider.notifier).unlock(user);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text('${user.name} can sign in again.')));
+                }
+              } catch (error) {
+                if (context.mounted) {
+                  final failure = error is Failure ? error : Failure.unknown(error.toString());
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+                }
+              }
+            },
+            child: const Text('Unlock'),
+          ),
         TextButton(
           onPressed: () async {
             try {

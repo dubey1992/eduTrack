@@ -156,6 +156,17 @@ class StaffListNotifier extends AsyncNotifier<PagedList<StaffProfile>> {
 
   /// Activation/deactivation reuses the existing Users endpoints - a
   /// staff member's account status is a User concern, not duplicated here.
+  /// Lets a locked-out employee sign in again straight away.
+  Future<void> unlock(StaffProfile profile) async {
+    await ref.read(userRepositoryProvider).unlock(profile.userId);
+
+    state = state.whenData(
+      (page) => page.withItems([
+        for (final existing in page.items) existing.id == profile.id ? existing.copyWith(unlocked: true) : existing,
+      ]),
+    );
+  }
+
   Future<void> setActive(StaffProfile profile, bool active) async {
     final updatedUser = await ref.read(userRepositoryProvider).setActive(profile.userId, active);
 

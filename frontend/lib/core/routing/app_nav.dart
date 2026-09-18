@@ -121,6 +121,17 @@ class AppNav {
         pageTitle: 'Admin Users',
         pageSubtitle: 'School admin accounts and access',
       ),
+      NavItem(
+        path: '/audit-log',
+        label: 'Audit Log',
+        icon: Icons.history,
+        // The roles the audit-log API lets through. A Super Admin reads every
+        // school's trail and the platform's own; an admin reads their school's
+        // (or their group's).
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Audit Log',
+        pageSubtitle: 'Who changed what, and when',
+      ),
     ],
   );
 

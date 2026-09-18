@@ -103,6 +103,14 @@ class UserListNotifier extends AsyncNotifier<PagedList<AppUser>> {
     );
   }
 
+  Future<void> unlock(AppUser user) async {
+    final updated = await ref.read(userRepositoryProvider).unlock(user.id);
+
+    state = state.whenData(
+      (page) => page.withItems([for (final existing in page.items) existing.id == updated.id ? updated : existing]),
+    );
+  }
+
   Future<void> setActive(AppUser user, bool active) async {
     final updated = await ref.read(userRepositoryProvider).setActive(user.id, active);
 

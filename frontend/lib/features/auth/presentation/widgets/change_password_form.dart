@@ -99,7 +99,7 @@ class ChangePasswordFormState extends ConsumerState<ChangePasswordForm> {
             validator: (v) => (v == null || v.isEmpty) ? 'Enter your current password' : null,
           ),
           const SizedBox(height: 10),
-          PasswordField(controller: _passwordController, label: 'New password', helperText: 'At least 8 characters.'),
+          PasswordField(controller: _passwordController, label: 'New password', helperText: newPasswordHint),
           const SizedBox(height: 10),
           PasswordField(
             controller: _confirmController,

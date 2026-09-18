@@ -84,7 +84,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       PasswordField(
                         controller: _passwordController,
                         label: 'New password',
-                        helperText: 'At least 8 characters.',
+                        helperText: newPasswordHint,
                       ),
                       const SizedBox(height: 10),
                       PasswordField(

@@ -1,14 +1,28 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../academic_years/application/academic_year_list_notifier.dart';
+import '../../announcements/application/announcement_page_notifier.dart';
+import '../../audit/application/audit_log_notifier.dart';
 import '../../classes/application/school_class_list_notifier.dart';
+import '../../communication/application/inbox_notifier.dart';
+import '../../communication/application/message_page_notifier.dart';
+import '../../dashboard/application/dashboard_notifier.dart';
 import '../../departments/application/department_list_notifier.dart';
+import '../../early_access/application/early_access_notifier.dart';
+import '../../holidays/application/holiday_page_notifier.dart';
 import '../../payments/application/payment_list_notifier.dart';
 import '../../payments/application/payment_summary_notifier.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../staff/application/staff_list_notifier.dart';
+import '../../staff_leave/application/staff_leave_list_notifier.dart';
+import '../../staff_leave/application/staff_leave_summary_notifier.dart';
 import '../../students/application/student_list_notifier.dart';
 import '../../subjects/application/subject_list_notifier.dart';
+import '../../teaching_reports/application/teaching_report_summary_notifier.dart';
+import '../../transport/application/driver_page_notifier.dart';
+import '../../transport/application/route_page_notifier.dart';
+import '../../transport/application/trip_history_notifier.dart';
+import '../../transport/application/vehicle_page_notifier.dart';
 import '../../users/application/user_list_notifier.dart';
 import '../data/auth_repository.dart';
 import '../data/models/authenticated_user.dart';
@@ -74,5 +88,26 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(academicYearListNotifierProvider);
     ref.invalidate(paymentListNotifierProvider);
     ref.invalidate(paymentSummaryNotifierProvider);
+    // Added in Phase 21, when a sweep found these still holding the previous
+    // account's data - on a shared office computer, the next person would
+    // briefly see the last person's leave, inbox, dashboard or audit trail.
+    // auth_notifier_reset_test.dart now fails when a new one is missed.
+    ref.invalidate(announcementPageNotifierProvider);
+    ref.invalidate(auditLogNotifierProvider);
+    ref.invalidate(dashboardNotifierProvider);
+    ref.invalidate(departmentPageNotifierProvider);
+    ref.invalidate(driverPageNotifierProvider);
+    ref.invalidate(earlyAccessNotifierProvider);
+    ref.invalidate(holidayPageNotifierProvider);
+    ref.invalidate(inboxNotifierProvider);
+    ref.invalidate(messagePageNotifierProvider);
+    ref.invalidate(routePageNotifierProvider);
+    ref.invalidate(schoolPageNotifierProvider);
+    ref.invalidate(staffLeaveListNotifierProvider);
+    ref.invalidate(staffLeaveSummaryNotifierProvider);
+    ref.invalidate(teachingReportSummaryNotifierProvider);
+    ref.invalidate(tripHistoryNotifierProvider);
+    ref.invalidate(unreadCountProvider);
+    ref.invalidate(vehiclePageNotifierProvider);
   }
 }

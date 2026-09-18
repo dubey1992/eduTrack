@@ -206,7 +206,7 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
                   validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
                 ),
                 const SizedBox(height: 10),
-                PasswordField(controller: _passwordController, helperText: 'At least 8 characters.'),
+                PasswordField(controller: _passwordController, helperText: newPasswordHint),
                 const SizedBox(height: 10),
                 InkWell(
                   onTap: _pickJoiningDate,

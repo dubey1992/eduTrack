@@ -400,3 +400,52 @@ def optional_text(field_name: str, max_length: int) -> serializers.CharField:
         allow_null=True,
         allow_blank=True,
     )
+
+
+# -- passwords (Phase 21, docs/security.md) ------------------------------------
+
+PASSWORD_MIN_LENGTH = 8
+
+
+def _common_passwords() -> frozenset[str]:
+    """Django's list of 20,000 passwords people actually choose, read once.
+
+    Only the list is borrowed - Django's auth app is not installed, and its
+    validator is used for the file it knows how to find, nothing else.
+    """
+    from django.contrib.auth.password_validation import CommonPasswordValidator
+
+    return frozenset(CommonPasswordValidator().passwords)
+
+
+_COMMON: frozenset[str] | None = None
+
+
+def password_rules(value: str) -> None:
+    """A new password: a letter and a number, and not one everybody uses.
+
+    Applies to passwords being chosen, never to signing in - an existing
+    password keeps working until its owner next changes it. Length is the
+    field's own min_length, so its message stays Laravel's.
+    """
+    global _COMMON
+    if _COMMON is None:
+        _COMMON = _common_passwords()
+
+    problems = []
+    if not (re.search(r"[A-Za-z]", value) and re.search(r"[0-9]", value)):
+        problems.append("The password must contain at least one letter and one number.")
+    if value.lower().strip() in _COMMON:
+        problems.append("This password is too common. Choose one that is harder to guess.")
+
+    if problems:
+        raise serializers.ValidationError(problems)
+
+
+class PasswordField(LaravelCharField):
+    """A password being chosen: at least 8 characters, then password_rules."""
+
+    def __init__(self, field_name: str = "password", **kwargs) -> None:
+        kwargs.setdefault("min_length", PASSWORD_MIN_LENGTH)
+        super().__init__(field_name, **kwargs)
+        self.validators.append(password_rules)

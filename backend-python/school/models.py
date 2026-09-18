@@ -790,6 +790,10 @@ class User(models.Model):
     school = models.ForeignKey(School, models.DO_NOTHING, blank=True, null=True)
     is_sub_admin = models.BooleanField()
     must_change_password = models.BooleanField()
+    # Account lockout (Phase 21): wrong passwords since the last good sign-in,
+    # and when sign-in is allowed again. See docs/security.md.
+    failed_login_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_until = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False

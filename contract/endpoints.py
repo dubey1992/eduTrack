@@ -261,6 +261,13 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "reports/leave-usage"),
     ("GET", "reports/payroll-summary"),
     ("GET", "reports/syllabus-progress"),
+    # -- audit and security (Phase 21, docs/security.md) -------------
+    ("GET", "audit-logs"),
+    ("GET", "audit-logs/{entry}"),
+    ("GET", "auth/sessions"),
+    ("POST", "auth/sessions/others"),
+    ("DELETE", "auth/sessions/{session}"),
+    ("POST", "users/{user}/unlock"),
 ]
 
 
