@@ -94,45 +94,51 @@ class LoginCard extends StatelessWidget {
               },
               onFieldSubmitted: (_) => isSubmitting ? null : onSubmit(),
             ),
+            const SizedBox(height: 12),
             // A Wrap, not a Row: on a narrow phone the two controls cannot
             // share a line, and a Row squeezed "Remember me" until it broke
             // mid-word ("Remem / ber me"). Here the link drops to its own
-            // line instead.
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              runSpacing: 4,
-              children: [
-                InkWell(
-                  onTap: () => onRememberMeChanged(!rememberMe),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Checkbox(
-                        value: rememberMe,
-                        onChanged: (value) => onRememberMeChanged(value ?? false),
-                        // Explicit colors throughout, same as every other
-                        // control here - this card intentionally carries the
-                        // marketing palette regardless of the device's
-                        // light/dark setting (see MarketingColors), so
-                        // nothing here can fall back to the admin app's
-                        // ambient theme.
-                        activeColor: MarketingColors.primary,
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      const SizedBox(width: 6),
-                      const Text('Remember me', style: TextStyle(fontSize: 14, color: MarketingColors.text)),
-                    ],
+            // line instead. Full width, so spaceBetween has room to put the
+            // link at the far edge rather than beside the checkbox.
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 16,
+                runSpacing: 4,
+                children: [
+                  InkWell(
+                    onTap: () => onRememberMeChanged(!rememberMe),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Checkbox(
+                          value: rememberMe,
+                          onChanged: (value) => onRememberMeChanged(value ?? false),
+                          // Explicit colors throughout, same as every other
+                          // control here - this card intentionally carries the
+                          // marketing palette regardless of the device's
+                          // light/dark setting (see MarketingColors), so
+                          // nothing here can fall back to the admin app's
+                          // ambient theme.
+                          activeColor: MarketingColors.primary,
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        const SizedBox(width: 6),
+                        const Text('Remember me', style: TextStyle(fontSize: 14, color: MarketingColors.text)),
+                      ],
+                    ),
                   ),
-                ),
-                TextButton(
-                  onPressed: onForgotPassword,
-                  style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
-                  child: const Text('Forgot password?'),
-                ),
-              ],
+                  TextButton(
+                    onPressed: onForgotPassword,
+                    style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
+                    child: const Text('Forgot password?'),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             PrimaryButton(label: 'Sign In', isLoading: isSubmitting, onPressed: onSubmit),
