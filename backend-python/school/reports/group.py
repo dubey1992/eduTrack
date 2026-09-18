@@ -25,9 +25,10 @@ def build_group(schools, for_school, report) -> dict:
             "range": built["range"],
             "totals": built["totals"],
             "rows": built["rows"],
+            "comparison": built.get("comparison"),
         })
 
-    return {
+    group = {
         "group": True,
         "range": widest_range(branches),
         "branches": [{key: branch[key] for key in ("school_id", "school_name", "range", "totals")} for branch in branches],
@@ -40,6 +41,16 @@ def build_group(schools, for_school, report) -> dict:
         ],
         "totals": report.combine_totals([branch["totals"] for branch in branches]),
     }
+
+    # The previous period, recombined from each branch's own raw counts the
+    # same way the current one is.
+    if branches and all(branch["comparison"] for branch in branches):
+        group["comparison"] = {
+            "range": widest_range([branch["comparison"] for branch in branches]),
+            "totals": report.combine_totals([branch["comparison"]["totals"] for branch in branches]),
+        }
+
+    return group
 
 
 def widest_range(branches: list[dict]) -> dict:

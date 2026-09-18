@@ -1,6 +1,9 @@
 # Dashboard and reports
 
-Phase 18. The landing screen every role sees, and the four reports behind it.
+Phase 18: the landing screen every role sees, and the four reports behind it.
+Phase 20 (Python only): three more reports, a chronic-absentee filter, the
+previous-period comparison and PDF export - see
+[Advanced reporting](#advanced-reporting-phase-20) below.
 
 ## The one rule that matters
 
@@ -82,7 +85,7 @@ for a Super Admin, who belongs to no school and must name one.
 
 ## Export
 
-CSV only for now; PDF layouts belong with Phase 20's advanced reporting.
+CSV (`?format=csv`) and, since Phase 20, PDF (`?format=pdf`).
 
 The file is fetched through the authenticated client and handed to the browser
 as a blob — a token has no business in a link. `lib/core/utils/file_saver.dart`
@@ -96,12 +99,89 @@ not ask for yet.
 The CSV opens with a byte order mark, without which Excel reads it as the
 system codepage and mangles any non-ASCII name.
 
+## Advanced reporting (Phase 20)
+
+Decided 2026-09-18, built on the Python backend only - Laravel was frozen
+before it, and answers none of this. Everything is opt-in, so a request
+without the new parameters gets exactly the report Laravel gives, and the
+contract suite still passes against both.
+
+### Three more reports
+
+| Report | Endpoint | Who |
+|---|---|---|
+| Payroll summary | `/reports/payroll-summary` | Accountant, School/Group Admin, Super Admin |
+| Leave usage | `/reports/leave-usage` | Super/Group/School Admin, HOD (own departments only) |
+| Syllabus progress by class | `/reports/syllabus-progress` | Super/Group/School Admin, HOD (own departments only) |
+
+- **Payroll summary** reads the payslips of *finalized* runs only - a draft
+  can still change. A run counts for every month it covers that the range
+  touches, so "1-18 September" reports September's run. One line per
+  employee **per currency**, and the totals are a `by_currency` list: money is
+  never added across currencies (CLAUDE.md rule 5).
+- **Leave usage** counts approved leave in *working days inside the range* -
+  a request over a weekend or a holiday takes no leave for those days, and a
+  half-day leave is half a day. Beside it: pending requests (and their days),
+  rejected requests, and working days marked absent - absence with no leave
+  behind it.
+- **Syllabus progress** is one line per class section and subject, for the
+  current academic year, for subjects whose class levels include the class
+  and which have a syllabus. Completion is progress through the year and is
+  not bounded by the range; **completed in period** is, measured in the
+  school's own days (a topic finished at 11 pm counts on that date at the
+  school, not in UTC).
+
+### Chronic absentees
+
+`/reports/student-attendance?below=75` lists only the students whose rate is
+under 75%. The totals still describe the whole class, plus `below` and
+`students_below`. A student with no rate (a range with no working day) is not
+under anything. `below` must be more than 0 and at most 100.
+
+### The previous period
+
+`?compare=1` on any report adds:
+
+- `comparison.range` and `comparison.totals` - the same number of calendar
+  days ending the day before the range starts (7-11 September is compared with
+  2-6 September), with that period's own working days, built by the same
+  report.
+- `previous` on each row - that row's earlier value of the figures the report
+  compares, or `null` for a row that did not exist then.
+
+| Report | Compared per row |
+|---|---|
+| Student attendance | attendance rate |
+| Staff attendance | attendance rate |
+| Teaching coverage | coverage rate |
+| Transport usage | days run, riders boarded |
+| Payroll summary | net pay |
+| Leave usage | leave days, absent days |
+| Syllabus progress | completed in period |
+
+The previous period ignores `below`: a student who has just slipped under the
+threshold still has last month's rate to be read against. A group's previous
+totals are recombined from each branch's raw counts, never averaged. In a CSV
+or PDF the earlier figures are extra columns headed "(previous period)".
+
+### PDF
+
+`?format=pdf` on any report: landscape A4 with the school (or "All N
+branches"), the period and working days, the totals (and the previous period
+beside them when compared), then the same rows as the CSV. Rendered with
+xhtml2pdf like receipts and payslips (`school/reports/pdf.py`).
+
 ## Adding a report
 
-1. Add a service under `app/Services/Reports/` with `build()`, `headings()` and
-   `csvRows()`. Take the denominator from `ReportRange`; never count weekends
-   or holidays yourself.
-2. Add a method to `ReportController` and name the roles allowed.
-3. Add the enum case and its columns to `lib/features/reports/data/models/report.dart`.
+On the Python backend (`backend-python/school/reports/`):
+
+1. Add a class with `TITLE`, `COMPARED_ROWS`, `row_key()`, `build()`,
+   `headings()`, `csv_rows()` and `combine_totals()`. Take the denominator from
+   `ReportRange`; never count weekends or holidays yourself.
+2. Add a view in `school/views/reports.py` naming the roles allowed, and its
+   route in `config/urls.py`. New endpoints are Python-only: list them in
+   `PYTHON_ONLY_ENDPOINTS` in `contract/endpoints.py`.
+3. Add the enum case and its columns to `lib/features/reports/data/models/report.dart`,
+   and the role in `_kindsFor` on the reports screen.
 4. Test it at a range containing a holiday, and at a range containing no
    working day at all — those two are where report bugs live.

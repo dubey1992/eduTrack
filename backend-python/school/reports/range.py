@@ -35,6 +35,19 @@ class ReportRange:
 
         return cls(school_id, start, end, HolidayService.working_dates(school_id, start, end))
 
+    def previous(self) -> "ReportRange":
+        """The same number of calendar days, ending the day before this range
+        starts - what "compared with the previous period" is measured against.
+
+        Calendar days, not working days: 1-15 September is compared with
+        17-31 August, whatever holidays either half holds. Each keeps its own
+        working days, so each rate is still out of the days its school ran.
+        """
+        end = self.start - dt.timedelta(days=1)
+        start = end - (self.end - self.start)
+
+        return ReportRange(self.school_id, start, end, HolidayService.working_dates(self.school_id, start, end))
+
     def working_day_count(self) -> int:
         return len(self.working_dates)
 

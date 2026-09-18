@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/utils/file_saver.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -15,10 +16,10 @@ import '../data/models/report.dart';
 import '../data/report_repository.dart';
 import '../../../core/utils/date_format.dart';
 
-/// Phase 18 - the reports behind the dashboard's figures.
+/// Phase 18's reports behind the dashboard's figures, and Phase 20's on top.
 ///
-/// One screen for all four: they share a range, a table and an export, and
-/// only their columns differ. Which reports a role may open is decided by the
+/// One screen for all of them: they share a range, a table, a comparison and
+/// an export, and only their columns differ. Which reports a role may open is decided by the
 /// API; this only avoids offering a tab that would answer 403.
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -32,7 +33,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   int? _schoolId;
   DateTime? _from;
   DateTime? _to;
-  bool _downloading = false;
+  bool _compare = false;
+  int? _below;
+  ExportFormat? _downloading;
+
+  /// The chronic-absentee thresholds on offer, as a percentage.
+  static const _belowOptions = [50, 75, 85, 90];
 
   /// Which reports this role can actually open. Mirrors ReportController -
   /// offering a tab that answers 403 is a worse experience than not
@@ -40,9 +46,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   List<ReportKind> _kindsFor(UserRole? role) {
     return switch (role) {
       UserRole.superAdmin || UserRole.groupAdmin || UserRole.schoolAdmin => ReportKind.values,
-      UserRole.hod => [ReportKind.staffAttendance, ReportKind.teachingCoverage],
+      UserRole.hod => [
+        ReportKind.staffAttendance,
+        ReportKind.teachingCoverage,
+        ReportKind.leaveUsage,
+        ReportKind.syllabusProgress,
+      ],
       UserRole.transportManager => [ReportKind.transportUsage],
-      UserRole.accountant => [ReportKind.staffAttendance],
+      UserRole.accountant => [ReportKind.staffAttendance, ReportKind.payrollSummary],
       _ => const [],
     };
   }
@@ -54,6 +65,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     schoolId: _schoolId,
     from: _from == null ? null : _iso(_from!),
     to: _to == null ? null : _iso(_to!),
+    compare: _compare,
+    // Only the student report narrows to chronic absentees.
+    below: _kind == ReportKind.studentAttendance ? _below : null,
   );
 
   Future<void> _pickRange() async {
@@ -75,27 +89,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
   }
 
-  Future<void> _download() async {
-    setState(() => _downloading = true);
+  Future<void> _download(ExportFormat format) async {
+    setState(() => _downloading = format);
     final messenger = ScaffoldMessenger.of(context);
 
     try {
       final query = _query;
       final bytes = await ref
           .read(reportRepositoryProvider)
-          .downloadCsv(
+          .download(
             query.kind,
+            format,
             schoolId: query.schoolId,
             from: query.from,
             to: query.to,
             classSectionId: query.classSectionId,
             departmentId: query.departmentId,
+            compare: query.compare,
+            below: query.below,
           );
 
       saveBytes(
-        fileName: '${query.kind.apiPath}-${query.from ?? 'start'}-to-${query.to ?? 'today'}.csv',
+        fileName: '${query.kind.apiPath}-${query.from ?? 'start'}-to-${query.to ?? 'today'}.${format.apiValue}',
         bytes: bytes,
-        mimeType: 'text/csv',
+        mimeType: format.mimeType,
       );
 
       messenger
@@ -107,7 +124,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ..clearSnackBars()
         ..showSnackBar(SnackBar(content: Text(message)));
     } finally {
-      if (mounted) setState(() => _downloading = false);
+      if (mounted) setState(() => _downloading = null);
     }
   }
 
@@ -155,13 +172,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       _from == null || _to == null ? 'This month' : '${formatDate(_from!)} - ${formatDate(_to!)}',
                     ),
                   ),
-                  FilledButton.icon(
-                    onPressed: needsSchool || _downloading ? null : _download,
-                    icon: _downloading
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.download_outlined, size: 18),
-                    label: const Text('Export CSV'),
-                  ),
+                  for (final format in ExportFormat.values)
+                    FilledButton.tonalIcon(
+                      onPressed: needsSchool || _downloading != null ? null : () => _download(format),
+                      icon: _downloading == format
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : Icon(
+                              format == ExportFormat.pdf ? Icons.picture_as_pdf_outlined : Icons.download_outlined,
+                              size: 18,
+                            ),
+                      label: Text('Export ${format.label}'),
+                    ),
                 ],
               ),
             ],
@@ -178,6 +199,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   label: Text(kind.label),
                   selected: _kind == kind,
                   onSelected: (_) => setState(() => _kind = kind),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilterChip(
+                label: const Text('Compare with previous period'),
+                selected: _compare,
+                onSelected: (selected) => setState(() => _compare = selected),
+              ),
+              if (_kind == ReportKind.studentAttendance)
+                DropdownButton<int?>(
+                  value: _below,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    const DropdownMenuItem<int?>(value: null, child: Text('All students')),
+                    for (final threshold in _belowOptions)
+                      DropdownMenuItem<int?>(value: threshold, child: Text('Below $threshold% attendance')),
+                  ],
+                  onChanged: (value) => setState(() => _below = value),
                 ),
             ],
           ),
@@ -210,6 +255,7 @@ class _ReportBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final comparison = report.comparison;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -229,8 +275,24 @@ class _ReportBody extends StatelessWidget {
                 if (report.range.workingDays != null)
                   _Fact(label: 'Working days', value: '${report.range.workingDays}'),
                 for (final entry in report.totals.entries)
-                  if (entry.value != null && entry.key != 'working_days')
-                    _Fact(label: _humanise(entry.key), value: _format(entry.value, entry.key.endsWith('rate'))),
+                  if (entry.value != null && entry.key != 'working_days' && entry.key != 'by_currency')
+                    _Fact(
+                      label: _humanise(entry.key),
+                      value: _format(entry.value, _isRateKey(entry.key)),
+                      previous: comparison == null
+                          ? null
+                          : _format(comparison.totals[entry.key], _isRateKey(entry.key)),
+                    ),
+                // Payroll's money, one figure per currency - never added
+                // across them.
+                for (final entry in _currencyTotals(report.totals))
+                  _Fact(
+                    label: 'Net pay (${entry['currency_code']})',
+                    value: _money(entry['net'], entry['currency_code'] as String),
+                    previous: comparison == null ? null : _previousNet(comparison.totals, entry['currency_code']),
+                  ),
+                if (comparison != null)
+                  _Fact(label: 'Previous period', value: '${comparison.range.from} to ${comparison.range.to}'),
               ],
             ),
           ),
@@ -286,7 +348,17 @@ class _ReportTable extends StatelessWidget {
           rows: [
             for (final row in report.rows)
               DataRow(
-                cells: [for (final column in columns) DataCell(_Cell(value: row[column.key], isRate: column.isRate))],
+                cells: [
+                  for (final column in columns)
+                    DataCell(
+                      _Cell(
+                        value: row[column.key],
+                        isRate: column.isRate,
+                        currencyCode: column.isMoney ? row['currency_code'] as String? : null,
+                        comparison: _earlier(row, column.key),
+                      ),
+                    ),
+                ],
               ),
           ],
         ),
@@ -295,11 +367,26 @@ class _ReportTable extends StatelessWidget {
   }
 }
 
+/// A row's earlier figure for [key], when the report was compared and this
+/// column is one of those compared. Wrapped so "compared, but the row did
+/// not exist then" (a null inside) differs from "not compared" (no wrapper).
+({Object? value})? _earlier(Map<String, dynamic> row, String key) {
+  final previous = row['previous'];
+  if (previous is! Map<String, dynamic> || !previous.containsKey(key)) return null;
+
+  return (value: previous[key]);
+}
+
 class _Cell extends StatelessWidget {
-  const _Cell({required this.value, required this.isRate});
+  const _Cell({required this.value, required this.isRate, this.currencyCode, this.comparison});
 
   final Object? value;
   final bool isRate;
+
+  /// Set for money: the amount is shown in this currency.
+  final String? currencyCode;
+
+  final ({Object? value})? comparison;
 
   @override
   Widget build(BuildContext context) {
@@ -310,31 +397,101 @@ class _Cell extends StatelessWidget {
       return Text('-', style: TextStyle(color: scheme.onSurfaceVariant));
     }
 
-    if (!isRate) return Text('$value');
+    final Widget main;
+    if (currencyCode != null) {
+      main = Text(_money(value, currencyCode!));
+    } else if (isRate) {
+      final rate = (value as num).toDouble();
+      main = Text(
+        '${rate.toStringAsFixed(1)}%',
+        style: TextStyle(fontWeight: FontWeight.w700, color: rate < 75 ? scheme.error : scheme.onSurface),
+      );
+    } else {
+      main = Text('$value');
+    }
 
-    final rate = (value as num).toDouble();
+    final comparison = this.comparison;
+    if (comparison == null) return main;
 
-    return Text(
-      '${rate.toStringAsFixed(1)}%',
-      style: TextStyle(fontWeight: FontWeight.w700, color: rate < 75 ? scheme.error : scheme.onSurface),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        main,
+        const SizedBox(width: 6),
+        _Change(now: value, before: comparison.value, isRate: isRate),
+      ],
     );
   }
 }
 
+/// How a figure moved since the previous period: "+4.0", "-2", or "new" for
+/// a row that did not exist then. Neutral in colour - more leave or more
+/// trips is not good or bad in itself.
+class _Change extends StatelessWidget {
+  const _Change({required this.now, required this.before, required this.isRate});
+
+  final Object? now;
+  final Object? before;
+  final bool isRate;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant);
+    final current = _number(now);
+    final earlier = _number(before);
+
+    if (earlier == null) return Text('(new)', style: style);
+    if (current == null) return const SizedBox.shrink();
+
+    return Text('(${_signed(current - earlier, isRate)})', style: style);
+  }
+}
+
+double? _number(Object? value) => switch (value) {
+  num number => number.toDouble(),
+  String text => double.tryParse(text),
+  _ => null,
+};
+
+String _signed(double change, bool isRate) {
+  final String text;
+  if (isRate) {
+    text = change.toStringAsFixed(1);
+  } else if (change == change.roundToDouble()) {
+    text = '${change.round()}';
+  } else {
+    text = change.toStringAsFixed(2);
+  }
+
+  return change > 0 ? '+$text' : text;
+}
+
+String _money(Object? amount, String currencyCode) {
+  final value = _number(amount);
+
+  return value == null ? '-' : formatCurrency(value, currencyCode);
+}
+
 class _Fact extends StatelessWidget {
-  const _Fact({required this.label, required this.value});
+  const _Fact({required this.label, required this.value, this.previous});
 
   final String label;
   final String value;
 
+  /// The same figure for the previous period, when one was asked for.
+  final String? previous;
+
   @override
   Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        Text(label, style: TextStyle(fontSize: 11, color: muted)),
         Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+        if (previous != null) Text('was $previous', style: TextStyle(fontSize: 11, color: muted)),
       ],
     );
   }
@@ -346,10 +503,25 @@ String _humanise(String key) {
   return words.map((word) => word.isEmpty ? word : word[0].toUpperCase() + word.substring(1)).join(' ');
 }
 
+bool _isRateKey(String key) => key.endsWith('rate') || key.endsWith('completion');
+
 String _format(Object? value, bool isRate) {
   if (value == null) return '-';
+  if (value is List) return value.isEmpty ? '-' : value.join(', ');
 
   return isRate ? '${(value as num).toStringAsFixed(1)}%' : '$value';
+}
+
+List<Map<String, dynamic>> _currencyTotals(Map<String, dynamic> totals) {
+  return (totals['by_currency'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+}
+
+String _previousNet(Map<String, dynamic> previousTotals, Object? currencyCode) {
+  for (final entry in _currencyTotals(previousTotals)) {
+    if (entry['currency_code'] == currencyCode) return _money(entry['net'], currencyCode as String);
+  }
+
+  return '-';
 }
 
 /// Each branch's own figures, above the combined table.

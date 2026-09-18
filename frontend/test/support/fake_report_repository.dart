@@ -3,15 +3,22 @@ import 'package:edutrack_app/features/reports/data/models/report.dart';
 import 'package:edutrack_app/features/reports/data/report_repository.dart';
 
 class FakeReportRepository implements ReportRepository {
-  FakeReportRepository({ReportResult? result, this.failWith}) : _result = result ?? studentAttendanceResult;
+  FakeReportRepository({ReportResult? result, this.failWith, this.resultsByKind = const {}})
+    : _result = result ?? studentAttendanceResult;
 
   final ReportResult _result;
+
+  /// A different answer for particular reports, for tests that switch.
+  final Map<ReportKind, ReportResult> resultsByKind;
   Failure? failWith;
 
   ReportKind? lastKind;
   String? lastFrom;
   String? lastTo;
   int? lastSchoolId;
+  bool? lastCompare;
+  int? lastBelow;
+  ExportFormat? lastFormat;
   int downloadCalls = 0;
 
   @override
@@ -22,6 +29,8 @@ class FakeReportRepository implements ReportRepository {
     String? to,
     int? classSectionId,
     int? departmentId,
+    bool compare = false,
+    int? below,
   }) async {
     if (failWith != null) throw failWith!;
 
@@ -29,23 +38,30 @@ class FakeReportRepository implements ReportRepository {
     lastFrom = from;
     lastTo = to;
     lastSchoolId = schoolId;
+    lastCompare = compare;
+    lastBelow = below;
 
-    return _result;
+    return resultsByKind[kind] ?? _result;
   }
 
   @override
-  Future<List<int>> downloadCsv(
-    ReportKind kind, {
+  Future<List<int>> download(
+    ReportKind kind,
+    ExportFormat format, {
     int? schoolId,
     String? from,
     String? to,
     int? classSectionId,
     int? departmentId,
+    bool compare = false,
+    int? below,
   }) async {
     if (failWith != null) throw failWith!;
 
     downloadCalls++;
     lastKind = kind;
+    lastFormat = format;
+    lastCompare = compare;
 
     return 'Admission No.,Student\nSTU-0042,Arjun Kumar\n'.codeUnits;
   }
@@ -158,4 +174,83 @@ final groupResult = ReportResult(
     },
   ],
   totals: const {'branches': 2, 'students': 2, 'present': 7, 'absent': 2, 'attendance_rate': 77.8},
+);
+
+/// Student attendance compared with the week before: Arjun up from 33.3%,
+/// Meera new since then.
+final comparedResult = ReportResult(
+  range: const ReportRange(from: '2026-09-07', to: '2026-09-11', workingDays: 5),
+  comparison: const ReportComparison(
+    range: ReportRange(from: '2026-09-02', to: '2026-09-06', workingDays: 3),
+    totals: {'students': 1, 'working_days': 3, 'present': 1, 'attendance_rate': 33.3},
+  ),
+  rows: [
+    {
+      ...studentAttendanceResult.rows[0],
+      'previous': {'attendance_rate': 33.3},
+    },
+    {
+      ...studentAttendanceResult.rows[1],
+      'previous': {'attendance_rate': null},
+    },
+  ],
+  totals: studentAttendanceResult.totals,
+);
+
+/// Two employees, one of them paid in two currencies over the range.
+final payrollResult = ReportResult(
+  range: const ReportRange(from: '2026-08-01', to: '2026-09-11', workingDays: 30),
+  rows: const [
+    {
+      'staff_profile_id': 1,
+      'employee_id': 'EMP-T',
+      'name': 'Tara Teacher',
+      'department': 'Science',
+      'currency_code': 'INR',
+      'payslips': 2,
+      'paid_days': 39.5,
+      'gross': '68400.00',
+      'deductions': '3600.00',
+      'net': '64800.00',
+      'paid': '30000.00',
+      'unpaid': '34800.00',
+    },
+    {
+      'staff_profile_id': 1,
+      'employee_id': 'EMP-T',
+      'name': 'Tara Teacher',
+      'department': 'Science',
+      'currency_code': 'USD',
+      'payslips': 1,
+      'paid_days': 21.0,
+      'gross': '400.00',
+      'deductions': '0.00',
+      'net': '400.00',
+      'paid': '0.00',
+      'unpaid': '400.00',
+    },
+  ],
+  totals: const {
+    'employees': 1,
+    'payslips': 3,
+    'months': ['2026-08', '2026-09'],
+    'by_currency': [
+      {
+        'currency_code': 'INR',
+        'gross': '68400.00',
+        'deductions': '3600.00',
+        'net': '64800.00',
+        'paid': '30000.00',
+        'unpaid': '34800.00',
+      },
+      {
+        'currency_code': 'USD',
+        'gross': '400.00',
+        'deductions': '0.00',
+        'net': '400.00',
+        'paid': '0.00',
+        'unpaid': '400.00',
+      },
+    ],
+  },
 );

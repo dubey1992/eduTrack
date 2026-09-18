@@ -99,9 +99,12 @@ void main() {
 
     expect(find.widgetWithText(ChoiceChip, 'Staff attendance & leave'), findsOneWidget);
     expect(find.widgetWithText(ChoiceChip, 'Teaching & syllabus'), findsOneWidget);
-    // A head of department has no school-wide student report - offering the
-    // tab would only produce a 403.
+    expect(find.widgetWithText(ChoiceChip, 'Leave usage'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Syllabus by class'), findsOneWidget);
+    // A head of department has no school-wide student report and no payroll -
+    // offering either tab would only produce a 403.
     expect(find.widgetWithText(ChoiceChip, 'Student attendance'), findsNothing);
+    expect(find.widgetWithText(ChoiceChip, 'Payroll summary'), findsNothing);
   });
 
   testWidgets('offers a transport manager only transport', (tester) async {
@@ -114,15 +117,26 @@ void main() {
     expect(find.widgetWithText(ChoiceChip, 'Staff attendance & leave'), findsNothing);
   });
 
-  testWidgets('offers an accountant staff attendance only - the register payroll is computed from', (tester) async {
+  testWidgets('offers an accountant the payroll summary and the register payroll is computed from', (tester) async {
     useDesktop(tester);
     const accountant = AuthenticatedUser(id: 7, name: 'Meena', email: 'm@example.com', role: UserRole.accountant);
     await tester.pumpWidget(wrap(FakeReportRepository(), actor: accountant));
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(ChoiceChip, 'Staff attendance & leave'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Payroll summary'), findsOneWidget);
     expect(find.widgetWithText(ChoiceChip, 'Student attendance'), findsNothing);
-    expect(find.widgetWithText(ChoiceChip, 'Transport usage'), findsNothing);
+    expect(find.widgetWithText(ChoiceChip, 'Leave usage'), findsNothing);
+  });
+
+  testWidgets('offers an admin every report', (tester) async {
+    useDesktop(tester);
+    await tester.pumpWidget(wrap(FakeReportRepository()));
+    await tester.pumpAndSettle();
+
+    for (final kind in ReportKind.values) {
+      expect(find.widgetWithText(ChoiceChip, kind.label), findsOneWidget, reason: kind.label);
+    }
   });
 
   testWidgets('tells a role with no reports plainly', (tester) async {
@@ -148,6 +162,22 @@ void main() {
 
     expect(fake.downloadCalls, 1);
     expect(fake.lastKind, ReportKind.teachingCoverage);
+    expect(fake.lastFormat, ExportFormat.csv);
+  });
+
+  testWidgets('the PDF export asks for the PDF of the report on screen, compared if it is', (tester) async {
+    useDesktop(tester);
+    final fake = FakeReportRepository();
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Compare with previous period'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Export PDF'));
+    await tester.pumpAndSettle();
+
+    expect(fake.downloadCalls, 1);
+    expect((fake.lastKind, fake.lastFormat, fake.lastCompare), (ReportKind.studentAttendance, ExportFormat.pdf, true));
   });
 
   testWidgets('an export that cannot be saved says why rather than failing quietly', (tester) async {
@@ -173,6 +203,120 @@ void main() {
 
     expect(find.text('Something went wrong.'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
+  });
+
+  group('the previous period', () {
+    testWidgets('is not asked for until the chip is on', (tester) async {
+      useDesktop(tester);
+      final fake = FakeReportRepository();
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCompare, isFalse);
+
+      await tester.tap(find.widgetWithText(FilterChip, 'Compare with previous period'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCompare, isTrue);
+    });
+
+    testWidgets('shows each total beside what it was, and when that was', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeReportRepository(result: comparedResult)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('was 33.3%'), findsOneWidget);
+      expect(find.text('Previous period'), findsOneWidget);
+      expect(find.text('2026-09-02 to 2026-09-06'), findsOneWidget);
+    });
+
+    testWidgets('shows how each row moved, and says so when a row is new', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeReportRepository(result: comparedResult)));
+      await tester.pumpAndSettle();
+
+      // Arjun: 60.0% now against 33.3% then. Meera had no rate then.
+      expect(find.text('(+26.7)'), findsOneWidget);
+      expect(find.text('(new)'), findsOneWidget);
+    });
+
+    testWidgets('a report that was not compared shows no changes', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeReportRepository()));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('was '), findsNothing);
+      expect(find.text('(new)'), findsNothing);
+    });
+  });
+
+  group('chronic absentees', () {
+    testWidgets('narrows the student report to those under the chosen rate', (tester) async {
+      useDesktop(tester);
+      final fake = FakeReportRepository();
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastBelow, isNull);
+
+      await tester.tap(find.text('All students'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Below 75% attendance').last);
+      await tester.pumpAndSettle();
+
+      expect(fake.lastBelow, 75);
+    });
+
+    testWidgets('is offered on the student report only, and never sent for another', (tester) async {
+      useDesktop(tester);
+      final fake = FakeReportRepository();
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('All students'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Below 75% attendance').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Leave usage'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Below 75% attendance'), findsNothing);
+      expect((fake.lastKind, fake.lastBelow), (ReportKind.leaveUsage, null));
+    });
+  });
+
+  group('the payroll summary', () {
+    testWidgets('shows every amount in its own currency and never adds currencies up', (tester) async {
+      useDesktop(tester);
+      const accountant = AuthenticatedUser(id: 7, name: 'Meena', email: 'm@example.com', role: UserRole.accountant);
+      final fake = FakeReportRepository(resultsByKind: {ReportKind.payrollSummary: payrollResult});
+      await tester.pumpWidget(wrap(fake, actor: accountant));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Payroll summary'));
+      await tester.pumpAndSettle();
+
+      // The code, a non-breaking space, then the amount - as formatCurrency writes it.
+      expect(find.text('INR\u00A064,800.00'), findsNWidgets(2), reason: 'the row and the INR total');
+      expect(find.text('USD\u00A0400.00'), findsWidgets);
+      expect(find.text('Net pay (INR)'), findsOneWidget);
+      expect(find.text('Net pay (USD)'), findsOneWidget);
+      expect(find.text('2026-08, 2026-09'), findsOneWidget);
+    });
+  });
+
+  testWidgets('the comparison and the threshold fit on a phone', (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(wrap(FakeReportRepository(result: comparedResult)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Compare with previous period'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('All students'), findsOneWidget);
   });
 
   group('a whole group', () {

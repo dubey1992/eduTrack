@@ -19,6 +19,8 @@ class ReportRepository {
     String? to,
     int? classSectionId,
     int? departmentId,
+    bool compare = false,
+    int? below,
   }) async {
     try {
       return await _api.fetch(
@@ -28,28 +30,36 @@ class ReportRepository {
         to: to,
         classSectionId: classSectionId,
         departmentId: departmentId,
+        compare: compare,
+        below: below,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }
   }
 
-  Future<List<int>> downloadCsv(
-    ReportKind kind, {
+  Future<List<int>> download(
+    ReportKind kind,
+    ExportFormat format, {
     int? schoolId,
     String? from,
     String? to,
     int? classSectionId,
     int? departmentId,
+    bool compare = false,
+    int? below,
   }) async {
     try {
-      return await _api.downloadCsv(
+      return await _api.download(
         kind,
+        format,
         schoolId: schoolId,
         from: from,
         to: to,
         classSectionId: classSectionId,
         departmentId: departmentId,
+        compare: compare,
+        below: below,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);

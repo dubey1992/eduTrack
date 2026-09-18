@@ -146,6 +146,10 @@ urlpatterns = [
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),
     path("api/v1/reports/transport-usage", reports.transport_usage),
+    # Phase 20 - Python only.
+    path("api/v1/reports/payroll-summary", reports.payroll_summary),
+    path("api/v1/reports/leave-usage", reports.leave_usage),
+    path("api/v1/reports/syllabus-progress", reports.syllabus_progress),
     # -- communication -----------------------------------------------------
     path("api/v1/communication/messages", communication.messages),
     path("api/v1/communication/summary", communication.summary),

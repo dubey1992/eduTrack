@@ -257,6 +257,10 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "payroll/payslips/{payslip}/pdf"),
     ("POST", "payroll/payslips/{payslip}/email"),
     ("GET", "payroll/my-payslips"),
+    # -- advanced reporting (Phase 20, docs/reports.md) -------------
+    ("GET", "reports/leave-usage"),
+    ("GET", "reports/payroll-summary"),
+    ("GET", "reports/syllabus-progress"),
 ]
 
 

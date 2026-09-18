@@ -16,6 +16,14 @@ from .range import ReportRange
 
 
 class TransportUsageReport:
+    TITLE = "Transport usage"
+    # Compared with the previous period when one is asked for (comparison.py).
+    COMPARED_ROWS = [("days_run", "Days run"), ("riders_boarded", "Riders boarded")]
+
+    @staticmethod
+    def row_key(row: dict):
+        return row["route_id"]
+
     def build(self, report_range: ReportRange, filters: dict) -> dict:
         trips = self._trips_by_route(report_range)
         days_run_by_route = self._days_run_by_route(report_range)

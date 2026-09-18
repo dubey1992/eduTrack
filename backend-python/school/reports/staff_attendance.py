@@ -35,6 +35,14 @@ def php_compare(left: str, right: str) -> int:
 
 
 class StaffAttendanceReport:
+    TITLE = "Staff attendance & leave"
+    # Compared with the previous period when one is asked for (comparison.py).
+    COMPARED_ROWS = [("attendance_rate", "Attendance %")]
+
+    @staticmethod
+    def row_key(row: dict):
+        return row["staff_profile_id"]
+
     def build(self, report_range: ReportRange, filters: dict) -> dict:
         staff = StaffProfile.objects.filter(school_id=report_range.school_id)
 

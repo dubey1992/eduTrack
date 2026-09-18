@@ -5,10 +5,20 @@ import '../data/report_repository.dart';
 
 /// What the reports screen is currently asking for.
 ///
-/// Held as one value so a single provider covers all four reports: switching
-/// report or moving the dates is a new query, not new state to manage.
+/// Held as one value so a single provider covers every report: switching
+/// report, moving the dates or asking for a comparison is a new query, not
+/// new state to manage.
 class ReportQuery {
-  const ReportQuery({required this.kind, this.schoolId, this.from, this.to, this.classSectionId, this.departmentId});
+  const ReportQuery({
+    required this.kind,
+    this.schoolId,
+    this.from,
+    this.to,
+    this.classSectionId,
+    this.departmentId,
+    this.compare = false,
+    this.below,
+  });
 
   final ReportKind kind;
   final int? schoolId;
@@ -17,24 +27,11 @@ class ReportQuery {
   final int? classSectionId;
   final int? departmentId;
 
-  ReportQuery copyWith({
-    ReportKind? kind,
-    int? schoolId,
-    String? from,
-    String? to,
-    int? classSectionId,
-    int? departmentId,
-    bool clearSection = false,
-  }) {
-    return ReportQuery(
-      kind: kind ?? this.kind,
-      schoolId: schoolId ?? this.schoolId,
-      from: from ?? this.from,
-      to: to ?? this.to,
-      classSectionId: clearSection ? null : (classSectionId ?? this.classSectionId),
-      departmentId: departmentId ?? this.departmentId,
-    );
-  }
+  /// Whether to bring the same-length previous period alongside.
+  final bool compare;
+
+  /// Student attendance only: list just the students under this rate.
+  final int? below;
 
   @override
   bool operator ==(Object other) {
@@ -44,11 +41,13 @@ class ReportQuery {
         other.from == from &&
         other.to == to &&
         other.classSectionId == classSectionId &&
-        other.departmentId == departmentId;
+        other.departmentId == departmentId &&
+        other.compare == compare &&
+        other.below == below;
   }
 
   @override
-  int get hashCode => Object.hash(kind, schoolId, from, to, classSectionId, departmentId);
+  int get hashCode => Object.hash(kind, schoolId, from, to, classSectionId, departmentId, compare, below);
 }
 
 /// The report for the current query.
@@ -66,5 +65,7 @@ final reportProvider = FutureProvider.autoDispose.family<ReportResult, ReportQue
         to: query.to,
         classSectionId: query.classSectionId,
         departmentId: query.departmentId,
+        compare: query.compare,
+        below: query.below,
       );
 }, retry: (retryCount, error) => null);

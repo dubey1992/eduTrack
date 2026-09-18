@@ -2703,13 +2703,32 @@ class ReportRequest(serializers.Serializer):
             else:
                 values[field] = int(value)
 
-        if data.get("format") is not None and data["format"] not in ("json", "csv"):
+        # PDF is Phase 20's, and Python's alone - Laravel refuses it as it
+        # always has.
+        if data.get("format") is not None and data["format"] not in ("json", "csv", "pdf"):
             errors["format"] = [selected_is_invalid("format")]
+
+        # Phase 20, Python only: both are opt-in, so a request without them
+        # gets exactly the report Laravel gives.
+        if data.get("compare") is not None and str(data["compare"]) not in ("0", "1", "true", "false"):
+            errors["compare"] = ["The compare field must be true or false."]
+
+        if data.get("below") is not None:
+            try:
+                below = float(data["below"])
+            except (TypeError, ValueError):
+                below = None
+            if below is None or not 0 < below <= 100:
+                errors["below"] = ["The below field must be a percentage greater than 0 and at most 100."]
+            else:
+                values["below"] = below
 
         if errors:
             raise serializers.ValidationError(errors)
 
-        values["wants_csv"] = data.get("format") == "csv"
+        values["format"] = data.get("format") or "json"
+        values["wants_csv"] = values["format"] == "csv"
+        values["compare"] = str(data.get("compare")) in ("1", "true")
 
         return values
 

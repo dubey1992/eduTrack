@@ -1,4 +1,4 @@
-/// The four reports, in one shape.
+/// Every report, in one shape - Phase 18's four and Phase 20's three.
 ///
 /// Every report is a range, a list of rows and a set of totals; only the
 /// columns differ. Modelling them as generic rows keeps one screen, one
@@ -17,7 +17,18 @@ enum ReportKind {
     'Teaching & syllabus',
     'Periods taught against the timetable, and syllabus covered.',
   ),
-  transportUsage('transport-usage', 'Transport usage', 'Trips run per route, and the children on them.');
+  transportUsage('transport-usage', 'Transport usage', 'Trips run per route, and the children on them.'),
+  payrollSummary(
+    'payroll-summary',
+    'Payroll summary',
+    'Pay per employee from finalized payroll runs, each currency kept apart.',
+  ),
+  leaveUsage('leave-usage', 'Leave usage', 'Leave taken by type, requests still waiting, and absence without leave.'),
+  syllabusProgress(
+    'syllabus-progress',
+    'Syllabus by class',
+    'How far each class is through each subject, and what was covered in the period.',
+  );
 
   const ReportKind(this.apiPath, this.label, this.description);
 
@@ -49,6 +60,34 @@ class ReportRange {
   final int? workingDays;
 }
 
+/// How a report file is downloaded.
+enum ExportFormat {
+  csv('csv', 'CSV', 'text/csv'),
+  pdf('pdf', 'PDF', 'application/pdf');
+
+  const ExportFormat(this.apiValue, this.label, this.mimeType);
+
+  final String apiValue;
+  final String label;
+  final String mimeType;
+}
+
+/// The same-length period just before the one reported on, when a comparison
+/// was asked for: its range and its totals, worked out by the same rules.
+class ReportComparison {
+  const ReportComparison({required this.range, required this.totals});
+
+  factory ReportComparison.fromJson(Map<String, dynamic> json) {
+    return ReportComparison(
+      range: ReportRange.fromJson(json['range'] as Map<String, dynamic>),
+      totals: (json['totals'] as Map<String, dynamic>?) ?? const {},
+    );
+  }
+
+  final ReportRange range;
+  final Map<String, dynamic> totals;
+}
+
 /// One branch's slice of a group report.
 class ReportBranch {
   const ReportBranch({required this.schoolId, required this.schoolName, required this.range, required this.totals});
@@ -70,7 +109,13 @@ class ReportBranch {
 
 /// One report's result: the rows as the API returned them, plus its totals.
 class ReportResult {
-  const ReportResult({required this.range, required this.rows, required this.totals, this.branches = const []});
+  const ReportResult({
+    required this.range,
+    required this.rows,
+    required this.totals,
+    this.branches = const [],
+    this.comparison,
+  });
 
   factory ReportResult.fromJson(Map<String, dynamic> json) {
     return ReportResult(
@@ -81,6 +126,9 @@ class ReportResult {
           .cast<Map<String, dynamic>>()
           .map(ReportBranch.fromJson)
           .toList(growable: false),
+      comparison: json['comparison'] == null
+          ? null
+          : ReportComparison.fromJson(json['comparison'] as Map<String, dynamic>),
     );
   }
 
@@ -92,6 +140,10 @@ class ReportResult {
   /// a single school.
   final List<ReportBranch> branches;
 
+  /// The previous period, when one was asked for. Each row then carries a
+  /// `previous` map with its own earlier figures.
+  final ReportComparison? comparison;
+
   bool get isGroup => branches.isNotEmpty;
 
   bool get isEmpty => rows.isEmpty;
@@ -99,11 +151,14 @@ class ReportResult {
 
 /// How one column of a report is shown.
 class ReportColumn {
-  const ReportColumn(this.key, this.label, {this.numeric = false, this.isRate = false});
+  const ReportColumn(this.key, this.label, {this.numeric = false, this.isRate = false, this.isMoney = false});
 
   final String key;
   final String label;
   final bool numeric;
+
+  /// An exact amount sent as a string, shown in the row's own currency.
+  final bool isMoney;
 
   /// Rendered as a percentage, and as a dash when null - a missing rate is
   /// "nobody counted", not "nobody came".
@@ -151,5 +206,38 @@ const Map<ReportKind, List<ReportColumn>> reportColumns = {
     ReportColumn('trips_cancelled', 'Cancelled', numeric: true),
     ReportColumn('riders_boarded', 'Boarded', numeric: true),
     ReportColumn('riders_absent', 'Absent', numeric: true),
+  ],
+  ReportKind.payrollSummary: [
+    ReportColumn('employee_id', 'Employee ID'),
+    ReportColumn('name', 'Name'),
+    ReportColumn('department', 'Department'),
+    ReportColumn('payslips', 'Payslips', numeric: true),
+    ReportColumn('paid_days', 'Paid days', numeric: true),
+    ReportColumn('gross', 'Gross', numeric: true, isMoney: true),
+    ReportColumn('deductions', 'Deductions', numeric: true, isMoney: true),
+    ReportColumn('net', 'Net pay', numeric: true, isMoney: true),
+    ReportColumn('unpaid', 'Unpaid', numeric: true, isMoney: true),
+  ],
+  ReportKind.leaveUsage: [
+    ReportColumn('employee_id', 'Employee ID'),
+    ReportColumn('name', 'Name'),
+    ReportColumn('department', 'Department'),
+    ReportColumn('casual', 'Casual', numeric: true),
+    ReportColumn('medical', 'Medical', numeric: true),
+    ReportColumn('earned', 'Earned', numeric: true),
+    ReportColumn('half_day', 'Half day', numeric: true),
+    ReportColumn('leave_days', 'Leave days', numeric: true),
+    ReportColumn('pending_requests', 'Pending', numeric: true),
+    ReportColumn('absent', 'Absent', numeric: true),
+  ],
+  ReportKind.syllabusProgress: [
+    ReportColumn('class_section', 'Class'),
+    ReportColumn('subject', 'Subject'),
+    ReportColumn('teacher', 'Teacher'),
+    ReportColumn('topics_total', 'Topics', numeric: true),
+    ReportColumn('topics_completed', 'Completed', numeric: true),
+    ReportColumn('syllabus_completion', 'Syllabus', numeric: true, isRate: true),
+    ReportColumn('completed_in_period', 'In period', numeric: true),
+    ReportColumn('last_completed_on', 'Last completed'),
   ],
 };

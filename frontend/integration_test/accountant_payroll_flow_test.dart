@@ -73,6 +73,22 @@ void main() {
 
     await tester.tap(find.widgetWithText(TextButton, 'Close'));
     await tester.pumpAndSettle();
+
+    // ---- The finalized month is in the payroll summary (Phase 20) ----
+    await openPage(tester, 'Reports');
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Payroll summary'));
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    expect(find.text('ITEST-TEACHER'), findsOneWidget);
+    expect(find.text('Net pay (INR)'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Compare with previous period'));
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    expect(find.text('Previous period'), findsOneWidget);
+    // Nothing was paid before this month, so the teacher's line is new.
+    expect(find.text('(new)'), findsOneWidget);
+
     await logout(tester);
 
     // ---- The teacher reads their payslip ----

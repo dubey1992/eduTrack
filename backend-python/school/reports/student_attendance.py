@@ -17,6 +17,14 @@ from .range import ReportRange, rate_of
 
 
 class StudentAttendanceReport:
+    TITLE = "Student attendance"
+    # Compared with the previous period when one is asked for (comparison.py).
+    COMPARED_ROWS = [("attendance_rate", "Attendance %")]
+
+    @staticmethod
+    def row_key(row: dict):
+        return row["student_id"]
+
     def build(self, report_range: ReportRange, filters: dict) -> dict:
         students = Student.objects.filter(school_id=report_range.school_id, status=StudentStatus.ACTIVE)
 
@@ -56,10 +64,23 @@ class StudentAttendanceReport:
                 "attendance_rate": php_number(report_range.rate(present)),
             })
 
+        totals = self._totals(rows, report_range)
+
+        # Chronic absentees (Phase 20): only the students whose rate is under
+        # the threshold. The totals still describe the whole class - a class
+        # rate worked out from its weakest students alone would be no rate at
+        # all - and say how many fell under. A student with no rate (a range
+        # with no working day) is not under anything.
+        below = filters.get("below")
+        if below is not None:
+            rows = [row for row in rows if row["attendance_rate"] is not None and row["attendance_rate"] < below]
+            totals["below"] = php_number(below)
+            totals["students_below"] = len(rows)
+
         return {
             "range": report_range.to_dict(),
             "rows": rows,
-            "totals": self._totals(rows, report_range),
+            "totals": totals,
         }
 
     def headings(self) -> list[str]:
@@ -82,7 +103,7 @@ class StudentAttendanceReport:
         # against its own working days.
         possible = sum(int(totals["students"]) * int(totals["working_days"]) for totals in branch_totals)
 
-        return {
+        combined = {
             "branches": len(branch_totals),
             "students": total("students"),
             "present": total("present"),
@@ -91,6 +112,12 @@ class StudentAttendanceReport:
             "not_marked": total("not_marked"),
             "attendance_rate": php_number(rate_of(total("present"), possible)),
         }
+
+        if branch_totals and all("students_below" in totals for totals in branch_totals):
+            combined["below"] = branch_totals[0]["below"]
+            combined["students_below"] = total("students_below")
+
+        return combined
 
     @staticmethod
     def _marks_by_student(report_range: ReportRange, student_ids: list[int]) -> dict[int, dict[str, int]]:

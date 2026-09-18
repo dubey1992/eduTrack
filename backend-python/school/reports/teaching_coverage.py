@@ -18,6 +18,14 @@ from .range import ReportRange, rate_of
 
 
 class TeachingCoverageReport:
+    TITLE = "Teaching & syllabus coverage"
+    # Compared with the previous period when one is asked for (comparison.py).
+    COMPARED_ROWS = [("coverage_rate", "Coverage %")]
+
+    @staticmethod
+    def row_key(row: dict):
+        return row["subject_id"]
+
     def build(self, report_range: ReportRange, filters: dict) -> dict:
         scheduled = self._scheduled_per_subject(report_range, filters)
         reported = self._reported_per_subject(report_range, filters)
