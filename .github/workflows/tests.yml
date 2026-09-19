@@ -222,8 +222,11 @@ jobs:
         working-directory: backend-python
         env:
           PG_HOST: 127.0.0.1
-          # Only for CI; production refuses to start without its own.
+          # Only for CI; production refuses to start without its own. The
+          # encryption key too: outside DEBUG and the test runner, settings.py
+          # refuses to start without one (school/crypto.py).
           DJANGO_SECRET_KEY: ci-only-not-a-secret
+          DJANGO_ENCRYPTION_KEY: "wJ7bC6kq1s0Q9v3bL2mN8xT5yU4rE6dF1gH2jK3lM4o="
           PG_PORT: '5432'
           PG_DATABASE: edutrack_test
           PG_USERNAME: postgres

@@ -17,6 +17,17 @@ class AttendanceManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // These tests mark today's register, and the school is closed at the
+        // weekend. Run on a Saturday or Sunday, "today" is the coming Monday.
+        if (now()->isWeekend()) {
+            $this->travelTo(now()->next(\Carbon\Carbon::MONDAY)->setTime(9, 0));
+        }
+    }
+
     /**
      * @return array{0: School, 1: ClassSection, 2: User, 3: array<int, Student>}
      */
