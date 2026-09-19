@@ -20,6 +20,7 @@ class NavItem {
     required this.pageSubtitle,
     this.module,
     this.requiredLevel = PermissionLevel.view,
+    this.deniedRoles = const {},
   });
 
   final String path;
@@ -44,6 +45,11 @@ class NavItem {
   /// everybody's own business, like My Payslips.
   final PermissionLevel requiredLevel;
 
+  /// Roles kept out whatever the matrix grants them. A Bus Attendant manages
+  /// transport, but only through My Trip: the fleet and trip screens are
+  /// refused to them by the API (TransportMasterPolicy).
+  final Set<UserRole> deniedRoles;
+
   /// Whether [user] may see this entry and open its route.
   ///
   /// A module item needs its module switched on for the user's school, and
@@ -52,6 +58,8 @@ class NavItem {
   /// fixture) keeps the role set the screen was built with, so nothing
   /// changes for it.
   bool allows(AuthenticatedUser user) {
+    if (deniedRoles.contains(user.role)) return false;
+
     final module = this.module;
     if (module == null) return allowedRoles.contains(user.role);
 
@@ -90,6 +98,10 @@ class AppNav {
     UserRole.accountant,
   };
 
+  /// Every role, the Bus Attendant included - for what is every signed-in
+  /// person's own: the landing page and their inbox.
+  static const _everyone = {..._allRoles, UserRole.busAttendant};
+
   static const overview = NavGroup(
     label: 'Overview',
     items: [
@@ -97,7 +109,7 @@ class AppNav {
         path: '/dashboard',
         label: 'Dashboard',
         icon: Icons.dashboard_outlined,
-        allowedRoles: _allRoles,
+        allowedRoles: _everyone,
         pageTitle: 'Dashboard',
         pageSubtitle: 'Daily school operations overview',
       ),
@@ -297,6 +309,7 @@ class AppNav {
           UserRole.staff,
           UserRole.transportManager,
           UserRole.accountant,
+          UserRole.busAttendant,
         },
         pageTitle: 'Staff Leave',
         pageSubtitle: 'Leave requests, approvals and attendance sync',
@@ -357,6 +370,7 @@ class AppNav {
           UserRole.staff,
           UserRole.transportManager,
           UserRole.accountant,
+          UserRole.busAttendant,
         },
         pageTitle: 'My Payslips',
         pageSubtitle: 'Your finalized payslips',
@@ -397,12 +411,29 @@ class AppNav {
     UserRole.transportManager,
   };
 
+  /// Transport's fleet and trip screens are the office's; an attendant runs
+  /// their own routes from My Trip instead.
+  static const _notAttendants = {UserRole.busAttendant};
+
   static const transport = NavGroup(
     label: 'Transport',
     items: [
       NavItem(
+        path: '/my-trip',
+        module: AppModules.transport,
+        // Their own routes, and only theirs - the API scopes it, so no level
+        // is asked of the matrix beyond the module being on.
+        requiredLevel: PermissionLevel.none,
+        label: 'My Trip',
+        icon: Icons.directions_bus_filled,
+        allowedRoles: {UserRole.busAttendant},
+        pageTitle: 'My Trip',
+        pageSubtitle: "Today's trips on your routes",
+      ),
+      NavItem(
         path: '/transport/vehicles',
         module: AppModules.transport,
+        deniedRoles: _notAttendants,
         label: 'Vehicles',
         icon: Icons.directions_bus_outlined,
         allowedRoles: _transportViewerRoles,
@@ -412,6 +443,7 @@ class AppNav {
       NavItem(
         path: '/transport/drivers',
         module: AppModules.transport,
+        deniedRoles: _notAttendants,
         label: 'Drivers',
         icon: Icons.badge_outlined,
         allowedRoles: _transportViewerRoles,
@@ -421,6 +453,7 @@ class AppNav {
       NavItem(
         path: '/transport/routes',
         module: AppModules.transport,
+        deniedRoles: _notAttendants,
         label: 'Routes',
         icon: Icons.alt_route_outlined,
         allowedRoles: _transportViewerRoles,
@@ -430,6 +463,7 @@ class AppNav {
       NavItem(
         path: '/transport/trips',
         module: AppModules.transport,
+        deniedRoles: _notAttendants,
         label: 'Trips',
         icon: Icons.route_outlined,
         allowedRoles: _transportViewerRoles,
@@ -468,7 +502,7 @@ class AppNav {
         path: '/inbox',
         label: 'My Inbox',
         icon: Icons.inbox_outlined,
-        allowedRoles: _allRoles,
+        allowedRoles: _everyone,
         pageTitle: 'My Inbox',
         pageSubtitle: 'Messages the school sent you',
       ),
@@ -484,5 +518,18 @@ class AppNav {
       if (item.path == path) return item;
     }
     return null;
+  }
+
+  /// Pages every signed-in user has, reached from the header rather than the
+  /// sidebar. They carry a title for the topbar but no [NavItem], so the
+  /// router puts no role or module gate on them.
+  static const _headerPages = {'/profile': (title: 'My Profile', subtitle: 'Your details, sign-in email and photo')};
+
+  /// The topbar's title and subtitle for [path], or null for a path that has
+  /// neither a sidebar entry nor a header page.
+  static ({String title, String subtitle})? headingFor(String path) {
+    final item = findByPath(path);
+    if (item != null) return (title: item.pageTitle, subtitle: item.pageSubtitle);
+    return _headerPages[path];
   }
 }

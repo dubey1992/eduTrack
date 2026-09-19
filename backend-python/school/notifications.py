@@ -32,7 +32,7 @@ from dataclasses import dataclass
 
 from django.utils import timezone
 
-from . import crypto, modules, queue
+from . import attendants, crypto, modules, queue
 from .clock import SchoolClock
 from .enums import (
     AttendanceAlertMode,
@@ -328,7 +328,12 @@ def notify_staff(event: str, user, tokens: dict, actor=None, channels=None, anno
     return record(
         event,
         school_id=user.school_id,
-        recipient=Recipient(name=user.name, mobile=user.mobile, email=user.email, user=user),
+        recipient=Recipient(
+            name=user.name, mobile=user.mobile, user=user,
+            # A Bus Attendant created without an address has a placeholder
+            # nobody can receive mail at - that is "no email on record".
+            email=None if attendants.is_placeholder_email(user.email) else user.email,
+        ),
         tokens=tokens,
         actor=actor,
         channels=channels,

@@ -15,6 +15,8 @@ of them needs to find waiting:
     itest-transport@example.com  Transport Mgr  a route with a bus, a driver, a stop, two riders
     itest-root@example.com       Super Admin    the school to record a payment against
     itest-accountant@example.com Accountant     staff to set salaries for and run payroll on
+    Bus Attendant (+91 90000 77777, no email)   runs ITest Route; signs in on a phone
+                                                with the setup code 24681357
 
 `seed` cleans first, so every run starts from the same place - a test that
 approves "the" pending leave or starts "today's" trip can only do it once.
@@ -36,10 +38,13 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from school import factories, hashing
+from school import attendants, factories, hashing
 from school.clock import SchoolClock
 from school.enums import UserRole
 from school.models import (
+    AttendantCredential,
+    AttendantDevice,
+    TransportTripLocation,
     AcademicYear,
     AuditLog,
     Announcement,
@@ -86,6 +91,9 @@ from school.models import (
 # menu to find it.
 SCHOOL_NAME = "Academy Integration Test School"
 PASSWORD = "password"
+ATTENDANT_MOBILE = "+91 90000 77777"
+ATTENDANT_SETUP_CODE = "24681357"
+
 EMAILS = {
     "admin": "itest-admin@example.com",
     "teacher": "itest-teacher@example.com",
@@ -182,9 +190,24 @@ def seed() -> School:
 
     vehicle = factories.VehicleFactory(school=school, name="ITest Bus", registration_number="ITEST-BUS-1")
     driver = factories.DriverFactory(school=school, name="Dev Driver", licence_number="ITEST-DL-1")
-    route = factories.TransportRouteFactory(school=school, name="ITest Route", vehicle=vehicle, driver=driver)
-    stop = factories.TransportStopFactory(route=route, name="Main Gate", sequence_number=1)
+    # The Bus Attendant who runs the route, with no email and a setup code
+    # the attendant flow types in to register its phone (docs/maps.md).
+    attendant = factories.UserFactory(
+        email=attendants.placeholder_email(), password=password, role=UserRole.BUS_ATTENDANT, school=school,
+        first_name="Ravi", last_name="Attendant", mobile=ATTENDANT_MOBILE,
+    )
+    factories.StaffProfileFactory(school=school, user=attendant, employee_id="ITEST-ATT", designation="Bus Attendant")
     now = timezone.now()
+    AttendantCredential.objects.create(
+        user=attendant, school=school, login_mobile=attendants.login_mobile(ATTENDANT_MOBILE),
+        setup_code=hashing.make(ATTENDANT_SETUP_CODE), setup_code_expires_at=now + dt.timedelta(days=1),
+        failed_attempts=0, created_at=now, updated_at=now,
+    )
+
+    route = factories.TransportRouteFactory(
+        school=school, name="ITest Route", vehicle=vehicle, driver=driver, attendant_user=attendant
+    )
+    stop = factories.TransportStopFactory(route=route, name="Main Gate", sequence_number=1)
     for student in students[:2]:
         StudentTransportAssignment.objects.create(
             school=school, student=student, route=route, transport_stop=stop, created_at=now, updated_at=now
@@ -216,6 +239,7 @@ def clean() -> None:
     SalaryProfile.objects.filter(in_school).delete()
     AuditLog.objects.filter(Q(school_id__in=schools) | Q(user_id__in=users)).delete()
 
+    TransportTripLocation.objects.filter(Q(trip__in=trips) | Q(school_id__in=schools)).delete()
     TransportTripEvent.objects.filter(Q(trip__in=trips) | Q(school_id__in=schools)).delete()
     TransportTripRider.objects.filter(trip__in=trips).delete()
     trips.delete()
@@ -249,7 +273,10 @@ def clean() -> None:
     Department.objects.filter(in_school).delete()
     Payment.objects.filter(Q(school_id__in=schools) | Q(created_by_id__in=users)).delete()
 
-    PersonalAccessToken.objects.filter(tokenable_id__in=users).delete()
+    school_users = list(User.objects.filter(school_id__in=schools).values_list("id", flat=True))
+    AttendantDevice.objects.filter(user_id__in=users + school_users).delete()
+    AttendantCredential.objects.filter(Q(user_id__in=users + school_users) | Q(school_id__in=schools)).delete()
+    PersonalAccessToken.objects.filter(tokenable_id__in=users + school_users).delete()
     PasswordResetToken.objects.filter(email__in=EMAILS.values()).delete()
     User.objects.filter(Q(id__in=users) | Q(school_id__in=schools)).delete()
     School.objects.filter(id__in=schools).delete()

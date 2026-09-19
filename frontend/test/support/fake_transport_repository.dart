@@ -4,6 +4,7 @@ import 'package:edutrack_app/features/transport/data/models/driver.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_route.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_status.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_trip.dart';
+import 'package:edutrack_app/features/transport/data/models/trip_live_location.dart';
 import 'package:edutrack_app/features/transport/data/models/vehicle.dart';
 import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 
@@ -301,7 +302,13 @@ class FakeTransportRepository implements TransportRepository {
   }
 
   @override
-  Future<TransportRoute> createRoute({int? schoolId, required String name, int? vehicleId, int? driverId}) async {
+  Future<TransportRoute> createRoute({
+    int? schoolId,
+    required String name,
+    int? vehicleId,
+    int? driverId,
+    int? attendantUserId,
+  }) async {
     _check();
     lastCall = {
       'op': 'createRoute',
@@ -309,6 +316,7 @@ class FakeTransportRepository implements TransportRepository {
       'name': name,
       'vehicle_id': vehicleId,
       'driver_id': driverId,
+      'attendant_user_id': attendantUserId,
     };
     final vehicle = vehicleId == null ? null : _vehicles.firstWhere((v) => v.id == vehicleId);
     final driver = driverId == null ? null : _drivers.firstWhere((d) => d.id == driverId);
@@ -328,6 +336,8 @@ class FakeTransportRepository implements TransportRepository {
       driverMobile: driver?.mobile,
       stopsCount: 0,
       studentsCount: 0,
+      attendantUserId: attendantUserId,
+      attendantName: attendantUserId == null ? null : 'Attendant $attendantUserId',
     );
     _routes.add(route);
     return route;
@@ -339,6 +349,7 @@ class FakeTransportRepository implements TransportRepository {
     String? name,
     required int? vehicleId,
     required int? driverId,
+    required int? attendantUserId,
     TransportStatus? status,
   }) async {
     _check();
@@ -348,6 +359,7 @@ class FakeTransportRepository implements TransportRepository {
       'name': name,
       'vehicle_id': vehicleId,
       'driver_id': driverId,
+      'attendant_user_id': attendantUserId,
       'status': status?.apiValue,
     };
     final index = _routes.indexWhere((r) => r.id == routeId);
@@ -371,6 +383,10 @@ class FakeTransportRepository implements TransportRepository {
       driverMobile: driver?.mobile,
       stopsCount: e.stopsCount,
       studentsCount: e.studentsCount,
+      attendantUserId: attendantUserId,
+      attendantName: attendantUserId == null
+          ? null
+          : (attendantUserId == e.attendantUserId ? e.attendantName : 'Attendant $attendantUserId'),
       stops: e.stops,
     );
     _routes[index] = updated;
@@ -417,6 +433,8 @@ class FakeTransportRepository implements TransportRepository {
       driverMobile: e.driverMobile,
       stopsCount: sorted.length,
       studentsCount: e.studentsCount,
+      attendantUserId: e.attendantUserId,
+      attendantName: e.attendantName,
       stops: sorted,
     );
     _routes[index] = updated;
@@ -430,6 +448,8 @@ class FakeTransportRepository implements TransportRepository {
     required int sequenceNumber,
     String? pickupTime,
     String? dropTime,
+    String? latitude,
+    String? longitude,
   }) async {
     _check();
     lastCall = {
@@ -439,6 +459,8 @@ class FakeTransportRepository implements TransportRepository {
       'sequence_number': sequenceNumber,
       'pickup_time': pickupTime,
       'drop_time': dropTime,
+      'latitude': latitude,
+      'longitude': longitude,
     };
     final route = _routes.firstWhere((r) => r.id == routeId);
     final stop = TransportStop(
@@ -449,6 +471,8 @@ class FakeTransportRepository implements TransportRepository {
       pickupTime: pickupTime,
       dropTime: dropTime,
       studentsCount: 0,
+      latitude: latitude,
+      longitude: longitude,
     );
     _replaceStops(routeId, [...route.stops, stop]);
     return stop;
@@ -461,6 +485,8 @@ class FakeTransportRepository implements TransportRepository {
     int? sequenceNumber,
     String? pickupTime,
     String? dropTime,
+    String? latitude,
+    String? longitude,
   }) async {
     _check();
     lastCall = {
@@ -470,6 +496,8 @@ class FakeTransportRepository implements TransportRepository {
       'sequence_number': sequenceNumber,
       'pickup_time': pickupTime,
       'drop_time': dropTime,
+      'latitude': latitude,
+      'longitude': longitude,
     };
     final route = _routes.firstWhere((r) => r.stops.any((s) => s.id == stopId));
     final e = route.stops.firstWhere((s) => s.id == stopId);
@@ -481,6 +509,8 @@ class FakeTransportRepository implements TransportRepository {
       pickupTime: pickupTime,
       dropTime: dropTime,
       studentsCount: e.studentsCount,
+      latitude: latitude,
+      longitude: longitude,
     );
     _replaceStops(route.id, [for (final s in route.stops) s.id == stopId ? updated : s]);
     return updated;
@@ -495,6 +525,30 @@ class FakeTransportRepository implements TransportRepository {
   }
 
   // ── trips ───────────────────────────────────────────────────────────
+
+  /// What `liveLocation` answers, in turn - the last one repeats. When
+  /// empty, a trip's live answer has no position and no next stop.
+  List<TripLiveLocation> liveAnswers = [];
+
+  /// Thrown by `liveLocation` (only) while set.
+  Failure? failLiveWith;
+  int liveCalls = 0;
+
+  @override
+  Future<TripLiveLocation> liveLocation(int tripId) async {
+    liveCalls++;
+    if (failLiveWith != null) throw failLiveWith!;
+    if (liveAnswers.isEmpty) {
+      final trip = _trips.where((t) => t.id == tripId).firstOrNull;
+      return TripLiveLocation(
+        tripId: tripId,
+        status: trip?.status.apiValue ?? 'in_progress',
+        position: null,
+        nextStop: null,
+      );
+    }
+    return liveAnswers.length == 1 ? liveAnswers.single : liveAnswers.removeAt(0);
+  }
 
   static const _now = '2026-09-10T08:00:00.000000Z';
 

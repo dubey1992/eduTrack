@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The app talks to the school's API. Flutter adds this to debug and
+         profile builds only, so a release build needs it said here. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- A bus attendant shares the bus's position while a trip runs and the
+         My Trip screen is open. Foreground only: no background location. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="edutrack_app"
         android:name="${applicationName}"
@@ -40,6 +47,12 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Call Parent opens the dialler with a tel: link (url_launcher);
+             Android 11+ only lets an app see handlers it declares here. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="tel"/>
         </intent>
     </queries>
 </manifest>

@@ -13,7 +13,12 @@ enum UserRole {
 
   /// Runs payroll for their own school; otherwise an ordinary employee.
   /// See docs/payroll.md.
-  accountant('ACCOUNTANT', 'Accountant');
+  accountant('ACCOUNTANT', 'Accountant'),
+
+  /// The person on the bus: runs the trips of the routes they are assigned
+  /// to, from a phone, signing in with a mobile number and passcode on a
+  /// registered device. See docs/maps.md.
+  busAttendant('BUS_ATTENDANT', 'Bus Attendant');
 
   const UserRole(this.apiValue, this.label);
 

@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/models/user_role.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
 import '../../announcements/application/announcement_page_notifier.dart';
 import '../../audit/application/audit_log_notifier.dart';
 import '../../mail_settings/application/mail_settings_notifier.dart';
+import '../../my_trip/application/trip_mark_queue.dart';
 import '../../classes/application/school_class_list_notifier.dart';
 import '../../communication/application/inbox_notifier.dart';
 import '../../communication/application/message_page_notifier.dart';
@@ -14,6 +16,7 @@ import '../../holidays/application/holiday_page_notifier.dart';
 import '../../payments/application/payment_list_notifier.dart';
 import '../../payments/application/payment_summary_notifier.dart';
 import '../../permissions/application/permissions_notifier.dart';
+import '../../profile/application/profile_notifier.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../staff/application/staff_list_notifier.dart';
 import '../../staff_leave/application/staff_leave_list_notifier.dart';
@@ -69,6 +72,14 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     if (state.hasValue) _resetSessionScopedProviders();
   }
 
+  /// Takes a session that was opened some other way than [login] - a bus
+  /// attendant's passcode sign-in, whose token the attendant repository has
+  /// already stored.
+  void signedIn(AuthenticatedUser user) {
+    state = AsyncData(user);
+    _resetSessionScopedProviders();
+  }
+
   /// Changes the signed-in user's password and refreshes the session, so a
   /// user who was being held on the change-password screen is let through
   /// the moment it succeeds.
@@ -81,6 +92,12 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
   }
 
   Future<void> logout() async {
+    // A bus attendant's phone keeps trip marks and the trip itself for when
+    // there is no signal; none of it is for whoever signs in next. (Unsent
+    // marks were warned about before getting here - see AppShell.)
+    if (state.value?.role == UserRole.busAttendant) {
+      await ref.read(tripMarkQueueProvider.notifier).discardAll();
+    }
     await ref.read(authRepositoryProvider).logout();
     state = const AsyncData(null);
     _resetSessionScopedProviders();
@@ -117,11 +134,13 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     // The permissions matrix is read on sign-in; a Super Admin who edits
     // it must not hand the previous session's copy to the next account.
     ref.invalidate(permissionsNotifierProvider);
+    ref.invalidate(profileNotifierProvider);
     ref.invalidate(routePageNotifierProvider);
     ref.invalidate(schoolPageNotifierProvider);
     ref.invalidate(staffLeaveListNotifierProvider);
     ref.invalidate(staffLeaveSummaryNotifierProvider);
     ref.invalidate(teachingReportSummaryNotifierProvider);
+    ref.invalidate(tripMarkQueueProvider);
     ref.invalidate(tripHistoryNotifierProvider);
     ref.invalidate(unreadCountProvider);
     ref.invalidate(vehiclePageNotifierProvider);

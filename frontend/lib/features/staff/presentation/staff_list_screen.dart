@@ -13,6 +13,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../imports/presentation/bulk_import_button.dart';
 import '../../departments/application/department_list_notifier.dart';
@@ -20,9 +21,18 @@ import '../../users/data/models/app_user.dart';
 import '../application/staff_list_notifier.dart';
 import '../data/models/staff_profile.dart';
 import 'add_staff_dialog.dart';
+import 'attendant_sign_in_dialog.dart';
 import 'edit_staff_profile_dialog.dart';
+import 'widgets/staff_email_text.dart';
 
-const _staffRoles = [UserRole.teacher, UserRole.hod, UserRole.staff, UserRole.transportManager, UserRole.accountant];
+const _staffRoles = [
+  UserRole.teacher,
+  UserRole.hod,
+  UserRole.staff,
+  UserRole.transportManager,
+  UserRole.accountant,
+  UserRole.busAttendant,
+];
 
 class StaffListScreen extends ConsumerStatefulWidget {
   const StaffListScreen({super.key});
@@ -171,7 +181,10 @@ class _StatRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final teachers = staff.where((m) => m.role == UserRole.teacher).length;
     final nonTeaching = staff
-        .where((m) => {UserRole.staff, UserRole.transportManager, UserRole.accountant}.contains(m.role))
+        .where(
+          (m) =>
+              {UserRole.staff, UserRole.transportManager, UserRole.accountant, UserRole.busAttendant}.contains(m.role),
+        )
         .length;
     final hods = staff.where((m) => m.role == UserRole.hod).length;
     final active = staff.where((m) => m.status == UserStatus.active).length;
@@ -277,12 +290,19 @@ class _StaffListMobile extends StatelessWidget {
         final member = staff[index];
         return Card(
           child: ListTile(
+            leading: UserAvatar(photoUrl: member.photoUrl, name: member.name, radius: 18),
             title: Text('${member.employeeId} · ${member.name}'),
-            subtitle: Text(
-              '${member.departmentName ?? '-'} · ${_roleBadgeLabel(member)}'
-              '${member.classTeacherOf.isNotEmpty ? '\nClasses: ${member.classTeacherOf.join(', ')}' : ''}',
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StaffEmailText(profile: member),
+                Text(
+                  '${member.departmentName ?? '-'} · ${_roleBadgeLabel(member)}'
+                  '${member.classTeacherOf.isNotEmpty ? '\nClasses: ${member.classTeacherOf.join(', ')}' : ''}',
+                ),
+              ],
             ),
-            isThreeLine: member.classTeacherOf.isNotEmpty,
+            isThreeLine: true,
             trailing: _StatusBadgeFor(member: member),
             onTap: canManage
                 ? () => showDialog(
@@ -325,7 +345,25 @@ class _StaffListDesktop extends StatelessWidget {
                 DataRow(
                   cells: [
                     DataCell(Text(member.employeeId)),
-                    DataCell(Text(member.name)),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          UserAvatar(photoUrl: member.photoUrl, name: member.name, radius: 14),
+                          const SizedBox(width: 8),
+                          // The email under the name rather than in a column
+                          // of its own, so the actions stay on screen.
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(member.name),
+                              StaffEmailText(profile: member, style: const TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                     DataCell(Text(member.departmentName ?? '-')),
                     DataCell(Text(member.classTeacherOf.isEmpty ? '-' : member.classTeacherOf.join(', '))),
                     DataCell(StatusBadge(label: _roleBadgeLabel(member), tone: BadgeTone.info)),
@@ -382,6 +420,14 @@ class _StaffActions extends ConsumerWidget {
           ),
           child: const Text('Edit'),
         ),
+        if (member.isBusAttendant)
+          TextButton(
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => AttendantSignInDialog(profile: member),
+            ),
+            child: const Text('Sign-in'),
+          ),
         if (member.isLocked)
           TextButton(
             onPressed: () async {

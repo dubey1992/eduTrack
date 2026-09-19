@@ -16,6 +16,10 @@ class FakeStaffRepository implements StaffRepository {
   Failure? failUpdateWith;
   Failure? failListPageWith;
 
+  /// What the last create sent, so a test can check an attendant went
+  /// without an email or password.
+  Map<String, Object?>? lastCreate;
+
   List<StaffProfile> _filtered({int? schoolId, int? departmentId, UserRole? role, String? search}) {
     final query = search?.trim().toLowerCase();
     return _staff
@@ -49,12 +53,21 @@ class FakeStaffRepository implements StaffRepository {
   }
 
   @override
+  Future<List<StaffProfile>> activeAttendants({int? schoolId}) async {
+    if (failListPageWith != null) throw failListPageWith!;
+    return _filtered(
+      schoolId: schoolId,
+      role: UserRole.busAttendant,
+    ).where((s) => s.status == UserStatus.active).toList();
+  }
+
+  @override
   Future<StaffProfile> create({
     required String firstName,
     required String lastName,
-    required String email,
+    String? email,
     String? mobile,
-    required String password,
+    String? password,
     required UserRole role,
     int? schoolId,
     required String employeeId,
@@ -63,6 +76,7 @@ class FakeStaffRepository implements StaffRepository {
     required DateTime joiningDate,
     String? address,
   }) async {
+    lastCreate = {'email': email, 'mobile': mobile, 'password': password, 'role': role};
     if (failCreateWith != null) throw failCreateWith!;
 
     final profile = StaffProfile(
@@ -72,7 +86,10 @@ class FakeStaffRepository implements StaffRepository {
       firstName: firstName,
       lastName: lastName,
       name: '$firstName $lastName',
-      email: email,
+      // As the server does: an attendant without an address gets a
+      // placeholder that nobody may be shown.
+      email: email ?? 'attendant-${_staff.length + 1}@no-email.invalid',
+      hasEmail: email != null,
       mobile: mobile,
       role: role,
       status: UserStatus.active,

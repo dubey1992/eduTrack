@@ -13,6 +13,7 @@ class AuthenticatedUser {
     this.mustChangePassword = false,
     this.managesBranches = false,
     this.access = const ModuleAccess.unspecified(),
+    this.photoUrl,
     SchoolClock? clock,
     // The field is private and the parameter is not. An initializing formal
     // would make callers write `_clock:`, leaking the underscore into the
@@ -36,6 +37,7 @@ class AuthenticatedUser {
       mustChangePassword: json['must_change_password'] as bool? ?? false,
       managesBranches: json['manages_branches'] as bool? ?? false,
       access: ModuleAccess.fromJson(json),
+      photoUrl: json['photo_url'] as String?,
     );
   }
 
@@ -43,6 +45,11 @@ class AuthenticatedUser {
   final String name;
   final String email;
   final UserRole role;
+
+  /// Where the profile photo is served, relative to the API base (for
+  /// example `/users/12/photo?v=ab12cd34`), or null when there is none. It
+  /// changes whenever the photo does, so it doubles as a cache key.
+  final String? photoUrl;
 
   final SchoolClock? _clock;
 

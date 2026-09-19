@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 SEND_PAYMENT_RECEIPT = "payment_receipt"
 SEND_NOTICE = "send_notice"
+EMAIL_CHANGED_NOTICE = "email_changed_notice"
 
 
 @handler(notifications.SEND_MESSAGE)
@@ -309,7 +310,9 @@ def send_payslip(payslip_id: int) -> None:
 
     user = slip.staff_profile.user
 
-    if user.status != UserStatus.ACTIVE or not user.email:
+    from .attendants import is_placeholder_email
+
+    if user.status != UserStatus.ACTIVE or not user.email or is_placeholder_email(user.email):
         logger.info("No active address to send payslip %s to", slip.id)
 
         return
@@ -323,3 +326,37 @@ def send_payslip(payslip_id: int) -> None:
     message.send()
 
     Payslip.objects.filter(pk=slip.id).update(emailed_at=timezone.now())
+
+
+@handler(EMAIL_CHANGED_NOTICE)
+def send_email_changed_notice(user_id: int, old_email: str) -> None:
+    """Tells the old address that the account now signs in somewhere else.
+
+    The whole point is the case where the owner did not do it, so the notice
+    says what to do about that - and names the new address only partly, so
+    the notice itself does not hand an attacker's address to whoever reads
+    the old mailbox, nor the owner's new one to a stranger.
+    """
+    from django.conf import settings
+
+    user = User.objects.filter(pk=user_id).first()
+
+    if user is None or not old_email:
+        return
+
+    local, _, domain = user.email.partition("@")
+    masked = (local[:2] + "***@" + domain) if domain else "a new address"
+    name = settings.APP_NAME
+
+    mailer.message(
+        subject=f"Your {name} sign-in email was changed",
+        body=(
+            f"Hello {user.first_name},\n\n"
+            f"The email address you sign in to {name} with was changed to {masked}.\n\n"
+            "If you made this change, there is nothing more to do.\n\n"
+            "If you did not, contact your school administrator straight away: they can set your "
+            "address back and sign the account out everywhere.\n\n"
+            f"{name}"
+        ),
+        to=[old_email],
+    ).send()

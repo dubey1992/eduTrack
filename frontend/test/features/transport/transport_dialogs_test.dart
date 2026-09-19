@@ -3,6 +3,7 @@ import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
+import 'package:edutrack_app/features/staff/data/staff_repository.dart';
 import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 import 'package:edutrack_app/features/transport/presentation/driver_form_dialog.dart';
 import 'package:edutrack_app/features/transport/presentation/manage_stops_dialog.dart';
@@ -12,7 +13,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/attendant_fixtures.dart';
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_staff_repository.dart';
 import '../../support/fake_transport_repository.dart';
 import '../../support/transport_fixtures.dart';
 
@@ -20,10 +23,12 @@ const _schoolAdmin = AuthenticatedUser(id: 5, name: 'Admin', email: 'admin@examp
 
 /// Every dialog is opened through a real showDialog route so its own
 /// Navigator.pop() closes just the dialog.
-Widget wrap(FakeTransportRepository fake, Widget Function() dialog) {
+Widget wrap(FakeTransportRepository fake, Widget Function() dialog, {FakeStaffRepository? staff}) {
   return ProviderScope(
     overrides: [
       transportRepositoryProvider.overrideWithValue(fake),
+      // Bus Attendants are staff: the route form's picker reads them there.
+      staffRepositoryProvider.overrideWithValue(staff ?? FakeStaffRepository()),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _schoolAdmin)),
     ],
     child: MaterialApp(
@@ -175,6 +180,7 @@ void main() {
         'name': 'Lake Road',
         'vehicle_id': 2,
         'driver_id': 2,
+        'attendant_user_id': null,
       });
       expect(find.text('Route added.'), findsOneWidget);
     });
@@ -272,6 +278,222 @@ void main() {
 
       expect(find.text('Students are still assigned to this stop.'), findsOneWidget);
       expect(find.text('Lake View'), findsOneWidget);
+    });
+  });
+
+  group('RouteFormDialog - Bus attendant', () {
+    FakeStaffRepository staff() => FakeStaffRepository(staff: [meeraAttendant, inactiveRaviAttendant, anitaTeacher]);
+
+    testWidgets('offers only active Bus Attendants and sends the user id, not the profile id', (tester) async {
+      final fake = FakeTransportRepository();
+      await tester.pumpWidget(wrap(fake, () => const RouteFormDialog(), staff: staff()));
+      await _open(tester);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Route name'), 'Lake Road');
+      await tester.tap(find.text('No attendant'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Meera Sharma · +91 9876543210').last, findsOneWidget);
+      expect(find.textContaining('Ravi Das'), findsNothing); // switched off
+      expect(find.textContaining('Anita Rao'), findsNothing); // a teacher
+
+      await tester.tap(find.text('Meera Sharma · +91 9876543210').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['op'], 'createRoute');
+      expect(fake.lastCall!['attendant_user_id'], 131);
+      expect(find.text('Route added.'), findsOneWidget);
+    });
+
+    testWidgets('editing pre-selects the route\'s attendant, and "No attendant" clears it', (tester) async {
+      final fake = FakeTransportRepository(vehicles: [bus04], drivers: [sanjay], routes: [greenParkWithAttendant]);
+      await tester.pumpWidget(wrap(fake, () => const RouteFormDialog(route: greenParkWithAttendant), staff: staff()));
+      await _open(tester);
+
+      expect(find.text('Meera Sharma · +91 9876543210'), findsOneWidget);
+
+      await tester.tap(find.text('Meera Sharma · +91 9876543210'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('No attendant').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['op'], 'updateRoute');
+      expect(fake.lastCall!['attendant_user_id'], isNull);
+      expect(find.text('Route updated.'), findsOneWidget);
+    });
+
+    testWidgets('an attendant no longer active stays on the route, marked inactive', (tester) async {
+      final fake = FakeTransportRepository(vehicles: [bus04], drivers: [sanjay], routes: [greenParkWithAttendant]);
+      await tester.pumpWidget(
+        wrap(
+          fake,
+          () => const RouteFormDialog(route: greenParkWithAttendant),
+          staff: FakeStaffRepository(staff: [anitaTeacher]),
+        ),
+      );
+      await _open(tester);
+
+      expect(find.text('Meera Sharma (inactive)'), findsOneWidget);
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(fake.lastCall!['attendant_user_id'], 131);
+    });
+
+    testWidgets('says so when the school has no Bus Attendants yet', (tester) async {
+      await tester.pumpWidget(wrap(FakeTransportRepository(), () => const RouteFormDialog()));
+      await _open(tester);
+
+      expect(find.text('No Bus Attendants yet - add one in Teachers & Staff.'), findsOneWidget);
+    });
+
+    testWidgets('the server\'s attendant error is shown under the picker', (tester) async {
+      const message = 'The selected attendant is not an active Bus Attendant of this school.';
+      final fake = FakeTransportRepository(vehicles: [bus04], drivers: [sanjay], routes: [greenParkWithAttendant]);
+      await tester.pumpWidget(wrap(fake, () => const RouteFormDialog(route: greenParkWithAttendant), staff: staff()));
+      await _open(tester);
+
+      fake.failWith = const Failure(
+        code: 'VALIDATION_ERROR',
+        message: message,
+        details: {
+          'errors': {
+            'attendant_user_id': [message],
+          },
+        },
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(message), findsOneWidget);
+      expect(find.byType(RouteFormDialog), findsOneWidget);
+    });
+  });
+
+  group('StopFormDialog - position', () {
+    testWidgets('each stop says whether it has a location', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          FakeTransportRepository(routes: [greenParkWithAttendant]),
+          () => const ManageStopsDialog(routeId: 1, canManage: false),
+        ),
+      );
+      await _open(tester);
+
+      expect(find.text('Location set'), findsOneWidget); // Lake View
+      expect(find.text('No location'), findsOneWidget); // Central Park
+    });
+
+    testWidgets('half a position is refused before it is sent', (tester) async {
+      final fake = FakeTransportRepository(routes: [greenPark]);
+      await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
+      await _open(tester);
+
+      await tester.tap(find.text('Add Stop'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Stop name'), 'Sector 12');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Latitude (optional)'), '18.5204');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a longitude too, or clear the other box.'), findsOneWidget);
+      expect(fake.lastCall, isNull);
+    });
+
+    testWidgets('a stop is added with its position, and shows as placed', (tester) async {
+      final fake = FakeTransportRepository(routes: [greenPark]);
+      await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
+      await _open(tester);
+
+      await tester.tap(find.text('Add Stop'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Stop name'), 'Sector 12');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Latitude (optional)'), '18.5204');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Longitude (optional)'), '73.8567');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['latitude'], '18.5204');
+      expect(fake.lastCall!['longitude'], '73.8567');
+      expect(find.byType(StopFormDialog), findsNothing);
+      expect(find.text('Location set'), findsOneWidget);
+    });
+
+    testWidgets('editing pre-fills the position, and clearing both boxes clears it', (tester) async {
+      final fake = FakeTransportRepository(routes: [greenParkWithAttendant]);
+      await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
+      await _open(tester);
+
+      await tester.tap(find.byTooltip('Edit stop').first);
+      await tester.pumpAndSettle();
+      expect(find.text('18.520400'), findsOneWidget);
+      expect(find.text('73.856700'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Latitude (optional)'), '');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Longitude (optional)'), '');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['op'], 'updateStop');
+      expect(fake.lastCall!['latitude'], isNull);
+      expect(fake.lastCall!['longitude'], isNull);
+      expect(find.text('Location set'), findsNothing);
+    });
+
+    testWidgets('a stop far from the school: the server\'s message is shown under the latitude', (tester) async {
+      const message =
+          'This stop is 1,170 km from the school. Check the latitude and longitude are not the wrong way round.';
+      final fake = FakeTransportRepository(routes: [greenPark]);
+      await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
+      await _open(tester);
+
+      await tester.tap(find.text('Add Stop'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Stop name'), 'Sector 12');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Latitude (optional)'), '73.8567');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Longitude (optional)'), '18.5204');
+      fake.failWith = const Failure(
+        code: 'VALIDATION_ERROR',
+        message: message,
+        details: {
+          'errors': {
+            'latitude': [message],
+          },
+        },
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(message), findsOneWidget);
+      expect(find.byType(StopFormDialog), findsOneWidget);
+    });
+
+    testWidgets('the server\'s pair message lands under the box it names', (tester) async {
+      const message = 'Enter a longitude as well, or clear the latitude.';
+      final fake = FakeTransportRepository(routes: [greenPark]);
+      await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
+      await _open(tester);
+
+      await tester.tap(find.text('Add Stop'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Stop name'), 'Sector 12');
+      fake.failWith = const Failure(
+        code: 'VALIDATION_ERROR',
+        message: message,
+        details: {
+          'errors': {
+            'longitude': [message],
+          },
+        },
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(message), findsOneWidget);
     });
   });
 }

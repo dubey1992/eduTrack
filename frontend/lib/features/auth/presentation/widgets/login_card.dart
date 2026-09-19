@@ -24,6 +24,7 @@ class LoginCard extends StatelessWidget {
     required this.isSubmitting,
     required this.onSubmit,
     required this.onForgotPassword,
+    this.onAttendantSignIn,
   });
 
   final GlobalKey<FormState> formKey;
@@ -36,6 +37,10 @@ class LoginCard extends StatelessWidget {
   final bool isSubmitting;
   final VoidCallback onSubmit;
   final VoidCallback onForgotPassword;
+
+  /// Opens the bus attendant's mobile + passcode sign-in. The email form
+  /// above refuses an attendant, so they need a way to theirs from here.
+  final VoidCallback? onAttendantSignIn;
 
   @override
   Widget build(BuildContext context) {
@@ -157,6 +162,19 @@ class LoginCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (onAttendantSignIn != null) ...[
+              const SizedBox(height: 18),
+              const Divider(color: MarketingColors.border, height: 1),
+              const SizedBox(height: 10),
+              Center(
+                child: TextButton.icon(
+                  onPressed: onAttendantSignIn,
+                  style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
+                  icon: const Icon(Icons.directions_bus_filled_outlined, size: 18),
+                  label: const Text('Bus attendant? Sign in with your mobile number'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

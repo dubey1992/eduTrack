@@ -232,6 +232,69 @@ class MessageNotRetryable(ApiError):
     error_code = "MESSAGE_NOT_RETRYABLE"
 
 
+class DeviceNotRegistered(ApiError):
+    """Sign-in from a phone that is not registered to this mobile number - or
+    a number nobody signs in with. The two are one answer on purpose, so the
+    form cannot be used to find out which numbers belong to attendants."""
+
+    status_code = status.HTTP_401_UNAUTHORIZED
+    error_code = "DEVICE_NOT_REGISTERED"
+
+    def __init__(self) -> None:
+        super().__init__(
+            "This phone is not registered for that mobile number. Ask your school office for a setup code."
+        )
+
+
+class WrongPasscode(ApiError):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    error_code = "WRONG_PASSCODE"
+
+
+class PasscodeLocked(ApiError):
+    """Five wrong guesses. Unlike a password lock this does not run out: a
+    four-digit code gets no second round of guessing until a person at the
+    school has looked into it."""
+
+    status_code = status.HTTP_423_LOCKED
+    error_code = "ACCOUNT_LOCKED"
+
+    def __init__(self) -> None:
+        super().__init__("Too many wrong tries. Ask your school office to unlock your account.")
+
+
+class UsePasscodeSignIn(ApiError):
+    """A Bus Attendant tried the email and password form."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "USE_PASSCODE_SIGN_IN"
+
+    def __init__(self) -> None:
+        super().__init__("Bus attendants sign in with their mobile number and passcode, in the app on their phone.")
+
+
+class KeptBySchoolOffice(ApiError):
+    """A detail a Bus Attendant cannot change themselves: the mobile number
+    they sign in with, or an email address they have no password to confirm
+    a change of. Their school office changes it for them."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "KEPT_BY_SCHOOL_OFFICE"
+
+
+class NotAnAttendant(ApiError):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "NOT_AN_ATTENDANT"
+
+
+class NoStaffRecord(ApiError):
+    """A home address belongs to an employment record, and this account has
+    none - a Super Admin, for one."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "NO_STAFF_RECORD"
+
+
 class SettingRefused(ApiError):
     """A write that a module's own setting forbids (docs/settings.md): a
     register marked too long after the day, leave asked for at too short

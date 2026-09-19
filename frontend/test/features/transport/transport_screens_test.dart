@@ -43,7 +43,7 @@ Widget wrap(Widget screen, FakeTransportRepository fake, {AuthenticatedUser acto
 }
 
 void useDesktop(WidgetTester tester) {
-  tester.view.physicalSize = const Size(1400, 900);
+  tester.view.physicalSize = const Size(1800, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -199,6 +199,46 @@ void main() {
       expect(find.text('No vehicle'), findsOneWidget);
       expect(find.text('No driver'), findsOneWidget);
       expect(find.text('Add Route'), findsOneWidget);
+    });
+
+    testWidgets('shows each route\'s Bus Attendant, or that it has none', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(
+        wrap(const RouteListScreen(), FakeTransportRepository(routes: [greenParkWithAttendant, lakeRoadNoVehicle])),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Attendant'), findsOneWidget);
+      expect(find.text('Meera Sharma'), findsOneWidget);
+      expect(find.text('No attendant'), findsOneWidget);
+    });
+
+    testWidgets('the mobile cards name the attendant too', (tester) async {
+      tester.view.physicalSize = const Size(900, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        wrap(const RouteListScreen(), FakeTransportRepository(routes: [greenParkWithAttendant, lakeRoadNoVehicle])),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Attendant: Meera Sharma'), findsOneWidget);
+      expect(find.text('Attendant: None'), findsOneWidget);
+    });
+
+    testWidgets('deactivating a route keeps its attendant', (tester) async {
+      useDesktop(tester);
+      final fake = FakeTransportRepository(routes: [greenParkWithAttendant]);
+      await tester.pumpWidget(wrap(const RouteListScreen(), fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Deactivate'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['op'], 'updateRoute');
+      expect(fake.lastCall!['attendant_user_id'], 131);
+      expect(fake.lastCall!['status'], 'inactive');
     });
 
     testWidgets('a school admin opens the stops manager and the students list', (tester) async {

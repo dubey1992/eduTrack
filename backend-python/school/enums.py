@@ -32,6 +32,10 @@ class UserRole(models.TextChoices):
     # Runs payroll for their own school - salaries, a month's run, payslips.
     # Otherwise an ordinary employee with a staff profile. See docs/payroll.md.
     ACCOUNTANT = "ACCOUNTANT"
+    # The person on the bus - attendant or conductor - who runs the trips of
+    # the routes they are assigned to, from a phone, signing in with a mobile
+    # number and passcode on a registered device. See docs/maps.md.
+    BUS_ATTENDANT = "BUS_ATTENDANT"
 
     @classmethod
     def administers_school(cls, role: str) -> bool:
@@ -453,6 +457,9 @@ class TripEventType(models.TextChoices):
     ABSENT = "absent"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    # The attendant pressed Call Parent for a rider. Kept on the timeline:
+    # who was called about which child, and when, is part of the trip.
+    GUARDIAN_CALLED = "guardian_called"
 
 
 class TripRiderStatus(models.TextChoices):

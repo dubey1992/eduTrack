@@ -72,6 +72,26 @@ class SchoolClock {
         '${date.day.toString().padLeft(2, '0')}';
   }
 
+  /// A UTC instant from the API as it reads on the school's clock - for the
+  /// few places that get a raw instant with no rendered label beside it.
+  ///
+  /// Uses the offset the school had when the session was fetched, with the
+  /// same daylight-saving caveat as [now].
+  DateTime toSchoolTime(DateTime instant) {
+    final wall = schoolTimeAtAnchor;
+    final wallAsUtc = DateTime.utc(
+      wall.year,
+      wall.month,
+      wall.day,
+      wall.hour,
+      wall.minute,
+      wall.second,
+      wall.millisecond,
+    );
+
+    return instant.toUtc().add(wallAsUtc.difference(anchorUtc));
+  }
+
   /// Whether a date falls on the school's current day.
   bool isToday(DateTime date) {
     final current = today;

@@ -22,6 +22,8 @@ class StaffProfile {
     required this.address,
     required this.classTeacherOf,
     this.lockedUntil,
+    this.photoUrl,
+    this.hasEmail = true,
   });
 
   factory StaffProfile.fromJson(Map<String, dynamic> json) {
@@ -45,6 +47,8 @@ class StaffProfile {
       joiningDate: DateTime.parse(json['joining_date'] as String),
       address: json['address'] as String?,
       classTeacherOf: (json['class_teacher_of'] as List).cast<String>(),
+      photoUrl: json['photo_url'] as String?,
+      hasEmail: json['has_email'] as bool? ?? true,
     );
   }
 
@@ -74,6 +78,17 @@ class StaffProfile {
   final String? address;
   final List<String> classTeacherOf;
 
+  /// The profile photo's path relative to the API base, or null when there
+  /// is none. See AuthenticatedUser.photoUrl.
+  final String? photoUrl;
+
+  /// False for a Bus Attendant added without an email address: [email] then
+  /// holds a placeholder nobody can receive mail at, and must never be shown
+  /// as if it were an address. See docs/maps.md, "The Bus Attendant".
+  final bool hasEmail;
+
+  bool get isBusAttendant => role == UserRole.busAttendant;
+
   StaffProfile copyWith({
     UserStatus? status,
     String? designation,
@@ -101,6 +116,8 @@ class StaffProfile {
       joiningDate: joiningDate,
       address: address,
       classTeacherOf: classTeacherOf,
+      photoUrl: photoUrl,
+      hasEmail: hasEmail,
     );
   }
 }

@@ -92,6 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       isSubmitting: _isSubmitting,
       onSubmit: _submit,
       onForgotPassword: () => context.push('/forgot-password'),
+      onAttendantSignIn: () => context.go('/attendant-login'),
     );
 
     return Scaffold(

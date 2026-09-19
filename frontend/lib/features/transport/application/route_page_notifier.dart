@@ -55,10 +55,22 @@ class RoutePageNotifier extends AsyncNotifier<PagedList<TransportRoute>> {
     await refresh();
   }
 
-  Future<void> createRoute({int? schoolId, required String name, int? vehicleId, int? driverId}) async {
+  Future<void> createRoute({
+    int? schoolId,
+    required String name,
+    int? vehicleId,
+    int? driverId,
+    int? attendantUserId,
+  }) async {
     await ref
         .read(transportRepositoryProvider)
-        .createRoute(schoolId: schoolId, name: name, vehicleId: vehicleId, driverId: driverId);
+        .createRoute(
+          schoolId: schoolId,
+          name: name,
+          vehicleId: vehicleId,
+          driverId: driverId,
+          attendantUserId: attendantUserId,
+        );
     _page = 1;
     await refresh();
     _invalidatePickers();
@@ -69,11 +81,19 @@ class RoutePageNotifier extends AsyncNotifier<PagedList<TransportRoute>> {
     String? name,
     required int? vehicleId,
     required int? driverId,
+    required int? attendantUserId,
     TransportStatus? status,
   }) async {
     final updated = await ref
         .read(transportRepositoryProvider)
-        .updateRoute(route.id, name: name, vehicleId: vehicleId, driverId: driverId, status: status);
+        .updateRoute(
+          route.id,
+          name: name,
+          vehicleId: vehicleId,
+          driverId: driverId,
+          attendantUserId: attendantUserId,
+          status: status,
+        );
     state = state.whenData(
       (page) => page.withItems([for (final existing in page.items) existing.id == updated.id ? updated : existing]),
     );

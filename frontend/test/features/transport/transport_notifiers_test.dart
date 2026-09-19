@@ -96,17 +96,27 @@ void main() {
       final notifier = container.read(routePageNotifierProvider.notifier);
       await container.read(routePageNotifierProvider.future);
 
-      await notifier.createRoute(schoolId: null, name: 'Lake Road', vehicleId: 2, driverId: 2);
+      await notifier.createRoute(schoolId: null, name: 'Lake Road', vehicleId: 2, driverId: 2, attendantUserId: 44);
       final created = container.read(routePageNotifierProvider).value!.items.last;
       expect(created.label, 'Bus 09 - Lake Road');
       expect(created.capacity, 30);
       expect(created.driverName, 'Ramesh Rao');
+      expect(fake.lastCall!['attendant_user_id'], 44);
+      expect(created.attendantUserId, 44);
 
-      await notifier.updateRoute(created, vehicleId: null, driverId: null, status: TransportStatus.inactive);
+      await notifier.updateRoute(
+        created,
+        vehicleId: null,
+        driverId: null,
+        attendantUserId: null,
+        status: TransportStatus.inactive,
+      );
       final updated = container.read(routePageNotifierProvider).value!.items.last;
       expect(updated.vehicleId, isNull);
       expect(updated.label, 'Lake Road');
       expect(updated.status, TransportStatus.inactive);
+      expect(fake.lastCall!['attendant_user_id'], isNull);
+      expect(updated.attendantUserId, isNull);
 
       await notifier.deleteRoute(updated);
       expect(fake.lastDeletedRouteId, updated.id);

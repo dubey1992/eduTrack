@@ -11,9 +11,10 @@ import 'widgets/submit_button.dart';
 import 'widgets/transport_school_picker.dart';
 
 /// Add (no [route]) or edit (with [route]) a route: its name plus the
-/// vehicle and driver currently serving it. Only active, unassigned
-/// vehicles/drivers are offered - except the route's own, which stays
-/// selectable even if it has since been deactivated.
+/// vehicle, driver and Bus Attendant currently serving it. Only active,
+/// unassigned vehicles/drivers are offered - except the route's own, which
+/// stays selectable even if it has since been deactivated. An attendant may
+/// cover several routes, so every active one is offered.
 class RouteFormDialog extends ConsumerStatefulWidget {
   const RouteFormDialog({super.key, this.route});
 
@@ -30,9 +31,11 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
   int? _schoolId;
   late int? _vehicleId = widget.route?.vehicleId;
   late int? _driverId = widget.route?.driverId;
+  late int? _attendantUserId = widget.route?.attendantUserId;
 
   bool _isSubmitting = false;
   String? _errorMessage;
+  Map<String, List<String>> _fieldErrors = const {};
 
   bool get _isEdit => widget.route != null;
 
@@ -48,6 +51,7 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
+      _fieldErrors = const {};
     });
 
     try {
@@ -58,6 +62,7 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
           name: _nameController.text.trim(),
           vehicleId: _vehicleId,
           driverId: _driverId,
+          attendantUserId: _attendantUserId,
         );
       } else {
         await notifier.createRoute(
@@ -65,6 +70,7 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
           name: _nameController.text.trim(),
           vehicleId: _vehicleId,
           driverId: _driverId,
+          attendantUserId: _attendantUserId,
         );
       }
       if (mounted) {
@@ -74,7 +80,13 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _errorMessage = failure.message);
+      if (mounted) {
+        setState(() {
+          _fieldErrors = failure.validationErrors;
+          // The attendant's own message is shown under the attendant picker.
+          _errorMessage = _fieldErrors.containsKey('attendant_user_id') ? null : failure.message;
+        });
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -106,6 +118,7 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
                       _schoolId = value;
                       _vehicleId = null;
                       _driverId = null;
+                      _attendantUserId = null;
                     }),
                   ),
                   const SizedBox(height: 10),
@@ -129,6 +142,14 @@ class _RouteFormDialogState extends ConsumerState<RouteFormDialog> {
                   selected: _driverId,
                   current: widget.route,
                   onChanged: (value) => setState(() => _driverId = value),
+                ),
+                const SizedBox(height: 10),
+                _AttendantPicker(
+                  schoolId: pickerSchoolId,
+                  selected: _attendantUserId,
+                  current: widget.route,
+                  errorText: _fieldErrors['attendant_user_id']?.first,
+                  onChanged: (value) => setState(() => _attendantUserId = value),
                 ),
               ],
             ),
@@ -219,6 +240,61 @@ class _DriverPicker extends ConsumerWidget {
         for (final entry in options.entries) DropdownMenuItem(value: entry.key, child: Text(entry.value)),
       ],
       onChanged: driversState.isLoading ? null : onChanged,
+    );
+  }
+}
+
+/// The Bus Attendant who runs this route's trips on the bus. Keyed by user
+/// id, which is what the route stores - not the staff profile id.
+class _AttendantPicker extends ConsumerWidget {
+  const _AttendantPicker({
+    required this.schoolId,
+    required this.selected,
+    required this.current,
+    required this.errorText,
+    required this.onChanged,
+  });
+
+  final int? schoolId;
+  final int? selected;
+  final TransportRoute? current;
+  final String? errorText;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final attendantsState = ref.watch(attendantPickerProvider(schoolId));
+    final attendants = attendantsState.value ?? const [];
+    final options = <int, String>{
+      for (final a in attendants) a.userId: a.mobile == null ? a.name : '${a.name} · ${a.mobile}',
+    };
+    // The route's own attendant stays selectable after being switched off
+    // (or when the list could not be read), so saving the route for another
+    // reason does not quietly unassign them.
+    if (current?.attendantUserId != null && !options.containsKey(current!.attendantUserId)) {
+      final name = current!.attendantName ?? 'Current attendant';
+      options[current!.attendantUserId!] = attendantsState.hasValue ? '$name (inactive)' : name;
+    }
+
+    String? helperText;
+    if (attendantsState.isLoading) {
+      helperText = 'Loading attendants…';
+    } else if (attendantsState.hasError) {
+      helperText = 'Could not load the attendants. Close and try again.';
+    } else if (attendants.isEmpty) {
+      helperText = 'No Bus Attendants yet - add one in Teachers & Staff.';
+    }
+
+    return DropdownButtonFormField<int?>(
+      key: ValueKey('attendant-${attendants.length}'),
+      initialValue: options.containsKey(selected) ? selected : null,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: 'Bus attendant', helperText: helperText, errorText: errorText),
+      items: [
+        const DropdownMenuItem(value: null, child: Text('No attendant')),
+        for (final entry in options.entries) DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+      ],
+      onChanged: attendantsState.hasValue ? onChanged : null,
     );
   }
 }

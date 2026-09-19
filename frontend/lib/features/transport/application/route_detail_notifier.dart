@@ -30,10 +30,20 @@ class RouteDetailNotifier extends AsyncNotifier<TransportRoute> {
     required int sequenceNumber,
     String? pickupTime,
     String? dropTime,
+    String? latitude,
+    String? longitude,
   }) async {
     await ref
         .read(transportRepositoryProvider)
-        .createStop(routeId, name: name, sequenceNumber: sequenceNumber, pickupTime: pickupTime, dropTime: dropTime);
+        .createStop(
+          routeId,
+          name: name,
+          sequenceNumber: sequenceNumber,
+          pickupTime: pickupTime,
+          dropTime: dropTime,
+          latitude: latitude,
+          longitude: longitude,
+        );
     await _afterStopChange();
   }
 
@@ -44,10 +54,20 @@ class RouteDetailNotifier extends AsyncNotifier<TransportRoute> {
     int? sequenceNumber,
     String? pickupTime,
     String? dropTime,
+    String? latitude,
+    String? longitude,
   }) async {
     await ref
         .read(transportRepositoryProvider)
-        .updateStop(stop.id, name: name, sequenceNumber: sequenceNumber, pickupTime: pickupTime, dropTime: dropTime);
+        .updateStop(
+          stop.id,
+          name: name,
+          sequenceNumber: sequenceNumber,
+          pickupTime: pickupTime,
+          dropTime: dropTime,
+          latitude: latitude,
+          longitude: longitude,
+        );
     await _afterStopChange();
   }
 

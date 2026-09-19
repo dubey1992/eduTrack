@@ -46,11 +46,11 @@ class TripTestCase(TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def ready_route(self, school=None):
+    def ready_route(self, school=None, name="Green Park", vehicle_name="Bus 04"):
         school = school or factories.SchoolFactory()
-        vehicle = factories.VehicleFactory(school=school, name="Bus 04", capacity=30)
+        vehicle = factories.VehicleFactory(school=school, name=vehicle_name, capacity=30)
         driver = factories.DriverFactory(school=school, name="Sanjay Patel")
-        route = factories.TransportRouteFactory(school=school, name="Green Park", vehicle=vehicle, driver=driver)
+        route = factories.TransportRouteFactory(school=school, name=name, vehicle=vehicle, driver=driver)
         lake_view = factories.TransportStopFactory(route=route, sequence_number=1, name="Lake View")
         central_park = factories.TransportStopFactory(route=route, sequence_number=2, name="Central Park")
 

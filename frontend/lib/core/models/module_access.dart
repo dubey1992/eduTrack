@@ -103,6 +103,7 @@ class ModuleAccess {
       UserRole.staff => row[3],
       UserRole.transportManager => row[4],
       UserRole.accountant => row[5],
+      UserRole.busAttendant => row[6],
     };
   }
 
@@ -111,20 +112,20 @@ class ModuleAccess {
   static const _manage = PermissionLevel.manage;
 
   static const _defaultRows = <String, List<PermissionLevel>>{
-    AppModules.students: [_manage, _none, _view, _none, _none, _none],
-    AppModules.staff: [_manage, _none, _none, _none, _none, _none],
-    AppModules.academics: [_manage, _view, _view, _view, _view, _view],
-    AppModules.attendance: [_manage, _none, _manage, _none, _none, _none],
-    AppModules.staffAttendance: [_manage, _manage, _none, _none, _none, _none],
-    AppModules.leave: [_manage, _manage, _manage, _manage, _manage, _manage],
-    AppModules.timetable: [_manage, _view, _view, _view, _view, _view],
-    AppModules.teachingReports: [_manage, _manage, _manage, _none, _none, _none],
-    AppModules.syllabus: [_manage, _manage, _manage, _none, _none, _none],
-    AppModules.hod: [_view, _view, _none, _none, _none, _none],
-    AppModules.transport: [_manage, _view, _view, _none, _manage, _none],
-    AppModules.communication: [_manage, _none, _none, _none, _none, _none],
-    AppModules.announcements: [_manage, _manage, _none, _none, _none, _none],
-    AppModules.payroll: [_manage, _none, _none, _none, _none, _manage],
-    AppModules.reports: [_view, _view, _none, _none, _view, _view],
+    AppModules.students: [_manage, _none, _view, _none, _none, _none, _none],
+    AppModules.staff: [_manage, _none, _none, _none, _none, _none, _none],
+    AppModules.academics: [_manage, _view, _view, _view, _view, _view, _none],
+    AppModules.attendance: [_manage, _none, _manage, _none, _none, _none, _none],
+    AppModules.staffAttendance: [_manage, _manage, _none, _none, _none, _none, _none],
+    AppModules.leave: [_manage, _manage, _manage, _manage, _manage, _manage, _manage],
+    AppModules.timetable: [_manage, _view, _view, _view, _view, _view, _none],
+    AppModules.teachingReports: [_manage, _manage, _manage, _none, _none, _none, _none],
+    AppModules.syllabus: [_manage, _manage, _manage, _none, _none, _none, _none],
+    AppModules.hod: [_view, _view, _none, _none, _none, _none, _none],
+    AppModules.transport: [_manage, _view, _view, _none, _manage, _none, _manage],
+    AppModules.communication: [_manage, _none, _none, _none, _none, _none, _none],
+    AppModules.announcements: [_manage, _manage, _none, _none, _none, _none, _none],
+    AppModules.payroll: [_manage, _none, _none, _none, _none, _manage, _none],
+    AppModules.reports: [_view, _view, _none, _none, _view, _view, _none],
   };
 }

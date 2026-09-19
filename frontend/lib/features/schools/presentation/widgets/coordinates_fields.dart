@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Latitude and longitude for a school, side by side.
+/// Latitude and longitude for a school (or a bus stop), side by side.
 ///
 /// Optional - most schools are onboarded without one - but the pair goes
 /// together: half a coordinate points nowhere, so the API refuses one without
 /// the other and these say so before the form is sent.
 class CoordinatesFields extends StatelessWidget {
-  const CoordinatesFields({super.key, required this.latitude, required this.longitude});
+  const CoordinatesFields({
+    super.key,
+    required this.latitude,
+    required this.longitude,
+    this.latitudeError,
+    this.longitudeError,
+  });
 
   final TextEditingController latitude;
   final TextEditingController longitude;
+
+  /// A message from the server about either box - e.g. a bus stop too far
+  /// from its school - shown under that box.
+  final String? latitudeError;
+  final String? longitudeError;
 
   /// A coordinate is a signed decimal; nothing else belongs in the box.
   static final _allowed = FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*'));
@@ -45,7 +56,12 @@ class CoordinatesFields extends StatelessWidget {
             controller: latitude,
             keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
             inputFormatters: [_allowed],
-            decoration: const InputDecoration(labelText: 'Latitude (optional)', hintText: '18.5204'),
+            decoration: InputDecoration(
+              labelText: 'Latitude (optional)',
+              hintText: '18.5204',
+              errorText: latitudeError,
+              errorMaxLines: 3,
+            ),
             validator: (value) => _validate(value, other: longitude, limit: 90, name: 'latitude'),
           ),
         ),
@@ -55,7 +71,12 @@ class CoordinatesFields extends StatelessWidget {
             controller: longitude,
             keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
             inputFormatters: [_allowed],
-            decoration: const InputDecoration(labelText: 'Longitude (optional)', hintText: '73.8567'),
+            decoration: InputDecoration(
+              labelText: 'Longitude (optional)',
+              hintText: '73.8567',
+              errorText: longitudeError,
+              errorMaxLines: 3,
+            ),
             validator: (value) => _validate(value, other: latitude, limit: 180, name: 'longitude'),
           ),
         ),

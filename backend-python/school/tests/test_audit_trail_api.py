@@ -39,6 +39,8 @@ NOT_RECORDED = {
     "TransportTripService.reach_stop", "TransportTripService.update_rider", "TransportTripService.record",
     # A reader's own inbox, and a delivery retry: nobody's data changes.
     "MessageService.retry", "MessageService.mark_read", "MessageService.mark_all_read",
+    # Retention housekeeping run by cron: old bus positions, nobody's change.
+    "TripLocationService.purge",
 }
 
 WRITES = ("objects.create(", ".save(", ".delete()", "update_or_create(", "get_or_create(", ").update(")

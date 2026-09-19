@@ -31,6 +31,10 @@ void main() {
                   path: '/students',
                   builder: (context, state) => const Scaffold(body: Text('The page behind')),
                 ),
+                GoRoute(
+                  path: '/profile',
+                  builder: (context, state) => const Scaffold(body: Text('The profile page')),
+                ),
               ],
             ),
           ],
@@ -199,6 +203,43 @@ void main() {
 
       expect(find.byType(AlertDialog), findsNothing);
       expect(fake.changedTo, isNull);
+    });
+  });
+
+  group('the profile chip', () {
+    testWidgets('shows the user with their initials when there is no photo', (tester) async {
+      await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
+
+      final chip = find.byKey(const Key('header-profile-chip'));
+      expect(find.descendant(of: chip, matching: find.text('Priya Sharma')), findsOneWidget);
+      expect(find.descendant(of: chip, matching: find.text('PS')), findsOneWidget);
+      expect(find.byTooltip('My profile'), findsOneWidget);
+    });
+
+    testWidgets('opens My Profile, titled as such without a sidebar entry', (tester) async {
+      await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
+
+      await tester.tap(find.byKey(const Key('header-profile-chip')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The profile page'), findsOneWidget);
+      expect(find.text('My Profile'), findsOneWidget);
+      expect(find.text('Your details, sign-in email and photo'), findsOneWidget);
+    });
+
+    testWidgets('on a phone the app bar carries the way to My Profile', (tester) async {
+      tester.view.physicalSize = const Size(400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(wrap(FakeAuthRepository(sessionOnRestore: _admin)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('header-profile-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The profile page'), findsOneWidget);
     });
   });
 }

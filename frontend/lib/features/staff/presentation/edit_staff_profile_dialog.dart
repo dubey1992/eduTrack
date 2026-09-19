@@ -8,6 +8,8 @@ import '../../departments/application/department_picker_provider.dart';
 import '../../departments/data/models/department.dart';
 import '../application/staff_list_notifier.dart';
 import '../data/models/staff_profile.dart';
+import 'attendant_sign_in_dialog.dart';
+import 'widgets/staff_email_text.dart';
 import '../../../core/utils/date_format.dart';
 
 class EditStaffProfileDialog extends ConsumerStatefulWidget {
@@ -96,6 +98,8 @@ class _EditStaffProfileDialogState extends ConsumerState<EditStaffProfileDialog>
                   Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                   const SizedBox(height: 12),
                 ],
+                _AccountSummary(profile: widget.profile),
+                const SizedBox(height: 10),
                 TextFormField(
                   controller: _employeeIdController,
                   decoration: const InputDecoration(labelText: 'Employee ID'),
@@ -172,6 +176,43 @@ class _DepartmentPicker extends ConsumerWidget {
           onChanged: onChanged,
         );
       },
+    );
+  }
+}
+
+/// The account half of the employee, read-only here: the email (or "No
+/// email"), and for a Bus Attendant the way into their sign-in panel.
+class _AccountSummary extends StatelessWidget {
+  const _AccountSummary({required this.profile});
+
+  final StaffProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.email_outlined, size: 18, color: muted),
+            const SizedBox(width: 8),
+            Expanded(child: StaffEmailText(profile: profile)),
+          ],
+        ),
+        if (profile.isBusAttendant) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => AttendantSignInDialog(profile: profile),
+            ),
+            icon: const Icon(Icons.phonelink_lock_outlined, size: 18),
+            label: const Text('Sign-in & phones'),
+          ),
+        ],
+      ],
     );
   }
 }

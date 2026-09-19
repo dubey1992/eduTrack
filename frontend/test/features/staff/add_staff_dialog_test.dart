@@ -106,6 +106,132 @@ void main() {
     expect(created.single.role, UserRole.accountant);
   });
 
+  group('a Bus Attendant', () {
+    Future<void> chooseAttendant(WidgetTester tester) async {
+      final roleField = find.widgetWithText(DropdownButtonFormField<UserRole>, 'Teacher');
+      await tester.ensureVisible(roleField);
+      await tester.pumpAndSettle();
+      await tester.tap(roleField);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bus Attendant').last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> fillNames(WidgetTester tester) async {
+      await tester.enterText(find.widgetWithText(TextFormField, 'First name'), 'Meera');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Last name'), 'Sharma');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Employee ID'), 'ATT-001');
+    }
+
+    testWidgets('has no password, an optional email and a required mobile', (tester) async {
+      final fake = FakeStaffRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _openDialog(tester);
+
+      expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
+      await chooseAttendant(tester);
+
+      expect(find.widgetWithText(TextFormField, 'Password'), findsNothing);
+      expect(find.textContaining('No password: a Bus Attendant signs in with this mobile number'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Email (optional)'), findsOneWidget);
+
+      await fillNames(tester);
+      final save = find.text('Save');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mobile is required'), findsOneWidget);
+      expect(find.text('Enter a valid email'), findsNothing);
+      expect(fake.lastCreate, isNull);
+    });
+
+    testWidgets('is created with the mobile and no email or password', (tester) async {
+      final fake = FakeStaffRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _openDialog(tester);
+
+      await chooseAttendant(tester);
+      await fillNames(tester);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mobile'), '9876543210');
+      final save = find.text('Save');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCreate!['role'], UserRole.busAttendant);
+      expect(fake.lastCreate!['email'], isNull);
+      expect(fake.lastCreate!['password'], isNull);
+      expect(fake.lastCreate!['mobile'], endsWith('9876543210'));
+      expect(find.byType(AddStaffDialog), findsNothing);
+      expect(find.textContaining('Bus Attendant added.'), findsOneWidget);
+    });
+
+    testWidgets('an email typed for them must still be a valid one', (tester) async {
+      final fake = FakeStaffRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _openDialog(tester);
+
+      await chooseAttendant(tester);
+      await fillNames(tester);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mobile'), '9876543210');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Email (optional)'), 'not-an-email');
+      final save = find.text('Save');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a valid email'), findsOneWidget);
+      expect(fake.lastCreate, isNull);
+    });
+
+    testWidgets('a mobile the server refuses is shown under the mobile field', (tester) async {
+      const message = 'Another Bus Attendant already signs in with this mobile number.';
+      final fake = FakeStaffRepository(
+        failCreateWith: const Failure(
+          code: 'VALIDATION_ERROR',
+          message: message,
+          details: {
+            'errors': {
+              'mobile': [message],
+            },
+          },
+        ),
+      );
+      await tester.pumpWidget(wrap(fake));
+      await _openDialog(tester);
+
+      await chooseAttendant(tester);
+      await fillNames(tester);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mobile'), '9876543210');
+      final save = find.text('Save');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      // Once, under the field - not repeated at the top of the form.
+      expect(find.text(message), findsOneWidget);
+      expect(find.byType(AddStaffDialog), findsOneWidget);
+    });
+  });
+
+  testWidgets('any other role still needs an email and a password', (tester) async {
+    final fake = FakeStaffRepository();
+    await tester.pumpWidget(wrap(fake));
+    await _openDialog(tester);
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'First name'), 'Ananya');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Last name'), 'Rao');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Employee ID'), 'STF-100');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Enter a valid email'), findsOneWidget);
+    expect(find.text('At least 8 characters'), findsOneWidget);
+    expect(find.text('Mobile (optional)'), findsOneWidget);
+    expect(fake.lastCreate, isNull);
+  });
+
   testWidgets('shows the failure message and keeps the dialog open when the repository throws', (tester) async {
     final fake = FakeStaffRepository(
       failCreateWith: const Failure(code: 'STAFF_CREATE_FAILED', message: 'Could not add the employee.'),

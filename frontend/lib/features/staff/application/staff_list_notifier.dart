@@ -96,12 +96,14 @@ class StaffListNotifier extends AsyncNotifier<PagedList<StaffProfile>> {
     await refresh();
   }
 
+  /// Email and password are left out for a Bus Attendant, who signs in with
+  /// a mobile number and passcode instead.
   Future<void> createEmployee({
     required String firstName,
     required String lastName,
-    required String email,
+    String? email,
     String? mobile,
-    required String password,
+    String? password,
     required UserRole role,
     int? schoolId,
     required String employeeId,

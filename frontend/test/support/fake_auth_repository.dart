@@ -26,8 +26,12 @@ class FakeAuthRepository implements AuthRepository {
 
   bool loggedOutCalled = false;
 
+  /// How many times the session was read - at start-up and on each refresh.
+  int restoreCalls = 0;
+
   @override
   Future<AuthenticatedUser?> restoreSession() async {
+    restoreCalls++;
     if (restoreGate != null) await restoreGate!.future;
     return sessionOnRestore;
   }

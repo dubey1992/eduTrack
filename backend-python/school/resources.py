@@ -440,6 +440,14 @@ def role_label(role: str) -> str:
     return "HOD" if role == UserRole.HOD else role.replace("_", " ").title()
 
 
+def has_email(user) -> bool:
+    """False for an attendant created without an address, who carries a
+    placeholder nobody can receive mail at (school/attendants.py)."""
+    from .attendants import is_placeholder_email
+
+    return not is_placeholder_email(user.email)
+
+
 def permissions_resource(viewer) -> dict:
     """The whole matrix, with what each name means, for the matrix screen."""
     return {
@@ -544,6 +552,8 @@ def transport_stop_resource(stop, students_count: int) -> dict:
         "sequence_number": stop.sequence_number,
         "pickup_time": stop.pickup_time.strftime("%H:%M") if stop.pickup_time else None,
         "drop_time": stop.drop_time.strftime("%H:%M") if stop.drop_time else None,
+        "latitude": None if stop.latitude is None else str(stop.latitude),
+        "longitude": None if stop.longitude is None else str(stop.longitude),
         "students_count": students_count,
     }
 
@@ -568,6 +578,8 @@ def transport_route_resource(route, stops=None) -> dict:
         "driver_id": route.driver_id,
         "driver_name": driver.name if driver else None,
         "driver_mobile": driver.mobile if driver else None,
+        "attendant_user_id": route.attendant_user_id,
+        "attendant_name": route.attendant_user.name if route.attendant_user_id else None,
         "stops_count": route.stops_count,
         "students_count": route.students_count,
     }
@@ -657,6 +669,8 @@ def transport_trip_resource(trip, riders_count=None, riders=None, events=None, s
             "sequence_number": stop.sequence_number,
             "pickup_time": stop.pickup_time.strftime("%H:%M") if stop.pickup_time else None,
             "drop_time": stop.drop_time.strftime("%H:%M") if stop.drop_time else None,
+            "latitude": None if stop.latitude is None else str(stop.latitude),
+            "longitude": None if stop.longitude is None else str(stop.longitude),
             "reached": stop.id in reached,
         }
         for stop in stops
@@ -730,6 +744,55 @@ def early_access_resource(request) -> dict:
     }
 
 
+def photo_url(user) -> str | None:
+    """Where the app fetches this person's photo, or None for initials.
+
+    Relative to the API's base, and carrying the stored file's name so a new
+    photo is a new address: whatever the app cached for the old one is not
+    shown for the new."""
+    if not user.photo_path:
+        return None
+
+    version = user.photo_path.rsplit("/", 1)[-1].split(".", 1)[0][:12]
+
+    return f"/users/{user.id}/photo?v={version}"
+
+
+def profile_resource(user) -> dict:
+    """The signed-in person's own profile: what they may change, and the
+    employment facts an admin keeps, shown but not editable."""
+    profile = user.staff_profile
+
+    return {
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "name": user.name,
+        # A Bus Attendant created without an address carries a placeholder
+        # that is never shown; they sign in with a passcode, not an email.
+        "email": user.email if has_email(user) else None,
+        "has_email": has_email(user),
+        "signs_in_with": "passcode" if user.role == UserRole.BUS_ATTENDANT else "email",
+        "mobile": user.mobile,
+        "role": user.role,
+        "role_label": role_label(user.role),
+        "school_name": user.school.name if user.school_id else None,
+        "photo_url": photo_url(user),
+        # Home address lives on the employment record; somebody without one
+        # (a Super Admin) has nothing to put it on.
+        "has_staff_record": profile is not None,
+        "address": profile.address if profile is not None else None,
+        "employment": None if profile is None else {
+            "employee_id": profile.employee_id,
+            "department_name": profile.department.name if profile.department_id else None,
+            "designation": profile.designation,
+            "joining_date": profile.joining_date.isoformat(),
+            "joining_date_label": profile.joining_date.strftime("%m/%d/%Y"),
+        },
+        "updated_at": timestamp(user.updated_at),
+    }
+
+
 def staff_profile_resource(profile, class_teacher_of=None) -> dict:
     """An employee: their employment record and the login behind it.
 
@@ -752,6 +815,8 @@ def staff_profile_resource(profile, class_teacher_of=None) -> dict:
         "role": user.role,
         "status": user.status,
         "locked_until": locked_until(user),
+        "photo_url": photo_url(user),
+        "has_email": has_email(user),
         "school_id": profile.school_id,
         "school_name": profile.school.name if profile.school_id else None,
         "department_id": profile.department_id,
@@ -1019,6 +1084,8 @@ def user_resource(user: User, viewer: User | None = None) -> dict:
         "status": user.status,
         "locked_until": locked_until(user),
         "school_id": user.school_id,
+        "photo_url": photo_url(user),
+        "has_email": has_email(user),
         # True for an account created by a bulk import, which was given a
         # generated password: the client keeps it on the change-password
         # screen until it chooses one of its own.
@@ -1149,3 +1216,37 @@ def route_label(route) -> str:
     vehicle = route.vehicle.name if route.vehicle_id else None
 
     return f"{vehicle} - {route.name}" if vehicle else route.name
+
+
+def attendant_device_resource(device) -> dict:
+    return {
+        "id": device.id,
+        "name": device.name,
+        "registered_at": timestamp(device.created_at),
+        "last_used_at": timestamp(device.last_used_at),
+        "revoked_at": timestamp(device.revoked_at),
+        "is_active": device.revoked_at is None,
+    }
+
+
+def attendant_access_resource(credential, devices) -> dict:
+    """An attendant's sign-in, for the admin screen - never the passcode or
+    the setup code, only whether they are set."""
+    from .fields import as_utc
+    from django.utils import timezone
+
+    pending = (
+        credential.setup_code is not None
+        and credential.setup_code_expires_at is not None
+        and as_utc(credential.setup_code_expires_at) > timezone.now()
+    )
+
+    return {
+        "login_mobile": credential.login_mobile,
+        "has_passcode": credential.passcode is not None,
+        "is_locked": credential.locked_at is not None,
+        "setup_code_pending": pending,
+        "setup_code_expires_at": timestamp(credential.setup_code_expires_at) if pending else None,
+        "devices": [attendant_device_resource(device) for device in devices],
+    }
+

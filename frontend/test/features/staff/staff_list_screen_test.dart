@@ -2,10 +2,12 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/core/widgets/status_badge.dart';
+import 'package:edutrack_app/core/widgets/user_avatar.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/departments/data/department_repository.dart';
 import 'package:edutrack_app/features/departments/data/models/department.dart';
+import 'package:edutrack_app/features/staff/data/attendant_access_repository.dart';
 import 'package:edutrack_app/features/staff/data/models/staff_profile.dart';
 import 'package:edutrack_app/features/staff/data/staff_repository.dart';
 import 'package:edutrack_app/features/staff/presentation/edit_staff_profile_dialog.dart';
@@ -16,6 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/attendant_fixtures.dart';
+import '../../support/fake_attendant_access_repository.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_department_repository.dart';
 import '../../support/fake_staff_repository.dart';
@@ -59,6 +63,7 @@ Widget wrap(FakeStaffRepository fake, {FakeUserRepository? userRepositoryFake}) 
   return ProviderScope(
     overrides: [
       staffRepositoryProvider.overrideWithValue(fake),
+      attendantAccessRepositoryProvider.overrideWithValue(FakeAttendantAccessRepository(access: setUpAccess)),
       departmentRepositoryProvider.overrideWithValue(FakeDepartmentRepository(departments: [_mathematicsDepartment])),
       userRepositoryProvider.overrideWithValue(userRepositoryFake ?? FakeUserRepository()),
       authRepositoryProvider.overrideWithValue(
@@ -105,6 +110,14 @@ void main() {
     expect(find.textContaining('Priya Sharma'), findsOneWidget);
     expect(find.textContaining('Mathematics'), findsOneWidget);
     expect(find.textContaining('Grade 8 A'), findsOneWidget);
+  });
+
+  testWidgets('each employee has an avatar: initials when there is no photo', (tester) async {
+    await tester.pumpWidget(wrap(FakeStaffRepository(staff: [_teacher])));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UserAvatar), findsOneWidget);
+    expect(find.text('PS'), findsOneWidget);
   });
 
   testWidgets('filtering by search hides non-matching employees', (tester) async {
@@ -329,5 +342,67 @@ void main() {
     await tester.pumpAndSettle();
 
     await expectLastRowScrollsAbovePagination(tester, find.text('Staff Member 20'));
+  });
+
+  group('Bus Attendants', () {
+    void useDesktop(WidgetTester tester) {
+      tester.view.physicalSize = const Size(1800, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
+    testWidgets('an attendant without an email shows "No email", never the placeholder (desktop)', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStaffRepository(staff: [_teacher, meeraAttendant])));
+      await tester.pumpAndSettle();
+
+      expect(find.text('priya.sharma@example.com'), findsOneWidget);
+      expect(find.text('No email'), findsOneWidget);
+      expect(find.textContaining('no-email.invalid'), findsNothing);
+    });
+
+    testWidgets('the mobile cards say "No email" too', (tester) async {
+      tester.view.physicalSize = const Size(400, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(wrap(FakeStaffRepository(staff: [_teacher, meeraAttendant])));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DataTable), findsNothing);
+      expect(find.text('priya.sharma@example.com'), findsOneWidget);
+      expect(find.text('No email'), findsOneWidget);
+      expect(find.textContaining('no-email.invalid'), findsNothing);
+    });
+
+    testWidgets('only an attendant\'s row has Sign-in, and it opens their sign-in panel', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStaffRepository(staff: [_teacher, meeraAttendant])));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextButton, 'Sign-in'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Sign-in'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sign-in · Meera Sharma'), findsOneWidget);
+      expect(find.text('Redmi Note 12'), findsOneWidget);
+    });
+
+    testWidgets('the role filter offers Bus Attendant and narrows the list to them', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStaffRepository(staff: [_teacher, meeraAttendant])));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(DropdownButtonFormField<UserRole?>, 'All Roles'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bus Attendant').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Meera Sharma'), findsOneWidget);
+      expect(find.text('Priya Sharma'), findsNothing);
+    });
   });
 }

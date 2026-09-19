@@ -16,7 +16,14 @@ import '../application/staff_list_notifier.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/school_picker.dart';
 
-const _staffRoles = [UserRole.teacher, UserRole.hod, UserRole.staff, UserRole.transportManager, UserRole.accountant];
+const _staffRoles = [
+  UserRole.teacher,
+  UserRole.hod,
+  UserRole.staff,
+  UserRole.transportManager,
+  UserRole.accountant,
+  UserRole.busAttendant,
+];
 
 class AddStaffDialog extends ConsumerStatefulWidget {
   const AddStaffDialog({super.key});
@@ -43,6 +50,14 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
 
   bool _isSubmitting = false;
   String? _errorMessage;
+  Map<String, List<String>> _fieldErrors = const {};
+
+  /// A Bus Attendant signs in with their mobile number and a passcode on a
+  /// registered phone, so the form asks for the mobile, makes the email
+  /// optional and has no password at all (docs/maps.md).
+  bool get _isAttendant => _role == UserRole.busAttendant;
+
+  String? _serverError(String field) => _fieldErrors[field]?.first;
 
   @override
   void initState() {
@@ -79,7 +94,10 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
+      _fieldErrors = const {};
     });
+
+    final email = _emailController.text.trim();
 
     try {
       await ref
@@ -87,9 +105,9 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
           .createEmployee(
             firstName: _firstNameController.text.trim(),
             lastName: _lastNameController.text.trim(),
-            email: _emailController.text.trim(),
+            email: email.isEmpty ? null : email,
             mobile: _mobileController.text.trim().isEmpty ? null : _mobileController.text.trim(),
-            password: _passwordController.text,
+            password: _isAttendant ? null : _passwordController.text,
             role: _role,
             schoolId: _schoolId,
             employeeId: _employeeIdController.text.trim(),
@@ -99,12 +117,28 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee added.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isAttendant
+                  ? 'Bus Attendant added. Open their Sign-in to issue a setup code for their phone.'
+                  : 'Employee added.',
+            ),
+          ),
+        );
         Navigator.of(context).pop();
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _errorMessage = failure.message);
+      if (mounted) {
+        setState(() {
+          _fieldErrors = failure.validationErrors;
+          // A message that belongs to a field is shown under that field;
+          // anything else goes at the top of the form.
+          final shownByField = _serverError('mobile') != null || _serverError('email') != null;
+          _errorMessage = shownByField ? null : failure.message;
+        });
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -197,16 +231,31 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
                   decoration: const InputDecoration(labelText: 'Designation (optional, e.g. Office Staff)'),
                 ),
                 const SizedBox(height: 10),
-                PhoneNumberField(controller: _mobileController, label: 'Mobile (optional)'),
+                PhoneNumberField(
+                  controller: _mobileController,
+                  label: _isAttendant ? 'Mobile' : 'Mobile (optional)',
+                  required: _isAttendant,
+                ),
+                if (_serverError('mobile') != null) _FieldError(_serverError('mobile')!),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+                  decoration: InputDecoration(
+                    labelText: _isAttendant ? 'Email (optional)' : 'Email',
+                    errorText: _serverError('email'),
+                  ),
+                  validator: (v) {
+                    final value = v?.trim() ?? '';
+                    if (_isAttendant && value.isEmpty) return null;
+                    return value.contains('@') ? null : 'Enter a valid email';
+                  },
                 ),
                 const SizedBox(height: 10),
-                PasswordField(controller: _passwordController, helperText: newPasswordHint),
+                if (_isAttendant)
+                  const _AttendantSignInNote()
+                else
+                  PasswordField(controller: _passwordController, helperText: newPasswordHint),
                 const SizedBox(height: 10),
                 InkWell(
                   onTap: _pickJoiningDate,
@@ -267,6 +316,48 @@ class _DepartmentPicker extends ConsumerWidget {
           onChanged: onChanged,
         );
       },
+    );
+  }
+}
+
+/// A server-side validation message under a field that cannot carry an
+/// errorText of its own (the composite phone field).
+class _FieldError extends StatelessWidget {
+  const _FieldError(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, left: 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(message, style: TextStyle(color: context.appColors.danger, fontSize: 12)),
+      ),
+    );
+  }
+}
+
+/// Stands where the password field would be, saying why there is none.
+class _AttendantSignInNote extends StatelessWidget {
+  const _AttendantSignInNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.info_outline, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'No password: a Bus Attendant signs in with this mobile number and a 4-digit passcode on a '
+            'registered phone. After saving, open their Sign-in to issue a setup code.',
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ],
     );
   }
 }

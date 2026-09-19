@@ -117,7 +117,7 @@ class _UserListMobile extends StatelessWidget {
                   _StatusBadge(user: user),
                 ],
               ),
-              subtitle: Text('${user.email}\n${user.displayRoleLabel}'),
+              subtitle: Text('${user.hasEmail ? user.email : 'No email'}\n${user.displayRoleLabel}'),
               isThreeLine: true,
               trailing: _UserActions(user: user),
             ),
@@ -153,7 +153,7 @@ class _UserListDesktop extends StatelessWidget {
                 DataRow(
                   cells: [
                     DataCell(Text(user.name)),
-                    DataCell(Text(user.email)),
+                    DataCell(Text(user.hasEmail ? user.email : 'No email')),
                     DataCell(Text(user.mobile ?? '-')),
                     DataCell(Text(user.displayRoleLabel)),
                     DataCell(_StatusBadge(user: user)),

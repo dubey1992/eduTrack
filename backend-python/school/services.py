@@ -8,6 +8,7 @@ rather than about the web, and can be tested without one.
 from __future__ import annotations
 
 import datetime as dt
+import secrets
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
@@ -15,8 +16,10 @@ from django.db.models import Count, F, Min, Q, Sum
 from django.utils import timezone
 
 from . import (
+    attendants,
     audit,
     crypto,
+    photos,
     hashing,
     jobs,
     mailer,
@@ -59,7 +62,15 @@ from .enums import (
     UserStatus,
 )
 from .errors import (
+    ApiError,
+    DeviceNotRegistered,
     GatewayTestFailed,
+    KeptBySchoolOffice,
+    NotAnAttendant,
+    PasscodeLocked,
+    UsePasscodeSignIn,
+    WrongPasscode,
+    NoStaffRecord,
     SettingRefused,
     AccountInactive,
     AccountLocked,
@@ -81,7 +92,10 @@ from .errors import (
     Unauthenticated,
 )
 from .models import (
+    AttendantCredential,
+    AttendantDevice,
     MailSetting,
+    TransportTripLocation,
     ModuleSetting,
     RolePermission,
     WhatsappTemplate,
@@ -163,6 +177,9 @@ class AuthService:
         if not user.is_active():
             raise AccountInactive()
 
+        if user.role == UserRole.BUS_ATTENDANT:
+            raise UsePasscodeSignIn()
+
         User.objects.filter(pk=user.pk).update(failed_login_attempts=0, locked_until=None)
         token = tokens.issue(user, device)
         cls._record(user, "user.signed_in", {"device": tokens.describe_device(device)})
@@ -208,6 +225,7 @@ class AuthService:
     def unlock(cls, user: User) -> None:
         """An administrator lets a locked-out user try again straight away."""
         User.objects.filter(pk=user.pk).update(failed_login_attempts=0, locked_until=None)
+        AttendantCredential.objects.filter(user_id=user.pk).update(failed_attempts=0, locked_at=None)
         audit.record(action="user.unlocked", module=cls.MODULE, entity_type="user", entity_id=user.id,
                      school_id=user.school_id)
 
@@ -2616,7 +2634,7 @@ class DriverService(FleetService):
 class TransportRouteService:
     @staticmethod
     def with_counts(routes):
-        return routes.select_related("school", "vehicle", "driver").annotate(
+        return routes.select_related("school", "vehicle", "driver", "attendant_user").annotate(
             stops_count=Count("transportstop", distinct=True),
             students_count=Count("studenttransportassignment", distinct=True),
         )
@@ -2809,6 +2827,9 @@ class TransportTripService:
             filters.get("school_id"),
         )
 
+        if actor.role == UserRole.BUS_ATTENDANT:
+            trips = trips.filter(route__attendant_user_id=actor.id)
+
         for field, column in (("route_id", "route_id"), ("date", "trip_date"), ("status", "status")):
             if filters.get(field):
                 trips = trips.filter(**{column: filters[field]})
@@ -2912,7 +2933,7 @@ class TransportTripService:
             raise TripRule.not_in_progress()
 
     @classmethod
-    def reach_stop(cls, trip, stop, actor: User) -> None:
+    def reach_stop(cls, trip, stop, actor: User, occurred_at=None, client_id=None) -> None:
         cls.assert_in_progress(trip)
 
         with transaction.atomic():
@@ -2922,10 +2943,10 @@ class TransportTripService:
             trip.updated_at = timezone.now()
             trip.save(update_fields=["current_stop", "updated_at"])
 
-            cls.record(trip, TripEventType.STOP_REACHED, actor, stop=stop)
+            cls.record(trip, TripEventType.STOP_REACHED, actor, stop=stop, at=occurred_at, client_id=client_id)
 
     @classmethod
-    def update_rider(cls, trip, student, status: str, actor: User) -> None:
+    def update_rider(cls, trip, student, status: str, actor: User, occurred_at=None, client_id=None) -> None:
         cls.assert_in_progress(trip)
 
         rider = TransportTripRider.objects.get(trip_id=trip.pk, student_id=student.pk)
@@ -2944,19 +2965,22 @@ class TransportTripService:
                 raise TripRule.invalid_rider_change(rider.status, status)
 
             now = timezone.now()
+            # When it happened on the bus - which, for a mark made without
+            # signal, is earlier than when it reached us.
+            happened = occurred_at or now
             rider.status = status
-            rider.boarded_at = now if status == TripRiderStatus.BOARDED else rider.boarded_at
-            rider.dropped_at = now if status == TripRiderStatus.DROPPED else rider.dropped_at
+            rider.boarded_at = happened if status == TripRiderStatus.BOARDED else rider.boarded_at
+            rider.dropped_at = happened if status == TripRiderStatus.DROPPED else rider.dropped_at
             rider.updated_at = now
             rider.save(update_fields=["status", "boarded_at", "dropped_at", "updated_at"])
 
             current_stop = TransportStop.objects.filter(pk=trip.current_stop_id).first() if trip.current_stop_id else None
-            cls.record(trip, status, actor, stop=current_stop, student=student)
+            cls.record(trip, status, actor, stop=current_stop, student=student, at=happened, client_id=client_id)
 
-            cls.alert_guardian(trip, rider, status, student, actor)
+            cls.alert_guardian(trip, rider, status, student, actor, happened)
 
     @staticmethod
-    def alert_guardian(trip, rider, status: str, student, actor: User) -> None:
+    def alert_guardian(trip, rider, status: str, student, actor: User, happened=None) -> None:
         event = {
             TripRiderStatus.BOARDED: MessageEvent.TRANSPORT_BOARDED,
             TripRiderStatus.DROPPED: MessageEvent.TRANSPORT_DROPPED,
@@ -2967,8 +2991,10 @@ class TransportTripService:
             event,
             student,
             {
-                # The moment it happened, on the school's clock.
-                "time": SchoolClock.for_school(trip.school_id).format(timezone.now(), TIME),
+                # The moment it happened, on the school's clock - the phone's
+                # time for a mark sent late, so a delayed alert still says
+                # when the child actually boarded.
+                "time": SchoolClock.for_school(trip.school_id).format(happened or timezone.now(), TIME),
                 "stop_name": rider.stop_name,
                 "vehicle_name": trip.vehicle.name,
                 "route_name": trip.route.name,
@@ -2979,7 +3005,7 @@ class TransportTripService:
         )
 
     @classmethod
-    def end(cls, trip, actor: User) -> None:
+    def end(cls, trip, actor: User, occurred_at=None, client_id=None) -> None:
         before = audit.fields_of(trip)
 
         cls.assert_in_progress(trip)
@@ -2996,13 +3022,13 @@ class TransportTripService:
             ).update(status=TripRiderStatus.ABSENT, updated_at=now)
 
             trip.status = TripStatus.COMPLETED
-            trip.ended_at = now
+            trip.ended_at = occurred_at or now
             trip.updated_at = now
             trip.save(update_fields=["status", "ended_at", "updated_at"])
             audit.updated("transport", trip, before, action="transport_trip.completed")
 
             note = f"Trip completed; {marked_absent} marked absent" if marked_absent > 0 else "Trip completed"
-            cls.record(trip, TripEventType.COMPLETED, actor, note=note)
+            cls.record(trip, TripEventType.COMPLETED, actor, note=note, at=occurred_at, client_id=client_id)
 
     @classmethod
     def cancel(cls, trip, actor: User) -> None:
@@ -3034,14 +3060,16 @@ class TransportTripService:
             raise TripRule.riders_on_board(on_board)
 
     @staticmethod
-    def record(trip, event_type: str, actor: User, stop=None, student=None, note=None) -> None:
+    def record(trip, event_type: str, actor: User, stop=None, student=None, note=None, at=None, client_id=None) -> None:
         now = timezone.now()
 
         TransportTripEvent.objects.create(
             school_id=trip.school_id, trip_id=trip.pk, type=event_type,
             stop_id=stop.pk if stop else None, stop_name=stop.name if stop else None,
             student_id=student.pk if student else None, student_name=student.name if student else None,
-            recorded_by_id=actor.id, recorded_at=now, note=note, created_at=now, updated_at=now,
+            # When it happened on the bus; created_at keeps when it arrived.
+            recorded_by_id=actor.id, recorded_at=at or now, note=note, client_id=client_id,
+            created_at=now, updated_at=now,
         )
 
 
@@ -3940,12 +3968,16 @@ class UserService:
 
         now = timezone.now()
 
+        # A Bus Attendant signs in with a passcode, never a password, so theirs
+        # is a long random one nobody knows.
+        password = data.get("password") or secrets.token_urlsafe(32)
+
         user = User.objects.create(
             first_name=data["first_name"],
             last_name=data["last_name"],
             email=data["email"],
             mobile=data.get("mobile"),
-            password=hashing.make(data["password"]),
+            password=hashing.make(password),
             role=data["role"],
             school_id=school_id,
             is_sub_admin=is_sub_admin,
@@ -3956,6 +3988,12 @@ class UserService:
             created_at=now,
             updated_at=now,
         )
+
+        if user.role == UserRole.BUS_ATTENDANT:
+            AttendantCredential.objects.create(
+                user_id=user.id, school_id=user.school_id, login_mobile=attendants.login_mobile(user.mobile),
+                failed_attempts=0, created_at=now, updated_at=now,
+            )
 
         # A School or Sub Admin otherwise has no StaffProfile at all, which
         # blocks them from the self-service actions that key off one - Staff
@@ -3990,6 +4028,11 @@ class UserService:
 
         user.updated_at = timezone.now()
         user.save()
+
+        if user.role == UserRole.BUS_ATTENDANT and "mobile" in data:
+            AttendantCredential.objects.filter(user_id=user.pk).update(
+                login_mobile=attendants.login_mobile(user.mobile), updated_at=user.updated_at
+            )
 
         # A new password, a new role or a new sign-in address ends every
         # session: whoever held the old ones was signed in as somebody the
@@ -4257,3 +4300,493 @@ class RolePermissionService:
                     old={"role": role, "module": module, "level": level},
                     new={"role": role, "module": module, "level": permissions.DEFAULTS[role][module]},
                 )
+
+
+class ProfileService:
+    """A person changing their own details (docs/profile.md). Every method
+    acts on the account it is given and nothing else - the views pass the
+    signed-in user, never an id from the request."""
+
+    USER_FIELDS = ("first_name", "last_name", "mobile")
+
+    @classmethod
+    def update(cls, user: User, data: dict) -> User:
+        profile = user.staff_profile
+
+        if "address" in data and profile is None:
+            raise NoStaffRecord("A home address is kept on a staff record, and this account has none.")
+
+        if "mobile" in data and user.role == UserRole.BUS_ATTENDANT and data["mobile"] != user.mobile:
+            raise KeptBySchoolOffice(
+                "Your mobile number is how you sign in, so only your school office can change it."
+            )
+
+        now = timezone.now()
+
+        with transaction.atomic():
+            user_changes = {field: data[field] for field in cls.USER_FIELDS if field in data}
+
+            if user_changes:
+                before = audit.fields_of(user)
+
+                for field, value in user_changes.items():
+                    setattr(user, field, value)
+
+                user.updated_at = now
+                user.save(update_fields=[*user_changes, "updated_at"])
+                audit.updated("users", user, before, action="profile.updated")
+
+            if "address" in data:
+                before = audit.fields_of(profile)
+                profile.address = data["address"]
+                profile.updated_at = now
+                profile.save(update_fields=["address", "updated_at"])
+                audit.updated("staff", profile, before, action="profile.updated")
+
+        return User.objects.select_related("school").get(pk=user.pk)
+
+    @staticmethod
+    def change_email(user: User, email: str, current_token) -> User:
+        """A new sign-in address. Every other session ends - whoever held one
+        was signed in under the old address - and the old address is told,
+        so a change nobody asked for does not go unnoticed."""
+        old = user.email
+        now = timezone.now()
+
+        with transaction.atomic():
+            User.objects.filter(pk=user.pk).update(email=email, email_verified_at=None, updated_at=now)
+            ended = tokens.revoke_all(user, keep=current_token)
+
+            # Written inside the transaction: the notice is queued if and only
+            # if the change was committed.
+            queue.push(jobs.EMAIL_CHANGED_NOTICE, {"user_id": user.id, "old_email": old})
+
+            audit.record(
+                action="user.email_changed", module="users", entity_type="user", entity_id=user.id,
+                school_id=user.school_id, old={"email": old}, new={"email": email, "other_sessions_ended": ended},
+            )
+
+        return User.objects.select_related("school").get(pk=user.pk)
+
+    @staticmethod
+    def set_photo(user: User, data: bytes, extension: str) -> User:
+        """Stores the new photo, points the account at it, and only then
+        removes the old file - so a failure part-way never leaves the
+        account pointing at nothing."""
+        old = user.photo_path
+        path = photos.store(data, extension)
+
+        try:
+            with transaction.atomic():
+                User.objects.filter(pk=user.pk).update(photo_path=path, updated_at=timezone.now())
+                audit.record(
+                    action="profile.photo_changed", module="users", entity_type="user", entity_id=user.id,
+                    school_id=user.school_id, new={"had_photo": old is not None},
+                )
+        except Exception:
+            photos.remove(path)
+            raise
+
+        photos.remove(old)
+
+        return User.objects.select_related("school").get(pk=user.pk)
+
+    @staticmethod
+    def remove_photo(user: User) -> User:
+        old = user.photo_path
+
+        if old is None:
+            return user
+
+        with transaction.atomic():
+            User.objects.filter(pk=user.pk).update(photo_path=None, updated_at=timezone.now())
+            audit.record(
+                action="profile.photo_removed", module="users", entity_type="user", entity_id=user.id,
+                school_id=user.school_id,
+            )
+
+        photos.remove(old)
+
+        return User.objects.select_related("school").get(pk=user.pk)
+
+
+class AttendantService:
+    """How a Bus Attendant signs in, and how an administrator looks after it
+    (school/attendants.py has the rules; docs/maps.md the reasons).
+
+    Everything a sign-in attempt does is written before any error is raised,
+    so a wrong guess is counted whatever happens next.
+    """
+
+    MODULE = "auth"
+
+    @staticmethod
+    def credential_of(profile) -> AttendantCredential:
+        credential = AttendantCredential.objects.filter(user_id=profile.user_id).first()
+
+        if profile.user.role != UserRole.BUS_ATTENDANT or credential is None:
+            raise NotAnAttendant("Only a Bus Attendant signs in with a setup code and passcode.")
+
+        return credential
+
+    @classmethod
+    def issue_setup_code(cls, profile, actor: User) -> tuple[str, dt.datetime]:
+        """A fresh one-time code, replacing any earlier one. Shown to the
+        administrator once and never stored in clear."""
+        credential = cls.credential_of(profile)
+
+        if not profile.user.is_active():
+            raise NotAnAttendant("This account is switched off. Switch it on before issuing a setup code.")
+
+        code = attendants.new_setup_code()
+        expires = timezone.now() + dt.timedelta(hours=attendants.SETUP_CODE_HOURS)
+
+        AttendantCredential.objects.filter(pk=credential.pk).update(
+            setup_code=hashing.make(code), setup_code_expires_at=expires, setup_code_issued_by_id=actor.id,
+            updated_at=timezone.now(),
+        )
+        audit.record(action="attendant.setup_code_issued", module="staff", entity_type="user",
+                     entity_id=profile.user_id, school_id=profile.school_id, new={"expires_at": expires})
+
+        return code, expires
+
+    @staticmethod
+    def devices_of(profile):
+        return AttendantDevice.objects.filter(user_id=profile.user_id).order_by("-created_at", "-id")
+
+    @staticmethod
+    def revoke_device(profile, device) -> None:
+        """A lost or replaced phone. Every session the attendant has ends too:
+        a token cannot say which phone it was issued to, and signing in again
+        on the phone they still have takes a passcode."""
+        now = timezone.now()
+
+        with transaction.atomic():
+            AttendantDevice.objects.filter(pk=device.pk).update(revoked_at=now, updated_at=now)
+            ended = tokens.revoke_all(profile.user)
+            audit.record(action="attendant.device_revoked", module="staff", entity_type="user",
+                         entity_id=profile.user_id, school_id=profile.school_id,
+                         new={"device": device.name, "sessions_ended": ended})
+
+    @classmethod
+    def credential_for_mobile(cls, mobile: str):
+        return (
+            AttendantCredential.objects.select_related("user__school")
+            .filter(login_mobile=attendants.login_mobile(mobile))
+            .first()
+        )
+
+    @classmethod
+    def assert_not_locked(cls, credential) -> None:
+        if credential.locked_at is not None:
+            raise PasscodeLocked()
+
+    @classmethod
+    def count_failure(cls, credential) -> int:
+        """One more wrong guess; the account locks at the limit. An UPDATE ...
+        + 1, so two guesses at once cannot both read four and both write five."""
+        AttendantCredential.objects.filter(pk=credential.pk).update(failed_attempts=F("failed_attempts") + 1)
+        attempts = AttendantCredential.objects.values_list("failed_attempts", flat=True).get(pk=credential.pk)
+        user = credential.user
+
+        audit.record(actor=user, action="user.sign_in_failed", module=cls.MODULE, entity_type="user",
+                     entity_id=user.id, school_id=user.school_id, new={"attempts": attempts, "method": "passcode"})
+
+        if attempts >= attendants.MAX_ATTEMPTS:
+            AttendantCredential.objects.filter(pk=credential.pk).update(locked_at=timezone.now())
+            audit.record(actor=user, action="user.locked", module=cls.MODULE, entity_type="user",
+                         entity_id=user.id, school_id=user.school_id, new={"attempts": attempts, "method": "passcode"})
+
+        return attempts
+
+    @classmethod
+    def setup(cls, mobile: str, setup_code: str, passcode: str, device_name: str | None, user_agent: str | None):
+        """Registers this phone with the setup code and sets the passcode.
+        Returns (user, token, device secret) - the secret, once."""
+        credential = cls.credential_for_mobile(mobile)
+
+        if credential is None:
+            # Checked against a hash of nothing, so an unknown number does
+            # not answer measurably faster than a wrong code.
+            hashing.check(setup_code, hashing.NO_SUCH_ACCOUNT)
+            raise DeviceNotRegistered()
+
+        cls.assert_not_locked(credential)
+
+        fresh = credential.setup_code and credential.setup_code_expires_at and as_utc(credential.setup_code_expires_at) > timezone.now()
+
+        if not fresh or not hashing.check(setup_code, credential.setup_code):
+            cls.count_failure(credential)
+            raise WrongPasscode("That setup code is wrong or has expired. Ask your school office for a new one.")
+
+        user = credential.user
+
+        if not user.is_active():
+            raise AccountInactive()
+
+        secret = attendants.new_device_secret()
+        now = timezone.now()
+        name = (device_name or tokens.describe_device(user_agent) or "A phone")[:120]
+
+        with transaction.atomic():
+            AttendantCredential.objects.filter(pk=credential.pk).update(
+                passcode=hashing.make(passcode), setup_code=None, setup_code_expires_at=None,
+                failed_attempts=0, updated_at=now,
+            )
+            AttendantDevice.objects.create(
+                user_id=user.id, name=name, secret=attendants.device_digest(secret), last_used_at=now,
+                created_at=now, updated_at=now,
+            )
+            audit.record(actor=user, action="attendant.device_registered", module=cls.MODULE, entity_type="user",
+                         entity_id=user.id, school_id=user.school_id, new={"device": name})
+            token = tokens.issue(user, user_agent)
+
+        return user, token, secret
+
+    @classmethod
+    def login(cls, mobile: str, passcode: str, device_secret: str, user_agent: str | None):
+        credential = cls.credential_for_mobile(mobile)
+        device = (
+            AttendantDevice.objects.filter(secret=attendants.device_digest(device_secret), revoked_at__isnull=True).first()
+            if credential is not None else None
+        )
+
+        # An unknown number and a phone not registered to it are one answer.
+        # The passcode is not checked at all without a registered device, so
+        # guessing it from anywhere else teaches nothing.
+        if credential is None or device is None or device.user_id != credential.user_id:
+            raise DeviceNotRegistered()
+
+        cls.assert_not_locked(credential)
+
+        if not credential.passcode or not hashing.check(passcode, credential.passcode):
+            attempts = cls.count_failure(credential)
+            left = attendants.MAX_ATTEMPTS - attempts
+
+            if left <= 0:
+                raise PasscodeLocked()
+
+            raise WrongPasscode(f"Wrong passcode. {left} {'try' if left == 1 else 'tries'} left.")
+
+        user = credential.user
+
+        if not user.is_active():
+            raise AccountInactive()
+
+        now = timezone.now()
+        AttendantCredential.objects.filter(pk=credential.pk).update(failed_attempts=0, updated_at=now)
+        AttendantDevice.objects.filter(pk=device.pk).update(last_used_at=now, updated_at=now)
+        token = tokens.issue(user, user_agent)
+        audit.record(actor=user, action="user.signed_in", module=cls.MODULE, entity_type="user",
+                     entity_id=user.id, school_id=user.school_id, new={"device": device.name, "method": "passcode"})
+
+        return user, token
+
+
+class TripSyncService:
+    """Marks an attendant made on the bus, sent in a batch - often long after
+    they were made, when signal came back (docs/maps.md, "Offline").
+
+    Each mark carries an id the phone made and the time it happened. The id
+    makes a resend harmless: a mark that already arrived is reported as a
+    duplicate and not recorded again. Each mark gets its own answer - applied,
+    duplicate or rejected with a reason the phone shows - and one mark that
+    can no longer be applied does not stop the rest.
+    """
+
+    # A phone clock a little fast is normal; one an hour ahead is not.
+    FUTURE_SLACK = dt.timedelta(minutes=5)
+    MAX_AGE = dt.timedelta(hours=12)
+
+    @classmethod
+    def sync(cls, trip, operations: list[dict], actor: User) -> list[dict]:
+        return [cls.apply(trip, op, actor) for op in operations]
+
+    @classmethod
+    def apply(cls, trip, op: dict, actor: User) -> dict:
+        answer = {"client_id": op["client_id"], "type": op["type"]}
+
+        if TransportTripEvent.objects.filter(trip_id=trip.pk, client_id=op["client_id"]).exists():
+            return {**answer, "status": "duplicate"}
+
+        trip = TransportTrip.objects.select_related("route", "vehicle").get(pk=trip.pk)
+        problem = cls.problem_with(trip, op)
+
+        if problem:
+            return {**answer, "status": "rejected", "reason": problem}
+
+        try:
+            with transaction.atomic():
+                cls.perform(trip, op, actor)
+        except ApiError as refused:
+            return {**answer, "status": "rejected", "reason": refused.message}
+
+        return {**answer, "status": "applied"}
+
+    @classmethod
+    def problem_with(cls, trip, op: dict) -> str | None:
+        now = timezone.now()
+        happened = op["occurred_at"]
+
+        if happened > now + cls.FUTURE_SLACK:
+            return "The phone's clock is ahead of the school's; check its date and time."
+
+        if happened < now - cls.MAX_AGE:
+            return "This mark is more than 12 hours old and was not recorded."
+
+        if trip.status != TripStatus.IN_PROGRESS:
+            return "The trip had already ended, so this mark was not recorded."
+
+        if happened < as_utc(trip.started_at) - dt.timedelta(minutes=1):
+            return "This mark is from before the trip started."
+
+        if op["stop_id"] is not None and not TransportStop.objects.filter(pk=op["stop_id"], route_id=trip.route_id).exists():
+            return "That stop is not on this trip's route."
+
+        if op["student_id"] is not None:
+            rider = TransportTripRider.objects.filter(trip_id=trip.pk, student_id=op["student_id"]).first()
+
+            if rider is None:
+                return "That student is not on this trip."
+
+            status = {"boarded": TripRiderStatus.BOARDED, "dropped": TripRiderStatus.DROPPED,
+                      "absent": TripRiderStatus.ABSENT}.get(op["type"])
+
+            if status is not None and rider.status != status and not TripRiderStatus.can_become(rider.status, status):
+                return f"Already marked {rider.status}; it cannot be changed to {status}."
+
+        return None
+
+    @staticmethod
+    def perform(trip, op: dict, actor: User) -> None:
+        kind = op["type"]
+        at = op["occurred_at"]
+        client_id = op["client_id"]
+        service = TransportTripService
+
+        if kind == "stop_reached":
+            service.reach_stop(trip, TransportStop.objects.get(pk=op["stop_id"]), actor, at, client_id)
+        elif kind in ("boarded", "dropped", "absent"):
+            student = Student.objects.get(pk=op["student_id"])
+            rider = TransportTripRider.objects.get(trip_id=trip.pk, student_id=student.pk)
+
+            # The office may already have marked the same thing - that is the
+            # outcome the attendant wanted, recorded once.
+            if rider.status == kind:
+                service.record(trip, TripEventType(kind), actor, student=student, at=at, client_id=client_id,
+                               note="Already marked by the office")
+                return
+
+            service.update_rider(trip, student, kind, actor, at, client_id)
+        elif kind == "guardian_called":
+            student = Student.objects.get(pk=op["student_id"])
+            service.record(trip, TripEventType.GUARDIAN_CALLED, actor, student=student, at=at, client_id=client_id,
+                           note=f"Called {student.guardian_name}")
+            audit.record(action="transport_trip.guardian_called", module="transport", entity_type="transport_trip",
+                         entity_id=trip.pk, school_id=trip.school_id, new={"student_id": student.pk})
+        elif kind == "end":
+            service.end(trip, actor, at, client_id)
+
+
+class TripLocationService:
+    """Where the bus is: positions from the phone of whoever runs the trip,
+    while it is in progress (docs/maps.md, M3). No map provider involved."""
+
+    MAX_ACCURACY_M = 100
+    KEEP_DAYS = 30
+    STALE_AFTER = dt.timedelta(minutes=2)
+
+    @classmethod
+    def record(cls, trip, points: list[dict], actor: User) -> dict:
+        """Stores the points that make sense and counts the rest. A point is
+        refused for poor accuracy, a clock in the future, or a time outside
+        the trip - never the whole batch for one bad point."""
+        if trip.status != TripStatus.IN_PROGRESS:
+            raise TripRule.not_in_progress()
+
+        now = timezone.now()
+        started = as_utc(trip.started_at) - dt.timedelta(minutes=1)
+        first_from_this_person = not TransportTripLocation.objects.filter(trip_id=trip.pk, recorded_by_id=actor.id).exists()
+        kept = []
+        refused = 0
+
+        for point in points:
+            accurate = point["accuracy_m"] is None or point["accuracy_m"] <= cls.MAX_ACCURACY_M
+            timely = started <= point["recorded_at"] <= now + dt.timedelta(minutes=2)
+
+            if not (accurate and timely):
+                refused += 1
+                continue
+
+            kept.append(TransportTripLocation(
+                school_id=trip.school_id, trip_id=trip.pk, recorded_by_id=actor.id, created_at=now, updated_at=now,
+                **point,
+            ))
+
+        TransportTripLocation.objects.bulk_create(kept)
+
+        # Recorded once per person per trip - that sharing began - never each
+        # point, which would bury the audit trail.
+        if kept and first_from_this_person:
+            audit.record(action="transport_trip.location_shared", module="transport", entity_type="transport_trip",
+                         entity_id=trip.pk, school_id=trip.school_id)
+
+        return {"accepted": len(kept), "refused": refused}
+
+    @classmethod
+    def live(cls, trip) -> dict:
+        """The latest position, how old it is, and the next stop with how far
+        away it is in a straight line. Road distances and times need the map
+        provider's route data, which comes with the maps work."""
+        from . import geo
+
+        latest = TransportTripLocation.objects.filter(trip_id=trip.pk).order_by("-recorded_at", "-id").first()
+        reached = set(
+            TransportTripEvent.objects.filter(trip_id=trip.pk, type=TripEventType.STOP_REACHED)
+            .values_list("stop_id", flat=True)
+        )
+        next_stop = (
+            TransportStop.objects.filter(route_id=trip.route_id).exclude(pk__in=reached).order_by("sequence_number").first()
+            if trip.status == TripStatus.IN_PROGRESS else None
+        )
+        now = timezone.now()
+
+        position = None
+
+        if latest is not None:
+            age = (now - as_utc(latest.recorded_at)).total_seconds()
+            position = {
+                "latitude": str(latest.latitude),
+                "longitude": str(latest.longitude),
+                "accuracy_m": None if latest.accuracy_m is None else float(latest.accuracy_m),
+                "speed_mps": None if latest.speed_mps is None else float(latest.speed_mps),
+                "heading": None if latest.heading is None else float(latest.heading),
+                "recorded_at": latest.recorded_at,
+                "age_seconds": int(age),
+                "is_stale": age > cls.STALE_AFTER.total_seconds(),
+            }
+
+        stop = None
+
+        if next_stop is not None:
+            distance = None
+
+            if latest is not None and next_stop.latitude is not None:
+                distance = round(geo.distance_m(latest.latitude, latest.longitude, next_stop.latitude, next_stop.longitude))
+
+            stop = {
+                "id": next_stop.pk, "name": next_stop.name, "sequence_number": next_stop.sequence_number,
+                "latitude": None if next_stop.latitude is None else str(next_stop.latitude),
+                "longitude": None if next_stop.longitude is None else str(next_stop.longitude),
+                "straight_line_distance_m": distance,
+            }
+
+        return {"trip_id": trip.pk, "status": trip.status, "position": position, "next_stop": stop}
+
+    @classmethod
+    def purge(cls, days: int | None = None) -> int:
+        """Positions older than the retention period go. Run daily by cron."""
+        cutoff = timezone.now() - dt.timedelta(days=days or cls.KEEP_DAYS)
+        deleted, _ = TransportTripLocation.objects.filter(recorded_at__lt=cutoff).delete()
+
+        return deleted

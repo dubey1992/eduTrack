@@ -1,8 +1,11 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/features/auth/data/auth_repository.dart';
+import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/departments/data/department_repository.dart';
 import 'package:edutrack_app/features/departments/data/models/department.dart';
+import 'package:edutrack_app/features/staff/data/attendant_access_repository.dart';
 import 'package:edutrack_app/features/staff/data/models/staff_profile.dart';
 import 'package:edutrack_app/features/staff/data/staff_repository.dart';
 import 'package:edutrack_app/features/staff/presentation/edit_staff_profile_dialog.dart';
@@ -11,6 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/attendant_fixtures.dart';
+import '../../support/fake_attendant_access_repository.dart';
+import '../../support/fake_auth_repository.dart';
 import '../../support/fake_department_repository.dart';
 import '../../support/fake_staff_repository.dart';
 
@@ -48,10 +54,21 @@ const _mathematicsDepartment = Department(
   hodName: null,
 );
 
-Widget wrap(FakeStaffRepository fake) {
+Widget wrap(FakeStaffRepository fake, {StaffProfile? profile, FakeAttendantAccessRepository? access}) {
   return ProviderScope(
     overrides: [
       staffRepositoryProvider.overrideWithValue(fake),
+      attendantAccessRepositoryProvider.overrideWithValue(access ?? FakeAttendantAccessRepository(access: freshAccess)),
+      authRepositoryProvider.overrideWithValue(
+        FakeAuthRepository(
+          sessionOnRestore: const AuthenticatedUser(
+            id: 5,
+            name: 'Admin',
+            email: 'admin@example.com',
+            role: UserRole.schoolAdmin,
+          ),
+        ),
+      ),
       departmentRepositoryProvider.overrideWithValue(FakeDepartmentRepository(departments: [_mathematicsDepartment])),
     ],
     child: MaterialApp(
@@ -61,7 +78,7 @@ Widget wrap(FakeStaffRepository fake) {
           builder: (context) => ElevatedButton(
             onPressed: () => showDialog(
               context: context,
-              builder: (_) => EditStaffProfileDialog(profile: _teacher),
+              builder: (_) => EditStaffProfileDialog(profile: profile ?? _teacher),
             ),
             child: const Text('Open'),
           ),
@@ -117,5 +134,32 @@ void main() {
 
     expect(find.text('Could not update the staff profile.'), findsOneWidget);
     expect(find.byType(EditStaffProfileDialog), findsOneWidget);
+  });
+
+  testWidgets('shows the employee\'s email', (tester) async {
+    await tester.pumpWidget(wrap(FakeStaffRepository(staff: [_teacher])));
+    await _openDialog(tester);
+
+    expect(find.text('priya.sharma@example.com'), findsOneWidget);
+    expect(find.text('Sign-in & phones'), findsNothing);
+  });
+
+  testWidgets('an attendant without an email reads "No email", with a way into their sign-in', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(wrap(FakeStaffRepository(staff: [meeraAttendant]), profile: meeraAttendant));
+    await _openDialog(tester);
+
+    expect(find.text('No email'), findsOneWidget);
+    expect(find.textContaining('no-email.invalid'), findsNothing);
+
+    await tester.tap(find.text('Sign-in & phones'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sign-in · Meera Sharma'), findsOneWidget);
+    expect(find.text('+919876543210'), findsOneWidget);
   });
 }

@@ -283,6 +283,23 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "settings/permissions"),
     ("PUT", "settings/permissions"),
     ("POST", "settings/permissions/reset"),
+    # -- my profile (docs/profile.md) --------------------------------
+    ("GET", "profile"),
+    ("PATCH", "profile"),
+    ("POST", "profile/email"),
+    ("POST", "profile/photo"),
+    ("DELETE", "profile/photo"),
+    ("GET", "users/{user}/photo"),
+    # -- the Bus Attendant (docs/maps.md) -------------------------------
+    ("POST", "auth/attendant/setup"),
+    ("POST", "auth/attendant/login"),
+    ("GET", "staff/{profile}/attendant"),
+    ("POST", "staff/{profile}/attendant/setup-code"),
+    ("DELETE", "staff/{profile}/attendant/devices/{device}"),
+    ("GET", "transport/my-routes"),
+    ("POST", "transport/trips/{trip}/sync"),
+    ("POST", "transport/trips/{trip}/locations"),
+    ("GET", "transport/trips/{trip}/live"),
 ]
 
 

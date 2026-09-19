@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
+import 'models/attendant_access.dart';
 import 'models/staff_profile.dart';
 
 final staffApiProvider = Provider<StaffApi>((ref) => StaffApi(ref.watch(dioClientProvider)));
@@ -36,12 +37,15 @@ class StaffApi {
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, StaffProfile.fromJson);
   }
 
+  /// [email] and [password] may be null for a Bus Attendant only: they sign
+  /// in with their mobile number and a passcode, and the server stores a
+  /// placeholder address when none is given.
   Future<StaffProfile> create({
     required String firstName,
     required String lastName,
-    required String email,
+    String? email,
     String? mobile,
-    required String password,
+    String? password,
     required UserRole role,
     int? schoolId,
     required String employeeId,
@@ -57,7 +61,7 @@ class StaffApi {
         'last_name': lastName,
         'email': email,
         'mobile': mobile,
-        'password': password,
+        'password': ?password,
         'role': role.apiValue,
         'school_id': schoolId,
         'employee_id': employeeId,
@@ -91,5 +95,22 @@ class StaffApi {
     );
 
     return StaffProfile.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  // ── a Bus Attendant's sign-in ─────────────────────────────────────────
+
+  Future<AttendantAccess> attendantAccess(int staffProfileId) async {
+    final response = await _dio.get('/staff/$staffProfileId/attendant');
+    return AttendantAccess.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AttendantSetupCode> issueSetupCode(int staffProfileId) async {
+    final response = await _dio.post('/staff/$staffProfileId/attendant/setup-code');
+    return AttendantSetupCode.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AttendantAccess> removeAttendantDevice(int staffProfileId, int deviceId) async {
+    final response = await _dio.delete('/staff/$staffProfileId/attendant/devices/$deviceId');
+    return AttendantAccess.fromJson(response.data as Map<String, dynamic>);
   }
 }

@@ -38,28 +38,32 @@ EDITABLE_ROLES = (
     UserRole.STAFF,
     UserRole.TRANSPORT_MANAGER,
     UserRole.ACCOUNTANT,
+    UserRole.BUS_ATTENDANT,
 )
 
-# module -> (SCHOOL_ADMIN, HOD, TEACHER, STAFF, TRANSPORT_MANAGER, ACCOUNTANT),
+# module -> (SCHOOL_ADMIN, HOD, TEACHER, STAFF, TRANSPORT_MANAGER, ACCOUNTANT,
+# BUS_ATTENDANT),
 # each what the policies granted before the matrix existed. Admin users and
 # the audit log are administration rather than a module a role is granted,
 # so they are not here: those policies answer for themselves.
 _DEFAULT_ROWS = {
-    "students":         (MANAGE, NONE,   VIEW,   NONE,   NONE,   NONE),
-    "staff":            (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE),
-    "academics":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW),
-    "attendance":       (MANAGE, NONE,   MANAGE, NONE,   NONE,   NONE),
-    "staff_attendance": (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),
-    "leave":            (MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE),
-    "timetable":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW),
-    "teaching_reports": (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE),
-    "syllabus":         (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE),
-    "hod":              (VIEW,   VIEW,   NONE,   NONE,   NONE,   NONE),
-    "transport":        (MANAGE, VIEW,   VIEW,   NONE,   MANAGE, NONE),
-    "communication":    (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE),
-    "announcements":    (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),
-    "payroll":          (MANAGE, NONE,   NONE,   NONE,   NONE,   MANAGE),
-    "reports":          (VIEW,   VIEW,   NONE,   NONE,   VIEW,   VIEW),
+    "students":         (MANAGE, NONE,   VIEW,   NONE,   NONE,   NONE,   NONE),
+    "staff":            (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE,   NONE),
+    "academics":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW,   NONE),
+    "attendance":       (MANAGE, NONE,   MANAGE, NONE,   NONE,   NONE,   NONE),
+    "staff_attendance": (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE,   NONE),
+    "leave":            (MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE),
+    "timetable":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW,   NONE),
+    "teaching_reports": (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),
+    "syllabus":         (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),
+    "hod":              (VIEW,   VIEW,   NONE,   NONE,   NONE,   NONE,   NONE),
+    # An attendant manages transport only for the routes they are assigned
+    # to - the policies narrow it, as they narrow a teacher to their class.
+    "transport":        (MANAGE, VIEW,   VIEW,   NONE,   MANAGE, NONE,   MANAGE),
+    "communication":    (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE,   NONE),
+    "announcements":    (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE,   NONE),
+    "payroll":          (MANAGE, NONE,   NONE,   NONE,   NONE,   MANAGE, NONE),
+    "reports":          (VIEW,   VIEW,   NONE,   NONE,   VIEW,   VIEW,   NONE),
 }
 
 DEFAULTS: dict[str, dict[str, str]] = {

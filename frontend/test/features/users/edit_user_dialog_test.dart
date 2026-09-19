@@ -31,10 +31,10 @@ const _teacher = AppUser(
 // Navigator.pop() on a route-less body empties the app's entire (sole) route
 // instead of just the dialog, which tears down the Scaffold - and the
 // SnackBar it was about to show - before the test can observe either.
-Widget wrap(FakeUserRepository fake, {AppUser user = _teacher}) {
+Widget wrap(FakeUserRepository fake, {AppUser user = _teacher, AuthenticatedUser actor = _schoolAdmin}) {
   return ProviderScope(
     overrides: [
-      authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _schoolAdmin)),
+      authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: actor)),
       userRepositoryProvider.overrideWithValue(fake),
     ],
     child: MaterialApp(
@@ -97,5 +97,67 @@ void main() {
 
     expect(find.text('That email is already in use.'), findsOneWidget);
     expect(find.byType(EditUserDialog), findsOneWidget);
+  });
+
+  group('Bus Attendants', () {
+    const attendant = AppUser(
+      id: 131,
+      firstName: 'Meera',
+      lastName: 'Sharma',
+      name: 'Meera Sharma',
+      email: 'attendant-1a2b@no-email.invalid',
+      hasEmail: false,
+      mobile: '+91 9876543210',
+      role: UserRole.busAttendant,
+      status: UserStatus.active,
+    );
+    const superAdmin = AuthenticatedUser(id: 1, name: 'Root', email: 'root@example.com', role: UserRole.superAdmin);
+
+    testWidgets('nobody can be made a Bus Attendant by an edit, even by a Super Admin', (tester) async {
+      await tester.pumpWidget(wrap(FakeUserRepository(users: [_teacher]), actor: superAdmin));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(DropdownButtonFormField<UserRole>, 'Teacher'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Accountant'), findsWidgets);
+      expect(find.text('Bus Attendant'), findsNothing);
+    });
+
+    testWidgets('an attendant\'s role is shown but cannot be changed, and there is no password', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          FakeUserRepository(users: [attendant]),
+          user: attendant,
+          actor: superAdmin,
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DropdownButtonFormField<UserRole>), findsNothing);
+      expect(find.text('Bus Attendant'), findsOneWidget);
+      expect(find.text('A Bus Attendant signs in differently, so this role cannot be changed.'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'New password'), findsNothing);
+    });
+
+    testWidgets('the placeholder address is never shown, and an empty email is left alone', (tester) async {
+      final fake = FakeUserRepository(users: [attendant]);
+      await tester.pumpWidget(wrap(fake, user: attendant));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('no-email.invalid'), findsNothing);
+      expect(find.widgetWithText(TextFormField, 'Email (optional)'), findsOneWidget);
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final saved = (await fake.list()).single;
+      expect(saved.email, attendant.email); // not sent, so unchanged
+      expect(saved.role, UserRole.busAttendant);
+      expect(find.text('User updated.'), findsOneWidget);
+    });
   });
 }

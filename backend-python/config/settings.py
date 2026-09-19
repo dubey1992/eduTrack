@@ -112,6 +112,16 @@ CACHES = {
     )
 }
 
+# Uploaded files - profile photos today (school/photos.py). On local disk,
+# under var/ with the other runtime state and outside anything a web server
+# serves: a photo is only ever read back through an authenticated endpoint.
+# Pointing STORAGES at S3 later needs no code change.
+MEDIA_ROOT = os.environ.get("DJANGO_MEDIA_ROOT", str(BASE_DIR / "var" / "media"))
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 

@@ -7,10 +7,12 @@ import '../../../../core/widgets/responsive.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../data/models/transport_trip.dart';
 import '../../../../core/utils/date_format.dart';
+import 'trip_live_location_card.dart';
 
-/// The prototype's live-tracking panel: trip header, KPIs, the stop strip,
-/// "Students on Bus" and the timeline. Read-only unless [onReachStop] /
-/// [onRiderStatus] are given (a running trip seen by a managing role).
+/// The prototype's live-tracking panel: trip header, KPIs, where the bus is
+/// (a running trip only), the stop strip, "Students on Bus" and the
+/// timeline. Read-only unless [onReachStop] / [onRiderStatus] are given (a
+/// running trip seen by a managing role).
 class TripDetailView extends StatelessWidget {
   const TripDetailView({super.key, required this.trip, this.onReachStop, this.onRiderStatus, this.busy = false});
 
@@ -77,6 +79,9 @@ class TripDetailView extends StatelessWidget {
             ),
           ),
         ),
+        // Only while the trip runs: the card polls, and taking it off the
+        // screen when the trip ends is what stops the polling.
+        if (trip.isInProgress) ...[const SizedBox(height: 16), TripLiveLocationCard(tripId: trip.id)],
         const SizedBox(height: 16),
         Text('Stops', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -136,7 +141,15 @@ class TripDetailView extends StatelessWidget {
                 ListTile(
                   dense: true,
                   leading: Text(_time(event.recordedAtLabel), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  title: Text(event.description),
+                  title: event.type == TripEventType.guardianCalled
+                      ? Row(
+                          children: [
+                            Icon(Icons.phone_outlined, size: 16, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 6),
+                            Expanded(child: Text(event.description)),
+                          ],
+                        )
+                      : Text(event.description),
                   subtitle: event.recordedByName == null ? null : Text('by ${event.recordedByName}', style: muted),
                 ),
             ],

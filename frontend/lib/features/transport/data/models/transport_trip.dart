@@ -45,7 +45,11 @@ enum TripEventType {
   dropped('dropped'),
   absent('absent'),
   completed('completed'),
-  cancelled('cancelled');
+  cancelled('cancelled'),
+
+  /// The attendant pressed Call Parent on a rider's row. Recorded (who,
+  /// which child, when) - the number itself never is.
+  guardianCalled('guardian_called');
 
   const TripEventType(this.apiValue);
 
@@ -215,6 +219,7 @@ class TripEvent {
     TripEventType.absent => '${studentName ?? 'A student'} marked absent',
     TripEventType.completed => note ?? 'Trip completed',
     TripEventType.cancelled => note ?? 'Trip cancelled',
+    TripEventType.guardianCalled => "${recordedByName ?? 'Someone'} called ${studentName ?? 'a student'}'s guardian",
   };
 }
 

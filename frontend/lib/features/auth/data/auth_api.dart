@@ -38,8 +38,12 @@ class AuthApi {
     );
   }
 
-  Future<AuthenticatedUser> me() async {
+  Future<AuthenticatedUser> me() async => AuthenticatedUser.fromJson(await meJson());
+
+  /// The /me payload as sent - kept on a bus attendant's phone so the app
+  /// can open with no signal (see AuthRepository.restoreSession).
+  Future<Map<String, dynamic>> meJson() async {
     final response = await _dio.get('/me');
-    return AuthenticatedUser.fromJson(response.data as Map<String, dynamic>);
+    return response.data as Map<String, dynamic>;
   }
 }

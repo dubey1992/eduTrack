@@ -275,6 +275,71 @@ class Message(models.Model):
 
         return MessageEvent(self.event).label if self.event in MessageEvent.values else self.event
 
+class AttendantCredential(models.Model):
+    """How a Bus Attendant signs in (school/attendants.py): their mobile
+    number, passcode hash, wrong-guess count and lock, and the current
+    one-time setup code (hashed) with its expiry."""
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.OneToOneField('User', models.DO_NOTHING, related_name='attendant_credential')
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    login_mobile = models.CharField(unique=True, max_length=20)
+    passcode = models.CharField(max_length=255, blank=True, null=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_at = UtcDateTimeField(blank=True, null=True)
+    setup_code = models.CharField(max_length=255, blank=True, null=True)
+    setup_code_expires_at = UtcDateTimeField(blank=True, null=True)
+    setup_code_issued_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='setup_code_issued_by', related_name='+', blank=True, null=True
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'attendant_credentials'
+
+
+class AttendantDevice(models.Model):
+    """A phone or browser registered to an attendant. Only a SHA-256 of its
+    secret is kept; the secret lives on the device."""
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey('User', models.DO_NOTHING, related_name='attendant_devices')
+    name = models.CharField(max_length=120)
+    secret = models.CharField(unique=True, max_length=64)
+    last_used_at = UtcDateTimeField(blank=True, null=True)
+    revoked_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'attendant_devices'
+
+
+class TransportTripLocation(models.Model):
+    """A position reported by the phone of whoever runs a trip, while it is
+    in progress. Kept 30 days (manage.py purge_trip_locations)."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    trip = models.ForeignKey('TransportTrip', models.DO_NOTHING)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7)
+    accuracy_m = models.DecimalField(max_digits=7, decimal_places=2, blank=True, null=True)
+    speed_mps = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True)
+    heading = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
+    recorded_at = UtcDateTimeField()
+    recorded_by = models.ForeignKey('User', models.DO_NOTHING, db_column='recorded_by', related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'transport_trip_locations'
+
+
 class ModuleSetting(models.Model):
     """Which modules a school has on, and each module's own settings
     (school/modules.py). No row means every module on with its defaults."""
@@ -798,6 +863,10 @@ class TransportRoute(models.Model):
     name = models.CharField(max_length=100)
     vehicle = models.OneToOneField('Vehicle', models.DO_NOTHING, blank=True, null=True)
     driver = models.OneToOneField(Driver, models.DO_NOTHING, blank=True, null=True)
+    # The Bus Attendant who runs this route's trips. One may cover several.
+    attendant_user = models.ForeignKey(
+        'User', models.DO_NOTHING, blank=True, null=True, related_name='attended_routes'
+    )
     status = models.CharField(max_length=20)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
@@ -815,6 +884,8 @@ class TransportStop(models.Model):
     sequence_number = models.SmallIntegerField()
     pickup_time = models.TimeField(blank=True, null=True)
     drop_time = models.TimeField(blank=True, null=True)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -855,6 +926,10 @@ class TransportTripEvent(models.Model):
     recorded_by = models.ForeignKey('User', models.DO_NOTHING, db_column='recorded_by')
     recorded_at = UtcDateTimeField()
     note = models.CharField(max_length=255, blank=True, null=True)
+    # The id the attendant's phone gave a mark it made offline, so a mark
+    # sent twice is recognised and recorded once. Null for marks made online
+    # from the admin screens.
+    client_id = models.CharField(max_length=64, blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -891,6 +966,9 @@ class User(models.Model):
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     mobile = models.CharField(max_length=255, blank=True, null=True)
+    # Where the profile photo is stored (school/photos.py) - a storage path,
+    # never a public URL. Null means no photo.
+    photo_path = models.CharField(max_length=255, blank=True, null=True)
     role = models.CharField(max_length=255)
     status = models.CharField(max_length=255)
     school = models.ForeignKey(School, models.DO_NOTHING, blank=True, null=True)

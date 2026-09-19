@@ -26,6 +26,8 @@ class AppUser {
     this.isSubAdmin = false,
     this.lockedUntil,
     this.access = const ModuleAccess.unspecified(),
+    this.photoUrl,
+    this.hasEmail = true,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,8 @@ class AppUser {
       isSubAdmin: json['is_sub_admin'] as bool? ?? false,
       lockedUntil: json['locked_until'] as String?,
       access: ModuleAccess.fromJson(json),
+      photoUrl: json['photo_url'] as String?,
+      hasEmail: json['has_email'] as bool? ?? true,
     );
   }
 
@@ -52,6 +56,14 @@ class AppUser {
   final String? mobile;
   final UserRole role;
   final UserStatus status;
+
+  /// The profile photo's path relative to the API base, or null when there
+  /// is none. See AuthenticatedUser.photoUrl.
+  final String? photoUrl;
+
+  /// False for a Bus Attendant added without an email address, whose [email]
+  /// is then a placeholder that must not be shown. See StaffProfile.hasEmail.
+  final bool hasEmail;
 
   /// True for a School Admin created by another School Admin - see
   /// AuthenticatedUser.isSubAdmin for the full explanation. Only ever
@@ -96,6 +108,8 @@ class AppUser {
       isSubAdmin: isSubAdmin,
       lockedUntil: unlocked ? null : lockedUntil,
       access: access,
+      photoUrl: photoUrl,
+      hasEmail: hasEmail,
     );
   }
 }

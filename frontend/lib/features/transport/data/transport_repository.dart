@@ -7,6 +7,7 @@ import 'models/driver.dart';
 import 'models/transport_route.dart';
 import 'models/transport_status.dart';
 import 'models/transport_trip.dart';
+import 'models/trip_live_location.dart';
 import 'models/vehicle.dart';
 import 'transport_api.dart';
 
@@ -139,16 +140,39 @@ class TransportRepository {
 
   Future<TransportRoute> getRoute(int routeId) => _guard(() => _api.getRoute(routeId));
 
-  Future<TransportRoute> createRoute({int? schoolId, required String name, int? vehicleId, int? driverId}) =>
-      _guard(() => _api.createRoute(schoolId: schoolId, name: name, vehicleId: vehicleId, driverId: driverId));
+  Future<TransportRoute> createRoute({
+    int? schoolId,
+    required String name,
+    int? vehicleId,
+    int? driverId,
+    int? attendantUserId,
+  }) => _guard(
+    () => _api.createRoute(
+      schoolId: schoolId,
+      name: name,
+      vehicleId: vehicleId,
+      driverId: driverId,
+      attendantUserId: attendantUserId,
+    ),
+  );
 
   Future<TransportRoute> updateRoute(
     int routeId, {
     String? name,
     required int? vehicleId,
     required int? driverId,
+    required int? attendantUserId,
     TransportStatus? status,
-  }) => _guard(() => _api.updateRoute(routeId, name: name, vehicleId: vehicleId, driverId: driverId, status: status));
+  }) => _guard(
+    () => _api.updateRoute(
+      routeId,
+      name: name,
+      vehicleId: vehicleId,
+      driverId: driverId,
+      attendantUserId: attendantUserId,
+      status: status,
+    ),
+  );
 
   Future<void> deleteRoute(int routeId) => _guard(() => _api.deleteRoute(routeId));
 
@@ -163,6 +187,8 @@ class TransportRepository {
     required int sequenceNumber,
     String? pickupTime,
     String? dropTime,
+    String? latitude,
+    String? longitude,
   }) => _guard(
     () => _api.createStop(
       routeId,
@@ -170,6 +196,8 @@ class TransportRepository {
       sequenceNumber: sequenceNumber,
       pickupTime: pickupTime,
       dropTime: dropTime,
+      latitude: latitude,
+      longitude: longitude,
     ),
   );
 
@@ -179,9 +207,18 @@ class TransportRepository {
     int? sequenceNumber,
     String? pickupTime,
     String? dropTime,
+    String? latitude,
+    String? longitude,
   }) => _guard(
-    () =>
-        _api.updateStop(stopId, name: name, sequenceNumber: sequenceNumber, pickupTime: pickupTime, dropTime: dropTime),
+    () => _api.updateStop(
+      stopId,
+      name: name,
+      sequenceNumber: sequenceNumber,
+      pickupTime: pickupTime,
+      dropTime: dropTime,
+      latitude: latitude,
+      longitude: longitude,
+    ),
   );
 
   Future<void> deleteStop(int stopId) => _guard(() => _api.deleteStop(stopId));
@@ -213,4 +250,6 @@ class TransportRepository {
   Future<TransportTrip> endTrip(int tripId) => _guard(() => _api.endTrip(tripId));
 
   Future<TransportTrip> cancelTrip(int tripId) => _guard(() => _api.cancelTrip(tripId));
+
+  Future<TripLiveLocation> liveLocation(int tripId) => _guard(() => _api.liveLocation(tripId));
 }

@@ -33,13 +33,19 @@ class _EditUserDialogState extends ConsumerState<EditUserDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _firstNameController = TextEditingController(text: widget.user.firstName);
   late final _lastNameController = TextEditingController(text: widget.user.lastName);
-  late final _emailController = TextEditingController(text: widget.user.email);
+  // A placeholder address is never put in front of anyone to edit.
+  late final _emailController = TextEditingController(text: widget.user.hasEmail ? widget.user.email : '');
   late final _mobileController = TextEditingController(text: widget.user.mobile ?? '');
   final _passwordController = TextEditingController();
   late UserRole _role = widget.user.role;
 
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  /// A Bus Attendant signs in with a mobile number and passcode, so the role
+  /// cannot be changed to or from theirs (the API refuses it), there is no
+  /// password to set, and the email is optional.
+  bool get _isAttendant => widget.user.role == UserRole.busAttendant;
 
   @override
   void dispose() {
@@ -66,7 +72,7 @@ class _EditUserDialogState extends ConsumerState<EditUserDialog> {
             widget.user,
             firstName: _firstNameController.text.trim(),
             lastName: _lastNameController.text.trim(),
-            email: _emailController.text.trim(),
+            email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
             mobile: _mobileController.text.trim().isEmpty ? null : _mobileController.text.trim(),
             password: _passwordController.text.isEmpty ? null : _passwordController.text,
             role: _role,
@@ -89,7 +95,11 @@ class _EditUserDialogState extends ConsumerState<EditUserDialog> {
     // Reassigning a role is a platform action, not a group one - a Group
     // Admin gets the same short list a School Admin does.
     final isSuperAdmin = actorRole == UserRole.superAdmin;
-    final assignableRoles = isSuperAdmin ? UserRole.values : _schoolAdminAssignableRoles;
+    // Nobody becomes a Bus Attendant by an edit: they sign in differently,
+    // and are added as one from Teachers & Staff.
+    final assignableRoles = isSuperAdmin
+        ? UserRole.values.where((role) => role != UserRole.busAttendant).toList()
+        : _schoolAdminAssignableRoles;
 
     return AlertDialog(
       title: Text('Edit ${widget.user.name}'),
@@ -120,26 +130,44 @@ class _EditUserDialogState extends ConsumerState<EditUserDialog> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+                  decoration: InputDecoration(labelText: _isAttendant ? 'Email (optional)' : 'Email'),
+                  validator: (v) {
+                    final value = v?.trim() ?? '';
+                    if (_isAttendant && value.isEmpty) return null;
+                    return value.contains('@') ? null : 'Enter a valid email';
+                  },
                 ),
                 const SizedBox(height: 10),
-                PhoneNumberField(controller: _mobileController, label: 'Mobile (optional)'),
-                const SizedBox(height: 10),
-                PasswordField(
-                  controller: _passwordController,
-                  label: 'New password',
-                  helperText: 'Leave blank to keep the current one. $newPasswordHint',
-                  validator: (v) => (v == null || v.isEmpty) ? null : newPasswordProblem(v),
+                PhoneNumberField(
+                  controller: _mobileController,
+                  label: _isAttendant ? 'Mobile' : 'Mobile (optional)',
+                  required: _isAttendant,
                 ),
                 const SizedBox(height: 10),
-                DropdownButtonFormField<UserRole>(
-                  initialValue: assignableRoles.contains(_role) ? _role : null,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: [for (final role in assignableRoles) DropdownMenuItem(value: role, child: Text(role.label))],
-                  onChanged: (value) => setState(() => _role = value ?? _role),
-                ),
+                if (_isAttendant)
+                  const InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Role',
+                      helperText: 'A Bus Attendant signs in differently, so this role cannot be changed.',
+                    ),
+                    child: Text('Bus Attendant'),
+                  )
+                else ...[
+                  PasswordField(
+                    controller: _passwordController,
+                    label: 'New password',
+                    helperText: 'Leave blank to keep the current one. $newPasswordHint',
+                    validator: (v) => (v == null || v.isEmpty) ? null : newPasswordProblem(v),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<UserRole>(
+                    initialValue: assignableRoles.contains(_role) ? _role : null,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Role'),
+                    items: [for (final role in assignableRoles) DropdownMenuItem(value: role, child: Text(role.label))],
+                    onChanged: (value) => setState(() => _role = value ?? _role),
+                  ),
+                ],
               ],
             ),
           ),

@@ -20,12 +20,16 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from django.db.models import Count
+
+from ..clock import SchoolClock
+from ..enums import TripDirection, TripStatus
 from ..models import Student, TransportRoute, TransportStop, TransportTrip, TransportTripRider
 from ..pagination import LaravelPagination
 from ..policies import TransportTripPolicy, authorize
-from ..requests import StartTripRequest, UpdateTripRiderRequest
-from ..resources import transport_trip_resource
-from ..services import TransportTripService
+from ..requests import StartTripRequest, TripLocationsRequest, TripSyncRequest, UpdateTripRiderRequest
+from ..resources import timestamp, transport_route_resource, transport_trip_resource
+from ..services import TransportRouteService, TransportTripService, TripLocationService, TripSyncService
 
 
 def detail_response(trip_id: int, **kwargs) -> Response:
@@ -143,3 +147,97 @@ def cancel(request, trip_id: int) -> Response:
     TransportTripService.cancel(trip, request.user)
 
     return detail_response(trip.pk)
+
+
+# -- the attendant's phone: marks made offline, positions, My Routes --------
+#
+# docs/maps.md, "The Bus Attendant" and "Offline".
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def sync(request, trip_id: int) -> Response:
+    """A batch of marks from the phone, in the order they were made. Every
+    mark gets its own answer; the trip comes back as it now stands."""
+    trip = found_trip(trip_id)
+
+    authorize(TransportTripPolicy.manage(request.user, trip))
+
+    form = TripSyncRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
+    results = TripSyncService.sync(trip, form.validated_data["operations"], request.user)
+    loaded = TransportTripService.detail(trip.pk)
+
+    return Response({
+        "results": results,
+        "trip": transport_trip_resource(loaded["trip"], riders=loaded["riders"], events=loaded["events"], stops=loaded["stops"]),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def locations(request, trip_id: int) -> Response:
+    trip = found_trip(trip_id)
+
+    authorize(TransportTripPolicy.manage(request.user, trip))
+
+    form = TripLocationsRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
+    return Response(TripLocationService.record(trip, form.validated_data["points"], request.user))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def live(request, trip_id: int) -> Response:
+    trip = found_trip(trip_id)
+
+    authorize(TransportTripPolicy.view(request.user, trip))
+
+    answer = TripLocationService.live(trip)
+
+    if answer["position"] is not None:
+        answer["position"]["recorded_at"] = timestamp(answer["position"]["recorded_at"])
+
+    return Response(answer)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_routes(request) -> Response:
+    """The routes this attendant runs, each with today's pickup and drop trip
+    if they have started - what the My Trip screen opens on."""
+    actor = request.user
+
+    authorize(TransportTripPolicy.my_routes(actor))
+
+    today = SchoolClock.for_user(actor).now().date()
+    routes = (
+        TransportRouteService.with_counts(TransportRoute.objects.filter(attendant_user_id=actor.id))
+        .order_by("name", "id")
+    )
+    trips = {
+        (trip.route_id, trip.direction): trip
+        for trip in TransportTrip.objects.select_related(*TransportTripService.LIST)
+        .annotate(riders_count=Count("transporttriprider"))
+        .filter(route__attendant_user_id=actor.id, trip_date=today)
+        .exclude(status=TripStatus.CANCELLED)
+    }
+
+    return Response({
+        "date": today.isoformat(),
+        "routes": [
+            {
+                **transport_route_resource(route),
+                "today": {
+                    direction: (
+                        None if (route.pk, direction) not in trips
+                        else transport_trip_resource(trips[(route.pk, direction)], riders_count=trips[(route.pk, direction)].riders_count)
+                    )
+                    for direction in (TripDirection.PICKUP, TripDirection.DROP)
+                },
+            }
+            for route in routes
+        ],
+    })

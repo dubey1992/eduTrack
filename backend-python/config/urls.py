@@ -21,6 +21,7 @@ from school.views import (
     academic_years,
     announcements,
     attendance,
+    attendants,
     audit_logs,
     auth,
     classes,
@@ -33,6 +34,7 @@ from school.views import (
     leave,
     mail_settings,
     permissions,
+    profile,
     settings_modules,
     payments,
     payroll,
@@ -84,6 +86,11 @@ urlpatterns = [
     path("api/v1/auth/sessions/others", auth.end_other_sessions),
     path("api/v1/auth/sessions/<int:session_id>", auth.end_session),
     path("api/v1/me", auth.me),
+    # My Profile - Python only (docs/profile.md).
+    path("api/v1/profile", profile.detail),
+    path("api/v1/profile/email", profile.email),
+    path("api/v1/profile/photo", profile.photo),
+    path("api/v1/users/<int:user_id>/photo", profile.user_photo),
     # -- payments ----------------------------------------------------------
     # `summary` before `<int:payment_id>` so the word is not read as an id.
     path("api/v1/payments", payments.collection),
@@ -209,6 +216,16 @@ urlpatterns = [
     path("api/v1/transport/trips/<int:trip_id>/riders/<int:student_id>", trips.rider),
     path("api/v1/transport/trips/<int:trip_id>/end", trips.end),
     path("api/v1/transport/trips/<int:trip_id>/cancel", trips.cancel),
+    # The Bus Attendant's phone - Python only (docs/maps.md).
+    path("api/v1/transport/trips/<int:trip_id>/sync", trips.sync),
+    path("api/v1/transport/trips/<int:trip_id>/locations", trips.locations),
+    path("api/v1/transport/trips/<int:trip_id>/live", trips.live),
+    path("api/v1/transport/my-routes", trips.my_routes),
+    path("api/v1/auth/attendant/setup", attendants.setup),
+    path("api/v1/auth/attendant/login", attendants.login),
+    path("api/v1/staff/<int:profile_id>/attendant", attendants.access),
+    path("api/v1/staff/<int:profile_id>/attendant/setup-code", attendants.setup_code),
+    path("api/v1/staff/<int:profile_id>/attendant/devices/<int:device_id>", attendants.device),
     # -- early access ------------------------------------------------------
     path("api/v1/early-access", early_access.collection),
     path("api/v1/early-access/<int:request_id>", early_access.detail),

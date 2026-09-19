@@ -537,18 +537,34 @@ class AnnouncementPolicy:
         ).exists()
 
 
+def runs_route(actor: User, route) -> bool:
+    """A Bus Attendant reaches the routes they are assigned to and nothing
+    else - the way a teacher reaches their own class. Every other role
+    reaches its school's routes."""
+    if actor.role == UserRole.BUS_ATTENDANT:
+        return route is not None and route.attendant_user_id == actor.id
+
+    return True
+
+
 class TransportMasterPolicy:
     """Vehicles, drivers and routes share one shape: read by anybody in
     transport at the same school, managed by that school's admins. The fleet
     is the school's, so even a role raised to "manage" transport runs trips
-    (below) rather than buying buses."""
+    (below) rather than buying buses.
+
+    A Bus Attendant does not browse the fleet at all: their My Trip screen
+    carries what they need about their own routes."""
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return permitted(actor, "transport")
+        return actor.role != UserRole.BUS_ATTENDANT and permitted(actor, "transport")
 
     @staticmethod
     def view(actor: User, record) -> bool:
+        if actor.role == UserRole.BUS_ATTENDANT:
+            return False
+
         return permitted(actor, "transport", school_id=record.school_id) and in_scope(actor, record.school_id)
 
     @staticmethod
@@ -584,19 +600,31 @@ class TransportTripPolicy:
 
     @staticmethod
     def view(actor: User, trip) -> bool:
-        return permitted(actor, "transport", school_id=trip.school_id) and in_scope(actor, trip.school_id)
+        return (
+            permitted(actor, "transport", school_id=trip.school_id)
+            and in_scope(actor, trip.school_id)
+            and runs_route(actor, trip.route)
+        )
 
     @staticmethod
     def create(actor: User, route) -> bool:
-        return permitted(actor, "transport", write=True, school_id=route.school_id) and in_scope(
-            actor, route.school_id
+        return (
+            permitted(actor, "transport", write=True, school_id=route.school_id)
+            and in_scope(actor, route.school_id)
+            and runs_route(actor, route)
         )
 
     @staticmethod
     def manage(actor: User, trip) -> bool:
-        return permitted(actor, "transport", write=True, school_id=trip.school_id) and in_scope(
-            actor, trip.school_id
+        return (
+            permitted(actor, "transport", write=True, school_id=trip.school_id)
+            and in_scope(actor, trip.school_id)
+            and runs_route(actor, trip.route)
         )
+
+    @staticmethod
+    def my_routes(actor: User) -> bool:
+        return actor.role == UserRole.BUS_ATTENDANT and permitted(actor, "transport")
 
 
 class StaffProfilePolicy:

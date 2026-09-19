@@ -45,6 +45,16 @@ dependencies:
   # already in the tree as a transitive dependency; declared here because the
   # app imports it directly.
   web: ^1.1.1
+  # Call Parent on the bus attendant's My Trip screen opens the phone's
+  # dialler with a tel: link. Flutter has no built-in way to hand a URL to
+  # another app; this is the flutter.dev team's own plugin for it.
+  url_launcher: ^6.3.2
+  # The attendant's phone shares the bus's position while a trip runs. The
+  # Android app needs the platform location service and its permission
+  # prompts, which Flutter does not expose itself; geolocator is the
+  # established plugin for both (the web build uses the browser's
+  # Geolocation API through package:web instead - see location_source.dart).
+  geolocator: ^14.0.3
 
 dev_dependencies:
   flutter_test:

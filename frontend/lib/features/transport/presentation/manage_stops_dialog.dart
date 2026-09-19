@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../schools/presentation/widgets/coordinates_fields.dart';
 import '../application/route_detail_notifier.dart';
 import '../data/models/transport_route.dart';
 import 'widgets/submit_button.dart';
@@ -85,7 +86,13 @@ class _StopRow extends ConsumerWidget {
       dense: true,
       leading: CircleAvatar(radius: 14, child: Text('${stop.sequenceNumber}', style: const TextStyle(fontSize: 12))),
       title: Text(stop.name),
-      subtitle: Text(times),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(times),
+          _LocationIndicator(stop: stop),
+        ],
+      ),
       trailing: canManage
           ? Row(
               mainAxisSize: MainAxisSize.min,
@@ -135,9 +142,12 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
   late final _sequenceController = TextEditingController(text: '${widget.nextSequenceNumber}');
   late TimeOfDay? _pickupTime = _parse(widget.stop?.pickupTime);
   late TimeOfDay? _dropTime = _parse(widget.stop?.dropTime);
+  late final _latitudeController = TextEditingController(text: widget.stop?.latitude ?? '');
+  late final _longitudeController = TextEditingController(text: widget.stop?.longitude ?? '');
 
   bool _isSubmitting = false;
   String? _errorMessage;
+  Map<String, List<String>> _fieldErrors = const {};
 
   bool get _isEdit => widget.stop != null;
 
@@ -156,6 +166,8 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
   void dispose() {
     _nameController.dispose();
     _sequenceController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
   }
 
@@ -174,12 +186,15 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
+      _fieldErrors = const {};
     });
 
     try {
       final notifier = ref.read(routeDetailProvider(widget.routeId).notifier);
       final name = _nameController.text.trim();
       final sequence = int.parse(_sequenceController.text.trim());
+      final latitude = _latitudeController.text.trim().isEmpty ? null : _latitudeController.text.trim();
+      final longitude = _longitudeController.text.trim().isEmpty ? null : _longitudeController.text.trim();
       if (_isEdit) {
         await notifier.editStop(
           widget.stop!,
@@ -187,6 +202,8 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
           sequenceNumber: sequence,
           pickupTime: _format(_pickupTime),
           dropTime: _format(_dropTime),
+          latitude: latitude,
+          longitude: longitude,
         );
       } else {
         await notifier.addStop(
@@ -194,12 +211,21 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
           sequenceNumber: sequence,
           pickupTime: _format(_pickupTime),
           dropTime: _format(_dropTime),
+          latitude: latitude,
+          longitude: longitude,
         );
       }
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _errorMessage = failure.message);
+      if (mounted) {
+        setState(() {
+          _fieldErrors = failure.validationErrors;
+          // A position problem is shown under the box it is about.
+          final aboutPosition = _fieldErrors.containsKey('latitude') || _fieldErrors.containsKey('longitude');
+          _errorMessage = aboutPosition ? null : failure.message;
+        });
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -213,44 +239,53 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
         width: 380,
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_errorMessage != null) ...[
-                Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
-                const SizedBox(height: 12),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_errorMessage != null) ...[
+                  Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
+                  const SizedBox(height: 12),
+                ],
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Stop name'),
+                  maxLength: 100,
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _sequenceController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Order on route'),
+                  validator: (v) {
+                    final parsed = int.tryParse(v?.trim() ?? '');
+                    return (parsed == null || parsed < 1) ? 'Enter a valid order (1 or more)' : null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                _TimeField(
+                  label: 'Pickup time (optional)',
+                  value: _format(_pickupTime),
+                  onTap: () => _pickTime(isPickup: true),
+                  onClear: () => setState(() => _pickupTime = null),
+                ),
+                const SizedBox(height: 10),
+                _TimeField(
+                  label: 'Drop time (optional)',
+                  value: _format(_dropTime),
+                  onTap: () => _pickTime(isPickup: false),
+                  onClear: () => setState(() => _dropTime = null),
+                ),
+                const SizedBox(height: 10),
+                CoordinatesFields(
+                  latitude: _latitudeController,
+                  longitude: _longitudeController,
+                  latitudeError: _fieldErrors['latitude']?.first,
+                  longitudeError: _fieldErrors['longitude']?.first,
+                ),
               ],
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Stop name'),
-                maxLength: 100,
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _sequenceController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Order on route'),
-                validator: (v) {
-                  final parsed = int.tryParse(v?.trim() ?? '');
-                  return (parsed == null || parsed < 1) ? 'Enter a valid order (1 or more)' : null;
-                },
-              ),
-              const SizedBox(height: 10),
-              _TimeField(
-                label: 'Pickup time (optional)',
-                value: _format(_pickupTime),
-                onTap: () => _pickTime(isPickup: true),
-                onClear: () => setState(() => _pickupTime = null),
-              ),
-              const SizedBox(height: 10),
-              _TimeField(
-                label: 'Drop time (optional)',
-                value: _format(_dropTime),
-                onTap: () => _pickTime(isPickup: false),
-                onClear: () => setState(() => _dropTime = null),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -283,6 +318,28 @@ class _TimeField extends StatelessWidget {
         ),
         child: Text(value ?? 'Not set'),
       ),
+    );
+  }
+}
+
+/// Whether the stop has been placed yet - a stop with no position cannot be
+/// shown on a map or measured to from the bus.
+class _LocationIndicator extends StatelessWidget {
+  const _LocationIndicator({required this.stop});
+
+  final TransportStop stop;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = stop.hasLocation ? context.appColors.success : Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(stop.hasLocation ? Icons.place : Icons.location_off_outlined, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(stop.hasLocation ? 'Location set' : 'No location', style: TextStyle(fontSize: 12, color: color)),
+      ],
     );
   }
 }

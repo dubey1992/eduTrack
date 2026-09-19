@@ -413,8 +413,8 @@ class RouteTest(TransportTestCase):
 
         self.assertEqual(
             [
-                {"id": first.id, "route_id": route.id, "name": "Gate", "sequence_number": 1, "pickup_time": None, "drop_time": None, "students_count": 0},
-                {"id": later.id, "route_id": route.id, "name": "Market", "sequence_number": 2, "pickup_time": "07:45", "drop_time": None, "students_count": 1},
+                {"id": first.id, "route_id": route.id, "name": "Gate", "sequence_number": 1, "pickup_time": None, "drop_time": None, "latitude": None, "longitude": None, "students_count": 0},
+                {"id": later.id, "route_id": route.id, "name": "Market", "sequence_number": 2, "pickup_time": "07:45", "drop_time": None, "latitude": None, "longitude": None, "students_count": 1},
             ],
             stops,
         )

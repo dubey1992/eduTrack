@@ -21,6 +21,7 @@ void main() {
       'STAFF',
       'TRANSPORT_MANAGER',
       'ACCOUNTANT',
+      'BUS_ATTENDANT',
     ];
 
     expect(UserRole.values.map((role) => role.apiValue), backendRoles);

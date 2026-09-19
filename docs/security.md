@@ -164,5 +164,8 @@ A session also ends in these cases:
   terminates TLS.
 - **Cache:** make `DJANGO_CACHE_DIR`, or the default `var/cache`, writable by
   the app and not web-served.
+- **Cron:** besides the queue worker (`manage.py work_queue`, every minute),
+  run `manage.py purge_trip_locations` once a day - bus positions are kept
+  30 days and no longer (docs/maps.md).
 - **HSTS:** serve over HTTPS before turning HSTS on. It is sticky in browsers
   for a year.

@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import urllib.error
+import uuid
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
@@ -103,6 +104,22 @@ class Client:
     def delete(self, path: str) -> Response:
         return self._send("DELETE", path)
 
+    def upload(self, path: str, field: str, filename: str, data: bytes, content_type: str) -> Response:
+        """A multipart POST carrying one file - the profile photo."""
+        boundary = "contract" + uuid.uuid4().hex
+        head = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{field}"; filename="{filename}"\r\n'
+            f"Content-Type: {content_type}\r\n\r\n"
+        )
+        body = head.encode() + data + f"\r\n--{boundary}--\r\n".encode()
+
+        return self._send("POST", path, raw=(body, f"multipart/form-data; boundary={boundary}"))
+
+    def get_bytes(self, path: str) -> tuple[int, bytes, str]:
+        """A GET whose answer is not JSON - an image. (status, body, type)."""
+        return self._send("GET", path, want_bytes=True)
+
     # -- plumbing ----------------------------------------------------------
 
     def _with_query(self, path: str, query: dict[str, Any]) -> str:
@@ -115,7 +132,7 @@ class Client:
 
         return f"{path}{joiner}{encoded}"
 
-    def _send(self, method: str, path: str, payload: dict | None = None) -> Response:
+    def _send(self, method: str, path: str, payload: dict | None = None, raw=None, want_bytes: bool = False):
         base = self.base or base_url()
 
         # Recorded here because this is the only place a request is made, so
@@ -127,20 +144,28 @@ class Client:
 
         url = f"{base}/{path.lstrip('/')}"
         body = None if payload is None else json.dumps(payload).encode()
+        content_type = "application/json"
+
+        if raw is not None:
+            body, content_type = raw
 
         request = urllib.request.Request(url, data=body, method=method)
         request.add_header("Accept", "application/json")
         if body is not None:
-            request.add_header("Content-Type", "application/json")
+            request.add_header("Content-Type", content_type)
         if self.token:
             request.add_header("Authorization", f"Bearer {self.token}")
 
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as raw:
-                return self._read(raw)
+            with urllib.request.urlopen(request, timeout=self.timeout) as answer:
+                if want_bytes:
+                    return answer.status, answer.read(), answer.headers.get("Content-Type", "")
+                return self._read(answer)
         except urllib.error.HTTPError as failure:
             # A 4xx is an answer, not an accident - most of this suite is about
             # what the errors look like, so they must come back as responses.
+            if want_bytes:
+                return failure.code, failure.read(), failure.headers.get("Content-Type", "")
             return self._read(failure)
         except urllib.error.URLError as unreachable:
             raise AssertionError(

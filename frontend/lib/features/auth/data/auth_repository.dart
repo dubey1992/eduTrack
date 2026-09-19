@@ -1,23 +1,33 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/models/user_role.dart';
 import '../../../core/network/auth_token_storage.dart';
 import '../../../core/network/dio_client.dart';
+import 'attendant_device_storage.dart';
 import 'auth_api.dart';
 import 'models/authenticated_user.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => AuthRepository(ref.watch(authApiProvider), ref.watch(authTokenStorageProvider)),
+  (ref) => AuthRepository(
+    ref.watch(authApiProvider),
+    ref.watch(authTokenStorageProvider),
+    ref.watch(attendantDeviceStorageProvider),
+  ),
 );
 
 /// Coordinates the auth API calls with on-device token persistence, and
 /// converts transport-level errors into the app's [Failure] type so the
 /// ViewModel never has to know about Dio.
 class AuthRepository {
-  AuthRepository(this._api, this._tokenStorage);
+  AuthRepository(this._api, this._tokenStorage, [this._attendantStorage]);
 
   final AuthApi _api;
   final AuthTokenStorage _tokenStorage;
+
+  /// Where a bus attendant's session is kept for opening the app with no
+  /// signal. Null in tests that do not need it.
+  final AttendantDeviceStorage? _attendantStorage;
 
   Future<AuthenticatedUser> login({required String email, required String password}) async {
     try {
@@ -37,6 +47,7 @@ class AuthRepository {
       // device should still forget the token so the user is logged out.
     } finally {
       await _tokenStorage.clearToken();
+      await _attendantStorage?.clearSession();
     }
   }
 
@@ -47,8 +58,18 @@ class AuthRepository {
     if (token == null) return null;
 
     try {
-      return await _api.me();
-    } on DioException catch (_) {
+      final json = await _api.meJson();
+      final user = AuthenticatedUser.fromJson(json);
+      if (user.role == UserRole.busAttendant) await _attendantStorage?.saveSession(json);
+      return user;
+    } on DioException catch (e) {
+      // A bus loses signal. An attendant opening the app there must still
+      // reach the trip kept on the phone (docs/maps.md, "Offline"), so with
+      // no answer at all their last session stands in until one comes.
+      if (e.response == null) {
+        final cached = await _attendantStorage?.readSession();
+        if (cached != null) return AuthenticatedUser.fromJson(cached);
+      }
       await _tokenStorage.clearToken();
       return null;
     }

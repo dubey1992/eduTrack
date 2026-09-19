@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../staff/data/models/staff_profile.dart';
+import '../../staff/data/staff_repository.dart';
 import '../data/models/driver.dart';
 import '../data/models/transport_route.dart';
 import '../data/models/vehicle.dart';
@@ -25,4 +27,10 @@ final routePickerProvider = FutureProvider.autoDispose.family<List<TransportRout
 final routeStopsProvider = FutureProvider.autoDispose.family<List<TransportStop>, int>((ref, routeId) async {
   final route = await ref.watch(transportRepositoryProvider).getRoute(routeId);
   return route.stops;
+});
+
+/// Active Bus Attendants of a school, for the route form's attendant picker.
+/// Attendants are staff, so they come from the staff list filtered by role.
+final attendantPickerProvider = FutureProvider.autoDispose.family<List<StaffProfile>, int?>((ref, schoolId) {
+  return ref.watch(staffRepositoryProvider).activeAttendants(schoolId: schoolId);
 });

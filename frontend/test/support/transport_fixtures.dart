@@ -224,3 +224,39 @@ const arjunRider = RouteStudent(
   stopName: 'Lake View',
   stopSequenceNumber: 1,
 );
+
+/// Lake View placed on the map.
+const lakeViewPlaced = TransportStop(
+  id: 101,
+  routeId: 1,
+  name: 'Lake View',
+  sequenceNumber: 1,
+  pickupTime: '07:30',
+  dropTime: '15:30',
+  studentsCount: 1,
+  latitude: '18.520400',
+  longitude: '73.856700',
+);
+
+/// Green Park with Meera Sharma (user 131) as its Bus Attendant and one
+/// stop placed.
+const greenParkWithAttendant = TransportRoute(
+  id: 1,
+  schoolId: 1,
+  schoolName: 'Sunrise Public School',
+  name: 'Green Park',
+  label: 'Bus 04 - Green Park',
+  status: TransportStatus.active,
+  vehicleId: 1,
+  vehicleName: 'Bus 04',
+  vehicleRegistrationNumber: 'MH12 AB 1234',
+  capacity: 40,
+  driverId: 1,
+  driverName: 'Sanjay Patel',
+  driverMobile: '+91 9876543210',
+  stopsCount: 2,
+  studentsCount: 1,
+  attendantUserId: 131,
+  attendantName: 'Meera Sharma',
+  stops: [lakeViewPlaced, centralPark],
+);

@@ -9,6 +9,8 @@ class TransportStop {
     required this.pickupTime,
     required this.dropTime,
     required this.studentsCount,
+    this.latitude,
+    this.longitude,
   });
 
   factory TransportStop.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,8 @@ class TransportStop {
       pickupTime: json['pickup_time'] as String?,
       dropTime: json['drop_time'] as String?,
       studentsCount: json['students_count'] as int? ?? 0,
+      latitude: json['latitude'] as String?,
+      longitude: json['longitude'] as String?,
     );
   }
 
@@ -32,6 +36,13 @@ class TransportStop {
   final String? pickupTime;
   final String? dropTime;
   final int studentsCount;
+
+  /// Decimal degrees as the API sends them (strings, so no precision is lost
+  /// on the way through); both null until the stop is placed.
+  final String? latitude;
+  final String? longitude;
+
+  bool get hasLocation => latitude != null && longitude != null;
 }
 
 /// A route with its current vehicle/driver and, when fetched individually,
@@ -53,6 +64,8 @@ class TransportRoute {
     required this.driverMobile,
     required this.stopsCount,
     required this.studentsCount,
+    this.attendantUserId,
+    this.attendantName,
     this.stops = const [],
   });
 
@@ -73,6 +86,8 @@ class TransportRoute {
       driverMobile: json['driver_mobile'] as String?,
       stopsCount: json['stops_count'] as int? ?? 0,
       studentsCount: json['students_count'] as int? ?? 0,
+      attendantUserId: json['attendant_user_id'] as int?,
+      attendantName: json['attendant_name'] as String?,
       stops: ((json['stops'] as List?) ?? const []).cast<Map<String, dynamic>>().map(TransportStop.fromJson).toList(),
     );
   }
@@ -96,6 +111,11 @@ class TransportRoute {
   final String? driverMobile;
   final int stopsCount;
   final int studentsCount;
+
+  /// The Bus Attendant who runs this route's trips - a user id, not a staff
+  /// profile id. Null when nobody is assigned.
+  final int? attendantUserId;
+  final String? attendantName;
   final List<TransportStop> stops;
 
   bool get isActive => status == TransportStatus.active;

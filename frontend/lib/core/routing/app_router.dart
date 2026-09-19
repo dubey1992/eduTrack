@@ -6,6 +6,8 @@ import '../../features/academic_years/presentation/academic_year_list_screen.dar
 import '../../features/attendance/presentation/attendance_screen.dart';
 import '../../features/audit/presentation/audit_log_screen.dart';
 import '../../features/auth/application/auth_notifier.dart';
+import '../../features/auth/data/models/authenticated_user.dart';
+import '../../features/auth/presentation/attendant_login_screen.dart';
 import '../../features/announcements/presentation/announcement_screen.dart';
 import '../../features/auth/presentation/change_password_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
@@ -22,10 +24,12 @@ import '../../features/departments/presentation/department_list_screen.dart';
 import '../../features/hod/presentation/hod_report_screen.dart';
 import '../../features/holidays/presentation/holiday_list_screen.dart';
 import '../../features/mail_settings/presentation/mail_settings_screen.dart';
+import '../../features/my_trip/presentation/my_trip_screen.dart';
 import '../../features/marketing/presentation/marketing_screen.dart';
 import '../../features/payments/presentation/payment_list_screen.dart';
 import '../../features/payroll/presentation/my_payslips_screen.dart';
 import '../../features/payroll/presentation/payroll_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
 import '../../features/staff/presentation/staff_list_screen.dart';
@@ -41,6 +45,7 @@ import '../../features/transport/presentation/route_list_screen.dart';
 import '../../features/transport/presentation/trip_screen.dart';
 import '../../features/transport/presentation/vehicle_list_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
+import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
 import '../../features/module_settings/presentation/module_settings_screen.dart';
 import '../../features/permissions/presentation/permissions_screen.dart';
@@ -51,7 +56,11 @@ import 'app_nav.dart';
 /// Routes reachable without an active session - rendered full-screen,
 /// outside the sidebar shell. '/' is the public marketing homepage (see
 /// MarketingScreen); the authenticated landing screen lives at /dashboard.
-const _publicPaths = {'/', '/login', '/forgot-password', '/reset-password'};
+const _publicPaths = {'/', '/login', '/attendant-login', '/forgot-password', '/reset-password'};
+
+/// Where a signed-in user lands: a bus attendant on their trip, everybody
+/// else on the dashboard.
+String landingPathFor(AuthenticatedUser user) => user.role == UserRole.busAttendant ? '/my-trip' : '/dashboard';
 
 /// Every path this router actually serves.
 ///
@@ -66,6 +75,7 @@ const appRoutePaths = {
   '/',
   '/splash',
   '/login',
+  '/attendant-login',
   '/forgot-password',
   '/reset-password',
   '/change-password',
@@ -93,6 +103,7 @@ const appRoutePaths = {
   '/transport/drivers',
   '/transport/routes',
   '/transport/trips',
+  '/my-trip',
   '/communication',
   '/announcements',
   '/inbox',
@@ -101,6 +112,7 @@ const appRoutePaths = {
   '/my-payslips',
   '/audit-log',
   '/mail-settings',
+  '/profile',
   '/module-settings',
   '/permissions',
 };
@@ -121,6 +133,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (context, state) => const MarketingScreen()),
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(path: '/attendant-login', builder: (context, state) => const AttendantLoginScreen()),
       // Outside the shell on purpose: an account still holding a temporary
       // password has no business reaching the sidebar behind it.
       GoRoute(path: '/change-password', builder: (context, state) => const ChangePasswordScreen()),
@@ -161,6 +174,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/transport/drivers', builder: (context, state) => const DriverListScreen()),
           GoRoute(path: '/transport/routes', builder: (context, state) => const RouteListScreen()),
           GoRoute(path: '/transport/trips', builder: (context, state) => const TripScreen()),
+          GoRoute(path: '/my-trip', builder: (context, state) => const MyTripScreen()),
           GoRoute(path: '/communication', builder: (context, state) => const CommunicationScreen()),
           GoRoute(path: '/announcements', builder: (context, state) => const AnnouncementScreen()),
           GoRoute(path: '/inbox', builder: (context, state) => const InboxScreen()),
@@ -169,6 +183,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/my-payslips', builder: (context, state) => const MyPayslipsScreen()),
           GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
           GoRoute(path: '/mail-settings', builder: (context, state) => const MailSettingsScreen()),
+          GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/module-settings', builder: (context, state) => const ModuleSettingsScreen()),
           GoRoute(path: '/permissions', builder: (context, state) => const PermissionsScreen()),
         ],
@@ -191,7 +206,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // And once it is over, nobody should be left sitting on that page.
       if (location == '/maintenance') {
-        return authState.value != null ? '/dashboard' : '/';
+        final user = authState.value;
+        return user != null ? landingPathFor(user) : '/';
       }
 
       if (authState.isLoading) {
@@ -237,12 +253,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       // whatever destination the splash gate above was carrying, if any
       // (the role/permission check further down still applies to it, via
       // this same redirect running again for the new location).
-      if (location == '/' || location == '/login' || location == '/splash') {
+      final landing = landingPathFor(user);
+
+      if (location == '/' || location == '/login' || location == '/attendant-login' || location == '/splash') {
         final from = state.uri.queryParameters['from'];
         if (from != null && from.isNotEmpty && !_publicPaths.contains(from) && from != '/splash') {
           return from;
         }
-        return '/dashboard';
+        return landing;
       }
 
       // Every shell route's access is driven by AppNav - the same config
@@ -250,9 +268,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       // drift apart: the role, the permissions matrix and whether the
       // module is switched on for the school. A route not listed there
       // needs no check.
+      //
+      // A user turned away goes to their landing page - unless that is the
+      // page turning them away (an attendant whose school has transport
+      // switched off), where the screen itself says why.
       final navItem = AppNav.findByPath(location);
-      if (navItem != null && !navItem.allows(user)) {
-        return '/dashboard';
+      if (navItem != null && !navItem.allows(user) && location != landing) {
+        return landing;
       }
 
       return null;

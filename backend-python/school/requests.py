@@ -19,8 +19,9 @@ from rest_framework import serializers
 import decimal
 import re
 
-from . import audit, hashing, mailer, notices, notifications, permissions, sms, whatsapp
+from . import attendants, audit, hashing, mailer, notices, notifications, permissions, sms, whatsapp
 from .enums import (
+    UserStatus,
     MessageChannel,
     NoticeAudience,
     NoticeKind,
@@ -48,6 +49,7 @@ from .enums import (
     UserRole,
 )
 from .models import (
+    AttendantCredential,
     AcademicYear,
     ClassSection,
     Department,
@@ -1491,6 +1493,68 @@ class SendNoticeRequest(ScopedSerializer):
         return problems
 
 
+class UpdateProfileRequest(serializers.Serializer):
+    """What a person may change about themselves (docs/profile.md): their
+    name, mobile and home address. Every field is optional - a PATCH - but a
+    field that is sent must be good. Anything else in the body (role, email,
+    school_id, employee_id...) is not a field here and is ignored, so there
+    is no way to smuggle an admin-only change through this form."""
+
+    first_name = LaravelCharField("first_name", max_length=100, required=False)
+    last_name = LaravelCharField("last_name", max_length=100, required=False)
+    mobile = MobileField("mobile")
+    address = optional_text("address", 500)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate(self, attrs):
+        # Whitespace-only names never get here: normalise() trims them to
+        # nothing, and the field's own required rule refuses nothing.
+        if not attrs:
+            raise serializers.ValidationError({"first_name": ["Send at least one detail to change."]})
+
+        return attrs
+
+
+class ChangeEmailRequest(serializers.Serializer):
+    """A new sign-in address, confirmed with the current password.
+
+    The password is asked because the address is where a reset link goes:
+    whoever can change it can take the account, so a session left open on a
+    shared computer must not be enough.
+    """
+
+    email = EmailField("email", lowercase=True, max_length=255)
+    current_password = LaravelCharField("current_password")
+
+    def __init__(self, *args, actor=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.actor = actor
+
+    def validate(self, attrs):
+        errors = {}
+
+        if not hashing.check(attrs["current_password"], self.actor.password):
+            errors["current_password"] = ["That is not your current password."]
+
+        if attrs["email"] == (self.actor.email or "").lower():
+            errors["email"] = ["That is already your email address."]
+        elif User.objects.filter(email__iexact=attrs["email"]).exclude(pk=self.actor.pk).exists():
+            errors["email"] = [already_taken("email")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
 class UpdateModuleSettingRequest(serializers.Serializer):
     """A module's switches and settings for one school. Every field is
     optional so a screen can move one switch without resending the rest;
@@ -1892,9 +1956,25 @@ class RouteFields(serializers.Serializer):
     name = LaravelCharField("name", max_length=100)
     vehicle_id = LaravelIntegerField("vehicle_id", required=False, allow_null=True)
     driver_id = LaravelIntegerField("driver_id", required=False, allow_null=True)
+    # The Bus Attendant who runs the route's trips. One may cover several
+    # routes, so unlike a vehicle or driver it is not exclusive.
+    attendant_user_id = LaravelIntegerField("attendant_user_id", required=False, allow_null=True)
 
     def route_school(self):
         raise NotImplementedError
+
+    def validate_attendant_user_id(self, value):
+        if value is None:
+            return None
+
+        usable = User.objects.filter(
+            pk=value, school_id=self.route_school(), role=UserRole.BUS_ATTENDANT, status=UserStatus.ACTIVE
+        )
+
+        if not usable.exists():
+            raise serializers.ValidationError("The selected attendant is not an active Bus Attendant of this school.")
+
+        return value
 
     def current(self, field: str):
         return None
@@ -1972,17 +2052,58 @@ class UpdateTransportRouteRequest(RouteFields, PartialForm):
     validate_status = staticmethod(enum_choice("status", TransportStatus.values))
 
 
+# A stop further than this from its school is almost always a latitude and
+# longitude typed the wrong way round.
+MAX_STOP_DISTANCE_KM = 100
+
+
 class StopFields(serializers.Serializer):
     name = LaravelCharField("name", max_length=100)
     sequence_number = LaravelIntegerField("sequence_number", min_value=1, max_value=200)
     pickup_time = LaravelCharField("pickup_time", max_length=255, required=False, allow_null=True)
     drop_time = LaravelCharField("drop_time", max_length=255, required=False, allow_null=True)
+    latitude = CoordinateField("latitude", -90, 90)
+    longitude = CoordinateField("longitude", -180, 180)
 
     validate_pickup_time = staticmethod(clock_time("pickup_time"))
     validate_drop_time = staticmethod(clock_time("drop_time"))
 
     def siblings(self):
         raise NotImplementedError
+
+    def stop_school(self):
+        raise NotImplementedError
+
+    def validate(self, attrs):
+        """A position is a pair, and near its school."""
+        errors = {}
+        sent = [field for field in ("latitude", "longitude") if field in attrs]
+
+        if len(sent) == 1:
+            other = "longitude" if sent[0] == "latitude" else "latitude"
+            errors[other] = [f"Enter a {other} as well, or clear the {sent[0]}."]
+        elif len(sent) == 2 and (attrs["latitude"] is None) != (attrs["longitude"] is None):
+            missing = "latitude" if attrs["latitude"] is None else "longitude"
+            present = "longitude" if missing == "latitude" else "latitude"
+            errors[missing] = [f"Enter a {missing} as well, or clear the {present}."]
+        elif len(sent) == 2 and attrs["latitude"] is not None:
+            school = School.objects.filter(pk=self.stop_school()).values("latitude", "longitude").first()
+
+            if school and school["latitude"] is not None and school["longitude"] is not None:
+                from .geo import distance_m
+
+                away = distance_m(attrs["latitude"], attrs["longitude"], school["latitude"], school["longitude"]) / 1000
+
+                if away > MAX_STOP_DISTANCE_KM:
+                    errors["latitude"] = [
+                        f"This stop is {away:,.0f} km from the school. Check the latitude and longitude "
+                        "are not the wrong way round."
+                    ]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
     def validate_name(self, value):
         taken(self.siblings().filter(name=value), "name")
@@ -2006,6 +2127,9 @@ class StoreTransportStopRequest(StopFields):
     def siblings(self):
         return TransportStop.objects.filter(route_id=self.route.pk)
 
+    def stop_school(self):
+        return self.route.school_id
+
 
 class UpdateTransportStopRequest(StopFields, PartialForm):
     def __init__(self, *args, stop=None, **kwargs) -> None:
@@ -2014,6 +2138,9 @@ class UpdateTransportStopRequest(StopFields, PartialForm):
 
     def siblings(self):
         return TransportStop.objects.filter(route_id=self.stop.route_id).exclude(pk=self.stop.pk)
+
+    def stop_school(self):
+        return self.stop.school_id
 
 
 class AssignStudentTransportRequest(serializers.Serializer):
@@ -2202,7 +2329,10 @@ class ReviewStaffLeaveRequest(ScopedSerializer):
 # What "add an employee" may create. Never an admin account, whoever is doing
 # the adding - that is the Users screen's job, and it derives the admin tier
 # from the actor rather than from a field.
-STAFF_ROLES = (UserRole.HOD, UserRole.TEACHER, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT)
+STAFF_ROLES = (
+    UserRole.HOD, UserRole.TEACHER, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT,
+    UserRole.BUS_ATTENDANT,
+)
 
 
 class StoreStaffRequest(ScopedSerializer):
@@ -2216,9 +2346,12 @@ class StoreStaffRequest(ScopedSerializer):
 
     first_name = LaravelCharField("first_name", max_length=100)
     last_name = LaravelCharField("last_name", max_length=100)
-    email = LaravelCharField("email", max_length=255)
+    # Optional for a Bus Attendant only (see validate()); required otherwise.
+    email = LaravelCharField("email", max_length=255, required=False, allow_null=True, allow_blank=True)
     mobile = MobileField("mobile")
-    password = PasswordField("password")
+    # A Bus Attendant has no password: they sign in with a passcode on a
+    # registered phone. Required for everybody else.
+    password = PasswordField("password", required=False, allow_null=True)
     role = LaravelCharField("role")
     employee_id = LaravelCharField("employee_id", max_length=30)
     department_id = LaravelIntegerField("department_id", required=False, allow_null=True)
@@ -2226,7 +2359,10 @@ class StoreStaffRequest(ScopedSerializer):
     joining_date = LaravelDateField("joining_date")
     address = optional_text("address", 500)
 
-    def validate_email(self, value: str) -> str:
+    def validate_email(self, value):
+        if value in (None, ""):
+            return None
+
         value = value.strip().lower()
 
         if not EMAIL_PATTERN.match(value):
@@ -2243,11 +2379,31 @@ class StoreStaffRequest(ScopedSerializer):
             errors.update(invalid.detail)
 
         school_id = self.resolved_school_id()
+        is_attendant = attrs.get("role") == UserRole.BUS_ATTENDANT
 
         if attrs.get("role") not in STAFF_ROLES:
             errors["role"] = [selected_is_invalid("role")]
 
-        if User.objects.filter(email=attrs["email"]).exists():
+        if is_attendant:
+            # The mobile number is how they sign in, so it is required and
+            # must not already sign somebody else in.
+            if not attrs.get("mobile"):
+                errors["mobile"] = ["A Bus Attendant signs in with their mobile number, so it is required."]
+            elif AttendantCredential.objects.filter(login_mobile=attendants.login_mobile(attrs["mobile"])).exists():
+                errors["mobile"] = ["Another Bus Attendant already signs in with this mobile number."]
+
+            attrs.pop("password", None)
+
+            if not attrs.get("email"):
+                attrs["email"] = attendants.placeholder_email()
+        else:
+            if not attrs.get("email"):
+                errors["email"] = [required("email")]
+
+            if not attrs.get("password"):
+                errors["password"] = [required("password")]
+
+        if attrs.get("email") and User.objects.filter(email=attrs["email"]).exists():
             errors["email"] = [already_taken("email")]
 
         if StaffProfile.objects.filter(
@@ -3024,7 +3180,20 @@ class UpdateUserRequest(ScopedSerializer):
         ).exists():
             errors["email"] = [already_taken("email")]
 
-        if "role" in attrs:
+        if self.user.role == UserRole.BUS_ATTENDANT and "mobile" in attrs:
+            login = attendants.login_mobile(attrs["mobile"])
+
+            if login is None:
+                errors["mobile"] = ["A Bus Attendant signs in with their mobile number, so it cannot be removed."]
+            elif AttendantCredential.objects.filter(login_mobile=login).exclude(user_id=self.user.pk).exists():
+                errors["mobile"] = ["Another Bus Attendant already signs in with this mobile number."]
+
+        if "role" in attrs and attrs["role"] != self.user.role and UserRole.BUS_ATTENDANT in (attrs["role"], self.user.role):
+            errors["role"] = [
+                "A Bus Attendant signs in differently from everybody else, so the role cannot be changed to "
+                "or from it. Add the person again with the role they need."
+            ]
+        elif "role" in attrs:
             if attrs["role"] not in UserRole.values:
                 errors["role"] = [selected_is_invalid("role")]
             elif (
@@ -3287,3 +3456,198 @@ class AuditLogFilterRequest(ScopedSerializer):
             raise serializers.ValidationError(errors)
 
         return values
+
+
+# -- the Bus Attendant --------------------------------------------------------
+
+
+class AttendantSetupRequest(serializers.Serializer):
+    """Registering a phone: the attendant's mobile, the one-time setup code an
+    administrator gave them, and the passcode they choose."""
+
+    mobile = MobileField("mobile", required=True, allow_null=False, allow_blank=False)
+    setup_code = LaravelCharField("setup_code", max_length=20)
+    passcode = serializers.CharField(error_messages={"required": required("passcode"), "blank": required("passcode")})
+    device_name = optional_text("device_name", 120)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_passcode(self, value):
+        problem = attendants.passcode_problem(value)
+
+        if problem:
+            raise serializers.ValidationError(problem)
+
+        return value
+
+
+class AttendantLoginRequest(serializers.Serializer):
+    mobile = MobileField("mobile", required=True, allow_null=False, allow_blank=False)
+    passcode = serializers.CharField(error_messages={"required": required("passcode"), "blank": required("passcode")})
+    device_secret = serializers.CharField(
+        max_length=200,
+        error_messages={"required": "This phone is not registered yet. Enter the setup code from your school office."},
+    )
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+
+def parse_instant(field_name: str, value):
+    """An ISO 8601 instant that says which timezone it is in - "2026-09-19T
+    07:42:10Z" or "+05:30" - as an aware UTC datetime. A phone's clock time
+    with no zone is refused: it could mean any of a dozen instants."""
+    import datetime as dt
+
+    if not isinstance(value, str) or not value.strip():
+        raise serializers.ValidationError(f"The {attribute(field_name)} field is required.")
+
+    try:
+        parsed = dt.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        raise serializers.ValidationError(f"The {attribute(field_name)} field must be a date and time.")
+
+    if parsed.tzinfo is None:
+        raise serializers.ValidationError(f"The {attribute(field_name)} field must say which timezone it is in.")
+
+    return parsed.astimezone(dt.timezone.utc)
+
+
+SYNC_TYPES = ("stop_reached", "boarded", "dropped", "absent", "guardian_called", "end")
+CLIENT_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+MAX_SYNC_OPERATIONS = 200
+
+
+class TripSyncRequest(serializers.Serializer):
+    """A batch of trip marks from the phone, in the order they were made.
+
+    Only the shape is checked here; whether each mark can be applied - the
+    trip still running, the child still waiting - is the service's answer,
+    given per mark, because one mark that can no longer be applied must not
+    lose the rest of the batch.
+    """
+
+    operations = serializers.ListField(
+        child=serializers.DictField(), allow_empty=False, max_length=MAX_SYNC_OPERATIONS,
+        error_messages={"empty": "Send at least one mark.", "not_a_list": "The operations field must be a list."},
+    )
+
+    def validate_operations(self, value):
+        problems = []
+        cleaned = []
+
+        for index, op in enumerate(value, start=1):
+            client_id = str(op.get("client_id") or "")
+            kind = op.get("type")
+
+            if not CLIENT_ID.match(client_id):
+                problems.append(f"Mark {index}: client_id must be 8-64 letters, digits, - or _.")
+                continue
+
+            if kind not in SYNC_TYPES:
+                problems.append(f"Mark {index}: {kind!r} is not a kind of trip mark.")
+                continue
+
+            try:
+                occurred = parse_instant("occurred_at", op.get("occurred_at"))
+            except serializers.ValidationError:
+                problems.append(f"Mark {index}: occurred_at must be a date and time.")
+                continue
+
+            needs_stop = kind == "stop_reached"
+            needs_student = kind in ("boarded", "dropped", "absent", "guardian_called")
+
+            if needs_stop and not isinstance(op.get("stop_id"), int):
+                problems.append(f"Mark {index}: stop_id is required.")
+                continue
+
+            if needs_student and not isinstance(op.get("student_id"), int):
+                problems.append(f"Mark {index}: student_id is required.")
+                continue
+
+            cleaned.append({
+                "client_id": client_id, "type": kind, "occurred_at": occurred,
+                "stop_id": op.get("stop_id") if needs_stop else None,
+                "student_id": op.get("student_id") if needs_student else None,
+            })
+
+        ids = [op["client_id"] for op in cleaned]
+
+        if len(ids) != len(set(ids)):
+            problems.append("Each mark in a batch needs its own client_id.")
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return cleaned
+
+
+MAX_LOCATION_POINTS = 100
+
+
+class TripLocationsRequest(serializers.Serializer):
+    """Positions from the phone of whoever runs the trip: a small batch, so
+    a phone that lost signal can catch up in one request."""
+
+    points = serializers.ListField(
+        child=serializers.DictField(), allow_empty=False, max_length=MAX_LOCATION_POINTS,
+        error_messages={"empty": "Send at least one position.", "not_a_list": "The points field must be a list."},
+    )
+
+    def validate_points(self, value):
+        problems = []
+        cleaned = []
+
+        for index, point in enumerate(value, start=1):
+            try:
+                latitude = CoordinateField("latitude", -90, 90, required=True).to_internal_value(point.get("latitude"))
+                longitude = CoordinateField("longitude", -180, 180, required=True).to_internal_value(point.get("longitude"))
+                recorded_at = parse_instant("recorded_at", point.get("recorded_at"))
+            except serializers.ValidationError as invalid:
+                problems.append(f"Position {index}: {invalid.detail[0] if isinstance(invalid.detail, list) else invalid.detail}")
+                continue
+
+            if latitude is None or longitude is None:
+                problems.append(f"Position {index}: latitude and longitude are required.")
+                continue
+
+            def number(key, low, high):
+                raw = point.get(key)
+
+                if raw is None:
+                    return None
+
+                try:
+                    value = decimal.Decimal(str(raw))
+                except (decimal.InvalidOperation, ValueError):
+                    raise serializers.ValidationError(f"Position {index}: {key} must be a number.")
+
+                if not low <= value <= high:
+                    raise serializers.ValidationError(f"Position {index}: {key} must be between {low} and {high}.")
+
+                return value.quantize(decimal.Decimal("0.01"))
+
+            try:
+                accuracy = number("accuracy", 0, 99999)
+                speed = number("speed", 0, 9999)
+                heading = number("heading", 0, 360)
+            except serializers.ValidationError as invalid:
+                problems.append(str(invalid.detail[0]))
+                continue
+
+            cleaned.append({
+                "latitude": latitude, "longitude": longitude, "recorded_at": recorded_at,
+                "accuracy_m": accuracy, "speed_mps": speed, "heading": heading,
+            })
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return cleaned

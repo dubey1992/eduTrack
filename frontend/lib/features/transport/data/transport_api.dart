@@ -7,6 +7,7 @@ import 'models/driver.dart';
 import 'models/transport_route.dart';
 import 'models/transport_status.dart';
 import 'models/transport_trip.dart';
+import 'models/trip_live_location.dart';
 import 'models/vehicle.dart';
 
 final transportApiProvider = Provider<TransportApi>((ref) => TransportApi(ref.watch(dioClientProvider)));
@@ -149,25 +150,45 @@ class TransportApi {
     return TransportRoute.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<TransportRoute> createRoute({int? schoolId, required String name, int? vehicleId, int? driverId}) async {
+  Future<TransportRoute> createRoute({
+    int? schoolId,
+    required String name,
+    int? vehicleId,
+    int? driverId,
+    int? attendantUserId,
+  }) async {
     final response = await _dio.post(
       '/transport/routes',
-      data: {'school_id': schoolId, 'name': name, 'vehicle_id': vehicleId, 'driver_id': driverId},
+      data: {
+        'school_id': schoolId,
+        'name': name,
+        'vehicle_id': vehicleId,
+        'driver_id': driverId,
+        'attendant_user_id': attendantUserId,
+      },
     );
     return TransportRoute.fromJson(response.data as Map<String, dynamic>);
   }
 
-  /// [vehicleId]/[driverId] are always sent (null clears the attachment).
+  /// [vehicleId]/[driverId]/[attendantUserId] are always sent (null clears
+  /// the attachment). [attendantUserId] is a user id, not a staff profile id.
   Future<TransportRoute> updateRoute(
     int routeId, {
     String? name,
     required int? vehicleId,
     required int? driverId,
+    required int? attendantUserId,
     TransportStatus? status,
   }) async {
     final response = await _dio.patch(
       '/transport/routes/$routeId',
-      data: {'name': ?name, 'vehicle_id': vehicleId, 'driver_id': driverId, 'status': ?status?.apiValue},
+      data: {
+        'name': ?name,
+        'vehicle_id': vehicleId,
+        'driver_id': driverId,
+        'attendant_user_id': attendantUserId,
+        'status': ?status?.apiValue,
+      },
     );
     return TransportRoute.fromJson(response.data as Map<String, dynamic>);
   }
@@ -186,30 +207,50 @@ class TransportApi {
 
   // ── stops ───────────────────────────────────────────────────────────
 
+  /// [latitude]/[longitude] go together - both or neither.
   Future<TransportStop> createStop(
     int routeId, {
     required String name,
     required int sequenceNumber,
     String? pickupTime,
     String? dropTime,
+    String? latitude,
+    String? longitude,
   }) async {
     final response = await _dio.post(
       '/transport/routes/$routeId/stops',
-      data: {'name': name, 'sequence_number': sequenceNumber, 'pickup_time': pickupTime, 'drop_time': dropTime},
+      data: {
+        'name': name,
+        'sequence_number': sequenceNumber,
+        'pickup_time': pickupTime,
+        'drop_time': dropTime,
+        'latitude': latitude,
+        'longitude': longitude,
+      },
     );
     return TransportStop.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// The times and the position are always sent (null clears them).
   Future<TransportStop> updateStop(
     int stopId, {
     String? name,
     int? sequenceNumber,
     String? pickupTime,
     String? dropTime,
+    String? latitude,
+    String? longitude,
   }) async {
     final response = await _dio.patch(
       '/transport/stops/$stopId',
-      data: {'name': ?name, 'sequence_number': ?sequenceNumber, 'pickup_time': pickupTime, 'drop_time': dropTime},
+      data: {
+        'name': ?name,
+        'sequence_number': ?sequenceNumber,
+        'pickup_time': pickupTime,
+        'drop_time': dropTime,
+        'latitude': latitude,
+        'longitude': longitude,
+      },
     );
     return TransportStop.fromJson(response.data as Map<String, dynamic>);
   }
@@ -270,5 +311,10 @@ class TransportApi {
   Future<TransportTrip> cancelTrip(int tripId) async {
     final response = await _dio.post('/transport/trips/$tripId/cancel');
     return TransportTrip.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TripLiveLocation> liveLocation(int tripId) async {
+    final response = await _dio.get('/transport/trips/$tripId/live');
+    return TripLiveLocation.fromJson(response.data as Map<String, dynamic>);
   }
 }

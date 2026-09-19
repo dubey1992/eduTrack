@@ -78,3 +78,30 @@ class PasswordResetAddressThrottle(SimpleRateThrottle):
 
     def get_cache_key(self, request, view) -> str:
         return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
+
+
+class AttendantThrottle(SimpleRateThrottle):
+    """One phone number being guessed at, as opposed to one office. The
+    passcode's own lock (five wrong, then an administrator) is the real
+    guard; this stops a script hammering the lock into place."""
+
+    scope = "attendant-login"
+    rate = "5/min"
+
+    def get_cache_key(self, request, view) -> str:
+        from .attendants import login_mobile
+
+        mobile = login_mobile(str(request.data.get("mobile", ""))) or ""
+
+        return self.cache_format % {"scope": self.scope, "ident": f"{mobile}|{self.get_ident(request)}"}
+
+
+class AttendantAddressThrottle(SimpleRateThrottle):
+    """A depot where every attendant signs in at once, as opposed to one
+    attacker."""
+
+    scope = "attendant-login-address"
+    rate = "30/min"
+
+    def get_cache_key(self, request, view) -> str:
+        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}

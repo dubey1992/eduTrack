@@ -105,4 +105,32 @@ void main() {
       expect(user.clock.timezone, 'device');
     });
   });
+
+  group('toSchoolTime', () {
+    test('turns a UTC instant into the reading on the school clock', () {
+      // Kolkata is UTC+5:30.
+      final clock = SchoolClock(
+        timezone: 'Asia/Kolkata',
+        schoolTimeAtAnchor: DateTime(2026, 9, 10, 13, 30),
+        anchorUtc: DateTime.utc(2026, 9, 10, 8, 0),
+      );
+
+      final reading = clock.toSchoolTime(DateTime.parse('2026-09-11T02:00:00Z'));
+
+      expect([reading.year, reading.month, reading.day, reading.hour, reading.minute], [2026, 9, 11, 7, 30]);
+    });
+
+    test('a school behind UTC reads earlier, across midnight', () {
+      // New York in September is UTC-4.
+      final clock = SchoolClock(
+        timezone: 'America/New_York',
+        schoolTimeAtAnchor: DateTime(2026, 9, 10, 4, 0),
+        anchorUtc: DateTime.utc(2026, 9, 10, 8, 0),
+      );
+
+      final reading = clock.toSchoolTime(DateTime.parse('2026-09-11T02:00:00Z'));
+
+      expect([reading.month, reading.day, reading.hour], [9, 10, 22]);
+    });
+  });
 }

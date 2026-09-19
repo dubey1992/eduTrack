@@ -34,3 +34,8 @@ xhtml2pdf==0.2.16
 # no AES, and a hand-rolled cipher is exactly the code nobody should write.
 # Already here transitively through xhtml2pdf; pinned now that it is used directly.
 cryptography==50.0.1
+
+# Profile photos are decoded and re-encoded before they are kept
+# (school/photos.py), which is what strips EXIF and anything smuggled after
+# the image data. Already here through xhtml2pdf; pinned now it is used.
+Pillow==12.3.0
