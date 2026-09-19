@@ -27,3 +27,10 @@ django-cors-headers==4.6.0
 # pango, which rules out WeasyPrint. Like dompdf on the Laravel side it
 # understands only simple CSS, so the receipt template came across unchanged.
 xhtml2pdf==0.2.16
+
+# Provider credentials and the SMTP password are stored encrypted
+# (docs/communication.md). Fernet - AES with an HMAC - from the one widely
+# maintained Python library that ships it; the standard library has HMAC but
+# no AES, and a hand-rolled cipher is exactly the code nobody should write.
+# Already here transitively through xhtml2pdf; pinned now that it is used directly.
+cryptography==50.0.1

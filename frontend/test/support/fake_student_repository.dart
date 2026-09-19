@@ -75,6 +75,9 @@ class FakeStudentRepository implements StudentRepository {
     String? rollNumber,
     required String guardianName,
     String? guardianMobile,
+    String? guardianEmail,
+    String? studentMobile,
+    String? studentEmail,
     String? address,
   }) async {
     if (failCreateWith != null) throw failCreateWith!;
@@ -92,12 +95,19 @@ class FakeStudentRepository implements StudentRepository {
       rollNumber: rollNumber,
       guardianName: guardianName,
       guardianMobile: guardianMobile,
+      guardianEmail: guardianEmail,
+      studentMobile: studentMobile,
+      studentEmail: studentEmail,
       address: address,
       status: StudentStatus.active,
     );
     _students.add(student);
     return student;
   }
+
+  /// The arguments of the last update, as named by the API - so a test can
+  /// tell a field cleared (null) from a field left alone.
+  Map<String, Object?>? lastUpdate;
 
   @override
   Future<Student> update(
@@ -109,8 +119,22 @@ class FakeStudentRepository implements StudentRepository {
     String? rollNumber,
     String? guardianName,
     String? guardianMobile,
+    String? guardianEmail,
+    String? studentMobile,
+    String? studentEmail,
     String? address,
   }) async {
+    lastUpdate = {
+      'student_id': studentId,
+      'class_section_id': classSectionId,
+      'roll_number': rollNumber,
+      'guardian_name': guardianName,
+      'guardian_mobile': guardianMobile,
+      'guardian_email': guardianEmail,
+      'student_mobile': studentMobile,
+      'student_email': studentEmail,
+      'address': address,
+    };
     if (failUpdateWith != null) throw failUpdateWith!;
 
     final index = _students.indexWhere((s) => s.id == studentId);
@@ -128,6 +152,9 @@ class FakeStudentRepository implements StudentRepository {
       rollNumber: rollNumber ?? existing.rollNumber,
       guardianName: guardianName ?? existing.guardianName,
       guardianMobile: guardianMobile ?? existing.guardianMobile,
+      guardianEmail: guardianEmail ?? existing.guardianEmail,
+      studentMobile: studentMobile ?? existing.studentMobile,
+      studentEmail: studentEmail ?? existing.studentEmail,
       address: address ?? existing.address,
       status: existing.status,
       transport: existing.transport,
@@ -158,6 +185,9 @@ class FakeStudentRepository implements StudentRepository {
       rollNumber: e.rollNumber,
       guardianName: e.guardianName,
       guardianMobile: e.guardianMobile,
+      guardianEmail: e.guardianEmail,
+      studentMobile: e.studentMobile,
+      studentEmail: e.studentEmail,
       address: e.address,
       status: e.status,
       transport: routeId == null || stopId == null

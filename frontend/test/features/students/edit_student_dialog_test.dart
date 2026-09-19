@@ -42,6 +42,9 @@ const _student = Student(
   guardianMobile: '9876543210',
   address: null,
   status: StudentStatus.active,
+  guardianEmail: 'raj@example.com',
+  studentMobile: '+91 9123456789',
+  studentEmail: 'arjun@example.com',
 );
 
 Widget wrap(FakeStudentRepository fake) {
@@ -111,5 +114,55 @@ void main() {
 
     expect(find.text('Could not update student.'), findsOneWidget);
     expect(find.byType(EditStudentDialog), findsOneWidget);
+  });
+
+  group('contact details', () {
+    String fieldText(WidgetTester tester, String label) {
+      return tester.widget<TextFormField>(find.widgetWithText(TextFormField, label)).controller!.text;
+    }
+
+    testWidgets('are shown with what the student already has', (tester) async {
+      await tester.pumpWidget(wrap(FakeStudentRepository(students: [_student])));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(fieldText(tester, 'Parent email (optional)'), 'raj@example.com');
+      // The number field holds the local part; the dial code is picked beside it.
+      expect(fieldText(tester, 'Student mobile (optional)'), '9123456789');
+      expect(fieldText(tester, 'Student email (optional)'), 'arjun@example.com');
+    });
+
+    testWidgets('an email that is not one is refused', (tester) async {
+      final fake = FakeStudentRepository(students: [_student]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Student email (optional)'), 'arjun.example.com');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a valid email'), findsOneWidget);
+      expect(fake.lastUpdate, isNull);
+      expect(find.byType(EditStudentDialog), findsOneWidget);
+    });
+
+    testWidgets('changed details reach the repository, and a cleared one is sent as nothing', (tester) async {
+      final fake = FakeStudentRepository(students: [_student]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Parent email (optional)'), 'raj.kumar@example.com');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Student mobile (optional)'), '9000000000');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Student email (optional)'), '');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EditStudentDialog), findsNothing);
+      expect(fake.lastUpdate!['guardian_email'], 'raj.kumar@example.com');
+      expect(fake.lastUpdate!['student_mobile'], '+91 9000000000');
+      expect(fake.lastUpdate!['student_email'], isNull);
+    });
   });
 }

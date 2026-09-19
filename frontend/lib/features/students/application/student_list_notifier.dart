@@ -89,6 +89,9 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
     String? rollNumber,
     required String guardianName,
     String? guardianMobile,
+    String? guardianEmail,
+    String? studentMobile,
+    String? studentEmail,
     String? address,
     int? routeId,
     int? stopId,
@@ -103,6 +106,9 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
       rollNumber: rollNumber,
       guardianName: guardianName,
       guardianMobile: guardianMobile,
+      guardianEmail: guardianEmail,
+      studentMobile: studentMobile,
+      studentEmail: studentEmail,
       address: address,
     );
     _page = 1;
@@ -129,6 +135,9 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
     String? rollNumber,
     String? guardianName,
     String? guardianMobile,
+    String? guardianEmail,
+    String? studentMobile,
+    String? studentEmail,
     String? address,
     int? routeId,
     int? stopId,
@@ -143,6 +152,9 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
       rollNumber: rollNumber,
       guardianName: guardianName,
       guardianMobile: guardianMobile,
+      guardianEmail: guardianEmail,
+      studentMobile: studentMobile,
+      studentEmail: studentEmail,
       address: address,
     );
 

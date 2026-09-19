@@ -192,6 +192,11 @@ void main() {
         'leave_alerts_enabled': true,
         'provider': 'log',
         'sender_id': 'SUNRIS',
+        'whatsapp_enabled': false,
+        'whatsapp_provider': 'log',
+        'email_enabled': false,
+        // Nothing typed into an account box, so nothing on file changes.
+        'credentials': null,
       });
       expect(find.text('Alert settings saved.'), findsOneWidget);
     });

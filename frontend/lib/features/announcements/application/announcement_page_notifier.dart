@@ -85,7 +85,7 @@ class AnnouncementPageNotifier extends AsyncNotifier<PagedList<Announcement>> {
     required String body,
     required AnnouncementAudience audienceType,
     int? audienceId,
-    required AnnouncementChannels channels,
+    required String channels,
     String? expiresAt,
   }) async {
     final announcement = await ref
@@ -140,7 +140,9 @@ class AudienceQuery {
   const AudienceQuery({required this.audienceType, required this.channels, this.schoolId, this.audienceId});
 
   final AnnouncementAudience audienceType;
-  final AnnouncementChannels channels;
+
+  /// A comma-separated channel list in API order, e.g. "in_app,sms".
+  final String channels;
   final int? schoolId;
   final int? audienceId;
 

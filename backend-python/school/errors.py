@@ -232,6 +232,21 @@ class MessageNotRetryable(ApiError):
     error_code = "MESSAGE_NOT_RETRYABLE"
 
 
+class MailTestFailed(ApiError):
+    """The SMTP settings could not send a test email. The message is the
+    mail server's own explanation, minus anything secret."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "MAIL_TEST_FAILED"
+
+
+class GatewayTestFailed(ApiError):
+    """The school's SMS or WhatsApp provider refused a test message."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "GATEWAY_TEST_FAILED"
+
+
 class UnreachableAudience(ApiError):
     """An announcement that would reach nobody. Refused rather than recorded
     as sent to zero people, which would read as if something went out."""

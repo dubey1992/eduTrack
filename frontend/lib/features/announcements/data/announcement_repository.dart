@@ -49,7 +49,7 @@ class AnnouncementRepository {
     required String body,
     required AnnouncementAudience audienceType,
     int? audienceId,
-    required AnnouncementChannels channels,
+    required String channels,
     String? expiresAt,
   }) {
     return _guard(
@@ -69,7 +69,7 @@ class AnnouncementRepository {
     int? schoolId,
     required AnnouncementAudience audienceType,
     int? audienceId,
-    required AnnouncementChannels channels,
+    required String channels,
   }) {
     return _guard(
       () => _api.preview(schoolId: schoolId, audienceType: audienceType, audienceId: audienceId, channels: channels),

@@ -86,6 +86,13 @@ def ucfirst(value: str) -> str:
 class MessageChannel(models.TextChoices):
     SMS = "sms", "SMS"
     IN_APP = "in_app", "In-app"
+    WHATSAPP = "whatsapp", "WhatsApp"
+    EMAIL = "email", "Email"
+
+    @classmethod
+    def external(cls) -> list[str]:
+        """The channels that leave the building - everything but the inbox."""
+        return [cls.SMS, cls.WHATSAPP, cls.EMAIL]
 
 
 class MessageStatus(models.TextChoices):
@@ -104,6 +111,12 @@ class MessageCategory(models.TextChoices):
     TRANSPORT = "transport"
     LEAVE = "leave"
     ANNOUNCEMENT = "announcement"
+    # Written by hand in the Communication Center rather than by a module:
+    # a message to one person or group, an emergency to everyone, a fee
+    # reminder to a guardian (docs/communication.md).
+    GENERAL = "general"
+    EMERGENCY = "emergency"
+    FEE = "fee"
 
     @classmethod
     def label_for(cls, category: str) -> str:
@@ -133,30 +146,36 @@ class MessageEvent(models.TextChoices):
     LEAVE_APPROVED = "leave.approved", "Leave approved"
     LEAVE_REJECTED = "leave.rejected", "Leave rejected"
     ANNOUNCEMENT_PUBLISHED = "announcement.published", "Announcement"
+    GENERAL_MESSAGE = "general.message", "Message"
+    EMERGENCY_ALERT = "emergency.alert", "Emergency alert"
+    FEE_REMINDER = "fee.reminder", "Fee reminder"
 
     @classmethod
     def category(cls, event: str) -> str:
-        if event.startswith("attendance."):
-            return MessageCategory.ATTENDANCE
+        prefix = event.split(".", 1)[0]
 
-        if event.startswith("transport."):
-            return MessageCategory.TRANSPORT
-
-        if event.startswith("leave."):
-            return MessageCategory.LEAVE
-
-        return MessageCategory.ANNOUNCEMENT
+        return prefix if prefix in MessageCategory.values else MessageCategory.ANNOUNCEMENT
 
     @classmethod
     def channels(cls, event: str) -> list[str]:
-        """Guardians have no login, so student alerts are SMS only. Staff
-        alerts also land in the in-app inbox."""
+        """Every channel the event can go out on. Which of them a copy is
+        actually recorded on is the school's settings' decision, per channel,
+        and the recipient's: a guardian has no login, so no inbox.
+
+        Alerts about a student go to whoever is told about that student and
+        never into an inbox; everything else reaches staff, who have one.
+        """
         category = cls.category(event)
 
-        if category in (MessageCategory.LEAVE, MessageCategory.ANNOUNCEMENT):
-            return [MessageChannel.IN_APP, MessageChannel.SMS]
+        if category in (MessageCategory.ATTENDANCE, MessageCategory.TRANSPORT, MessageCategory.FEE):
+            return MessageChannel.external()
 
-        return [MessageChannel.SMS]
+        return [MessageChannel.IN_APP, *MessageChannel.external()]
+
+    @classmethod
+    def is_manual(cls, event: str) -> bool:
+        """Written in the Communication Center rather than raised by a module."""
+        return cls.category(event) in (MessageCategory.GENERAL, MessageCategory.EMERGENCY, MessageCategory.FEE)
 
     @classmethod
     def default_body(cls, event: str) -> str:
@@ -189,6 +208,12 @@ DEFAULT_BODIES = {
         "Your {leave_type} leave from {start_date} to {end_date} was not approved."
     ),
     MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
+    MessageEvent.GENERAL_MESSAGE: "{school_name}: {subject} - {body}",
+    MessageEvent.EMERGENCY_ALERT: "EMERGENCY - {school_name}: {body}",
+    MessageEvent.FEE_REMINDER: (
+        "Dear {guardian_name}, a fee of {amount} for {student_name} is due on {due_date}. "
+        "Please pay at the school office. - {school_name}"
+    ),
 }
 
 TOKENS = {
@@ -203,6 +228,9 @@ TOKENS = {
         "staff_name", "leave_type", "start_date", "end_date", "days", "remarks", "school_name",
     ],
     MessageCategory.ANNOUNCEMENT: ["title", "body", "school_name", "audience"],
+    MessageCategory.GENERAL: ["recipient_name", "subject", "body", "school_name"],
+    MessageCategory.EMERGENCY: ["subject", "body", "school_name"],
+    MessageCategory.FEE: ["student_name", "guardian_name", "amount", "due_date", "school_name"],
 }
 
 # The one event whose tokens differ from its category's: it names a direction
@@ -327,25 +355,78 @@ class AnnouncementAudience(models.TextChoices):
 
 
 class AnnouncementChannels(models.TextChoices):
+    """The three choices the prototype offered, kept as they are stored. An
+    announcement can now go out on any mix of the four channels, written as a
+    comma-separated list ("in_app,sms,whatsapp"); the three names below still
+    read as the lists they always meant, so old rows and old clients work."""
+
     SMS_AND_IN_APP = "sms_in_app", "SMS + In-app"
     SMS_ONLY = "sms", "SMS Only"
     IN_APP_ONLY = "in_app", "In-app Only"
 
     @classmethod
-    def includes_sms(cls, channels: str) -> bool:
-        return channels != cls.IN_APP_ONLY
-
-    @classmethod
-    def includes_in_app(cls, channels: str) -> bool:
-        return channels != cls.SMS_ONLY
-
-    @classmethod
-    def message_channels(cls, channels: str) -> list[str]:
+    def legacy(cls) -> dict[str, list[str]]:
         return {
             cls.SMS_AND_IN_APP: [MessageChannel.IN_APP, MessageChannel.SMS],
             cls.SMS_ONLY: [MessageChannel.SMS],
             cls.IN_APP_ONLY: [MessageChannel.IN_APP],
-        }[channels]
+        }
+
+    @classmethod
+    def parse(cls, channels) -> list[str] | None:
+        """The channel list a stored or submitted value means, in the order
+        MessageChannel declares them, or None when it means nothing."""
+        if not isinstance(channels, str):
+            return None
+
+        if channels in cls.legacy():
+            return list(cls.legacy()[channels])
+
+        wanted = {part.strip() for part in channels.split(",") if part.strip()}
+
+        if not wanted or not wanted <= set(MessageChannel.values):
+            return None
+
+        return [channel for channel in MessageChannel.values if channel in wanted]
+
+    @classmethod
+    def is_valid(cls, channels) -> bool:
+        return cls.parse(channels) is not None
+
+    @classmethod
+    def normalise(cls, channels: str) -> str:
+        """Stored as the caller wrote it when it is one of the three names, so
+        the Laravel contract is unchanged; otherwise as an ordered list."""
+        return channels if channels in cls.legacy() else ",".join(cls.parse(channels))
+
+    @classmethod
+    def label_for(cls, channels: str) -> str:
+        if channels in cls.legacy():
+            return cls(channels).label
+
+        return " + ".join(MessageChannel(channel).label for channel in cls.parse(channels) or [])
+
+    @classmethod
+    def includes(cls, channels: str, channel: str) -> bool:
+        return channel in (cls.parse(channels) or [])
+
+    @classmethod
+    def includes_sms(cls, channels: str) -> bool:
+        return cls.includes(channels, MessageChannel.SMS)
+
+    @classmethod
+    def includes_in_app(cls, channels: str) -> bool:
+        return cls.includes(channels, MessageChannel.IN_APP)
+
+    @classmethod
+    def message_channels(cls, channels: str) -> list[str]:
+        return cls.parse(channels) or []
+
+    @classmethod
+    def reaches_guardians(cls, channels: str) -> bool:
+        """Guardians have no login, so an announcement reaches them only when
+        some external channel is on."""
+        return any(cls.includes(channels, channel) for channel in MessageChannel.external())
 
 
 class TransportStatus(models.TextChoices):
@@ -405,3 +486,80 @@ class EarlyAccessStatus(models.TextChoices):
     @classmethod
     def open(cls) -> tuple:
         return (cls.NEW, cls.CONTACTED)
+
+
+class NoticeKind(models.TextChoices):
+    """What somebody in the Communication Center is writing (docs/communication.md)."""
+
+    MESSAGE = "message", "Message"
+    EMERGENCY = "emergency", "Emergency alert"
+    FEE_REMINDER = "fee_reminder", "Fee reminder"
+
+    @classmethod
+    def event(cls, kind: str) -> str:
+        return {
+            cls.MESSAGE: MessageEvent.GENERAL_MESSAGE,
+            cls.EMERGENCY: MessageEvent.EMERGENCY_ALERT,
+            cls.FEE_REMINDER: MessageEvent.FEE_REMINDER,
+        }[kind]
+
+
+class NoticeAudience(models.TextChoices):
+    """Who a notice is for. The first two name one person and are sent at
+    once; the rest are groups and are fanned out by the queue."""
+
+    STUDENT = "student", "One student"
+    STAFF_MEMBER = "staff_member", "One staff member"
+    CLASS_SECTION = "class_section", "A class section"
+    DEPARTMENT = "department", "A department"
+    PARENTS = "parents", "All parents"
+    STUDENTS = "students", "All students"
+    TEACHERS = "teachers", "All teachers"
+    STAFF = "staff", "All staff"
+    EVERYONE = "everyone", "Everyone"
+
+    @classmethod
+    def needs_target(cls, audience: str) -> bool:
+        return audience in (cls.STUDENT, cls.STAFF_MEMBER, cls.CLASS_SECTION, cls.DEPARTMENT)
+
+    @classmethod
+    def is_individual(cls, audience: str) -> bool:
+        return audience in (cls.STUDENT, cls.STAFF_MEMBER)
+
+    @classmethod
+    def reaches_students(cls, audience: str) -> bool:
+        """Audiences made of students - reached through their guardians, or
+        directly, or both (NoticeRecipients)."""
+        return audience in (cls.STUDENT, cls.CLASS_SECTION, cls.PARENTS, cls.STUDENTS, cls.EVERYONE)
+
+    @classmethod
+    def reaches_staff(cls, audience: str) -> bool:
+        return audience in (cls.STAFF_MEMBER, cls.DEPARTMENT, cls.TEACHERS, cls.STAFF, cls.EVERYONE)
+
+
+class NoticeRecipients(models.TextChoices):
+    """For an audience made of students: who actually receives it."""
+
+    GUARDIANS = "guardians", "Parents / guardians"
+    STUDENTS = "students", "Students themselves"
+    BOTH = "both", "Both"
+
+    @classmethod
+    def for_audience(cls, audience: str, chosen: str | None) -> str:
+        """"All parents" and "all students" say it in their name; the other
+        student audiences take the form's choice, guardians by default."""
+        if audience == NoticeAudience.PARENTS:
+            return cls.GUARDIANS
+
+        if audience == NoticeAudience.STUDENTS:
+            return cls.STUDENTS
+
+        return chosen or cls.GUARDIANS
+
+    @classmethod
+    def includes_guardians(cls, recipients: str) -> bool:
+        return recipients in (cls.GUARDIANS, cls.BOTH)
+
+    @classmethod
+    def includes_students(cls, recipients: str) -> bool:
+        return recipients in (cls.STUDENTS, cls.BOTH)

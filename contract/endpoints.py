@@ -268,6 +268,15 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("POST", "auth/sessions/others"),
     ("DELETE", "auth/sessions/{session}"),
     ("POST", "users/{user}/unlock"),
+    # -- messaging channels and SMTP (docs/communication.md) -----------
+    ("POST", "communication/settings/test"),
+    ("PUT", "communication/templates/{event}/whatsapp"),
+    ("DELETE", "communication/templates/{event}/whatsapp"),
+    ("POST", "communication/notices"),
+    ("GET", "communication/notices/preview"),
+    ("GET", "settings/mail"),
+    ("PUT", "settings/mail"),
+    ("POST", "settings/mail/test"),
 ]
 
 

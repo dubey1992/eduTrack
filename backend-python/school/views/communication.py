@@ -27,20 +27,39 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from rest_framework import status
+
 from ..enums import MessageEvent, MessageStatus
-from ..errors import MessageNotRetryable
+from ..errors import GatewayTestFailed, MessageNotRetryable
 from ..models import Message, School
 from ..notifications import settings_for
 from ..pagination import LaravelPagination
 from ..policies import MessagePolicy, authorize
 from ..requests import (
     MessageIndexRequest,
+    SendNoticeRequest,
+    SendTestMessageRequest,
     UpdateCommunicationSettingRequest,
     UpdateMessageTemplateRequest,
+    UpdateWhatsappTemplateRequest,
+    php_int,
     requested_school,
 )
-from ..resources import communication_setting_resource, message_resource, message_template_resource
-from ..services import CommunicationSettingService, MessageService, MessageTemplateService
+from ..resources import (
+    communication_setting_resource,
+    message_resource,
+    message_template_resource,
+    notice_result_resource,
+)
+from ..scope import SchoolScope
+from ..services import (
+    CommunicationSettingService,
+    MessageService,
+    MessageTemplateService,
+    NoticeService,
+    WhatsappTemplateService,
+)
+from ..validation import normalise
 
 
 def filters_from(request) -> dict:
@@ -205,3 +224,104 @@ def save_settings(request) -> Response:
     return Response(
         communication_setting_resource(CommunicationSettingService.update(school.id, form.validated_data))
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def test_gateway(request) -> Response:
+    """One message through the school's own provider, now - so an
+    administrator finds out whether the account works before a parent does."""
+    school_id = from_input(request)
+
+    authorize(MessagePolicy.configure(request.user, school_id))
+
+    form = SendTestMessageRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
+    school = get_object_or_404(School, pk=school_id or 0)
+    result = CommunicationSettingService.test(school.id, form.validated_data["channel"], form.validated_data["to"])
+
+    if not result.accepted:
+        raise GatewayTestFailed(result.failure_reason or "The provider did not accept the test message.")
+
+    return Response({"message": f"A test message was sent to {form.validated_data['to']}."})
+
+
+# -- WhatsApp templates -----------------------------------------------------
+
+
+@api_view(["PUT", "DELETE"])
+@permission_classes([IsAuthenticated])
+def whatsapp_template(request, event: str) -> Response:
+    """Which registered template carries this event on WhatsApp. The same
+    checks, in the same order, as rewording the event."""
+    event = event_or_404(event)
+
+    if request.method == "DELETE":
+        school_id = from_query(request)
+
+        authorize(MessagePolicy.configure(request.user, school_id))
+
+        school = get_object_or_404(School, pk=school_id)
+        WhatsappTemplateService.clear(school.id, event)
+
+        return Response(message_template_resource(MessageTemplateService.row_for(school.id, event)))
+
+    school_id = from_input(request)
+
+    authorize(MessagePolicy.configure(request.user, school_id))
+
+    form = UpdateWhatsappTemplateRequest(data=request.data, event=event)
+    form.is_valid(raise_exception=True)
+
+    if school_id is None:
+        raise Http404
+
+    school = get_object_or_404(School, pk=school_id)
+    WhatsappTemplateService.set(school.id, event, form.validated_data, request.user)
+
+    return Response(message_template_resource(MessageTemplateService.row_for(school.id, event)))
+
+
+# -- notices: messages written by hand --------------------------------------
+
+
+def notice_school(request, data: dict):
+    """The school a notice is written into - the actor's own unless a Super
+    Admin names one - and the check that they may write into it."""
+    raw = data.get("school_id")
+    requested = None if raw in (None, "") else php_int(raw)
+    school_id = SchoolScope.for_actor(request.user).writable_school_id(requested)
+
+    authorize(MessagePolicy.send(request.user, school_id))
+
+    return school_id
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def notices(request) -> Response:
+    data = normalise(request.data)
+    notice_school(request, data)
+
+    form = SendNoticeRequest(data=request.data, actor=request.user)
+    form.is_valid(raise_exception=True)
+
+    result = NoticeService.send(form.validated_data, request.user)
+
+    return Response(notice_result_resource(result), status=status.HTTP_202_ACCEPTED if result["queued"] else status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def notice_preview(request) -> Response:
+    """How many people a notice would reach, per channel, before it is sent."""
+    data = normalise(request.query_params.dict())
+    school_id = notice_school(request, data)
+
+    form = SendNoticeRequest(data=data, actor=request.user, preview=True)
+    form.is_valid(raise_exception=True)
+
+    result = NoticeService.preview(school_id, form.validated_data)
+
+    return Response(notice_result_resource(result))

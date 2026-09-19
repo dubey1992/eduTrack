@@ -40,7 +40,7 @@ class AnnouncementApi {
     required String body,
     required AnnouncementAudience audienceType,
     int? audienceId,
-    required AnnouncementChannels channels,
+    required String channels,
     String? expiresAt,
   }) async {
     final response = await _dio.post(
@@ -51,7 +51,7 @@ class AnnouncementApi {
         'body': body,
         'audience_type': audienceType.apiValue,
         'audience_id': ?audienceId,
-        'channels': channels.apiValue,
+        'channels': channels,
         'expires_at': ?expiresAt,
       },
     );
@@ -62,7 +62,7 @@ class AnnouncementApi {
     int? schoolId,
     required AnnouncementAudience audienceType,
     int? audienceId,
-    required AnnouncementChannels channels,
+    required String channels,
   }) async {
     final response = await _dio.get(
       '/announcements/preview',
@@ -70,7 +70,7 @@ class AnnouncementApi {
         'school_id': ?schoolId,
         'audience_type': audienceType.apiValue,
         'audience_id': ?audienceId,
-        'channels': channels.apiValue,
+        'channels': channels,
       },
     );
     return AudiencePreview.fromJson(response.data as Map<String, dynamic>);

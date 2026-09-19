@@ -21,6 +21,7 @@ import '../../features/errors/presentation/not_found_screen.dart';
 import '../../features/departments/presentation/department_list_screen.dart';
 import '../../features/hod/presentation/hod_report_screen.dart';
 import '../../features/holidays/presentation/holiday_list_screen.dart';
+import '../../features/mail_settings/presentation/mail_settings_screen.dart';
 import '../../features/marketing/presentation/marketing_screen.dart';
 import '../../features/payments/presentation/payment_list_screen.dart';
 import '../../features/payroll/presentation/my_payslips_screen.dart';
@@ -97,6 +98,7 @@ const appRoutePaths = {
   '/payroll',
   '/my-payslips',
   '/audit-log',
+  '/mail-settings',
 };
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -162,6 +164,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/payroll', builder: (context, state) => const PayrollScreen()),
           GoRoute(path: '/my-payslips', builder: (context, state) => const MyPayslipsScreen()),
           GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
+          GoRoute(path: '/mail-settings', builder: (context, state) => const MailSettingsScreen()),
         ],
       ),
     ],

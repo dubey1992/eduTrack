@@ -14,10 +14,14 @@ from django.db import transaction
 from django.db.models import Count, F, Min, Q, Sum
 from django.utils import timezone
 
-from . import audit, hashing, jobs, money, notifications, queue, sms, tokens, working_hours
+from . import audit, crypto, hashing, jobs, mailer, money, notices, notifications, queue, sms, tokens, whatsapp, working_hours
+from .gateways import Template
 from .clock import TIME, SchoolClock
 from .fields import as_utc
 from .enums import (
+    NoticeAudience,
+    NoticeKind,
+    NoticeRecipients,
     EarlyAccessStatus,
     TripEventType,
     TripRiderStatus,
@@ -39,6 +43,7 @@ from .enums import (
     UserStatus,
 )
 from .errors import (
+    GatewayTestFailed,
     AccountInactive,
     AccountLocked,
     AttendanceAlreadySubmitted,
@@ -59,6 +64,8 @@ from .errors import (
     Unauthenticated,
 )
 from .models import (
+    MailSetting,
+    WhatsappTemplate,
     AcademicYear,
     Announcement,
     Attendance,
@@ -1868,6 +1875,7 @@ class MessageTemplateService:
         }
 
         rows = []
+        whatsapp_rows = WhatsappTemplateService.by_event(school_id)
 
         for event in MessageEvent.values:
             override = overrides.get(event)
@@ -1879,6 +1887,7 @@ class MessageTemplateService:
                     "body": override.body if custom else MessageEvent.default_body(event),
                     "default_body": MessageEvent.default_body(event),
                     "is_custom": custom,
+                    "whatsapp": whatsapp_rows.get(event),
                     "updated_at": override.updated_at if override else None,
                     "updated_by_name": (
                         override.updated_by.name if override and override.updated_by_id else None
@@ -1925,16 +1934,29 @@ class MessageTemplateService:
 
 
 class CommunicationSettingService:
-    SWITCHES = ("sms_enabled", "attendance_alerts", "transport_alerts_enabled", "leave_alerts_enabled", "provider")
+    SWITCHES = (
+        "sms_enabled", "attendance_alerts", "transport_alerts_enabled", "leave_alerts_enabled", "provider",
+        "whatsapp_enabled", "whatsapp_provider", "email_enabled",
+    )
 
     @classmethod
     def update(cls, school_id: int, data: dict):
         setting = notifications.settings_for(school_id)
-        values = {field: data[field] for field in cls.SWITCHES}
+        values = {field: data[field] for field in cls.SWITCHES if field in data}
 
         # Absent leaves the sender alone; an explicit null clears it.
         if "sender_id" in data:
             values["sender_id"] = data["sender_id"]
+
+        # Credentials merge: a field that is sent replaces the stored one, an
+        # empty one clears it, and a field left out is kept - so the screen
+        # never has to send a secret back to keep it.
+        if data.get("credentials") is not None:
+            current = crypto.decrypt_json(setting.credentials)
+            merged = cls.merged_credentials(current, data["credentials"])
+
+            if merged != current:
+                values["credentials"] = crypto.encrypt_json(merged) if merged else None
 
         changed = [field for field, value in values.items() if getattr(setting, field) != value]
         now = timezone.now()
@@ -1955,6 +1977,271 @@ class CommunicationSettingService:
         audit.updated("communication", setting, before)
 
         return CommunicationSetting.objects.get(pk=setting.pk)
+
+    @staticmethod
+    def merged_credentials(current: dict, submitted: dict) -> dict:
+        merged = {provider: dict(fields) for provider, fields in current.items()}
+
+        for provider, fields in submitted.items():
+            account = merged.setdefault(provider, {})
+
+            for key, value in fields.items():
+                if value in (None, ""):
+                    account.pop(key, None)
+                else:
+                    account[key] = value
+
+            if not account:
+                merged.pop(provider)
+
+        return merged
+
+    @staticmethod
+    def test(school_id: int, channel: str, to: str):
+        """One message through the school's own provider, now, so an
+        administrator learns whether the account works before a parent does.
+        A WhatsApp test needs the "Message" event's template mapped, since
+        WhatsApp carries nothing else."""
+        setting = notifications.settings_for(school_id)
+        school = School.objects.get(pk=school_id)
+        body = f"This is a test message from {school.name}. Your messaging settings work."
+
+        if channel == MessageChannel.SMS:
+            provider = sms.resolve(setting.provider)
+
+            return sms.gateway(provider).send(
+                to, body, setting.sender_id, notifications.credentials_of(setting, provider)
+            )
+
+        tokens = {"recipient_name": "Test", "subject": "Test message", "body": body, "school_name": school.name}
+        payload = notifications.whatsapp_payload(school_id, MessageEvent.GENERAL_MESSAGE, tokens)
+
+        if payload is None:
+            raise GatewayTestFailed('Map a WhatsApp template to the "Message" event first, then test again.')
+
+        provider = whatsapp.resolve(setting.whatsapp_provider)
+
+        return whatsapp.gateway(provider).send_template(
+            to,
+            Template(name=payload["template"], language=payload["language"], values=payload["values"]),
+            notifications.credentials_of(setting, provider),
+        )
+
+
+class WhatsappTemplateService:
+    """Which registered WhatsApp template carries each event for a school.
+    A row exists only for an event the school has mapped; the rest are
+    skipped on the WhatsApp channel, with that as the reason."""
+
+    @staticmethod
+    def by_event(school_id: int) -> dict:
+        return {row.event: row for row in WhatsappTemplate.objects.filter(school_id=school_id)}
+
+    @staticmethod
+    def set(school_id: int, event: str, data: dict, actor: User):
+        now = timezone.now()
+        values = {
+            "template_name": data["template_name"],
+            "language": data.get("language") or "en",
+            "parameters": ",".join(data.get("parameters") or []) or None,
+        }
+        existing = WhatsappTemplate.objects.filter(school_id=school_id, event=event).first()
+
+        if existing is None:
+            row = WhatsappTemplate.objects.create(
+                school_id=school_id, event=event, updated_by_id=actor.id, created_at=now, updated_at=now, **values
+            )
+            audit.created("communication", row)
+
+            return row
+
+        before = audit.fields_of(existing)
+
+        for field, value in values.items():
+            setattr(existing, field, value)
+
+        existing.updated_by_id = actor.id
+        existing.updated_at = now
+        existing.save()
+        audit.updated("communication", existing, before)
+
+        return existing
+
+    @staticmethod
+    def clear(school_id: int, event: str) -> None:
+        for row in WhatsappTemplate.objects.filter(school_id=school_id, event=event):
+            audit.deleted("communication", row)
+            row.delete()
+
+
+class MailSettingService:
+    """The platform's SMTP server (docs/communication.md). One row, Super
+    Admin only, password encrypted and never returned."""
+
+    FIELDS = ("is_active", "host", "port", "encryption", "username", "from_address", "from_name")
+
+    @staticmethod
+    def current():
+        return mailer.stored()
+
+    @classmethod
+    def save(cls, data: dict, actor: User):
+        row = mailer.stored()
+        now = timezone.now()
+        creating = row is None
+
+        if creating:
+            row = MailSetting(created_at=now)
+
+        before = audit.fields_of(row)
+
+        for field in cls.FIELDS:
+            if field in data:
+                setattr(row, field, data[field])
+
+        # Absent keeps the password; blank or null clears it.
+        if "password" in data:
+            row.password = crypto.encrypt(data["password"]) if data["password"] else None
+
+        row.updated_by_id = actor.id
+        row.updated_at = now
+        row.save()
+
+        if creating:
+            audit.created("mail", row)
+        else:
+            audit.updated("mail", row, before)
+
+        return MailSetting.objects.get(pk=row.pk)
+
+    @staticmethod
+    def test(row, to: str, actor: User) -> None:
+        """Sends the test and keeps the outcome on the row, whichever way it
+        went - the screen shows the last result beside the settings."""
+        try:
+            mailer.send_test(row, to)
+        finally:
+            row.updated_at = timezone.now()
+            row.save(update_fields=["last_tested_at", "last_test_error", "updated_at"])
+            audit.record(
+                action="mail_setting.tested", module="mail", entity_type="mail_setting", entity_id=row.id,
+                school_id=None, new={"to": to, "error": row.last_test_error},
+            )
+
+
+class NoticeService:
+    """A message somebody wrote in the Communication Center: to one person,
+    a class, a department, everybody. There is no row for a notice - only the
+    messages it becomes, which is what the log shows and what the audit
+    trail records the sending of."""
+
+    @staticmethod
+    def preview(school_id: int, data: dict) -> dict:
+        setting = notifications.settings_for(school_id)
+        audience = data["audience_type"]
+        target = data.get("audience_id")
+
+        counts = notices.count(school_id, audience, target, data.get("recipients"), data["channels"], setting)
+        counts["audience_label"] = notices.audience_label(school_id, audience, target)
+
+        return counts
+
+    @classmethod
+    def send(cls, data: dict, actor: User) -> dict:
+        school_id = data["school_id"]
+        audience = data["audience_type"]
+        counts = cls.preview(school_id, data)
+
+        if counts["recipients"] == 0:
+            raise UnreachableAudience("Nobody in this audience can be reached on the channels chosen.")
+
+        payload = {
+            "school_id": school_id,
+            "kind": data["kind"],
+            "audience_type": audience,
+            "audience_id": data.get("audience_id"),
+            "audience_label": counts["audience_label"],
+            "recipients": NoticeRecipients.for_audience(audience, data.get("recipients")),
+            "channels": counts["channels"],
+            "subject": data.get("subject"),
+            "body": data.get("body"),
+            "amount": None if data.get("amount") is None else str(data["amount"]),
+            "due_date": None if data.get("due_date") is None else data["due_date"].isoformat(),
+            "actor_id": actor.id,
+        }
+
+        audit.record(
+            action="notice.sent", module="communication", entity_type="notice", entity_id=None,
+            school_id=school_id, new={**payload, "recipients_count": counts["recipients"]},
+        )
+
+        # One person is told now; a group is handed to the queue, so a
+        # whole-school emergency does not hold the request open.
+        if NoticeAudience.is_individual(audience):
+            return {**counts, "queued": False, "messages": cls.fan_out(payload)}
+
+        queue.push(jobs.SEND_NOTICE, payload)
+
+        return {**counts, "queued": True, "messages": []}
+
+    @classmethod
+    def fan_out(cls, payload: dict) -> list:
+        """Turns the audience into messages, through the same pipeline every
+        automatic alert uses. Runs in the request for one person and on the
+        queue for a group."""
+        school = School.objects.filter(pk=payload["school_id"]).first()
+
+        if school is None:
+            return []
+
+        event = NoticeKind.event(payload["kind"])
+        actor = User.objects.filter(pk=payload.get("actor_id")).first() if payload.get("actor_id") else None
+        audience = payload["audience_type"]
+        target = payload.get("audience_id")
+        channels = payload["channels"]
+        external = [channel for channel in channels if channel != MessageChannel.IN_APP]
+        subject = cls.subject_of(payload)
+        tokens = cls.tokens_of(payload, school)
+        sent = []
+
+        students = notices.students_for(school.id, audience, target)
+
+        if external and NoticeRecipients.includes_guardians(payload["recipients"]):
+            for student in AnnouncementService.chunked(students):
+                sent += notifications.notify_guardian(event, student, tokens, actor, channels=external, subject=subject)
+
+        if external and NoticeRecipients.includes_students(payload["recipients"]):
+            for student in AnnouncementService.chunked(students):
+                sent += notifications.notify_student(event, student, tokens, actor, channels=external, subject=subject)
+
+        users = notices.users_for(school.id, audience, target).select_related("school")
+
+        for user in AnnouncementService.chunked(users):
+            sent += notifications.notify_staff(event, user, tokens, actor, channels=channels, subject=subject)
+
+        return sent
+
+    @staticmethod
+    def subject_of(payload: dict) -> str:
+        if payload["kind"] == NoticeKind.FEE_REMINDER:
+            return "Fee reminder"
+
+        if payload["kind"] == NoticeKind.EMERGENCY:
+            return payload.get("subject") or "Emergency alert"
+
+        return payload.get("subject") or "Message"
+
+    @staticmethod
+    def tokens_of(payload: dict, school) -> dict:
+        tokens = {"subject": payload.get("subject"), "body": payload.get("body")}
+
+        if payload.get("amount") is not None:
+            tokens["amount"] = money.formatted(Decimal(payload["amount"]), school.currency_code)
+
+        if payload.get("due_date"):
+            tokens["due_date"] = dt.date.fromisoformat(payload["due_date"]).strftime("%m/%d/%Y")
+
+        return tokens
 
 
 
@@ -2055,15 +2342,18 @@ class AnnouncementService:
         }
         audience = announcement.audience_type
 
-        if AnnouncementChannels.includes_sms(announcement.channels) and AnnouncementAudience.reaches_guardians(audience):
-            # No mobile filter here on purpose: a guardian with no number still
+        channels = AnnouncementChannels.message_channels(announcement.channels)
+        external = [channel for channel in channels if channel != MessageChannel.IN_APP]
+
+        if external and AnnouncementAudience.reaches_guardians(audience):
+            # No address filter here on purpose: a guardian with no number still
             # gets a "skipped" row, so an admin can see who was missed.
             students = cls.students(announcement.school_id, audience, announcement.audience_id)
 
             for student in cls.chunked(students):
                 notifications.notify_guardian(
                     MessageEvent.ANNOUNCEMENT_PUBLISHED, student, tokens, actor,
-                    channels=[MessageChannel.SMS], announcement=announcement,
+                    channels=external, announcement=announcement,
                 )
 
         if AnnouncementAudience.reaches_staff(audience):
@@ -2072,8 +2362,7 @@ class AnnouncementService:
             for user in cls.chunked(users):
                 notifications.notify_staff(
                     MessageEvent.ANNOUNCEMENT_PUBLISHED, user, tokens, actor,
-                    channels=AnnouncementChannels.message_channels(announcement.channels),
-                    announcement=announcement,
+                    channels=channels, announcement=announcement,
                 )
 
     @classmethod
@@ -2104,19 +2393,41 @@ class AnnouncementService:
 
     @classmethod
     def count_recipients(cls, school_id: int, audience: str, target, channels: str) -> dict:
-        guardians = 0
-        staff = 0
+        """Who the notice reaches and how many copies each channel carries.
+        A guardian counts once when any chosen external channel has an
+        address for them; staff always have an inbox and an email address."""
+        by_mobile = AnnouncementChannels.includes_sms(channels) or AnnouncementChannels.includes(
+            channels, MessageChannel.WHATSAPP
+        )
+        by_email = AnnouncementChannels.includes(channels, MessageChannel.EMAIL)
+        with_mobile = with_email = guardians = staff = 0
 
-        if AnnouncementChannels.includes_sms(channels) and AnnouncementAudience.reaches_guardians(audience):
-            guardians = cls.students(school_id, audience, target).filter(guardian_mobile__isnull=False).count()
+        if AnnouncementChannels.reaches_guardians(channels) and AnnouncementAudience.reaches_guardians(audience):
+            students = cls.students(school_id, audience, target)
+            reachable = Q(pk__in=[])
+
+            if by_mobile:
+                with_mobile = students.filter(guardian_mobile__isnull=False).count()
+                reachable |= Q(guardian_mobile__isnull=False)
+
+            if by_email:
+                with_email = students.filter(guardian_email__isnull=False).count()
+                reachable |= Q(guardian_email__isnull=False)
+
+            guardians = students.filter(reachable).count()
 
         if AnnouncementAudience.reaches_staff(audience):
             staff = cls.users(school_id, audience, target).count()
 
+        def copies(channel: str, guardian_copies: int) -> int:
+            return guardian_copies + staff if AnnouncementChannels.includes(channels, channel) else 0
+
         return {
             "recipients": guardians + staff,
-            "sms": guardians + (staff if AnnouncementChannels.includes_sms(channels) else 0),
+            "sms": copies(MessageChannel.SMS, with_mobile),
             "in_app": staff if AnnouncementChannels.includes_in_app(channels) else 0,
+            "whatsapp": copies(MessageChannel.WHATSAPP, with_mobile),
+            "email": copies(MessageChannel.EMAIL, with_email),
         }
 
     @staticmethod
@@ -2166,8 +2477,8 @@ class AnnouncementService:
 
     @staticmethod
     def unreachable_reason(audience: str, channels: str) -> str:
-        if channels == AnnouncementChannels.IN_APP_ONLY and not AnnouncementAudience.reaches_staff(audience):
-            return "Guardians have no app login, so this audience can only be reached by SMS."
+        if not AnnouncementChannels.reaches_guardians(channels) and not AnnouncementAudience.reaches_staff(audience):
+            return "Guardians have no app login, so this audience can only be reached by SMS, WhatsApp or email."
 
         return "Nobody in this audience can be reached right now."
 
@@ -3756,6 +4067,9 @@ class StudentService:
             roll_number=data.get("roll_number"),
             guardian_name=data["guardian_name"],
             guardian_mobile=data.get("guardian_mobile"),
+            guardian_email=data.get("guardian_email"),
+            student_mobile=data.get("student_mobile"),
+            student_email=data.get("student_email"),
             address=data.get("address"),
             status=StudentStatus.ACTIVE,
             created_at=now,

@@ -291,10 +291,11 @@ class TheEventCatalogue(TestCase):
 
                 self.assertEqual([], unknown)
 
-    def test_guardian_alerts_are_sms_only_and_staff_alerts_are_not(self):
+    def test_guardian_alerts_never_reach_an_inbox_and_staff_alerts_do(self):
         # Guardians have no login, so there is no inbox to put anything in.
         self.assertEqual(
-            [MessageChannel.SMS], MessageEvent.channels(MessageEvent.ATTENDANCE_ABSENT)
+            [MessageChannel.SMS, MessageChannel.WHATSAPP, MessageChannel.EMAIL],
+            MessageEvent.channels(MessageEvent.ATTENDANCE_ABSENT),
         )
         self.assertIn(
             MessageChannel.IN_APP, MessageEvent.channels(MessageEvent.LEAVE_APPROVED)

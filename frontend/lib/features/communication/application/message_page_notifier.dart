@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/paged_list.dart';
 import '../data/communication_repository.dart';
 import '../data/models/message.dart';
+import 'inbox_notifier.dart';
 
 final messagePageNotifierProvider = AsyncNotifierProvider<MessagePageNotifier, PagedList<Message>>(
   MessagePageNotifier.new,
@@ -101,6 +102,46 @@ class MessagePageNotifier extends AsyncNotifier<PagedList<Message>> {
     ref.invalidate(messageSummaryProvider);
     await refresh();
   }
+
+  /// A message written by hand. One person is sent at once and lands in the
+  /// log immediately; a group is queued, so the log fills in as the worker
+  /// gets through it. Either way the list and the tiles are re-read.
+  Future<NoticeResult> sendNotice({
+    int? schoolId,
+    required NoticeKind kind,
+    required NoticeAudience audienceType,
+    int? audienceId,
+    NoticeRecipients? recipients,
+    required List<MessageChannel> channels,
+    String? subject,
+    String? body,
+    String? amount,
+    String? dueDate,
+  }) async {
+    final result = await ref
+        .read(communicationRepositoryProvider)
+        .sendNotice(
+          schoolId: schoolId,
+          kind: kind,
+          audienceType: audienceType,
+          audienceId: audienceId,
+          recipients: recipients,
+          channels: channels,
+          subject: subject,
+          body: body,
+          amount: amount,
+          dueDate: dueDate,
+        );
+
+    ref.invalidate(messageSummaryProvider);
+    // A staff audience includes the sender's own inbox.
+    ref.invalidate(inboxNotifierProvider);
+    ref.invalidate(unreadCountProvider);
+    _page = 1;
+    await refresh();
+
+    return result;
+  }
 }
 
 /// The four KPI tiles. Kept separate from the list so paging does not
@@ -108,3 +149,51 @@ class MessagePageNotifier extends AsyncNotifier<PagedList<Message>> {
 final messageSummaryProvider = FutureProvider.autoDispose.family<MessageSummary, int?>((ref, schoolId) {
   return ref.watch(communicationRepositoryProvider).summary(schoolId: schoolId);
 });
+
+/// How many people a notice would reach, per channel, as the compose form
+/// changes. No automatic retry: a refused audience is an answer, not a blip.
+final noticePreviewProvider = FutureProvider.autoDispose.family<NoticeResult, NoticeQuery>((ref, query) {
+  return ref
+      .watch(communicationRepositoryProvider)
+      .previewNotice(
+        schoolId: query.schoolId,
+        kind: query.kind,
+        audienceType: query.audienceType,
+        audienceId: query.audienceId,
+        recipients: query.recipients,
+        channels: query.channels,
+      );
+}, retry: (retryCount, error) => null);
+
+/// The compose form's current choices, as a provider key.
+class NoticeQuery {
+  const NoticeQuery({
+    required this.kind,
+    required this.audienceType,
+    required this.channels,
+    this.schoolId,
+    this.audienceId,
+    this.recipients,
+  });
+
+  final NoticeKind kind;
+  final NoticeAudience audienceType;
+  final List<MessageChannel> channels;
+  final int? schoolId;
+  final int? audienceId;
+  final NoticeRecipients? recipients;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NoticeQuery &&
+      other.kind == kind &&
+      other.audienceType == audienceType &&
+      MessageChannel.joined(other.channels) == MessageChannel.joined(channels) &&
+      other.schoolId == schoolId &&
+      other.audienceId == audienceId &&
+      other.recipients == recipients;
+
+  @override
+  int get hashCode =>
+      Object.hash(kind, audienceType, MessageChannel.joined(channels), schoolId, audienceId, recipients);
+}

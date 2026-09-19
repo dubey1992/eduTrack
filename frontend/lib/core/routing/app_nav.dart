@@ -132,6 +132,15 @@ class AppNav {
         pageTitle: 'Audit Log',
         pageSubtitle: 'Who changed what, and when',
       ),
+      NavItem(
+        path: '/mail-settings',
+        label: 'Email Settings',
+        icon: Icons.outgoing_mail,
+        // The platform's own SMTP server, not any one school's.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Email Settings',
+        pageSubtitle: 'The SMTP server the platform sends through',
+      ),
     ],
   );
 

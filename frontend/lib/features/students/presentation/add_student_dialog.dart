@@ -26,6 +26,9 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
   final _rollNumberController = TextEditingController();
   final _guardianNameController = TextEditingController();
   final _guardianMobileController = TextEditingController();
+  final _guardianEmailController = TextEditingController();
+  final _studentMobileController = TextEditingController();
+  final _studentEmailController = TextEditingController();
   final _addressController = TextEditingController();
 
   int? _schoolId;
@@ -44,6 +47,9 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
     _rollNumberController.dispose();
     _guardianNameController.dispose();
     _guardianMobileController.dispose();
+    _guardianEmailController.dispose();
+    _studentMobileController.dispose();
+    _studentEmailController.dispose();
     _addressController.dispose();
     super.dispose();
   }
@@ -70,6 +76,9 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
             guardianMobile: _guardianMobileController.text.trim().isEmpty
                 ? null
                 : _guardianMobileController.text.trim(),
+            guardianEmail: _optionalText(_guardianEmailController),
+            studentMobile: _optionalText(_studentMobileController),
+            studentEmail: _optionalText(_studentEmailController),
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
             routeId: _routeId,
             stopId: _stopId,
@@ -170,6 +179,22 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
                 PhoneNumberField(controller: _guardianMobileController, label: 'Parent mobile (optional)'),
                 const SizedBox(height: 10),
                 TextFormField(
+                  controller: _guardianEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Parent email (optional)'),
+                  validator: _optionalEmailProblem,
+                ),
+                const SizedBox(height: 10),
+                PhoneNumberField(controller: _studentMobileController, label: 'Student mobile (optional)'),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _studentEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Student email (optional)'),
+                  validator: _optionalEmailProblem,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
                   controller: _addressController,
                   decoration: const InputDecoration(labelText: 'Address (optional)'),
                   maxLines: 2,
@@ -205,6 +230,19 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
       ],
     );
   }
+}
+
+/// An optional field's text, or null when it was left empty.
+String? _optionalText(TextEditingController controller) {
+  final text = controller.text.trim();
+  return text.isEmpty ? null : text;
+}
+
+/// Optional, but an email if anything is typed.
+String? _optionalEmailProblem(String? value) {
+  final text = (value ?? '').trim();
+  if (text.isEmpty || text.contains('@')) return null;
+  return 'Enter a valid email';
 }
 
 class _ClassSectionPicker extends ConsumerWidget {

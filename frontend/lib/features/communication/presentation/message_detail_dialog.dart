@@ -36,6 +36,7 @@ class MessageDetailDialog extends ConsumerWidget {
               const SizedBox(height: 12),
               _Row(label: 'To', value: message.recipientName),
               if (message.recipientMobile != null) _Row(label: 'Mobile', value: message.recipientMobile!),
+              if (message.recipientEmail != null) _Row(label: 'Email', value: message.recipientEmail!),
               if (message.studentName != null) _Row(label: 'Student', value: message.studentName!),
               _Row(label: 'Channel', value: message.channel.label),
               _Row(label: 'Category', value: message.category.label),

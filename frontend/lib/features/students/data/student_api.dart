@@ -41,6 +41,9 @@ class StudentApi {
     String? rollNumber,
     required String guardianName,
     String? guardianMobile,
+    String? guardianEmail,
+    String? studentMobile,
+    String? studentEmail,
     String? address,
   }) async {
     final response = await _dio.post(
@@ -54,6 +57,9 @@ class StudentApi {
         'roll_number': rollNumber,
         'guardian_name': guardianName,
         'guardian_mobile': guardianMobile,
+        'guardian_email': guardianEmail,
+        'student_mobile': studentMobile,
+        'student_email': studentEmail,
         'address': address,
       },
     );
@@ -70,6 +76,9 @@ class StudentApi {
     String? rollNumber,
     String? guardianName,
     String? guardianMobile,
+    String? guardianEmail,
+    String? studentMobile,
+    String? studentEmail,
     String? address,
   }) async {
     final response = await _dio.patch(
@@ -82,6 +91,9 @@ class StudentApi {
         'roll_number': rollNumber,
         'guardian_name': ?guardianName,
         'guardian_mobile': guardianMobile,
+        'guardian_email': guardianEmail,
+        'student_mobile': studentMobile,
+        'student_email': studentEmail,
         'address': address,
       },
     );

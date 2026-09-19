@@ -11,17 +11,18 @@ from __future__ import annotations
 
 import logging
 
-from django.core.mail import EmailMessage
 from django.utils import timezone
 
-from . import notifications, receipts, sms
+from . import mailer, notifications, receipts, sms, whatsapp
 from .enums import MessageChannel, MessageStatus, UserRole, UserStatus
+from .gateways import Result, Template
 from .models import Message, Payment, User
 from .queue import handler
 
 logger = logging.getLogger(__name__)
 
 SEND_PAYMENT_RECEIPT = "payment_receipt"
+SEND_NOTICE = "send_notice"
 
 
 @handler(notifications.SEND_MESSAGE)
@@ -49,19 +50,18 @@ def send_message(message_id: int) -> None:
 
         return
 
-    if not message.recipient_mobile:
+    address = message.recipient_email if message.channel == MessageChannel.EMAIL else message.recipient_mobile
+
+    if not address:
         Message.objects.filter(pk=message.pk).update(
             status=MessageStatus.SKIPPED,
-            failure_reason="No mobile number on record.",
+            failure_reason=notifications.NO_EMAIL if message.channel == MessageChannel.EMAIL else notifications.NO_MOBILE,
             updated_at=now,
         )
 
         return
 
-    setting = notifications.settings_for(message.school_id)
-    result = sms.gateway(message.provider).send(
-        message.recipient_mobile, message.body, setting.sender_id
-    )
+    result = deliver(message)
 
     if result.accepted:
         Message.objects.filter(pk=message.pk).update(
@@ -77,6 +77,62 @@ def send_message(message_id: int) -> None:
             failure_reason=result.failure_reason,
             updated_at=now,
         )
+
+
+def deliver(message: Message) -> Result:
+    """Hands one external copy to whatever carries its channel. Never raises:
+    a provider's bad morning is a failed row with a reason, not a dead worker."""
+    setting = notifications.settings_for(message.school_id)
+
+    if message.channel == MessageChannel.SMS:
+        return sms.gateway(message.provider).send(
+            message.recipient_mobile,
+            message.body,
+            setting.sender_id,
+            notifications.credentials_of(setting, sms.resolve(message.provider)),
+        )
+
+    if message.channel == MessageChannel.WHATSAPP:
+        payload = message.template_parameters or {}
+
+        if not payload.get("template"):
+            return Result(accepted=False, failure_reason=notifications.NO_WHATSAPP_TEMPLATE)
+
+        return whatsapp.gateway(message.provider).send_template(
+            message.recipient_mobile,
+            Template(
+                name=payload["template"],
+                language=payload.get("language") or "en",
+                values=payload.get("values") or [],
+            ),
+            notifications.credentials_of(setting, whatsapp.resolve(message.provider)),
+        )
+
+    if message.channel == MessageChannel.EMAIL:
+        subject = message.subject or f"{message.event_label()} - {message.school.name}"
+
+        try:
+            mailer.message(subject=subject, body=message.body, to=[message.recipient_email]).send()
+        except Exception as error:
+            # The reason an administrator reads in the log. SMTP errors name
+            # hosts and codes, never the password.
+            logger.warning("Email for message %s failed: %s", message.id, error)
+
+            return Result(accepted=False, failure_reason=str(error)[:255] or "The mail server refused the message.")
+
+        return Result(accepted=True)
+
+    return Result(accepted=False, failure_reason=f"No carrier for the {message.channel} channel.")
+
+
+@handler(SEND_NOTICE)
+def send_notice(**payload) -> None:
+    """The fan-out behind a notice to a group, written by hand in the
+    Communication Center. The payload is the notice itself - there is no row
+    for a notice, only the messages it becomes."""
+    from .services import NoticeService
+
+    NoticeService.fan_out(payload)
 
 
 @handler(SEND_PAYMENT_RECEIPT)
@@ -118,7 +174,7 @@ def send_payment_receipt(payment_id: int) -> None:
 
         return
 
-    message = EmailMessage(
+    message = mailer.message(
         subject=f"Payment receipt {receipts.receipt_number(payment)}",
         body=(
             f"Please find attached the receipt for the payment recorded against "
@@ -172,7 +228,6 @@ def send_password_reset_link(user_id: int) -> None:
     from datetime import timedelta
 
     from django.conf import settings
-    from django.core.mail import EmailMultiAlternatives
 
     from . import hashing
     from .models import PasswordResetToken
@@ -230,9 +285,7 @@ def send_password_reset_link(user_id: int) -> None:
         "</div>"
     )
 
-    message = EmailMultiAlternatives(subject="Reset your password", body=text, to=[user.email])
-    message.attach_alternative(body, "text/html")
-    message.send()
+    mailer.message(subject="Reset your password", body=text, to=[user.email], html=body).send()
 
 
 @handler("payslip_email")
@@ -261,7 +314,7 @@ def send_payslip(payslip_id: int) -> None:
 
         return
 
-    message = EmailMessage(
+    message = mailer.message(
         subject=f"Your payslip for {slip.payroll_run.year}-{slip.payroll_run.month:02d} - {slip.school.name}",
         body=f"Hello {user.first_name},\n\nYour payslip is attached.\n\n{slip.school.name}",
         to=[user.email],

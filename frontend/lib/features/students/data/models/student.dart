@@ -59,6 +59,9 @@ class Student {
     required this.address,
     required this.status,
     this.transport,
+    this.guardianEmail,
+    this.studentMobile,
+    this.studentEmail,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -80,6 +83,9 @@ class Student {
       transport: json['transport'] == null
           ? null
           : StudentTransport.fromJson(json['transport'] as Map<String, dynamic>),
+      guardianEmail: json['guardian_email'] as String?,
+      studentMobile: json['student_mobile'] as String?,
+      studentEmail: json['student_email'] as String?,
     );
   }
 
@@ -99,6 +105,12 @@ class Student {
   final StudentStatus status;
   final StudentTransport? transport;
 
+  /// Contact details beyond the guardian's mobile - each optional, and each
+  /// a place the school can reach the family (see Phase 16, email channel).
+  final String? guardianEmail;
+  final String? studentMobile;
+  final String? studentEmail;
+
   Student copyWith({StudentStatus? status}) {
     return Student(
       id: id,
@@ -116,6 +128,9 @@ class Student {
       address: address,
       status: status ?? this.status,
       transport: transport,
+      guardianEmail: guardianEmail,
+      studentMobile: studentMobile,
+      studentEmail: studentEmail,
     );
   }
 }

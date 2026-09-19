@@ -179,11 +179,64 @@ const announcementInApp = Message(
   createdOnLabel: '16 Sep 2026',
 );
 
+/// A fee reminder's email copy - the log shows where it went.
+const feeEmail = Message(
+  id: 8,
+  schoolId: 1,
+  event: 'fee.reminder',
+  eventLabel: 'Fee reminder',
+  category: MessageCategory.fee,
+  channel: MessageChannel.email,
+  recipientName: 'Raj Kumar',
+  recipientMobile: '+91 9876543210',
+  recipientEmail: 'raj.kumar@example.com',
+  studentId: 7,
+  studentName: 'Arjun Kumar',
+  subject: 'Fee reminder',
+  body: 'A fee of INR 1,500.00 for Arjun Kumar is due on 30 Sep 2026.',
+  status: MessageStatus.sent,
+  provider: 'smtp',
+  providerLabel: 'Email',
+  failureReason: null,
+  sentAt: '2026-09-16T10:00:00.000000Z',
+  readAt: null,
+  createdAt: '2026-09-16T10:00:00.000000Z',
+  createdAtLabel: '10:00 AM',
+  sentAtLabel: null,
+  createdOnLabel: '16 Sep 2026',
+);
+
+/// A WhatsApp copy of a message written by hand.
+const noticeWhatsapp = Message(
+  id: 9,
+  schoolId: 1,
+  event: 'general.message',
+  eventLabel: 'Message',
+  category: MessageCategory.general,
+  channel: MessageChannel.whatsapp,
+  recipientName: 'Neha Mehta',
+  recipientMobile: '+91 9812345678',
+  studentId: 8,
+  studentName: 'Aarav Mehta',
+  subject: 'PTA meeting',
+  body: 'Sunrise Public School: PTA meeting - The PTA meets on Friday at 3 PM.',
+  status: MessageStatus.queued,
+  provider: 'meta',
+  providerLabel: 'Meta WhatsApp Cloud API',
+  failureReason: null,
+  sentAt: null,
+  readAt: null,
+  createdAt: '2026-09-16T10:05:00.000000Z',
+  createdAtLabel: '10:05 AM',
+  sentAtLabel: null,
+  createdOnLabel: '16 Sep 2026',
+);
+
 const absentTemplate = MessageTemplate(
   event: 'attendance.absent',
   eventLabel: 'Marked absent',
   category: MessageCategory.attendance,
-  channels: [MessageChannel.sms],
+  channels: [MessageChannel.sms, MessageChannel.whatsapp, MessageChannel.email],
   body: '{student_name} was marked ABSENT on {date}.',
   defaultBody: '{student_name} was marked ABSENT on {date}.',
   isCustom: false,
@@ -195,7 +248,7 @@ const boardedTemplate = MessageTemplate(
   event: 'transport.boarded',
   eventLabel: 'Boarded the bus',
   category: MessageCategory.transport,
-  channels: [MessageChannel.sms],
+  channels: [MessageChannel.sms, MessageChannel.whatsapp, MessageChannel.email],
   body: 'Reworded: {student_name} is on {vehicle_name}.',
   defaultBody: '{student_name} boarded {vehicle_name} at {stop_name} at {time}.',
   isCustom: true,
@@ -203,7 +256,27 @@ const boardedTemplate = MessageTemplate(
   updatedByName: 'Anita Sharma',
 );
 
-const defaultTemplates = [absentTemplate, boardedTemplate];
+/// The one written by hand, already mapped to an approved WhatsApp template.
+const generalMessageTemplate = MessageTemplate(
+  event: 'general.message',
+  eventLabel: 'Message',
+  category: MessageCategory.general,
+  channels: [MessageChannel.sms, MessageChannel.inApp, MessageChannel.whatsapp, MessageChannel.email],
+  body: '{school_name}: {subject} - {body}',
+  defaultBody: '{school_name}: {subject} - {body}',
+  isCustom: false,
+  tokens: ['school_name', 'subject', 'body', 'recipient_name'],
+  updatedByName: null,
+  isManual: true,
+  whatsapp: WhatsAppTemplateMapping(
+    templateName: 'school_notice',
+    language: 'en',
+    parameters: ['subject', 'body'],
+    updatedAt: '2026-09-16T09:00:00.000000Z',
+  ),
+);
+
+const defaultTemplates = [absentTemplate, boardedTemplate, generalMessageTemplate];
 
 const defaultSettings = CommunicationSettings(
   schoolId: 1,
@@ -213,9 +286,76 @@ const defaultSettings = CommunicationSettings(
   leaveAlertsEnabled: true,
   provider: 'log',
   providerLabel: 'Demo Gateway',
+  providerDelivers: false,
   senderId: null,
-  availableProviders: [SmsProviderOption(value: 'log', label: 'Demo Gateway')],
+  availableProviders: [
+    SmsProviderOption(value: 'log', label: 'Demo Gateway'),
+    twilioOption,
+  ],
+  availableWhatsappProviders: [
+    SmsProviderOption(value: 'log', label: 'Demo Gateway'),
+    twilioOption,
+    metaOption,
+  ],
+  credentialFields: credentialFields,
   isSaved: false,
+);
+
+const twilioOption = SmsProviderOption(value: 'twilio', label: 'Twilio');
+const metaOption = SmsProviderOption(value: 'meta', label: 'Meta WhatsApp Cloud API');
+
+/// What each real provider asks for, as the server lists it.
+const credentialFields = {
+  'twilio': [
+    CredentialField(key: 'account_sid', label: 'Account SID', secret: false),
+    CredentialField(key: 'auth_token', label: 'Auth token', secret: true),
+    CredentialField(key: 'sms_from', label: 'SMS sender number', secret: false),
+    CredentialField(key: 'whatsapp_from', label: 'WhatsApp sender number', secret: false),
+  ],
+  'meta': [
+    CredentialField(key: 'phone_number_id', label: 'Phone number ID', secret: false),
+    CredentialField(key: 'access_token', label: 'Access token', secret: true),
+  ],
+};
+
+/// A school on Twilio for SMS and Meta for WhatsApp, with a Twilio account
+/// partly on file: the SID and token are saved, the sender numbers are not.
+const twilioSettings = CommunicationSettings(
+  schoolId: 1,
+  smsEnabled: true,
+  attendanceAlerts: AttendanceAlertMode.absentOnly,
+  transportAlertsEnabled: true,
+  leaveAlertsEnabled: true,
+  provider: 'twilio',
+  providerLabel: 'Twilio',
+  providerDelivers: true,
+  senderId: null,
+  availableProviders: [
+    SmsProviderOption(value: 'log', label: 'Demo Gateway'),
+    twilioOption,
+  ],
+  isSaved: true,
+  whatsappEnabled: true,
+  whatsappProvider: 'meta',
+  whatsappProviderLabel: 'Meta WhatsApp Cloud API',
+  whatsappProviderDelivers: true,
+  availableWhatsappProviders: [
+    SmsProviderOption(value: 'log', label: 'Demo Gateway'),
+    twilioOption,
+    metaOption,
+  ],
+  emailEnabled: true,
+  emailDelivers: false,
+  credentialFields: credentialFields,
+  credentials: {
+    'twilio': {
+      'account_sid': CredentialStatus(isSet: true, hint: '…5678'),
+      'auth_token': CredentialStatus(isSet: true),
+      'sms_from': CredentialStatus(isSet: false),
+      'whatsapp_from': CredentialStatus(isSet: false),
+    },
+    'meta': {'phone_number_id': CredentialStatus(isSet: false), 'access_token': CredentialStatus(isSet: false)},
+  },
 );
 
 /// Copies a message with a couple of fields changed - the model is
@@ -230,6 +370,7 @@ Message messageAs(Message source, {MessageStatus? status, Object? failureReason 
     channel: source.channel,
     recipientName: source.recipientName,
     recipientMobile: source.recipientMobile,
+    recipientEmail: source.recipientEmail,
     studentId: source.studentId,
     studentName: source.studentName,
     subject: source.subject,
@@ -247,7 +388,7 @@ Message messageAs(Message source, {MessageStatus? status, Object? failureReason 
   );
 }
 
-MessageTemplate templateAs(MessageTemplate source, {String? body, bool? isCustom}) {
+MessageTemplate templateAs(MessageTemplate source, {String? body, bool? isCustom, Object? whatsapp = _keep}) {
   return MessageTemplate(
     event: source.event,
     eventLabel: source.eventLabel,
@@ -258,6 +399,8 @@ MessageTemplate templateAs(MessageTemplate source, {String? body, bool? isCustom
     isCustom: isCustom ?? source.isCustom,
     tokens: source.tokens,
     updatedByName: source.updatedByName,
+    isManual: source.isManual,
+    whatsapp: whatsapp == _keep ? source.whatsapp : whatsapp as WhatsAppTemplateMapping?,
   );
 }
 

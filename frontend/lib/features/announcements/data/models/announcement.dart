@@ -1,3 +1,5 @@
+import '../../../communication/data/models/message.dart';
+
 /// The prototype's audience picker.
 enum AnnouncementAudience {
   allSchool('all_school', 'All School'),
@@ -24,22 +26,18 @@ enum AnnouncementAudience {
       AnnouncementAudience.values.firstWhere((a) => a.apiValue == value, orElse: () => AnnouncementAudience.allSchool);
 }
 
-/// The prototype's channel picker.
-enum AnnouncementChannels {
-  smsAndInApp('sms_in_app', 'SMS + In-app'),
-  smsOnly('sms', 'SMS Only'),
-  inAppOnly('in_app', 'In-app Only');
+/// The three names the prototype's channel picker used, kept so an older row
+/// still reads as the channel list it always meant.
+const _legacyChannels = {
+  'sms_in_app': [MessageChannel.sms, MessageChannel.inApp],
+  'sms': [MessageChannel.sms],
+  'in_app': [MessageChannel.inApp],
+};
 
-  const AnnouncementChannels(this.apiValue, this.label);
-
-  final String apiValue;
-  final String label;
-
-  static AnnouncementChannels fromApiValue(String value) => AnnouncementChannels.values.firstWhere(
-    (c) => c.apiValue == value,
-    orElse: () => AnnouncementChannels.smsAndInApp,
-  );
-}
+/// The channels an announcement's stored `channels` value means: one of the
+/// three old names, or a comma-separated list such as "in_app,sms,whatsapp".
+List<MessageChannel> announcementChannelsOf(String channels) =>
+    _legacyChannels[channels] ?? MessageChannel.parseJoined(channels);
 
 /// A published notice, with what it cost to send.
 class Announcement {
@@ -53,6 +51,7 @@ class Announcement {
     required this.audienceId,
     required this.audienceLabel,
     required this.channels,
+    required this.channelsLabel,
     required this.expiresAt,
     required this.hasExpired,
     required this.publishedByName,
@@ -64,6 +63,8 @@ class Announcement {
   });
 
   factory Announcement.fromJson(Map<String, dynamic> json) {
+    final channels = json['channels'] as String;
+
     return Announcement(
       id: json['id'] as int,
       schoolId: json['school_id'] as int,
@@ -73,7 +74,9 @@ class Announcement {
       audienceType: AnnouncementAudience.fromApiValue(json['audience_type'] as String),
       audienceId: json['audience_id'] as int?,
       audienceLabel: json['audience_label'] as String,
-      channels: AnnouncementChannels.fromApiValue(json['channels'] as String),
+      channels: channels,
+      channelsLabel:
+          json['channels_label'] as String? ?? announcementChannelsOf(channels).map((c) => c.label).join(' + '),
       expiresAt: json['expires_at'] as String?,
       hasExpired: json['has_expired'] as bool? ?? false,
       publishedByName: json['published_by_name'] as String?,
@@ -93,7 +96,12 @@ class Announcement {
   final AnnouncementAudience audienceType;
   final int? audienceId;
   final String audienceLabel;
-  final AnnouncementChannels channels;
+
+  /// As stored: one of the three old names or a comma-separated list.
+  final String channels;
+
+  /// Rendered server-side, e.g. "In-app + WhatsApp".
+  final String channelsLabel;
   final String? expiresAt;
   final bool hasExpired;
   final String? publishedByName;
@@ -104,6 +112,8 @@ class Announcement {
   final int recipientsCount;
   final int smsCount;
   final int inAppCount;
+
+  List<MessageChannel> get channelList => announcementChannelsOf(channels);
 }
 
 /// How many people an audience would reach, shown before anything is sent.
@@ -113,6 +123,8 @@ class AudiencePreview {
     required this.sms,
     required this.inApp,
     required this.audienceLabel,
+    this.whatsapp = 0,
+    this.email = 0,
   });
 
   factory AudiencePreview.fromJson(Map<String, dynamic> json) {
@@ -120,6 +132,8 @@ class AudiencePreview {
       recipients: json['recipients'] as int? ?? 0,
       sms: json['sms'] as int? ?? 0,
       inApp: json['in_app'] as int? ?? 0,
+      whatsapp: json['whatsapp'] as int? ?? 0,
+      email: json['email'] as int? ?? 0,
       audienceLabel: json['audience_label'] as String? ?? '',
     );
   }
@@ -127,5 +141,14 @@ class AudiencePreview {
   final int recipients;
   final int sms;
   final int inApp;
+  final int whatsapp;
+  final int email;
   final String audienceLabel;
+
+  int countFor(MessageChannel channel) => switch (channel) {
+    MessageChannel.sms => sms,
+    MessageChannel.inApp => inApp,
+    MessageChannel.whatsapp => whatsapp,
+    MessageChannel.email => email,
+  };
 }

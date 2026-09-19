@@ -19,8 +19,12 @@ from rest_framework import serializers
 import decimal
 import re
 
-from . import audit, hashing, notifications, sms
+from . import audit, hashing, mailer, notices, notifications, sms, whatsapp
 from .enums import (
+    MessageChannel,
+    NoticeAudience,
+    NoticeKind,
+    NoticeRecipients,
     EarlyAccessStatus,
     TripDirection,
     TripRiderStatus,
@@ -106,6 +110,51 @@ CURRENCY_PATTERN = re.compile(r"^[A-Z]{3}$")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+class EmailField(LaravelCharField):
+    """Laravel's `email` rule, as permissive as it is - see EMAIL_PATTERN.
+
+    `lowercase` is Laravel's LowercasesEmail: the forms that look an account up
+    by address ask in the form the address is stored in.
+    """
+
+    def __init__(self, field_name: str, lowercase: bool = False, **kwargs) -> None:
+        super().__init__(field_name, **kwargs)
+        self._lowercase = lowercase
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+
+        if self._lowercase:
+            value = value.strip().lower()
+
+        if not EMAIL_PATTERN.match(value):
+            raise serializers.ValidationError(not_an_email(self._field_name))
+
+        return value
+
+
+class OptionalEmailField(LaravelCharField):
+    """A `nullable|email|max:255` field: blank and null both mean "none on
+    record", anything else has to look like an address."""
+
+    def __init__(self, field_name: str, **kwargs) -> None:
+        kwargs.setdefault("required", False)
+        kwargs.setdefault("allow_null", True)
+        kwargs.setdefault("allow_blank", True)
+        super().__init__(field_name, max_length=255, **kwargs)
+
+    def to_internal_value(self, data):
+        if data is None or data == "":
+            return None
+
+        value = super().to_internal_value(data)
+
+        if not EMAIL_PATTERN.match(value):
+            raise serializers.ValidationError(not_an_email(self._field_name))
+
+        return value.strip().lower()
+
+
 class ScopedSerializer(serializers.Serializer):
     """A form that knows who is filling it in.
 
@@ -180,6 +229,9 @@ class StoreStudentRequest(ScopedSerializer):
     roll_number = optional_text("roll_number", 20)
     guardian_name = LaravelCharField("guardian_name", max_length=150)
     guardian_mobile = MobileField("guardian_mobile")
+    guardian_email = OptionalEmailField("guardian_email")
+    student_mobile = MobileField("student_mobile")
+    student_email = OptionalEmailField("student_email")
     address = optional_text("address", 500)
 
     def validate(self, attrs):
@@ -217,6 +269,9 @@ class UpdateStudentRequest(ScopedSerializer):
     roll_number = optional_text("roll_number", 20)
     guardian_name = LaravelCharField("guardian_name", max_length=150, required=False)
     guardian_mobile = MobileField("guardian_mobile")
+    guardian_email = OptionalEmailField("guardian_email")
+    student_mobile = MobileField("student_mobile")
+    student_email = OptionalEmailField("student_email")
     address = optional_text("address", 500)
 
     def __init__(self, *args, student: Student = None, **kwargs) -> None:
@@ -1128,6 +1183,12 @@ class UpdateCommunicationSettingRequest(serializers.Serializer):
     leave_alerts_enabled = LaravelBooleanField("leave_alerts_enabled")
     provider = LaravelCharField("provider", max_length=255)
     sender_id = LaravelCharField("sender_id", max_length=20, required=False, allow_null=True)
+    # The channels added after Phase 16 are optional on the form, so a client
+    # that only knows the SMS switches keeps working.
+    whatsapp_enabled = LaravelBooleanField("whatsapp_enabled", required=False)
+    whatsapp_provider = LaravelCharField("whatsapp_provider", max_length=255, required=False)
+    email_enabled = LaravelBooleanField("email_enabled", required=False)
+    credentials = serializers.JSONField(required=False, allow_null=True)
 
     def __init__(self, *args, **kwargs) -> None:
         if "data" in kwargs:
@@ -1149,6 +1210,47 @@ class UpdateCommunicationSettingRequest(serializers.Serializer):
 
         return value
 
+    def validate_whatsapp_provider(self, value):
+        if value not in whatsapp.GATEWAYS:
+            raise serializers.ValidationError("That WhatsApp gateway is not available.")
+
+        return value
+
+    def validate_credentials(self, value):
+        """{provider: {field: value}} for providers and fields that exist. A
+        value is text or null; nothing longer than a column holds."""
+        if value is None:
+            return None
+
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("The credentials field must be an object keyed by provider.")
+
+        problems = []
+
+        for provider, fields in value.items():
+            allowed = credential_keys(provider)
+
+            if allowed is None:
+                problems.append(f'Unknown provider "{provider}".')
+                continue
+
+            if not isinstance(fields, dict):
+                problems.append(f'The credentials for "{provider}" must be an object.')
+                continue
+
+            for key, text in fields.items():
+                if key not in allowed:
+                    problems.append(f'"{key}" is not a setting of the {provider} provider.')
+                elif text is not None and not isinstance(text, str):
+                    problems.append(f'The {provider} {key} must be text.')
+                elif text is not None and len(text) > 255:
+                    problems.append(f'The {provider} {key} may not be greater than 255 characters.')
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return value
+
     def validate_sender_id(self, value):
         if value is not None and not SENDER_ID.match(value):
             raise serializers.ValidationError(
@@ -1156,6 +1258,279 @@ class UpdateCommunicationSettingRequest(serializers.Serializer):
             )
 
         return value
+
+
+def credential_keys(provider: str) -> set[str] | None:
+    """Every field the SMS or WhatsApp adapter of this name asks for, or None
+    for a name no adapter has."""
+    gateways = [g for registry in (sms.GATEWAYS, whatsapp.GATEWAYS) for name, g in registry.items() if name == provider]
+
+    if not gateways:
+        return None
+
+    return {key for gateway in gateways for key, _label, _secret in gateway.CREDENTIALS}
+
+
+class SendTestMessageRequest(serializers.Serializer):
+    """A test through the school's own provider: which channel, to which number."""
+
+    school_id = LaravelIntegerField("school_id", required=False, allow_null=True)
+    channel = LaravelCharField("channel", max_length=20)
+    to = MobileField("to", required=True, allow_null=False, allow_blank=False)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_channel(self, value):
+        if value not in (MessageChannel.SMS, MessageChannel.WHATSAPP):
+            raise serializers.ValidationError("A test message goes by SMS or WhatsApp.")
+
+        return value
+
+
+LANGUAGE_CODE = re.compile(r"^[a-z]{2,3}(_[A-Za-z]{2,4})?$")
+
+
+class UpdateWhatsappTemplateRequest(serializers.Serializer):
+    """Which of the school's registered WhatsApp templates carries an event,
+    and which of the event's tokens fill its numbered parameters, in order."""
+
+    school_id = LaravelIntegerField("school_id", required=False, allow_null=True)
+    template_name = LaravelCharField("template_name", max_length=120)
+    language = LaravelCharField("language", max_length=10, required=False, allow_null=True, allow_blank=True)
+    parameters = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True, max_length=10)
+
+    def __init__(self, *args, event: str, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.event = event
+
+    def validate_language(self, value):
+        if value in (None, ""):
+            return "en"
+
+        if not LANGUAGE_CODE.match(value):
+            raise serializers.ValidationError('A language is a code such as "en" or "en_US".')
+
+        return value
+
+    def validate_parameters(self, value):
+        allowed = MessageEvent.tokens(self.event)
+        unknown = [name for name in value if name not in allowed]
+
+        if unknown:
+            raise serializers.ValidationError(
+                "This message can only fill parameters from these placeholders: {"
+                + "}, {".join(allowed)
+                + "}. Remove {"
+                + "}, {".join(dict.fromkeys(unknown))
+                + "}."
+            )
+
+        return value
+
+
+class ChannelListField(serializers.Field):
+    """A list of channels, or the same as a comma-separated string off a
+    query string. Unknown names are refused by name; duplicates collapse."""
+
+    default_error_messages = {"required": "Pick at least one channel."}
+
+    def to_internal_value(self, data):
+        """Only the shape here; the names are checked in the form's validate(),
+        so a bad channel is reported alongside every other bad field."""
+        if isinstance(data, str):
+            data = [part.strip() for part in data.split(",")]
+
+        if not isinstance(data, list):
+            return []
+
+        return [str(channel) for channel in dict.fromkeys(data) if channel]
+
+    @staticmethod
+    def problems(chosen: list[str]) -> list[str]:
+        unknown = [channel for channel in chosen if channel not in MessageChannel.values]
+
+        if unknown:
+            return ['"' + '", "'.join(unknown) + '" is not a channel.']
+
+        if not chosen:
+            return ["Pick at least one channel."]
+
+        return []
+
+    @staticmethod
+    def ordered(chosen: list[str]) -> list[str]:
+        return [channel for channel in MessageChannel.values if channel in chosen]
+
+    def to_representation(self, value):
+        return value
+
+
+class SendNoticeRequest(ScopedSerializer):
+    """A message written by hand: what kind, who for, on which channels.
+
+    `preview` is the same form with the text left out - the count the compose
+    dialog shows before anything is written.
+    """
+
+    kind = LaravelCharField("kind", max_length=30)
+    audience_type = LaravelCharField("audience_type", max_length=30)
+    audience_id = serializers.JSONField(required=False, allow_null=True, default=None)
+    recipients = LaravelCharField("recipients", max_length=20, required=False, allow_null=True, allow_blank=True)
+    channels = ChannelListField()
+    subject = LaravelCharField("subject", max_length=150, required=False, allow_null=True, allow_blank=True)
+    body = LaravelCharField("body", max_length=1000, required=False, allow_null=True, allow_blank=True)
+    amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, required=False, allow_null=True,
+        error_messages={"invalid": "The amount field must be a number.", "max_digits": "The amount is too large."},
+    )
+    due_date = LaravelDateField("due_date", required=False, allow_null=True)
+
+    def __init__(self, *args, preview: bool = False, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.preview = preview
+
+    validate_kind = staticmethod(enum_choice("kind", NoticeKind.values))
+    validate_audience_type = staticmethod(enum_choice("audience_type", NoticeAudience.values))
+
+    def validate_recipients(self, value):
+        if value in (None, ""):
+            return None
+
+        if value not in NoticeRecipients.values:
+            raise serializers.ValidationError(selected_is_invalid("recipients"))
+
+        return value
+
+    def validate_audience_id(self, value):
+        if value is None:
+            return None
+
+        if isinstance(value, bool) or not (
+            isinstance(value, int) or (isinstance(value, str) and re.fullmatch(r"[+-]?\d+", value.strip()))
+        ):
+            raise serializers.ValidationError("The audience id field must be an integer.")
+
+        return int(value)
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+        school_id = self.resolved_school_id()
+        errors = {}
+
+        audience = attrs.get("audience_type")
+        target = attrs.get("audience_id")
+
+        if audience is not None:
+            if NoticeAudience.needs_target(audience) and target is None:
+                errors["audience_id"] = ["Pick who this message is for."]
+            elif NoticeAudience.needs_target(audience) and not notices.target_exists(school_id, audience, target):
+                errors["audience_id"] = ["That person, class or department does not belong to this school."]
+
+        if "channels" in attrs:
+            problems = ChannelListField.problems(attrs["channels"])
+            attrs["channels"] = ChannelListField.ordered(attrs["channels"])
+
+            # A channel the school has not switched on carries nothing, so
+            # asking for it is a mistake worth naming rather than a silent zero.
+            if not problems and school_id is not None:
+                setting = notifications.settings_for(school_id)
+                off = [
+                    MessageChannel(channel).label
+                    for channel in attrs["channels"]
+                    if not notifications.channel_enabled(channel, setting)
+                ]
+
+                if off:
+                    problems = [f"{' and '.join(off)} is switched off for this school."]
+
+            if problems:
+                errors["channels"] = problems
+
+        kind = attrs.get("kind")
+
+        if kind is not None and not self.preview:
+            errors.update(self.text_problems(kind, attrs))
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = school_id
+
+        return attrs
+
+    @staticmethod
+    def text_problems(kind: str, attrs: dict) -> dict:
+        problems = {}
+        body = (attrs.get("body") or "").strip()
+        subject = (attrs.get("subject") or "").strip()
+
+        if kind == NoticeKind.FEE_REMINDER:
+            if attrs.get("amount") is None:
+                problems["amount"] = [required("amount")]
+            elif attrs["amount"] <= 0:
+                problems["amount"] = ["The amount must be greater than zero."]
+
+            if attrs.get("due_date") is None:
+                problems["due_date"] = [required("due_date")]
+
+            return problems
+
+        if len(body) < 10:
+            problems["body"] = ["The body field must be at least 10 characters."]
+
+        if kind == NoticeKind.MESSAGE and not subject:
+            problems["subject"] = [required("subject")]
+
+        return problems
+
+
+class UpdateMailSettingRequest(serializers.Serializer):
+    """The platform's SMTP server. The password is optional on every save:
+    left out keeps the stored one, blank clears it."""
+
+    is_active = LaravelBooleanField("is_active", required=False)
+    host = LaravelCharField("host", max_length=255)
+    port = LaravelIntegerField("port")
+    encryption = LaravelCharField("encryption", max_length=10)
+    username = optional_text("username", 255)
+    password = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=255, trim_whitespace=False)
+    from_address = EmailField("from_address", max_length=255)
+    from_name = LaravelCharField("from_name", max_length=120)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_port(self, value):
+        if not 1 <= value <= 65535:
+            raise serializers.ValidationError("The port must be between 1 and 65535.")
+
+        return value
+
+    def validate_encryption(self, value):
+        if value not in mailer.ENCRYPTIONS:
+            raise serializers.ValidationError("Encryption is none, tls or ssl.")
+
+        return value
+
+
+class SendTestEmailRequest(serializers.Serializer):
+    to = EmailField("to", max_length=255)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
 
 
 # -- announcements ----------------------------------------------------------
@@ -1202,7 +1577,13 @@ class PublishAnnouncementRequest(ScopedSerializer):
         return value
 
     validate_audience_type = staticmethod(enum_choice("audience_type", AnnouncementAudience.values))
-    validate_channels = staticmethod(enum_choice("channels", AnnouncementChannels.values))
+
+    def validate_channels(self, value):
+        """One of the three names, or a comma-separated mix of channels."""
+        if not AnnouncementChannels.is_valid(value):
+            raise serializers.ValidationError(selected_is_invalid("channels"))
+
+        return AnnouncementChannels.normalise(value)
 
     def validate_audience_id(self, value):
         audience = self.audience()
@@ -1579,29 +1960,6 @@ class UpdateTripRiderRequest(serializers.Serializer):
 # -- early access and password resets --------------------------------------
 
 INTERNATIONAL_PHONE = re.compile(r"^\+[1-9][0-9 ]{6,17}$")
-
-
-class EmailField(LaravelCharField):
-    """Laravel's `email` rule, as permissive as it is - see EMAIL_PATTERN.
-
-    `lowercase` is Laravel's LowercasesEmail: the forms that look an account up
-    by address ask in the form the address is stored in.
-    """
-
-    def __init__(self, field_name: str, lowercase: bool = False, **kwargs) -> None:
-        super().__init__(field_name, **kwargs)
-        self._lowercase = lowercase
-
-    def to_internal_value(self, data):
-        value = super().to_internal_value(data)
-
-        if self._lowercase:
-            value = value.strip().lower()
-
-        if not EMAIL_PATTERN.match(value):
-            raise serializers.ValidationError(not_an_email(self._field_name))
-
-        return value
 
 
 class StoreEarlyAccessRequest(serializers.Serializer):

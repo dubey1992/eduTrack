@@ -152,7 +152,10 @@ class PublishingTest(AnnouncementTestCase):
 
         self.assertEqual(422, response.status_code)
         self.assertEqual("UNREACHABLE_AUDIENCE", response.data["code"])
-        self.assertEqual("Guardians have no app login, so this audience can only be reached by SMS.", response.data["message"])
+        self.assertEqual(
+            "Guardians have no app login, so this audience can only be reached by SMS, WhatsApp or email.",
+            response.data["message"],
+        )
         self.assertFalse(Announcement.objects.exists())
 
     def test_the_parents_audience_reaches_only_guardians(self):
@@ -353,8 +356,14 @@ class ListPreviewAndDeleteTest(AnnouncementTestCase):
         section = client.get(f"{URL}/preview?audience_type=class_section&channels=sms_in_app&audience_id={self.f['section'].id}")
         everyone = client.get(f"{URL}/preview?audience_type=all_school&channels=in_app")
 
-        self.assertEqual({"recipients": 1, "sms": 1, "in_app": 0, "audience_label": "Grade 8 A"}, section.data)
-        self.assertEqual({"recipients": 4, "sms": 0, "in_app": 4, "audience_label": "All School"}, everyone.data)
+        self.assertEqual(
+            {"recipients": 1, "sms": 1, "in_app": 0, "whatsapp": 0, "email": 0, "audience_label": "Grade 8 A"},
+            section.data,
+        )
+        self.assertEqual(
+            {"recipients": 4, "sms": 0, "in_app": 4, "whatsapp": 0, "email": 0, "audience_label": "All School"},
+            everyone.data,
+        )
         self.assertFalse(Announcement.objects.exists())
 
     def test_the_preview_never_names_another_schools_class_or_department(self):
@@ -369,8 +378,19 @@ class ListPreviewAndDeleteTest(AnnouncementTestCase):
         self.assertEqual(("Class", 0), (section.data["audience_label"], section.data["recipients"]))
         self.assertEqual("Department", department.data["audience_label"])
 
+    def test_the_preview_takes_any_mix_of_channels(self):
+        response = self.as_user(self.f["admin"]).get(f"{URL}/preview?audience_type=all_school&channels=sms,in_app,email")
+
+        self.assertEqual(200, response.status_code, response.data)
+        # Two guardians have a number for the SMS copy and four staff have an
+        # inbox; nobody has a guardian email, and every staff member has one.
+        self.assertEqual((6, 4), (response.data["recipients"], response.data["email"]))
+
     def test_a_bad_audience_or_channel_is_a_bare_422(self):
         response = self.as_user(self.f["admin"]).get(f"{URL}/preview?audience_type=x&channels=sms")
+        self.assertEqual(422, response.status_code)
+
+        response = self.as_user(self.f["admin"]).get(f"{URL}/preview?audience_type=all_school&channels=sms,fax")
 
         self.assertEqual(422, response.status_code)
         self.assertEqual(

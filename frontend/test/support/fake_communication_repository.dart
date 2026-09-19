@@ -16,6 +16,8 @@ class FakeCommunicationRepository implements CommunicationRepository {
     this.failWith,
     this.providerLabel = 'Acme SMS',
     this.providerDelivers = true,
+    this.noticeRecipients = 5,
+    this.testConfirmation = 'A test message was sent to +91 9000000000.',
   }) : _messages = messages ?? [],
        _templates = templates ?? [...defaultTemplates],
        _settings = settings ?? defaultSettings;
@@ -26,6 +28,12 @@ class FakeCommunicationRepository implements CommunicationRepository {
   final String providerLabel;
   final bool providerDelivers;
 
+  /// How many people any notice preview or send reports reaching.
+  int noticeRecipients;
+
+  /// What a test message comes back with.
+  String testConfirmation;
+
   final List<Message> _messages;
   List<MessageTemplate> _templates;
   CommunicationSettings _settings;
@@ -33,11 +41,12 @@ class FakeCommunicationRepository implements CommunicationRepository {
   /// When set, every call throws it.
   Failure? failWith;
 
-  /// The last mutation (retry, template save/reset, settings save).
+  /// The last mutation (retry, template save/reset, settings save, test,
+  /// notice send).
   Map<String, dynamic>? lastCall;
 
-  /// The last list call, kept apart from mutations so a refresh after a
-  /// mutation cannot overwrite what a test wants to assert.
+  /// The last list, preview or settings read, kept apart from mutations so a
+  /// refresh after a mutation cannot overwrite what a test wants to assert.
   Map<String, dynamic>? lastListCall;
 
   List<Message> get messages => List.unmodifiable(_messages);
@@ -136,11 +145,7 @@ class FakeCommunicationRepository implements CommunicationRepository {
     _guard();
     lastCall = {'op': 'updateTemplate', 'event': event, 'school_id': schoolId, 'body': body};
 
-    final index = _templates.indexWhere((t) => t.event == event);
-    final updated = templateAs(_templates[index], body: body, isCustom: true);
-    _templates = [..._templates]..[index] = updated;
-
-    return updated;
+    return _replaceTemplate(event, (current) => templateAs(current, body: body, isCustom: true));
   }
 
   @override
@@ -148,11 +153,51 @@ class FakeCommunicationRepository implements CommunicationRepository {
     _guard();
     lastCall = {'op': 'resetTemplate', 'event': event, 'school_id': schoolId};
 
-    final index = _templates.indexWhere((t) => t.event == event);
-    final reverted = templateAs(_templates[index], body: _templates[index].defaultBody, isCustom: false);
-    _templates = [..._templates]..[index] = reverted;
+    return _replaceTemplate(event, (current) => templateAs(current, body: current.defaultBody, isCustom: false));
+  }
 
-    return reverted;
+  @override
+  Future<MessageTemplate> setWhatsappTemplate(
+    String event, {
+    int? schoolId,
+    required String templateName,
+    required String language,
+    required List<String> parameters,
+  }) async {
+    _guard();
+    lastCall = {
+      'op': 'setWhatsappTemplate',
+      'event': event,
+      'school_id': schoolId,
+      'template_name': templateName,
+      'language': language,
+      'parameters': parameters,
+    };
+
+    final mapping = WhatsAppTemplateMapping(
+      templateName: templateName,
+      language: language,
+      parameters: parameters,
+      updatedAt: '2026-09-16T11:00:00.000000Z',
+    );
+
+    return _replaceTemplate(event, (current) => templateAs(current, whatsapp: mapping));
+  }
+
+  @override
+  Future<MessageTemplate> clearWhatsappTemplate(String event, {int? schoolId}) async {
+    _guard();
+    lastCall = {'op': 'clearWhatsappTemplate', 'event': event, 'school_id': schoolId};
+
+    return _replaceTemplate(event, (current) => templateAs(current, whatsapp: null));
+  }
+
+  MessageTemplate _replaceTemplate(String event, MessageTemplate Function(MessageTemplate current) change) {
+    final index = _templates.indexWhere((t) => t.event == event);
+    final updated = change(_templates[index]);
+    _templates = [..._templates]..[index] = updated;
+
+    return updated;
   }
 
   @override
@@ -172,6 +217,10 @@ class FakeCommunicationRepository implements CommunicationRepository {
     required bool leaveAlertsEnabled,
     required String provider,
     String? senderId,
+    bool? whatsappEnabled,
+    String? whatsappProvider,
+    bool? emailEnabled,
+    Map<String, Map<String, String>>? credentials,
   }) async {
     _guard();
     lastCall = {
@@ -183,7 +232,23 @@ class FakeCommunicationRepository implements CommunicationRepository {
       'leave_alerts_enabled': leaveAlertsEnabled,
       'provider': provider,
       'sender_id': senderId,
+      'whatsapp_enabled': whatsappEnabled,
+      'whatsapp_provider': whatsappProvider,
+      'email_enabled': emailEnabled,
+      'credentials': credentials,
     };
+
+    // The same rule as the server: a key left out is kept, a blank clears.
+    final status = {for (final entry in _settings.credentials.entries) entry.key: Map.of(entry.value)};
+    for (final provider in (credentials ?? const {}).entries) {
+      final fields = status.putIfAbsent(provider.key, () => {});
+      for (final field in provider.value.entries) {
+        final secret = _settings.credentialFields[provider.key]?.any((f) => f.key == field.key && f.secret) ?? false;
+        fields[field.key] = field.value.isEmpty
+            ? const CredentialStatus(isSet: false)
+            : CredentialStatus(isSet: true, hint: secret ? null : '…${field.value.substring(field.value.length - 4)}');
+      }
+    }
 
     _settings = CommunicationSettings(
       schoolId: schoolId ?? _settings.schoolId,
@@ -192,13 +257,149 @@ class FakeCommunicationRepository implements CommunicationRepository {
       transportAlertsEnabled: transportAlertsEnabled,
       leaveAlertsEnabled: leaveAlertsEnabled,
       provider: provider,
-      providerLabel: 'Demo Gateway',
+      providerLabel: provider == 'log' ? 'Demo Gateway' : provider,
+      providerDelivers: provider != 'log',
       senderId: senderId,
       availableProviders: _settings.availableProviders,
       isSaved: true,
+      whatsappEnabled: whatsappEnabled ?? _settings.whatsappEnabled,
+      whatsappProvider: whatsappProvider ?? _settings.whatsappProvider,
+      whatsappProviderLabel: _settings.whatsappProviderLabel,
+      whatsappProviderDelivers: (whatsappProvider ?? _settings.whatsappProvider) != 'log',
+      availableWhatsappProviders: _settings.availableWhatsappProviders,
+      emailEnabled: emailEnabled ?? _settings.emailEnabled,
+      emailDelivers: _settings.emailDelivers,
+      credentialFields: _settings.credentialFields,
+      credentials: status,
     );
 
     return _settings;
+  }
+
+  @override
+  Future<String> testGateway({int? schoolId, required MessageChannel channel, required String to}) async {
+    _guard();
+    lastCall = {'op': 'testGateway', 'school_id': schoolId, 'channel': channel.apiValue, 'to': to};
+
+    return testConfirmation;
+  }
+
+  @override
+  Future<NoticeResult> previewNotice({
+    int? schoolId,
+    required NoticeKind kind,
+    required NoticeAudience audienceType,
+    int? audienceId,
+    NoticeRecipients? recipients,
+    required List<MessageChannel> channels,
+  }) async {
+    _guard();
+    lastListCall = {
+      'op': 'previewNotice',
+      'school_id': schoolId,
+      'kind': kind.apiValue,
+      'audience_type': audienceType.apiValue,
+      'audience_id': audienceId,
+      'recipients': recipients?.apiValue,
+      'channels': MessageChannel.joined(channels),
+    };
+
+    return _noticeResult(audienceType, channels, queued: false, messages: const []);
+  }
+
+  @override
+  Future<NoticeResult> sendNotice({
+    int? schoolId,
+    required NoticeKind kind,
+    required NoticeAudience audienceType,
+    int? audienceId,
+    NoticeRecipients? recipients,
+    required List<MessageChannel> channels,
+    String? subject,
+    String? body,
+    String? amount,
+    String? dueDate,
+  }) async {
+    _guard();
+    lastCall = {
+      'op': 'sendNotice',
+      'school_id': schoolId,
+      'kind': kind.apiValue,
+      'audience_type': audienceType.apiValue,
+      'audience_id': audienceId,
+      'recipients': recipients?.apiValue,
+      'channels': [for (final channel in channels) channel.apiValue],
+      'subject': subject,
+      'body': body,
+      'amount': amount,
+      'due_date': dueDate,
+    };
+
+    // One person is sent at once and lands in the log; a group is queued.
+    final individual = audienceType == NoticeAudience.student || audienceType == NoticeAudience.staffMember;
+    final sent = <Message>[];
+
+    if (individual) {
+      for (final channel in channels) {
+        sent.add(
+          Message(
+            id: _messages.length + sent.length + 100,
+            schoolId: schoolId ?? 1,
+            event: 'general.message',
+            eventLabel: kind.label,
+            category: switch (kind) {
+              NoticeKind.message => MessageCategory.general,
+              NoticeKind.emergency => MessageCategory.emergency,
+              NoticeKind.feeReminder => MessageCategory.fee,
+            },
+            channel: channel,
+            recipientName: 'Raj Kumar',
+            recipientMobile: '+91 9876543210',
+            recipientEmail: channel == MessageChannel.email ? 'raj.kumar@example.com' : null,
+            studentId: audienceType == NoticeAudience.student ? audienceId : null,
+            studentName: audienceType == NoticeAudience.student ? 'Arjun Kumar' : null,
+            subject: subject,
+            body: body ?? 'A fee of $amount is due on $dueDate.',
+            status: MessageStatus.queued,
+            provider: null,
+            providerLabel: null,
+            failureReason: null,
+            sentAt: null,
+            readAt: null,
+            createdAt: '2026-09-16T11:00:00.000000Z',
+            createdAtLabel: '11:00 AM',
+            createdOnLabel: '16 Sep 2026',
+            sentAtLabel: null,
+          ),
+        );
+      }
+      _messages.insertAll(0, sent);
+    }
+
+    return _noticeResult(audienceType, channels, queued: !individual, messages: sent);
+  }
+
+  NoticeResult _noticeResult(
+    NoticeAudience audience,
+    List<MessageChannel> channels, {
+    required bool queued,
+    required List<Message> messages,
+  }) {
+    // Guardians have no inbox, so an in-app-only notice to them reaches nobody.
+    final live = [
+      for (final channel in channels)
+        if (channel != MessageChannel.inApp || audience.reachesStaff) channel,
+    ];
+    final reachable = live.isEmpty ? 0 : noticeRecipients;
+
+    return NoticeResult(
+      recipients: reachable,
+      byChannel: {for (final channel in channels) channel: live.contains(channel) ? reachable : 0},
+      channels: live,
+      audienceLabel: audience.label,
+      queued: queued,
+      messages: messages,
+    );
   }
 
   @override

@@ -19,8 +19,9 @@ import '../application/message_page_notifier.dart';
 import '../data/models/message.dart';
 import 'communication_settings_dialog.dart';
 import 'message_detail_dialog.dart';
-import 'widgets/demo_gateway_notice.dart';
 import 'message_templates_dialog.dart';
+import 'send_notice_dialog.dart';
+import 'widgets/demo_gateway_notice.dart';
 
 /// Phase 16 - the prototype's "Communication Center": today's KPI tiles, the
 /// message log with its category tabs, the template manager and the school's
@@ -108,7 +109,7 @@ class _CommunicationScreenState extends ConsumerState<CommunicationScreen> {
                     icon: const Icon(Icons.description_outlined, size: 18),
                     label: const Text('Message Templates'),
                   ),
-                  FilledButton.icon(
+                  OutlinedButton.icon(
                     onPressed: needsSchool
                         ? null
                         : () => showDialog<void>(
@@ -117,6 +118,16 @@ class _CommunicationScreenState extends ConsumerState<CommunicationScreen> {
                           ),
                     icon: const Icon(Icons.settings_outlined, size: 18),
                     label: const Text('Alert Settings'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: needsSchool
+                        ? null
+                        : () => showDialog<void>(
+                            context: context,
+                            builder: (_) => SendNoticeDialog(schoolId: _schoolId),
+                          ),
+                    icon: const Icon(Icons.send_outlined, size: 18),
+                    label: const Text('Send Message'),
                   ),
                 ],
               ),
@@ -376,7 +387,7 @@ class _MessageTable extends ConsumerWidget {
               DataRow(
                 cells: [
                   DataCell(Text(messageTimeOf(message, clock))),
-                  DataCell(Text(message.recipientName)),
+                  DataCell(_RecipientCell(message: message)),
                   DataCell(Text(message.studentName ?? '-')),
                   DataCell(Text(message.category.label)),
                   DataCell(
@@ -394,6 +405,30 @@ class _MessageTable extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Who a message went to, with the address it went to when that was an email
+/// - a name alone says nothing about which of a guardian's addresses got it.
+class _RecipientCell extends StatelessWidget {
+  const _RecipientCell({required this.message});
+
+  final Message message;
+
+  @override
+  Widget build(BuildContext context) {
+    final email = message.channel == MessageChannel.email ? message.recipientEmail : null;
+
+    if (email == null) return Text(message.recipientName);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(message.recipientName),
+        Text(email, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      ],
     );
   }
 }
@@ -523,7 +558,7 @@ String messageTimeOf(Message message, SchoolClock clock) {
 
   final sentToday = message.createdOnLabel == DateFormat('d MMM y').format(clock.today);
 
-  return sentToday ? message.createdAtLabel! : '\${message.createdOnLabel}, \${message.createdAtLabel}';
+  return sentToday ? message.createdAtLabel! : '${message.createdOnLabel}, ${message.createdAtLabel}';
 }
 
 /// Joins the server's date and time labels, for the places that show both.
@@ -533,5 +568,5 @@ String messageTimeOf(Message message, SchoolClock clock) {
 String formatMessageTime(String? dateLabel, String? timeLabel) {
   if (timeLabel == null) return '-';
 
-  return dateLabel == null ? timeLabel : '\$dateLabel, \$timeLabel';
+  return dateLabel == null ? timeLabel : '$dateLabel, $timeLabel';
 }

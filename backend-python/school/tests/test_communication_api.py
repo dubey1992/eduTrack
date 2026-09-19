@@ -262,17 +262,19 @@ class TemplateTest(CommunicationTestCase):
     def test_every_event_is_listed_with_its_default_wording(self):
         response = self.as_user(self.admin).get(self.URL)
 
-        self.assertEqual(8, len(response.data))
+        self.assertEqual(11, len(response.data))
         self.assertEqual(
             {
                 "event": "attendance.present",
                 "event_label": "Marked present",
                 "category": "attendance",
-                "channels": ["sms"],
+                "channels": ["sms", "whatsapp", "email"],
                 "body": "{student_name} was marked PRESENT on {date}. - {school_name}",
                 "default_body": "{student_name} was marked PRESENT on {date}. - {school_name}",
                 "is_custom": False,
+                "is_manual": False,
                 "tokens": ["student_name", "class_name", "date", "school_name", "guardian_name"],
+                "whatsapp": None,
                 "updated_at": None,
                 "updated_by_name": None,
             },
@@ -371,11 +373,35 @@ class SettingsTest(CommunicationTestCase):
                 "leave_alerts_enabled": True,
                 "provider": "log",
                 "provider_label": "Demo Gateway",
+                "provider_delivers": False,
                 "sender_id": None,
-                "available_providers": [{"value": "log", "label": "Demo Gateway"}],
+                "available_providers": [{"value": "log", "label": "Demo Gateway"}, {"value": "twilio", "label": "Twilio"}],
+                "whatsapp_enabled": False,
+                "whatsapp_provider": "log",
+                "whatsapp_provider_label": "Demo Gateway",
+                "whatsapp_provider_delivers": False,
+                "available_whatsapp_providers": [
+                    {"value": "log", "label": "Demo Gateway"},
+                    {"value": "twilio", "label": "Twilio"},
+                    {"value": "meta", "label": "Meta WhatsApp Cloud API"},
+                ],
+                "email_enabled": False,
+                "email_delivers": False,
                 "is_saved": False,
             },
-            response.data,
+            {key: value for key, value in response.data.items() if key not in ("credential_fields", "credentials")},
+        )
+        # Nothing is on file for any provider, and the screen is told what
+        # each one asks for - never a value.
+        self.assertEqual(
+            {"account_sid": {"set": False, "hint": None}, "auth_token": {"set": False, "hint": None},
+             "sms_from": {"set": False, "hint": None}, "whatsapp_from": {"set": False, "hint": None}},
+            response.data["credentials"]["twilio"],
+        )
+        self.assertEqual(
+            [{"key": "phone_number_id", "label": "Phone number ID", "secret": False},
+             {"key": "access_token", "label": "Access token", "secret": True}],
+            response.data["credential_fields"]["meta"],
         )
         self.assertFalse(CommunicationSetting.objects.exists())
 
@@ -414,7 +440,7 @@ class SettingsTest(CommunicationTestCase):
                 "attendance_alerts": "sometimes",
                 "transport_alerts_enabled": 2,
                 "leave_alerts_enabled": None,
-                "provider": "twilio",
+                "provider": "msg91",
                 "sender_id": "has space!",
             },
             format="json",

@@ -138,6 +138,13 @@ class CommunicationSetting(models.Model):
     leave_alerts_enabled = models.BooleanField()
     provider = models.CharField(max_length=50)
     sender_id = models.CharField(max_length=20, blank=True, null=True)
+    # WhatsApp and email as channels, and the school's own provider accounts
+    # (encrypted JSON keyed by provider - see school/crypto.py). Both channels
+    # are off until the school turns them on.
+    whatsapp_enabled = models.BooleanField(default=False)
+    whatsapp_provider = models.CharField(max_length=50, default="log")
+    email_enabled = models.BooleanField(default=False)
+    credentials = models.TextField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -239,10 +246,14 @@ class Message(models.Model):
     channel = models.CharField(max_length=20)
     recipient_name = models.CharField(max_length=150)
     recipient_mobile = models.CharField(max_length=20, blank=True, null=True)
+    recipient_email = models.CharField(max_length=255, blank=True, null=True)
     user = models.ForeignKey('User', models.DO_NOTHING, blank=True, null=True)
     student = models.ForeignKey('Student', models.DO_NOTHING, blank=True, null=True)
     student_name = models.CharField(max_length=150, blank=True, null=True)
     body = models.TextField()
+    # The ordered values a WhatsApp template is filled with, fixed when the
+    # message is recorded so the worker never rebuilds them from changed data.
+    template_parameters = LaravelJSONField(blank=True, null=True)
     status = models.CharField(max_length=20)
     provider = models.CharField(max_length=50, blank=True, null=True)
     provider_message_id = models.CharField(max_length=100, blank=True, null=True)
@@ -259,6 +270,36 @@ class Message(models.Model):
         managed = False
         db_table = 'messages'
 
+    def event_label(self) -> str:
+        from .enums import MessageEvent
+
+        return MessageEvent(self.event).label if self.event in MessageEvent.values else self.event
+
+class MailSetting(models.Model):
+    """The SMTP server the platform sends through - one row, set by the Super
+    Admin in the app. `password` is encrypted before it is written (see
+    school/crypto.py) and never returned by the API. When there is no row or
+    it is switched off, the MAIL_* environment applies (school/mailer.py)."""
+
+    id = models.BigAutoField(primary_key=True)
+    is_active = models.BooleanField(default=True)
+    host = models.CharField(max_length=255)
+    port = models.PositiveSmallIntegerField(default=587)
+    encryption = models.CharField(max_length=10, default="tls")
+    username = models.CharField(max_length=255, blank=True, null=True)
+    password = models.TextField(blank=True, null=True)
+    from_address = models.CharField(max_length=255)
+    from_name = models.CharField(max_length=120)
+    last_tested_at = UtcDateTimeField(blank=True, null=True)
+    last_test_error = models.CharField(max_length=255, blank=True, null=True)
+    updated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'mail_settings'
+
 class MessageTemplate(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
@@ -273,6 +314,29 @@ class MessageTemplate(models.Model):
         managed = False
         db_table = 'message_templates'
         unique_together = (('school', 'event'),)
+
+class WhatsappTemplate(models.Model):
+    """Which registered WhatsApp template carries one event for one school,
+    and which of the event's tokens fill its numbered parameters, in order.
+    An event without a row is skipped on the WhatsApp channel."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    event = models.CharField(max_length=50)
+    template_name = models.CharField(max_length=120)
+    language = models.CharField(max_length=10, default="en")
+    parameters = models.CharField(max_length=255, blank=True, null=True)
+    updated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'whatsapp_templates'
+        unique_together = (('school', 'event'),)
+
+    def parameter_names(self) -> list[str]:
+        return [name.strip() for name in (self.parameters or "").split(",") if name.strip()]
 
 class PasswordResetToken(models.Model):
     """Laravel's password broker table: one row per email, holding a bcrypt
@@ -594,6 +658,10 @@ class Student(models.Model):
     roll_number = models.CharField(max_length=20, blank=True, null=True)
     guardian_name = models.CharField(max_length=150)
     guardian_mobile = models.CharField(max_length=20, blank=True, null=True)
+    guardian_email = models.CharField(max_length=255, blank=True, null=True)
+    # An older student the school can reach directly; blank means it cannot.
+    student_mobile = models.CharField(max_length=20, blank=True, null=True)
+    student_email = models.CharField(max_length=255, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=255)
     created_at = UtcDateTimeField(blank=True, null=True)

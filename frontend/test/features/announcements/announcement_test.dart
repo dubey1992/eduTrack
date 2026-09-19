@@ -10,6 +10,7 @@ import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/classes/data/models/school_class.dart';
 import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
+import 'package:edutrack_app/features/communication/data/models/message.dart';
 import 'package:edutrack_app/features/departments/data/department_repository.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:flutter/material.dart';
@@ -134,7 +135,7 @@ void main() {
             title: 'Sports day moved',
             body: 'The sports day is now on Friday.',
             audienceType: AnnouncementAudience.allSchool,
-            channels: AnnouncementChannels.smsAndInApp,
+            channels: 'sms,in_app',
             expiresAt: '2026-09-30',
           );
 
@@ -146,7 +147,7 @@ void main() {
         'body': 'The sports day is now on Friday.',
         'audience_type': 'all_school',
         'audience_id': null,
-        'channels': 'sms_in_app',
+        'channels': 'sms,in_app',
         'expires_at': '2026-09-30',
       });
       expect(container.read(announcementPageNotifierProvider).value!.items.first.title, 'Sports day moved');
@@ -167,16 +168,14 @@ void main() {
       final container = makeContainer(FakeAnnouncementRepository(previewRecipients: 40));
 
       final reachable = await container.read(
-        audiencePreviewProvider(
-          const AudienceQuery(audienceType: AnnouncementAudience.allSchool, channels: AnnouncementChannels.inAppOnly),
-        ).future,
+        audiencePreviewProvider(const AudienceQuery(audienceType: AnnouncementAudience.allSchool, channels: 'in_app'))
+            .future,
       );
       expect(reachable.recipients, 40);
 
       final unreachable = await container.read(
-        audiencePreviewProvider(
-          const AudienceQuery(audienceType: AnnouncementAudience.parents, channels: AnnouncementChannels.inAppOnly),
-        ).future,
+        audiencePreviewProvider(const AudienceQuery(audienceType: AnnouncementAudience.parents, channels: 'in_app'))
+            .future,
       );
       expect(unreachable.recipients, 0);
     });
@@ -308,7 +307,7 @@ void main() {
 
       expect(fake.lastCall!['title'], 'Parent meeting');
       expect(fake.lastCall!['audience_type'], 'all_school');
-      expect(fake.lastCall!['channels'], 'sms_in_app');
+      expect(fake.lastCall!['channels'], 'sms,in_app');
       expect(fake.lastCall!['expires_at'], isNull);
       expect(find.text('Announcement published to 42 people.'), findsOneWidget);
     });
@@ -373,9 +372,8 @@ void main() {
       await tester.tap(find.text('Parents').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(DropdownButtonFormField<AnnouncementChannels>, 'SMS + In-app'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('In-app Only').last);
+      // Leave only In-app ticked.
+      await tester.tap(find.widgetWithText(FilterChip, 'SMS'));
       await tester.pumpAndSettle();
 
       expect(find.text('Guardians have no app login, so this audience can only be reached by SMS.'), findsOneWidget);
@@ -422,6 +420,81 @@ void main() {
 
       expect(find.text('New Announcement'), findsOneWidget);
       expect(find.text('Guardians have no app login, so this audience can only be reached by SMS.'), findsOneWidget);
+    });
+
+    testWidgets('starts with In-app and SMS ticked and sends whichever channels are ticked', (tester) async {
+      useDesktop(tester);
+      final fake = FakeAnnouncementRepository(previewRecipients: 12);
+      await openDialog(tester, fake);
+      await tester.pumpAndSettle();
+
+      bool ticked(String label) => tester.widget<FilterChip>(find.widgetWithText(FilterChip, label)).selected;
+      expect(ticked('In-app'), isTrue);
+      expect(ticked('SMS'), isTrue);
+      expect(ticked('WhatsApp'), isFalse);
+      expect(ticked('Email'), isFalse);
+      expect(find.text('Goes to 12 people (12 by SMS, 12 in-app).'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilterChip, 'WhatsApp'));
+      await tester.tap(find.widgetWithText(FilterChip, 'Email'));
+      await tester.pumpAndSettle();
+      expect(find.text('Goes to 12 people (12 by SMS, 12 in-app, 12 by WhatsApp, 12 by email).'), findsOneWidget);
+      expect(fake.lastListCall!['channels'], 'sms,in_app,whatsapp,email');
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Announcement title'), 'Parent meeting');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Message'), 'Parent meeting scheduled Friday at 3 PM.');
+      await tester.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['channels'], 'sms,in_app,whatsapp,email');
+    });
+
+    testWidgets('unticking every channel is refused before it reaches the server', (tester) async {
+      useDesktop(tester);
+      final fake = FakeAnnouncementRepository();
+      await openDialog(tester, fake);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilterChip, 'In-app'));
+      await tester.tap(find.widgetWithText(FilterChip, 'SMS'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Announcement title'), 'Parent meeting');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Message'), 'Parent meeting scheduled Friday at 3 PM.');
+      await tester.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pick at least one channel.'), findsOneWidget);
+      expect(fake.lastCall, isNull);
+    });
+
+    testWidgets('the list shows the channel label the server rendered', (tester) async {
+      useDesktop(tester);
+      const mixed = Announcement(
+        id: 9,
+        schoolId: 1,
+        schoolName: 'Sunrise Public School',
+        title: 'Bus timings',
+        body: 'Buses leave ten minutes earlier from Monday.',
+        audienceType: AnnouncementAudience.parents,
+        audienceId: null,
+        audienceLabel: 'Parents',
+        channels: 'sms,whatsapp',
+        channelsLabel: 'SMS + WhatsApp',
+        expiresAt: null,
+        hasExpired: false,
+        publishedByName: 'Anita Sharma',
+        publishedAt: '2026-09-16T07:30:00.000000Z',
+        recipientsCount: 40,
+        smsCount: 40,
+        inAppCount: 0,
+      );
+      await tester.pumpWidget(wrap(FakeAnnouncementRepository(announcements: [mixed])));
+      await tester.pumpAndSettle();
+
+      expect(find.text('SMS + WhatsApp'), findsOneWidget);
+      expect(mixed.channelList, [MessageChannel.sms, MessageChannel.whatsapp]);
+      expect(parentMeeting.channelList, [MessageChannel.sms, MessageChannel.inApp]);
     });
   });
 }

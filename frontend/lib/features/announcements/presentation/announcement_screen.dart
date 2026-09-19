@@ -296,7 +296,7 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
               children: [
                 Text(announcement.title, style: Theme.of(context).textTheme.titleMedium),
                 StatusBadge(label: announcement.audienceLabel, tone: BadgeTone.info),
-                StatusBadge(label: announcement.channels.label, tone: BadgeTone.neutral),
+                StatusBadge(label: announcement.channelsLabel, tone: BadgeTone.neutral),
                 if (announcement.hasExpired) const StatusBadge(label: 'Expired', tone: BadgeTone.neutral),
               ],
             ),

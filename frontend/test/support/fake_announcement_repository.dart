@@ -2,6 +2,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/announcements/data/announcement_repository.dart';
 import 'package:edutrack_app/features/announcements/data/models/announcement.dart';
+import 'package:edutrack_app/features/communication/data/models/message.dart';
 
 import 'fake_pagination.dart';
 
@@ -72,7 +73,7 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
     required String body,
     required AnnouncementAudience audienceType,
     int? audienceId,
-    required AnnouncementChannels channels,
+    required String channels,
     String? expiresAt,
   }) async {
     _guard();
@@ -83,10 +84,11 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
       'body': body,
       'audience_type': audienceType.apiValue,
       'audience_id': audienceId,
-      'channels': channels.apiValue,
+      'channels': channels,
       'expires_at': expiresAt,
     };
 
+    final chosen = announcementChannelsOf(channels);
     final published = Announcement(
       id: _announcements.length + 100,
       schoolId: schoolId ?? 1,
@@ -97,13 +99,14 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
       audienceId: audienceId,
       audienceLabel: audienceType.needsTarget ? 'Grade 8 A' : audienceType.label,
       channels: channels,
+      channelsLabel: chosen.map((c) => c.label).join(' + '),
       expiresAt: expiresAt,
       hasExpired: false,
       publishedByName: 'Anita Sharma',
       publishedAt: '2026-09-16T09:00:00.000000Z',
       recipientsCount: previewRecipients,
-      smsCount: channels == AnnouncementChannels.inAppOnly ? 0 : previewRecipients,
-      inAppCount: channels == AnnouncementChannels.smsOnly ? 0 : previewRecipients,
+      smsCount: chosen.contains(MessageChannel.sms) ? previewRecipients : 0,
+      inAppCount: chosen.contains(MessageChannel.inApp) ? previewRecipients : 0,
     );
 
     _announcements.insert(0, published);
@@ -116,7 +119,7 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
     int? schoolId,
     required AnnouncementAudience audienceType,
     int? audienceId,
-    required AnnouncementChannels channels,
+    required String channels,
   }) async {
     _guard();
     lastListCall = {
@@ -124,16 +127,20 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
       'school_id': schoolId,
       'audience_type': audienceType.apiValue,
       'audience_id': audienceId,
-      'channels': channels.apiValue,
+      'channels': channels,
     };
 
+    final chosen = announcementChannelsOf(channels);
     // Guardians have no login, so an in-app-only notice to them reaches nobody.
-    final reachable = channels == AnnouncementChannels.inAppOnly && !audienceType.reachesStaff ? 0 : previewRecipients;
+    final inAppOnly = chosen.every((c) => c == MessageChannel.inApp);
+    final reachable = inAppOnly && !audienceType.reachesStaff ? 0 : previewRecipients;
 
     return AudiencePreview(
       recipients: reachable,
-      sms: channels == AnnouncementChannels.inAppOnly ? 0 : reachable,
-      inApp: channels == AnnouncementChannels.smsOnly ? 0 : reachable,
+      sms: chosen.contains(MessageChannel.sms) ? reachable : 0,
+      inApp: chosen.contains(MessageChannel.inApp) ? reachable : 0,
+      whatsapp: chosen.contains(MessageChannel.whatsapp) ? reachable : 0,
+      email: chosen.contains(MessageChannel.email) ? reachable : 0,
       audienceLabel: audienceType.needsTarget ? 'Grade 8 A' : audienceType.label,
     );
   }

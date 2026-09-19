@@ -69,6 +69,28 @@ class CommunicationRepository {
     return _guard(() => _api.resetTemplate(event, schoolId: schoolId));
   }
 
+  Future<MessageTemplate> setWhatsappTemplate(
+    String event, {
+    int? schoolId,
+    required String templateName,
+    required String language,
+    required List<String> parameters,
+  }) {
+    return _guard(
+      () => _api.setWhatsappTemplate(
+        event,
+        schoolId: schoolId,
+        templateName: templateName,
+        language: language,
+        parameters: parameters,
+      ),
+    );
+  }
+
+  Future<MessageTemplate> clearWhatsappTemplate(String event, {int? schoolId}) {
+    return _guard(() => _api.clearWhatsappTemplate(event, schoolId: schoolId));
+  }
+
   Future<CommunicationSettings> settings({int? schoolId}) => _guard(() => _api.settings(schoolId: schoolId));
 
   Future<CommunicationSettings> updateSettings({
@@ -79,6 +101,10 @@ class CommunicationRepository {
     required bool leaveAlertsEnabled,
     required String provider,
     String? senderId,
+    bool? whatsappEnabled,
+    String? whatsappProvider,
+    bool? emailEnabled,
+    Map<String, Map<String, String>>? credentials,
   }) {
     return _guard(
       () => _api.updateSettings(
@@ -89,6 +115,62 @@ class CommunicationRepository {
         leaveAlertsEnabled: leaveAlertsEnabled,
         provider: provider,
         senderId: senderId,
+        whatsappEnabled: whatsappEnabled,
+        whatsappProvider: whatsappProvider,
+        emailEnabled: emailEnabled,
+        credentials: credentials,
+      ),
+    );
+  }
+
+  Future<String> testGateway({int? schoolId, required MessageChannel channel, required String to}) {
+    return _guard(() => _api.testGateway(schoolId: schoolId, channel: channel, to: to));
+  }
+
+  Future<NoticeResult> previewNotice({
+    int? schoolId,
+    required NoticeKind kind,
+    required NoticeAudience audienceType,
+    int? audienceId,
+    NoticeRecipients? recipients,
+    required List<MessageChannel> channels,
+  }) {
+    return _guard(
+      () => _api.previewNotice(
+        schoolId: schoolId,
+        kind: kind,
+        audienceType: audienceType,
+        audienceId: audienceId,
+        recipients: recipients,
+        channels: channels,
+      ),
+    );
+  }
+
+  Future<NoticeResult> sendNotice({
+    int? schoolId,
+    required NoticeKind kind,
+    required NoticeAudience audienceType,
+    int? audienceId,
+    NoticeRecipients? recipients,
+    required List<MessageChannel> channels,
+    String? subject,
+    String? body,
+    String? amount,
+    String? dueDate,
+  }) {
+    return _guard(
+      () => _api.sendNotice(
+        schoolId: schoolId,
+        kind: kind,
+        audienceType: audienceType,
+        audienceId: audienceId,
+        recipients: recipients,
+        channels: channels,
+        subject: subject,
+        body: body,
+        amount: amount,
+        dueDate: dueDate,
       ),
     );
   }

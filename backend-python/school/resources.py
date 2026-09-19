@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from . import money, sms, working_hours
+from . import mailer, money, sms, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
 from .enums import EarlyAccessStatus, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus
 from .fields import as_utc
@@ -217,6 +217,7 @@ def message_resource(message) -> dict:
         "channel_label": MessageChannel(message.channel).label,
         "recipient_name": message.recipient_name,
         "recipient_mobile": message.recipient_mobile,
+        "recipient_email": message.recipient_email,
         "student_id": message.student_id,
         "student_name": message.student_name,
         "announcement_id": message.announcement_id,
@@ -225,7 +226,7 @@ def message_resource(message) -> dict:
         "status": message.status,
         "status_label": MessageStatus.label_for(message.status),
         "provider": message.provider,
-        "provider_label": None if message.provider is None else sms.label(message.provider),
+        "provider_label": provider_label(message.channel, message.provider),
         "failure_reason": message.failure_reason,
         "sent_at": timestamp(message.sent_at),
         "read_at": timestamp(message.read_at),
@@ -234,6 +235,32 @@ def message_resource(message) -> dict:
         "created_on_label": clock.format(message.created_at, DATE),
         "sent_at_label": clock.format(message.sent_at, TIME),
         "timezone": clock.timezone(),
+    }
+
+
+def provider_label(channel: str, provider: str | None) -> str | None:
+    """What carried a message, named for the channel it went on."""
+    if provider is None:
+        return None
+
+    if channel == MessageChannel.WHATSAPP:
+        return whatsapp.label(provider)
+
+    if channel == MessageChannel.EMAIL:
+        return "Email"
+
+    return sms.label(provider)
+
+
+def whatsapp_template_resource(row) -> dict | None:
+    if row is None:
+        return None
+
+    return {
+        "template_name": row.template_name,
+        "language": row.language,
+        "parameters": row.parameter_names(),
+        "updated_at": timestamp(row.updated_at),
     }
 
 
@@ -248,10 +275,50 @@ def message_template_resource(row: dict) -> dict:
         "body": row["body"],
         "default_body": row["default_body"],
         "is_custom": row["is_custom"],
+        "is_manual": MessageEvent.is_manual(event),
         "tokens": MessageEvent.tokens(event),
+        "whatsapp": whatsapp_template_resource(row.get("whatsapp")),
         "updated_at": timestamp(row["updated_at"]),
         "updated_by_name": row["updated_by_name"],
     }
+
+
+def credential_fields() -> dict:
+    """What each provider asks a school for, so the settings screen can draw
+    the right boxes without knowing any provider itself."""
+    fields = {}
+
+    for registry in (sms.GATEWAYS, whatsapp.GATEWAYS):
+        for name, gateway in registry.items():
+            listed = fields.setdefault(name, [])
+
+            for key, label, secret in gateway.CREDENTIALS:
+                if key not in {row["key"] for row in listed}:
+                    listed.append({"key": key, "label": label, "secret": secret})
+
+    return {name: rows for name, rows in fields.items() if rows}
+
+
+def credentials_status(setting) -> dict:
+    """Which fields are filled in, per provider - never their values. A
+    non-secret field shows its last four characters so an administrator can
+    tell which account is on file."""
+    from .crypto import decrypt_json
+
+    stored = decrypt_json(setting.credentials)
+    status = {}
+
+    for name, rows in credential_fields().items():
+        account = stored.get(name) or {}
+        status[name] = {
+            row["key"]: {
+                "set": bool(account.get(row["key"])),
+                "hint": None if row["secret"] or not account.get(row["key"]) else "\u2026" + str(account[row["key"]])[-4:],
+            }
+            for row in rows
+        }
+
+    return status
 
 
 def communication_setting_resource(setting) -> dict:
@@ -264,10 +331,74 @@ def communication_setting_resource(setting) -> dict:
         "leave_alerts_enabled": setting.leave_alerts_enabled,
         "provider": setting.provider,
         "provider_label": sms.label(setting.provider),
+        "provider_delivers": sms.delivers(setting.provider),
         "sender_id": setting.sender_id,
         "available_providers": sms.available(),
+        "whatsapp_enabled": setting.whatsapp_enabled,
+        "whatsapp_provider": setting.whatsapp_provider,
+        "whatsapp_provider_label": whatsapp.label(setting.whatsapp_provider),
+        "whatsapp_provider_delivers": whatsapp.delivers(setting.whatsapp_provider),
+        "available_whatsapp_providers": whatsapp.available(),
+        "email_enabled": setting.email_enabled,
+        # Whether the platform has an SMTP server to send through at all.
+        "email_delivers": mailer.active() is not None,
+        "credential_fields": credential_fields(),
+        "credentials": credentials_status(setting),
         # Whether the school has ever saved these, or is looking at defaults.
         "is_saved": setting.pk is not None,
+    }
+
+
+def mail_setting_resource(row) -> dict:
+    """The SMTP settings without the password - only whether one is set."""
+    from django.conf import settings
+
+    if row is None:
+        return {
+            "is_saved": False,
+            "is_active": False,
+            "host": settings.EMAIL_HOST,
+            "port": settings.EMAIL_PORT,
+            "encryption": "ssl" if settings.EMAIL_USE_SSL else "tls" if settings.EMAIL_USE_TLS else "none",
+            "username": settings.EMAIL_HOST_USER or None,
+            "password_set": bool(settings.EMAIL_HOST_PASSWORD),
+            "from_address": settings.DEFAULT_FROM_EMAIL,
+            "from_name": settings.MAIL_FROM_NAME,
+            "last_tested_at": None,
+            "last_tested_at_label": None,
+            "last_test_error": None,
+            "updated_by_name": None,
+            "source": "environment",
+        }
+
+    clock = SchoolClock.platform()
+
+    return {
+        "is_saved": True,
+        "is_active": row.is_active,
+        "host": row.host,
+        "port": row.port,
+        "encryption": row.encryption,
+        "username": row.username,
+        "password_set": bool(row.password),
+        "from_address": row.from_address,
+        "from_name": row.from_name,
+        "last_tested_at": timestamp(row.last_tested_at),
+        "last_tested_at_label": clock.format(row.last_tested_at, DATE_TIME),
+        "last_test_error": row.last_test_error,
+        "updated_by_name": row.updated_by.name if row.updated_by_id else None,
+        "source": "database" if row.is_active else "environment",
+    }
+
+
+def notice_result_resource(result: dict) -> dict:
+    return {
+        "recipients": result["recipients"],
+        "by_channel": result["by_channel"],
+        "channels": result["channels"],
+        "audience_label": result["audience_label"],
+        "queued": result.get("queued", False),
+        "messages": [message_resource(row) for row in result.get("messages", [])],
     }
 
 
@@ -286,7 +417,7 @@ def announcement_resource(announcement) -> dict:
         "audience_id": announcement.audience_id,
         "audience_label": announcement.audience_label,
         "channels": announcement.channels,
-        "channels_label": AnnouncementChannels(announcement.channels).label,
+        "channels_label": AnnouncementChannels.label_for(announcement.channels),
         "expires_at": announcement.expires_at.isoformat() if announcement.expires_at else None,
         # Expired means before today *at the school*.
         "has_expired": announcement.expires_at is not None and announcement.expires_at.isoformat() < clock.date(),
@@ -881,6 +1012,9 @@ def student_resource(student: Student) -> dict:
         "roll_number": student.roll_number,
         "guardian_name": student.guardian_name,
         "guardian_mobile": student.guardian_mobile,
+        "guardian_email": student.guardian_email,
+        "student_mobile": student.student_mobile,
+        "student_email": student.student_email,
         "address": student.address,
         "status": student.status,
         "created_at": timestamp(student.created_at),

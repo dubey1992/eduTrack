@@ -127,7 +127,7 @@ def preview(request) -> Response:
     audience = query.get("audience_type")
     channels = query.get("channels")
 
-    if audience not in AnnouncementAudience.values or channels not in AnnouncementChannels.values:
+    if audience not in AnnouncementAudience.values or not AnnouncementChannels.is_valid(channels):
         raise UnprocessableRequest()
 
     raw_school = query.get("school_id")

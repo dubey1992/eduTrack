@@ -112,7 +112,9 @@ PG_PASSWORD=... .venv/Scripts/python manage.py check_models
 PG_PASSWORD=... .venv/Scripts/python manage.py test school
 
 # Its own port, so Laravel on 8000 and the contract instance on 8001 keep running.
-PG_PASSWORD=... .venv/Scripts/python manage.py runserver 127.0.0.1:8002
+# DJANGO_DEBUG=true is needed in development; without it DJANGO_SECRET_KEY and
+# DJANGO_ENCRYPTION_KEY (docs/communication.md, "Channels") are required.
+DJANGO_DEBUG=true PG_PASSWORD=... .venv/Scripts/python manage.py runserver 127.0.0.1:8002
 
 # Deferred work - receipts, and later the messages and bulk imports. Drains
 # the queue and exits, which is what makes it safe to run from cron:

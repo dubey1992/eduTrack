@@ -44,6 +44,14 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
+# Encrypts provider credentials and the SMTP password at rest (school/crypto.py).
+# Its own key, not SECRET_KEY, so the two rotate independently. Development
+# and the test suite derive one from the throwaway SECRET_KEY; a deployment
+# that forgets it fails at start-up, like a missing SECRET_KEY does.
+ENCRYPTION_KEY = os.environ.get("DJANGO_ENCRYPTION_KEY", "")
+if not ENCRYPTION_KEY and not (DEBUG or TESTING):
+    raise ImproperlyConfigured("Set DJANGO_ENCRYPTION_KEY (see school/crypto.py for how to generate one).")
+
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
@@ -219,6 +227,15 @@ EMAIL_HOST = os.environ.get("MAIL_HOST", "127.0.0.1")
 EMAIL_PORT = int(os.environ.get("MAIL_PORT", "25"))
 EMAIL_HOST_USER = os.environ.get("MAIL_USERNAME", "")
 EMAIL_HOST_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+# Laravel's MAIL_SCHEME: "smtps" is TLS from the first byte, "smtp" upgrades
+# with STARTTLS when the server offers it, as Django's backend does by default.
+EMAIL_USE_SSL = os.environ.get("MAIL_SCHEME", "smtp") == "smtps"
+EMAIL_USE_TLS = not EMAIL_USE_SSL and os.environ.get("MAIL_ENCRYPTION", "none" if EMAIL_PORT == 25 else "tls") == "tls"
+EMAIL_TIMEOUT = 20
+MAIL_FROM_NAME = os.environ.get("MAIL_FROM_NAME", APP_NAME)
+
+# These are the fallback. The Super Admin can replace them in the app with a
+# row in mail_settings, which school/mailer.py reads first (docs/communication.md).
 
 # Laravel's password broker: a link lasts an hour, and a second one is not
 # sent within a minute of the first.

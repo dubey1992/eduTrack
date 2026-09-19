@@ -7,6 +7,7 @@ import '../../../core/models/user_role.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../auth/application/school_clock_provider.dart';
 import '../../classes/application/class_section_picker_provider.dart';
+import '../../communication/data/models/message.dart';
 import '../../departments/application/department_picker_provider.dart';
 import '../application/announcement_page_notifier.dart';
 import '../data/models/announcement.dart';
@@ -30,7 +31,7 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
 
   AnnouncementAudience _audience = AnnouncementAudience.allSchool;
   bool _audienceSetForRole = false;
-  AnnouncementChannels _channels = AnnouncementChannels.smsAndInApp;
+  final Set<MessageChannel> _channels = {MessageChannel.sms, MessageChannel.inApp};
   int? _target;
   DateTime? _expiresAt;
   bool _publishing = false;
@@ -60,6 +61,11 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
       return;
     }
 
+    if (_channels.isEmpty) {
+      setState(() => _error = 'Pick at least one channel.');
+      return;
+    }
+
     setState(() {
       _publishing = true;
       _error = null;
@@ -77,7 +83,7 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
             body: _bodyController.text.trim(),
             audienceType: _audience,
             audienceId: _audience.needsTarget ? _target : null,
-            channels: _channels,
+            channels: MessageChannel.joined(_channels),
             expiresAt: _expiresAt == null ? null : DateFormat('yyyy-MM-dd').format(_expiresAt!),
           );
 
@@ -172,20 +178,26 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                DropdownButtonFormField<AnnouncementChannels>(
-                  initialValue: _channels,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Send by'),
-                  items: [
-                    for (final channels in AnnouncementChannels.values)
-                      DropdownMenuItem(value: channels, child: Text(channels.label)),
+                Text('Send by', style: muted),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    for (final channel in MessageChannel.values)
+                      FilterChip(
+                        label: Text(channel.label),
+                        selected: _channels.contains(channel),
+                        onSelected: (selected) => setState(() {
+                          selected ? _channels.add(channel) : _channels.remove(channel);
+                          _error = null;
+                        }),
+                      ),
                   ],
-                  onChanged: (value) => setState(() {
-                    _channels = value ?? _channels;
-                    _error = null;
-                  }),
                 ),
-                if (_channels == AnnouncementChannels.inAppOnly && !_audience.reachesStaff)
+                if (_channels.isNotEmpty &&
+                    _channels.every((c) => c == MessageChannel.inApp) &&
+                    !_audience.reachesStaff)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
@@ -239,12 +251,12 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
                       ),
                   ],
                 ),
-                if (_ready) ...[
+                if (_ready && _channels.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   _AudienceSummary(
                     query: AudienceQuery(
                       audienceType: _audience,
-                      channels: _channels,
+                      channels: MessageChannel.joined(_channels),
                       schoolId: widget.schoolId,
                       audienceId: _audience.needsTarget ? _target : null,
                     ),
@@ -282,16 +294,35 @@ class _AudienceSummary extends ConsumerWidget {
     return preview.when(
       loading: () => Text('Counting the audience…', style: muted),
       error: (error, _) => Text('The audience count is unavailable.', style: muted),
-      data: (data) => Text(
-        data.recipients == 0
-            ? 'Nobody in this audience can be reached on that channel.'
-            : 'Goes to ${data.recipients} ${data.recipients == 1 ? 'person' : 'people'} '
-                  '(${data.sms} by SMS, ${data.inApp} in-app).',
-        style: data.recipients == 0 ? TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error) : muted,
-      ),
+      data: (data) {
+        if (data.recipients == 0) {
+          return Text(
+            'Nobody in this audience can be reached on that channel.',
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error),
+          );
+        }
+
+        final perChannel = [
+          for (final channel in MessageChannel.parseJoined(query.channels))
+            '${data.countFor(channel)} ${_byChannel(channel)}',
+        ].join(', ');
+
+        return Text(
+          'Goes to ${data.recipients} ${data.recipients == 1 ? 'person' : 'people'} ($perChannel).',
+          style: muted,
+        );
+      },
     );
   }
 }
+
+/// "by SMS", "in-app", "by WhatsApp", "by email".
+String _byChannel(MessageChannel channel) => switch (channel) {
+  MessageChannel.sms => 'by SMS',
+  MessageChannel.inApp => 'in-app',
+  MessageChannel.whatsapp => 'by WhatsApp',
+  MessageChannel.email => 'by email',
+};
 
 class _ClassPicker extends ConsumerWidget {
   const _ClassPicker({required this.schoolId, required this.selected, required this.onChanged});

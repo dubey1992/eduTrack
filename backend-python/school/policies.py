@@ -413,6 +413,12 @@ class MessagePolicy:
         """Reading or changing a school's templates and alert switches."""
         return cls.manages(actor, school_id)
 
+    @classmethod
+    def send(cls, actor: User, school_id) -> bool:
+        """Writing a message to somebody in the school by hand. The same
+        people who read the log: it names guardians and what they were told."""
+        return cls.manages(actor, school_id)
+
     @staticmethod
     def manages(actor: User, school_id) -> bool:
         if actor.role == UserRole.SUPER_ADMIN:
@@ -423,6 +429,15 @@ class MessagePolicy:
             and school_id is not None
             and SchoolScope.for_actor(actor).allows(school_id)
         )
+
+
+class MailSettingPolicy:
+    """The SMTP server is the platform's, not a school's: only SUPER_ADMIN
+    reads or changes it. The password is never readable by anybody."""
+
+    @staticmethod
+    def manage(actor: User) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
 
 
 class AnnouncementPolicy:

@@ -52,6 +52,7 @@ from school.models import (
     Holiday,
     Message,
     MessageTemplate,
+    WhatsappTemplate,
     PasswordResetToken,
     Payment,
     PayrollRun,
@@ -150,8 +151,13 @@ def seed() -> School:
         name="A",
         class_teacher=teacher,
     )
+    # With a guardian's number and address, so the Send Message dialog and the
+    # email channel have somebody to reach in the demo.
     students = [
-        factories.StudentFactory(class_section=section, first_name=first, last_name=last, admission_number=f"ITEST-{n}")
+        factories.StudentFactory(
+            class_section=section, first_name=first, last_name=last, admission_number=f"ITEST-{n}",
+            guardian_mobile=f"+91 90000000{n:02d}", guardian_email=f"itest-guardian{n}@example.com",
+        )
         for n, (first, last) in enumerate((("Aarav", "Sharma"), ("Bina", "Kapoor"), ("Chetan", "Rao")), start=1)
     ]
 
@@ -222,6 +228,7 @@ def clean() -> None:
     Message.objects.filter(Q(school_id__in=schools) | Q(user_id__in=users) | Q(created_by_id__in=users)).delete()
     Announcement.objects.filter(Q(school_id__in=schools) | Q(published_by_id__in=users)).delete()
     MessageTemplate.objects.filter(in_school).delete()
+    WhatsappTemplate.objects.filter(in_school).delete()
     CommunicationSetting.objects.filter(in_school).delete()
 
     Attendance.objects.filter(Q(school_id__in=schools) | Q(marked_by_id__in=users)).delete()

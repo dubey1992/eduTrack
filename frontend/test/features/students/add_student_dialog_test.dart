@@ -117,4 +117,69 @@ void main() {
     expect(find.text('Admission ID already in use.'), findsOneWidget);
     expect(find.byType(AddStudentDialog), findsOneWidget);
   });
+
+  group('contact details', () {
+    testWidgets('offers a parent email, a student mobile and a student email', (tester) async {
+      await tester.pumpWidget(wrap());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextFormField, 'Parent email (optional)'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Student mobile (optional)'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Student email (optional)'), findsOneWidget);
+    });
+
+    testWidgets('an email that is not one is refused before it reaches the server', (tester) async {
+      final fake = FakeStudentRepository();
+      await tester.pumpWidget(wrap(student: fake));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await _fillRequiredFields(tester);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Parent email (optional)'), 'raj-at-example.com');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Student email (optional)'), 'arjun');
+      await tester.tap(find.text('Save Student'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a valid email'), findsNWidgets(2));
+      expect(fake.students, isEmpty);
+      expect(find.byType(AddStudentDialog), findsOneWidget);
+    });
+
+    testWidgets('the contact details reach the repository', (tester) async {
+      final fake = FakeStudentRepository();
+      await tester.pumpWidget(wrap(student: fake));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await _fillRequiredFields(tester);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Parent email (optional)'), 'raj@example.com');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Student mobile (optional)'), '9123456789');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Student email (optional)'), 'arjun@example.com');
+      await tester.tap(find.text('Save Student'));
+      await tester.pumpAndSettle();
+
+      final student = fake.students.single;
+      expect(student.guardianEmail, 'raj@example.com');
+      // Composed with the dial code, the way every mobile column is stored.
+      expect(student.studentMobile, '+91 9123456789');
+      expect(student.studentEmail, 'arjun@example.com');
+    });
+
+    testWidgets('contact details left blank are sent as nothing, not as empty text', (tester) async {
+      final fake = FakeStudentRepository();
+      await tester.pumpWidget(wrap(student: fake));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await _fillRequiredFields(tester);
+      await tester.tap(find.text('Save Student'));
+      await tester.pumpAndSettle();
+
+      final student = fake.students.single;
+      expect(student.guardianEmail, isNull);
+      expect(student.studentMobile, isNull);
+      expect(student.studentEmail, isNull);
+    });
+  });
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
 import '../../announcements/application/announcement_page_notifier.dart';
 import '../../audit/application/audit_log_notifier.dart';
+import '../../mail_settings/application/mail_settings_notifier.dart';
 import '../../classes/application/school_class_list_notifier.dart';
 import '../../communication/application/inbox_notifier.dart';
 import '../../communication/application/message_page_notifier.dart';
@@ -94,6 +95,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     // auth_notifier_reset_test.dart now fails when a new one is missed.
     ref.invalidate(announcementPageNotifierProvider);
     ref.invalidate(auditLogNotifierProvider);
+    ref.invalidate(mailSettingsNotifierProvider);
     ref.invalidate(dashboardNotifierProvider);
     ref.invalidate(departmentPageNotifierProvider);
     ref.invalidate(driverPageNotifierProvider);

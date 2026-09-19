@@ -31,6 +31,7 @@ from school.views import (
     imports,
     inbox,
     leave,
+    mail_settings,
     payments,
     payroll,
     reports,
@@ -167,6 +168,13 @@ urlpatterns = [
     path("api/v1/communication/templates", communication.templates),
     path("api/v1/communication/templates/<str:event>", communication.template),
     path("api/v1/communication/settings", communication.settings),
+    # Messaging channels - Python only (docs/communication.md).
+    path("api/v1/communication/settings/test", communication.test_gateway),
+    path("api/v1/communication/templates/<str:event>/whatsapp", communication.whatsapp_template),
+    path("api/v1/communication/notices", communication.notices),
+    path("api/v1/communication/notices/preview", communication.notice_preview),
+    path("api/v1/settings/mail", mail_settings.settings),
+    path("api/v1/settings/mail/test", mail_settings.test),
     # -- the inbox ---------------------------------------------------------
     path("api/v1/inbox", inbox.messages),
     path("api/v1/inbox/unread-count", inbox.unread_count),

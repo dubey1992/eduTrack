@@ -53,6 +53,9 @@ class StudentRepository {
     String? rollNumber,
     required String guardianName,
     String? guardianMobile,
+    String? guardianEmail,
+    String? studentMobile,
+    String? studentEmail,
     String? address,
   }) async {
     try {
@@ -65,6 +68,9 @@ class StudentRepository {
         rollNumber: rollNumber,
         guardianName: guardianName,
         guardianMobile: guardianMobile,
+        guardianEmail: guardianEmail,
+        studentMobile: studentMobile,
+        studentEmail: studentEmail,
         address: address,
       );
     } on DioException catch (e) {
@@ -81,6 +87,9 @@ class StudentRepository {
     String? rollNumber,
     String? guardianName,
     String? guardianMobile,
+    String? guardianEmail,
+    String? studentMobile,
+    String? studentEmail,
     String? address,
   }) async {
     try {
@@ -93,6 +102,9 @@ class StudentRepository {
         rollNumber: rollNumber,
         guardianName: guardianName,
         guardianMobile: guardianMobile,
+        guardianEmail: guardianEmail,
+        studentMobile: studentMobile,
+        studentEmail: studentEmail,
         address: address,
       );
     } on DioException catch (e) {

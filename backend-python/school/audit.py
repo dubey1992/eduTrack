@@ -38,12 +38,18 @@ from .models import AuditLog
 
 # Every module that writes to the log - what the audit screen filters by.
 MODULES = (
-    "academic", "announcements", "attendance", "auth", "communication", "holidays", "leave", "payments", "payroll",
-    "schools", "staff", "staff_attendance", "students", "syllabus", "teaching", "timetable", "transport", "users",
+    "academic", "announcements", "attendance", "auth", "communication", "holidays", "leave", "mail", "payments",
+    "payroll", "schools", "staff", "staff_attendance", "students", "syllabus", "teaching", "timetable", "transport",
+    "users",
 )
 
 # Never recorded, whatever a caller passes.
-SECRET_KEYS = {"password", "password_confirmation", "current_password", "token", "remember_token"}
+SECRET_KEYS = {
+    "password", "password_confirmation", "current_password", "token", "remember_token",
+    # Provider accounts and the SMTP password: encrypted in their columns and
+    # never in the trail, even as ciphertext.
+    "credentials", "auth_token", "access_token",
+}
 
 # The request being served and whoever it was authenticated as. Context
 # variables rather than thread locals, so each request sees only its own.

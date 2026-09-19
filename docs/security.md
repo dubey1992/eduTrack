@@ -155,8 +155,10 @@ A session also ends in these cases:
 
 ## Production checklist (Phase 22)
 
-- **Environment:** set `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` and
-  `DJANGO_CORS_ORIGINS`. Leave `DJANGO_DEBUG` unset.
+- **Environment:** set `DJANGO_SECRET_KEY`, `DJANGO_ENCRYPTION_KEY` (see
+  `school/crypto.py`; it encrypts provider credentials and the SMTP
+  password, and losing it means re-entering them), `DJANGO_ALLOWED_HOSTS`
+  and `DJANGO_CORS_ORIGINS`. Leave `DJANGO_DEBUG` unset.
 - **Proxy:** confirm whether the cPanel host puts a proxy in front of the app.
   If it does, set `DJANGO_NUM_PROXIES`, and `DJANGO_BEHIND_TLS_PROXY` if it
   terminates TLS.
