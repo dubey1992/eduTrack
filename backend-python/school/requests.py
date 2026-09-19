@@ -19,7 +19,7 @@ from rest_framework import serializers
 import decimal
 import re
 
-from . import audit, hashing, mailer, notices, notifications, sms, whatsapp
+from . import audit, hashing, mailer, notices, notifications, permissions, sms, whatsapp
 from .enums import (
     MessageChannel,
     NoticeAudience,
@@ -1489,6 +1489,121 @@ class SendNoticeRequest(ScopedSerializer):
             problems["subject"] = [required("subject")]
 
         return problems
+
+
+class UpdateModuleSettingRequest(serializers.Serializer):
+    """A module's switches and settings for one school. Every field is
+    optional so a screen can move one switch without resending the rest;
+    the platform switch is the Super Admin's alone, and the settings are
+    checked one by one against what the module declares."""
+
+    school_id = LaravelIntegerField("school_id", required=False, allow_null=True)
+    platform_enabled = LaravelBooleanField("platform_enabled", required=False)
+    school_enabled = LaravelBooleanField("school_enabled", required=False)
+    settings = serializers.JSONField(required=False, allow_null=True)
+
+    def __init__(self, *args, module, actor=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.module = module
+        self.actor = actor
+
+    def validate_platform_enabled(self, value):
+        if self.actor is not None and self.actor.role != UserRole.SUPER_ADMIN:
+            raise serializers.ValidationError("Only the Super Admin can grant or withdraw a module.")
+
+        return value
+
+    def validate_settings(self, value):
+        if value is None:
+            return None
+
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("The settings field must be an object.")
+
+        declared = {setting.key: setting for setting in self.module.settings}
+        problems = []
+        clean = {}
+
+        for key, raw in value.items():
+            setting = declared.get(key)
+
+            if setting is None:
+                problems.append(f'"{key}" is not a setting of {self.module.label}.')
+                continue
+
+            if setting.type == "bool":
+                if not isinstance(raw, bool):
+                    problems.append(f"{setting.label} must be true or false.")
+                    continue
+            elif setting.type == "int":
+                if isinstance(raw, bool) or not isinstance(raw, int):
+                    problems.append(f"{setting.label} must be a whole number.")
+                    continue
+
+                if setting.min is not None and raw < setting.min or setting.max is not None and raw > setting.max:
+                    problems.append(f"{setting.label} must be between {setting.min} and {setting.max}.")
+                    continue
+
+            clean[key] = raw
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return clean
+
+    def validate(self, attrs):
+        if not self.module.switchable:
+            for switch in ("platform_enabled", "school_enabled"):
+                if switch in attrs and attrs[switch] is False:
+                    raise serializers.ValidationError({switch: [f"{self.module.label} cannot be switched off."]})
+
+        if not attrs:
+            raise serializers.ValidationError({"settings": ["Send a switch or a setting to change."]})
+
+        return attrs
+
+
+class UpdatePermissionsRequest(serializers.Serializer):
+    """The whole matrix, or the part of it being changed: {role: {module:
+    level}}. Unknown roles, modules or levels are refused by name, and the
+    Super Admin's own row cannot be sent at all."""
+
+    matrix = serializers.JSONField()
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_matrix(self, value):
+        if not isinstance(value, dict) or not value:
+            raise serializers.ValidationError("The matrix must map roles to their modules and levels.")
+
+        problems = []
+
+        for role, cells in value.items():
+            if role not in permissions.EDITABLE_ROLES:
+                problems.append(f'"{role}" is not a role whose permissions can be edited.')
+                continue
+
+            if not isinstance(cells, dict):
+                problems.append(f"The {role} row must map modules to levels.")
+                continue
+
+            for module, level in cells.items():
+                if module not in permissions.MODULES:
+                    problems.append(f'"{module}" is not a module in the matrix.')
+                elif level not in permissions.LEVELS:
+                    problems.append(f'"{level}" is not a level; use none, view or manage.')
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return value
 
 
 class UpdateMailSettingRequest(serializers.Serializer):

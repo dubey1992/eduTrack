@@ -13,6 +13,7 @@ import '../../early_access/application/early_access_notifier.dart';
 import '../../holidays/application/holiday_page_notifier.dart';
 import '../../payments/application/payment_list_notifier.dart';
 import '../../payments/application/payment_summary_notifier.dart';
+import '../../permissions/application/permissions_notifier.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../staff/application/staff_list_notifier.dart';
 import '../../staff_leave/application/staff_leave_list_notifier.dart';
@@ -37,6 +38,16 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
   @override
   Future<AuthenticatedUser?> build() {
     return ref.read(authRepositoryProvider).restoreSession();
+  }
+
+  /// Re-reads the session from /me - what the app gates on (module
+  /// switches, permission levels) lives there, so a change made on a settings
+  /// screen shows in the sidebar at once rather than at the next sign-in.
+  Future<void> refreshSession() async {
+    if (!state.hasValue || state.value == null) return;
+
+    final refreshed = await ref.read(authRepositoryProvider).restoreSession();
+    if (refreshed != null) state = AsyncData(refreshed);
   }
 
   Future<void> login({required String email, required String password}) async {
@@ -103,6 +114,9 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(holidayPageNotifierProvider);
     ref.invalidate(inboxNotifierProvider);
     ref.invalidate(messagePageNotifierProvider);
+    // The permissions matrix is read on sign-in; a Super Admin who edits
+    // it must not hand the previous session's copy to the next account.
+    ref.invalidate(permissionsNotifierProvider);
     ref.invalidate(routePageNotifierProvider);
     ref.invalidate(schoolPageNotifierProvider);
     ref.invalidate(staffLeaveListNotifierProvider);

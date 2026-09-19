@@ -32,7 +32,7 @@ from dataclasses import dataclass
 
 from django.utils import timezone
 
-from . import crypto, queue
+from . import crypto, modules, queue
 from .clock import SchoolClock
 from .enums import (
     AttendanceAlertMode,
@@ -349,6 +349,11 @@ def record(
 ) -> list[Message]:
     """Writes what should be sent, and queues the sending."""
     if school_id is None:
+        return []
+
+    # A school that has switched the whole module off sends nothing and logs
+    # nothing, like an alert it switched off (docs/settings.md).
+    if not modules.is_enabled(school_id, "communication"):
         return []
 
     setting = settings_for(school_id)

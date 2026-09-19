@@ -14,7 +14,23 @@ from django.db import transaction
 from django.db.models import Count, F, Min, Q, Sum
 from django.utils import timezone
 
-from . import audit, crypto, hashing, jobs, mailer, money, notices, notifications, queue, sms, tokens, whatsapp, working_hours
+from . import (
+    audit,
+    crypto,
+    hashing,
+    jobs,
+    mailer,
+    modules,
+    money,
+    notices,
+    notifications,
+    permissions,
+    queue,
+    sms,
+    tokens,
+    whatsapp,
+    working_hours,
+)
 from .gateways import Template
 from .clock import TIME, SchoolClock
 from .fields import as_utc
@@ -44,6 +60,7 @@ from .enums import (
 )
 from .errors import (
     GatewayTestFailed,
+    SettingRefused,
     AccountInactive,
     AccountLocked,
     AttendanceAlreadySubmitted,
@@ -65,6 +82,8 @@ from .errors import (
 )
 from .models import (
     MailSetting,
+    ModuleSetting,
+    RolePermission,
     WhatsappTemplate,
     AcademicYear,
     Announcement,
@@ -486,6 +505,7 @@ class AttendanceService:
         date = data["attendance_date"]
 
         cls.assert_school_is_open(school_id, date)
+        assert_not_too_late(school_id, "attendance", date)
 
         with transaction.atomic():
             changed = {}
@@ -710,6 +730,7 @@ class StaffAttendanceService:
     @classmethod
     def save(cls, school_id: int, data: dict, actor: User) -> dict:
         AttendanceService.assert_school_is_open(school_id, data["attendance_date"])
+        assert_not_too_late(school_id, "staff_attendance", data["attendance_date"])
 
         with transaction.atomic():
             before = dict(
@@ -829,6 +850,7 @@ class StaffLeaveService:
         cls.assert_covers_a_working_day(
             profile.school_id, data["start_date"], data["end_date"]
         )
+        cls.assert_enough_notice(profile.school_id, data["start_date"])
         cls.assert_no_overlap(profile.id, data["start_date"], data["end_date"])
 
         is_school_head = actor.role == UserRole.SCHOOL_ADMIN and not actor.is_sub_admin
@@ -903,6 +925,18 @@ class StaffLeaveService:
         has none of them cached.
         """
         return StaffLeave.objects.select_related(*cls.WITH).get(pk=leave.pk)
+
+    @staticmethod
+    def assert_enough_notice(school_id: int, start_date) -> None:
+        """The school's minimum notice (module settings, docs/settings.md):
+        leave must start this many days after today, on the school's clock.
+        Zero, the default, allows leave from today."""
+        notice = modules.setting(school_id, "leave", "min_notice_days")
+
+        if notice and as_date(start_date) < SchoolClock.for_school(school_id).now().date() + dt.timedelta(days=notice):
+            raise SettingRefused(
+                f"Leave must be applied for at least {notice} day{'s' if notice != 1 else ''} in advance."
+            )
 
     @staticmethod
     def notify_applicant(leave, event: str, actor: User) -> None:
@@ -1189,6 +1223,14 @@ class DailyTeachingReportService:
         if already:
             raise TeachingReportAlreadySubmitted(
                 "A report has already been submitted for this period and date."
+            )
+
+        # The school's filing window (module settings): 0 means no limit.
+        window = modules.setting(entry.school_id, "teaching_reports", "filing_window_days")
+
+        if window and as_date(data["report_date"]) < SchoolClock.for_school(entry.school_id).now().date() - dt.timedelta(days=window):
+            raise SettingRefused(
+                f"A report can only be filed up to {window} day{'s' if window != 1 else ''} after the period."
             )
 
         now = timezone.now()
@@ -4120,3 +4162,98 @@ def as_date(value) -> dt.date:
         return value
 
     return dt.date.fromisoformat(str(value)[:10])
+
+
+def assert_not_too_late(school_id: int, module: str, date) -> None:
+    """The school's limit on marking a register late (module settings,
+    docs/settings.md): a date more than this many days before today, on the
+    school's clock, is refused. Zero means today only."""
+    limit = modules.setting(school_id, module, "max_backdate_days")
+    today = SchoolClock.for_school(school_id).now().date()
+
+    if as_date(date) < today - dt.timedelta(days=limit):
+        raise SettingRefused(
+            "Attendance can only be marked for today"
+            + (f" or the last {limit} day{'s' if limit != 1 else ''}" if limit else "")
+            + "."
+        )
+
+
+class ModuleSettingService:
+    """Which modules a school has on, and each module's own settings
+    (docs/settings.md). A row appears the first time somebody touches a
+    module for a school; until then the defaults apply."""
+
+    @staticmethod
+    def update(school_id: int, module: str, data: dict, actor: User):
+        row = ModuleSetting.objects.filter(school_id=school_id, module=module).first()
+        now = timezone.now()
+        creating = row is None
+
+        if creating:
+            row = ModuleSetting(school_id=school_id, module=module, settings=None, created_at=now)
+
+        before = audit.fields_of(row)
+
+        for switch in ("platform_enabled", "school_enabled"):
+            if switch in data:
+                setattr(row, switch, data[switch])
+
+        if data.get("settings") is not None:
+            row.settings = {**(row.settings or {}), **data["settings"]}
+
+        row.updated_by_id = actor.id
+        row.updated_at = now
+        row.save()
+
+        if creating:
+            audit.created("settings", row, school_id=school_id)
+        else:
+            audit.updated("settings", row, before, school_id=school_id)
+
+        return ModuleSetting.objects.select_related("updated_by").get(pk=row.pk)
+
+
+class RolePermissionService:
+    """The roles and permissions matrix (docs/settings.md). Only cells that
+    differ from the defaults are stored, so resetting is deleting them."""
+
+    @staticmethod
+    def save(submitted: dict, actor: User) -> None:
+        now = timezone.now()
+        current = permissions.matrix()
+
+        with transaction.atomic():
+            for role, cells in submitted.items():
+                for module, level in cells.items():
+                    if current[role][module] == level:
+                        continue
+
+                    if level == permissions.DEFAULTS[role][module]:
+                        RolePermission.objects.filter(role=role, module=module).delete()
+                    else:
+                        RolePermission.objects.update_or_create(
+                            role=role, module=module,
+                            defaults={"level": level, "updated_by_id": actor.id, "updated_at": now, "created_at": now},
+                        )
+
+                    audit.record(
+                        action="permission.changed", module="settings", entity_type="role_permission",
+                        entity_id=None, school_id=None,
+                        old={"role": role, "module": module, "level": current[role][module]},
+                        new={"role": role, "module": module, "level": level},
+                    )
+
+    @staticmethod
+    def reset(actor: User) -> None:
+        with transaction.atomic():
+            changed = list(RolePermission.objects.values_list("role", "module", "level"))
+            RolePermission.objects.all().delete()
+
+            for role, module, level in changed:
+                audit.record(
+                    action="permission.changed", module="settings", entity_type="role_permission",
+                    entity_id=None, school_id=None,
+                    old={"role": role, "module": module, "level": level},
+                    new={"role": role, "module": module, "level": permissions.DEFAULTS[role][module]},
+                )

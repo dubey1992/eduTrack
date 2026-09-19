@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -21,7 +22,6 @@ import '../data/models/staff_profile.dart';
 import 'add_staff_dialog.dart';
 import 'edit_staff_profile_dialog.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 const _staffRoles = [UserRole.teacher, UserRole.hod, UserRole.staff, UserRole.transportManager, UserRole.accountant];
 
 class StaffListScreen extends ConsumerStatefulWidget {
@@ -51,7 +51,7 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
   @override
   Widget build(BuildContext context) {
     final staffState = ref.watch(staffListNotifierProvider);
-    final canManage = _manageRoles.contains(ref.watch(authNotifierProvider).value?.role);
+    final canManage = ref.watch(authNotifierProvider).value?.canManage(AppModules.staff) ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

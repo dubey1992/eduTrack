@@ -277,6 +277,12 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "settings/mail"),
     ("PUT", "settings/mail"),
     ("POST", "settings/mail/test"),
+    # -- module settings and the permissions matrix (docs/settings.md) --
+    ("GET", "settings/modules"),
+    ("PUT", "settings/modules/{module}"),
+    ("GET", "settings/permissions"),
+    ("PUT", "settings/permissions"),
+    ("POST", "settings/permissions/reset"),
 ]
 
 

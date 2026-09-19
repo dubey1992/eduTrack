@@ -42,6 +42,8 @@ import '../../features/transport/presentation/trip_screen.dart';
 import '../../features/transport/presentation/vehicle_list_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
 import '../network/maintenance_notifier.dart';
+import '../../features/module_settings/presentation/module_settings_screen.dart';
+import '../../features/permissions/presentation/permissions_screen.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/splash_screen.dart';
 import 'app_nav.dart';
@@ -99,6 +101,8 @@ const appRoutePaths = {
   '/my-payslips',
   '/audit-log',
   '/mail-settings',
+  '/module-settings',
+  '/permissions',
 };
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -165,6 +169,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/my-payslips', builder: (context, state) => const MyPayslipsScreen()),
           GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
           GoRoute(path: '/mail-settings', builder: (context, state) => const MailSettingsScreen()),
+          GoRoute(path: '/module-settings', builder: (context, state) => const ModuleSettingsScreen()),
+          GoRoute(path: '/permissions', builder: (context, state) => const PermissionsScreen()),
         ],
       ),
     ],
@@ -241,9 +247,11 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Every shell route's access is driven by AppNav - the same config
       // that builds the sidebar - so the menu and the guard can never
-      // drift apart. A route not listed there needs no role check.
+      // drift apart: the role, the permissions matrix and whether the
+      // module is switched on for the school. A route not listed there
+      // needs no check.
       final navItem = AppNav.findByPath(location);
-      if (navItem != null && !navItem.allows(user.role)) {
+      if (navItem != null && !navItem.allows(user)) {
         return '/dashboard';
       }
 

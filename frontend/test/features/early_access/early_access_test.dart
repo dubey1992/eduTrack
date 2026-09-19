@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_repository.dart';
+import '../../support/session_users.dart';
 import '../../support/paginated_table.dart';
 
 EarlyAccessRequest _request({
@@ -396,7 +397,7 @@ void main() {
       // school reading them would be reading its competitors' enquiries.
       final item = AppNav.findByPath('/early-access')!;
 
-      expect(item.allows(UserRole.superAdmin), isTrue);
+      expect(item.allows(sessionUser(UserRole.superAdmin)), isTrue);
       for (final role in [
         UserRole.groupAdmin,
         UserRole.schoolAdmin,
@@ -406,7 +407,7 @@ void main() {
         UserRole.transportManager,
         UserRole.accountant,
       ]) {
-        expect(item.allows(role), isFalse, reason: '${role.label} must not see early access requests');
+        expect(item.allows(sessionUser(role)), isFalse, reason: '${role.label} must not see early access requests');
       }
     });
   });

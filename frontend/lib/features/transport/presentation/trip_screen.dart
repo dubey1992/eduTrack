@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -18,10 +19,6 @@ import '../data/models/transport_route.dart';
 import '../data/models/transport_trip.dart';
 import 'widgets/trip_detail_view.dart';
 import '../../../core/utils/date_format.dart';
-
-/// Who runs trips - the prototype's "Manage Trips" (Transport Manager)
-/// plus the admins.
-const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.transportManager};
 
 /// Phase 15 - the prototype's "School Transport" page: pick a route, start
 /// today's pickup/drop trip, mark stops reached and students boarded /
@@ -42,7 +39,9 @@ class _TripScreenState extends ConsumerState<TripScreen> {
     final actor = ref.watch(authNotifierProvider).value;
     if (actor == null) return const SizedBox.shrink();
 
-    final canManage = _manageRoles.contains(actor.role);
+    // Manage on transport is running trips - the Transport Manager and the
+    // admins by default, or whoever the matrix raises.
+    final canManage = actor.canManage(AppModules.transport);
     final needsSchool = actor.role == UserRole.superAdmin && _schoolId == null;
 
     return SingleChildScrollView(

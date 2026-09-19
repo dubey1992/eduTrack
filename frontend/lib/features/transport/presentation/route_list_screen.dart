@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -19,6 +20,8 @@ import 'route_form_dialog.dart';
 import 'route_students_dialog.dart';
 import 'widgets/transport_list_scaffold.dart';
 
+/// The fleet stays with administrators: a Transport Manager's manage on the
+/// module runs trips, not this list (docs/settings.md).
 const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 /// Who may open the "Students on Bus" list - the prototype's "Transport
@@ -38,8 +41,9 @@ class _RouteListScreenState extends ConsumerState<RouteListScreen> {
   @override
   Widget build(BuildContext context) {
     final routesState = ref.watch(routePageNotifierProvider);
-    final role = ref.watch(authNotifierProvider).value?.role;
-    final canManage = _manageRoles.contains(role);
+    final actor = ref.watch(authNotifierProvider).value;
+    final role = actor?.role;
+    final canManage = actor != null && _manageRoles.contains(role) && actor.canManage(AppModules.transport);
     final canViewRiders = _riderViewerRoles.contains(role);
 
     return Column(

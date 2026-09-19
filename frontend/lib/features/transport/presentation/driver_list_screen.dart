@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/school_clock_provider.dart';
 
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -21,6 +22,8 @@ import 'driver_form_dialog.dart';
 import 'widgets/transport_list_scaffold.dart';
 import '../../../core/utils/date_format.dart';
 
+/// The fleet stays with administrators: a Transport Manager's manage on the
+/// module runs trips, not this list (docs/settings.md).
 const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 class DriverListScreen extends ConsumerStatefulWidget {
@@ -36,7 +39,8 @@ class _DriverListScreenState extends ConsumerState<DriverListScreen> {
   @override
   Widget build(BuildContext context) {
     final driversState = ref.watch(driverPageNotifierProvider);
-    final canManage = _manageRoles.contains(ref.watch(authNotifierProvider).value?.role);
+    final actor = ref.watch(authNotifierProvider).value;
+    final canManage = actor != null && _manageRoles.contains(actor.role) && actor.canManage(AppModules.transport);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

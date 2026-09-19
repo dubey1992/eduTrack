@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -51,9 +52,12 @@ class _StaffLeaveScreenState extends ConsumerState<StaffLeaveScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final role = ref.watch(authNotifierProvider).value?.role;
-    final canApply = role != null && _applicantRoles.contains(role);
-    final canReview = role != null && _reviewerRoles.contains(role);
+    final actor = ref.watch(authNotifierProvider).value;
+    // Manage on leave is applying for your own; reviewing somebody else's
+    // stays with administrators and the applicant's head of department.
+    final canWrite = actor != null && actor.canManage(AppModules.leave);
+    final canApply = canWrite && _applicantRoles.contains(actor.role);
+    final canReview = canWrite && _reviewerRoles.contains(actor.role);
     final leavesState = ref.watch(staffLeaveListNotifierProvider);
 
     return Column(

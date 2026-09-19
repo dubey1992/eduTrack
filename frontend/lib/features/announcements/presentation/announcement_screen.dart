@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -80,16 +81,17 @@ class _AnnouncementScreenState extends ConsumerState<AnnouncementScreen> {
                       notifier.setSchoolFilter(schoolId);
                     },
                   ),
-                  FilledButton.icon(
-                    onPressed: needsSchool
-                        ? null
-                        : () => showDialog<void>(
-                            context: context,
-                            builder: (_) => NewAnnouncementDialog(schoolId: _schoolId),
-                          ),
-                    icon: const Icon(Icons.campaign_outlined, size: 18),
-                    label: const Text('New Announcement'),
-                  ),
+                  if (actor.canManage(AppModules.announcements))
+                    FilledButton.icon(
+                      onPressed: needsSchool
+                          ? null
+                          : () => showDialog<void>(
+                              context: context,
+                              builder: (_) => NewAnnouncementDialog(schoolId: _schoolId),
+                            ),
+                      icon: const Icon(Icons.campaign_outlined, size: 18),
+                      label: const Text('New Announcement'),
+                    ),
                 ],
               ),
             ],
@@ -282,6 +284,7 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
   Widget build(BuildContext context) {
     final announcement = widget.announcement;
     final muted = TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant);
+    final canDelete = ref.watch(authNotifierProvider).value?.canManage(AppModules.announcements) ?? false;
 
     return Card(
       child: Padding(
@@ -312,11 +315,13 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
               '${announcement.expiresAt == null ? '' : ' · expires ${_expiresOn(announcement.expiresAt!)}'}',
               style: muted,
             ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton(onPressed: _busy ? null : _delete, child: const Text('Delete')),
-            ),
+            if (canDelete) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton(onPressed: _busy ? null : _delete, child: const Text('Delete')),
+              ),
+            ],
           ],
         ),
       ),

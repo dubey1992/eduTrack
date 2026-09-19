@@ -26,7 +26,7 @@ from ..clock import SchoolClock
 from ..enums import UserRole
 from ..models import Attendance, ClassSection
 from ..pagination import LaravelPagination
-from ..policies import ClassSectionPolicy, authorize
+from ..policies import ClassSectionPolicy, authorize, permitted
 from ..requests import AttendanceRegisterRequest, MarkAttendanceRequest
 from ..resources import attendance_resource
 from ..services import AttendanceService
@@ -77,7 +77,8 @@ def collection(request) -> Response:
     if request.method == "PATCH":
         return mark(request, correcting=True)
 
-    authorize(request.user.role in ADMIN_AND_TEACHER)
+    # The matrix says who reads attendance; the service narrows the rows.
+    authorize(permitted(request.user, "attendance", school_id=request.query_params.get("school_id") or None))
 
     marks = AttendanceService.visible_to(
         request.user,

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
-import '../models/user_role.dart';
+import '../../features/auth/data/models/authenticated_user.dart';
 import '../routing/app_nav.dart';
 
 /// The prototype's sidebar is a fixed dark surface (`--sidebar:#111827` etc.
@@ -35,7 +35,7 @@ class SidebarNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final role = ref.watch(authNotifierProvider).value?.role;
+    final user = ref.watch(authNotifierProvider).value;
     final currentPath = GoRouterState.of(context).matchedLocation;
 
     return Container(
@@ -56,8 +56,8 @@ class SidebarNav extends ConsumerWidget {
               child: Text('School Management', style: TextStyle(fontSize: 13, color: _SidebarColors.subtext)),
             ),
             for (final group in AppNav.groups)
-              if (role != null && group.items.any((item) => item.allows(role)))
-                _NavGroupSection(group: group, role: role, currentPath: currentPath, onNavigate: onNavigate),
+              if (user != null && group.items.any((item) => item.allows(user)))
+                _NavGroupSection(group: group, user: user, currentPath: currentPath, onNavigate: onNavigate),
           ],
         ),
       ),
@@ -68,19 +68,19 @@ class SidebarNav extends ConsumerWidget {
 class _NavGroupSection extends StatelessWidget {
   const _NavGroupSection({
     required this.group,
-    required this.role,
+    required this.user,
     required this.currentPath,
     required this.onNavigate,
   });
 
   final NavGroup group;
-  final UserRole role;
+  final AuthenticatedUser user;
   final String currentPath;
   final VoidCallback? onNavigate;
 
   @override
   Widget build(BuildContext context) {
-    final visibleItems = group.items.where((item) => item.allows(role)).toList();
+    final visibleItems = group.items.where((item) => item.allows(user)).toList();
     if (visibleItems.isEmpty) return const SizedBox.shrink();
 
     return Column(

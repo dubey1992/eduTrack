@@ -275,6 +275,44 @@ class Message(models.Model):
 
         return MessageEvent(self.event).label if self.event in MessageEvent.values else self.event
 
+class ModuleSetting(models.Model):
+    """Which modules a school has on, and each module's own settings
+    (school/modules.py). No row means every module on with its defaults."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    module = models.CharField(max_length=40)
+    platform_enabled = models.BooleanField(default=True)
+    school_enabled = models.BooleanField(default=True)
+    settings = LaravelJSONField(blank=True, null=True)
+    updated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'module_settings'
+        unique_together = (('school', 'module'),)
+
+
+class RolePermission(models.Model):
+    """One cell of the roles and permissions matrix that differs from its
+    default (school/permissions.py)."""
+
+    id = models.BigAutoField(primary_key=True)
+    role = models.CharField(max_length=30)
+    module = models.CharField(max_length=40)
+    level = models.CharField(max_length=10)
+    updated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'role_permissions'
+        unique_together = (('role', 'module'),)
+
+
 class MailSetting(models.Model):
     """The SMTP server the platform sends through - one row, set by the Super
     Admin in the app. `password` is encrypted before it is written (see

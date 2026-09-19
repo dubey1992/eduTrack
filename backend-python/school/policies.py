@@ -9,15 +9,24 @@ A policy answers a question and returns a bool. Raising the 403 is the view's
 job, through `authorize()`, so the same policy can be asked without an
 exception when a caller only wants to know.
 
-Every rule below has an ALLOW test and a DENY test in tests/test_policies.py
-(CLAUDE.md rule 11).
+**Two layers, since the permissions matrix (docs/settings.md).** Whether a
+role may read or write a module is the matrix's answer, asked through
+`permitted()`; it also refuses outright, with its own error, when the module
+is switched off for the school in question. *Which* records the role reaches
+- a teacher's own classes, a head's own department, an admin's own school
+or group - is still decided here, in code, because that is knowledge about
+the data rather than about roles. The matrix's defaults reproduce what these
+policies allowed before it existed, so every ALLOW and DENY test in
+tests/test_policies.py still holds with an empty matrix (CLAUDE.md rule 11).
 """
 
 from __future__ import annotations
 
 from rest_framework.exceptions import PermissionDenied
 
+from . import modules, permissions
 from .enums import PayrollRunStatus, UserRole
+from .errors import ModuleDisabled
 from .models import Department, Student, TimetableEntry, User
 from .scope import SchoolScope
 
@@ -28,6 +37,33 @@ def authorize(allowed: bool) -> None:
     """Turns a policy's answer into the 403 the client expects."""
     if not allowed:
         raise PermissionDenied()
+
+
+def permitted(actor: User, module: str, *, write: bool = False, school_id=None) -> bool:
+    """The matrix's answer for this role and module - and, first, whether the
+    module is on at all for the school concerned.
+
+    `school_id` is the school the record belongs to; when a policy has no
+    record yet (creating one, listing), the actor's own school is the one
+    that matters. A switched-off module is refused with its own error so the
+    app can say so, rather than a bare "not allowed".
+    """
+    concerned = school_id if school_id is not None else actor.school_id
+
+    if not modules.is_enabled(concerned, module):
+        raise ModuleDisabled(modules.get(module).label)
+
+    return permissions.may_manage(actor, module) if write else permissions.may_view(actor, module)
+
+
+def in_scope(actor: User, school_id) -> bool:
+    """Whether the school is one the actor answers for: any school for a
+    Super Admin, the group for its admins, their own for everybody else."""
+    return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(school_id)
+
+
+def administers(actor: User) -> bool:
+    return actor.role == UserRole.SUPER_ADMIN or UserRole.administers_school(actor.role)
 
 
 class SchoolPolicy:
@@ -64,7 +100,7 @@ class SchoolPolicy:
 
 
 class SchoolOwnedPolicy:
-    """The shape most school-owned records share.
+    """The shape most school-owned records share - the academic set-up.
 
     Admins manage their own school's records; everybody else may read them.
     Departments, subjects, classes, periods and holidays all answer exactly
@@ -75,19 +111,19 @@ class SchoolOwnedPolicy:
     a record that later needs its own rule has somewhere to put it.
     """
 
-    @staticmethod
-    def view_any(actor: User) -> bool:
-        return True
+    MODULE = "academics"
 
-    @staticmethod
-    def view(actor: User, record) -> bool:
-        return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(
-            record.school_id
-        )
+    @classmethod
+    def view_any(cls, actor: User) -> bool:
+        return permitted(actor, cls.MODULE)
 
-    @staticmethod
-    def create(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES
+    @classmethod
+    def view(cls, actor: User, record) -> bool:
+        return permitted(actor, cls.MODULE, school_id=record.school_id) and in_scope(actor, record.school_id)
+
+    @classmethod
+    def create(cls, actor: User) -> bool:
+        return permitted(actor, cls.MODULE, write=True)
 
     @classmethod
     def update(cls, actor: User, record) -> bool:
@@ -97,13 +133,10 @@ class SchoolOwnedPolicy:
     def delete(cls, actor: User, record) -> bool:
         return cls._manages(actor, record)
 
-    @staticmethod
-    def _manages(actor: User, record) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
-            record.school_id
+    @classmethod
+    def _manages(cls, actor: User, record) -> bool:
+        return permitted(actor, cls.MODULE, write=True, school_id=record.school_id) and in_scope(
+            actor, record.school_id
         )
 
 
@@ -116,23 +149,20 @@ class DepartmentPolicy(SchoolOwnedPolicy):
 
     @staticmethod
     def view_any_report(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES or actor.role == UserRole.HOD
+        return permitted(actor, "hod")
 
     @staticmethod
     def view_report(actor: User, department) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        if not SchoolScope.for_actor(actor).allows(department.school_id):
+        if not permitted(actor, "hod", school_id=department.school_id):
             return False
 
-        if UserRole.administers_school(actor.role):
-            return True
+        if not in_scope(actor, department.school_id):
+            return False
 
         if actor.role == UserRole.HOD:
             return department.hod_user_id == actor.id
 
-        return False
+        return True
 
 
 class SubjectPolicy(SchoolOwnedPolicy):
@@ -150,16 +180,11 @@ class StaffAttendancePolicy:
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES or actor.role == UserRole.HOD
+        return permitted(actor, "staff_attendance")
 
     @staticmethod
     def manage(actor: User, school_id) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        marks_the_register = UserRole.administers_school(actor.role) or actor.role == UserRole.HOD
-
-        return marks_the_register and SchoolScope.for_actor(actor).allows(school_id)
+        return permitted(actor, "staff_attendance", write=True, school_id=school_id) and in_scope(actor, school_id)
 
 
 class StaffLeavePolicy:
@@ -172,32 +197,30 @@ class StaffLeavePolicy:
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        """Every role reads leave. What they actually get back is narrowed by
+        """What a role actually gets back is narrowed by
         StaffLeaveService.visible_to - own, department, school, everything -
-        so a coarse role gate here would only duplicate it badly."""
-        return True
+        so the gate here is only the matrix's."""
+        return permitted(actor, "leave")
 
     @staticmethod
     def apply(actor: User) -> bool:
-        """Role only. Whether the actor has a StaffProfile to apply against is
-        a data precondition, not an authorization question - the view answers
-        that separately, with a sentence naming the fix.
+        """Whether the actor has a StaffProfile to apply against is a data
+        precondition, not an authorization question - the view answers that
+        separately, with a sentence naming the fix.
 
-        SCHOOL_ADMIN is in the list because a School Admin takes leave too;
-        they get a minimal profile on account creation for exactly this. A
-        Super Admin never applies - there is no school to apply against.
+        A Super Admin or Group Admin never applies - there is no one school
+        to apply against.
         """
-        return actor.role in (
-            UserRole.TEACHER,
-            UserRole.STAFF,
-            UserRole.HOD,
-            UserRole.TRANSPORT_MANAGER,
-            UserRole.ACCOUNTANT,
-            UserRole.SCHOOL_ADMIN,
-        )
+        if actor.role in (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN):
+            return False
+
+        return permitted(actor, "leave", write=True)
 
     @staticmethod
     def review(actor: User, leave) -> bool:
+        if not permitted(actor, "leave", write=True, school_id=leave.school_id):
+            return False
+
         # An HOD heads the department they belong to, so without this line
         # they would pass the department check below for their own request.
         # Nobody reviews their own leave, whatever their role.
@@ -206,11 +229,8 @@ class StaffLeavePolicy:
         if profile is not None and leave.staff_profile_id == profile.id:
             return False
 
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        if UserRole.administers_school(actor.role):
-            return SchoolScope.for_actor(actor).allows(leave.school_id)
+        if administers(actor):
+            return in_scope(actor, leave.school_id)
 
         if actor.role == UserRole.HOD:
             applicant = leave.staff_profile
@@ -221,8 +241,8 @@ class StaffLeavePolicy:
                 and applicant.department.hod_user_id == actor.id
             )
 
+        # Every other role's "manage" is applying for their own leave.
         return False
-
 
 
 class TimetableEntryPolicy:
@@ -230,9 +250,7 @@ class TimetableEntryPolicy:
 
     Reading is open by role because a teacher needs the grid to find their own
     schedule; *whose* grid they get is checked against the target's school in
-    the view. Editing follows the other academic-config policies - a class, a
-    subject and a period are all admin-only, and the grid that arranges them
-    is no different.
+    the view.
 
     `manage` is asked about a school rather than an entry because an upsert
     may be creating the first one for that cell.
@@ -240,16 +258,11 @@ class TimetableEntryPolicy:
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return True
+        return permitted(actor, "timetable")
 
     @staticmethod
     def manage(actor: User, school_id) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(
-            actor
-        ).allows(school_id)
+        return permitted(actor, "timetable", write=True, school_id=school_id) and in_scope(actor, school_id)
 
     @classmethod
     def delete(cls, actor: User, entry) -> bool:
@@ -264,33 +277,31 @@ class DailyTeachingReportPolicy:
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        """Not every role, unlike leave. Staff and Transport Managers are never
-        a scheduled teacher and have no reason to browse these; what everyone
-        else gets back is narrowed further by the service."""
-        return actor.role in (*ADMIN_ROLES, UserRole.HOD, UserRole.TEACHER)
+        """What everyone gets back is narrowed further by the service."""
+        return permitted(actor, "teaching_reports")
 
     @staticmethod
     def create(actor: User, entry) -> bool:
-        """Role *and* ownership, folded into one 403. Being a teacher is not
-        enough - it has to be their period, the same way a teacher of 8A is
-        kept out of 9A's register."""
-        if actor.role not in (UserRole.TEACHER, UserRole.HOD):
+        """Permission *and* ownership, folded into one 403. Being allowed to
+        file is not enough - it has to be their period, the same way a
+        teacher of 8A is kept out of 9A's register."""
+        if not permitted(actor, "teaching_reports", write=True, school_id=entry.school_id):
             return False
 
         return entry.teacher_id == actor.id
 
     @staticmethod
     def review(actor: User, report) -> bool:
+        if not permitted(actor, "teaching_reports", write=True, school_id=report.school_id):
+            return False
+
         # An HOD teaches in the department they head, so without this line
         # they would pass the department check below for their own report.
         if report.teacher_id == actor.id:
             return False
 
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        if UserRole.administers_school(actor.role):
-            return SchoolScope.for_actor(actor).allows(report.school_id)
+        if administers(actor):
+            return in_scope(actor, report.school_id)
 
         if actor.role == UserRole.HOD:
             profile = report.teacher.staff_profile
@@ -315,13 +326,11 @@ class SyllabusTopicPolicy:
     teacher actually timetabled for that subject in that section. Checked
     against the live timetable rather than a stored assignment, so moving a
     subject to another teacher takes effect at once.
-
-    Staff and Transport Managers read neither; nothing here is theirs.
     """
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return actor.role in (*ADMIN_ROLES, UserRole.HOD, UserRole.TEACHER)
+        return permitted(actor, "syllabus")
 
     @classmethod
     def create(cls, actor: User, subject) -> bool:
@@ -335,27 +344,26 @@ class SyllabusTopicPolicy:
     def delete(cls, actor: User, topic) -> bool:
         return cls.manages_subject(actor, topic.subject)
 
-    @classmethod
-    def view_checklist(cls, actor: User, section) -> bool:
+    @staticmethod
+    def view_checklist(actor: User, section) -> bool:
         """Anyone who may read the outline, in the section's school. A teacher
         looking at another section's pace is not a concern the way editing it
         would be."""
-        if not cls.view_any(actor):
-            return False
+        school_id = section.school_class.school_id
 
-        return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(
-            section.school_class.school_id
-        )
+        return permitted(actor, "syllabus", school_id=school_id) and in_scope(actor, school_id)
 
     @staticmethod
     def mark(actor: User, topic, section) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
+        school_id = section.school_class.school_id
 
-        if not SchoolScope.for_actor(actor).allows(section.school_class.school_id):
+        if not permitted(actor, "syllabus", write=True, school_id=school_id):
             return False
 
-        if UserRole.administers_school(actor.role):
+        if not in_scope(actor, school_id):
+            return False
+
+        if administers(actor):
             return True
 
         if actor.role == UserRole.HOD:
@@ -374,13 +382,13 @@ class SyllabusTopicPolicy:
 
     @staticmethod
     def manages_subject(actor: User, subject) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        if not SchoolScope.for_actor(actor).allows(subject.school_id):
+        if not permitted(actor, "syllabus", write=True, school_id=subject.school_id):
             return False
 
-        if UserRole.administers_school(actor.role):
+        if not in_scope(actor, subject.school_id):
+            return False
+
+        if administers(actor):
             return True
 
         if actor.role == UserRole.HOD:
@@ -398,11 +406,11 @@ class MessagePolicy:
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES
+        return permitted(actor, "communication")
 
-    @classmethod
-    def view(cls, actor: User, message) -> bool:
-        return cls.manages(actor, message.school_id)
+    @staticmethod
+    def view(actor: User, message) -> bool:
+        return permitted(actor, "communication", school_id=message.school_id) and in_scope(actor, message.school_id)
 
     @classmethod
     def retry(cls, actor: User, message) -> bool:
@@ -421,14 +429,13 @@ class MessagePolicy:
 
     @staticmethod
     def manages(actor: User, school_id) -> bool:
+        if not permitted(actor, "communication", write=True, school_id=school_id):
+            return False
+
         if actor.role == UserRole.SUPER_ADMIN:
             return True
 
-        return (
-            UserRole.administers_school(actor.role)
-            and school_id is not None
-            and SchoolScope.for_actor(actor).allows(school_id)
-        )
+        return school_id is not None and SchoolScope.for_actor(actor).allows(school_id)
 
 
 class MailSettingPolicy:
@@ -440,6 +447,37 @@ class MailSettingPolicy:
         return actor.role == UserRole.SUPER_ADMIN
 
 
+class ModuleSettingPolicy:
+    """Which modules a school has on, and their settings (docs/settings.md).
+
+    A Super Admin configures any school; a School or Group Admin the schools
+    in their scope. Nobody else reads it - what a module's switch means for
+    a teacher is already in /me.
+    """
+
+    @staticmethod
+    def view(actor: User, school_id) -> bool:
+        return administers(actor) and school_id is not None and in_scope(actor, school_id)
+
+    @classmethod
+    def update(cls, actor: User, school_id) -> bool:
+        return cls.view(actor, school_id)
+
+
+class RolePermissionPolicy:
+    """The roles and permissions matrix: every administrator may read it,
+    so a School Admin can see what their staff may do; only the Super Admin
+    edits it, since it applies to every school."""
+
+    @staticmethod
+    def view(actor: User) -> bool:
+        return administers(actor)
+
+    @staticmethod
+    def update(actor: User) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
+
+
 class AnnouncementPolicy:
     """Admins announce to anyone in their school. A Head of Department only
     reaches their own department - the boundary they already have over its
@@ -447,14 +485,39 @@ class AnnouncementPolicy:
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES or actor.role == UserRole.HOD
+        return permitted(actor, "announcements")
 
     @classmethod
     def view(cls, actor: User, announcement) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
+        if not permitted(actor, "announcements", school_id=announcement.school_id):
+            return False
 
-        if not SchoolScope.for_actor(actor).allows(announcement.school_id):
+        return cls._reaches(actor, announcement)
+
+    @classmethod
+    def publish(cls, actor: User, audience: str, target, school_id) -> bool:
+        """Checked against the audience, not just the role."""
+        if not permitted(actor, "announcements", write=True, school_id=school_id):
+            return False
+
+        if school_id is not None and not in_scope(actor, school_id):
+            return False
+
+        if actor.role == UserRole.HOD:
+            return audience == "department" and cls.heads_department(actor, target)
+
+        return True
+
+    @classmethod
+    def delete(cls, actor: User, announcement) -> bool:
+        if not permitted(actor, "announcements", write=True, school_id=announcement.school_id):
+            return False
+
+        return cls._reaches(actor, announcement)
+
+    @classmethod
+    def _reaches(cls, actor: User, announcement) -> bool:
+        if not in_scope(actor, announcement.school_id):
             return False
 
         if actor.role == UserRole.HOD:
@@ -462,29 +525,7 @@ class AnnouncementPolicy:
                 actor, announcement.audience_id
             )
 
-        return UserRole.administers_school(actor.role)
-
-    @classmethod
-    def publish(cls, actor: User, audience: str, target, school_id) -> bool:
-        """Checked against the audience, not just the role."""
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        if school_id is not None and not SchoolScope.for_actor(actor).allows(school_id):
-            return False
-
-        if UserRole.administers_school(actor.role):
-            return True
-
-        return (
-            actor.role == UserRole.HOD
-            and audience == "department"
-            and cls.heads_department(actor, target)
-        )
-
-    @classmethod
-    def delete(cls, actor: User, announcement) -> bool:
-        return cls.view(actor, announcement)
+        return True
 
     @staticmethod
     def heads_department(actor: User, department_id) -> bool:
@@ -496,72 +537,66 @@ class AnnouncementPolicy:
         ).exists()
 
 
-# Everybody who works with the buses reads the fleet: admins, heads, teachers
-# (who put children on them) and the transport manager. Only admins change it.
-TRANSPORT_VIEW_ROLES = (*ADMIN_ROLES, UserRole.HOD, UserRole.TEACHER, UserRole.TRANSPORT_MANAGER)
-
-
 class TransportMasterPolicy:
     """Vehicles, drivers and routes share one shape: read by anybody in
-    transport at the same school, managed by that school's admins."""
+    transport at the same school, managed by that school's admins. The fleet
+    is the school's, so even a role raised to "manage" transport runs trips
+    (below) rather than buying buses."""
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return actor.role in TRANSPORT_VIEW_ROLES
+        return permitted(actor, "transport")
 
-    @classmethod
-    def view(cls, actor: User, record) -> bool:
-        return cls.view_any(actor) and (
-            actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(record.school_id)
-        )
+    @staticmethod
+    def view(actor: User, record) -> bool:
+        return permitted(actor, "transport", school_id=record.school_id) and in_scope(actor, record.school_id)
 
     @staticmethod
     def create(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES
+        return permitted(actor, "transport", write=True) and administers(actor)
 
     @staticmethod
     def manage(actor: User, record) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(record.school_id)
+        return (
+            permitted(actor, "transport", write=True, school_id=record.school_id)
+            and administers(actor)
+            and in_scope(actor, record.school_id)
+        )
 
 
 class TransportRoutePolicy(TransportMasterPolicy):
     @staticmethod
     def view_students(actor: User, route) -> bool:
-        """Who rides a route - guardians' numbers included - is for admins and
-        the transport manager, not every teacher."""
-        return actor.role in (*ADMIN_ROLES, UserRole.TRANSPORT_MANAGER) and (
-            actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(route.school_id)
+        """Who rides a route - guardians' numbers included - is for those who
+        run transport, not every teacher who may look at the fleet."""
+        return permitted(actor, "transport", write=True, school_id=route.school_id) and in_scope(
+            actor, route.school_id
         )
 
 
 class TransportTripPolicy:
-    """Everybody in transport reads the day's trips; admins and the transport
-    manager run them - start, stop by stop, board, drop, end."""
-
-    MANAGE_ROLES = (*ADMIN_ROLES, UserRole.TRANSPORT_MANAGER)
+    """Everybody in transport reads the day's trips; whoever manages
+    transport runs them - start, stop by stop, board, drop, end."""
 
     @staticmethod
-    def same_school_or_super(actor: User, school_id) -> bool:
-        return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(school_id)
+    def view_any(actor: User) -> bool:
+        return permitted(actor, "transport")
 
-    @classmethod
-    def view_any(cls, actor: User) -> bool:
-        return actor.role in TRANSPORT_VIEW_ROLES
+    @staticmethod
+    def view(actor: User, trip) -> bool:
+        return permitted(actor, "transport", school_id=trip.school_id) and in_scope(actor, trip.school_id)
 
-    @classmethod
-    def view(cls, actor: User, trip) -> bool:
-        return cls.view_any(actor) and cls.same_school_or_super(actor, trip.school_id)
+    @staticmethod
+    def create(actor: User, route) -> bool:
+        return permitted(actor, "transport", write=True, school_id=route.school_id) and in_scope(
+            actor, route.school_id
+        )
 
-    @classmethod
-    def create(cls, actor: User, route) -> bool:
-        return actor.role in cls.MANAGE_ROLES and cls.same_school_or_super(actor, route.school_id)
-
-    @classmethod
-    def manage(cls, actor: User, trip) -> bool:
-        return actor.role in cls.MANAGE_ROLES and cls.same_school_or_super(actor, trip.school_id)
+    @staticmethod
+    def manage(actor: User, trip) -> bool:
+        return permitted(actor, "transport", write=True, school_id=trip.school_id) and in_scope(
+            actor, trip.school_id
+        )
 
 
 class StaffProfilePolicy:
@@ -574,15 +609,15 @@ class StaffProfilePolicy:
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES
+        return permitted(actor, "staff")
 
-    @classmethod
-    def view(cls, actor: User, profile) -> bool:
-        return cls._manages(actor, profile)
+    @staticmethod
+    def view(actor: User, profile) -> bool:
+        return permitted(actor, "staff", school_id=profile.school_id) and in_scope(actor, profile.school_id)
 
     @staticmethod
     def create(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES
+        return permitted(actor, "staff", write=True)
 
     @classmethod
     def update(cls, actor: User, profile) -> bool:
@@ -590,11 +625,8 @@ class StaffProfilePolicy:
 
     @staticmethod
     def _manages(actor: User, profile) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
-            profile.school_id
+        return permitted(actor, "staff", write=True, school_id=profile.school_id) and in_scope(
+            actor, profile.school_id
         )
 
 
@@ -605,29 +637,30 @@ class PayrollPolicy:
     payslips once a run is finalized - never a draft, which can still change.
 
     Payroll is money and personal pay, so "may manage payroll" never falls
-    back to a broader permission: a role not named here has none of it.
+    back to a broader permission: a role not granted it in the matrix has
+    none of it.
     """
 
     MANAGERS = (UserRole.ACCOUNTANT, UserRole.SCHOOL_ADMIN, UserRole.GROUP_ADMIN)
 
-    @classmethod
-    def view_any(cls, actor: User) -> bool:
-        return actor.role == UserRole.SUPER_ADMIN or actor.role in cls.MANAGERS
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return permitted(actor, "payroll")
 
-    @classmethod
-    def manage_any(cls, actor: User) -> bool:
-        return actor.role in cls.MANAGERS
+    @staticmethod
+    def manage_any(actor: User) -> bool:
+        return actor.role != UserRole.SUPER_ADMIN and permitted(actor, "payroll", write=True)
 
-    @classmethod
-    def view(cls, actor: User, school_id: int) -> bool:
+    @staticmethod
+    def view(actor: User, school_id: int) -> bool:
+        return permitted(actor, "payroll", school_id=school_id) and in_scope(actor, school_id)
+
+    @staticmethod
+    def manage(actor: User, school_id: int) -> bool:
         if actor.role == UserRole.SUPER_ADMIN:
-            return True
+            return False
 
-        return actor.role in cls.MANAGERS and SchoolScope.for_actor(actor).allows(school_id)
-
-    @classmethod
-    def manage(cls, actor: User, school_id: int) -> bool:
-        return actor.role in cls.MANAGERS and SchoolScope.for_actor(actor).allows(school_id)
+        return permitted(actor, "payroll", write=True, school_id=school_id) and in_scope(actor, school_id)
 
     @classmethod
     def view_payslip(cls, actor: User, payslip) -> bool:
@@ -688,7 +721,7 @@ class ClassSectionPolicy:
 
     @staticmethod
     def create(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES
+        return permitted(actor, "academics", write=True)
 
     @classmethod
     def update(cls, actor: User, section) -> bool:
@@ -700,29 +733,36 @@ class ClassSectionPolicy:
 
     @classmethod
     def view_attendance(cls, actor: User, section) -> bool:
-        """Admins, and the teacher who actually has the class.
+        """Whoever may read attendance, and the teacher who actually has the
+        class.
 
         Attendance is M10's work; the ability lives here because it is a
         question about a section and this is where those are answered.
         """
-        return cls._manages(actor, section) or cls._is_class_teacher(actor, section)
+        school_id = section.school_class.school_id
+
+        return permitted(actor, "attendance", school_id=school_id) and cls._reaches(actor, section)
 
     @classmethod
     def mark_attendance(cls, actor: User, section) -> bool:
-        return cls.view_attendance(actor, section)
+        school_id = section.school_class.school_id
+
+        return permitted(actor, "attendance", write=True, school_id=school_id) and cls._reaches(actor, section)
 
     @staticmethod
     def _manages(actor: User, section) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
+        school_id = section.school_class.school_id
 
-        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
-            section.school_class.school_id
-        )
+        return permitted(actor, "academics", write=True, school_id=school_id) and in_scope(actor, school_id)
 
     @staticmethod
-    def _is_class_teacher(actor: User, section) -> bool:
-        return actor.role == UserRole.TEACHER and actor.id == section.class_teacher_id
+    def _reaches(actor: User, section) -> bool:
+        """A teacher reaches the section they are the class teacher of; every
+        other role reaches its school."""
+        if actor.role == UserRole.TEACHER:
+            return actor.id == section.class_teacher_id
+
+        return in_scope(actor, section.school_class.school_id)
 
 
 class AcademicYearPolicy(SchoolOwnedPolicy):
@@ -758,6 +798,9 @@ class UserPolicy:
     employment record together. One created here would have no StaffProfile
     and be invisible to Attendance and Leave, so that path is deliberately not
     offered.
+
+    Not in the permissions matrix: accounts are administration, and handing
+    a teacher the power to make admins is not a setting anybody should have.
     """
 
     @staticmethod
@@ -817,35 +860,24 @@ class UserPolicy:
 
 
 class StudentPolicy:
-    """SUPER_ADMIN, GROUP_ADMIN and SCHOOL_ADMIN manage every student in
-    scope. TEACHER gets read-only access, and only to students in a class
-    section they are the class teacher of - the "a Teacher assigned to 8A must
-    not access 9A" rule from CLAUDE.md. HOD/STAFF/TRANSPORT_MANAGER have no
-    student access.
+    """Admins manage every student in scope. A TEACHER reaches only students
+    in a class section they are the class teacher of - the "a Teacher
+    assigned to 8A must not access 9A" rule from CLAUDE.md - whatever level
+    the matrix gives teachers. Any other role the matrix lets in reaches its
+    own school.
     """
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES or actor.role == UserRole.TEACHER
+        return permitted(actor, "students")
 
-    @staticmethod
-    def view(actor: User, student: Student) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        if UserRole.administers_school(actor.role):
-            return SchoolScope.for_actor(actor).allows(student.school_id)
-
-        if actor.role == UserRole.TEACHER:
-            section = student.class_section
-
-            return section is not None and section.class_teacher_id == actor.id
-
-        return False
+    @classmethod
+    def view(cls, actor: User, student: Student) -> bool:
+        return permitted(actor, "students", school_id=student.school_id) and cls._reaches(actor, student)
 
     @staticmethod
     def create(actor: User) -> bool:
-        return actor.role in ADMIN_ROLES
+        return permitted(actor, "students", write=True)
 
     @classmethod
     def update(cls, actor: User, student: Student) -> bool:
@@ -855,14 +887,20 @@ class StudentPolicy:
     def set_status(cls, actor: User, student: Student) -> bool:
         return cls._manages(actor, student)
 
-    @staticmethod
-    def _manages(actor: User, student: Student) -> bool:
-        if actor.role == UserRole.SUPER_ADMIN:
-            return True
-
-        return UserRole.administers_school(actor.role) and SchoolScope.for_actor(actor).allows(
-            student.school_id
+    @classmethod
+    def _manages(cls, actor: User, student: Student) -> bool:
+        return permitted(actor, "students", write=True, school_id=student.school_id) and cls._reaches(
+            actor, student
         )
+
+    @staticmethod
+    def _reaches(actor: User, student: Student) -> bool:
+        if actor.role == UserRole.TEACHER:
+            section = student.class_section
+
+            return section is not None and section.class_teacher_id == actor.id
+
+        return in_scope(actor, student.school_id)
 
 
 class AuditLogPolicy:

@@ -10,9 +10,17 @@ class Failure {
   factory Failure.unknown([String? message]) =>
       Failure(code: 'UNKNOWN_ERROR', message: message ?? 'Something went wrong. Please try again.');
 
+  /// The 403 every endpoint of a module answers when the school has that
+  /// module switched off (docs/settings.md). Shown as a quiet "switched off"
+  /// state rather than an error, and never offered a retry: trying again
+  /// cannot switch it back on.
+  static const moduleDisabledCode = 'MODULE_DISABLED';
+
   final String code;
   final String message;
   final Map<String, dynamic> details;
+
+  bool get isModuleDisabled => code == moduleDisabledCode;
 
   /// Field-level validation errors, when [code] is VALIDATION_ERROR.
   /// Shape: { fieldName: [messages] }.

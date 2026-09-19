@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -159,6 +160,7 @@ class _RegisterView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final registerState = ref.watch(attendanceRegisterProvider(params));
     final notifier = ref.read(attendanceRegisterProvider(params).notifier);
+    final canMark = ref.watch(authNotifierProvider).value?.canManage(AppModules.attendance) ?? false;
 
     return AsyncValueView<AttendanceRegister>(
       value: registerState,
@@ -208,7 +210,7 @@ class _RegisterView extends ConsumerWidget {
                           : context.appColors.onWarningContainer,
                     ),
                   ),
-                if (holiday == null)
+                if (holiday == null && canMark)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

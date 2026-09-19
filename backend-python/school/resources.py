@@ -17,9 +17,9 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from . import mailer, money, sms, whatsapp, working_hours
+from . import mailer, modules, money, permissions, sms, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
-from .enums import EarlyAccessStatus, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus
+from .enums import EarlyAccessStatus, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
 from .scope import SchoolScope
@@ -388,6 +388,74 @@ def mail_setting_resource(row) -> dict:
         "last_test_error": row.last_test_error,
         "updated_by_name": row.updated_by.name if row.updated_by_id else None,
         "source": "database" if row.is_active else "environment",
+    }
+
+
+def module_setting_resource(module, row, viewer) -> dict:
+    """One module for one school: its switches, its settings and the schema
+    the settings screen draws them from."""
+    platform_enabled = row.platform_enabled if row is not None else True
+    school_enabled = row.school_enabled if row is not None else True
+
+    return {
+        "module": module.key,
+        "label": module.label,
+        "description": module.description,
+        "switchable": module.switchable,
+        "platform_enabled": platform_enabled,
+        "school_enabled": school_enabled,
+        "enabled": (not module.switchable) or (platform_enabled and school_enabled),
+        "can_change_platform": viewer.role == UserRole.SUPER_ADMIN,
+        "settings": modules.settings_for(row.school_id if row is not None else None, module.key)
+        if row is None
+        else _settings_of(row, module),
+        "settings_schema": [
+            {
+                "key": setting.key,
+                "label": setting.label,
+                "type": setting.type,
+                "default": setting.default,
+                "help": setting.help,
+                "min": setting.min,
+                "max": setting.max,
+            }
+            for setting in module.settings
+        ],
+        "updated_at": timestamp(row.updated_at) if row is not None else None,
+        "updated_by_name": row.updated_by.name if row is not None and row.updated_by_id else None,
+    }
+
+
+def _settings_of(row, module) -> dict:
+    values = module.defaults()
+
+    if row.settings:
+        values.update({key: value for key, value in row.settings.items() if key in values})
+
+    return values
+
+
+def role_label(role: str) -> str:
+    """"HOD" stays an initialism; the rest read as titles."""
+    return "HOD" if role == UserRole.HOD else role.replace("_", " ").title()
+
+
+def permissions_resource(viewer) -> dict:
+    """The whole matrix, with what each name means, for the matrix screen."""
+    return {
+        "roles": [{"value": role, "label": role_label(role)} for role in permissions.EDITABLE_ROLES],
+        "modules": [
+            {"value": key, "label": modules.get(key).label, "description": modules.get(key).description}
+            for key in permissions.MODULES
+        ],
+        "levels": [
+            {"value": permissions.NONE, "label": "None"},
+            {"value": permissions.VIEW, "label": "View"},
+            {"value": permissions.MANAGE, "label": "Manage"},
+        ],
+        "matrix": permissions.matrix(),
+        "defaults": permissions.DEFAULTS,
+        "can_edit": viewer.role == UserRole.SUPER_ADMIN,
     }
 
 
@@ -961,6 +1029,12 @@ def user_resource(user: User, viewer: User | None = None) -> dict:
         # timezone. A Super Admin belongs to no school and gets the platform's
         # zone.
         "current_time": clock.now_iso8601(),
+        # What the app may show this account (docs/settings.md): each module's
+        # level from the permissions matrix, and whether the module is on for
+        # their school. Both are read on every sign-in and /me, so an edit
+        # to either takes effect the next time the app asks.
+        "permissions": permissions.for_user(user),
+        "modules": modules.enabled_map(user.school_id),
     }
 
     if "school" in user._state.fields_cache:

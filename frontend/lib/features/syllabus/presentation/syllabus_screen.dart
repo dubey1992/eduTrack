@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -40,7 +41,7 @@ class _SyllabusScreenState extends ConsumerState<SyllabusScreen> {
     if (actor == null) return const SizedBox.shrink();
 
     final picksSchool = actor.picksSchool;
-    final canManageOutline = _outlineManagerRoles.contains(actor.role);
+    final canManageOutline = _outlineManagerRoles.contains(actor.role) && actor.canManage(AppModules.syllabus);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),

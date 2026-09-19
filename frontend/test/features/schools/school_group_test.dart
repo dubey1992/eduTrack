@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_repository.dart';
+import '../../support/session_users.dart';
 
 School _school({
   required int id,
@@ -75,9 +76,9 @@ void main() {
     // from it would be locked out of screens the API lets it use.
     test('a group admin reaches everything a school admin reaches', () {
       for (final item in AppNav.allItems) {
-        if (item.allows(UserRole.schoolAdmin)) {
+        if (item.allows(sessionUser(UserRole.schoolAdmin))) {
           expect(
-            item.allows(UserRole.groupAdmin),
+            item.allows(sessionUser(UserRole.groupAdmin)),
             isTrue,
             reason: '${item.path} is open to a School Admin but not a Group Admin',
           );
@@ -89,8 +90,8 @@ void main() {
       // Onboarding schools and recording payments stay Super Admin.
       for (final path in ['/schools', '/payments']) {
         final item = AppNav.findByPath(path)!;
-        expect(item.allows(UserRole.groupAdmin), isFalse, reason: '$path must stay Super Admin only');
-        expect(item.allows(UserRole.superAdmin), isTrue);
+        expect(item.allows(sessionUser(UserRole.groupAdmin)), isFalse, reason: '$path must stay Super Admin only');
+        expect(item.allows(sessionUser(UserRole.superAdmin)), isTrue);
       }
     });
   });

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -166,6 +167,7 @@ class _RegisterView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final registerState = ref.watch(staffAttendanceRegisterProvider(params));
     final notifier = ref.read(staffAttendanceRegisterProvider(params).notifier);
+    final canMark = ref.watch(authNotifierProvider).value?.canManage(AppModules.staffAttendance) ?? false;
 
     return AsyncValueView<StaffAttendanceRegister>(
       value: registerState,
@@ -210,7 +212,7 @@ class _RegisterView extends ConsumerWidget {
                           : context.appColors.onWarningContainer,
                     ),
                   ),
-                if (holiday == null)
+                if (holiday == null && canMark)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -260,7 +262,7 @@ class _RegisterView extends ConsumerWidget {
                     _StaffRosterRow(
                       key: ValueKey(entry.staffProfileId),
                       entry: entry,
-                      enabled: holiday == null,
+                      enabled: holiday == null && canMark,
                       onStatusChanged: (status) => notifier.setStatus(entry.staffProfileId, status),
                       onCheckInChanged: (time) => notifier.setCheckIn(entry.staffProfileId, time),
                       onCheckOutChanged: (time) => notifier.setCheckOut(entry.staffProfileId, time),

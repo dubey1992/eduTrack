@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -72,6 +73,7 @@ class _CommunicationScreenState extends ConsumerState<CommunicationScreen> {
     if (actor == null) return const SizedBox.shrink();
 
     final needsSchool = actor.role == UserRole.superAdmin && _schoolId == null;
+    final canManage = actor.canManage(AppModules.communication);
     final messagesState = ref.watch(messagePageNotifierProvider);
     final selectedCategory = ref.watch(messagePageNotifierProvider.notifier).category;
 
@@ -99,36 +101,38 @@ class _CommunicationScreenState extends ConsumerState<CommunicationScreen> {
                       ref.read(messagePageNotifierProvider.notifier).setSchoolFilter(schoolId);
                     },
                   ),
-                  OutlinedButton.icon(
-                    onPressed: needsSchool
-                        ? null
-                        : () => showDialog<void>(
-                            context: context,
-                            builder: (_) => MessageTemplatesDialog(schoolId: _schoolId),
-                          ),
-                    icon: const Icon(Icons.description_outlined, size: 18),
-                    label: const Text('Message Templates'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: needsSchool
-                        ? null
-                        : () => showDialog<void>(
-                            context: context,
-                            builder: (_) => CommunicationSettingsDialog(schoolId: _schoolId),
-                          ),
-                    icon: const Icon(Icons.settings_outlined, size: 18),
-                    label: const Text('Alert Settings'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: needsSchool
-                        ? null
-                        : () => showDialog<void>(
-                            context: context,
-                            builder: (_) => SendNoticeDialog(schoolId: _schoolId),
-                          ),
-                    icon: const Icon(Icons.send_outlined, size: 18),
-                    label: const Text('Send Message'),
-                  ),
+                  if (canManage) ...[
+                    OutlinedButton.icon(
+                      onPressed: needsSchool
+                          ? null
+                          : () => showDialog<void>(
+                              context: context,
+                              builder: (_) => MessageTemplatesDialog(schoolId: _schoolId),
+                            ),
+                      icon: const Icon(Icons.description_outlined, size: 18),
+                      label: const Text('Message Templates'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: needsSchool
+                          ? null
+                          : () => showDialog<void>(
+                              context: context,
+                              builder: (_) => CommunicationSettingsDialog(schoolId: _schoolId),
+                            ),
+                      icon: const Icon(Icons.settings_outlined, size: 18),
+                      label: const Text('Alert Settings'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: needsSchool
+                          ? null
+                          : () => showDialog<void>(
+                              context: context,
+                              builder: (_) => SendNoticeDialog(schoolId: _schoolId),
+                            ),
+                      icon: const Icon(Icons.send_outlined, size: 18),
+                      label: const Text('Send Message'),
+                    ),
+                  ],
                 ],
               ),
             ],

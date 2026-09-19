@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../auth/data/models/authenticated_user.dart';
 import '../application/dashboard_notifier.dart';
 import '../data/models/dashboard.dart';
 import 'widgets/attendance_trend_chart.dart';
@@ -84,7 +86,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           AsyncValueView<Dashboard>(
             value: state,
             onRetry: notifier.refresh,
-            data: (context, dashboard) => _DashboardBody(dashboard: dashboard, role: user?.role),
+            data: (context, dashboard) => _DashboardBody(dashboard: dashboard, user: user),
           ),
         ],
       ),
@@ -93,10 +95,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 }
 
 class _DashboardBody extends StatelessWidget {
-  const _DashboardBody({required this.dashboard, required this.role});
+  const _DashboardBody({required this.dashboard, required this.user});
 
   final Dashboard dashboard;
-  final UserRole? role;
+  final AuthenticatedUser? user;
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +116,7 @@ class _DashboardBody extends StatelessWidget {
           AttendanceTrendChart(points: dashboard.attendanceTrend),
         ],
         const SizedBox(height: 16),
-        _ReportsLink(role: role),
+        _ReportsLink(user: user),
       ],
     );
   }
@@ -252,9 +254,9 @@ class _AttentionList extends StatelessWidget {
 }
 
 class _ReportsLink extends StatelessWidget {
-  const _ReportsLink({required this.role});
+  const _ReportsLink({required this.user});
 
-  final UserRole? role;
+  final AuthenticatedUser? user;
 
   static const _withReports = {
     UserRole.superAdmin,
@@ -267,7 +269,10 @@ class _ReportsLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!_withReports.contains(role)) return const SizedBox.shrink();
+    // Nothing to open when the school has reports switched off.
+    if (user == null || !user!.moduleOn(AppModules.reports) || !_withReports.contains(user!.role)) {
+      return const SizedBox.shrink();
+    }
 
     return Align(
       alignment: Alignment.centerLeft,

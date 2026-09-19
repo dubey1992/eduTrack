@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../features/auth/data/models/authenticated_user.dart';
+import '../models/module_access.dart';
+import '../models/permission_level.dart';
 import '../models/user_role.dart';
 
 /// A single navigation destination: the sidebar entry, the page title/
 /// subtitle shown in the topbar, and who is allowed to see it - all in one
 /// place, so the visible menu and the route access control can never drift
-/// apart (this is the router's only source of truth for role gating on
+/// apart (this is the router's only source of truth for access gating on
 /// these routes; see AppRouter's redirect).
 class NavItem {
   const NavItem({
@@ -15,16 +18,51 @@ class NavItem {
     required this.allowedRoles,
     required this.pageTitle,
     required this.pageSubtitle,
+    this.module,
+    this.requiredLevel = PermissionLevel.view,
   });
 
   final String path;
   final String label;
   final IconData icon;
+
+  /// The roles the screen was built for. For an item with no [module] this
+  /// is the whole rule; for a module item it is the fallback when a session
+  /// carries no permissions map (see [allows]).
   final Set<UserRole> allowedRoles;
   final String pageTitle;
   final String pageSubtitle;
 
-  bool allows(UserRole role) => allowedRoles.contains(role);
+  /// The module this screen belongs to (an [AppModules] key), when it is one
+  /// the permissions matrix and the school's module switches govern. Null
+  /// for the platform's own screens and administration, which stay role-gated.
+  final String? module;
+
+  /// The level the matrix must grant on [module] for the item to show.
+  /// [PermissionLevel.none] means no level is asked of the matrix at all -
+  /// only that the module is on, plus [allowedRoles] - for a screen that is
+  /// everybody's own business, like My Payslips.
+  final PermissionLevel requiredLevel;
+
+  /// Whether [user] may see this entry and open its route.
+  ///
+  /// A module item needs its module switched on for the user's school, and
+  /// then the matrix decides: the user's level must reach [requiredLevel].
+  /// A session that carries no matrix at all (an older payload, a role-only
+  /// fixture) keeps the role set the screen was built with, so nothing
+  /// changes for it.
+  bool allows(AuthenticatedUser user) {
+    final module = this.module;
+    if (module == null) return allowedRoles.contains(user.role);
+
+    if (!user.moduleOn(module)) return false;
+
+    if (requiredLevel == PermissionLevel.none || !user.access.hasPermissions) {
+      return allowedRoles.contains(user.role);
+    }
+
+    return user.level(module).atLeast(requiredLevel);
+  }
 }
 
 class NavGroup {
@@ -65,6 +103,7 @@ class AppNav {
       ),
       NavItem(
         path: '/reports',
+        module: AppModules.reports,
         label: 'Reports',
         icon: Icons.insights_outlined,
         // The roles ReportController lets through. A teacher sees their own
@@ -133,6 +172,25 @@ class AppNav {
         pageSubtitle: 'Who changed what, and when',
       ),
       NavItem(
+        path: '/module-settings',
+        label: 'Module Settings',
+        icon: Icons.tune,
+        // A Super Admin grants a module to a school; a School Admin keeps it
+        // on and tunes its settings. See docs/settings.md.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Module Settings',
+        pageSubtitle: 'Which modules this school uses, and their settings',
+      ),
+      NavItem(
+        path: '/permissions',
+        label: 'Permissions',
+        icon: Icons.admin_panel_settings_outlined,
+        // The Super Admin edits the matrix; every administrator reads it.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Roles & Permissions',
+        pageSubtitle: 'What each role may see and do',
+      ),
+      NavItem(
         path: '/mail-settings',
         label: 'Email Settings',
         icon: Icons.outgoing_mail,
@@ -149,6 +207,7 @@ class AppNav {
     items: [
       NavItem(
         path: '/academic-years',
+        module: AppModules.academics,
         label: 'Academic Years',
         icon: Icons.calendar_today_outlined,
         allowedRoles: _allRoles,
@@ -157,6 +216,7 @@ class AppNav {
       ),
       NavItem(
         path: '/holidays',
+        module: AppModules.academics,
         label: 'Holidays',
         icon: Icons.beach_access_outlined,
         allowedRoles: _allRoles,
@@ -165,6 +225,7 @@ class AppNav {
       ),
       NavItem(
         path: '/departments',
+        module: AppModules.academics,
         label: 'Departments',
         icon: Icons.corporate_fare_outlined,
         allowedRoles: _allRoles,
@@ -173,6 +234,7 @@ class AppNav {
       ),
       NavItem(
         path: '/subjects',
+        module: AppModules.academics,
         label: 'Subjects',
         icon: Icons.menu_book_outlined,
         allowedRoles: _allRoles,
@@ -181,6 +243,7 @@ class AppNav {
       ),
       NavItem(
         path: '/classes',
+        module: AppModules.academics,
         label: 'Classes & Sections',
         icon: Icons.school_outlined,
         allowedRoles: _allRoles,
@@ -189,6 +252,7 @@ class AppNav {
       ),
       NavItem(
         path: '/timetable',
+        module: AppModules.timetable,
         label: 'Timetable',
         icon: Icons.calendar_view_week_outlined,
         allowedRoles: _allRoles,
@@ -203,6 +267,7 @@ class AppNav {
     items: [
       NavItem(
         path: '/attendance',
+        module: AppModules.attendance,
         label: 'Student Attendance',
         icon: Icons.fact_check_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.teacher},
@@ -211,6 +276,7 @@ class AppNav {
       ),
       NavItem(
         path: '/staff-attendance',
+        module: AppModules.staffAttendance,
         label: 'Staff Attendance',
         icon: Icons.badge_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod},
@@ -219,6 +285,7 @@ class AppNav {
       ),
       NavItem(
         path: '/leaves',
+        module: AppModules.leave,
         label: 'Staff Leave',
         icon: Icons.event_busy_outlined,
         allowedRoles: {
@@ -236,6 +303,7 @@ class AppNav {
       ),
       NavItem(
         path: '/teaching-reports',
+        module: AppModules.teachingReports,
         label: 'Teaching Reports',
         icon: Icons.fact_check_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
@@ -244,6 +312,7 @@ class AppNav {
       ),
       NavItem(
         path: '/syllabus',
+        module: AppModules.syllabus,
         label: 'Syllabus',
         icon: Icons.menu_book_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
@@ -252,6 +321,7 @@ class AppNav {
       ),
       NavItem(
         path: '/hod-reports',
+        module: AppModules.hod,
         label: 'HOD Reports',
         icon: Icons.insights_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod},
@@ -260,6 +330,8 @@ class AppNav {
       ),
       NavItem(
         path: '/payroll',
+        module: AppModules.payroll,
+        requiredLevel: PermissionLevel.manage,
         label: 'Payroll',
         icon: Icons.account_balance_wallet_outlined,
         // Run by an Accountant or an admin; a Super Admin reads it. See
@@ -270,9 +342,13 @@ class AppNav {
       ),
       NavItem(
         path: '/my-payslips',
+        module: AppModules.payroll,
+        requiredLevel: PermissionLevel.none,
         label: 'My Payslips',
         icon: Icons.receipt_long_outlined,
         // Everybody employed by a school - never the Super Admin, who is not.
+        // Their own payslips, so no level on payroll is asked: it shows
+        // whenever the school has payroll on.
         allowedRoles: {
           UserRole.groupAdmin,
           UserRole.schoolAdmin,
@@ -293,6 +369,7 @@ class AppNav {
     items: [
       NavItem(
         path: '/staff',
+        module: AppModules.staff,
         label: 'Teachers & Staff',
         icon: Icons.groups_2_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
@@ -301,6 +378,7 @@ class AppNav {
       ),
       NavItem(
         path: '/students',
+        module: AppModules.students,
         label: 'Students',
         icon: Icons.school_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.teacher},
@@ -324,6 +402,7 @@ class AppNav {
     items: [
       NavItem(
         path: '/transport/vehicles',
+        module: AppModules.transport,
         label: 'Vehicles',
         icon: Icons.directions_bus_outlined,
         allowedRoles: _transportViewerRoles,
@@ -332,6 +411,7 @@ class AppNav {
       ),
       NavItem(
         path: '/transport/drivers',
+        module: AppModules.transport,
         label: 'Drivers',
         icon: Icons.badge_outlined,
         allowedRoles: _transportViewerRoles,
@@ -340,6 +420,7 @@ class AppNav {
       ),
       NavItem(
         path: '/transport/routes',
+        module: AppModules.transport,
         label: 'Routes',
         icon: Icons.alt_route_outlined,
         allowedRoles: _transportViewerRoles,
@@ -348,6 +429,7 @@ class AppNav {
       ),
       NavItem(
         path: '/transport/trips',
+        module: AppModules.transport,
         label: 'Trips',
         icon: Icons.route_outlined,
         allowedRoles: _transportViewerRoles,
@@ -365,6 +447,8 @@ class AppNav {
     items: [
       NavItem(
         path: '/communication',
+        module: AppModules.communication,
+        requiredLevel: PermissionLevel.manage,
         label: 'Communication',
         icon: Icons.forum_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
@@ -373,6 +457,7 @@ class AppNav {
       ),
       NavItem(
         path: '/announcements',
+        module: AppModules.announcements,
         label: 'Announcements',
         icon: Icons.campaign_outlined,
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod},

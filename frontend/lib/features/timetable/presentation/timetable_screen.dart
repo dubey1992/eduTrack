@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models/user_role.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -36,7 +36,7 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
     final actor = ref.watch(authNotifierProvider).value;
     if (actor == null) return const SizedBox.shrink();
 
-    final canEdit = actor.role == UserRole.superAdmin || actor.role.administersSchool;
+    final canEdit = actor.canManage(AppModules.timetable);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),

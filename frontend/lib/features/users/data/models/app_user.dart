@@ -1,3 +1,5 @@
+import '../../../../core/models/module_access.dart';
+import '../../../../core/models/permission_level.dart';
 import '../../../../core/models/user_role.dart';
 
 enum UserStatus {
@@ -23,6 +25,7 @@ class AppUser {
     required this.status,
     this.isSubAdmin = false,
     this.lockedUntil,
+    this.access = const ModuleAccess.unspecified(),
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -37,6 +40,7 @@ class AppUser {
       status: UserStatus.fromApiValue(json['status'] as String),
       isSubAdmin: json['is_sub_admin'] as bool? ?? false,
       lockedUntil: json['locked_until'] as String?,
+      access: ModuleAccess.fromJson(json),
     );
   }
 
@@ -66,6 +70,19 @@ class AppUser {
 
   bool get isLocked => lockedUntil != null;
 
+  /// The same user payload serves the admin-users list and /me, so a row
+  /// carries the account's permissions matrix and module switches too. See
+  /// [ModuleAccess] for what a payload without them means.
+  final ModuleAccess access;
+
+  PermissionLevel level(String module) => access.level(module, role);
+
+  bool canView(String module) => access.canView(module, role);
+
+  bool canManage(String module) => access.canManage(module, role);
+
+  bool moduleOn(String module) => access.moduleOn(module);
+
   AppUser copyWith({UserStatus? status, bool unlocked = false}) {
     return AppUser(
       id: id,
@@ -78,6 +95,7 @@ class AppUser {
       status: status ?? this.status,
       isSubAdmin: isSubAdmin,
       lockedUntil: unlocked ? null : lockedUntil,
+      access: access,
     );
   }
 }

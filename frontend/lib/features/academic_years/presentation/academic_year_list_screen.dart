@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
-import '../../../core/models/user_role.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/pagination_controls.dart';
@@ -18,8 +18,6 @@ import 'edit_academic_year_dialog.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 
-const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
-
 class AcademicYearListScreen extends ConsumerStatefulWidget {
   const AcademicYearListScreen({super.key});
 
@@ -33,7 +31,7 @@ class _AcademicYearListScreenState extends ConsumerState<AcademicYearListScreen>
   @override
   Widget build(BuildContext context) {
     final yearsState = ref.watch(academicYearListNotifierProvider);
-    final canManage = _manageRoles.contains(ref.watch(authNotifierProvider).value?.role);
+    final canManage = ref.watch(authNotifierProvider).value?.canManage(AppModules.academics) ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

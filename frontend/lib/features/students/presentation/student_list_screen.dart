@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
-import '../../../core/models/user_role.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/debounced_search_field.dart';
@@ -18,8 +18,6 @@ import '../application/student_list_notifier.dart';
 import '../data/models/student.dart';
 import 'add_student_dialog.dart';
 import 'edit_student_dialog.dart';
-
-const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
 
 class StudentListScreen extends ConsumerStatefulWidget {
   const StudentListScreen({super.key});
@@ -41,7 +39,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   @override
   Widget build(BuildContext context) {
     final studentsState = ref.watch(studentListNotifierProvider);
-    final canManage = _manageRoles.contains(ref.watch(authNotifierProvider).value?.role);
+    final canManage = ref.watch(authNotifierProvider).value?.canManage(AppModules.students) ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -20,7 +20,7 @@ from .. import csv_export
 from ..clock import DATE_TIME, SchoolClock
 from ..enums import UserRole
 from ..models import Department, School
-from ..policies import PayrollPolicy, authorize
+from ..policies import PayrollPolicy, authorize, permitted
 from ..reports import (
     LeaveUsageReport,
     PayrollSummaryReport,
@@ -90,7 +90,10 @@ def respond(request, report, name: str, roles):
     form = ReportRequest(data=request.query_params.dict(), actor=actor)
     form.is_valid(raise_exception=True)
 
-    authorize(actor.role in roles)
+    # The matrix says whether the role reads reports at all; which reports
+    # a role reads stays per report, since a payroll summary is not a thing
+    # every reader of attendance should see.
+    authorize(permitted(actor, "reports", school_id=form.validated_data.get("school_id")) and actor.role in roles)
 
     filters = filters_for(actor, form.validated_data)
     scope = SchoolScope.for_actor(actor)

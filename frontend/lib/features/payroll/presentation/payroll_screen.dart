@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -47,8 +48,9 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final role = ref.watch(authNotifierProvider).value?.role;
-    final canManage = PayrollScreen.managerRoles.contains(role);
+    final actor = ref.watch(authNotifierProvider).value;
+    final canManage =
+        actor != null && PayrollScreen.managerRoles.contains(actor.role) && actor.canManage(AppModules.payroll);
 
     if (_openRunId != null) {
       return _RunView(runId: _openRunId!, canManage: canManage, onBack: () => setState(() => _openRunId = null));

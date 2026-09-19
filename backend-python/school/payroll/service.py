@@ -15,7 +15,7 @@ from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
-from .. import audit, queue
+from .. import audit, modules, queue
 from ..clock import SchoolClock
 from ..enums import PayComponentType, PayrollRunStatus, PayslipLineSource, PayslipStatus, UserRole, UserStatus
 from ..errors import PayrollRunEmpty, PayrollRunExists, PayrollRunLocked, PayrollRunNotFinalized, PayslipAlreadyPaid
@@ -387,10 +387,12 @@ class PayrollRunService:
             run.updated_at = now
             run.save(update_fields=["status", "finalized_by", "finalized_at", "updated_at"])
 
-            # Each employee is sent their own payslip. Queued in this same
+            # Each employee is sent their own payslip, unless the school has
+            # switched that off (module settings). Queued in this same
             # transaction, so a finalize that rolls back queues nothing.
-            for payslip_id in run.payslips.values_list("id", flat=True):
-                queue.push(SEND_PAYSLIP, {"payslip_id": payslip_id})
+            if modules.setting(run.school_id, "payroll", "email_payslips_on_finalize"):
+                for payslip_id in run.payslips.values_list("id", flat=True):
+                    queue.push(SEND_PAYSLIP, {"payslip_id": payslip_id})
 
             audit.record(
                 actor=actor, action="payroll_run.finalized", module=MODULE, entity_type="payroll_run",

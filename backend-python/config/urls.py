@@ -32,6 +32,8 @@ from school.views import (
     inbox,
     leave,
     mail_settings,
+    permissions,
+    settings_modules,
     payments,
     payroll,
     reports,
@@ -175,6 +177,11 @@ urlpatterns = [
     path("api/v1/communication/notices/preview", communication.notice_preview),
     path("api/v1/settings/mail", mail_settings.settings),
     path("api/v1/settings/mail/test", mail_settings.test),
+    # Module settings and the permissions matrix - Python only (docs/settings.md).
+    path("api/v1/settings/modules", settings_modules.collection),
+    path("api/v1/settings/modules/<str:module>", settings_modules.detail),
+    path("api/v1/settings/permissions", permissions.matrix),
+    path("api/v1/settings/permissions/reset", permissions.reset),
     # -- the inbox ---------------------------------------------------------
     path("api/v1/inbox", inbox.messages),
     path("api/v1/inbox/unread-count", inbox.unread_count),

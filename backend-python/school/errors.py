@@ -232,6 +232,26 @@ class MessageNotRetryable(ApiError):
     error_code = "MESSAGE_NOT_RETRYABLE"
 
 
+class SettingRefused(ApiError):
+    """A write that a module's own setting forbids (docs/settings.md): a
+    register marked too long after the day, leave asked for at too short
+    notice, a report filed too late. A 422 with the setting's own sentence."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "SETTING_REFUSED"
+
+
+class ModuleDisabled(ApiError):
+    """The module is switched off for this school (docs/settings.md). A 403
+    with its own code, so the app can say so rather than "not allowed"."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+    error_code = "MODULE_DISABLED"
+
+    def __init__(self, module_label: str) -> None:
+        super().__init__(f"{module_label} is switched off for this school.")
+
+
 class MailTestFailed(ApiError):
     """The SMTP settings could not send a test email. The message is the
     mail server's own explanation, minus anything secret."""

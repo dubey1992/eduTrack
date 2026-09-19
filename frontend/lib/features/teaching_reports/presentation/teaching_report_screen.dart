@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/theme/app_colors.dart';
@@ -50,8 +51,9 @@ class _TeachingReportScreenState extends ConsumerState<TeachingReportScreen> {
     final actor = ref.watch(authNotifierProvider).value;
     if (actor == null) return const SizedBox.shrink();
 
-    final canSubmit = _submitterRoles.contains(actor.role);
-    final canReview = _reviewerRoles.contains(actor.role);
+    final canWrite = actor.canManage(AppModules.teachingReports);
+    final canSubmit = canWrite && _submitterRoles.contains(actor.role);
+    final canReview = canWrite && _reviewerRoles.contains(actor.role);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),

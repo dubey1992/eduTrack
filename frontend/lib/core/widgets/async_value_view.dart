@@ -51,6 +51,9 @@ class _ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    // "Switched off for this school" is a fact about the school, not a fault
+    // to recover from: a quieter icon, the server's own sentence, no retry.
+    final switchedOff = failure.isModuleDisabled;
 
     return Center(
       child: Padding(
@@ -58,14 +61,17 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, color: colors.danger, size: 36),
+            if (switchedOff)
+              Icon(Icons.power_settings_new, color: colors.muted, size: 36)
+            else
+              Icon(Icons.error_outline, color: colors.danger, size: 36),
             const SizedBox(height: 12),
             Text(
               failure.message,
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.muted),
             ),
-            if (onRetry != null) ...[
+            if (onRetry != null && !switchedOff) ...[
               const SizedBox(height: 16),
               OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
             ],

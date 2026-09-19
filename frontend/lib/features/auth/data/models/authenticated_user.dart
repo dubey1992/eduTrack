@@ -1,3 +1,5 @@
+import '../../../../core/models/module_access.dart';
+import '../../../../core/models/permission_level.dart';
 import '../../../../core/models/user_role.dart';
 import '../../../../core/utils/school_clock.dart';
 
@@ -10,6 +12,7 @@ class AuthenticatedUser {
     this.isSubAdmin = false,
     this.mustChangePassword = false,
     this.managesBranches = false,
+    this.access = const ModuleAccess.unspecified(),
     SchoolClock? clock,
     // The field is private and the parameter is not. An initializing formal
     // would make callers write `_clock:`, leaking the underscore into the
@@ -32,6 +35,7 @@ class AuthenticatedUser {
       isSubAdmin: json['is_sub_admin'] as bool? ?? false,
       mustChangePassword: json['must_change_password'] as bool? ?? false,
       managesBranches: json['manages_branches'] as bool? ?? false,
+      access: ModuleAccess.fromJson(json),
     );
   }
 
@@ -75,4 +79,21 @@ class AuthenticatedUser {
   /// Mirrors the backend's SchoolScope::defaultSchoolId() being null, which
   /// is what makes school_id a required field on the request.
   bool get picksSchool => role == UserRole.superAdmin || managesBranches;
+
+  /// The permissions matrix and module switches as /me sent them. A payload
+  /// without them - older API responses, role-only fixtures - falls back to
+  /// the platform defaults; see [ModuleAccess].
+  final ModuleAccess access;
+
+  PermissionLevel level(String module) => access.level(module, role);
+
+  /// The module is on for this school and the level is view or manage.
+  bool canView(String module) => access.canView(module, role);
+
+  /// The module is on for this school and the level is manage - what every
+  /// Add, Edit, Delete, Approve or Submit control asks before it shows.
+  bool canManage(String module) => access.canManage(module, role);
+
+  /// Whether the module is switched on for this user's school.
+  bool moduleOn(String module) => access.moduleOn(module);
 }
