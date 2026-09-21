@@ -248,6 +248,50 @@ class EarlyAccessRequest(models.Model):
         managed = False
         db_table = 'early_access_requests'
 
+class GradeScale(models.Model):
+    """A school's way of turning a percentage into a grade (docs/assessments.md).
+
+    A school may keep more than one - a primary scale and a secondary one -
+    and exactly one of them is the default an assessment gets when nobody
+    chooses.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    name = models.CharField(max_length=50)
+    is_default = models.BooleanField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'grade_scales'
+        unique_together = (('school', 'name'),)
+
+
+class GradeBand(models.Model):
+    """One band of a scale: a label, and the percentages it covers.
+
+    Both ends are inclusive, and the bands of a scale cover 0 to 100 with no
+    gap and no overlap - checked in the service, which can see the whole set
+    at once (see GradeScaleService).
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    grade_scale = models.ForeignKey('GradeScale', models.DO_NOTHING, related_name='bands')
+    label = models.CharField(max_length=10)
+    min_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    max_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    is_failing = models.BooleanField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'grade_bands'
+        unique_together = (('grade_scale', 'label'),)
+
+
 class Holiday(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)

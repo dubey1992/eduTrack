@@ -227,6 +227,18 @@ class AppNav {
         pageSubtitle: 'Academic year setup and rollover',
       ),
       NavItem(
+        path: '/grade-scales',
+        module: AppModules.academics,
+        label: 'Grade Scales',
+        icon: Icons.workspace_premium_outlined,
+        // Every role reads them: a teacher entering marks needs to know what
+        // an 81 will be called. Only an administrator may write one, which
+        // the screen and the API both enforce.
+        allowedRoles: _allRoles,
+        pageTitle: 'Grade Scales',
+        pageSubtitle: 'How a percentage becomes a grade',
+      ),
+      NavItem(
         path: '/holidays',
         module: AppModules.academics,
         label: 'Holidays',

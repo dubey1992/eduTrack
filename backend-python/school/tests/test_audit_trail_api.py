@@ -33,6 +33,9 @@ NOT_RECORDED = {
     # Called by entry points that record the change as a whole.
     "AttendanceService.submit", "AttendanceService.update", "StaffAttendanceService.submit",
     "StaffAttendanceService.update", "AcademicYearService._clear_current_for", "UserService.deactivate",
+    # Demoting the old default is part of promoting the new one, and the
+    # entry for that names both states.
+    "GradeScaleService._clear_default_for",
     # A consequence of an approved leave, which is itself recorded.
     "StaffLeaveService.sync_attendance",
     # The trip's own timeline records each stop and rider, with who and when.

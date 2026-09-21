@@ -139,6 +139,32 @@ class AcademicTermFactory(DjangoModelFactory):
     updated_at = factory.LazyFunction(now)
 
 
+class GradeScaleFactory(DjangoModelFactory):
+    class Meta:
+        model = models.GradeScale
+
+    school = factory.SubFactory(SchoolFactory)
+    name = factory.Sequence(lambda n: f"Scale {n}")
+    is_default = True
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class GradeBandFactory(DjangoModelFactory):
+    class Meta:
+        model = models.GradeBand
+
+    grade_scale = factory.SubFactory(GradeScaleFactory)
+    label = "A"
+    min_percentage = 0
+    max_percentage = 100
+    is_failing = False
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
 class SchoolClassFactory(DjangoModelFactory):
     class Meta:
         model = models.SchoolClass

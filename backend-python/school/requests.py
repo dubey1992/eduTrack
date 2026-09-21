@@ -52,6 +52,7 @@ from .models import (
     AttendantCredential,
     AcademicTerm,
     AcademicYear,
+    GradeScale,
     ClassSection,
     Department,
     Holiday,
@@ -93,11 +94,13 @@ from .validation import (
     must_be_a_number,
     must_be_after,
     must_be_an_integer,
+    must_be_between,
     normalise,
     not_a_date,
     not_an_email,
     optional_text,
     prohibits,
+    too_long,
     required,
     required_without,
     selected_is_invalid,
@@ -3189,6 +3192,183 @@ class UpdateAcademicTermRequest(TermFields):
 
         if errors:
             raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+# -- grade scales -----------------------------------------------------------
+
+MAX_BANDS = 20
+
+
+class GradeScaleRequest(ScopedSerializer):
+    """A scale and its bands, sent and replaced as one set.
+
+    The bands only make sense together - "is there a gap" is a question about
+    the whole set - so they arrive inline and are checked here rather than
+    one PATCH at a time. Errors are keyed the way the screen needs them:
+    `bands.2.min_percentage`.
+
+    The rules:
+
+    - the lowest band starts at 0 and the highest ends at 100, so every
+      percentage a mark can produce has a grade;
+    - bands may not overlap, because a percentage with two grades is not a
+      grade;
+    - a percentage falls in **the highest band whose minimum it reaches**.
+      That is what lets a school write its bands the way it says them out
+      loud - 91 to 100, 81 to 90 - without 90.5 falling down a crack.
+    """
+
+    name = LaravelCharField("name", max_length=50)
+    is_default = LaravelBooleanField("is_default", required=False, default=False)
+
+    def __init__(self, *args, scale=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.scale = scale
+
+    def to_internal_value(self, data):
+        errors: dict[str, list[str]] = {}
+
+        try:
+            attrs = super().to_internal_value(data)
+        except serializers.ValidationError as failure:
+            errors.update({key: list(value) for key, value in failure.detail.items()})
+            attrs = {}
+
+        attrs["bands"] = self.read_bands(errors)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+    def read_bands(self, errors: dict) -> list[dict]:
+        raw = self.initial_data.get("bands")
+
+        if raw is None:
+            raw = []
+
+        if not isinstance(raw, list):
+            raise serializers.ValidationError({"bands": ["The bands must be a list."]})
+
+        if not raw:
+            errors["bands"] = ["A scale needs at least one band."]
+            return []
+
+        if len(raw) > MAX_BANDS:
+            errors["bands"] = [f"A scale can have at most {MAX_BANDS} bands."]
+            return []
+
+        bands, labels = [], set()
+
+        for index, item in enumerate(raw):
+            prefix = f"bands.{index}"
+            item = item if isinstance(item, dict) else {}
+            label = (item.get("label") or "").strip() if isinstance(item.get("label"), str) else ""
+
+            if not label:
+                errors[f"{prefix}.label"] = [required("label")]
+            elif len(label) > 10:
+                errors[f"{prefix}.label"] = [too_long("label", 10)]
+            elif label.lower() in labels:
+                errors[f"{prefix}.label"] = [f'"{label}" appears twice.']
+
+            labels.add(label.lower())
+
+            low = self.percentage(item.get("min_percentage"), f"{prefix}.min_percentage", errors)
+            high = self.percentage(item.get("max_percentage"), f"{prefix}.max_percentage", errors)
+
+            if low is not None and high is not None and high < low:
+                errors[f"{prefix}.max_percentage"] = [
+                    "The max percentage field must be greater than or equal to min percentage."
+                ]
+
+            bands.append({
+                "label": label,
+                "min_percentage": low,
+                "max_percentage": high,
+                "is_failing": bool(item.get("is_failing")),
+            })
+
+        if not errors:
+            self.check_the_set(bands, errors)
+
+        return bands
+
+    @staticmethod
+    def percentage(value, field: str, errors: dict):
+        """0 to 100, to two decimals, as the column stores it."""
+        if value is None or value == "":
+            errors[field] = [required(field.rsplit(".", 1)[-1])]
+            return None
+
+        try:
+            parsed = decimal.Decimal(str(value)).quantize(decimal.Decimal("0.01"))
+        except (decimal.InvalidOperation, TypeError, ValueError):
+            errors[field] = [must_be_a_number(field.rsplit(".", 1)[-1])]
+            return None
+
+        if parsed < 0 or parsed > 100:
+            errors[field] = [must_be_between(field.rsplit(".", 1)[-1], 0, 100)]
+            return None
+
+        return parsed
+
+    @staticmethod
+    def check_the_set(bands: list[dict], errors: dict) -> None:
+        """What one band cannot know: where it sits among the others."""
+        order = sorted(range(len(bands)), key=lambda i: bands[i]["min_percentage"])
+
+        lowest = bands[order[0]]
+        if lowest["min_percentage"] != 0:
+            errors[f"bands.{order[0]}.min_percentage"] = [
+                "The lowest band must start at 0, so every mark has a grade."
+            ]
+
+        highest = bands[order[-1]]
+        if highest["max_percentage"] != 100:
+            errors[f"bands.{order[-1]}.max_percentage"] = [
+                "The highest band must end at 100, so full marks have a grade."
+            ]
+
+        for position, index in enumerate(order[1:], start=1):
+            below = bands[order[position - 1]]
+            band = bands[index]
+
+            if band["min_percentage"] <= below["max_percentage"]:
+                errors[f"bands.{index}.min_percentage"] = [
+                    f'This band overlaps "{below["label"]}", which runs to {below["max_percentage"]}.'
+                ]
+
+
+    def check_the_name(self, school_id, name: str, excluding: int | None = None) -> None:
+        """Checked here rather than left to the unique index, so a school that
+        names two scales alike is told which field is wrong instead of being
+        handed a 500."""
+        taken = GradeScale.objects.filter(school_id=school_id, name=name)
+
+        if excluding is not None:
+            taken = taken.exclude(pk=excluding)
+
+        if taken.exists():
+            raise serializers.ValidationError({"name": [already_taken("name")]})
+
+
+class StoreGradeScaleRequest(GradeScaleRequest):
+    def validate(self, attrs):
+        self.validate_school_id_field()
+        attrs["school_id"] = self.resolved_school_id()
+        self.check_the_name(attrs["school_id"], attrs["name"])
+
+        return attrs
+
+
+class UpdateGradeScaleRequest(GradeScaleRequest):
+    """The school is fixed at creation, like every other school-owned record."""
+
+    def validate(self, attrs):
+        self.check_the_name(self.scale.school_id, attrs["name"], excluding=self.scale.id)
 
         return attrs
 

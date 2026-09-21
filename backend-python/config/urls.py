@@ -20,6 +20,7 @@ from school.views import (
     academic_config,
     academic_terms,
     academic_years,
+    grade_scales,
     announcements,
     attendance,
     attendants,
@@ -62,6 +63,10 @@ urlpatterns = [
     # -- academic terms, on this backend only. docs/assessments.md ---------
     path("api/v1/academic-terms", academic_terms.collection),
     path("api/v1/academic-terms/<int:term_id>", academic_terms.detail),
+
+    # -- grade scales, on this backend only. docs/assessments.md -----------
+    path("api/v1/grade-scales", grade_scales.collection),
+    path("api/v1/grade-scales/<int:scale_id>", grade_scales.detail),
     # -- classes, sections, periods and holidays ---------------------------
     path("api/v1/classes", classes.classes),
     path("api/v1/classes/<int:class_id>", classes.school_class),

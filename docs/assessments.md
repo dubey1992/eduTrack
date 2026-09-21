@@ -1,8 +1,9 @@
 # Class Tests & Assessments
 
-**Status (2026-09-21): slice 1 built, the rest planned.** Terms are live -
-the table, the API, the Terms dialog under Academic Years, and a flow that
-runs in a browser. Everything below from grade scales onwards is still a
+**Status (2026-09-21): slices 1 and 2 built, the rest planned.** Terms and
+grade scales are live - their tables, their APIs, the Terms dialog under
+Academic Years, the Grade Scales screen, and a flow apiece that runs in a
+browser. Everything below from the assessment itself onwards is still a
 plan. Decided with the user on
 2026-09-21: the school year is divided into terms, marks are entered against
 a maximum and turned into a grade by a scale the school configures, and
@@ -52,6 +53,12 @@ arbitrary date windows. A term is a named, dated slice of one academic year.
 **A grade scale per school, because grades differ by school.** A school sets
 its bands once (A1 is 91 to 100, and so on). A grade is never typed by a
 teacher; it is derived from the percentage.
+
+Built in slice 2 with one rule that needed deciding: **a percentage falls in
+the highest band whose minimum it reaches.** A school writes 91 to 100 and
+81 to 90, the way it says them out loud, and 90.5 is then an A2 rather than
+nothing at all. The set still has to start at 0 and end at 100, and no two
+bands may overlap, so every mark has exactly one grade.
 
 **A grade frozen on the mark.** The band table can be edited later. A
 published result must not change silently because somebody moved a boundary,

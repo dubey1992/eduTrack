@@ -1,6 +1,6 @@
 # Assessments and promotion: the build order
 
-**Status (2026-09-21): slice 1 done, 2 to 14 planned.** This is the slicing of
+**Status (2026-09-21): slices 1 and 2 done, 3 to 14 planned.** This is the slicing of
 [assessments.md](assessments.md) and [promotion.md](promotion.md) into
 fourteen slices. Each slice is a vertical one: a migration where it needs
 one, the backend, the Flutter screen, the tests, and a demo in a browser
@@ -64,11 +64,31 @@ which is allowed; a term in a year that is not current; `end_date` before
 terms, which the existing dependent-records refusal must now cover; a
 group admin creating terms for a branch; a teacher refused the write.
 
-### Slice 2 — Grade scales
+### Slice 2 — Grade scales · done 2026-09-21
 
-**Lands:** `grade_scales` and `grade_bands`, their API, and a Grade scale
-screen. Bands are sent and replaced as a set, the way salary components
-are. **Demo:** build a scale, then watch a band with a gap be refused.
+**Landed:** `grade_scales` and `grade_bands`, five endpoints under
+`/api/v1/grade-scales`, and a Grade Scales screen in the Academics group.
+Bands are sent and replaced as a set, the way salary components are. Every
+role reads a scale, because a teacher entering marks needs to know what an
+81 will be called; only an administrator writes one.
+
+**The rule worth remembering:** a percentage falls in **the highest band
+whose minimum it reaches**. That lets a school write its bands the way it
+says them - 91 to 100, then 81 to 90 - and still have a grade for 90.5,
+which would otherwise fall down the crack between them. The set must start
+at 0 and end at 100, and no two bands may overlap.
+
+**Shown working:** an administrator built a scale with one band starting at
+33, was refused because 0 to 32 would have had no grade, added the band
+underneath and saved. Run in a visible browser as
+`integration_test/admin_grade_scales_flow_test.dart`.
+
+**Tests:** 41 backend tests, 21 Flutter tests, 7 contract tests, and 8
+sabotages - all caught. Two findings the tests made rather than confirmed: a
+duplicate name reached the unique index as a 500 until the form checked it,
+and the list provider was auto-disposed, so a save from the dialog could
+refresh a disposed notifier and show an internal error for a save that had
+worked.
 
 Edge cases: bands with a gap; bands that overlap; bands that do not reach
 0 or 100; a single band covering everything; a band where min equals max;

@@ -1029,6 +1029,37 @@ def academic_term_resource(term) -> dict:
     return body
 
 
+def grade_band_resource(band) -> dict:
+    return {
+        "id": band.id,
+        "label": band.label,
+        # Strings, like money: a client that reads them as floats would
+        # render 90.0 for a boundary the school wrote as 90.00.
+        "min_percentage": f"{band.min_percentage:.2f}",
+        "max_percentage": f"{band.max_percentage:.2f}",
+        "is_failing": band.is_failing,
+    }
+
+
+def grade_scale_resource(scale) -> dict:
+    body = {
+        "id": scale.id,
+        "school_id": scale.school_id,
+        "name": scale.name,
+        "is_default": scale.is_default,
+        "bands": [
+            grade_band_resource(band)
+            for band in sorted(scale.bands.all(), key=lambda band: band.min_percentage, reverse=True)
+        ],
+        "created_at": timestamp(scale.created_at),
+    }
+
+    if loaded(scale, "school"):
+        body["school_name"] = scale.school.name
+
+    return body
+
+
 def school_resource(school: School, branch_count: int | None = None) -> dict:
     """A school, or a branch of one.
 

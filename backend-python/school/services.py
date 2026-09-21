@@ -101,6 +101,8 @@ from .models import (
     WhatsappTemplate,
     AcademicTerm,
     AcademicYear,
+    GradeBand,
+    GradeScale,
     Announcement,
     Attendance,
     ClassSection,
@@ -3996,6 +3998,131 @@ class AcademicTermService:
     def delete(term: AcademicTerm) -> None:
         audit.deleted("academic", term)
         term.delete()
+
+
+class GradeScaleService:
+    """A school's grade scales (docs/assessments.md).
+
+    The bands are replaced as a set on every save, because that is how they
+    are checked and how the screen edits them. Replacing rather than
+    reconciling row by row means a scale is never half-old and half-new, and
+    the band ids are nobody's business outside this table.
+    """
+
+    WITH = ("school",)
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        scales = GradeScale.objects.select_related(*GradeScaleService.WITH).prefetch_related("bands")
+
+        scales = SchoolScope.for_actor(actor).apply_to(scales, filters.get("school_id"))
+
+        # The default first - it is the one a form will offer - then by name.
+        return scales.order_by("-is_default", "name", "id")
+
+    @classmethod
+    def create(cls, data: dict, actor: User) -> GradeScale:
+        now = timezone.now()
+
+        with transaction.atomic():
+            school_id = data["school_id"]
+            # The first scale a school makes is its default whatever the
+            # request said: a school with scales and no default would leave
+            # every later assessment without one.
+            is_default = bool(data.get("is_default")) or not GradeScale.objects.filter(school_id=school_id).exists()
+
+            if is_default:
+                cls._clear_default_for(school_id)
+
+            scale = GradeScale.objects.create(
+                school_id=school_id,
+                name=data["name"],
+                is_default=is_default,
+                created_at=now,
+                updated_at=now,
+            )
+            cls._write_bands(scale, data["bands"], now)
+
+            audit.created("academic", scale, school_id=school_id)
+
+            return scale
+
+    @classmethod
+    def update(cls, scale: GradeScale, data: dict) -> GradeScale:
+        before = audit.fields_of(scale)
+        now = timezone.now()
+
+        with transaction.atomic():
+            if data.get("is_default"):
+                cls._clear_default_for(scale.school_id)
+                scale.is_default = True
+
+            scale.name = data["name"]
+            scale.updated_at = now
+            scale.save(update_fields=["name", "is_default", "updated_at"])
+
+            scale.bands.all().delete()
+            cls._write_bands(scale, data["bands"], now)
+
+            audit.updated("academic", scale, before)
+
+            return scale
+
+    @staticmethod
+    def delete(scale: GradeScale) -> None:
+        # A school's only scale may go; its default may not while another
+        # remains, because the replacement has to be chosen on purpose
+        # rather than picked by whatever sorts first.
+        if scale.is_default and GradeScale.objects.filter(school_id=scale.school_id).exclude(pk=scale.id).exists():
+            raise HasDependentRecords(
+                "This is the school's default grade scale. Make another one the default first."
+            )
+
+        audit.deleted("academic", scale)
+
+        with transaction.atomic():
+            # Deleted here rather than left to the foreign key: the real
+            # schema cascades, the test database built from these models does
+            # not, and a rule that only holds in production is not a rule.
+            scale.bands.all().delete()
+            scale.delete()
+
+    @staticmethod
+    def grade_for(scale: GradeScale, percentage) -> GradeBand | None:
+        """The band a percentage falls in: the highest one whose minimum it
+        reaches.
+
+        Not "between min and max", so that a school may write its bands the
+        way it says them - 91 to 100, then 81 to 90 - and 90.5 still has a
+        grade instead of falling down the crack between them.
+        """
+        if percentage is None:
+            return None
+
+        reached = [band for band in scale.bands.all() if band.min_percentage <= percentage]
+
+        return max(reached, key=lambda band: band.min_percentage) if reached else None
+
+    @staticmethod
+    def _clear_default_for(school_id) -> None:
+        GradeScale.objects.filter(school_id=school_id, is_default=True).update(
+            is_default=False, updated_at=timezone.now()
+        )
+
+    @staticmethod
+    def _write_bands(scale: GradeScale, bands: list[dict], now) -> None:
+        GradeBand.objects.bulk_create([
+            GradeBand(
+                grade_scale_id=scale.id,
+                label=band["label"],
+                min_percentage=band["min_percentage"],
+                max_percentage=band["max_percentage"],
+                is_failing=band["is_failing"],
+                created_at=now,
+                updated_at=now,
+            )
+            for band in bands
+        ])
 
 
 class UserService:

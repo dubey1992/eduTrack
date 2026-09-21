@@ -811,6 +811,12 @@ class AcademicTermPolicy(SchoolOwnedPolicy):
     shape: an administrator writes them, everybody else reads them."""
 
 
+class GradeScalePolicy(SchoolOwnedPolicy):
+    """A grade scale is school configuration: an administrator writes it, and
+    everybody else reads it - a teacher entering marks has to be able to see
+    what an 81 will be called."""
+
+
 class UserPolicy:
     """Who may manage which accounts.
 
