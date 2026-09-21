@@ -806,6 +806,11 @@ class AcademicYearPolicy(SchoolOwnedPolicy):
         return cls._manages(actor, year)
 
 
+class AcademicTermPolicy(SchoolOwnedPolicy):
+    """Terms are school configuration, so they answer the shared academic
+    shape: an administrator writes them, everybody else reads them."""
+
+
 class UserPolicy:
     """Who may manage which accounts.
 

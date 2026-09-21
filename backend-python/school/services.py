@@ -99,6 +99,7 @@ from .models import (
     ModuleSetting,
     RolePermission,
     WhatsappTemplate,
+    AcademicTerm,
     AcademicYear,
     Announcement,
     Attendance,
@@ -3916,6 +3917,14 @@ class AcademicYearService:
                 "This academic year still has classes set up under it. Remove them first."
             )
 
+        # The database would cascade these away without a word. A term is
+        # where results are filed, so losing one silently is worse than being
+        # made to remove it on purpose (docs/assessments.md).
+        if AcademicTerm.objects.filter(academic_year_id=year.id).exists():
+            raise HasDependentRecords(
+                "This academic year still has terms set up under it. Remove them first."
+            )
+
         audit.deleted("academic", year)
         year.delete()
 
@@ -3926,6 +3935,67 @@ class AcademicYearService:
         AcademicYear.objects.filter(school_id=school_id).update(
             is_current=False, updated_at=timezone.now()
         )
+
+
+class AcademicTermService:
+    """Terms: the slices of a year a result is filed under (docs/assessments.md).
+
+    Ordinary school-owned CRUD. What is not ordinary lives in the form, which
+    has to read the year and the sibling terms to know whether these dates are
+    allowed at all.
+    """
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        terms = AcademicTerm.objects.select_related("academic_year")
+
+        terms = SchoolScope.for_actor(actor).apply_to(terms, filters.get("school_id"))
+
+        if filters.get("academic_year_id"):
+            terms = terms.filter(academic_year_id=filters["academic_year_id"])
+
+        # Newest year first, then the curriculum's own order within it. `id`
+        # breaks the tie, since two schools can both call a term "Term 1".
+        return terms.order_by("-academic_year__start_date", "sequence_number", "id")
+
+    @staticmethod
+    def create(data: dict, actor: User) -> AcademicTerm:
+        now = timezone.now()
+
+        term = AcademicTerm.objects.create(
+            # Resolved by the form from the academic year, never sent by the
+            # client (CLAUDE.md rule 10).
+            school_id=data["school_id"],
+            academic_year_id=data["academic_year_id"],
+            name=data["name"],
+            sequence_number=data["sequence_number"],
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            created_at=now,
+            updated_at=now,
+        )
+
+        audit.created("academic", term)
+
+        return term
+
+    @staticmethod
+    def update(term: AcademicTerm, data: dict) -> AcademicTerm:
+        before = audit.fields_of(term)
+
+        for field, value in data.items():
+            setattr(term, field, value)
+
+        term.updated_at = timezone.now()
+        term.save()
+        audit.updated("academic", term, before)
+
+        return term
+
+    @staticmethod
+    def delete(term: AcademicTerm) -> None:
+        audit.deleted("academic", term)
+        term.delete()
 
 
 class UserService:

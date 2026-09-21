@@ -18,6 +18,7 @@ from django.urls import path
 
 from school.views import (
     academic_config,
+    academic_terms,
     academic_years,
     announcements,
     attendance,
@@ -57,6 +58,10 @@ urlpatterns = [
     path("api/v1/academic-years", academic_years.collection),
     path("api/v1/academic-years/<int:year_id>", academic_years.detail),
     path("api/v1/academic-years/<int:year_id>/set-current", academic_years.set_current),
+
+    # -- academic terms, on this backend only. docs/assessments.md ---------
+    path("api/v1/academic-terms", academic_terms.collection),
+    path("api/v1/academic-terms/<int:term_id>", academic_terms.detail),
     # -- classes, sections, periods and holidays ---------------------------
     path("api/v1/classes", classes.classes),
     path("api/v1/classes/<int:class_id>", classes.school_class),

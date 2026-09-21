@@ -124,6 +124,21 @@ class AcademicYearFactory(DjangoModelFactory):
     updated_at = factory.LazyFunction(now)
 
 
+class AcademicTermFactory(DjangoModelFactory):
+    class Meta:
+        model = models.AcademicTerm
+
+    academic_year = factory.SubFactory(AcademicYearFactory)
+    school = factory.LazyAttribute(lambda o: o.academic_year.school)
+    name = factory.Sequence(lambda n: f"Term {n % 3 + 1}")
+    sequence_number = factory.Sequence(lambda n: n % 3 + 1)
+    start_date = dt.date(2026, 4, 1)
+    end_date = dt.date(2026, 8, 31)
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
 class SchoolClassFactory(DjangoModelFactory):
     class Meta:
         model = models.SchoolClass

@@ -18,6 +18,7 @@ What this file guards:
 """
 
 import datetime as dt
+from unittest import mock
 
 from django.core.cache import cache
 from django.test import TestCase
@@ -26,6 +27,12 @@ from rest_framework.test import APIClient
 from school import factories, modules, notifications, permissions, tokens
 from school.enums import UserRole
 from school.models import AuditLog, Message, ModuleSetting, QueuedJob, RolePermission
+
+
+# A fixed Wednesday, so a test about days of notice is not at the mercy of
+# the day the suite happens to run.
+WEDNESDAY = dt.datetime(2026, 9, 23, 9, 0, tzinfo=dt.timezone.utc)
+
 
 MODULES = "/api/v1/settings/modules"
 MATRIX = "/api/v1/settings/permissions"
@@ -241,8 +248,15 @@ class ModuleOwnSettings(SettingsTest):
     def test_leave_needs_the_notice_the_school_asks_for(self):
         factories.StaffProfileFactory(school=self.school, user=self.teacher)
         self.switch("leave", settings={"min_notice_days": 7})
-        # A Monday within the next week is too soon; the one after is fine.
-        today = dt.datetime.now(dt.timezone.utc).date()
+        # The clock is pinned to a Wednesday, so "too soon" is genuinely too
+        # soon. Read from the real date, the next Monday is exactly seven days
+        # away when the suite runs on a Monday - which satisfies a seven-day
+        # notice rather than breaking it, and the test failed every Monday.
+        clock = mock.patch("django.utils.timezone.now", return_value=WEDNESDAY)
+        clock.start()
+        self.addCleanup(clock.stop)
+
+        today = WEDNESDAY.date()
         soon = today + dt.timedelta(days=(7 - today.weekday()) % 7 or 7)
         later = soon + dt.timedelta(days=7)
 

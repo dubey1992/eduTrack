@@ -1010,6 +1010,25 @@ def academic_year_resource(year) -> dict:
     return body
 
 
+def academic_term_resource(term) -> dict:
+    body = {
+        "id": term.id,
+        "school_id": term.school_id,
+        "academic_year_id": term.academic_year_id,
+        "name": term.name,
+        "sequence_number": term.sequence_number,
+        # Dates, not instants - see academic_year_resource.
+        "start_date": term.start_date.isoformat(),
+        "end_date": term.end_date.isoformat(),
+        "created_at": timestamp(term.created_at),
+    }
+
+    if loaded(term, "academic_year"):
+        body["academic_year_name"] = term.academic_year.name
+
+    return body
+
+
 def school_resource(school: School, branch_count: int | None = None) -> dict:
     """A school, or a branch of one.
 

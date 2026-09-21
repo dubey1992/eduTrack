@@ -53,6 +53,30 @@ class AcademicYear(models.Model):
         db_table = 'academic_years'
         unique_together = (('school', 'name'),)
 
+class AcademicTerm(models.Model):
+    """A named, dated slice of one academic year (docs/assessments.md).
+
+    A result belongs to a term rather than to the whole year, so "Term 1
+    average" is a question the product can answer and a trend has a period to
+    compare against.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING, related_name='terms')
+    name = models.CharField(max_length=50)
+    sequence_number = models.SmallIntegerField()
+    start_date = models.DateField()
+    end_date = models.DateField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'academic_terms'
+        unique_together = (('academic_year', 'name'), ('academic_year', 'sequence_number'))
+
+
 class AuditLog(models.Model):
     """Who changed what, and what it was before (CLAUDE.md §13). Append-only:
     there is no updated_at, and nothing here edits a row. See school/audit.py."""

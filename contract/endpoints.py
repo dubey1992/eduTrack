@@ -277,6 +277,13 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "settings/mail"),
     ("PUT", "settings/mail"),
     ("POST", "settings/mail/test"),
+    # -- academic terms (docs/assessments.md) ---------------------------
+    ("GET", "academic-terms"),
+    ("POST", "academic-terms"),
+    ("GET", "academic-terms/{academicTerm}"),
+    ("PATCH", "academic-terms/{academicTerm}"),
+    ("DELETE", "academic-terms/{academicTerm}"),
+
     # -- module settings and the permissions matrix (docs/settings.md) --
     ("GET", "settings/modules"),
     ("PUT", "settings/modules/{module}"),

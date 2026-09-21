@@ -50,6 +50,7 @@ from .enums import (
 )
 from .models import (
     AttendantCredential,
+    AcademicTerm,
     AcademicYear,
     ClassSection,
     Department,
@@ -3065,6 +3066,129 @@ class UpdateAcademicYearRequest(ScopedSerializer):
             raise serializers.ValidationError(
                 {"end_date": ["The end date must be after the start date."]}
             )
+
+        return attrs
+
+
+# -- academic terms ---------------------------------------------------------
+
+
+class TermFields(ScopedSerializer):
+    """What both term forms check, which is almost everything.
+
+    A term is only meaningful against its year and its siblings: it has to sit
+    inside the year, and it must not overlap another term of the same year. So
+    the checks need the year loaded and the siblings read, and both forms want
+    exactly the same ones.
+    """
+
+    name = LaravelCharField("name", max_length=50)
+    sequence_number = LaravelIntegerField("sequence_number", min_value=1, max_value=20)
+    start_date = LaravelDateField("start_date")
+    end_date = LaravelDateField("end_date")
+
+    def __init__(self, *args, term=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.term = term
+
+    def check_dates(self, year, start, end, errors: dict) -> None:
+        if end <= start:
+            errors["end_date"] = [must_be_after("end_date", "start_date")]
+
+        # Checked even when the two dates are already the wrong way round: a
+        # form tells somebody everything that is wrong with it at once.
+        span = f"{year.name}, which runs from {year.start_date} to {year.end_date}"
+
+        if start < year.start_date or start > year.end_date:
+            errors["start_date"] = [f"The term must start inside {span}."]
+
+        if end < year.start_date or end > year.end_date:
+            errors["end_date"] = [f"The term must end inside {span}."]
+
+    def check_siblings(self, year, start, end, name, sequence, errors: dict) -> None:
+        siblings = AcademicTerm.objects.filter(academic_year_id=year.id)
+
+        if self.term is not None:
+            siblings = siblings.exclude(pk=self.term.id)
+
+        # Checked here rather than left to the unique index, so the answer is
+        # a 422 naming the field instead of a 500 out of the database.
+        if siblings.filter(name=name).exists():
+            errors["name"] = [already_taken("name")]
+
+        if siblings.filter(sequence_number=sequence).exists():
+            errors["sequence_number"] = [already_taken("sequence_number")]
+
+        if "start_date" in errors or "end_date" in errors:
+            return
+
+        # Two terms may touch - one ending on the 31st and the next starting
+        # on the 1st - but they may not cover the same day, or a mark on that
+        # day would belong to both.
+        clash = siblings.filter(start_date__lte=end, end_date__gte=start).first()
+
+        if clash is not None:
+            errors["start_date"] = [
+                f"These dates overlap {clash.name} ({clash.start_date} to {clash.end_date})."
+            ]
+
+
+class StoreAcademicTermRequest(TermFields):
+    academic_year_id = LaravelIntegerField("academic_year_id")
+
+    def validate_academic_year_id(self, value: int) -> int:
+        # The year decides the school, so a year outside the actor's scope is
+        # simply not a year they can name (CLAUDE.md rule 10).
+        if not self.scope.apply_to(AcademicYear.objects.filter(pk=value)).exists():
+            raise serializers.ValidationError(does_not_exist("academic_year_id"))
+
+        return value
+
+    def validate(self, attrs):
+        year = AcademicYear.objects.get(pk=attrs["academic_year_id"])
+        errors: dict[str, list[str]] = {}
+
+        self.check_dates(year, attrs["start_date"], attrs["end_date"], errors)
+        self.check_siblings(
+            year, attrs["start_date"], attrs["end_date"], attrs["name"], attrs["sequence_number"], errors
+        )
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        # Never from the request: the year the term hangs off says which
+        # school it belongs to.
+        attrs["school_id"] = year.school_id
+
+        return attrs
+
+
+class UpdateAcademicTermRequest(TermFields):
+    """The year is fixed at creation. Moving a term to another year would move
+    every result filed under it, which is not an edit of a name and a date."""
+
+    name = LaravelCharField("name", max_length=50, required=False)
+    sequence_number = LaravelIntegerField("sequence_number", min_value=1, max_value=20, required=False)
+    start_date = LaravelDateField("start_date", required=False)
+    end_date = LaravelDateField("end_date", required=False)
+
+    def validate(self, attrs):
+        term = self.term
+        year = term.academic_year
+        errors: dict[str, list[str]] = {}
+
+        # Whatever was not sent keeps what is stored, so moving one end cannot
+        # silently invert the term or walk it out of its year.
+        start = attrs.get("start_date", term.start_date)
+        end = attrs.get("end_date", term.end_date)
+        name = attrs.get("name", term.name)
+        sequence = attrs.get("sequence_number", term.sequence_number)
+
+        self.check_dates(year, start, end, errors)
+        self.check_siblings(year, start, end, name, sequence, errors)
+
+        if errors:
+            raise serializers.ValidationError(errors)
 
         return attrs
 

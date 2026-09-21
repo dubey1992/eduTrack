@@ -15,6 +15,7 @@ import '../application/academic_year_list_notifier.dart';
 import '../data/models/academic_year.dart';
 import 'add_academic_year_dialog.dart';
 import 'edit_academic_year_dialog.dart';
+import 'manage_terms_dialog.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 
@@ -118,7 +119,7 @@ class _AcademicYearListMobile extends StatelessWidget {
                 '${year.schoolName != null ? '\n${year.schoolName}' : ''}',
               ),
               isThreeLine: year.schoolName != null,
-              trailing: canManage ? _AcademicYearActions(year: year) : null,
+              trailing: _AcademicYearActions(year: year, canManage: canManage),
             ),
           ),
         );
@@ -161,7 +162,7 @@ class _AcademicYearListDesktop extends StatelessWidget {
                           ? const StatusBadge(label: 'Current', tone: BadgeTone.success)
                           : const StatusBadge(label: 'Past/Upcoming', tone: BadgeTone.neutral),
                     ),
-                    DataCell(canManage ? _AcademicYearActions(year: year) : const SizedBox.shrink()),
+                    DataCell(_AcademicYearActions(year: year, canManage: canManage)),
                   ],
                 ),
             ],
@@ -173,16 +174,27 @@ class _AcademicYearListDesktop extends StatelessWidget {
 }
 
 class _AcademicYearActions extends ConsumerWidget {
-  const _AcademicYearActions({required this.year});
+  const _AcademicYearActions({required this.year, required this.canManage});
 
   final AcademicYear year;
+
+  /// False for the read-only roles. They still reach Terms, because a teacher
+  /// needs to know when Term 1 ends even though they cannot move it.
+  final bool canManage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (!year.isCurrent)
+        TextButton(
+          onPressed: () => showDialog(
+            context: context,
+            builder: (_) => ManageTermsDialog(year: year, canManage: canManage),
+          ),
+          child: const Text('Terms'),
+        ),
+        if (canManage && !year.isCurrent)
           TextButton(
             onPressed: () async {
               try {
@@ -197,19 +209,21 @@ class _AcademicYearActions extends ConsumerWidget {
             },
             child: const Text('Set Current'),
           ),
-        IconButton(
-          icon: const Icon(Icons.edit_outlined, size: 20),
-          tooltip: 'Edit',
-          onPressed: () => showDialog(
-            context: context,
-            builder: (_) => EditAcademicYearDialog(academicYear: year),
+        if (canManage) ...[
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 20),
+            tooltip: 'Edit',
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => EditAcademicYearDialog(academicYear: year),
+            ),
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.delete_outline, size: 20),
-          tooltip: 'Delete',
-          onPressed: () => _confirmDelete(context, ref),
-        ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20),
+            tooltip: 'Delete',
+            onPressed: () => _confirmDelete(context, ref),
+          ),
+        ],
       ],
     );
   }
