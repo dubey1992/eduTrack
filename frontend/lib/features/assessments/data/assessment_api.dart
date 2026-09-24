@@ -132,4 +132,24 @@ class AssessmentApi {
 
     return AssessmentSheet.fromJson(response.data as Map<String, dynamic>);
   }
+
+  /// The marks sheet as a spreadsheet, with the class already on it. A token
+  /// does not belong in a link, so this goes through the authenticated
+  /// client and comes back as bytes.
+  Future<List<int>> marksTemplate(int assessmentId) async {
+    final response = await _dio.get<List<int>>(
+      '/assessments/$assessmentId/marks/template',
+      options: Options(responseType: ResponseType.bytes),
+    );
+
+    return response.data ?? const [];
+  }
+
+  Future<AssessmentSheet> uploadMarks(int assessmentId, {required String fileName, required List<int> bytes}) async {
+    final form = FormData.fromMap({'file': MultipartFile.fromBytes(bytes, filename: fileName)});
+
+    final response = await _dio.post('/assessments/$assessmentId/marks/import', data: form);
+
+    return AssessmentSheet.fromJson(response.data as Map<String, dynamic>);
+  }
 }

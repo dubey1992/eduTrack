@@ -877,6 +877,20 @@ class AssessmentPolicy:
         return cls._manages(actor, assessment.school_id, assessment.class_section_id, assessment.subject_id)
 
     @classmethod
+    def create_in_bulk(cls, actor: User) -> bool:
+        """May this person set tests for any class in their school?
+
+        The gate for the spreadsheet import. A teacher's own tests are set one
+        at a time, where the timetable answers "is this your class" for each
+        one; a file crossing classes has no such answer per row, so bulk
+        creation belongs to the people the question does not apply to.
+        """
+        if actor.role == UserRole.SUPER_ADMIN:
+            return False
+
+        return administers(actor) and permitted(actor, cls.MODULE, write=True)
+
+    @classmethod
     def _manages(cls, actor: User, school_id, class_section_id, subject_id) -> bool:
         # The Super Admin reads every school's tests and sets none of them.
         # Checked before the matrix, which grants them everything.

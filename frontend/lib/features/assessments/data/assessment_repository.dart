@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
+import '../../imports/data/import_repository.dart';
+import '../../imports/data/models/import_result.dart';
 import 'assessment_api.dart';
 import 'models/assessment.dart';
 import 'models/assessment_sheet.dart';
@@ -102,6 +104,31 @@ class AssessmentRepository {
 
   Future<AssessmentSheet> saveMarks(int assessmentId, List<SheetEntry> entries) {
     return _call(() => _api.saveMarks(assessmentId, entries));
+  }
+
+  Future<List<int>> marksTemplate(int assessmentId) => _call(() => _api.marksTemplate(assessmentId));
+
+  /// A refused file throws [BulkImportFailure], carrying the rows that need
+  /// fixing - the same shape the other uploads use, so the screen can list
+  /// them with the same widget.
+  Future<AssessmentSheet> uploadMarks(int assessmentId, {required String fileName, required List<int> bytes}) async {
+    try {
+      return await _api.uploadMarks(assessmentId, fileName: fileName, bytes: bytes);
+    } on DioException catch (e) {
+      final failure = failureFromDioException(e);
+
+      if (failure.code == 'BULK_IMPORT_FAILED') {
+        throw BulkImportFailure(
+          message: failure.message,
+          rows: (failure.details['rows'] as List? ?? const [])
+              .cast<Map<String, dynamic>>()
+              .map(ImportRowError.fromJson)
+              .toList(growable: false),
+        );
+      }
+
+      throw failure;
+    }
   }
 
   Future<T> _call<T>(Future<T> Function() request) async {

@@ -10,8 +10,9 @@ what the single-record form would have made.
 
 from __future__ import annotations
 
-from ..models import Driver, StaffProfile, Student, Subject, Vehicle
+from ..models import Assessment, Driver, StaffProfile, Student, Subject, Vehicle
 from ..policies import StaffProfilePolicy, StudentPolicy, SubjectPolicy, TransportMasterPolicy
+from .assessments import AssessmentImporter, AssessmentImportPolicy
 from .people_and_fleet import DriverImporter, StaffImporter, SubjectImporter, VehicleImporter
 from .students import StudentImporter
 
@@ -24,6 +25,9 @@ TYPES = {
     "subjects": {"importer": SubjectImporter, "model": Subject, "policy": SubjectPolicy},
     "vehicles": {"importer": VehicleImporter, "model": Vehicle, "policy": TransportMasterPolicy},
     "drivers": {"importer": DriverImporter, "model": Driver, "policy": TransportMasterPolicy},
+    # Class tests, added 2026-09-24 (docs/assessments.md). An
+    # administrator's tool, like the rest of this file.
+    "assessments": {"importer": AssessmentImporter, "model": Assessment, "policy": AssessmentImportPolicy},
 }
 
 

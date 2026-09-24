@@ -74,4 +74,16 @@ class AssessmentSheetNotifier extends AsyncNotifier<AssessmentSheet> {
     _dirty = false;
     state = AsyncData(saved);
   }
+
+  /// Sends a filled-in spreadsheet. Throws with the rows that need fixing,
+  /// so the screen can list them beside the sheet.
+  Future<void> upload({required String fileName, required List<int> bytes}) async {
+    final saved = await ref
+        .read(assessmentRepositoryProvider)
+        .uploadMarks(assessmentId, fileName: fileName, bytes: bytes);
+    _dirty = false;
+    state = AsyncData(saved);
+  }
+
+  Future<List<int>> template() => ref.read(assessmentRepositoryProvider).marksTemplate(assessmentId);
 }

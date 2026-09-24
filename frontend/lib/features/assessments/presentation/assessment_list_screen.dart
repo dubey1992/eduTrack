@@ -13,6 +13,7 @@ import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../classes/application/class_section_picker_provider.dart';
+import '../../imports/presentation/bulk_import_button.dart';
 import '../application/assessment_list_notifier.dart';
 import '../data/models/assessment.dart';
 import 'assessment_dialog.dart';
@@ -38,7 +39,9 @@ class _AssessmentListScreenState extends ConsumerState<AssessmentListScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(assessmentListNotifierProvider);
-    final canManage = ref.watch(authNotifierProvider).value?.canManage(AppModules.assessments) ?? false;
+    final actor = ref.watch(authNotifierProvider).value;
+    final canManage = actor?.canManage(AppModules.assessments) ?? false;
+    final administers = canManage && actor != null && actor.role.administersSchool;
     final sections = ref.watch(classSectionPickerProvider(null));
 
     return Column(
@@ -52,6 +55,15 @@ class _AssessmentListScreenState extends ConsumerState<AssessmentListScreen> {
                 onPressed: () => showDialog(context: context, builder: (_) => const AssessmentDialog()),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('New Test'),
+              ),
+            // A file of tests crosses classes, so it is an administrator's
+            // tool: a teacher sets their own one at a time, where the
+            // timetable answers for each (docs/assessments.md).
+            if (administers)
+              BulkImportButton(
+                type: 'assessments',
+                title: 'Class Tests',
+                onImported: () => ref.read(assessmentListNotifierProvider.notifier).refresh(),
               ),
             SizedBox(
               width: 200,

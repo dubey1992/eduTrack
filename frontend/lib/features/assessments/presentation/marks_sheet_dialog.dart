@@ -3,7 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/file_picker.dart';
+import '../../../core/utils/file_saver.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../imports/data/import_repository.dart';
+import '../../imports/data/models/import_result.dart';
+import '../../imports/presentation/widgets/import_row_errors.dart';
 import '../application/assessment_sheet_notifier.dart';
 import '../data/models/assessment.dart';
 import '../data/models/assessment_sheet.dart';
@@ -33,6 +38,10 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
   String? _error;
   Map<String, List<String>> _fieldErrors = const {};
 
+  /// The rows a rejected spreadsheet named. Read with the file open, so they
+  /// are listed rather than summarised.
+  List<ImportRowError> _rowErrors = const [];
+
   bool get _editable => widget.canManage && widget.assessment.isDraft;
 
   @override
@@ -52,6 +61,60 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
   String? _rowError(int index) => _fieldErrors['marks.$index.marks_obtained']?.first;
 
   String? _rowStudentError(int index) => _fieldErrors['marks.$index.student_id']?.first;
+
+  Future<void> _downloadTemplate() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      final bytes = await ref.read(assessmentSheetProvider(widget.assessment.id).notifier).template();
+      saveBytes(fileName: 'marks-${widget.assessment.id}.csv', bytes: bytes, mimeType: 'text/csv');
+    } catch (error) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      if (mounted) setState(() => _error = failure.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _upload() async {
+    final picked = await pickFile(accept: '.csv,text/csv');
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _saving = true;
+      _error = null;
+      _fieldErrors = const {};
+      _rowErrors = const [];
+    });
+
+    try {
+      await ref
+          .read(assessmentSheetProvider(widget.assessment.id).notifier)
+          .upload(fileName: picked.name, bytes: picked.bytes);
+
+      if (mounted) {
+        for (final entry in ref.read(assessmentSheetProvider(widget.assessment.id)).value?.entries ?? const []) {
+          _controllers[entry.studentId]?.text = entry.marksForEditing;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marks uploaded.')));
+      }
+    } on BulkImportFailure catch (refusal) {
+      if (mounted) {
+        setState(() {
+          _rowErrors = refusal.rows;
+          _error = 'Nothing was uploaded. Fix the rows below and try again.';
+        });
+      }
+    } catch (error) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      if (mounted) setState(() => _error = failure.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   Future<void> _save() async {
     if (_saving) return;
@@ -117,6 +180,7 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
                   const SizedBox(height: 8),
                   Text(_error!, style: TextStyle(color: context.appColors.danger)),
                 ],
+                if (_rowErrors.isNotEmpty) ...[const SizedBox(height: 8), ImportRowErrors(errors: _rowErrors)],
                 const SizedBox(height: 8),
                 Expanded(
                   child: ListView.separated(
@@ -145,6 +209,12 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
         ),
       ),
       actions: [
+        if (_editable) ...[
+          // A teacher often has the marks in a spreadsheet already, and the
+          // downloaded one comes with the class on it (docs/assessments.md).
+          TextButton(onPressed: _saving ? null : _downloadTemplate, child: const Text('Download sheet')),
+          if (canPickFile) TextButton(onPressed: _saving ? null : _upload, child: const Text('Upload sheet')),
+        ],
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
           child: Text(_editable ? 'Cancel' : 'Done'),

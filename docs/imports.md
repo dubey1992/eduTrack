@@ -14,6 +14,14 @@ spreadsheet instead.
 | `subjects` | Subjects | Super Admin, School Admin |
 | `vehicles` | Vehicles | Super Admin, School Admin, Transport Manager |
 | `drivers` | Drivers | Super Admin, School Admin, Transport Manager |
+| `assessments` | Class tests, as drafts | School Admin (not the Super Admin, who sets no tests) |
+
+Class tests are the one type a teacher may create by hand and not in bulk,
+and the reason is worth stating: a file crosses classes, and "is this your
+class" is a per-row question the shared reader has no actor to ask. So bulk
+creation belongs to the people whose answer is always yes within their
+school. A teacher's own marks are a different matter - those upload against
+one test, where the timetable answers exactly (see docs/assessments.md).
 
 Permission is not defined separately for importing: each type asks the same
 policy that decides who may add one of these by hand (`create` on `Student`,

@@ -264,6 +264,35 @@ properties of the form somebody just filled in, so they arrive as a 422
 naming the field, and the app marks up the field rather than showing a
 banner. Built that way in slice 1 and kept for the rest.
 
+## Uploading instead of typing
+
+Two spreadsheets, with deliberately different homes.
+
+**A file of tests** goes through the shared bulk upload as the type
+`assessments` (docs/imports.md), and is an administrator's tool. A file
+crosses classes, and "is this your class" is a per-row question the shared
+reader has no actor to ask, so bulk creation belongs to the people whose
+answer is always yes within their school. Every row is checked the way the
+form checks one: the class, subject and term by name, the level range, the
+date inside the term, the marks. Nothing is written unless every row passes.
+
+**A file of marks** belongs to one test, so it hangs off the test rather
+than the shared endpoint:
+
+| Endpoint | What it does |
+|---|---|
+| `GET /assessments/{id}/marks/template` | the sheet as a spreadsheet, with the class already on it |
+| `POST /assessments/{id}/marks/import` | the filled-in file, saved as one write |
+
+That keeps the teacher's own permission, which is the point of it: the same
+rule that says who may mark by hand says who may upload. The template comes
+with the roster and any marks already entered, because nobody should retype
+a roll of names to send marks back. `admission_number` identifies the
+student - a name is ambiguous in any class with two Aaravs - `marks` is
+blank for somebody not marked yet, and `absent` is yes or no. Absent with a
+mark is refused rather than guessed at, and one bad row means nothing is
+written.
+
 ## Performance, and what counts as an insight
 
 Performance is computed, never stored. Two report classes join the seven in

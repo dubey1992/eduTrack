@@ -3,6 +3,7 @@ import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/assessments/data/assessment_repository.dart';
 import 'package:edutrack_app/features/assessments/data/models/assessment.dart';
 import 'package:edutrack_app/features/assessments/data/models/assessment_sheet.dart';
+import 'package:edutrack_app/features/imports/data/import_repository.dart';
 
 import 'fake_pagination.dart';
 
@@ -12,15 +13,25 @@ import 'fake_pagination.dart';
 /// meaningful if something acts on them, and records what it was asked for
 /// so a test can check the screen asked at all.
 class FakeAssessmentRepository implements AssessmentRepository {
-  FakeAssessmentRepository({List<Assessment>? assessments, List<SheetEntry>? sheetEntries, this.failWith = const {}})
-    : _assessments = assessments ?? [],
-      _sheetEntries = sheetEntries ?? [];
+  FakeAssessmentRepository({
+    List<Assessment>? assessments,
+    List<SheetEntry>? sheetEntries,
+    this.failWith = const {},
+    this.refuseUploadWith,
+  }) : _assessments = assessments ?? [],
+       _sheetEntries = sheetEntries ?? [];
 
   final List<Assessment> _assessments;
   List<SheetEntry> _sheetEntries;
 
   /// The sheet the last save sent, so a test can check what went out.
   List<SheetEntry>? lastSaved;
+
+  /// The file the last upload sent.
+  String? lastUploadedFileName;
+
+  /// What a refused upload answers with, when a test asks for one.
+  final BulkImportFailure? refuseUploadWith;
 
   /// Keyed by method name: {'create': Failure(...)}.
   final Map<String, Failure> failWith;
@@ -152,6 +163,29 @@ class FakeAssessmentRepository implements AssessmentRepository {
     lastSaved = List.unmodifiable(entries);
     _enter('saveMarks');
     _sheetEntries = List.of(entries);
+
+    return AssessmentSheet(
+      assessment: fakeAssessment(id: assessmentId),
+      entries: List.unmodifiable(_sheetEntries),
+    );
+  }
+
+  @override
+  Future<List<int>> marksTemplate(int assessmentId) async {
+    _enter('marksTemplate');
+
+    return 'admission_number,student_name,marks,absent,remarks'.codeUnits;
+  }
+
+  @override
+  Future<AssessmentSheet> uploadMarks(int assessmentId, {required String fileName, required List<int> bytes}) async {
+    lastUploadedFileName = fileName;
+    _enter('uploadMarks');
+
+    final refusal = refuseUploadWith;
+    if (refusal != null) throw refusal;
+
+    _sheetEntries = [for (final entry in _sheetEntries) entry.copyWith(marksObtained: '15')];
 
     return AssessmentSheet(
       assessment: fakeAssessment(id: assessmentId),

@@ -203,6 +203,14 @@ child absent and saved the class in one write. Reopened, the sheet read back
 what the server had. Run in a visible browser as
 `integration_test/teacher_marks_sheet_flow_test.dart`.
 
+**Bulk upload, added the same day at the user's request:** a file of tests
+through the shared importer, and a file of marks against one test with the
+roster already on the template. 31 more backend tests, 11 more Flutter
+tests, 2 more contract tests and 12 more sabotages, all caught - two of them
+only after the tests were tightened, because a class from another school and
+a Super Admin's upload were each being refused by a second rule rather than
+the one under test.
+
 **Tests:** 44 backend tests, 19 Flutter tests, 5 contract tests, 12
 sabotages - all caught, after one survivor was pinned with a direct service
 test rather than deleted. Two findings: the row's refusal was clipped to

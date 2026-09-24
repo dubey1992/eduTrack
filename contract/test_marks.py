@@ -15,6 +15,13 @@ import coverage
 import shapes
 import world
 
+HEADINGS = "admission_number,student_name,marks,absent,remarks"
+
+
+def file_of(*rows: str) -> bytes:
+    """A marks file: the headings, then the rows."""
+    return ("\n".join([HEADINGS, *rows]) + "\n").encode("utf-8")
+
 ENTRY = {
     "student_id": "int",
     "student_name": "str",
@@ -140,6 +147,45 @@ class Marks(unittest.TestCase):
 
         shapes.assert_error(self, refused, 422, "PATCH the total after marking")
         self.assertEqual("MAX_MARKS_LOCKED", refused.body["code"])
+
+        self.w.admin.delete(f"/assessments/{assessment['id']}")
+
+    def test_the_roster_downloads_and_a_filled_in_file_comes_back(self):
+        assessment = self.make_assessment()
+        base = f"/assessments/{assessment['id']}/marks"
+
+        status, raw, _ = self.w.admin.get_bytes(f"{base}/template")
+        self.assertEqual(200, status)
+        text = raw.decode("utf-8-sig")
+        self.assertIn("admission_number,student_name,marks,absent,remarks", text)
+
+        # The roster comes filled in, so a file can be built from the template
+        # itself rather than typed from scratch.
+        rows = [line for line in text.splitlines()[1:] if line.strip()]
+        self.assertTrue(rows, "the class is on the template")
+
+        admission_number = rows[0].split(",")[0]
+        filled = file_of(f"{admission_number},Student,15,,")
+
+        uploaded = self.w.admin.upload(f"{base}/import", "file", "marks.csv", filled, "text/csv")
+
+        self.assertEqual(200, uploaded.status, f"{uploaded!r}")
+        marked = next(row for row in uploaded.body["entries"] if row["admission_number"] == admission_number)
+        self.assertEqual("15.00", marked["marks_obtained"])
+
+        self.w.admin.delete(f"/assessments/{assessment['id']}")
+
+    def test_a_file_the_test_cannot_hold_is_refused_row_by_row(self):
+        assessment = self.make_assessment()
+        base = f"/assessments/{assessment['id']}/marks"
+        admission_number = self.w.admin.get(base).body["entries"][0]["admission_number"]
+        filled = file_of(f"{admission_number},Student,99,,")
+
+        refused = self.w.admin.upload(f"{base}/import", "file", "marks.csv", filled, "text/csv")
+
+        shapes.assert_error(self, refused, 422, "POST a file with a mark above the maximum")
+        self.assertEqual("BULK_IMPORT_FAILED", refused.body["code"])
+        self.assertEqual(2, refused.body["details"]["rows"][0]["row"], "the heading is row 1")
 
         self.w.admin.delete(f"/assessments/{assessment['id']}")
 

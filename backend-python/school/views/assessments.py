@@ -12,18 +12,25 @@ the stored record. In both cases the policy - not this view - decides.
 
 from __future__ import annotations
 
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .. import csv_export
+from ..imports import marks as marks_import
 from ..models import Assessment
 from ..pagination import LaravelPagination
 from ..policies import AssessmentPolicy, authorize
 from ..requests import SaveMarksRequest, StoreAssessmentRequest, UpdateAssessmentRequest
 from ..resources import assessment_resource, assessment_sheet_resource
 from ..services import AssessmentMarkService, AssessmentService
+from ..validation import required
+from .imports import MAX_UPLOAD_BYTES
 
 
 @api_view(["GET", "POST"])
@@ -149,3 +156,54 @@ def marks(request, assessment_id: int) -> Response:
     authorize(AssessmentPolicy.view(request.user, assessment))
 
     return Response(assessment_sheet_resource(AssessmentMarkService.sheet(assessment)))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def marks_template(request, assessment_id: int) -> HttpResponse:
+    """The marks sheet as a spreadsheet, with the class already on it.
+
+    Downloaded by whoever may mark it: filling in a column beats typing a
+    roll of names back.
+    """
+    assessment = load(assessment_id)
+
+    authorize(AssessmentPolicy.update(request.user, assessment))
+
+    sheet = AssessmentMarkService.sheet(assessment)
+
+    return csv_export.response(
+        f"marks-{assessment.id}.csv", marks_import.HEADINGS, marks_import.roster_rows(sheet)
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def marks_upload(request, assessment_id: int) -> Response:
+    """The filled-in spreadsheet, sent back.
+
+    Same permission as marking by hand, and the same rules: nothing is
+    written unless every row passes, and a published test is closed.
+    """
+    assessment = load(assessment_id)
+
+    authorize(AssessmentPolicy.update(request.user, assessment))
+
+    upload = request.FILES.get("file")
+    errors = {}
+
+    if upload is None:
+        errors["file"] = [required("file")]
+    elif upload.size > MAX_UPLOAD_BYTES:
+        errors["file"] = ["The file field must not be greater than 2048 kilobytes."]
+    elif not str(upload.name).lower().endswith((".csv", ".txt")):
+        errors["file"] = ["Upload a CSV file. In Excel, choose File - Save As - CSV."]
+
+    if errors:
+        raise ValidationError(errors)
+
+    marks = marks_import.read(upload, assessment)
+    saved = AssessmentMarkService.save(assessment, marks, request.user)
+
+    return Response(assessment_sheet_resource(saved))
