@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/academic_years/presentation/academic_year_list_screen.dart';
+import '../../features/assessments/presentation/assessment_list_screen.dart';
 import '../../features/grade_scales/presentation/grade_scale_list_screen.dart';
 import '../../features/attendance/presentation/attendance_screen.dart';
 import '../../features/audit/presentation/audit_log_screen.dart';
@@ -87,6 +88,7 @@ const appRoutePaths = {
   '/early-access',
   '/payments',
   '/academic-years',
+  '/assessments',
   '/grade-scales',
   '/holidays',
   '/departments',
@@ -159,6 +161,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/early-access', builder: (context, state) => const EarlyAccessScreen()),
           GoRoute(path: '/payments', builder: (context, state) => const PaymentListScreen()),
           GoRoute(path: '/academic-years', builder: (context, state) => const AcademicYearListScreen()),
+          GoRoute(path: '/assessments', builder: (context, state) => const AssessmentListScreen()),
           GoRoute(path: '/grade-scales', builder: (context, state) => const GradeScaleListScreen()),
           GoRoute(path: '/holidays', builder: (context, state) => const HolidayListScreen()),
           GoRoute(path: '/departments', builder: (context, state) => const DepartmentListScreen()),

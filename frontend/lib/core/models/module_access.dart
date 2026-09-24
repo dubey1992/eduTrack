@@ -9,6 +9,7 @@ abstract final class AppModules {
   static const students = 'students';
   static const staff = 'staff';
   static const academics = 'academics';
+  static const assessments = 'assessments';
   static const attendance = 'attendance';
   static const staffAttendance = 'staff_attendance';
   static const leave = 'leave';
@@ -115,6 +116,7 @@ class ModuleAccess {
     AppModules.students: [_manage, _none, _view, _none, _none, _none, _none],
     AppModules.staff: [_manage, _none, _none, _none, _none, _none, _none],
     AppModules.academics: [_manage, _view, _view, _view, _view, _view, _none],
+    AppModules.assessments: [_manage, _manage, _manage, _none, _none, _none, _none],
     AppModules.attendance: [_manage, _none, _manage, _none, _none, _none, _none],
     AppModules.staffAttendance: [_manage, _manage, _none, _none, _none, _none, _none],
     AppModules.leave: [_manage, _manage, _manage, _manage, _manage, _manage, _manage],

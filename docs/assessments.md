@@ -1,10 +1,9 @@
 # Class Tests & Assessments
 
-**Status (2026-09-21): slices 1 and 2 built, the rest planned.** Terms and
-grade scales are live - their tables, their APIs, the Terms dialog under
-Academic Years, the Grade Scales screen, and a flow apiece that runs in a
-browser. Everything below from the assessment itself onwards is still a
-plan. Decided with the user on
+**Status (2026-09-24): slices 1 to 4 built, the rest planned.** Terms, grade
+scales, enrollment history and the class test itself are live, each with a
+flow that runs in a browser. The marks sheet, publishing, the guardian
+message, promotion and performance are still a plan. Decided with the user on
 2026-09-21: the school year is divided into terms, marks are entered against
 a maximum and turned into a grade by a scale the school configures, and
 results reach guardians as a message and as a printable progress report.
@@ -164,10 +163,13 @@ matrix in `permissions.py`. Its default row, in the matrix's column order:
 | manage | manage | manage | none | none | none | none |
 
 The matrix says a teacher may manage assessments at all. It does not say
-*which* ones. That is the policy's job, and it reuses the rule the syllabus
-already uses: a teacher reaches a section and subject only when a
-`timetable_entries` row says they teach it, or when they are that section's
-class teacher. An HOD reaches the subjects of their own department. A School
+*which* ones. That is the policy's job: a teacher reaches a section and
+subject only when a `timetable_entries` row says they teach it.
+
+**Being the class teacher is not enough**, and that is a deliberate
+tightening of how this was first written. The class teacher of 8A does not
+thereby teach 8A mathematics, and a mark in a subject somebody does not
+teach is the loophole the rule exists to close. An HOD reaches the subjects of their own department. A School
 Admin reaches their school. The Super Admin reads any school and changes
 none of it, exactly as in payroll.
 
@@ -176,7 +178,8 @@ they sit under the existing `academics` module and only an administrator may
 write them.
 
 Two module settings, both read by a service, because a setting nothing reads
-would be a lie on a screen:
+would be a lie on a screen. Neither is registered yet: they arrive with the
+code that reads them, publishing and the performance report.
 
 | Setting | Default | What reads it |
 |---|---|---|

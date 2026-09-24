@@ -50,6 +50,7 @@ _DEFAULT_ROWS = {
     "students":         (MANAGE, NONE,   VIEW,   NONE,   NONE,   NONE,   NONE),
     "staff":            (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE,   NONE),
     "academics":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW,   NONE),
+    "assessments":      (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),
     "attendance":       (MANAGE, NONE,   MANAGE, NONE,   NONE,   NONE,   NONE),
     "staff_attendance": (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE,   NONE),
     "leave":            (MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE),

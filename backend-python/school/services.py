@@ -38,6 +38,7 @@ from .gateways import Template
 from .clock import TIME, SchoolClock
 from .fields import as_utc
 from .enums import (
+    AssessmentStatus,
     EnrollmentStatus,
     NoticeAudience,
     NoticeKind,
@@ -63,6 +64,7 @@ from .enums import (
     UserStatus,
 )
 from .errors import (
+    AssessmentPublished,
     ApiError,
     DeviceNotRegistered,
     GatewayTestFailed,
@@ -102,6 +104,7 @@ from .models import (
     WhatsappTemplate,
     AcademicTerm,
     AcademicYear,
+    Assessment,
     StudentEnrollment,
     GradeBand,
     GradeScale,
@@ -4286,6 +4289,114 @@ class UserService:
         audit.updated("users", user, before, action=action)
 
         return user
+
+
+class AssessmentService:
+    """Class tests: the record, before any mark exists (docs/assessments.md).
+
+    What a person may reach is the policy's business. What this adds is the
+    part a filter cannot be trusted with: a teacher's list is narrowed to the
+    sections and subjects they actually teach, whatever the query string
+    asked for.
+    """
+
+    MODULE = "assessments"
+
+    WITH = ("academic_term", "class_section__school_class", "subject", "syllabus_topic", "grade_scale", "created_by")
+
+    @classmethod
+    def visible_to(cls, actor: User, filters: dict):
+        found = Assessment.objects.select_related(*cls.WITH)
+
+        found = SchoolScope.for_actor(actor).apply_to(found, filters.get("school_id"))
+
+        # Narrowed by who the actor is, before any filter they sent. A
+        # teacher sees the tests of the sections and subjects the timetable
+        # gives them; an HOD sees their department's subjects. Neither can
+        # widen this with a filter, because the filters below can only cut
+        # further into what is left.
+        if actor.role == UserRole.TEACHER:
+            taught = TimetableEntry.objects.filter(teacher_id=actor.id).values_list("class_section_id", "subject_id")
+            pairs = Q(pk__in=[])
+
+            for section_id, subject_id in taught:
+                pairs |= Q(class_section_id=section_id, subject_id=subject_id)
+
+            found = found.filter(pairs)
+        elif actor.role == UserRole.HOD:
+            found = found.filter(subject__department__hod_user_id=actor.id)
+
+        for field in ("academic_term_id", "class_section_id", "subject_id", "status", "type"):
+            if filters.get(field):
+                found = found.filter(**{field: filters[field]})
+
+        # Newest first: a teacher is almost always looking at the test they
+        # just set. `id` breaks the tie, since a class can sit two tests on
+        # one day.
+        return found.order_by("-assessment_date", "-id")
+
+    @staticmethod
+    def create(data: dict, actor: User) -> Assessment:
+        now = timezone.now()
+
+        assessment = Assessment.objects.create(
+            # Resolved by the form from the section, never sent by the client.
+            school_id=data["school_id"],
+            academic_year_id=data["academic_year_id"],
+            academic_term_id=data["academic_term_id"],
+            class_section_id=data["class_section_id"],
+            subject_id=data["subject_id"],
+            syllabus_topic_id=data.get("syllabus_topic_id"),
+            grade_scale_id=data.get("grade_scale_id"),
+            type=data["type"],
+            title=data["title"],
+            max_marks=data["max_marks"],
+            pass_marks=data.get("pass_marks"),
+            weightage=data.get("weightage"),
+            assessment_date=data["assessment_date"],
+            # Everything starts as a draft. Nothing is shown to a guardian,
+            # and no figure counts it, until somebody publishes it.
+            status=AssessmentStatus.DRAFT,
+            created_by_id=actor.id,
+            created_at=now,
+            updated_at=now,
+        )
+
+        audit.created(AssessmentService.MODULE, assessment)
+
+        return assessment
+
+    @staticmethod
+    def update(assessment: Assessment, data: dict) -> Assessment:
+        AssessmentService.assert_draft(assessment)
+
+        before = audit.fields_of(assessment)
+
+        for field, value in data.items():
+            setattr(assessment, field, value)
+
+        assessment.updated_at = timezone.now()
+        assessment.save()
+        audit.updated(AssessmentService.MODULE, assessment, before)
+
+        return assessment
+
+    @staticmethod
+    def delete(assessment: Assessment) -> None:
+        AssessmentService.assert_draft(assessment)
+
+        audit.deleted(AssessmentService.MODULE, assessment)
+        assessment.delete()
+
+    @staticmethod
+    def assert_draft(assessment: Assessment) -> None:
+        """A published result has been sent to guardians; editing it behind
+        their backs is not an edit. Reopening it is its own action, and it
+        arrives with publishing."""
+        if not assessment.is_draft():
+            raise AssessmentPublished(
+                "This test has been published. Reopen it before changing anything."
+            )
 
 
 class StudentEnrollmentService:

@@ -36,6 +36,7 @@ const allModules = [
   AppModules.students,
   AppModules.staff,
   AppModules.academics,
+  AppModules.assessments,
   AppModules.attendance,
   AppModules.staffAttendance,
   AppModules.leave,

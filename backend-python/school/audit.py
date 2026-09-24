@@ -38,7 +38,8 @@ from .models import AuditLog
 
 # Every module that writes to the log - what the audit screen filters by.
 MODULES = (
-    "academic", "announcements", "attendance", "auth", "communication", "holidays", "leave", "mail", "payments",
+    "academic", "announcements", "assessments", "attendance", "auth", "communication", "holidays", "leave",
+    "mail", "payments",
     "payroll", "schools", "settings", "staff", "staff_attendance", "students", "syllabus", "teaching", "timetable",
     "transport", "users",
 )

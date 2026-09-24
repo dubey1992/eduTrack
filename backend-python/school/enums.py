@@ -56,6 +56,28 @@ class UserStatus(models.TextChoices):
     INACTIVE = "inactive"
 
 
+class AssessmentType(models.TextChoices):
+    """What kind of test this is. The school's own word for it, from a short
+    list rather than free text, so a report can group by it."""
+
+    CLASS_TEST = "class_test"
+    UNIT_TEST = "unit_test"
+    ASSIGNMENT = "assignment"
+    QUIZ = "quiz"
+    PRACTICAL = "practical"
+
+
+class AssessmentStatus(models.TextChoices):
+    """A draft is the school's own business; a published result is not.
+
+    Publishing freezes each mark's grade and tells the guardian, so the two
+    states are worth keeping apart from the first day (docs/assessments.md).
+    """
+
+    DRAFT = "draft"
+    PUBLISHED = "published"
+
+
 class EnrollmentStatus(models.TextChoices):
     """How a student's year ended (docs/promotion.md).
 

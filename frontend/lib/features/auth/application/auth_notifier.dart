@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/user_role.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
+import '../../assessments/application/assessment_list_notifier.dart';
 import '../../grade_scales/application/grade_scale_notifier.dart';
 import '../../announcements/application/announcement_page_notifier.dart';
 import '../../audit/application/audit_log_notifier.dart';
@@ -117,6 +118,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(schoolClassListNotifierProvider);
     ref.invalidate(academicYearListNotifierProvider);
     ref.invalidate(gradeScaleListNotifierProvider);
+    ref.invalidate(assessmentListNotifierProvider);
     ref.invalidate(paymentListNotifierProvider);
     ref.invalidate(paymentSummaryNotifierProvider);
     // Added in Phase 21, when a sweep found these still holding the previous

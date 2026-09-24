@@ -77,6 +77,8 @@ from school.models import (
     Subject,
     SyllabusTopic,
     SyllabusTopicProgress,
+    AcademicTerm,
+    Assessment,
     TimetableEntry,
     TransportRoute,
     TransportStop,
@@ -172,6 +174,29 @@ def seed() -> School:
     # A period on today's weekday, so the teacher has something to report on.
     today = SchoolClock.for_school(school).now().date()
     subject = factories.SubjectFactory(department=science, name="Physics", code="ITEST-PHY")
+    # Mathematics as well, taught by the same teacher, so the class-tests
+    # flow has a subject that is theirs by the timetable rather than by
+    # being the class teacher (docs/assessments.md).
+    maths = factories.SubjectFactory(
+        department=science, name="Mathematics", code="ITEST-MATH", min_class_level=1, max_class_level=12
+    )
+    factories.TimetableEntryFactory(
+        class_section=section,
+        period=factories.PeriodFactory(school=school, period_number=2),
+        subject=maths,
+        teacher=teacher,
+        day_of_week=WEEKDAYS[min(today.weekday(), 4)],
+    )
+    # A term covering the whole year, so a test can be filed under it
+    # whatever today happens to be.
+    factories.AcademicTermFactory(
+        academic_year=year,
+        school=school,
+        name="E2E Term",
+        sequence_number=1,
+        start_date=year.start_date,
+        end_date=year.end_date,
+    )
     factories.TimetableEntryFactory(
         class_section=section,
         period=factories.PeriodFactory(school=school, period_number=1),
@@ -259,6 +284,8 @@ def clean() -> None:
     StaffAttendance.objects.filter(Q(school_id__in=schools) | Q(staff_profile__in=profiles)).delete()
     StaffLeave.objects.filter(Q(school_id__in=schools) | Q(staff_profile__in=profiles)).delete()
     DailyTeachingReport.objects.filter(Q(school_id__in=schools) | Q(teacher_id__in=users)).delete()
+    Assessment.objects.filter(in_school).delete()
+    AcademicTerm.objects.filter(in_school).delete()
     SyllabusTopicProgress.objects.filter(in_school).delete()
     SyllabusTopic.objects.filter(in_school).delete()
     TimetableEntry.objects.filter(Q(school_id__in=schools) | Q(teacher_id__in=users)).delete()

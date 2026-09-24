@@ -1083,6 +1083,48 @@ def student_enrollment_resource(enrollment) -> dict:
     }
 
 
+def assessment_resource(assessment) -> dict:
+    """One class test.
+
+    The names travel with the ids because that is what a screen prints, and
+    marks are strings for the same reason money is: a client reading 17.50 as
+    a float would render 17.5 for a mark the teacher typed.
+    """
+    section = assessment.class_section
+    topic = assessment.syllabus_topic
+
+    return {
+        "id": assessment.id,
+        "school_id": assessment.school_id,
+        "academic_year_id": assessment.academic_year_id,
+        "academic_term_id": assessment.academic_term_id,
+        "term_name": assessment.academic_term.name,
+        "class_section_id": assessment.class_section_id,
+        "class_section_name": f"{section.school_class.name} {section.name}".strip(),
+        "subject_id": assessment.subject_id,
+        "subject_name": assessment.subject.name,
+        "syllabus_topic_id": assessment.syllabus_topic_id,
+        "syllabus_topic_title": topic.title if topic is not None else None,
+        "grade_scale_id": assessment.grade_scale_id,
+        "grade_scale_name": assessment.grade_scale.name if assessment.grade_scale_id else None,
+        "type": assessment.type,
+        "title": assessment.title,
+        "max_marks": marks(assessment.max_marks),
+        "pass_marks": marks(assessment.pass_marks),
+        "weightage": marks(assessment.weightage),
+        "assessment_date": assessment.assessment_date.isoformat(),
+        "status": assessment.status,
+        "created_by_name": assessment.created_by.name,
+        "published_at": timestamp(assessment.published_at),
+        "created_at": timestamp(assessment.created_at),
+    }
+
+
+def marks(value) -> str | None:
+    """A mark as the two-decimal string the column holds, or nothing."""
+    return None if value is None else f"{value:.2f}"
+
+
 def school_resource(school: School, branch_count: int | None = None) -> dict:
     """A school, or a branch of one.
 

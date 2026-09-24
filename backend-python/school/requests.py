@@ -16,6 +16,7 @@ from __future__ import annotations
 from django.db.models import Q
 from rest_framework import serializers
 
+import datetime as dt
 import decimal
 import re
 
@@ -33,6 +34,7 @@ from .enums import (
     AnnouncementAudience,
     AnnouncementChannels,
     AttendanceAlertMode,
+    AssessmentType,
     AttendanceStatus,
     MessageCategory,
     MessageChannel,
@@ -52,7 +54,9 @@ from .models import (
     AttendantCredential,
     AcademicTerm,
     AcademicYear,
+    Assessment,
     GradeScale,
+    SyllabusTopic,
     ClassSection,
     Department,
     Holiday,
@@ -87,6 +91,7 @@ from .validation import (
     UrlField,
     already_taken,
     at_least,
+    at_most,
     password_rules,
     bad_format,
     confirmation_does_not_match,
@@ -3371,6 +3376,297 @@ class UpdateGradeScaleRequest(GradeScaleRequest):
         self.check_the_name(self.scale.school_id, attrs["name"], excluding=self.scale.id)
 
         return attrs
+
+
+# -- assessments ------------------------------------------------------------
+
+# A test out of more than this is somebody's typo, not a school's marking
+# scheme. Guarded because max_marks is the denominator of every percentage.
+MAX_TOTAL_MARKS = decimal.Decimal("1000")
+
+
+class AssessmentFields(ScopedSerializer):
+    """What both assessment forms check (docs/assessments.md).
+
+    Every id in this form is checked twice: that the actor may reach it at
+    all, and that it belongs with the others. A subject from the right school
+    taught at a different class level, a term from another year, a topic from
+    a different subject - each is a request that looks fine field by field
+    and means nothing as a whole.
+    """
+
+    type = LaravelCharField("type", max_length=20)
+    title = LaravelCharField("title", max_length=150)
+    max_marks = serializers.CharField(required=False, allow_null=True)
+    pass_marks = serializers.CharField(required=False, allow_null=True)
+    weightage = serializers.CharField(required=False, allow_null=True)
+    assessment_date = LaravelDateField("assessment_date")
+
+    def __init__(self, *args, assessment=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.assessment = assessment
+
+    validate_type = staticmethod(enum_choice("type", AssessmentType.values))
+
+    def reachable(self, model, field: str, value, errors: dict, column: str = "school_id"):
+        """A record of this id that the actor may reach, or None with the
+        error already recorded. The id alone is never enough."""
+        if value is None:
+            return None
+
+        found = self.scope.apply_to(model.objects.filter(pk=value), column=column).first()
+
+        if found is None:
+            errors[field] = [does_not_exist(field)]
+
+        return found
+
+    def marks(self, field: str, value, errors: dict, *, is_required: bool):
+        # Not `required`: that is the name of the message helper, and a
+        # keyword argument of the same name shadowed it into a bool.
+        if value is None or value == "":
+            if is_required:
+                errors[field] = [required(field)]
+            return None
+
+        try:
+            parsed = decimal.Decimal(str(value)).quantize(decimal.Decimal("0.01"))
+        except (decimal.InvalidOperation, TypeError, ValueError):
+            errors[field] = [must_be_a_number(field)]
+            return None
+
+        if field == "max_marks" and parsed <= 0:
+            errors[field] = ["The max marks field must be greater than 0."]
+            return None
+
+        if parsed < 0:
+            errors[field] = [at_least(field, 0)]
+            return None
+
+        if parsed > MAX_TOTAL_MARKS:
+            errors[field] = [at_most(field, int(MAX_TOTAL_MARKS))]
+            return None
+
+        return parsed
+
+    def check_the_pieces_belong_together(self, values: dict, section, subject, term, errors: dict) -> None:
+        """The rules that take more than one record to answer."""
+        if section is None or subject is None or term is None:
+            return
+
+        school_class = section.school_class
+
+        # The term and the section have to be talking about the same year, or
+        # a result would be filed under a term the class never sat in.
+        if term.academic_year_id != school_class.academic_year_id:
+            errors["academic_term_id"] = [
+                f"{term.name} belongs to a different academic year than {school_class.name}."
+            ]
+
+        # A subject is taught to a range of class levels. Outside it, the
+        # subject is simply not this class's subject.
+        if not (subject.min_class_level <= school_class.level <= subject.max_class_level):
+            errors["subject_id"] = [f"{subject.name} is not taught at {school_class.name}."]
+
+        date = values.get("assessment_date")
+
+        if date is not None and not (term.start_date <= date <= term.end_date):
+            errors["assessment_date"] = [
+                f"The date must fall inside {term.name} ({term.start_date} to {term.end_date})."
+            ]
+
+    def check_topic(self, topic, subject, errors: dict) -> None:
+        if topic is not None and subject is not None and topic.subject_id != subject.id:
+            errors["syllabus_topic_id"] = [f'"{topic.title}" is not a topic of {subject.name}.']
+
+    def to_internal_value(self, data):
+        """Field checks and cross-record checks together.
+
+        DRF alone stops at the first field that fails, so a type nobody
+        recognises would hide a test out of zero marks, and the teacher would
+        fix one thing at a time. Everything this form knows is reported at
+        once (CLAUDE.md rule 12).
+        """
+        errors: dict[str, list[str]] = {}
+
+        try:
+            attrs = super().to_internal_value(data)
+        except serializers.ValidationError as failure:
+            errors.update({key: list(value) for key, value in failure.detail.items()})
+            attrs = {}
+
+        self.collect(attrs, errors)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+    def given_id(self, attrs: dict, field: str):
+        """An id the form was sent, even when another field failed.
+
+        Same reason as given_date: DRF returns nothing once anything is
+        invalid, and the cross-record rules are the ones worth reporting
+        together.
+        """
+        if attrs.get(field) is not None:
+            return attrs[field]
+
+        raw = self.initial_data.get(field)
+
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+
+    def given_date(self, attrs: dict, fallback=None):
+        """The date the form was sent, even when another field failed.
+
+        DRF hands back nothing at all once any field is invalid, so a bad
+        title would otherwise hide a date outside the term - and the teacher
+        would be told about them one at a time.
+        """
+        if attrs.get("assessment_date") is not None:
+            return attrs["assessment_date"]
+
+        raw = self.initial_data.get("assessment_date")
+
+        try:
+            return dt.date.fromisoformat(str(raw)[:10])
+        except (TypeError, ValueError):
+            return fallback
+
+    def check_weightage(self, values: dict, section, subject, term, errors: dict) -> None:
+        """One subject's tests in one term share 100 percent between them.
+
+        Over-allocating is refused rather than quietly rounded, because the
+        sum is what a term average will be computed from.
+        """
+        weightage = values.get("weightage")
+
+        if weightage is None or section is None or subject is None or term is None:
+            return
+
+        siblings = Assessment.objects.filter(
+            academic_term_id=term.id, class_section_id=section.id, subject_id=subject.id
+        ).exclude(weightage=None)
+
+        if self.assessment is not None:
+            siblings = siblings.exclude(pk=self.assessment.id)
+
+        already = sum((row.weightage for row in siblings), decimal.Decimal("0"))
+
+        if already + weightage > 100:
+            errors["weightage"] = [
+                f"{subject.name} already has {already:.2f}% of {term.name} allocated. "
+                "This would take it past 100%."
+            ]
+
+
+class StoreAssessmentRequest(AssessmentFields):
+    class_section_id = LaravelIntegerField("class_section_id")
+    subject_id = LaravelIntegerField("subject_id")
+    academic_term_id = LaravelIntegerField("academic_term_id")
+    syllabus_topic_id = LaravelIntegerField("syllabus_topic_id", required=False, allow_null=True)
+    grade_scale_id = LaravelIntegerField("grade_scale_id", required=False, allow_null=True)
+
+    def collect(self, attrs: dict, errors: dict) -> None:
+        # A section carries no school_id of its own; it is reached through its
+        # class, which is why the scope is applied down that path.
+        section = self.reachable(
+            ClassSection, "class_section_id", self.given_id(attrs, "class_section_id"), errors,
+            column="school_class__school_id",
+        )
+        subject = self.reachable(Subject, "subject_id", self.given_id(attrs, "subject_id"), errors)
+        term = self.reachable(AcademicTerm, "academic_term_id", self.given_id(attrs, "academic_term_id"), errors)
+        topic = self.reachable(SyllabusTopic, "syllabus_topic_id", self.given_id(attrs, "syllabus_topic_id"), errors)
+        scale = self.reachable(GradeScale, "grade_scale_id", self.given_id(attrs, "grade_scale_id"), errors)
+
+        attrs["max_marks"] = self.marks("max_marks", self.initial_data.get("max_marks"), errors, is_required=True)
+        attrs["pass_marks"] = self.marks("pass_marks", self.initial_data.get("pass_marks"), errors, is_required=False)
+        attrs["weightage"] = self.marks("weightage", self.initial_data.get("weightage"), errors, is_required=False)
+
+        check_pass_marks(attrs, errors)
+        check_weightage_range(attrs, errors)
+        self.check_the_pieces_belong_together(
+            {**attrs, "assessment_date": self.given_date(attrs)}, section, subject, term, errors
+        )
+        self.check_topic(topic, subject, errors)
+        self.check_weightage(attrs, section, subject, term, errors)
+
+        if section is not None:
+            # Never from the request: the section says which school and which
+            # year this test belongs to (CLAUDE.md rule 10).
+            attrs["school_id"] = section.school_class.school_id
+            attrs["academic_year_id"] = section.school_class.academic_year_id
+
+
+class UpdateAssessmentRequest(AssessmentFields):
+    """The section and the subject are fixed at creation.
+
+    Moving a test to another class would carry its marks with it, which is
+    not an edit of a title and a date.
+    """
+
+    type = LaravelCharField("type", max_length=20, required=False)
+    title = LaravelCharField("title", max_length=150, required=False)
+    assessment_date = LaravelDateField("assessment_date", required=False)
+    academic_term_id = LaravelIntegerField("academic_term_id", required=False)
+    syllabus_topic_id = LaravelIntegerField("syllabus_topic_id", required=False, allow_null=True)
+    grade_scale_id = LaravelIntegerField("grade_scale_id", required=False, allow_null=True)
+
+    def collect(self, attrs: dict, errors: dict) -> None:
+        assessment = self.assessment
+
+        section = assessment.class_section
+        subject = assessment.subject
+        term = assessment.academic_term
+
+        if "academic_term_id" in attrs:
+            term = self.reachable(AcademicTerm, "academic_term_id", attrs["academic_term_id"], errors) or term
+
+        topic = assessment.syllabus_topic
+        if "syllabus_topic_id" in attrs:
+            topic = self.reachable(SyllabusTopic, "syllabus_topic_id", attrs["syllabus_topic_id"], errors)
+
+        if "grade_scale_id" in attrs:
+            scale = self.reachable(GradeScale, "grade_scale_id", attrs["grade_scale_id"], errors)
+            attrs["grade_scale_id"] = scale.id if scale is not None else None
+
+        for field in ("max_marks", "pass_marks", "weightage"):
+            if field in attrs:
+                attrs[field] = self.marks(field, attrs[field], errors, is_required=(field == "max_marks"))
+
+        # Whatever was not sent keeps what is stored, so moving one field
+        # cannot leave the record contradicting itself.
+        merged = {
+            "assessment_date": self.given_date(attrs, assessment.assessment_date),
+            "max_marks": attrs.get("max_marks", assessment.max_marks),
+            "pass_marks": attrs.get("pass_marks", assessment.pass_marks),
+            "weightage": attrs.get("weightage", assessment.weightage),
+        }
+
+        check_pass_marks(merged, errors)
+        check_weightage_range(merged, errors)
+        self.check_the_pieces_belong_together(merged, section, subject, term, errors)
+        self.check_topic(topic, subject, errors)
+        self.check_weightage(merged, section, subject, term, errors)
+
+
+def check_pass_marks(values: dict, errors: dict) -> None:
+    """A pass mark nobody could reach is a test everybody fails."""
+    maximum = values.get("max_marks")
+    passing = values.get("pass_marks")
+
+    if maximum is not None and passing is not None and passing > maximum and "pass_marks" not in errors:
+        errors["pass_marks"] = ["The pass marks field must not be greater than max marks."]
+
+
+def check_weightage_range(values: dict, errors: dict) -> None:
+    weightage = values.get("weightage")
+
+    if weightage is not None and weightage > 100 and "weightage" not in errors:
+        errors["weightage"] = [must_be_between("weightage", 0, 100)]
 
 
 # -- users ------------------------------------------------------------------

@@ -227,6 +227,18 @@ class AppNav {
         pageSubtitle: 'Academic year setup and rollover',
       ),
       NavItem(
+        path: '/assessments',
+        module: AppModules.assessments,
+        label: 'Class Tests',
+        icon: Icons.fact_check_outlined,
+        // The roles the API lets in. A teacher sees the tests of the classes
+        // the timetable gives them, an HOD their department's subjects - the
+        // narrowing is the server's, not this menu's.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
+        pageTitle: 'Class Tests',
+        pageSubtitle: 'Tests, assignments and quizzes',
+      ),
+      NavItem(
         path: '/grade-scales',
         module: AppModules.academics,
         label: 'Grade Scales',

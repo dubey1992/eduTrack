@@ -56,6 +56,14 @@ MODULES: tuple[Module, ...] = (
     Module("users", "Admin Users", "School administrator accounts.", switchable=False),
     Module("audit", "Audit Log", "Who changed what, and when.", switchable=False),
     Module(
+        "assessments", "Class Tests & Assessments",
+        "Class tests, the marks sheet and published results.",
+        # No settings yet: the two this module will have - the pass mark and
+        # the weak-subject threshold - are read by publishing and by the
+        # performance report, neither of which exists. A setting nothing
+        # reads would be a lie on a screen.
+    ),
+    Module(
         "attendance", "Student Attendance", "Daily registers and guardian alerts.",
         settings=(
             Setting(

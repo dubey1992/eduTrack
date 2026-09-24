@@ -1,6 +1,6 @@
 # Assessments and promotion: the build order
 
-**Status (2026-09-24): slices 1 to 3 done, 4 to 14 planned.** This is the slicing of
+**Status (2026-09-24): slices 1 to 4 done, 5 to 14 planned.** This is the slicing of
 [assessments.md](assessments.md) and [promotion.md](promotion.md) into
 fourteen slices. Each slice is a vertical one: a migration where it needs
 one, the backend, the Flutter screen, the tests, and a demo in a browser
@@ -138,15 +138,38 @@ block must show as empty rather than blank.
 
 ## Assessments
 
-### Slice 4 — The assessment record, draft only
+### Slice 4 — The assessment record, draft only · done 2026-09-24
 
-**Lands:** the `assessments` table, create, edit, delete and list, the
-`assessments` module key, its matrix row, its two settings, its audit
-module, and the Assessments screen with filters. No marks yet. **Demo:** a
-teacher creates a test for their own class, and is refused another class.
+**Landed:** the `assessments` table, five endpoints under
+`/api/v1/assessments`, the `assessments` module key with its matrix row and
+its audit module, and a Class Tests screen with filters. No marks yet.
 
-This is the slice where the authorization actually gets decided, so it
-carries the heaviest DENY list.
+**The rule this slice decides:** a teacher reaches a section and subject
+only when a timetable entry says they teach it. Being the section's class
+teacher is *not* enough - the class teacher of 8A does not thereby teach 8A
+mathematics, and a mark in a subject somebody does not teach is exactly the
+loophole the rule exists to close. The plan's earlier sentence allowed the
+class teacher; it was tightened here on purpose. An HOD reaches their own
+department's subjects, an administrator their school, and the Super Admin
+reads every school's tests and sets none of them.
+
+**Its settings are not registered yet.** The module will have two - the pass
+mark and the weak-subject threshold - and both are read by code that does
+not exist (publishing, and the performance report). The registry's own rule
+is that a setting nothing reads is a lie on a screen, so they arrive with
+their readers.
+
+**Shown working:** a teacher set a test for the class the timetable gives
+them, was refused a date the term does not cover, and had the same test
+accepted once the date moved inside it. Run in a visible browser as
+`integration_test/teacher_sets_test_flow_test.dart`.
+
+**Tests:** 58 backend tests, 19 Flutter tests, 6 contract tests, 14
+sabotages - all caught. Three findings the tests made rather than confirmed:
+a field-level failure short-circuited the cross-record checks, so a form
+reported one problem at a time; a keyword argument named `required` shadowed
+the message helper of the same name and turned it into a bool; and the
+filter row overflowed its own header.
 
 Edge cases: a teacher creating for a section they do not teach; a teacher
 who is the class teacher but does not teach the subject; an HOD outside

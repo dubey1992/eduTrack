@@ -433,3 +433,31 @@ class SalaryComponentFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+class AssessmentFactory(DjangoModelFactory):
+    class Meta:
+        model = models.Assessment
+
+    class_section = factory.SubFactory(ClassSectionFactory)
+    school = factory.LazyAttribute(lambda o: o.class_section.school_class.school)
+    academic_year = factory.LazyAttribute(lambda o: o.class_section.school_class.academic_year)
+    academic_term = factory.LazyAttribute(
+        lambda o: AcademicTermFactory(academic_year=o.academic_year, school=o.school)
+    )
+    subject = factory.SubFactory(SubjectFactory)
+    syllabus_topic = None
+    grade_scale = None
+    type = "class_test"
+    title = factory.Sequence(lambda n: f"Test {n}")
+    max_marks = 20
+    pass_marks = None
+    weightage = None
+    assessment_date = dt.date(2026, 4, 15)
+    status = "draft"
+    created_by = factory.SubFactory(UserFactory)
+    published_by = None
+    published_at = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

@@ -121,6 +121,44 @@ class Announcement(models.Model):
         managed = False
         db_table = 'announcements'
 
+class Assessment(models.Model):
+    """A class test: one subject, one section, one term (docs/assessments.md).
+
+    Marks hang off this in the next slice. `status` is already meaningful:
+    everything starts as a draft, and only a draft may be deleted.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING)
+    academic_term = models.ForeignKey('AcademicTerm', models.DO_NOTHING)
+    class_section = models.ForeignKey('ClassSection', models.DO_NOTHING)
+    subject = models.ForeignKey('Subject', models.DO_NOTHING)
+    syllabus_topic = models.ForeignKey('SyllabusTopic', models.DO_NOTHING, blank=True, null=True)
+    grade_scale = models.ForeignKey('GradeScale', models.DO_NOTHING, blank=True, null=True)
+    type = models.CharField(max_length=20)
+    title = models.CharField(max_length=150)
+    max_marks = models.DecimalField(max_digits=6, decimal_places=2)
+    pass_marks = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True)
+    weightage = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
+    assessment_date = models.DateField()
+    status = models.CharField(max_length=16)
+    created_by = models.ForeignKey('User', models.DO_NOTHING, db_column='created_by', related_name='+')
+    published_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='published_by', blank=True, null=True, related_name='+'
+    )
+    published_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'assessments'
+
+    def is_draft(self) -> bool:
+        return self.status == 'draft'
+
+
 class Attendance(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)

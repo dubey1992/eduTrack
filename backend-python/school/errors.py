@@ -120,6 +120,17 @@ class NonWorkingDay(ApiError):
     error_code = "NON_WORKING_DAY"
 
 
+class AssessmentPublished(ApiError):
+    """A published result has already been sent to guardians.
+
+    409 rather than 422: the request is well formed and the test is real -
+    the answer is no because of what has already happened to it.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ASSESSMENT_PUBLISHED"
+
+
 class HasDependentRecords(ApiError):
     """Something is still built on top of this, so it cannot be removed.
 

@@ -27,7 +27,7 @@ from rest_framework.exceptions import PermissionDenied
 from . import modules, permissions
 from .enums import PayrollRunStatus, UserRole
 from .errors import ModuleDisabled
-from .models import Department, Student, TimetableEntry, User
+from .models import Department, Student, Subject, TimetableEntry, User
 from .scope import SchoolScope
 
 ADMIN_ROLES = (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN)
@@ -815,6 +815,107 @@ class GradeScalePolicy(SchoolOwnedPolicy):
     """A grade scale is school configuration: an administrator writes it, and
     everybody else reads it - a teacher entering marks has to be able to see
     what an 81 will be called."""
+
+
+class AssessmentPolicy:
+    """Who may set a test, and for whom (docs/assessments.md).
+
+    The matrix says a teacher may manage assessments at all. It does not say
+    *which*, and that is the whole of this class.
+
+    - A **teacher** reaches a section and subject only when a timetable entry
+      says they teach it. Being the section's class teacher is not enough:
+      the class teacher of 8A does not thereby teach 8A mathematics, and a
+      mark in a subject somebody does not teach is exactly the loophole this
+      rule exists to close.
+    - An **HOD** reaches the subjects of the department they head, in any
+      section of their school - which is what heading a department means.
+    - An **administrator** reaches their school, and a Group Admin their
+      group.
+    - A **Super Admin** reads any school's tests and changes none of them,
+      like payroll: the platform's owner is not a member of staff.
+
+    Everything here answers about one assessment's section and subject, so
+    creating and editing ask the same question about the values in the form,
+    not about the record that already exists.
+    """
+
+    MODULE = "assessments"
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return permitted(actor, AssessmentPolicy.MODULE)
+
+    @classmethod
+    def view(cls, actor: User, assessment) -> bool:
+        if not permitted(actor, cls.MODULE, school_id=assessment.school_id):
+            return False
+
+        if not in_scope(actor, assessment.school_id):
+            return False
+
+        if administers(actor) or actor.role == UserRole.SUPER_ADMIN:
+            return True
+
+        # A teacher or an HOD reads what they could have set themselves. A
+        # teacher browsing another class's tests would be reading marks that
+        # are none of their business the moment marks exist.
+        return cls._teaches(actor, assessment.class_section_id, assessment.subject_id)
+
+    @classmethod
+    def create(cls, actor: User, school_id, class_section_id, subject_id) -> bool:
+        """Asked about the section and subject in the form, before anything
+        is written."""
+        return cls._manages(actor, school_id, class_section_id, subject_id)
+
+    @classmethod
+    def update(cls, actor: User, assessment) -> bool:
+        return cls._manages(actor, assessment.school_id, assessment.class_section_id, assessment.subject_id)
+
+    @classmethod
+    def delete(cls, actor: User, assessment) -> bool:
+        return cls._manages(actor, assessment.school_id, assessment.class_section_id, assessment.subject_id)
+
+    @classmethod
+    def _manages(cls, actor: User, school_id, class_section_id, subject_id) -> bool:
+        # The Super Admin reads every school's tests and sets none of them.
+        # Checked before the matrix, which grants them everything.
+        if actor.role == UserRole.SUPER_ADMIN:
+            return False
+
+        if not permitted(actor, cls.MODULE, write=True, school_id=school_id):
+            return False
+
+        if not in_scope(actor, school_id):
+            return False
+
+        if administers(actor):
+            return True
+
+        return cls._teaches(actor, class_section_id, subject_id)
+
+    @staticmethod
+    def _teaches(actor: User, class_section_id, subject_id) -> bool:
+        """Whether this person is the one who teaches that subject to that
+        section - by the timetable, or by heading the department the subject
+        belongs to."""
+        if actor.role == UserRole.HOD:
+            subject = Subject.objects.select_related("department").filter(pk=subject_id).first()
+
+            return (
+                subject is not None
+                and subject.department_id is not None
+                and subject.department.hod_user_id == actor.id
+            )
+
+        if actor.role == UserRole.TEACHER:
+            return TimetableEntry.objects.filter(
+                class_section_id=class_section_id,
+                subject_id=subject_id,
+                teacher_id=actor.id,
+            ).exists()
+
+        return False
 
 
 class UserPolicy:
