@@ -891,6 +891,28 @@ class AssessmentPolicy:
         return administers(actor) and permitted(actor, cls.MODULE, write=True)
 
     @classmethod
+    def reopen(cls, actor: User, assessment) -> bool:
+        """Who may take a published result back.
+
+        Not the teacher who published it. Once guardians have been told, the
+        undoing is a school decision: an administrator, or the HOD of the
+        department the subject belongs to.
+        """
+        if actor.role == UserRole.SUPER_ADMIN:
+            return False
+
+        if not permitted(actor, cls.MODULE, write=True, school_id=assessment.school_id):
+            return False
+
+        if not in_scope(actor, assessment.school_id):
+            return False
+
+        if administers(actor):
+            return True
+
+        return actor.role == UserRole.HOD and cls._teaches(actor, assessment.class_section_id, assessment.subject_id)
+
+    @classmethod
     def _manages(cls, actor: User, school_id, class_section_id, subject_id) -> bool:
         # The Super Admin reads every school's tests and sets none of them.
         # Checked before the matrix, which grants them everything.

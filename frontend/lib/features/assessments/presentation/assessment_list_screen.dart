@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
+import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -42,6 +43,11 @@ class _AssessmentListScreenState extends ConsumerState<AssessmentListScreen> {
     final actor = ref.watch(authNotifierProvider).value;
     final canManage = actor?.canManage(AppModules.assessments) ?? false;
     final administers = canManage && actor != null && actor.role.administersSchool;
+    // Taking a published result back is not the teacher's: the API allows an
+    // administrator or the subject's HOD, and an HOD only ever sees their own
+    // department's tests. Offering the button to anybody else would be
+    // offering one that always fails (docs/assessments.md).
+    final canReopen = canManage && actor != null && (actor.role.administersSchool || actor.role == UserRole.hod);
     final sections = ref.watch(classSectionPickerProvider(null));
 
     return Column(
@@ -118,7 +124,8 @@ class _AssessmentListScreenState extends ConsumerState<AssessmentListScreen> {
                   Expanded(
                     child: ResponsiveBuilder(
                       mobile: (context) => _AssessmentsMobile(assessments: page.items, canManage: canManage),
-                      desktop: (context) => _AssessmentsDesktop(assessments: page.items, canManage: canManage),
+                      desktop: (context) =>
+                          _AssessmentsDesktop(assessments: page.items, canManage: canManage, canReopen: canReopen),
                     ),
                   ),
                   PaginationControls(
@@ -177,10 +184,11 @@ class _AssessmentsMobile extends StatelessWidget {
 }
 
 class _AssessmentsDesktop extends StatelessWidget {
-  const _AssessmentsDesktop({required this.assessments, required this.canManage});
+  const _AssessmentsDesktop({required this.assessments, required this.canManage, required this.canReopen});
 
   final List<Assessment> assessments;
   final bool canManage;
+  final bool canReopen;
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +220,7 @@ class _AssessmentsDesktop extends StatelessWidget {
                     DataCell(Text(assessment.maxMarksLabel)),
                     DataCell(Text(assessment.termName)),
                     DataCell(_StatusFor(assessment: assessment)),
-                    DataCell(_Actions(assessment: assessment, canManage: canManage)),
+                    DataCell(_Actions(assessment: assessment, canManage: canManage, canReopen: canReopen)),
                   ],
                 ),
             ],
@@ -238,10 +246,14 @@ class _StatusFor extends StatelessWidget {
 }
 
 class _Actions extends ConsumerWidget {
-  const _Actions({required this.assessment, required this.canManage});
+  const _Actions({required this.assessment, required this.canManage, required this.canReopen});
 
   final Assessment assessment;
   final bool canManage;
+
+  /// False for a teacher, who may publish their class's result and not
+  /// unpublish it.
+  final bool canReopen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -255,8 +267,17 @@ class _Actions extends ConsumerWidget {
 
     // A published result has already reached guardians. Editing it is refused
     // by the API as well; the buttons go rather than fail (docs/assessments.md).
+    // Taking it back is its own action, and not the teacher's: the API lets
+    // an administrator or the subject's HOD reopen it.
     if (!canManage || !assessment.isDraft) {
-      return Row(mainAxisSize: MainAxisSize.min, children: [marks]);
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          marks,
+          if (canReopen && !assessment.isDraft)
+            TextButton(onPressed: () => _confirmReopen(context, ref), child: const Text('Reopen')),
+        ],
+      );
     }
 
     return Row(
@@ -278,6 +299,34 @@ class _Actions extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _confirmReopen(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reopen this result?'),
+        content: Text(
+          'The grades on "${assessment.title}" are cleared and the sheet opens for marking again. '
+          'Guardians who were told the result are not told again automatically.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Reopen')),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(assessmentListNotifierProvider.notifier).reopen(assessment);
+      messenger.showSnackBar(SnackBar(content: Text('${assessment.title} is a draft again.')));
+    } catch (error) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {

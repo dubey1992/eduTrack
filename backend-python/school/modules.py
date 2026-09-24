@@ -58,10 +58,12 @@ MODULES: tuple[Module, ...] = (
     Module(
         "assessments", "Class Tests & Assessments",
         "Class tests, the marks sheet and published results.",
-        # No settings yet: the two this module will have - the pass mark and
-        # the weak-subject threshold - are read by publishing and by the
-        # performance report, neither of which exists. A setting nothing
-        # reads would be a lie on a screen.
+        settings=(
+            Setting(
+                "pass_percentage", "Pass mark, as a percentage", "int", 33, min=0, max=100,
+                help="Used when a test does not set its own pass mark.",
+            ),
+        ),
     ),
     Module(
         "attendance", "Student Attendance", "Daily registers and guardian alerts.",

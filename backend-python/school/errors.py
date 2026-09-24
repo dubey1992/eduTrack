@@ -142,6 +142,28 @@ class MaxMarksLocked(ApiError):
     error_code = "MAX_MARKS_LOCKED"
 
 
+class AssessmentNotPublished(ApiError):
+    """Nothing to take back: this test is already a draft.
+
+    409 for the same reason as its opposite - the request is well formed and
+    the test is real; the answer is no because of the state it is in.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ASSESSMENT_NOT_PUBLISHED"
+
+
+class MarksIncomplete(ApiError):
+    """A class with anybody unmarked cannot be published.
+
+    422 rather than 409: it is a rule about what the sheet contains, and the
+    fix is to fill it in.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "MARKS_INCOMPLETE"
+
+
 class HasDependentRecords(ApiError):
     """Something is still built on top of this, so it cannot be removed.
 

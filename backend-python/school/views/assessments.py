@@ -28,7 +28,7 @@ from ..pagination import LaravelPagination
 from ..policies import AssessmentPolicy, authorize
 from ..requests import SaveMarksRequest, StoreAssessmentRequest, UpdateAssessmentRequest
 from ..resources import assessment_resource, assessment_sheet_resource
-from ..services import AssessmentMarkService, AssessmentService
+from ..services import AssessmentMarkService, AssessmentPublishService, AssessmentService
 from ..validation import required
 from .imports import MAX_UPLOAD_BYTES
 
@@ -207,3 +207,38 @@ def marks_upload(request, assessment_id: int) -> Response:
     saved = AssessmentMarkService.save(assessment, marks, request.user)
 
     return Response(assessment_sheet_resource(saved))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def publish(request, assessment_id: int) -> Response:
+    """Freeze the grades and close the sheet.
+
+    Whoever may mark it may publish it: a teacher publishes their own class's
+    result, which is how a school works.
+    """
+    assessment = load(assessment_id)
+
+    authorize(AssessmentPolicy.update(request.user, assessment))
+
+    published = AssessmentPublishService.publish(assessment, request.user)
+
+    return Response(assessment_resource(published))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def reopen(request, assessment_id: int) -> Response:
+    """Take a published result back to a draft.
+
+    Not the teacher who published it: a result that has been sent out is
+    taken back by an administrator or by the subject's HOD, and the act is
+    audited (docs/assessments.md).
+    """
+    assessment = load(assessment_id)
+
+    authorize(AssessmentPolicy.reopen(request.user, assessment))
+
+    reopened = AssessmentPublishService.reopen(assessment, request.user)
+
+    return Response(assessment_resource(reopened))

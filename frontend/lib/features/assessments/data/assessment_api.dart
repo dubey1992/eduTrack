@@ -152,4 +152,16 @@ class AssessmentApi {
 
     return AssessmentSheet.fromJson(response.data as Map<String, dynamic>);
   }
+
+  Future<Assessment> publish(int assessmentId) async {
+    final response = await _dio.post('/assessments/$assessmentId/publish');
+
+    return Assessment.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<Assessment> reopen(int assessmentId) async {
+    final response = await _dio.post('/assessments/$assessmentId/reopen');
+
+    return Assessment.fromJson(response.data as Map<String, dynamic>);
+  }
 }

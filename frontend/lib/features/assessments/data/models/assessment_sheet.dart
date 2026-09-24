@@ -36,6 +36,8 @@ class SheetEntry {
     required this.marksObtained,
     required this.isAbsent,
     required this.grade,
+    required this.percentage,
+    required this.passed,
     required this.remarks,
   });
 
@@ -48,6 +50,8 @@ class SheetEntry {
       marksObtained: json['marks_obtained'] as String?,
       isAbsent: json['is_absent'] as bool,
       grade: json['grade'] as String?,
+      percentage: json['percentage'] as String?,
+      passed: json['passed'] as bool?,
       remarks: json['remarks'] as String?,
     );
   }
@@ -59,6 +63,10 @@ class SheetEntry {
   final String? marksObtained;
   final bool isAbsent;
   final String? grade;
+  final String? percentage;
+
+  /// Null where the question does not arise: nobody marked yet, or absent.
+  final bool? passed;
   final String? remarks;
 
   /// Marked either way. A blank is not a zero: it means nobody has said yet.
@@ -76,6 +84,8 @@ class SheetEntry {
       marksObtained: clearMarks ? null : (marksObtained ?? this.marksObtained),
       isAbsent: isAbsent ?? this.isAbsent,
       grade: grade,
+      percentage: percentage,
+      passed: passed,
       remarks: remarks,
     );
   }

@@ -143,4 +143,14 @@ class AssessmentListNotifier extends AsyncNotifier<PagedList<Assessment>> {
     await ref.read(assessmentRepositoryProvider).delete(assessment.id);
     await refresh();
   }
+
+  Future<void> publish(Assessment assessment) async {
+    await ref.read(assessmentRepositoryProvider).publish(assessment.id);
+    await refresh();
+  }
+
+  Future<void> reopen(Assessment assessment) async {
+    await ref.read(assessmentRepositoryProvider).reopen(assessment.id);
+    await refresh();
+  }
 }

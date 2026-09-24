@@ -1,8 +1,8 @@
 # Class Tests & Assessments
 
-**Status (2026-09-24): slices 1 to 5 built, the rest planned.** Terms, grade
-scales, enrollment history, the class test and its marks sheet are live,
-each with a flow that runs in a browser. Publishing, the guardian message,
+**Status (2026-09-24): slices 1 to 6 built, the rest planned.** Terms, grade
+scales, enrollment history, the class test, its marks sheet and publishing
+are live, each with a flow that runs in a browser. The guardian message,
 promotion and performance are still a plan. Decided with the user on
 2026-09-21: the school year is divided into terms, marks are entered against
 a maximum and turned into a grade by a scale the school configures, and
@@ -178,8 +178,9 @@ they sit under the existing `academics` module and only an administrator may
 write them.
 
 Two module settings, both read by a service, because a setting nothing reads
-would be a lie on a screen. Neither is registered yet: they arrive with the
-code that reads them, publishing and the performance report.
+would be a lie on a screen. `pass_percentage` is registered, and read by the
+sheet to say whether a mark is a pass. `weak_below_percentage` arrives with
+the performance report that reads it.
 
 | Setting | Default | What reads it |
 |---|---|---|
@@ -201,8 +202,13 @@ messaging module with the tokens `{student_name}`, `{guardian_name}`,
 switched-off alert is not recorded at all still holds, and a school with
 communication switched off sends and logs nothing.
 
+**A class with anybody unmarked cannot be published.** A blank is not a zero,
+and a guardian who hears nothing while the rest of the class hears something
+is the worst version of this feature. Mark everybody, or mark them absent.
+
 **A published result can be corrected, but visibly.** A School Admin or the
-HOD may reopen an assessment. It returns to draft, the frozen grades are
+HOD may reopen an assessment. Not the teacher who published it: once
+guardians have been told, the undoing is a school decision. It returns to draft, the frozen grades are
 cleared, and the reopen is audited with who and when. Republishing does
 **not** message guardians a second time, because a correction to one child's
 mark must not text the whole class again.

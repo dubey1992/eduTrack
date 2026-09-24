@@ -144,6 +144,44 @@ class Assessments(unittest.TestCase):
 
         self.assertIn(response.status, (403, 422), f"a teacher outside the class must not succeed\n{response!r}")
 
+    def test_a_result_is_published_frozen_and_taken_back(self):
+        assessment = self.created(self.w.admin.post("/assessments", self.payload()), "POST /assessments")
+        marks_url = f"/assessments/{assessment['id']}/marks"
+
+        entries = self.w.admin.get(marks_url).body["entries"]
+        self.w.admin.put(
+            marks_url,
+            {"marks": [{"student_id": row["student_id"], "marks_obtained": "18"} for row in entries]},
+        )
+
+        published = self.w.admin.post(f"/assessments/{assessment['id']}/publish")
+        self.assertEqual(200, published.status, f"{published!r}")
+        self.assertEqual("published", published.body["status"])
+        self.assertIsNotNone(published.body["published_at"])
+
+        # Closed: the marks may be read and not written.
+        self.assertEqual(200, self.w.admin.get(marks_url).status)
+        refused = self.w.admin.put(marks_url, {"marks": [{"student_id": entries[0]["student_id"], "marks_obtained": "1"}]})
+        shapes.assert_error(self, refused, 409, "PUT marks on a published test")
+        self.assertEqual("ASSESSMENT_PUBLISHED", refused.body["code"])
+
+        reopened = self.w.admin.post(f"/assessments/{assessment['id']}/reopen")
+        self.assertEqual(200, reopened.status, f"{reopened!r}")
+        self.assertEqual("draft", reopened.body["status"])
+        self.assertIsNone(reopened.body["published_at"])
+
+        self.w.admin.delete(f"/assessments/{assessment['id']}")
+
+    def test_a_class_with_anybody_unmarked_is_not_published(self):
+        assessment = self.created(self.w.admin.post("/assessments", self.payload()), "POST /assessments")
+
+        refused = self.w.admin.post(f"/assessments/{assessment['id']}/publish")
+
+        shapes.assert_error(self, refused, 422, "POST publish with an unmarked class")
+        self.assertEqual("MARKS_INCOMPLETE", refused.body["code"])
+
+        self.w.admin.delete(f"/assessments/{assessment['id']}")
+
     def test_another_school_reaches_none_of_it(self):
         assessment = self.created(self.w.admin.post("/assessments", self.payload()), "POST /assessments")
         stranger = self.w.other_admin

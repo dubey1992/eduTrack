@@ -1120,6 +1120,26 @@ def assessment_resource(assessment) -> dict:
     }
 
 
+def percentage_string(assessment, row) -> str | None:
+    """What the mark comes to, as the two-decimal string a client renders."""
+    value = marks_service().percentage_of(assessment, row)
+
+    return None if value is None else f"{value:.2f}"
+
+
+def passed_value(assessment, row) -> bool | None:
+    return marks_service().passed(assessment, row)
+
+
+def marks_service():
+    """Imported when called rather than at the top: services already import
+    this module for `timestamp`, and a module-level import would close the
+    ring."""
+    from .services import AssessmentMarkService
+
+    return AssessmentMarkService
+
+
 def marks(value) -> str | None:
     """A mark as the two-decimal string the column holds, or nothing."""
     return None if value is None else f"{value:.2f}"
@@ -1144,6 +1164,8 @@ def assessment_sheet_resource(sheet: dict) -> dict:
                 "marks_obtained": marks(row.marks_obtained) if row is not None else None,
                 "is_absent": bool(row.is_absent) if row is not None else False,
                 "grade": row.grade if row is not None else None,
+                "percentage": percentage_string(assessment, row),
+                "passed": passed_value(assessment, row),
                 "remarks": row.remarks if row is not None else None,
             }
             for student, row in sheet["entries"]

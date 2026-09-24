@@ -297,6 +297,8 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("PUT", "assessments/{assessment}/marks"),
     ("GET", "assessments/{assessment}/marks/template"),
     ("POST", "assessments/{assessment}/marks/import"),
+    ("POST", "assessments/{assessment}/publish"),
+    ("POST", "assessments/{assessment}/reopen"),
 
     # -- grade scales (docs/assessments.md) -----------------------------
     ("GET", "grade-scales"),

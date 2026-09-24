@@ -1,6 +1,6 @@
 # Assessments and promotion: the build order
 
-**Status (2026-09-24): slices 1 to 5 done, 6 to 14 planned.** This is the slicing of
+**Status (2026-09-24): slices 1 to 6 done, 7 to 14 planned.** This is the slicing of
 [assessments.md](assessments.md) and [promotion.md](promotion.md) into
 fourteen slices. Each slice is a vertical one: a migration where it needs
 one, the backend, the Flutter screen, the tests, and a demo in a browser
@@ -229,11 +229,33 @@ between them; a section of one, and a section of sixty; saving a sheet
 with nothing filled in; every validation error reported at once rather
 than the first.
 
-### Slice 6 — Publish, freeze, reopen
+### Slice 6 — Publish, freeze, reopen · done 2026-09-24
 
-**Lands:** publish, the grade written from the bands, the lock, reopen for
-a School Admin or HOD, and the audit entries. No message yet. **Demo:**
-publish, fail to edit, reopen, edit, republish.
+**Landed:** `POST /assessments/{id}/publish` and `.../reopen`, the grade
+written onto each mark from the test's scale and frozen there, the lock, and
+the audit entries. The module's `pass_percentage` setting arrives here too,
+now that something reads it: the sheet says what each mark came to and
+whether it is a pass.
+
+**The rules:** a class with anybody unmarked cannot be published - a blank
+is not a zero, and a guardian who hears nothing while the rest of the class
+hears something is the worst version of this. An absentee is not banded at
+all. A test with no grade scale publishes marks and no grades, which is a
+school that reports marks rather than an error. Reopening is not the
+teacher's: an administrator or the subject's HOD takes a result back, the
+frozen grades go, and the act is recorded. A grade scale a test was built on
+can no longer be deleted.
+
+**Shown working:** a teacher set a test, found Publish waiting until the
+whole class was accounted for, marked two and one absent, published, found
+the sheet closed and reading 95%, and could not reopen it. An administrator
+then did. Run in a visible browser as
+`integration_test/teacher_publishes_result_flow_test.dart`.
+
+**Tests:** 38 backend tests, 14 Flutter tests, 2 contract tests, 12
+sabotages - all caught, after one survivor was pinned with a direct service
+test. One gap the tests found: the screen offered Reopen to a teacher, whom
+the API refuses, so a button that always fails was being shown.
 
 Edge cases: publishing twice; publishing a sheet where a student has
 neither a mark nor an absence, which is refused; publishing with no grade

@@ -131,6 +131,10 @@ class AssessmentRepository {
     }
   }
 
+  Future<Assessment> publish(int assessmentId) => _call(() => _api.publish(assessmentId));
+
+  Future<Assessment> reopen(int assessmentId) => _call(() => _api.reopen(assessmentId));
+
   Future<T> _call<T>(Future<T> Function() request) async {
     try {
       return await request();

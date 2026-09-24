@@ -8,6 +8,7 @@ rather than about the web, and can be tested without one.
 from __future__ import annotations
 
 import datetime as dt
+import decimal
 import secrets
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -64,7 +65,9 @@ from .enums import (
     UserStatus,
 )
 from .errors import (
+    AssessmentNotPublished,
     AssessmentPublished,
+    MarksIncomplete,
     MaxMarksLocked,
     ApiError,
     DeviceNotRegistered,
@@ -4090,6 +4093,14 @@ class GradeScaleService:
         # A school's only scale may go; its default may not while another
         # remains, because the replacement has to be chosen on purpose
         # rather than picked by whatever sorts first.
+        # A published result was graded by this scale's bands, and a draft is
+        # about to be. Either way the scale is the record of what a grade
+        # meant, so it stays (docs/assessments.md).
+        if Assessment.objects.filter(grade_scale_id=scale.id).exists():
+            raise HasDependentRecords(
+                "This grade scale is used by class tests. Change those tests before deleting it."
+            )
+
         if scale.is_default and GradeScale.objects.filter(school_id=scale.school_id).exclude(pk=scale.id).exists():
             raise HasDependentRecords(
                 "This is the school's default grade scale. Make another one the default first."
@@ -4514,6 +4525,163 @@ class AssessmentMarkService:
     @staticmethod
     def exists_for(assessment: Assessment) -> bool:
         return AssessmentMark.objects.filter(assessment_id=assessment.id).exists()
+
+
+    @classmethod
+    def pass_mark_for(cls, assessment: Assessment):
+        """What counts as a pass on this test.
+
+        The test's own pass mark when it has one, and otherwise the school's
+        pass percentage of the total - a school setting, because what counts
+        as a pass is a school's decision and not a teacher's (docs/settings.md).
+        """
+        if assessment.pass_marks is not None:
+            return assessment.pass_marks
+
+        percentage = modules.setting(assessment.school_id, cls.MODULE, "pass_percentage")
+
+        return (assessment.max_marks * decimal.Decimal(percentage) / 100).quantize(decimal.Decimal("0.01"))
+
+    @classmethod
+    def passed(cls, assessment: Assessment, row) -> bool | None:
+        """Whether this mark is a pass, or None where the question does not
+        arise - nobody marked yet, or absent."""
+        if row is None or row.is_absent or row.marks_obtained is None:
+            return None
+
+        return row.marks_obtained >= cls.pass_mark_for(assessment)
+
+    @staticmethod
+    def percentage_of(assessment: Assessment, row):
+        if row is None or row.is_absent or row.marks_obtained is None or not assessment.max_marks:
+            return None
+
+        return (row.marks_obtained / assessment.max_marks * 100).quantize(decimal.Decimal("0.01"))
+
+    @classmethod
+    def unmarked_count(cls, assessment: Assessment) -> int:
+        """How many of the class have been neither marked nor marked absent."""
+        marked = set(
+            AssessmentMark.objects.filter(assessment_id=assessment.id).values_list("student_id", flat=True)
+        )
+        roster = Student.objects.filter(
+            class_section_id=assessment.class_section_id, status=StudentStatus.ACTIVE
+        ).values_list("id", flat=True)
+
+        return len([student_id for student_id in roster if student_id not in marked])
+
+
+class AssessmentPublishService:
+    """Publishing a result, and taking it back (docs/assessments.md).
+
+    Publishing is the moment a test stops being the school's own business.
+    Three things happen together, or none of them do:
+
+    - **Every grade is frozen.** The band a percentage falls in is written
+      onto the mark and never recomputed, so a school that later moves a
+      boundary cannot change a result somebody has already been told about.
+      The same reasoning as a finalized payslip.
+    - **The sheet locks.** Marks may not be edited, and the test may not be
+      deleted or re-scaled.
+    - **The school may take it back.** An administrator or the subject's HOD
+      reopens it, which clears the frozen grades and returns it to a draft.
+      That is a visible, audited act rather than a quiet edit.
+
+    A class with anybody unmarked is not publishable: a blank is not a zero,
+    and a guardian who hears nothing while the rest of the class hears
+    something is the worst version of this feature.
+    """
+
+    MODULE = "assessments"
+
+    @classmethod
+    def publish(cls, assessment: Assessment, actor: User) -> Assessment:
+        now = timezone.now()
+
+        with transaction.atomic():
+            locked = Assessment.objects.select_for_update().get(pk=assessment.id)
+
+            if not locked.is_draft():
+                raise AssessmentPublished("This test has already been published.")
+
+            if not Student.objects.filter(
+                class_section_id=locked.class_section_id, status=StudentStatus.ACTIVE
+            ).exists():
+                raise MarksIncomplete("There is nobody in this class to publish a result for.")
+
+            unmarked = AssessmentMarkService.unmarked_count(locked)
+
+            if unmarked:
+                raise MarksIncomplete(
+                    f"{unmarked} of the class {'has' if unmarked == 1 else 'have'} no mark yet. "
+                    "Mark everybody, or mark them absent, before publishing."
+                )
+
+            before = audit.fields_of(locked)
+
+            cls.freeze_grades(locked)
+
+            locked.status = AssessmentStatus.PUBLISHED
+            locked.published_by_id = actor.id
+            locked.published_at = now
+            locked.updated_at = now
+            locked.save(update_fields=["status", "published_by", "published_at", "updated_at"])
+
+            audit.updated(cls.MODULE, locked, before, action="assessment.published")
+
+        return Assessment.objects.select_related(*AssessmentService.WITH).get(pk=assessment.id)
+
+    @classmethod
+    def reopen(cls, assessment: Assessment, actor: User) -> Assessment:
+        now = timezone.now()
+
+        with transaction.atomic():
+            locked = Assessment.objects.select_for_update().get(pk=assessment.id)
+
+            if locked.is_draft():
+                raise AssessmentNotPublished("This test is already a draft.")
+
+            before = audit.fields_of(locked)
+
+            # The frozen grades go with the publishing that made them: a draft
+            # carries marks, never grades.
+            AssessmentMark.objects.filter(assessment_id=locked.id).update(grade=None, updated_at=now)
+
+            locked.status = AssessmentStatus.DRAFT
+            locked.published_by_id = None
+            locked.published_at = None
+            locked.updated_at = now
+            locked.save(update_fields=["status", "published_by", "published_at", "updated_at"])
+
+            audit.updated(cls.MODULE, locked, before, action="assessment.reopened")
+
+        return Assessment.objects.select_related(*AssessmentService.WITH).get(pk=assessment.id)
+
+    @staticmethod
+    def freeze_grades(assessment: Assessment) -> None:
+        """Writes each mark's grade from the assessment's scale.
+
+        A test with no scale keeps marks and no grades, which is a school
+        that reports marks - not an error. An absentee has no grade either:
+        there is no percentage to band.
+        """
+        if assessment.grade_scale_id is None:
+            return
+
+        scale = GradeScale.objects.prefetch_related("bands").filter(pk=assessment.grade_scale_id).first()
+
+        if scale is None:
+            return
+
+        now = timezone.now()
+
+        for row in AssessmentMark.objects.filter(assessment_id=assessment.id):
+            percentage = AssessmentMarkService.percentage_of(assessment, row)
+            band = GradeScaleService.grade_for(scale, percentage)
+
+            AssessmentMark.objects.filter(pk=row.id).update(
+                grade=band.label if band is not None else None, updated_at=now
+            )
 
 
 class StudentEnrollmentService:

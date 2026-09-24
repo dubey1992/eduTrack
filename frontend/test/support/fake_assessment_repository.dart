@@ -192,6 +192,36 @@ class FakeAssessmentRepository implements AssessmentRepository {
       entries: List.unmodifiable(_sheetEntries),
     );
   }
+
+  @override
+  Future<Assessment> publish(int assessmentId) async {
+    _enter('publish');
+
+    final index = _assessments.indexWhere((row) => row.id == assessmentId);
+    if (index < 0) return fakeAssessment(id: assessmentId, status: AssessmentStatus.published);
+
+    final published = fakeAssessment(
+      id: assessmentId,
+      title: _assessments[index].title,
+      status: AssessmentStatus.published,
+    );
+    _assessments[index] = published;
+
+    return published;
+  }
+
+  @override
+  Future<Assessment> reopen(int assessmentId) async {
+    _enter('reopen');
+
+    final index = _assessments.indexWhere((row) => row.id == assessmentId);
+    if (index < 0) return fakeAssessment(id: assessmentId);
+
+    final draft = fakeAssessment(id: assessmentId, title: _assessments[index].title);
+    _assessments[index] = draft;
+
+    return draft;
+  }
 }
 
 Assessment fakeAssessment({
@@ -244,6 +274,8 @@ SheetEntry fakeEntry({
   String? marks,
   bool isAbsent = false,
   String? grade,
+  String? percentage,
+  bool? passed,
 }) {
   return SheetEntry(
     studentId: studentId,
@@ -253,6 +285,8 @@ SheetEntry fakeEntry({
     marksObtained: marks,
     isAbsent: isAbsent,
     grade: grade,
+    percentage: percentage,
+    passed: passed,
     remarks: null,
   );
 }

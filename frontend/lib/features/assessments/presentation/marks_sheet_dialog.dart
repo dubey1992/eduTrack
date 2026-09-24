@@ -6,9 +6,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/file_picker.dart';
 import '../../../core/utils/file_saver.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/status_badge.dart';
 import '../../imports/data/import_repository.dart';
 import '../../imports/data/models/import_result.dart';
 import '../../imports/presentation/widgets/import_row_errors.dart';
+import '../application/assessment_list_notifier.dart';
 import '../application/assessment_sheet_notifier.dart';
 import '../data/models/assessment.dart';
 import '../data/models/assessment_sheet.dart';
@@ -107,6 +109,49 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
           _rowErrors = refusal.rows;
           _error = 'Nothing was uploaded. Fix the rows below and try again.';
         });
+      }
+    } catch (error) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      if (mounted) setState(() => _error = failure.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _publish(AssessmentSheet sheet) async {
+    if (_saving) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Publish this result?'),
+        content: Text(
+          'Grades are worked out from the grade scale and fixed as they are now. The sheet closes, '
+          'and only an administrator or the head of department can reopen it. '
+          '${sheet.entries.length} in the class.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Publish')),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _saving = true;
+      _error = null;
+      _rowErrors = const [];
+    });
+
+    try {
+      await ref.read(assessmentListNotifierProvider.notifier).publish(widget.assessment);
+
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.of(context).pop();
+        messenger.showSnackBar(const SnackBar(content: Text('Result published.')));
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
@@ -219,6 +264,14 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
           child: Text(_editable ? 'Cancel' : 'Done'),
         ),
+        if (_editable && sheetState.value != null)
+          TextButton(
+            // Offered only once everybody has a mark or an absence: the API
+            // refuses an incomplete class, and a button that always fails is
+            // worse than one that waits.
+            onPressed: _saving || !sheetState.value!.isComplete ? null : () => _publish(sheetState.value!),
+            child: const Text('Publish'),
+          ),
         if (_editable)
           FilledButton(
             onPressed: _saving ? null : _save,
@@ -279,6 +332,7 @@ class _Row extends StatelessWidget {
                   ),
                 ),
               ),
+              if (!editable && entry.isMarked) ...[_Result(entry: entry), const SizedBox(width: 8)],
               SizedBox(
                 width: 110,
                 child: TextField(
@@ -316,6 +370,42 @@ class _Row extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Text(error!, style: TextStyle(color: context.appColors.danger, fontSize: 12)),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What a published mark came to: the grade, the percentage, and whether it
+/// was a pass. Shown instead of nothing once the sheet is closed, because a
+/// closed sheet is read rather than typed into.
+class _Result extends StatelessWidget {
+  const _Result({required this.entry});
+
+  final SheetEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entry.isAbsent) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Text('Absent', style: TextStyle(color: context.appColors.muted, fontSize: 12)),
+      );
+    }
+
+    final passed = entry.passed;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (entry.grade != null) ...[
+            StatusBadge(label: entry.grade!, tone: passed == false ? BadgeTone.danger : BadgeTone.success),
+            const SizedBox(width: 8),
+          ],
+          if (entry.percentage != null)
+            Text('${Assessment.tidyMarks(entry.percentage)}%', style: TextStyle(color: context.appColors.muted)),
         ],
       ),
     );

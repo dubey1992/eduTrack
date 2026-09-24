@@ -40,6 +40,9 @@ NOT_RECORDED = {
     # the class change; a second entry saying the same thing twice would
     # only make the trail harder to read.
     "StudentEnrollmentService.sync_current_year", "StudentEnrollmentService.backfill",
+    # Part of publishing, which records the whole act: the grades are what
+    # publishing means, not a change of their own.
+    "AssessmentPublishService.freeze_grades",
     # A consequence of an approved leave, which is itself recorded.
     "StaffLeaveService.sync_attendance",
     # The trip's own timeline records each stop and rider, with who and when.
