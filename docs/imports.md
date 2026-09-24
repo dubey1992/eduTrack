@@ -40,6 +40,27 @@ A Super Admin belongs to no school, so they name one; everybody else imports
 into their own and a `school_id` in the request is ignored, exactly as it is
 on every other write.
 
+## Look before it lands
+
+```
+POST /api/v1/imports/{type}/preview   -> what the file would import
+```
+
+The same reading and the same checks as the upload itself, and then the rows
+come back instead of being written. The dialog uses it as a step: choose a
+file, check it, import it.
+
+It exists because all-or-nothing is not the same as safe. A file that passes
+lands unseen, and there is no undo for a hundred records made from the wrong
+spreadsheet or from the right one with its columns shifted by a place. The
+answer carries the first fifty rows and the total, which is what somebody
+needs to recognise a file by - nobody checks two thousand rows, and the
+count is what says how many there are.
+
+A marks file has its own preview on its own test, `POST
+/assessments/{id}/marks/preview`, for the same reason its upload does: the
+permission is the teacher's (docs/assessments.md).
+
 ## All or nothing
 
 A file either imports completely or not at all. Every row is validated

@@ -8,7 +8,9 @@ import '../../../core/utils/file_picker.dart';
 import '../../../core/utils/file_saver.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/import_repository.dart';
+import '../data/models/import_preview.dart';
 import '../data/models/import_result.dart';
+import 'widgets/import_preview_table.dart';
 import 'widgets/import_row_errors.dart';
 import 'widgets/import_summary.dart';
 
@@ -44,6 +46,11 @@ class _BulkImportDialogState extends ConsumerState<BulkImportDialog> {
   bool _isBusy = false;
   String? _errorMessage;
   List<ImportRowError> _rowErrors = const [];
+
+  /// What the chosen file would import. Shown before anything is written,
+  /// because a file that passes still lands unseen otherwise, and there is
+  /// no undo for a hundred records made from the wrong spreadsheet.
+  ImportPreview? _preview;
   ImportResult? _result;
 
   Future<void> _downloadTemplate() async {
@@ -71,7 +78,39 @@ class _BulkImportDialogState extends ConsumerState<BulkImportDialog> {
         _file = file;
         _errorMessage = null;
         _rowErrors = const [];
+        _preview = null;
       });
+    }
+  }
+
+  Future<void> _previewFile() async {
+    final file = _file;
+    if (file == null || _isBusy) return;
+
+    setState(() {
+      _isBusy = true;
+      _errorMessage = null;
+      _rowErrors = const [];
+    });
+
+    try {
+      final preview = await ref
+          .read(importRepositoryProvider)
+          .preview(type: widget.type, fileName: file.name, bytes: file.bytes, schoolId: widget.schoolId);
+
+      if (mounted) setState(() => _preview = preview);
+    } on BulkImportFailure catch (failure) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = failure.message;
+          _rowErrors = failure.rows;
+        });
+      }
+    } catch (error) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      if (mounted) setState(() => _errorMessage = failure.message);
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
     }
   }
 
@@ -115,26 +154,60 @@ class _BulkImportDialogState extends ConsumerState<BulkImportDialog> {
     // them, and the API would only say so after the upload.
     final needsSchool = ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin && widget.schoolId == null;
 
+    final preview = _preview;
+
     return AlertDialog(
-      title: Text(result == null ? 'Bulk Upload ${widget.title}' : 'Imported'),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
-          child: result == null ? _form(context, needsSchool) : ImportSummary(result: result),
-        ),
-      ),
-      actions: result == null
-          ? [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-              FilledButton(
-                onPressed: _file == null || _isBusy || needsSchool ? null : _upload,
-                child: _isBusy
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Upload'),
-              ),
-            ]
-          : [FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done'))],
+      title: Text(_titleFor(result, preview)),
+      content: SizedBox(width: 620, child: SingleChildScrollView(child: _body(context, result, preview, needsSchool))),
+      actions: _actionsFor(context, result, preview, needsSchool),
     );
+  }
+
+  String _titleFor(ImportResult? result, ImportPreview? preview) {
+    if (result != null) return 'Imported';
+    if (preview != null) return 'Check before importing';
+
+    return 'Bulk Upload ${widget.title}';
+  }
+
+  Widget _body(BuildContext context, ImportResult? result, ImportPreview? preview, bool needsSchool) {
+    if (result != null) return ImportSummary(result: result);
+    if (preview != null) return ImportPreviewTable(preview: preview);
+
+    return _form(context, needsSchool);
+  }
+
+  List<Widget> _actionsFor(BuildContext context, ImportResult? result, ImportPreview? preview, bool needsSchool) {
+    if (result != null) {
+      return [FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done'))];
+    }
+
+    if (preview != null) {
+      return [
+        // Back to the file rather than out of the dialog: the usual reason to
+        // stop here is that the wrong file was chosen.
+        TextButton(
+          onPressed: _isBusy ? null : () => setState(() => _preview = null),
+          child: const Text('Choose another file'),
+        ),
+        FilledButton(
+          onPressed: _isBusy ? null : _upload,
+          child: _isBusy
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text('Import ${preview.rowCount}'),
+        ),
+      ];
+    }
+
+    return [
+      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+      FilledButton(
+        onPressed: _file == null || _isBusy || needsSchool ? null : _previewFile,
+        child: _isBusy
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Text('Check file'),
+      ),
+    ];
   }
 
   Widget _form(BuildContext context, bool needsSchool) {

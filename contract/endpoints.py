@@ -287,6 +287,9 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     # -- enrollment history (docs/promotion.md) -------------------------
     ("GET", "students/{student}/enrollments"),
 
+    # -- bulk upload preview (docs/imports.md) --------------------------
+    ("POST", "imports/{kind}/preview"),
+
     # -- class tests (docs/assessments.md) ------------------------------
     ("GET", "assessments"),
     ("POST", "assessments"),
@@ -296,6 +299,7 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "assessments/{assessment}/marks"),
     ("PUT", "assessments/{assessment}/marks"),
     ("GET", "assessments/{assessment}/marks/template"),
+    ("POST", "assessments/{assessment}/marks/preview"),
     ("POST", "assessments/{assessment}/marks/import"),
     ("POST", "assessments/{assessment}/publish"),
     ("POST", "assessments/{assessment}/reopen"),

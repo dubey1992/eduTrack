@@ -4,6 +4,7 @@ import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/imports/data/import_repository.dart';
+import 'package:edutrack_app/features/imports/data/models/import_preview.dart';
 import 'package:edutrack_app/features/imports/data/models/import_result.dart';
 import 'package:edutrack_app/features/imports/presentation/bulk_import_dialog.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,7 @@ class _FakeImportRepository implements ImportRepository {
   String? importedType;
   int? importedSchoolId;
   String? downloadedType;
+  String? previewedType;
 
   @override
   Future<List<int>> downloadTemplate(String type) async {
@@ -36,6 +38,27 @@ class _FakeImportRepository implements ImportRepository {
     importedSchoolId = schoolId;
 
     return const ImportResult(imported: 0, label: 'Students');
+  }
+
+  @override
+  Future<ImportPreview> preview({
+    required String type,
+    required String fileName,
+    required List<int> bytes,
+    int? schoolId,
+  }) async {
+    previewedType = type;
+
+    return const ImportPreview(
+      label: 'Students',
+      headings: ['admission_number', 'first_name'],
+      rowCount: 2,
+      rows: [
+        PreviewRow(row: 2, values: ['ADM-1', 'Aarav']),
+        PreviewRow(row: 3, values: ['ADM-2', 'Bina']),
+      ],
+      truncated: false,
+    );
   }
 }
 
@@ -66,8 +89,10 @@ void main() {
     expect(find.text('Bulk Upload Students'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Download template'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Choose file'), findsOneWidget);
-    // Nothing to upload yet.
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Upload')).onPressed, isNull);
+    // Nothing to check yet - and checking comes before importing now, so
+    // nothing lands unseen (docs/imports.md).
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Check file')).onPressed, isNull);
+    expect(find.text('Import'), findsNothing);
   });
 
   testWidgets('a super admin is told to pick a school before anything else', (tester) async {
@@ -158,4 +183,12 @@ class _FailingTemplateRepository implements ImportRepository {
     required List<int> bytes,
     int? schoolId,
   }) async => const ImportResult(imported: 0, label: 'Students');
+
+  @override
+  Future<ImportPreview> preview({
+    required String type,
+    required String fileName,
+    required List<int> bytes,
+    int? schoolId,
+  }) async => const ImportPreview(label: 'Students', headings: [], rowCount: 0, rows: [], truncated: false);
 }

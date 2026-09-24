@@ -164,4 +164,13 @@ class AssessmentApi {
 
     return Assessment.fromJson(response.data as Map<String, dynamic>);
   }
+
+  /// What the file would save. Nothing is written.
+  Future<MarksPreview> previewMarks(int assessmentId, {required String fileName, required List<int> bytes}) async {
+    final form = FormData.fromMap({'file': MultipartFile.fromBytes(bytes, filename: fileName)});
+
+    final response = await _dio.post('/assessments/$assessmentId/marks/preview', data: form);
+
+    return MarksPreview.fromJson(response.data as Map<String, dynamic>);
+  }
 }

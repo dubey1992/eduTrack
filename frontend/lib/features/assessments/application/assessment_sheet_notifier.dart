@@ -86,4 +86,8 @@ class AssessmentSheetNotifier extends AsyncNotifier<AssessmentSheet> {
   }
 
   Future<List<int>> template() => ref.read(assessmentRepositoryProvider).marksTemplate(assessmentId);
+
+  Future<MarksPreview> preview({required String fileName, required List<int> bytes}) {
+    return ref.read(assessmentRepositoryProvider).previewMarks(assessmentId, fileName: fileName, bytes: bytes);
+  }
 }

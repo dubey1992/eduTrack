@@ -189,6 +189,25 @@ class Marks(unittest.TestCase):
 
         self.w.admin.delete(f"/assessments/{assessment['id']}")
 
+    def test_a_preview_shows_the_marks_without_saving_them(self):
+        assessment = self.make_assessment()
+        base = f"/assessments/{assessment['id']}/marks"
+        admission_number = self.w.admin.get(base).body["entries"][0]["admission_number"]
+
+        previewed = self.w.admin.upload(
+            f"{base}/preview", "file", "marks.csv", file_of(f"{admission_number},Student,11,,"), "text/csv"
+        )
+
+        self.assertEqual(200, previewed.status, f"{previewed!r}")
+        self.assertEqual(1, previewed.body["row_count"])
+        self.assertEqual("11.00", previewed.body["rows"][0]["marks_obtained"])
+
+        # Nothing was written: the sheet is still blank.
+        after = self.w.admin.get(base).body["entries"]
+        self.assertTrue(all(row["marks_obtained"] is None for row in after), f"{after!r}")
+
+        self.w.admin.delete(f"/assessments/{assessment['id']}")
+
     def test_another_school_reaches_neither_the_sheet_nor_the_saving(self):
         assessment = self.make_assessment()
         url = f"/assessments/{assessment['id']}/marks"

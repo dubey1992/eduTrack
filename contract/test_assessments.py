@@ -182,6 +182,25 @@ class Assessments(unittest.TestCase):
 
         self.w.admin.delete(f"/assessments/{assessment['id']}")
 
+    def test_a_file_of_tests_is_checked_before_it_imports(self):
+        """The preview reads and checks the file, and writes nothing.
+
+        The row names a class this school does not have, so the answer says
+        which line is wrong - and no test is created either way, which is the
+        whole point of the step.
+        """
+        headings = "class,subject,term,type,title,max_marks,pass_marks,weightage,date,grade_scale,topic"
+        row = "Grade 99 Z,Nothing,Nowhere,class_test,Preview,20,,,07/15/2026,,"
+        body = "\n".join([headings, row, ""]).encode("utf-8")
+
+        before = self.w.admin.get("/assessments").body["meta"]["total"]
+        previewed = self.w.admin.upload("/imports/assessments/preview", "file", "tests.csv", body, "text/csv")
+
+        shapes.assert_error(self, previewed, 422, "POST a preview of a file that names nothing real")
+        self.assertEqual("BULK_IMPORT_FAILED", previewed.body["code"])
+        self.assertEqual(2, previewed.body["details"]["rows"][0]["row"], "the heading is row 1")
+        self.assertEqual(before, self.w.admin.get("/assessments").body["meta"]["total"])
+
     def test_another_school_reaches_none_of_it(self):
         assessment = self.created(self.w.admin.post("/assessments", self.payload()), "POST /assessments")
         stranger = self.w.other_admin

@@ -99,3 +99,56 @@ class SheetEntry {
     };
   }
 }
+
+/// What a marks file would save, before it saves it (docs/assessments.md).
+///
+/// Named rather than tabular: a marks file is read as "did this land against
+/// the right children", so each row carries the admission number it matched.
+class MarksPreview {
+  const MarksPreview({required this.rowCount, required this.rows});
+
+  factory MarksPreview.fromJson(Map<String, dynamic> json) {
+    return MarksPreview(
+      rowCount: json['row_count'] as int? ?? 0,
+      rows: [
+        for (final row in json['rows'] as List? ?? const [])
+          MarksPreviewRow.fromJson((row as Map).cast<String, dynamic>()),
+      ],
+    );
+  }
+
+  final int rowCount;
+  final List<MarksPreviewRow> rows;
+}
+
+class MarksPreviewRow {
+  const MarksPreviewRow({
+    required this.studentId,
+    required this.admissionNumber,
+    required this.marksObtained,
+    required this.isAbsent,
+  });
+
+  factory MarksPreviewRow.fromJson(Map<String, dynamic> json) {
+    return MarksPreviewRow(
+      studentId: json['student_id'] as int,
+      admissionNumber: json['admission_number'] as String?,
+      marksObtained: json['marks_obtained'] as String?,
+      isAbsent: json['is_absent'] as bool? ?? false,
+    );
+  }
+
+  final int studentId;
+  final String? admissionNumber;
+  final String? marksObtained;
+  final bool isAbsent;
+
+  /// "17.5", or "Absent", or a dash for a row that clears a mark.
+  String get readsAs {
+    if (isAbsent) return 'Absent';
+
+    final marks = marksObtained;
+
+    return marks == null ? '-' : (Assessment.tidyMarks(marks) ?? marks);
+  }
+}

@@ -135,6 +135,27 @@ class AssessmentRepository {
 
   Future<Assessment> reopen(int assessmentId) => _call(() => _api.reopen(assessmentId));
 
+  /// A refused file throws [BulkImportFailure], the same as the upload does.
+  Future<MarksPreview> previewMarks(int assessmentId, {required String fileName, required List<int> bytes}) async {
+    try {
+      return await _api.previewMarks(assessmentId, fileName: fileName, bytes: bytes);
+    } on DioException catch (e) {
+      final failure = failureFromDioException(e);
+
+      if (failure.code == 'BULK_IMPORT_FAILED') {
+        throw BulkImportFailure(
+          message: failure.message,
+          rows: (failure.details['rows'] as List? ?? const [])
+              .cast<Map<String, dynamic>>()
+              .map(ImportRowError.fromJson)
+              .toList(growable: false),
+        );
+      }
+
+      throw failure;
+    }
+  }
+
   Future<T> _call<T>(Future<T> Function() request) async {
     try {
       return await request();

@@ -222,6 +222,27 @@ class FakeAssessmentRepository implements AssessmentRepository {
 
     return draft;
   }
+
+  @override
+  Future<MarksPreview> previewMarks(int assessmentId, {required String fileName, required List<int> bytes}) async {
+    _enter('previewMarks');
+
+    final refusal = refuseUploadWith;
+    if (refusal != null) throw refusal;
+
+    return MarksPreview(
+      rowCount: _sheetEntries.length,
+      rows: [
+        for (final entry in _sheetEntries)
+          MarksPreviewRow(
+            studentId: entry.studentId,
+            admissionNumber: entry.admissionNumber,
+            marksObtained: '15.00',
+            isAbsent: false,
+          ),
+      ],
+    );
+  }
 }
 
 Assessment fakeAssessment({

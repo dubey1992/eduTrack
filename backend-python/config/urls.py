@@ -74,6 +74,7 @@ urlpatterns = [
     path("api/v1/assessments/<int:assessment_id>", assessments.detail),
     path("api/v1/assessments/<int:assessment_id>/marks", assessments.marks),
     path("api/v1/assessments/<int:assessment_id>/marks/template", assessments.marks_template),
+    path("api/v1/assessments/<int:assessment_id>/marks/preview", assessments.marks_preview),
     path("api/v1/assessments/<int:assessment_id>/marks/import", assessments.marks_upload),
     path("api/v1/assessments/<int:assessment_id>/publish", assessments.publish),
     path("api/v1/assessments/<int:assessment_id>/reopen", assessments.reopen),
@@ -259,6 +260,7 @@ urlpatterns = [
     # The kind of record is a path segment, so one pair of endpoints serves
     # every importer. M8 registers `students`; the rest arrive with their
     # modules, and anything else is a 404.
+    path("api/v1/imports/<str:kind>/preview", imports.preview),
     path("api/v1/imports/<str:kind>", imports.store),
     path("api/v1/imports/<str:kind>/template", imports.template),
 ]

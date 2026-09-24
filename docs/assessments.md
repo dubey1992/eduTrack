@@ -288,6 +288,7 @@ than the shared endpoint:
 | Endpoint | What it does |
 |---|---|
 | `GET /assessments/{id}/marks/template` | the sheet as a spreadsheet, with the class already on it |
+| `POST /assessments/{id}/marks/preview` | what the file would save, saving nothing |
 | `POST /assessments/{id}/marks/import` | the filled-in file, saved as one write |
 
 That keeps the teacher's own permission, which is the point of it: the same
@@ -298,6 +299,13 @@ student - a name is ambiguous in any class with two Aaravs - `marks` is
 blank for somebody not marked yet, and `absent` is yes or no. Absent with a
 mark is refused rather than guessed at, and one bad row means nothing is
 written.
+
+**Both uploads are checked before they land.** The file is read, every row is
+checked, and what it would do is shown - the rows for a file of tests, the
+students and their marks for a file of marks - before anything is saved. All
+or nothing is not the same as safe: a file that passes still lands unseen,
+and replacing a whole class's marks from the wrong spreadsheet is easy to do
+and impossible to undo.
 
 ## Performance, and what counts as an insight
 

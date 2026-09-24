@@ -104,3 +104,33 @@ def importer_for(request, kind: str):
     authorize(imports.policy(kind).create(request.user))
 
     return imports.importer(kind)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def preview(request, kind: str) -> Response:
+    """What the file would import, without importing it.
+
+    Same permission and same checks as the upload itself; the difference is
+    that nothing is written. The client shows the rows and asks before
+    sending the same file again to `store`.
+    """
+    importer = importer_for(request, kind)
+    upload = request.FILES.get("file")
+
+    errors = {}
+
+    if upload is None:
+        errors["file"] = [required("file")]
+    elif upload.size > MAX_UPLOAD_BYTES:
+        errors["file"] = ["The file field must not be greater than 2048 kilobytes."]
+    elif not str(upload.name).lower().endswith((".csv", ".txt")):
+        errors["file"] = ["Upload a CSV file. In Excel, choose File - Save As - CSV."]
+
+    school_id = resolve_school(request, errors)
+
+    if errors:
+        raise ValidationError(errors)
+
+    return Response(reader.preview(importer, upload, school_id))

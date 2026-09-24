@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/network/dio_client.dart';
 import 'import_api.dart';
+import 'models/import_preview.dart';
 import 'models/import_result.dart';
 
 final importRepositoryProvider = Provider<ImportRepository>((ref) => ImportRepository(ref.watch(importApiProvider)));
@@ -57,5 +58,36 @@ class ImportRepository {
 
       throw failure;
     }
+  }
+
+  /// A refused file throws [BulkImportFailure] here too, so the preview and
+  /// the upload report the same rows in the same way.
+  Future<ImportPreview> preview({
+    required String type,
+    required String fileName,
+    required List<int> bytes,
+    int? schoolId,
+  }) async {
+    try {
+      return await _api.preview(type: type, fileName: fileName, bytes: bytes, schoolId: schoolId);
+    } on DioException catch (e) {
+      throw _refusalOf(e);
+    }
+  }
+
+  Object _refusalOf(DioException error) {
+    final failure = failureFromDioException(error);
+
+    if (failure.code == 'BULK_IMPORT_FAILED') {
+      return BulkImportFailure(
+        message: failure.message,
+        rows: (failure.details['rows'] as List? ?? const [])
+            .cast<Map<String, dynamic>>()
+            .map(ImportRowError.fromJson)
+            .toList(growable: false),
+      );
+    }
+
+    return failure;
   }
 }

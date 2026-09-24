@@ -24,6 +24,41 @@ from ..errors import BulkImportFailed
 # Enough for a large school's whole roll, small enough to stay in memory.
 MAX_ROWS = 2000
 
+# How many rows a preview sends back. A person checks a file by reading
+# the first handful and the count, not by rereading all two thousand.
+PREVIEW_ROWS = 50
+
+
+def preview(importer, upload, school_id: int) -> dict:
+    """What this file would import, without importing it.
+
+    The same reading and the same checks as a real upload - a file that
+    would be refused is refused here, with the same rows - and then the
+    parsed rows are handed back instead of being written.
+
+    Worth having because "nothing is written unless every row passes" still
+    leaves a file that passes landing unseen, and there is no undo for a
+    hundred records somebody created from the wrong spreadsheet.
+    """
+    rows = read(upload, importer)
+    errors = validate(rows, importer, school_id)
+
+    if errors:
+        raise BulkImportFailed(importer.label(), errors, len(rows))
+
+    return {
+        "label": importer.label(),
+        "headings": importer.headings(),
+        "row_count": len(rows),
+        # Enough to recognise the file by, without sending a whole roll back
+        # to be rendered. The count above is what says how many there are.
+        "rows": [
+            {"row": row["line"], "values": [row["data"].get(heading) for heading in importer.headings()]}
+            for row in rows[:PREVIEW_ROWS]
+        ],
+        "truncated": len(rows) > PREVIEW_ROWS,
+    }
+
 
 def run(importer, upload, school_id: int, actor) -> dict:
     rows = read(upload, importer)

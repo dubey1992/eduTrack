@@ -92,6 +92,46 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
       _rowErrors = const [];
     });
 
+    // Checked before anything is saved: an upload replaces a whole class's
+    // marks, and the wrong file is easy to pick.
+    final MarksPreview preview;
+
+    try {
+      preview = await ref
+          .read(assessmentSheetProvider(widget.assessment.id).notifier)
+          .preview(fileName: picked.name, bytes: picked.bytes);
+    } on BulkImportFailure catch (refusal) {
+      if (mounted) {
+        setState(() {
+          _rowErrors = refusal.rows;
+          _error = 'Nothing was uploaded. Fix the rows below and try again.';
+          _saving = false;
+        });
+      }
+      return;
+    } catch (error) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      if (mounted) {
+        setState(() {
+          _error = failure.message;
+          _saving = false;
+        });
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _saving = false);
+
+    final confirmed = await _confirmUpload(preview, picked.name);
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _saving = true;
+      _error = null;
+      _rowErrors = const [];
+    });
+
     try {
       await ref
           .read(assessmentSheetProvider(widget.assessment.id).notifier)
@@ -159,6 +199,49 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  /// What the file holds, before it replaces anybody's marks.
+  Future<bool?> _confirmUpload(MarksPreview preview, String fileName) {
+    final shown = preview.rows.take(12).toList();
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Check before saving'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$fileName holds ${preview.rowCount} ${preview.rowCount == 1 ? 'mark' : 'marks'}.'),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final row in shown)
+                      ListTile(
+                        dense: true,
+                        title: Text(row.admissionNumber ?? 'Student ${row.studentId}'),
+                        trailing: Text(row.readsAs),
+                      ),
+                    if (preview.rows.length > shown.length)
+                      ListTile(dense: true, title: Text('and ${preview.rows.length - shown.length} more')),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Save marks')),
+        ],
+      ),
+    );
   }
 
   Future<void> _save() async {

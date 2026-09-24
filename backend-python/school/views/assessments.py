@@ -23,7 +23,7 @@ from rest_framework.response import Response
 
 from .. import csv_export
 from ..imports import marks as marks_import
-from ..models import Assessment
+from ..models import Assessment, Student
 from ..pagination import LaravelPagination
 from ..policies import AssessmentPolicy, authorize
 from ..requests import SaveMarksRequest, StoreAssessmentRequest, UpdateAssessmentRequest
@@ -242,3 +242,53 @@ def reopen(request, assessment_id: int) -> Response:
     reopened = AssessmentPublishService.reopen(assessment, request.user)
 
     return Response(assessment_resource(reopened))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def marks_preview(request, assessment_id: int) -> Response:
+    """What the marks file would save, without saving it.
+
+    The rows come back named, because a marks file is read as "did this land
+    against the right children" rather than as a table of numbers.
+    """
+    assessment = load(assessment_id)
+
+    authorize(AssessmentPolicy.update(request.user, assessment))
+
+    upload = request.FILES.get("file")
+    errors = {}
+
+    if upload is None:
+        errors["file"] = [required("file")]
+    elif upload.size > MAX_UPLOAD_BYTES:
+        errors["file"] = ["The file field must not be greater than 2048 kilobytes."]
+    elif not str(upload.name).lower().endswith((".csv", ".txt")):
+        errors["file"] = ["Upload a CSV file. In Excel, choose File - Save As - CSV."]
+
+    if errors:
+        raise ValidationError(errors)
+
+    marks = marks_import.read(upload, assessment)
+    names = dict(
+        Student.objects.filter(pk__in=[entry["student_id"] for entry in marks]).values_list("id", "admission_number")
+    )
+
+    return Response(
+        {
+            "label": marks_import.LABEL,
+            "row_count": len(marks),
+            "rows": [
+                {
+                    "student_id": entry["student_id"],
+                    "admission_number": names.get(entry["student_id"]),
+                    "marks_obtained": None if entry["marks_obtained"] is None else f"{entry['marks_obtained']:.2f}",
+                    "is_absent": entry["is_absent"],
+                    "remarks": entry["remarks"],
+                }
+                for entry in marks
+            ],
+            "truncated": False,
+        }
+    )

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import 'models/import_preview.dart';
 import 'models/import_result.dart';
 
 final importApiProvider = Provider<ImportApi>((ref) => ImportApi(ref.watch(dioClientProvider)));
@@ -41,5 +42,21 @@ class ImportApi {
     final response = await _dio.post('/imports/$type', data: form);
 
     return ImportResult.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// What the file would import. Nothing is written.
+  Future<ImportPreview> preview({
+    required String type,
+    required String fileName,
+    required List<int> bytes,
+    int? schoolId,
+  }) async {
+    final fields = <String, dynamic>{'file': MultipartFile.fromBytes(bytes, filename: fileName)};
+
+    if (schoolId != null) fields['school_id'] = schoolId;
+
+    final response = await _dio.post('/imports/$type/preview', data: FormData.fromMap(fields));
+
+    return ImportPreview.fromJson(response.data as Map<String, dynamic>);
   }
 }
