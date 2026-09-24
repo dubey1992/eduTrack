@@ -159,6 +159,32 @@ class Assessment(models.Model):
         return self.status == 'draft'
 
 
+class AssessmentMark(models.Model):
+    """One student's mark in one class test (docs/assessments.md).
+
+    Absent is not zero: `marks_obtained` is null and `is_absent` says why,
+    so an absentee leaves the average's denominator instead of dragging it
+    down. `grade` is written at publish and frozen there.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    assessment = models.ForeignKey('Assessment', models.DO_NOTHING, related_name='marks')
+    student = models.ForeignKey('Student', models.DO_NOTHING)
+    marks_obtained = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True)
+    is_absent = models.BooleanField()
+    grade = models.CharField(max_length=10, blank=True, null=True)
+    remarks = models.CharField(max_length=255, blank=True, null=True)
+    entered_by = models.ForeignKey('User', models.DO_NOTHING, db_column='entered_by', related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'assessment_marks'
+        unique_together = (('assessment', 'student'),)
+
+
 class Attendance(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)

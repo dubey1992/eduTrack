@@ -2,6 +2,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/assessments/data/assessment_repository.dart';
 import 'package:edutrack_app/features/assessments/data/models/assessment.dart';
+import 'package:edutrack_app/features/assessments/data/models/assessment_sheet.dart';
 
 import 'fake_pagination.dart';
 
@@ -11,10 +12,15 @@ import 'fake_pagination.dart';
 /// meaningful if something acts on them, and records what it was asked for
 /// so a test can check the screen asked at all.
 class FakeAssessmentRepository implements AssessmentRepository {
-  FakeAssessmentRepository({List<Assessment>? assessments, this.failWith = const {}})
-    : _assessments = assessments ?? [];
+  FakeAssessmentRepository({List<Assessment>? assessments, List<SheetEntry>? sheetEntries, this.failWith = const {}})
+    : _assessments = assessments ?? [],
+      _sheetEntries = sheetEntries ?? [];
 
   final List<Assessment> _assessments;
+  List<SheetEntry> _sheetEntries;
+
+  /// The sheet the last save sent, so a test can check what went out.
+  List<SheetEntry>? lastSaved;
 
   /// Keyed by method name: {'create': Failure(...)}.
   final Map<String, Failure> failWith;
@@ -130,6 +136,28 @@ class FakeAssessmentRepository implements AssessmentRepository {
     _enter('delete');
     _assessments.removeWhere((row) => row.id == assessmentId);
   }
+
+  @override
+  Future<AssessmentSheet> sheet(int assessmentId) async {
+    _enter('sheet');
+
+    return AssessmentSheet(
+      assessment: fakeAssessment(id: assessmentId),
+      entries: List.unmodifiable(_sheetEntries),
+    );
+  }
+
+  @override
+  Future<AssessmentSheet> saveMarks(int assessmentId, List<SheetEntry> entries) async {
+    lastSaved = List.unmodifiable(entries);
+    _enter('saveMarks');
+    _sheetEntries = List.of(entries);
+
+    return AssessmentSheet(
+      assessment: fakeAssessment(id: assessmentId),
+      entries: List.unmodifiable(_sheetEntries),
+    );
+  }
 }
 
 Assessment fakeAssessment({
@@ -172,4 +200,29 @@ Assessment fakeAssessment({
     status: status,
     createdByName: 'Asha Admin',
   );
+}
+
+SheetEntry fakeEntry({
+  int studentId = 1,
+  String name = 'Aarav Sharma',
+  String admissionNumber = 'ADM-1',
+  String? roll = '4',
+  String? marks,
+  bool isAbsent = false,
+  String? grade,
+}) {
+  return SheetEntry(
+    studentId: studentId,
+    studentName: name,
+    admissionNumber: admissionNumber,
+    rollNumber: roll,
+    marksObtained: marks,
+    isAbsent: isAbsent,
+    grade: grade,
+    remarks: null,
+  );
+}
+
+AssessmentSheet fakeSheet({Assessment? assessment, List<SheetEntry>? entries}) {
+  return AssessmentSheet(assessment: assessment ?? fakeAssessment(), entries: entries ?? [fakeEntry()]);
 }

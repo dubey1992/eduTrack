@@ -3669,6 +3669,105 @@ def check_weightage_range(values: dict, errors: dict) -> None:
         errors["weightage"] = [must_be_between("weightage", 0, 100)]
 
 
+class SaveMarksRequest(serializers.Serializer):
+    """A whole marks sheet (docs/assessments.md).
+
+    Errors are keyed the way the screen needs them - `marks.3.marks_obtained`
+    - and every row is checked, so a teacher who mistyped two of forty is
+    told about both.
+    """
+
+    def __init__(self, *args, assessment=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.assessment = assessment
+
+    def to_internal_value(self, data):
+        errors: dict[str, list[str]] = {}
+        raw = self.initial_data.get("marks")
+
+        if raw is None:
+            raw = []
+
+        if not isinstance(raw, list):
+            raise serializers.ValidationError({"marks": ["The marks must be a list."]})
+
+        if not raw:
+            raise serializers.ValidationError({"marks": ["A sheet needs at least one student."]})
+
+        # Only the class's own students, and only the ones still here. A mark
+        # for somebody else is not a typo to be rounded off - it is a mark in
+        # the wrong child's name.
+        roster = set(
+            Student.objects.filter(
+                class_section_id=self.assessment.class_section_id, status=StudentStatus.ACTIVE
+            ).values_list("id", flat=True)
+        )
+
+        maximum = self.assessment.max_marks
+        entries, seen = [], set()
+
+        for index, item in enumerate(raw):
+            prefix = f"marks.{index}"
+            item = item if isinstance(item, dict) else {}
+
+            try:
+                student_id = int(item.get("student_id"))
+            except (TypeError, ValueError):
+                errors[f"{prefix}.student_id"] = [required("student_id")]
+                continue
+
+            if student_id not in roster:
+                errors[f"{prefix}.student_id"] = [does_not_exist("student_id")]
+            elif student_id in seen:
+                errors[f"{prefix}.student_id"] = ["This student appears twice on the sheet."]
+
+            seen.add(student_id)
+
+            is_absent = bool(item.get("is_absent"))
+            obtained = self.mark(item.get("marks_obtained"), f"{prefix}.marks_obtained", maximum, errors)
+
+            if is_absent and obtained is not None:
+                errors[f"{prefix}.marks_obtained"] = ["An absent student has no marks."]
+
+            remarks = item.get("remarks")
+
+            if isinstance(remarks, str) and len(remarks) > 255:
+                errors[f"{prefix}.remarks"] = [too_long("remarks", 255)]
+
+            entries.append({
+                "student_id": student_id,
+                "is_absent": is_absent,
+                "marks_obtained": obtained,
+                "remarks": remarks or None,
+            })
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return {"marks": entries}
+
+    @staticmethod
+    def mark(value, field: str, maximum, errors: dict):
+        """A mark between zero and the test's maximum, or nothing at all."""
+        if value is None or value == "":
+            return None
+
+        try:
+            parsed = decimal.Decimal(str(value)).quantize(decimal.Decimal("0.01"))
+        except (decimal.InvalidOperation, TypeError, ValueError):
+            errors[field] = [must_be_a_number("marks_obtained")]
+            return None
+
+        if parsed < 0 or parsed > maximum:
+            errors[field] = [f"The marks must be between 0 and {maximum:.2f}."]
+            return None
+
+        return parsed
+
+
 # -- users ------------------------------------------------------------------
 
 # What a School or Group Admin may assign when editing somebody. Not the admin

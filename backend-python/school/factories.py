@@ -115,7 +115,12 @@ class AcademicYearFactory(DjangoModelFactory):
         model = models.AcademicYear
 
     school = factory.SubFactory(SchoolFactory)
-    name = factory.Sequence(lambda n: f"20{26 + n % 5}-{27 + n % 5}")
+    # Unique by construction, and unlike anything a test writes by hand.
+    # The old default cycled through five names, so a year built by a
+    # factory could collide with one a test named "2027-28" itself - and
+    # whether it did depended on how many factories had run before, which
+    # made adding a test elsewhere break this one.
+    name = factory.Sequence(lambda n: f"AY-{n:04d}")
     start_date = dt.date(2026, 4, 1)
     end_date = dt.date(2027, 3, 31)
     is_current = True
@@ -458,6 +463,23 @@ class AssessmentFactory(DjangoModelFactory):
     created_by = factory.SubFactory(UserFactory)
     published_by = None
     published_at = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class AssessmentMarkFactory(DjangoModelFactory):
+    class Meta:
+        model = models.AssessmentMark
+
+    assessment = factory.SubFactory(AssessmentFactory)
+    school = factory.LazyAttribute(lambda o: o.assessment.school)
+    student = factory.SubFactory(StudentFactory)
+    marks_obtained = 15
+    is_absent = False
+    grade = None
+    remarks = None
+    entered_by = factory.LazyAttribute(lambda o: o.assessment.created_by)
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)

@@ -293,6 +293,8 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "assessments/{assessment}"),
     ("PATCH", "assessments/{assessment}"),
     ("DELETE", "assessments/{assessment}"),
+    ("GET", "assessments/{assessment}/marks"),
+    ("PUT", "assessments/{assessment}/marks"),
 
     # -- grade scales (docs/assessments.md) -----------------------------
     ("GET", "grade-scales"),

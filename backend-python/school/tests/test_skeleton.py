@@ -32,7 +32,8 @@ class TheSchemaIsDescribed(TestCase):
         #
         # And, from 2026-10-01, the assessments work (docs/assessments.md):
         # academic_terms, then grade_scales and grade_bands, then
-        # student_enrollments (docs/promotion.md), then assessments.
+        # student_enrollments (docs/promotion.md), then assessments and
+        # assessment_marks.
         #
         # If this number moves again, either a table arrived without a model
         # or a model was invented for a table that is not there. Changing the
@@ -40,7 +41,7 @@ class TheSchemaIsDescribed(TestCase):
         # test pass.
         from django.apps import apps
 
-        self.assertEqual(53, len(list(apps.get_app_config("school").get_models())))
+        self.assertEqual(54, len(list(apps.get_app_config("school").get_models())))
 
     def test_django_does_not_own_the_tables(self):
         # The whole reason check_models exists. If this ever passes with
@@ -55,7 +56,7 @@ class TheSchemaIsDescribed(TestCase):
             declarations = [line for line in f if line.strip() == "managed = False"]
 
         self.assertEqual(
-            53,
+            54,
             len(declarations),
             "every model must declare managed = False; the test runner is the only place that changes it",
         )

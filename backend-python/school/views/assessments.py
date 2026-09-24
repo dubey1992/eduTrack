@@ -21,9 +21,9 @@ from rest_framework.response import Response
 from ..models import Assessment
 from ..pagination import LaravelPagination
 from ..policies import AssessmentPolicy, authorize
-from ..requests import StoreAssessmentRequest, UpdateAssessmentRequest
-from ..resources import assessment_resource
-from ..services import AssessmentService
+from ..requests import SaveMarksRequest, StoreAssessmentRequest, UpdateAssessmentRequest
+from ..resources import assessment_resource, assessment_sheet_resource
+from ..services import AssessmentMarkService, AssessmentService
 
 
 @api_view(["GET", "POST"])
@@ -121,3 +121,31 @@ def load(assessment_id: int) -> Assessment:
 
 def reload(assessment_id: int) -> Assessment:
     return Assessment.objects.select_related(*AssessmentService.WITH).get(pk=assessment_id)
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def marks(request, assessment_id: int) -> Response:
+    """The marks sheet for one test.
+
+    Read by anyone who may see the test; written by whoever may manage it -
+    the teacher the timetable gives that class and subject, their HOD, or an
+    administrator. The whole sheet is sent in one PUT: a class of forty
+    entered on a phone cannot afford forty round trips, and a half-saved
+    sheet is worse than an unsaved one.
+    """
+    assessment = load(assessment_id)
+
+    if request.method == "PUT":
+        authorize(AssessmentPolicy.update(request.user, assessment))
+
+        form = SaveMarksRequest(data=request.data, assessment=assessment)
+        form.is_valid(raise_exception=True)
+
+        saved = AssessmentMarkService.save(assessment, form.validated_data["marks"], request.user)
+
+        return Response(assessment_sheet_resource(saved))
+
+    authorize(AssessmentPolicy.view(request.user, assessment))
+
+    return Response(assessment_sheet_resource(AssessmentMarkService.sheet(assessment)))

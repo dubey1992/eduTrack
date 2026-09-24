@@ -72,6 +72,7 @@ urlpatterns = [
     # -- class tests, on this backend only. docs/assessments.md ------------
     path("api/v1/assessments", assessments.collection),
     path("api/v1/assessments/<int:assessment_id>", assessments.detail),
+    path("api/v1/assessments/<int:assessment_id>/marks", assessments.marks),
     # -- classes, sections, periods and holidays ---------------------------
     path("api/v1/classes", classes.classes),
     path("api/v1/classes/<int:class_id>", classes.school_class),

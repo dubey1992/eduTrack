@@ -1125,6 +1125,32 @@ def marks(value) -> str | None:
     return None if value is None else f"{value:.2f}"
 
 
+def assessment_sheet_resource(sheet: dict) -> dict:
+    """The marks sheet: the test, and a row per student of the class.
+
+    A student with no mark yet is sent with nulls rather than left out, so
+    the client can render the whole class from this one answer.
+    """
+    assessment = sheet["assessment"]
+
+    return {
+        "assessment": assessment_resource(assessment),
+        "entries": [
+            {
+                "student_id": student.id,
+                "student_name": student.name,
+                "admission_number": student.admission_number,
+                "roll_number": student.roll_number,
+                "marks_obtained": marks(row.marks_obtained) if row is not None else None,
+                "is_absent": bool(row.is_absent) if row is not None else False,
+                "grade": row.grade if row is not None else None,
+                "remarks": row.remarks if row is not None else None,
+            }
+            for student, row in sheet["entries"]
+        ],
+    }
+
+
 def school_resource(school: School, branch_count: int | None = None) -> dict:
     """A school, or a branch of one.
 

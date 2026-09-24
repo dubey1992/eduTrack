@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/assessment.dart';
+import 'models/assessment_sheet.dart';
 
 final assessmentApiProvider = Provider<AssessmentApi>((ref) => AssessmentApi(ref.watch(dioClientProvider)));
 
@@ -110,5 +111,25 @@ class AssessmentApi {
 
   Future<void> delete(int assessmentId) async {
     await _dio.delete('/assessments/$assessmentId');
+  }
+
+  Future<AssessmentSheet> sheet(int assessmentId) async {
+    final response = await _dio.get('/assessments/$assessmentId/marks');
+
+    return AssessmentSheet.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// The whole sheet in one write. A class of forty entered on a phone in a
+  /// staffroom cannot afford forty round trips, and a half-saved sheet is
+  /// worse than an unsaved one.
+  Future<AssessmentSheet> saveMarks(int assessmentId, List<SheetEntry> entries) async {
+    final response = await _dio.put(
+      '/assessments/$assessmentId/marks',
+      data: {
+        'marks': [for (final entry in entries) entry.toJson()],
+      },
+    );
+
+    return AssessmentSheet.fromJson(response.data as Map<String, dynamic>);
   }
 }

@@ -1,6 +1,6 @@
 # Assessments and promotion: the build order
 
-**Status (2026-09-24): slices 1 to 4 done, 5 to 14 planned.** This is the slicing of
+**Status (2026-09-24): slices 1 to 5 done, 6 to 14 planned.** This is the slicing of
 [assessments.md](assessments.md) and [promotion.md](promotion.md) into
 fourteen slices. Each slice is a vertical one: a migration where it needs
 one, the backend, the Flutter screen, the tests, and a demo in a browser
@@ -181,11 +181,35 @@ above `max_marks`; weightage over 100 for one subject and term; a
 section, subject, term or grade scale by id; the module switched off;
 deleting a draft; the list filtered by every filter at once and by none.
 
-### Slice 5 — The marks sheet, draft
+### Slice 5 — The marks sheet, draft · done 2026-09-24
 
-**Lands:** `assessment_marks`, the roster endpoint, the whole-sheet `PUT`,
-and the marks sheet in the app on desktop and phone. **Demo:** enter
-marks for a class, mark one child absent, save, reload, and see it back.
+**Landed:** `assessment_marks`, `GET` and `PUT /assessments/{id}/marks`, and
+a Marks dialog opened from the Class Tests screen. The whole class is on
+screen and the whole class saves in one write.
+
+**Three rules the sheet keeps:** absent is not zero, so an absentee has no
+mark at all; a blank is not zero either, so clearing a box removes the mark
+rather than storing one; and a mark belonging to somebody who has since left
+the class stays, because the sheet writes the students it was sent and never
+deletes a row it was not asked about.
+
+**Also landed:** the test's total is locked once anybody has been marked. A
+percentage already entered is a share of the old total, so re-scaling would
+silently change every one of them.
+
+**Shown working:** a teacher set a test, opened its sheet, was refused a
+mark of 99 out of 20 on that student's own row, corrected it, marked a third
+child absent and saved the class in one write. Reopened, the sheet read back
+what the server had. Run in a visible browser as
+`integration_test/teacher_marks_sheet_flow_test.dart`.
+
+**Tests:** 44 backend tests, 19 Flutter tests, 5 contract tests, 12
+sabotages - all caught, after one survivor was pinned with a direct service
+test rather than deleted. Two findings: the row's refusal was clipped to
+"The marks ..." inside a 110-pixel box, so it now reads in full underneath
+the row; and on the web build a programmatic keystroke into a field that
+does not hold focus is dropped, which is how a corrected mark silently kept
+its old value in the browser flow.
 
 Edge cases: a mark above the maximum, below zero, with three decimals,
 blank, or not a number; absent with a mark attached; absent with a mark

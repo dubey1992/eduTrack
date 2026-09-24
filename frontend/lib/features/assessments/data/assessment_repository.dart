@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'assessment_api.dart';
 import 'models/assessment.dart';
+import 'models/assessment_sheet.dart';
 
 final assessmentRepositoryProvider = Provider<AssessmentRepository>(
   (ref) => AssessmentRepository(ref.watch(assessmentApiProvider)),
@@ -96,6 +97,12 @@ class AssessmentRepository {
   }
 
   Future<void> delete(int assessmentId) => _call(() => _api.delete(assessmentId));
+
+  Future<AssessmentSheet> sheet(int assessmentId) => _call(() => _api.sheet(assessmentId));
+
+  Future<AssessmentSheet> saveMarks(int assessmentId, List<SheetEntry> entries) {
+    return _call(() => _api.saveMarks(assessmentId, entries));
+  }
 
   Future<T> _call<T>(Future<T> Function() request) async {
     try {

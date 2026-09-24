@@ -16,6 +16,7 @@ import '../../classes/application/class_section_picker_provider.dart';
 import '../application/assessment_list_notifier.dart';
 import '../data/models/assessment.dart';
 import 'assessment_dialog.dart';
+import 'marks_sheet_dialog.dart';
 
 /// The class tests a school has set (docs/assessments.md).
 ///
@@ -150,12 +151,12 @@ class _AssessmentsMobile extends StatelessWidget {
               '${assessment.type.label} · out of ${assessment.maxMarksLabel} · ${formatDate(assessment.assessmentDate)}',
             ),
             trailing: _StatusFor(assessment: assessment),
-            onTap: canManage && assessment.isDraft
-                ? () => showDialog(
-                    context: context,
-                    builder: (_) => AssessmentDialog(assessment: assessment),
-                  )
-                : null,
+            // On a phone the thing a teacher came for is the marks; editing
+            // the test itself is a desk job.
+            onTap: () => showDialog(
+              context: context,
+              builder: (_) => MarksSheetDialog(assessment: assessment, canManage: canManage),
+            ),
           ),
         );
       },
@@ -232,17 +233,24 @@ class _Actions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!canManage) return const SizedBox.shrink();
+    final marks = TextButton(
+      onPressed: () => showDialog(
+        context: context,
+        builder: (_) => MarksSheetDialog(assessment: assessment, canManage: canManage),
+      ),
+      child: const Text('Marks'),
+    );
 
     // A published result has already reached guardians. Editing it is refused
     // by the API as well; the buttons go rather than fail (docs/assessments.md).
-    if (!assessment.isDraft) {
-      return const Text('Published', style: TextStyle(fontSize: 12));
+    if (!canManage || !assessment.isDraft) {
+      return Row(mainAxisSize: MainAxisSize.min, children: [marks]);
     }
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        marks,
         IconButton(
           icon: const Icon(Icons.edit_outlined, size: 20),
           tooltip: 'Edit test',

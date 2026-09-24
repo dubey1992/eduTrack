@@ -1,9 +1,9 @@
 # Class Tests & Assessments
 
-**Status (2026-09-24): slices 1 to 4 built, the rest planned.** Terms, grade
-scales, enrollment history and the class test itself are live, each with a
-flow that runs in a browser. The marks sheet, publishing, the guardian
-message, promotion and performance are still a plan. Decided with the user on
+**Status (2026-09-24): slices 1 to 5 built, the rest planned.** Terms, grade
+scales, enrollment history, the class test and its marks sheet are live,
+each with a flow that runs in a browser. Publishing, the guardian message,
+promotion and performance are still a plan. Decided with the user on
 2026-09-21: the school year is divided into terms, marks are entered against
 a maximum and turned into a grade by a scale the school configures, and
 results reach guardians as a message and as a printable progress report.

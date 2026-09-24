@@ -65,6 +65,7 @@ from .enums import (
 )
 from .errors import (
     AssessmentPublished,
+    MaxMarksLocked,
     ApiError,
     DeviceNotRegistered,
     GatewayTestFailed,
@@ -105,6 +106,7 @@ from .models import (
     AcademicTerm,
     AcademicYear,
     Assessment,
+    AssessmentMark,
     StudentEnrollment,
     GradeBand,
     GradeScale,
@@ -4370,6 +4372,16 @@ class AssessmentService:
     def update(assessment: Assessment, data: dict) -> Assessment:
         AssessmentService.assert_draft(assessment)
 
+        # Every percentage already entered is a share of the old maximum.
+        # Re-scaling the test would silently change all of them, so it is
+        # refused once anybody has been marked (docs/assessments.md).
+        if "max_marks" in data and data["max_marks"] != assessment.max_marks:
+            if AssessmentMarkService.exists_for(assessment):
+                raise MaxMarksLocked(
+                    "Marks have already been entered for this test, so it cannot be marked out of a "
+                    "different total. Clear the marks first."
+                )
+
         before = audit.fields_of(assessment)
 
         for field, value in data.items():
@@ -4386,7 +4398,13 @@ class AssessmentService:
         AssessmentService.assert_draft(assessment)
 
         audit.deleted(AssessmentService.MODULE, assessment)
-        assessment.delete()
+
+        with transaction.atomic():
+            # Deleted here rather than left to the foreign key: the real
+            # schema cascades, the test database built from these models does
+            # not, and a rule that only holds in production is not a rule.
+            AssessmentMark.objects.filter(assessment_id=assessment.id).delete()
+            assessment.delete()
 
     @staticmethod
     def assert_draft(assessment: Assessment) -> None:
@@ -4397,6 +4415,105 @@ class AssessmentService:
             raise AssessmentPublished(
                 "This test has been published. Reopen it before changing anything."
             )
+
+
+class AssessmentMarkService:
+    """The marks sheet: one class's marks for one test (docs/assessments.md).
+
+    Saved as a whole, the way the attendance register is. A class of forty
+    entered on a phone in a staffroom cannot afford forty round trips, and a
+    half-saved sheet is worse than an unsaved one.
+
+    Three rules worth knowing:
+
+    - **Absent is not zero.** An absentee has no mark at all, and later
+      leaves the average's denominator rather than dragging it down.
+    - **A blank is not a zero either.** A student sent with neither a mark
+      nor an absence has not been marked yet, and any mark they had is
+      removed - that is what clearing the box means.
+    - **A mark for somebody who has left stays.** The sheet writes only the
+      students it was sent; it never deletes a row it was not asked about.
+    """
+
+    MODULE = "assessments"
+
+    @staticmethod
+    def sheet(assessment: Assessment) -> dict:
+        """The class's active roster, each student paired with their mark -
+        or nothing where they have not been marked yet."""
+        students = Student.objects.filter(
+            class_section_id=assessment.class_section_id, status=StudentStatus.ACTIVE
+        ).order_by("first_name", "id")
+
+        existing = {row.student_id: row for row in AssessmentMark.objects.filter(assessment_id=assessment.id)}
+
+        return {
+            "assessment": assessment,
+            "entries": [(student, existing.get(student.id)) for student in students],
+        }
+
+    @classmethod
+    def save(cls, assessment: Assessment, marks: list[dict], actor: User) -> dict:
+        """Writes the whole sheet, or none of it."""
+        now = timezone.now()
+
+        with transaction.atomic():
+            # Re-read under a lock: two teachers saving the same sheet at
+            # once are serialised here rather than racing each other, and the
+            # second one is refused if the first published it.
+            locked = Assessment.objects.select_for_update().get(pk=assessment.id)
+            AssessmentService.assert_draft(locked)
+
+            before = cls.snapshot(locked)
+
+            for entry in marks:
+                student_id = entry["student_id"]
+
+                if entry["is_absent"] or entry["marks_obtained"] is not None:
+                    AssessmentMark.objects.update_or_create(
+                        assessment_id=locked.id,
+                        student_id=student_id,
+                        defaults={
+                            "school_id": locked.school_id,
+                            "marks_obtained": None if entry["is_absent"] else entry["marks_obtained"],
+                            "is_absent": entry["is_absent"],
+                            "remarks": entry.get("remarks"),
+                            "entered_by_id": actor.id,
+                            "updated_at": now,
+                            "created_at": now,
+                        },
+                    )
+                else:
+                    # Cleared: not marked yet, which is not the same as zero.
+                    AssessmentMark.objects.filter(assessment_id=locked.id, student_id=student_id).delete()
+
+            audit.record(
+                actor=actor,
+                action="marks.saved",
+                module=cls.MODULE,
+                entity_type="assessment",
+                entity_id=locked.id,
+                school_id=locked.school_id,
+                old=before,
+                new=cls.snapshot(locked),
+            )
+
+        return cls.sheet(Assessment.objects.select_related(*AssessmentService.WITH).get(pk=assessment.id))
+
+    @staticmethod
+    def snapshot(assessment: Assessment) -> dict:
+        """What the sheet says now, for the audit trail: a mark per student,
+        with "absent" spelled out rather than left as a null."""
+        return {
+            "marks": {
+                str(row.student_id): "absent" if row.is_absent else f"{row.marks_obtained:.2f}"
+                for row in AssessmentMark.objects.filter(assessment_id=assessment.id).order_by("student_id")
+            }
+        }
+
+    @staticmethod
+    def exists_for(assessment: Assessment) -> bool:
+        return AssessmentMark.objects.filter(assessment_id=assessment.id).exists()
 
 
 class StudentEnrollmentService:

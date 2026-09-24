@@ -131,6 +131,17 @@ class AssessmentPublished(ApiError):
     error_code = "ASSESSMENT_PUBLISHED"
 
 
+class MaxMarksLocked(ApiError):
+    """A test somebody has already been marked out of cannot be re-scaled.
+
+    422 rather than 409: the request is refused by a rule about the field it
+    is trying to change, and the client marks that field up.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "MAX_MARKS_LOCKED"
+
+
 class HasDependentRecords(ApiError):
     """Something is still built on top of this, so it cannot be removed.
 
