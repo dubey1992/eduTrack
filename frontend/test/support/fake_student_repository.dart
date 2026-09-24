@@ -1,6 +1,7 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/students/data/models/student.dart';
+import 'package:edutrack_app/features/students/data/models/student_enrollment.dart';
 import 'package:edutrack_app/features/students/data/student_repository.dart';
 
 import 'fake_pagination.dart';
@@ -8,14 +9,24 @@ import 'fake_pagination.dart';
 class FakeStudentRepository implements StudentRepository {
   FakeStudentRepository({
     List<Student>? students,
+    List<StudentEnrollment>? enrollments,
     this.failCreateWith,
     this.failUpdateWith,
     this.failSetActiveWith,
     this.failListWith,
     this.failSetTransportWith,
-  }) : _students = students ?? [];
+    this.failWith = const {},
+  }) : _students = students ?? [],
+       _enrollments = enrollments ?? [];
 
   final List<Student> _students;
+  final List<StudentEnrollment> _enrollments;
+
+  /// Keyed by method name, for the methods added since: {'enrollments': ...}.
+  final Map<String, Failure> failWith;
+
+  /// The methods this fake has been asked for, in order.
+  final List<String> calls = [];
   Failure? failCreateWith;
   Failure? failUpdateWith;
   Failure? failSetActiveWith;
@@ -213,5 +224,14 @@ class FakeStudentRepository implements StudentRepository {
     final updated = _students[index].copyWith(status: active ? StudentStatus.active : StudentStatus.inactive);
     _students[index] = updated;
     return updated;
+  }
+
+  @override
+  Future<List<StudentEnrollment>> enrollments(int studentId) async {
+    calls.add('enrollments');
+    final failure = failWith['enrollments'];
+    if (failure != null) throw failure;
+
+    return List.unmodifiable(_enrollments);
   }
 }

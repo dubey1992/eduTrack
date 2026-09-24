@@ -850,6 +850,31 @@ class Student(models.Model):
     def is_active(self) -> bool:
         return self.status == StudentStatus.ACTIVE
 
+class StudentEnrollment(models.Model):
+    """Which class a student was in, for one academic year (docs/promotion.md).
+
+    One row per student per year. `students.class_section_id` stays the
+    pointer to the current year; this is the history behind it, and the two
+    are written together by one service.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='enrollments')
+    academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING)
+    school_class = models.ForeignKey('SchoolClass', models.DO_NOTHING)
+    class_section = models.ForeignKey('ClassSection', models.DO_NOTHING, blank=True, null=True)
+    roll_number = models.CharField(max_length=20, blank=True, null=True)
+    status = models.CharField(max_length=16)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'student_enrollments'
+        unique_together = (('student', 'academic_year'),)
+
+
 class StudentTransportAssignment(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey(School, models.DO_NOTHING)

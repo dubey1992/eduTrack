@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/student.dart';
+import 'models/student_enrollment.dart';
 import 'student_api.dart';
 
 final studentRepositoryProvider = Provider<StudentRepository>(
@@ -126,6 +127,14 @@ class StudentRepository {
   Future<Student> setActive(int studentId, bool active) async {
     try {
       return active ? await _api.activate(studentId) : await _api.deactivate(studentId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<List<StudentEnrollment>> enrollments(int studentId) async {
+    try {
+      return await _api.enrollments(studentId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

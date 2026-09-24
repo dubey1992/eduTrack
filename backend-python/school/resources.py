@@ -1060,6 +1060,29 @@ def grade_scale_resource(scale) -> dict:
     return body
 
 
+def student_enrollment_resource(enrollment) -> dict:
+    """One year of a student's history.
+
+    The class name is sent alongside the ids because that is what a screen
+    prints, and because a section that has since been renamed or removed
+    should still read as the class it was.
+    """
+    section = enrollment.class_section
+
+    return {
+        "id": enrollment.id,
+        "academic_year_id": enrollment.academic_year_id,
+        "academic_year_name": enrollment.academic_year.name,
+        "school_class_id": enrollment.school_class_id,
+        "class_name": enrollment.school_class.name,
+        "class_section_id": enrollment.class_section_id,
+        "section_name": section.name if section is not None else None,
+        "roll_number": enrollment.roll_number,
+        "status": enrollment.status,
+        "created_at": timestamp(enrollment.created_at),
+    }
+
+
 def school_resource(school: School, branch_count: int | None = None) -> dict:
     """A school, or a branch of one.
 

@@ -210,6 +210,22 @@ class StudentFactory(DjangoModelFactory):
     updated_at = factory.LazyFunction(now)
 
 
+class StudentEnrollmentFactory(DjangoModelFactory):
+    class Meta:
+        model = models.StudentEnrollment
+
+    student = factory.SubFactory(StudentFactory)
+    school = factory.LazyAttribute(lambda o: o.student.school)
+    academic_year = factory.LazyAttribute(lambda o: o.student.class_section.school_class.academic_year)
+    school_class = factory.LazyAttribute(lambda o: o.student.class_section.school_class)
+    class_section = factory.LazyAttribute(lambda o: o.student.class_section)
+    roll_number = None
+    status = "studying"
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
 class StaffLeaveFactory(DjangoModelFactory):
     class Meta:
         model = models.StaffLeave

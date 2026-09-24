@@ -242,6 +242,7 @@ urlpatterns = [
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),
+    path("api/v1/students/<int:student_id>/enrollments", students.enrollments),
     path("api/v1/students/<int:student_id>/activate", students.activate),
     path("api/v1/students/<int:student_id>/deactivate", students.deactivate),
     # -- bulk upload -------------------------------------------------------

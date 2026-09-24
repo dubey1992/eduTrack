@@ -56,6 +56,22 @@ class UserStatus(models.TextChoices):
     INACTIVE = "inactive"
 
 
+class EnrollmentStatus(models.TextChoices):
+    """How a student's year ended (docs/promotion.md).
+
+    STUDYING is the only one this slice writes: it is what a year looks like
+    while it is being lived. The rest are outcomes a promotion records, and
+    they are listed here because the value is contract - the Flutter app
+    compares against these strings.
+    """
+
+    STUDYING = "studying"
+    PROMOTED = "promoted"
+    RETAINED = "retained"
+    GRADUATED = "graduated"
+    LEFT = "left"
+
+
 class StudentStatus(models.TextChoices):
     ACTIVE = "active"
     INACTIVE = "inactive"

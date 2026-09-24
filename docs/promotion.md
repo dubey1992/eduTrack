@@ -1,6 +1,11 @@
 # Class Promotion
 
-**Status (2026-09-21): plan, nothing built yet.** Decided with the user on
+**Status (2026-09-24): enrollment history built, promotion still planned.**
+The history table, the backfill and the Class history dialog are live; the
+rows are written by admissions rather than by anything here. The promotion
+batch, its outcomes and the `graduated` status are still a plan, and so are
+the two columns that will record which batch moved a student. Decided with
+the user on
 2026-09-21: an administrator promotes a class into the next academic year in
 one pass, deciding per student whether they move up, repeat the year,
 graduate out of the school, or are left behind as transferred. Built on the
@@ -49,13 +54,26 @@ who was in which class in which year, and everything else follows from that.
 | `class_section_id` | FK class_sections null | nullable, as on the student |
 | `roll_number` | varchar(20) null | as it was that year |
 | `status` | varchar(16) | studying, promoted, retained, graduated, left |
-| `promotion_batch_id` | FK promotion_batches null | the run that created this row |
-| `previous_enrollment_id` | FK self null | the row it was promoted from |
 | `created_at`, `updated_at` | timestamp | |
 
 Unique on `(student_id, academic_year_id)`: a child is in one class per
 year, and the constraint is what stops a double promotion rather than a
 check in the service.
+
+The two columns that say which batch moved a student - the batch and the row
+it was promoted from - arrive with `promotion_batches` itself. Slice 3 wrote
+no outcome, so it added no column that nothing reads.
+
+**What writes a row today.** Admitting a student, moving one between
+sections, and renumbering one, all through `StudentEnrollmentService`. Two
+shapes record nothing rather than failing: a student with no section, and a
+school with no current year. A section belonging to a year that is not the
+current one is not where a student is *now*, so it records nothing either -
+that shape is what a promotion will produce, and it belongs to the new year.
+
+**A row is never blanked.** A student who loses their section keeps the row
+saying which class they were in, and deleting a section clears the section
+from past rows while leaving the class, which is the part worth keeping.
 
 `promotion_batches` records the run itself.
 

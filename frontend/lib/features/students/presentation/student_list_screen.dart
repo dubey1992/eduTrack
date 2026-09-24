@@ -18,6 +18,7 @@ import '../application/student_list_notifier.dart';
 import '../data/models/student.dart';
 import 'add_student_dialog.dart';
 import 'edit_student_dialog.dart';
+import 'student_history_dialog.dart';
 
 class StudentListScreen extends ConsumerStatefulWidget {
   const StudentListScreen({super.key});
@@ -141,7 +142,20 @@ class _StudentListMobile extends StatelessWidget {
             subtitle: Text(
               '${student.classSectionName ?? '-'} · Guardian: ${student.guardianName} · ${_transportLabel(student)}',
             ),
-            trailing: _StatusBadgeFor(student: student),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _StatusBadgeFor(student: student),
+                IconButton(
+                  icon: const Icon(Icons.history, size: 20),
+                  tooltip: 'Class history',
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (_) => StudentHistoryDialog(student: student),
+                  ),
+                ),
+              ],
+            ),
             onTap: canManage
                 ? () => showDialog(
                     context: context,
@@ -187,7 +201,7 @@ class _StudentListDesktop extends StatelessWidget {
                     DataCell(Text(student.guardianName)),
                     DataCell(Text(_transportLabel(student))),
                     DataCell(_StatusBadgeFor(student: student)),
-                    DataCell(canManage ? _StudentActions(student: student) : const SizedBox.shrink()),
+                    DataCell(_StudentActions(student: student, canManage: canManage)),
                   ],
                 ),
             ],
@@ -218,9 +232,14 @@ class _StatusBadgeFor extends StatelessWidget {
 }
 
 class _StudentActions extends ConsumerWidget {
-  const _StudentActions({required this.student});
+  const _StudentActions({required this.student, required this.canManage});
 
   final Student student;
+
+  /// False for the read-only roles. They still reach the class history,
+  /// because a teacher asking what a child did last year should not need an
+  /// administrator (docs/promotion.md).
+  final bool canManage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -229,31 +248,41 @@ class _StudentActions extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        TextButton(
+        IconButton(
+          icon: const Icon(Icons.history, size: 20),
+          tooltip: 'Class history',
           onPressed: () => showDialog(
             context: context,
-            builder: (_) => EditStudentDialog(student: student),
+            builder: (_) => StudentHistoryDialog(student: student),
           ),
-          child: const Text('View'),
         ),
-        TextButton(
-          onPressed: () async {
-            try {
-              await ref.read(studentListNotifierProvider.notifier).setActive(student, !isActive);
-              if (context.mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('${student.name} is now ${isActive ? 'inactive' : 'active'}.')));
+        if (canManage)
+          TextButton(
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => EditStudentDialog(student: student),
+            ),
+            child: const Text('View'),
+          ),
+        if (canManage)
+          TextButton(
+            onPressed: () async {
+              try {
+                await ref.read(studentListNotifierProvider.notifier).setActive(student, !isActive);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${student.name} is now ${isActive ? 'inactive' : 'active'}.')),
+                  );
+                }
+              } catch (error) {
+                if (context.mounted) {
+                  final failure = error is Failure ? error : Failure.unknown(error.toString());
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+                }
               }
-            } catch (error) {
-              if (context.mounted) {
-                final failure = error is Failure ? error : Failure.unknown(error.toString());
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
-              }
-            }
-          },
-          child: Text(isActive ? 'Deactivate' : 'Activate'),
-        ),
+            },
+            child: Text(isActive ? 'Deactivate' : 'Activate'),
+          ),
       ],
     );
   }

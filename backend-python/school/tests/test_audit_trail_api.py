@@ -36,6 +36,10 @@ NOT_RECORDED = {
     # Demoting the old default is part of promoting the new one, and the
     # entry for that names both states.
     "GradeScaleService._clear_default_for",
+    # The history follows the student row. The student's own entry records
+    # the class change; a second entry saying the same thing twice would
+    # only make the trail harder to read.
+    "StudentEnrollmentService.sync_current_year", "StudentEnrollmentService.backfill",
     # A consequence of an approved leave, which is itself recorded.
     "StaffLeaveService.sync_attendance",
     # The trip's own timeline records each stop and rider, with who and when.

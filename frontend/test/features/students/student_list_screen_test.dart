@@ -253,7 +253,6 @@ void main() {
 
     await tester.tap(find.widgetWithText(TextButton, 'Deactivate'));
     await tester.pumpAndSettle();
-
     expect(find.text('Inactive'), findsOneWidget);
     expect(find.text('Active'), findsNothing);
     expect(find.text('Arjun Kumar is now inactive.'), findsOneWidget);

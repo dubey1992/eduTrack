@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/student.dart';
+import 'models/student_enrollment.dart';
 
 final studentApiProvider = Provider<StudentApi>((ref) => StudentApi(ref.watch(dioClientProvider)));
 
@@ -122,5 +123,13 @@ class StudentApi {
   Future<Student> deactivate(int studentId) async {
     final response = await _dio.patch('/students/$studentId/deactivate');
     return Student.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// A student's year-by-year history. A plain list, not a page: it holds one
+  /// row per academic year the school has run.
+  Future<List<StudentEnrollment>> enrollments(int studentId) async {
+    final response = await _dio.get('/students/$studentId/enrollments');
+
+    return [for (final row in response.data as List<dynamic>) StudentEnrollment.fromJson(row as Map<String, dynamic>)];
   }
 }

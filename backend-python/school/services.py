@@ -38,6 +38,7 @@ from .gateways import Template
 from .clock import TIME, SchoolClock
 from .fields import as_utc
 from .enums import (
+    EnrollmentStatus,
     NoticeAudience,
     NoticeKind,
     NoticeRecipients,
@@ -101,6 +102,7 @@ from .models import (
     WhatsappTemplate,
     AcademicTerm,
     AcademicYear,
+    StudentEnrollment,
     GradeBand,
     GradeScale,
     Announcement,
@@ -3723,7 +3725,17 @@ class SchoolClassService:
             )
 
         audit.deleted("academic", section)
-        section.delete()
+
+        with transaction.atomic():
+            # A past year's history keeps its class and loses only the
+            # section name. Done here rather than left to the foreign key:
+            # the real schema nulls it, the test database built from these
+            # models does not, and a rule that only holds in production is
+            # not a rule (docs/promotion.md).
+            StudentEnrollment.objects.filter(class_section_id=section.id).update(
+                class_section_id=None, updated_at=timezone.now()
+            )
+            section.delete()
 
 
 class DepartmentService:
@@ -4276,6 +4288,96 @@ class UserService:
         return user
 
 
+class StudentEnrollmentService:
+    """Which class a student was in, year by year (docs/promotion.md).
+
+    `students.class_section_id` is the present tense and this is the history.
+    Nothing else may write either: admitting a student, moving one between
+    sections, and the backfill all come through here, so the two can never
+    disagree.
+
+    Only `studying` is written here. The other outcomes - promoted, retained,
+    graduated, left - are what a promotion records, and promotion is a later
+    slice.
+    """
+
+    @staticmethod
+    def history_for(student: Student):
+        """Newest year first: the year somebody is asking about is almost
+        always the one just gone."""
+        return (
+            StudentEnrollment.objects.filter(student_id=student.id)
+            .select_related("academic_year", "school_class", "class_section")
+            .order_by("-academic_year__start_date", "-id")
+        )
+
+    @classmethod
+    def sync_current_year(cls, student: Student) -> StudentEnrollment | None:
+        """Records where this student is now, in the school's current year.
+
+        Returns None when there is nothing to record: a student with no
+        section yet, or a school that has not set a current year. Neither is
+        an error - the backfill picks them up once the facts exist.
+
+        An existing row is never blanked. If a student loses their section,
+        the row still says which class they were in, because that is the
+        thing worth keeping.
+        """
+        year = AcademicYear.objects.filter(school_id=student.school_id, is_current=True).first()
+
+        if year is None or student.class_section_id is None:
+            return None
+
+        section = ClassSection.objects.select_related("school_class").filter(pk=student.class_section_id).first()
+
+        if section is None or section.school_class.academic_year_id != year.id:
+            # A section belonging to another year is not where this student
+            # is *now*. Promotion moves a student into the new year's
+            # section; until then there is nothing to record for this year.
+            return None
+
+        now = timezone.now()
+        enrollment, created = StudentEnrollment.objects.update_or_create(
+            student_id=student.id,
+            academic_year_id=year.id,
+            defaults={
+                "school_id": student.school_id,
+                "school_class_id": section.school_class_id,
+                "class_section_id": section.id,
+                "roll_number": student.roll_number,
+                "status": EnrollmentStatus.STUDYING,
+                "updated_at": now,
+            },
+        )
+
+        if created:
+            StudentEnrollment.objects.filter(pk=enrollment.id).update(created_at=now)
+
+        return enrollment
+
+    @classmethod
+    def backfill(cls, school_id: int | None = None) -> dict:
+        """Gives the students who were admitted before this table existed
+        their row in the current year. Idempotent: run it as often as you
+        like."""
+        # Students with no section are counted as skipped rather than
+        # filtered away, so the number printed matches the sentence beside it.
+        students = Student.objects.filter(status=StudentStatus.ACTIVE)
+
+        if school_id is not None:
+            students = students.filter(school_id=school_id)
+
+        counted = {"written": 0, "skipped": 0}
+
+        for student in students.iterator():
+            if cls.sync_current_year(student) is None:
+                counted["skipped"] += 1
+            else:
+                counted["written"] += 1
+
+        return counted
+
+
 class StudentService:
     # Laravel's `['school', 'classSection.schoolClass',
     # 'transportAssignment.route.vehicle', 'transportAssignment.stop']`, in
@@ -4359,6 +4461,9 @@ class StudentService:
         )
 
         audit.created("students", student)
+        # The history follows the student row, always through one service
+        # (docs/promotion.md).
+        StudentEnrollmentService.sync_current_year(student)
 
         return student
 
@@ -4372,6 +4477,9 @@ class StudentService:
         student.updated_at = timezone.now()
         student.save()
         audit.updated("students", student, before)
+        # Moving a student between sections, or renumbering them, changes
+        # what this year's row should say.
+        StudentEnrollmentService.sync_current_year(student)
 
         return student
 

@@ -19,8 +19,8 @@ from ..models import Student
 from ..pagination import LaravelPagination
 from ..policies import StudentPolicy, authorize
 from ..requests import StoreStudentRequest, UpdateStudentRequest
-from ..resources import student_resource
-from ..services import StudentService
+from ..resources import student_enrollment_resource, student_resource
+from ..services import StudentEnrollmentService, StudentService
 
 # What a student is rendered with - the same list Laravel's StudentController
 # eager-loads. Named once so the list and the four single-record endpoints
@@ -134,3 +134,21 @@ def reload(student_id: int) -> Student:
     the moment it is fetched again.
     """
     return Student.objects.select_related(*WITH).get(pk=student_id)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def enrollments(request, student_id: int) -> Response:
+    """A student's year-by-year history (docs/promotion.md).
+
+    A plain list rather than a page: it holds one row per academic year the
+    school has ever run, which is a handful, and a screen shows all of them
+    at once.
+    """
+    student = get_object_or_404(Student.objects.select_related("school", "class_section"), pk=student_id)
+
+    authorize(StudentPolicy.view(request.user, student))
+
+    return Response(
+        [student_enrollment_resource(row) for row in StudentEnrollmentService.history_for(student)]
+    )

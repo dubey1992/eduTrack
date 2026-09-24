@@ -1,6 +1,6 @@
 # Assessments and promotion: the build order
 
-**Status (2026-09-21): slices 1 and 2 done, 3 to 14 planned.** This is the slicing of
+**Status (2026-09-24): slices 1 to 3 done, 4 to 14 planned.** This is the slicing of
 [assessments.md](assessments.md) and [promotion.md](promotion.md) into
 fourteen slices. Each slice is a vertical one: a migration where it needs
 one, the backend, the Flutter screen, the tests, and a demo in a browser
@@ -97,14 +97,34 @@ failing band that is not the lowest; two default scales for one school;
 no default scale; deleting a scale, which is free until Slice 6 gives it
 users; renaming a scale; another school's scale by id.
 
-### Slice 3 — Enrollment history, read-only
+### Slice 3 — Enrollment history, read-only · done 2026-09-24
 
-**Lands:** `student_enrollments`, the `backfill_enrollments` command, the
-history endpoint, and the history block on the student. Nothing writes an
-enrollment yet except the backfill and the existing admission path.
-**Demo:** run the backfill, then open a student and see this year's row.
+**Landed:** `student_enrollments`, the `backfill_enrollments` command,
+`GET /students/{id}/enrollments`, and a Class history dialog on the students
+list, open to every role that may see the student. Nothing decides anything
+here; the row simply follows the student.
 
-This slice moves earlier than the plan first said. It is read-only, so it
+**Where it is written from:** admitting a student, moving one between
+sections, and renumbering one all go through a single service, so the
+history and `students.class_section_id` cannot disagree. Two shapes record
+nothing, on purpose and without complaint: a student with no section, and a
+school with no current year. The backfill picks both up once the fact
+exists, and counts them as skipped so the number matches the sentence.
+
+**Shown working:** an administrator admitted a student and opened their
+history to find this year already recorded, with the class, the roll number
+and "Studying". Run in a visible browser as
+`integration_test/admin_student_history_flow_test.dart`.
+
+**Tests:** 27 backend tests, 18 Flutter tests, 4 contract tests, 8
+sabotages - all caught. Three findings the tests made: deleting an old
+section would have stranded a year of somebody's history (the service now
+clears the section and keeps the class), the backfill's skip count did not
+match the sentence printed beside it, and the new History action widened the
+students table enough to push the other actions out of view, so it became an
+icon.
+
+This slice moved earlier than the plan first said. It is read-only, so it
 carries no risk, and it means promotion later is a smaller slice.
 
 Edge cases: a student with no section; an inactive student; running the
