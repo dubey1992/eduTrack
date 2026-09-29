@@ -17,7 +17,17 @@ void main() {
     await login(tester, email: 'itest-teacher@example.com');
     await openPage(tester, 'Teaching Reports');
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Submit Report'));
+    // The teacher has more than one period today, so the button is the one
+    // on the Physics line - the period this report is about.
+    await tester.tap(
+      onSameLineAs(
+        tester,
+        // The period's line reads "Period 1 · Physics" as one piece of
+        // text, so the subject is looked for inside it.
+        find.textContaining('Physics'),
+        find.widgetWithText(FilledButton, 'Submit Report'),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextFormField, 'Topic taught'), "Newton's laws of motion");
     // The row behind the dialog has a button with the same text.

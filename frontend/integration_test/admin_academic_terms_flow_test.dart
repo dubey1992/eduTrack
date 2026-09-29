@@ -24,22 +24,25 @@ void main() {
     await waitFor(tester, find.byType(SidebarNav));
     await openPage(tester, 'Academic Years');
 
-    await tester.tap(find.widgetWithText(TextButton, 'Terms').first);
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+    // Next year rather than this one, and by name rather than by position:
+    // the fixtures give the current year a term covering every day of it,
+    // so nothing can be added there without overlapping it. A year whose
+    // terms have not been set out yet is the case this flow is about.
+    await openTermsFor(tester, '2027-28');
     expect(find.textContaining('Terms ·'), findsOneWidget);
 
-    await addTerm(tester, name: 'Term 1', order: '1', start: '04/01/2026', end: '08/31/2026');
+    await addTerm(tester, name: 'Term 1', order: '1', start: '04/01/2027', end: '08/31/2027');
     await tester.pumpAndSettle(const Duration(seconds: 2));
     expect(find.text('Term 1'), findsWidgets);
 
     // A second term over the same days is refused, and the reason lands on
     // the field it is about rather than in a banner.
-    await addTerm(tester, name: 'Term 2', order: '2', start: '08/01/2026', end: '12/31/2026');
+    await addTerm(tester, name: 'Term 2', order: '2', start: '08/01/2027', end: '12/31/2027');
     await tester.pumpAndSettle(const Duration(seconds: 2));
     expect(find.textContaining('overlap Term 1'), findsOneWidget);
 
     // Moved to start the day after Term 1 ends, the same term is accepted.
-    await pickDate(tester, 'Start date', '09/01/2026');
+    await pickDate(tester, 'Start date', '09/01/2027');
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle(const Duration(seconds: 3));
 
@@ -66,6 +69,15 @@ Future<void> addTerm(
 
   await tester.tap(find.widgetWithText(FilledButton, 'Save'));
   await tester.pumpAndSettle(const Duration(seconds: 3));
+}
+
+/// Opens the Terms dialog of one named year.
+///
+/// The button is the one on that year's line, which is how a person finds
+/// it: the table has a Terms button per row and they all read the same.
+Future<void> openTermsFor(WidgetTester tester, String year) async {
+  await tester.tap(onSameLineAs(tester, find.text(year), find.widgetWithText(TextButton, 'Terms')));
+  await tester.pumpAndSettle(const Duration(seconds: 2));
 }
 
 /// Types the date into the picker's input mode. Tapping day cells would

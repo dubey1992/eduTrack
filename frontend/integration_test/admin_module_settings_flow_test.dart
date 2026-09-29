@@ -1,4 +1,3 @@
-import 'package:edutrack_app/core/widgets/sidebar_nav.dart';
 import 'package:edutrack_app/features/module_settings/presentation/module_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,7 +17,7 @@ void main() {
     await startApp(tester);
     await login(tester, email: 'itest-admin@example.com');
 
-    expect(sidebarEntry('Syllabus'), findsOneWidget);
+    expect(await sidebarShows(tester, 'Syllabus'), isTrue, reason: 'the module is on, so the sidebar should offer it');
 
     await openPage(tester, 'Module Settings');
     expect(find.text('Module Settings'), findsWidgets);
@@ -34,15 +33,15 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Switch off'));
     await waitFor(tester, find.text('Off'));
 
-    expect(sidebarEntry('Syllabus'), findsNothing);
+    expect(await sidebarShows(tester, 'Syllabus'), isFalse, reason: 'a module switched off should leave the sidebar');
 
     // Back on: no confirmation, and the entry returns.
     await tester.tap(find.byKey(const Key('module-school-syllabus')));
-    await waitFor(tester, sidebarEntry('Syllabus'));
+    await tester.pumpAndSettle(const Duration(seconds: 3));
+
+    expect(await sidebarShows(tester, 'Syllabus'), isTrue, reason: 'switched back on, it should return');
   });
 }
-
-Finder sidebarEntry(String label) => find.descendant(of: find.byType(SidebarNav), matching: find.text(label));
 
 /// Pumps until [finder] matches, giving a real request time to answer.
 Future<void> waitFor(WidgetTester tester, Finder finder) async {

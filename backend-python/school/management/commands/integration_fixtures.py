@@ -18,6 +18,10 @@ of them needs to find waiting:
     Bus Attendant (+91 90000 77777, no email)   runs ITest Route; signs in on a phone
                                                 with the setup code 24681357
 
+The school also has **next year set up but not current** - 2027-28 with its
+own Grade 8 A and Grade 9 A - so a promotion has somewhere to land without
+the flow having to build a year first.
+
 `seed` cleans first, so every run starts from the same place - a test that
 approves "the" pending leave or starts "today's" trip can only do it once.
 
@@ -171,6 +175,27 @@ def seed() -> School:
         for n, (first, last) in enumerate((("Aarav", "Sharma"), ("Bina", "Kapoor"), ("Chetan", "Rao")), start=1)
     ]
 
+    # Next year, already set up: the classes a promotion lands in, with the
+    # same Grade 8 for anybody held back. Not current - the school is still
+    # living this year, and turning the page is the administrator's act
+    # (docs/promotion.md).
+    next_year = factories.AcademicYearFactory(
+        school=school,
+        name="2027-28",
+        start_date=dt.date(2027, 4, 1),
+        end_date=dt.date(2028, 3, 31),
+        is_current=False,
+    )
+    # Left without terms on purpose: this year is where the terms flow sets
+    # them out, and the current year's E2E Term covers every day of it.
+    for name, level in (("Grade 8", 8), ("Grade 9", 9)):
+        factories.ClassSectionFactory(
+            school_class=factories.SchoolClassFactory(
+                academic_year=next_year, school=school, name=name, level=level
+            ),
+            name="A",
+        )
+
     # A period on today's weekday, so the teacher has something to report on.
     today = SchoolClock.for_school(school).now().date()
     subject = factories.SubjectFactory(department=science, name="Physics", code="ITEST-PHY")
@@ -188,7 +213,9 @@ def seed() -> School:
         day_of_week=WEEKDAYS[min(today.weekday(), 4)],
     )
     # A term covering the whole year, so a test can be filed under it
-    # whatever today happens to be.
+    # whatever today happens to be. It also means this year can hold no
+    # other term - terms may not overlap - which is why the flow that adds
+    # them works in next year instead.
     factories.AcademicTermFactory(
         academic_year=year,
         school=school,
