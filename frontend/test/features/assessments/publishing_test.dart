@@ -109,11 +109,31 @@ void main() {
 
       expect(find.text('Publish this result?'), findsOneWidget);
       expect(find.textContaining('fixed as they are now'), findsOneWidget);
+      // Telling a family is the part of publishing that cannot be taken
+      // back, so it is said before rather than after (docs/assessments.md).
+      expect(find.textContaining('Each guardian will be messaged'), findsOneWidget);
 
       // Two Cancels on screen: the confirmation's and the sheet's behind it.
       await tester.tap(find.widgetWithText(TextButton, 'Cancel').last);
       await tester.pumpAndSettle();
       expect(fake.calls, isNot(contains('publish')));
+    });
+
+    testWidgets('a result the families already heard about says they will not be told twice', (tester) async {
+      useDesktop(tester);
+      final announced = fakeAssessment(resultsAnnouncedAt: DateTime(2026, 7, 20));
+      final fake = FakeAssessmentRepository(
+        assessments: [announced],
+        sheetEntries: [fakeEntry(studentId: 1, marks: '17.50')],
+      );
+
+      await tester.pumpWidget(wrapSheet(fake, assessment: announced));
+      await open(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Publish'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('will not be messaged again'), findsOneWidget);
+      expect(find.textContaining('Each guardian will be messaged'), findsNothing);
     });
 
     testWidgets('publishes on yes, and says so', (tester) async {

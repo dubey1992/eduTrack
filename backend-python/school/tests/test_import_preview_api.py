@@ -16,7 +16,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from school import factories, tokens
+from school import factories, imports, tokens
 from school.enums import UserRole
 from school.models import Assessment, AssessmentMark, Student
 
@@ -274,3 +274,109 @@ class PreviewingAFileOfTests(PreviewTestCase):
         self.assertEqual(422, response.status_code, response.data)
         self.assertIn("must fall inside Term 1", self.rows(response)[0]["messages"][0])
         self.assertEqual(0, Assessment.objects.count())
+
+
+class PreviewingEveryKindOfUpload(PreviewTestCase):
+    """The step belongs to the upload, not to one screen.
+
+    Students, staff, subjects, vehicles, drivers and class tests all share one
+    endpoint and one dialog, so the check that matters is the registry itself:
+    every kind registered can be looked at first, and none of them writes
+    anything while being looked at. A kind added later fails this until it is
+    listed here, which is the point.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.department = factories.DepartmentFactory(school=self.school, name="Science")
+        factories.SubjectFactory(
+            department=self.department,
+            school=self.school,
+            name="Mathematics",
+            code="MATH-1",
+            min_class_level=1,
+            max_class_level=12,
+        )
+        factories.AcademicTermFactory(
+            academic_year=self.year,
+            school=self.school,
+            name="Term 1",
+            sequence_number=1,
+            start_date=dt.date(2026, 4, 1),
+            end_date=dt.date(2026, 8, 31),
+        )
+
+    def files(self) -> dict[str, tuple[str, str]]:
+        """A heading line and one good row for each kind, taken from the
+        template each screen offers so these stay the rows people really send."""
+        return {
+            "students": (STUDENT_HEADINGS, self.student_row()),
+            "staff": (
+                "employee_id,first_name,last_name,email,mobile,role,department,designation,joining_date,address",
+                "EMP-1042,Priya,Nair,priya.nair@example.com,+91 98765 43210,TEACHER,Science,"
+                "Senior Teacher,09/14/2026,22 Hill Road",
+            ),
+            "subjects": (
+                "code,name,department,min_class_level,max_class_level,lead_teacher_email",
+                "SCI-05,Science,Science,5,8,",
+            ),
+            "vehicles": ("name,registration_number,capacity", "Bus 12,MH 12 AB 3456,42"),
+            "drivers": (
+                "name,mobile,licence_number,licence_expiry",
+                "Ramesh Yadav,+91 98765 43210,MH1220260001234,09/14/2029",
+            ),
+            "assessments": (
+                "class,subject,term,type,title,max_marks,pass_marks,weightage,date,grade_scale,topic",
+                "Grade 8 A,Mathematics,Term 1,class_test,Fractions,20,7,25,07/15/2026,,",
+            ),
+        }
+
+    def test_every_registered_kind_has_a_row_here(self):
+        self.assertEqual(set(imports.TYPES), set(self.files()), "a new kind of upload needs a preview test")
+
+    def test_every_kind_previews_its_rows_and_writes_nothing(self):
+        for kind, (headings, row) in self.files().items():
+            with self.subTest(kind=kind):
+                model = imports.TYPES[kind]["model"]
+                before = model.objects.count()
+
+                response = self.client.post(
+                    f"/api/v1/imports/{kind}/preview",
+                    {"file": csv_file(row, headings=headings)},
+                    format="multipart",
+                )
+
+                self.assertEqual(200, response.status_code, response.data)
+                self.assertEqual(1, response.data["row_count"])
+                self.assertEqual(headings.split(","), response.data["headings"])
+                self.assertEqual(row.split(",")[0], response.data["rows"][0]["values"][0])
+                self.assertEqual(before, model.objects.count(), f"a preview of {kind} wrote something")
+
+    def test_every_kind_refuses_a_file_it_cannot_read(self):
+        for kind in self.files():
+            with self.subTest(kind=kind):
+                model = imports.TYPES[kind]["model"]
+                before = model.objects.count()
+
+                response = self.client.post(
+                    f"/api/v1/imports/{kind}/preview",
+                    {"file": csv_file("x", headings="wrong,headings")},
+                    format="multipart",
+                )
+
+                self.assertEqual(422, response.status_code, response.data)
+                self.assertIn("column headings do not match", self.rows(response)[0]["messages"][0])
+                self.assertEqual(before, model.objects.count())
+
+    def test_a_teacher_previews_none_of_them(self):
+        teacher = self.as_user(factories.UserFactory(school=self.school, role=UserRole.TEACHER))
+
+        for kind, (headings, row) in self.files().items():
+            with self.subTest(kind=kind):
+                response = teacher.post(
+                    f"/api/v1/imports/{kind}/preview",
+                    {"file": csv_file(row, headings=headings)},
+                    format="multipart",
+                )
+
+                self.assertEqual(403, response.status_code, response.data)

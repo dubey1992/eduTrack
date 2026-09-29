@@ -1199,6 +1199,7 @@ class UpdateCommunicationSettingRequest(serializers.Serializer):
     whatsapp_enabled = LaravelBooleanField("whatsapp_enabled", required=False)
     whatsapp_provider = LaravelCharField("whatsapp_provider", max_length=255, required=False)
     email_enabled = LaravelBooleanField("email_enabled", required=False)
+    result_alerts_enabled = LaravelBooleanField("result_alerts_enabled", required=False)
     credentials = serializers.JSONField(required=False, allow_null=True)
 
     def __init__(self, *args, **kwargs) -> None:

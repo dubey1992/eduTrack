@@ -195,6 +195,21 @@ def send_payment_receipt(payment_id: int) -> None:
     Payment.objects.filter(pk=payment.id).update(receipt_sent_at=timezone.now())
 
 
+@handler("announce_results")
+def announce_results(assessment_id: int, actor_id: int | None = None) -> None:
+    """The fan-out behind a published result (docs/assessments.md).
+
+    Deferred rather than inline: a section of sixty is sixty guardians, and a
+    teacher pressing Publish should not wait on a provider - nor should a
+    provider being down undo the publishing.
+    """
+    from .services import AssessmentPublishService
+
+    actor = None if actor_id is None else User.objects.filter(pk=actor_id).first()
+
+    AssessmentPublishService.announce(assessment_id, actor)
+
+
 @handler("publish_announcement")
 def publish_announcement(announcement_id: int, actor_id: int | None = None) -> None:
     """The fan-out behind a published announcement.

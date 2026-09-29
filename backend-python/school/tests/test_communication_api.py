@@ -262,7 +262,7 @@ class TemplateTest(CommunicationTestCase):
     def test_every_event_is_listed_with_its_default_wording(self):
         response = self.as_user(self.admin).get(self.URL)
 
-        self.assertEqual(11, len(response.data))
+        self.assertEqual(12, len(response.data))
         self.assertEqual(
             {
                 "event": "attendance.present",
@@ -371,6 +371,7 @@ class SettingsTest(CommunicationTestCase):
                 "attendance_alerts_label": "Absent only",
                 "transport_alerts_enabled": True,
                 "leave_alerts_enabled": True,
+                "result_alerts_enabled": True,
                 "provider": "log",
                 "provider_label": "Demo Gateway",
                 "provider_delivers": False,

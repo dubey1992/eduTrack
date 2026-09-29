@@ -31,6 +31,11 @@ per present student per day would bury the log, and the school never asked for
 those messages. Only a message the school wanted but could not deliver is worth
 a `skipped` row.
 
+The switches are per category, in Alert Settings: attendance (off, absent
+only, or both), transport, leave decisions, and - since the class tests
+landed - **result alerts**, which decide whether publishing a result
+messages the guardians ([assessments.md](assessments.md)).
+
 ## Templates
 
 Default wording lives on the `MessageEvent` enum, so every school starts with

@@ -262,6 +262,7 @@ Assessment fakeAssessment({
   AssessmentStatus status = AssessmentStatus.draft,
   int? gradeScaleId,
   String? gradeScaleName,
+  DateTime? resultsAnnouncedAt,
 }) {
   return Assessment(
     id: id,
@@ -284,6 +285,7 @@ Assessment fakeAssessment({
     assessmentDate: date ?? DateTime(2026, 4, 15),
     status: status,
     createdByName: 'Asha Admin',
+    resultsAnnouncedAt: resultsAnnouncedAt,
   );
 }
 

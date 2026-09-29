@@ -16,6 +16,7 @@ import shapes
 import world
 
 SETTINGS_EXTRAS = {
+    "result_alerts_enabled": "bool",
     "whatsapp_enabled": "bool",
     "whatsapp_provider": "str",
     "whatsapp_provider_label": "str",

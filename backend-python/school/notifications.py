@@ -56,6 +56,7 @@ DEFAULTS = {
     "attendance_alerts": AttendanceAlertMode.ABSENT_ONLY,
     "transport_alerts_enabled": True,
     "leave_alerts_enabled": True,
+    "result_alerts_enabled": True,
     "sender_id": None,
     # "log" is the prototype's Demo Gateway: it records the message and writes
     # it to the log without calling anybody. Nothing reaches a phone, and the
@@ -178,6 +179,9 @@ def switched_off(event: str, setting: CommunicationSetting) -> bool:
 
     if category == MessageCategory.LEAVE:
         return not setting.leave_alerts_enabled
+
+    if category == MessageCategory.RESULT:
+        return not setting.result_alerts_enabled
 
     return False
 

@@ -40,6 +40,7 @@ from .clock import TIME, SchoolClock
 from .fields import as_utc
 from .enums import (
     AssessmentStatus,
+    AssessmentType,
     EnrollmentStatus,
     NoticeAudience,
     NoticeKind,
@@ -2009,7 +2010,7 @@ class MessageTemplateService:
 class CommunicationSettingService:
     SWITCHES = (
         "sms_enabled", "attendance_alerts", "transport_alerts_enabled", "leave_alerts_enabled", "provider",
-        "whatsapp_enabled", "whatsapp_provider", "email_enabled",
+        "whatsapp_enabled", "whatsapp_provider", "email_enabled", "result_alerts_enabled",
     )
 
     @classmethod
@@ -4629,6 +4630,14 @@ class AssessmentPublishService:
 
             audit.updated(cls.MODULE, locked, before, action="assessment.published")
 
+            # In the same transaction, so the fan-out is queued if and only
+            # if the publishing it is for was committed - and outside the
+            # request, so a class of sixty does not make a teacher wait on a
+            # provider, and a provider having a bad morning cannot roll the
+            # publishing back.
+            if locked.results_announced_at is None:
+                queue.push(ANNOUNCE_RESULTS, {"assessment_id": locked.id, "actor_id": actor.id})
+
         return Assessment.objects.select_related(*AssessmentService.WITH).get(pk=assessment.id)
 
     @classmethod
@@ -4682,6 +4691,101 @@ class AssessmentPublishService:
             AssessmentMark.objects.filter(pk=row.id).update(
                 grade=band.label if band is not None else None, updated_at=now
             )
+
+    @classmethod
+    def announce(cls, assessment_id: int, actor: User | None = None) -> int:
+        """Tells each guardian their own child's result.
+
+        Runs in the worker, after the publishing has been committed. Four
+        things decide whether a guardian hears anything, and all of them are
+        deliberate:
+
+        - **A test that has been taken back is not announced.** Somebody
+          reopened it between the publish and this job, so the result they
+          would hear about no longer stands.
+        - **Nobody is told twice.** `results_announced_at` survives a reopen,
+          so a corrected result published a second time sends nothing.
+        - **An absentee's guardian hears nothing.** There is no result to
+          report, and "scored /20" is worse than silence; the absence is on
+          the progress report.
+        - **A school that wants none of this records nothing at all** - the
+          module switched off, or the result alerts switched off. That is
+          NotificationService's rule and it is applied there, which is why
+          this counts what was actually recorded rather than assuming.
+        """
+        assessment = Assessment.objects.select_related("class_section__school_class", "subject", "academic_term").filter(
+            pk=assessment_id
+        ).first()
+
+        if assessment is None or assessment.is_draft() or assessment.results_announced_at is not None:
+            return 0
+
+        recorded = 0
+
+        for mark in cls.announceable_marks(assessment):
+            recorded += len(
+                notifications.notify_guardian(
+                    MessageEvent.RESULT_PUBLISHED, mark.student, cls.tokens_for(assessment, mark), actor
+                )
+            )
+
+        # Nothing recorded means nothing was wanted - the school has messaging
+        # or result alerts switched off. Leaving the stamp null keeps that an
+        # honest "nobody has been told", and lets a school that switches the
+        # alerts on later still announce a republished result.
+        if recorded:
+            Assessment.objects.filter(pk=assessment.id, results_announced_at__isnull=True).update(
+                results_announced_at=timezone.now()
+            )
+
+        return recorded
+
+    @staticmethod
+    def announceable_marks(assessment: Assessment):
+        """The marks worth telling somebody about: a real mark, and a student
+        still on the roll. Read in chunks - a section of sixty is ordinary and
+        a school-wide exam is sixty sections of it."""
+        return (
+            AssessmentMark.objects.select_related("student")
+            .filter(assessment_id=assessment.id, is_absent=False, marks_obtained__isnull=False)
+            .filter(student__status=StudentStatus.ACTIVE)
+            .order_by("id")
+            .iterator(chunk_size=200)
+        )
+
+    @classmethod
+    def tokens_for(cls, assessment: Assessment, mark: AssessmentMark) -> dict:
+        """What the wording may use. The school's own date comes from
+        notify_guardian(); `test_date` is the day the test was sat."""
+        percentage = AssessmentMarkService.percentage_of(assessment, mark)
+
+        section = assessment.class_section
+
+        return {
+            "class_name": f"{section.school_class.name} {section.name}".strip(),
+            "subject_name": assessment.subject.name,
+            "assessment_title": assessment.title,
+            "assessment_type": AssessmentType(assessment.type).label,
+            "term_name": assessment.academic_term.name,
+            "marks": cls.plain(mark.marks_obtained),
+            "max_marks": cls.plain(assessment.max_marks),
+            "percentage": cls.plain(percentage),
+            "grade": mark.grade,
+            "test_date": assessment.assessment_date.strftime("%m/%d/%Y"),
+        }
+
+    @staticmethod
+    def plain(value) -> str | None:
+        """A figure as a person would write it: 17.5 rather than 17.50, and
+        20 rather than 20.00. The column keeps its two decimal places; a text
+        message does not need them."""
+        if value is None:
+            return None
+
+        return f"{value.normalize():f}"
+
+
+ANNOUNCE_RESULTS = "announce_results"
 
 
 class StudentEnrollmentService:

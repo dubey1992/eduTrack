@@ -55,6 +55,7 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
   late AttendanceAlertMode _attendanceAlerts = widget.settings.attendanceAlerts;
   late bool _transportAlerts = widget.settings.transportAlertsEnabled;
   late bool _leaveAlerts = widget.settings.leaveAlertsEnabled;
+  late bool _resultAlerts = widget.settings.resultAlertsEnabled;
   late String _provider = widget.settings.provider;
   late final TextEditingController _senderIdController = TextEditingController(text: widget.settings.senderId ?? '');
   late bool _whatsappEnabled = widget.settings.whatsappEnabled;
@@ -130,6 +131,7 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
             attendanceAlerts: _attendanceAlerts,
             transportAlertsEnabled: _transportAlerts,
             leaveAlertsEnabled: _leaveAlerts,
+            resultAlertsEnabled: _resultAlerts,
             provider: _provider,
             senderId: senderId.isEmpty ? null : senderId,
             whatsappEnabled: _whatsappEnabled,
@@ -225,6 +227,13 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
             subtitle: const Text('Tell staff when their leave is approved or rejected.'),
             value: _leaveAlerts,
             onChanged: (value) => setState(() => _leaveAlerts = value),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Result alerts'),
+            subtitle: const Text('Tell guardians the marks when a class test result is published.'),
+            value: _resultAlerts,
+            onChanged: (value) => setState(() => _resultAlerts = value),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(

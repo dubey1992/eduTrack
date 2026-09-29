@@ -37,6 +37,9 @@ ASSESSMENT = {
     "status": "str",
     "created_by_name": "str",
     "published_at": "str?",
+    # When the guardians were messaged. Set once, and a reopen does not clear
+    # it, so a republished result tells nobody twice (docs/assessments.md).
+    "results_announced_at": "str?",
 }
 
 

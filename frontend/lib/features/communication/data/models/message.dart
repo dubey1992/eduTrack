@@ -3,6 +3,8 @@ enum MessageCategory {
   attendance('attendance', 'Attendance'),
   transport('transport', 'Transport'),
   leave('leave', 'Leave'),
+  // A published class test result (docs/assessments.md).
+  result('result', 'Result'),
   announcement('announcement', 'Announcement'),
   // Written by hand in the Communication Center rather than by a module.
   general('general', 'General'),
@@ -364,6 +366,7 @@ class CommunicationSettings {
     required this.attendanceAlerts,
     required this.transportAlertsEnabled,
     required this.leaveAlertsEnabled,
+    required this.resultAlertsEnabled,
     required this.provider,
     required this.providerLabel,
     required this.senderId,
@@ -388,6 +391,7 @@ class CommunicationSettings {
       attendanceAlerts: AttendanceAlertMode.fromApiValue(json['attendance_alerts'] as String),
       transportAlertsEnabled: json['transport_alerts_enabled'] as bool? ?? true,
       leaveAlertsEnabled: json['leave_alerts_enabled'] as bool? ?? true,
+      resultAlertsEnabled: json['result_alerts_enabled'] as bool? ?? true,
       provider: json['provider'] as String,
       providerLabel: json['provider_label'] as String,
       senderId: json['sender_id'] as String?,
@@ -438,6 +442,9 @@ class CommunicationSettings {
   final AttendanceAlertMode attendanceAlerts;
   final bool transportAlertsEnabled;
   final bool leaveAlertsEnabled;
+
+  /// Whether publishing a class test result messages the guardians.
+  final bool resultAlertsEnabled;
 
   /// The SMS gateway.
   final String provider;

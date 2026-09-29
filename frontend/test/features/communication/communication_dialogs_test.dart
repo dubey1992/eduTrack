@@ -190,6 +190,7 @@ void main() {
         'attendance_alerts': 'both',
         'transport_alerts_enabled': false,
         'leave_alerts_enabled': true,
+        'result_alerts_enabled': true,
         'provider': 'log',
         'sender_id': 'SUNRIS',
         'whatsapp_enabled': false,

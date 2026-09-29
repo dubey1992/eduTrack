@@ -43,6 +43,9 @@ NOT_RECORDED = {
     # Part of publishing, which records the whole act: the grades are what
     # publishing means, not a change of their own.
     "AssessmentPublishService.freeze_grades",
+    # The fan-out's own stamp: it says the guardians were messaged, and the
+    # message log is the record of that. Publishing is what was audited.
+    "AssessmentPublishService.announce",
     # A consequence of an approved leave, which is itself recorded.
     "StaffLeaveService.sync_attendance",
     # The trip's own timeline records each stop and rider, with who and when.

@@ -329,6 +329,7 @@ def communication_setting_resource(setting) -> dict:
         "attendance_alerts_label": AttendanceAlertMode(setting.attendance_alerts).label,
         "transport_alerts_enabled": setting.transport_alerts_enabled,
         "leave_alerts_enabled": setting.leave_alerts_enabled,
+        "result_alerts_enabled": setting.result_alerts_enabled,
         "provider": setting.provider,
         "provider_label": sms.label(setting.provider),
         "provider_delivers": sms.delivers(setting.provider),
@@ -1116,6 +1117,9 @@ def assessment_resource(assessment) -> dict:
         "status": assessment.status,
         "created_by_name": assessment.created_by.name,
         "published_at": timestamp(assessment.published_at),
+        # When the guardians were told, which a reopen does not clear: the
+        # screen uses it to say a republish will not message them again.
+        "results_announced_at": timestamp(assessment.results_announced_at),
         "created_at": timestamp(assessment.created_at),
     }
 

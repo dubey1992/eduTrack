@@ -219,6 +219,13 @@ void main() {
       expect(message.recipientEmail, 'raj@example.com');
     });
 
+    test('a published result is logged as a Result, not lumped in with announcements', () {
+      // The log's Type column and its filter chips both come from this
+      // enum, so an unknown category quietly reads as "Announcement".
+      expect(MessageCategory.fromApiValue('result'), MessageCategory.result);
+      expect(MessageCategory.result.label, 'Result');
+    });
+
     test('the notice query compares by value so the preview is not re-fetched for the same form', () {
       const a = NoticeQuery(
         kind: NoticeKind.message,

@@ -24,6 +24,7 @@ class Assessment {
     required this.assessmentDate,
     required this.status,
     required this.createdByName,
+    this.resultsAnnouncedAt,
   });
 
   factory Assessment.fromJson(Map<String, dynamic> json) {
@@ -48,6 +49,9 @@ class Assessment {
       assessmentDate: DateTime.parse(json['assessment_date'] as String),
       status: AssessmentStatus.fromApiValue(json['status'] as String),
       createdByName: json['created_by_name'] as String,
+      resultsAnnouncedAt: json['results_announced_at'] == null
+          ? null
+          : DateTime.parse(json['results_announced_at'] as String),
     );
   }
 
@@ -72,7 +76,15 @@ class Assessment {
   final AssessmentStatus status;
   final String createdByName;
 
+  /// When the guardians were messaged. A reopen does not clear it, so a
+  /// result published a second time tells nobody twice (docs/assessments.md).
+  final DateTime? resultsAnnouncedAt;
+
   bool get isDraft => status == AssessmentStatus.draft;
+
+  /// Whether publishing would message the guardians. False once they have
+  /// been told, whatever happens to the test afterwards.
+  bool get willTellGuardians => resultsAnnouncedAt == null;
 
   /// "20", not "20.00": the second decimal is stored, rarely worth reading.
   String get maxMarksLabel => tidyMarks(maxMarks) ?? '';

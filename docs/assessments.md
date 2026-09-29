@@ -1,9 +1,9 @@
 # Class Tests & Assessments
 
-**Status (2026-09-24): slices 1 to 6 built, the rest planned.** Terms, grade
-scales, enrollment history, the class test, its marks sheet and publishing
-are live, each with a flow that runs in a browser. The guardian message,
-promotion and performance are still a plan. Decided with the user on
+**Status (2026-09-24): slices 1 to 7 built, the rest planned.** Terms, grade
+scales, enrollment history, the class test, its marks sheet, publishing and
+the message to the guardian are live, each with a flow that runs in a
+browser. Promotion and performance are still a plan. Decided with the user on
 2026-09-21: the school year is divided into terms, marks are entered against
 a maximum and turned into a grade by a scale the school configures, and
 results reach guardians as a message and as a printable progress report.
@@ -195,12 +195,29 @@ sent, and no performance figure counts a draft.
 
 **Publishing freezes the grade and tells the guardian.** On publish, each
 mark's grade is written from the scale's bands, the assessment is locked,
-and a `RESULT_PUBLISHED` message goes to each guardian through the existing
+and a `result.published` message goes to each guardian through the existing
 messaging module with the tokens `{student_name}`, `{guardian_name}`,
-`{school_name}`, `{subject_name}`, `{assessment_title}`, `{marks_obtained}`,
-`{max_marks}`, `{percentage}`, `{grade}` and `{date}`. The rule that a
-switched-off alert is not recorded at all still holds, and a school with
-communication switched off sends and logs nothing.
+`{class_name}`, `{subject_name}`, `{assessment_title}`, `{assessment_type}`,
+`{term_name}`, `{marks}`, `{max_marks}`, `{percentage}`, `{grade}`,
+`{test_date}`, `{date}` and `{school_name}`. The rule that a switched-off
+alert is not recorded at all still holds: a school with communication
+switched off, or with the new **Result alerts** switch off, sends and logs
+nothing - not even a skip. A guardian the school wanted to reach but has no
+number for is a skipped row with a reason, as everywhere else.
+
+The fan-out is a queued job, not part of the request. A section of sixty is
+sixty guardians, and a teacher pressing Publish should not wait on an SMS
+provider - nor should a provider having a bad morning undo the publishing.
+An absentee's guardian is not messaged: there is no result to report, and
+"scored /20" is worse than silence.
+
+**Nobody is told twice.** `assessments.results_announced_at` is stamped when
+the families are messaged and is *not* cleared by a reopen, which is exactly
+what separates it from `published_at`. So a result corrected and published
+again sends nothing. Null means "nobody has been told" rather than "not
+published": a result published while the school had the alerts off keeps a
+null, and announcing it later is still possible if the school switches them
+on and republishes.
 
 **A class with anybody unmarked cannot be published.** A blank is not a zero,
 and a guardian who hears nothing while the rest of the class hears something

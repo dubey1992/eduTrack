@@ -148,6 +148,9 @@ class Assessment(models.Model):
         'User', models.DO_NOTHING, db_column='published_by', blank=True, null=True, related_name='+'
     )
     published_at = UtcDateTimeField(blank=True, null=True)
+    # When the guardians were told. Set once and never cleared by a reopen,
+    # so republishing a corrected result does not tell them twice.
+    results_announced_at = UtcDateTimeField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -224,6 +227,8 @@ class CommunicationSetting(models.Model):
     attendance_alerts = models.CharField(max_length=20)
     transport_alerts_enabled = models.BooleanField()
     leave_alerts_enabled = models.BooleanField()
+    # Whether a published result reaches the guardians (docs/assessments.md).
+    result_alerts_enabled = models.BooleanField(default=True)
     provider = models.CharField(max_length=50)
     sender_id = models.CharField(max_length=20, blank=True, null=True)
     # WhatsApp and email as channels, and the school's own provider accounts

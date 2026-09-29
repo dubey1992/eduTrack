@@ -158,6 +158,16 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
     }
   }
 
+  /// What publishing will do about the families, said before it is done:
+  /// telling them is the part that cannot be taken back.
+  String _guardianLine(Assessment assessment) {
+    if (!assessment.willTellGuardians) {
+      return 'Guardians were told when this result was first published, and will not be messaged again.';
+    }
+
+    return 'Each guardian will be messaged their own child\'s marks, if the school has result alerts switched on.';
+  }
+
   Future<void> _publish(AssessmentSheet sheet) async {
     if (_saving) return;
 
@@ -168,7 +178,10 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
         content: Text(
           'Grades are worked out from the grade scale and fixed as they are now. The sheet closes, '
           'and only an administrator or the head of department can reopen it. '
-          '${sheet.entries.length} in the class.',
+          '${sheet.entries.length} in the class.\n\n'
+          // Said here rather than after the fact: telling a family is the
+          // part of publishing that cannot be taken back.
+          '${_guardianLine(widget.assessment)}',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),

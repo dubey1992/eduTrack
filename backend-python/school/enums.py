@@ -153,6 +153,9 @@ class MessageCategory(models.TextChoices):
     TRANSPORT = "transport"
     LEAVE = "leave"
     ANNOUNCEMENT = "announcement"
+    # A published class test result, which reaches the guardian the same way
+    # an absence does (docs/assessments.md).
+    RESULT = "result"
     # Written by hand in the Communication Center rather than by a module:
     # a message to one person or group, an emergency to everyone, a fee
     # reminder to a guardian (docs/communication.md).
@@ -187,6 +190,7 @@ class MessageEvent(models.TextChoices):
     TRANSPORT_ABSENT = "transport.absent", "Did not board"
     LEAVE_APPROVED = "leave.approved", "Leave approved"
     LEAVE_REJECTED = "leave.rejected", "Leave rejected"
+    RESULT_PUBLISHED = "result.published", "Result published"
     ANNOUNCEMENT_PUBLISHED = "announcement.published", "Announcement"
     GENERAL_MESSAGE = "general.message", "Message"
     EMERGENCY_ALERT = "emergency.alert", "Emergency alert"
@@ -209,7 +213,9 @@ class MessageEvent(models.TextChoices):
         """
         category = cls.category(event)
 
-        if category in (MessageCategory.ATTENDANCE, MessageCategory.TRANSPORT, MessageCategory.FEE):
+        if category in (
+            MessageCategory.ATTENDANCE, MessageCategory.TRANSPORT, MessageCategory.FEE, MessageCategory.RESULT
+        ):
             return MessageChannel.external()
 
         return [MessageChannel.IN_APP, *MessageChannel.external()]
@@ -249,6 +255,11 @@ DEFAULT_BODIES = {
     MessageEvent.LEAVE_REJECTED: (
         "Your {leave_type} leave from {start_date} to {end_date} was not approved."
     ),
+    # The grade sits where a blank one disappears cleanly: a school with no
+    # grade scale sends "scored 17.5/20 in Unit Test 1 (Mathematics)".
+    MessageEvent.RESULT_PUBLISHED: (
+        "{student_name} scored {marks}/{max_marks} {grade} in {assessment_title} ({subject_name}). - {school_name}"
+    ),
     MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
     MessageEvent.GENERAL_MESSAGE: "{school_name}: {subject} - {body}",
     MessageEvent.EMERGENCY_ALERT: "EMERGENCY - {school_name}: {body}",
@@ -268,6 +279,10 @@ TOKENS = {
     ],
     MessageCategory.LEAVE: [
         "staff_name", "leave_type", "start_date", "end_date", "days", "remarks", "school_name",
+    ],
+    MessageCategory.RESULT: [
+        "student_name", "guardian_name", "class_name", "subject_name", "assessment_title", "assessment_type",
+        "term_name", "marks", "max_marks", "percentage", "grade", "test_date", "date", "school_name",
     ],
     MessageCategory.ANNOUNCEMENT: ["title", "body", "school_name", "audience"],
     MessageCategory.GENERAL: ["recipient_name", "subject", "body", "school_name"],
