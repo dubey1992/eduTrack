@@ -30,6 +30,7 @@ class StudentListScreen extends ConsumerStatefulWidget {
 class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   final _searchController = TextEditingController();
   int? _schoolFilter;
+  StudentStatus? _statusFilter;
 
   @override
   void dispose() {
@@ -67,6 +68,24 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 setState(() => _schoolFilter = schoolId);
                 ref.read(studentListNotifierProvider.notifier).setSchoolFilter(schoolId);
               },
+            ),
+            SizedBox(
+              width: 180,
+              child: DropdownButtonFormField<StudentStatus?>(
+                key: const Key('student-status-filter'),
+                initialValue: _statusFilter,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Status', isDense: true),
+                items: [
+                  const DropdownMenuItem<StudentStatus?>(value: null, child: Text('Any status')),
+                  for (final status in StudentStatus.values)
+                    DropdownMenuItem<StudentStatus?>(value: status, child: Text(status.label)),
+                ],
+                onChanged: (status) {
+                  setState(() => _statusFilter = status);
+                  ref.read(studentListNotifierProvider.notifier).setStatusFilter(status);
+                },
+              ),
             ),
           ],
         ),

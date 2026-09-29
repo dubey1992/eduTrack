@@ -260,6 +260,36 @@ void main() {
     expect(find.widgetWithText(TextButton, 'Activate'), findsOneWidget);
   });
 
+  testWidgets('the list can be asked for the students who have finished', (tester) async {
+    _useDesktopLayout(tester);
+
+    // A school that has promoted a class needs to be able to find them
+    // again: they are not inactive, and they are not on any class list
+    // (docs/promotion.md).
+    final graduated = _student.copyWith(status: StudentStatus.graduated);
+    final fake = FakeStudentRepository(students: [_student, graduated]);
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('student-status-filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Graduated').last);
+    await tester.pumpAndSettle();
+
+    expect(fake.statusCalls.last, 'graduated');
+  });
+
+  testWidgets('any status is the default, so nobody is hidden by accident', (tester) async {
+    _useDesktopLayout(tester);
+
+    final fake = FakeStudentRepository(students: [_student]);
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    expect(fake.statusCalls, [null]);
+    expect(find.text('Any status'), findsOneWidget);
+  });
+
   testWidgets('a graduated student reads as finished, not as a red Inactive', (tester) async {
     _useDesktopLayout(tester);
 

@@ -942,6 +942,10 @@ def school_class_resource(school_class, sections=None) -> dict:
 
     if loaded(school_class, "academic_year"):
         body["academic_year_name"] = school_class.academic_year.name
+        # Which year a class belongs to is not enough for a picker: class
+        # names repeat, so the client needs to know which of two "Grade 8 A"s
+        # is the one being lived (docs/promotion.md).
+        body["is_current_year"] = school_class.academic_year.is_current
 
     if sections is not None:
         body["sections"] = [class_section_resource(section) for section in sections]

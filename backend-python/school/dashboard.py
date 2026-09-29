@@ -51,7 +51,7 @@ from .models import (
 from .payroll.service import PayrollRunService, period_label
 from .requests import php_int
 from .scope import SchoolScope, group_school_ids
-from .services import HolidayService, php_number, php_round_1
+from .services import HolidayService, TimetableService, php_number, php_round_1
 
 
 class DashboardService:
@@ -209,8 +209,13 @@ class DashboardService:
     def _teacher(cls, actor: User, today: dt.date) -> dict:
         school_id = actor.school_id
 
-        periods_today = TimetableEntry.objects.filter(
-            school_id=school_id, teacher_id=actor.id, day_of_week=today.strftime("%A").lower()
+        # This year's grid only: a school in its second year would otherwise
+        # count last year's Monday as well (docs/promotion.md).
+        periods_today = TimetableService.this_year(
+            TimetableEntry.objects.filter(
+                school_id=school_id, teacher_id=actor.id, day_of_week=today.strftime("%A").lower()
+            ),
+            school_id,
         ).count()
         reports_filed = DailyTeachingReport.objects.filter(
             school_id=school_id, teacher_id=actor.id, report_date=today

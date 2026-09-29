@@ -17,6 +17,7 @@ class StudentApi {
     int? schoolId,
     int? classSectionId,
     String? search,
+    String? status,
     int? page,
     int? perPage,
   }) async {
@@ -26,6 +27,7 @@ class StudentApi {
         'school_id': ?schoolId,
         'class_section_id': ?classSectionId,
         'search': ?search,
+        'status': ?status,
         'page': ?page,
         'per_page': ?perPage,
       },

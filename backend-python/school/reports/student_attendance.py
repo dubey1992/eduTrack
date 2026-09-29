@@ -11,9 +11,17 @@ from __future__ import annotations
 from django.db.models import Count
 
 from ..enums import AttendanceStatus, StudentStatus
-from ..models import Attendance, Student
+from ..models import Attendance, Student, StudentEnrollment
 from ..services import php_number
 from .range import ReportRange, rate_of
+
+
+def section_label(section) -> str | None:
+    """"Grade 8 A", or nothing at all when a student has no class."""
+    if section is None:
+        return None
+
+    return f"{section.school_class.name if section.school_class else ''} {section.name}".strip()
 
 
 class StudentAttendanceReport:
@@ -26,15 +34,11 @@ class StudentAttendanceReport:
         return row["student_id"]
 
     def build(self, report_range: ReportRange, filters: dict) -> dict:
-        students = Student.objects.filter(school_id=report_range.school_id, status=StudentStatus.ACTIVE)
-
-        if filters.get("class_section_id"):
-            students = students.filter(class_section_id=filters["class_section_id"])
-
-        students = list(
-            students.select_related("class_section__school_class").order_by("first_name", "last_name", "id")
-        )
+        students = self._roster(report_range, filters)
         marks = self._marks_by_student(report_range, [student.id for student in students])
+        # Which class each of them was in while this range was being lived,
+        # rather than the class they are in now (docs/promotion.md).
+        classes = self._classes_during(report_range, students, filters)
         days = report_range.working_day_count()
 
         rows = []
@@ -43,17 +47,12 @@ class StudentAttendanceReport:
             present = counts.get(AttendanceStatus.PRESENT, 0)
             absent = counts.get(AttendanceStatus.ABSENT, 0)
             leave = counts.get(AttendanceStatus.LEAVE, 0)
-            section = student.class_section
 
             rows.append({
                 "student_id": student.id,
                 "admission_number": student.admission_number,
                 "name": student.name,
-                "class_section": (
-                    None
-                    if section is None
-                    else f"{section.school_class.name if section.school_class else ''} {section.name}".strip()
-                ),
+                "class_section": classes.get(student.id),
                 "working_days": days,
                 "present": present,
                 "absent": absent,
@@ -82,6 +81,87 @@ class StudentAttendanceReport:
             "rows": rows,
             "totals": totals,
         }
+
+    @staticmethod
+    def _roster(report_range: ReportRange, filters: dict):
+        """Who this report is about.
+
+        The school's active students, plus anybody who has a mark inside the
+        range - a child who has since graduated or left was there for the
+        year being reported on, and a report that quietly dropped them would
+        raise every percentage around them.
+        """
+        students = Student.objects.filter(school_id=report_range.school_id)
+        section_id = filters.get("class_section_id")
+
+        was_here = Attendance.objects.filter(
+            school_id=report_range.school_id,
+            attendance_date__range=(report_range.start, report_range.end),
+        )
+
+        if section_id:
+            was_here = was_here.filter(class_section_id=section_id)
+
+        attended = set(was_here.values_list("student_id", flat=True))
+        here_now = students.filter(status=StudentStatus.ACTIVE)
+
+        if section_id:
+            here_now = here_now.filter(class_section_id=section_id)
+
+        wanted = set(here_now.values_list("id", flat=True)) | attended
+
+        return list(
+            students.filter(id__in=wanted)
+            .select_related("class_section__school_class")
+            .order_by("first_name", "last_name", "id")
+        )
+
+    @staticmethod
+    def _classes_during(report_range: ReportRange, students: list, filters: dict) -> dict:
+        """The class each student sat in during the range.
+
+        Read from the register itself, which snapshots the section on every
+        row, and then from the year's enrollment where nobody ever took one.
+        The student's own `class_section_id` is the last resort, because it
+        is the present tense: after a promotion it names next year's class,
+        and last year's report would read as though the year had been spent
+        there.
+        """
+        labelled: dict[int, str] = {}
+        ids = [student.id for student in students]
+
+        marked = (
+            Attendance.objects.filter(
+                student_id__in=ids, attendance_date__range=(report_range.start, report_range.end)
+            )
+            .select_related("class_section__school_class")
+            .order_by("student_id", "-attendance_date")
+        )
+
+        for row in marked:
+            labelled.setdefault(row.student_id, section_label(row.class_section))
+
+        missing = [student for student in students if student.id not in labelled]
+
+        if missing:
+            enrolled = (
+                StudentEnrollment.objects.filter(
+                    student_id__in=[student.id for student in missing],
+                    academic_year__start_date__lte=report_range.end,
+                    academic_year__end_date__gte=report_range.start,
+                )
+                .select_related("school_class", "class_section")
+                .order_by("student_id", "-academic_year__start_date")
+            )
+
+            for row in enrolled:
+                section = row.class_section.name if row.class_section_id else ""
+                labelled.setdefault(row.student_id, f"{row.school_class.name} {section}".strip())
+
+        for student in missing:
+            labelled.setdefault(student.id, section_label(student.class_section))
+
+        return labelled
 
     def headings(self) -> list[str]:
         return ["Admission No.", "Student", "Class", "Working days", "Present", "Absent", "Leave", "Not marked", "Attendance %"]

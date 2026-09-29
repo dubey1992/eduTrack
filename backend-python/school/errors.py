@@ -186,6 +186,19 @@ class TargetSectionMismatch(ApiError):
     error_code = "TARGET_SECTION_MISMATCH"
 
 
+class StudentHasFinished(ApiError):
+    """A graduated student is not on the roll any more.
+
+    They keep every record they earned and take no new place: no bus seat,
+    no register, no promotion into a further year. 409 rather than 422 - the
+    request is well formed, and the answer is no because of what has already
+    happened to them (docs/promotion.md).
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "STUDENT_HAS_FINISHED"
+
+
 class AlreadyEnrolled(ApiError):
     """A student in this batch already has a place in the target year.
 

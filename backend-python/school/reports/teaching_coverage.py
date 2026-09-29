@@ -13,7 +13,7 @@ from collections import Counter
 from django.db.models import Count
 
 from ..models import DailyTeachingReport, Subject, SyllabusTopic, SyllabusTopicProgress, TimetableEntry
-from ..services import php_number
+from ..services import TimetableService, php_number
 from .range import ReportRange, rate_of
 
 
@@ -108,7 +108,12 @@ class TeachingCoverageReport:
         # How many working days fall on each weekday - {"monday": 3, ...}.
         working_days_by_weekday = Counter(date.strftime("%A").lower() for date in report_range.working_dates)
 
-        entries = TimetableEntry.objects.filter(school_id=report_range.school_id)
+        # The grid of the year the range falls in. Counting every year's
+        # entries would double "scheduled" the moment a school has a second
+        # timetable (docs/promotion.md).
+        entries = TimetableService.this_year(
+            TimetableEntry.objects.filter(school_id=report_range.school_id), report_range.school_id
+        )
 
         if filters.get("class_section_id"):
             entries = entries.filter(class_section_id=filters["class_section_id"])

@@ -67,6 +67,7 @@ from .enums import (
 )
 from .errors import (
     AssessmentNotPublished,
+    StudentHasFinished,
     AssessmentPublished,
     MarksIncomplete,
     MaxMarksLocked,
@@ -1134,6 +1135,36 @@ class TimetableService:
 
     WITH = ("class_section__school_class", "period", "subject", "teacher")
 
+    @staticmethod
+    def of_year(entries, academic_year_id):
+        """Narrows a timetable query to one academic year.
+
+        A section belongs to exactly one year, so this is how a timetable
+        question means "now" rather than "ever". Without it a school in its
+        second year counts every period twice - last year's Monday and this
+        year's - and the teacher's screen shows both (docs/promotion.md).
+        """
+        if academic_year_id is None:
+            return entries
+
+        return entries.filter(class_section__school_class__academic_year_id=academic_year_id)
+
+    @staticmethod
+    def current_year_id(school_id):
+        if school_id is None:
+            return None
+
+        return (
+            AcademicYear.objects.filter(school_id=school_id, is_current=True)
+            .values_list("id", flat=True)
+            .first()
+        )
+
+    @classmethod
+    def this_year(cls, entries, school_id):
+        """The school's current year, for the screens that mean today."""
+        return cls.of_year(entries, cls.current_year_id(school_id))
+
     @classmethod
     def for_class_section(cls, class_section_id: int):
         """One class's whole week, in no particular order - the client lays it
@@ -1144,10 +1175,15 @@ class TimetableService:
         )
 
     @classmethod
-    def for_teacher(cls, teacher_id: int):
-        """One teacher's periods across every class they teach."""
-        return TimetableEntry.objects.select_related(*cls.WITH).filter(
-            teacher_id=teacher_id
+    def for_teacher(cls, teacher: User):
+        """One teacher's periods across every class they teach, this year.
+
+        Last year's grid is not a second timetable to read: it belongs to
+        sections nobody is in any more.
+        """
+        return cls.this_year(
+            TimetableEntry.objects.select_related(*cls.WITH).filter(teacher_id=teacher.id),
+            teacher.school_id,
         )
 
     @classmethod
@@ -1199,11 +1235,22 @@ class TimetableService:
         a single class section's grid, and this is a collision between two of
         them.
         """
+        section = ClassSection.objects.select_related("school_class").filter(
+            pk=data["class_section_id"]
+        ).first()
+        year_id = None if section is None else section.school_class.academic_year_id
+
+        # Within the same year only. A teacher who took Monday period 1 last
+        # year is not busy this year, and a check that thought so would make
+        # a school's second timetable impossible to build (docs/promotion.md).
         clashes = (
-            TimetableEntry.objects.filter(
-                teacher_id=data["teacher_id"],
-                day_of_week=data["day_of_week"],
-                period_id=data["period_id"],
+            TimetableService.of_year(
+                TimetableEntry.objects.filter(
+                    teacher_id=data["teacher_id"],
+                    day_of_week=data["day_of_week"],
+                    period_id=data["period_id"],
+                ),
+                year_id,
             )
             .exclude(class_section_id=data["class_section_id"])
             .exists()
@@ -1334,8 +1381,9 @@ class DailyTeachingReportService:
         if holiday is not None:
             scheduled = 0
         else:
-            scheduled = cls.scoped(
-                TimetableEntry.objects.all(), actor, filters.get("school_id")
+            scheduled = TimetableService.this_year(
+                cls.scoped(TimetableEntry.objects.all(), actor, filters.get("school_id")),
+                school_id,
             ).filter(day_of_week=date.strftime("%A").lower()).count()
 
         submitted = cls.scoped(
@@ -2774,6 +2822,12 @@ class TransportRouteService:
 class StudentTransportService:
     @staticmethod
     def assign(student, route, stop) -> None:
+        # A child who has finished school rides no bus. Refused here rather
+        # than in the form, because this is a fact about the student and not
+        # about the request (docs/promotion.md).
+        if student.status == StudentStatus.GRADUATED:
+            raise StudentHasFinished(f"{student.name} has graduated and is no longer on the roll.")
+
         with transaction.atomic():
             vehicle = route.vehicle if route.vehicle_id else None
 
@@ -4451,17 +4505,27 @@ class AssessmentMarkService:
 
     @staticmethod
     def sheet(assessment: Assessment) -> dict:
-        """The class's active roster, each student paired with their mark -
-        or nothing where they have not been marked yet."""
-        students = Student.objects.filter(
-            class_section_id=assessment.class_section_id, status=StudentStatus.ACTIVE
-        ).order_by("first_name", "id")
+        """The class, each student paired with their mark - or nothing where
+        they have not been marked yet.
 
-        existing = {row.student_id: row for row in AssessmentMark.objects.filter(assessment_id=assessment.id)}
+        "The class" is the section's active roster *plus* everybody this test
+        already holds a mark for, and the second half is what keeps a result
+        readable after the year turns. A promoted class leaves the section
+        behind: reading the roster alone would show last year's published
+        result as an empty sheet, with the marks still in the table and
+        nobody to attach them to (docs/promotion.md).
+        """
+        marks = {row.student_id: row for row in AssessmentMark.objects.filter(assessment_id=assessment.id)}
+        roster = Student.objects.filter(
+            class_section_id=assessment.class_section_id, status=StudentStatus.ACTIVE
+        )
+        marked = Student.objects.filter(id__in=list(marks))
+
+        students = (roster | marked).distinct().order_by("first_name", "id")
 
         return {
             "assessment": assessment,
-            "entries": [(student, existing.get(student.id)) for student in students],
+            "entries": [(student, marks.get(student.id)) for student in students],
         }
 
     @classmethod

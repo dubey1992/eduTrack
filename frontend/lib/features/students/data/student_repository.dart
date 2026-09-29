@@ -29,6 +29,7 @@ class StudentRepository {
     int? schoolId,
     int? classSectionId,
     String? search,
+    String? status,
     required int page,
     required int perPage,
   }) async {
@@ -37,6 +38,7 @@ class StudentRepository {
         schoolId: schoolId,
         classSectionId: classSectionId,
         search: search,
+        status: status,
         page: page,
         perPage: perPage,
       );

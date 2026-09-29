@@ -1,12 +1,10 @@
 # Class Promotion
 
-**Status (2026-09-29): built, apart from the year-change checks.** The
-history table, the backfill, the Class history dialog, the preview, the
-three-step wizard, `promotion_batches`, the transactional run, the four
-outcomes, the `graduated` student status, the audit entry and the batch
-history are all live. What remains is slice 10: a pass that proves a change
-of year survives across attendance, the timetable, transport, imports and
-the reports. Decided with
+**Status (2026-09-29): built.** The history table, the backfill, the Class
+history dialog, the preview, the three-step wizard, `promotion_batches`, the
+transactional run, the four outcomes, the `graduated` student status, the
+audit entry, the batch history and the cross-module checks that a change of
+year survives are all live. Decided with
 the user on
 2026-09-21: an administrator promotes a class into the next academic year in
 one pass, deciding per student whether they move up, repeat the year,
@@ -279,6 +277,33 @@ themselves carry who ran the batch and when, so nothing is lost. A
 - Contract tests, plus the endpoints in `PYTHON_ONLY_ENDPOINTS`.
 - A Flutter integration flow: an administrator promotes a section end to
   end, and the student's history shows both years.
+
+## Living with a new year
+
+Promotion is the one feature that changes what every other module is looking
+at, so slice 10 was a pass through them rather than a screen. Eight things
+broke, and each is now pinned by
+`school/tests/test_year_change_api.py`, which promotes a class and then uses
+the product:
+
+| What broke | Why |
+|---|---|
+| A published result lost its class | The marks sheet read the section's roster, and the roster had moved on. It now reads the roster **plus** everybody the test already holds a mark for, so last year's result still lists the class that sat it |
+| Next year's timetable could not be built | The teacher-clash check spanned every year, so last year's Monday made this year's Monday "busy". It is scoped to the year of the section being edited |
+| A teacher saw two timetables | `for_teacher` returned every year's entries. It returns the current year's |
+| "Periods today", pending teaching reports and the coverage report all doubled | Same cause, three call sites, all now scoped through `TimetableService.this_year` |
+| Last year's attendance report named this year's class | It read the student's current section pointer. It reads the register's own snapshot first, then the year's enrollment, and only then the pointer |
+| A student who graduated vanished from last year's report | The report only listed active students. It now includes anybody with a mark inside the range - they were there all year, and dropping them raised everybody else's percentage |
+| A graduated student could be given a bus seat | Refused now, with `STUDENT_HAS_FINISHED` |
+| Every "Class" picker offered two "Grade 8 A"s | The class resource says `is_current_year`, and the picker keeps this year's. A promotion names its target year deliberately and uses its own provider |
+
+Two things were already right and are now tested rather than assumed: a
+graduated student cannot be marked present (the register only ever offered
+active students), and a bulk import of students lands in the current year's
+class, because the importer looks its sections up under the current year.
+
+An announcement aimed at a class that has moved on is refused as an
+unreachable audience rather than sent to nobody.
 
 ## Order of work
 

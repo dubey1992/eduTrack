@@ -40,6 +40,9 @@ class FakeStudentRepository implements StudentRepository {
   /// - and how many times - has to look here.
   final List<String?> searchCalls = [];
 
+  /// Which status each list call asked for - null for "any".
+  final List<String?> statusCalls = [];
+
   List<Student> _filtered({int? schoolId, String? search}) {
     var found = schoolId == null ? _students : _students.where((s) => s.schoolId == schoolId).toList();
 
@@ -64,13 +67,18 @@ class FakeStudentRepository implements StudentRepository {
     int? schoolId,
     int? classSectionId,
     String? search,
+    String? status,
     required int page,
     required int perPage,
   }) async {
     searchCalls.add(search);
+    statusCalls.add(status);
     if (failListWith != null) throw failListWith!;
+
+    final rows = _filtered(schoolId: schoolId, search: search);
+
     return paginateFake(
-      _filtered(schoolId: schoolId, search: search),
+      status == null ? rows : rows.where((student) => student.status.apiValue == status).toList(),
       page: page,
       perPage: perPage,
     );

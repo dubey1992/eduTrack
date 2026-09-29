@@ -14,6 +14,10 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
   /// already scoped to their own school server-side.
   int? _schoolId;
   String? _search;
+
+  /// Null means every status. A school that has promoted a class needs to be
+  /// able to find the students who finished (docs/promotion.md).
+  StudentStatus? _status;
   int _page = 1;
   int _perPage = 20;
 
@@ -29,7 +33,7 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
   Future<PagedList<Student>> _fetch() async {
     final response = await ref
         .read(studentRepositoryProvider)
-        .listPage(schoolId: _schoolId, search: _search, page: _page, perPage: _perPage);
+        .listPage(schoolId: _schoolId, search: _search, status: _status?.apiValue, page: _page, perPage: _perPage);
 
     return PagedList(
       items: response.items,
@@ -53,6 +57,12 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
 
   Future<void> setSchoolFilter(int? schoolId) async {
     _schoolId = schoolId;
+    _page = 1;
+    await refresh();
+  }
+
+  Future<void> setStatusFilter(StudentStatus? status) async {
+    _status = status;
     _page = 1;
     await refresh();
   }

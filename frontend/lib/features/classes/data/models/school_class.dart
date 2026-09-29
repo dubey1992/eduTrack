@@ -37,6 +37,7 @@ class SchoolClass {
     required this.name,
     required this.level,
     required this.sections,
+    this.isCurrentYear,
   });
 
   factory SchoolClass.fromJson(Map<String, dynamic> json) {
@@ -45,6 +46,7 @@ class SchoolClass {
       schoolId: json['school_id'] as int,
       schoolName: json['school_name'] as String?,
       academicYearId: json['academic_year_id'] as int,
+      isCurrentYear: json['is_current_year'] as bool?,
       academicYearName: json['academic_year_name'] as String?,
       name: json['name'] as String,
       level: json['level'] as int,
@@ -60,4 +62,9 @@ class SchoolClass {
   final String name;
   final int level;
   final List<ClassSection> sections;
+
+  /// Whether this class belongs to the year the school is living. Null when
+  /// the server did not say, which a picker treats as "keep it" rather than
+  /// as "hide it" - an unknown is not a reason to show nothing.
+  final bool? isCurrentYear;
 }

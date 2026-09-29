@@ -64,7 +64,7 @@ def grid_for(actor, asked: dict):
 
     assert_same_school(actor, teacher.school_id)
 
-    return TimetableService.for_teacher(teacher.id)
+    return TimetableService.for_teacher(teacher)
 
 
 def assert_same_school(actor, school_id) -> None:
