@@ -271,6 +271,7 @@ StudentPerformance fakePerformance({
   PerformanceTerm? previousTerm,
   List<PerformanceTerm>? terms,
   PerformanceAttendance? attendance,
+  List<PerformanceInsight>? insights,
   double? weakBelow = 40,
 
   /// Flags rather than null arguments: with `term ?? default` there is no
@@ -338,6 +339,24 @@ StudentPerformance fakePerformance({
           notMarked: 1,
           attendanceRate: 70,
         ),
+    insights:
+        insights ??
+        const [
+          PerformanceInsight(
+            code: 'weak_subject',
+            message: "Mathematics is at 34%, below the school's 40% mark.",
+            subjectId: 1,
+            subjectName: 'Mathematics',
+            numbers: {'average': '34', 'threshold': '40'},
+          ),
+          PerformanceInsight(
+            code: 'improving',
+            message: 'Science is up 12 points since Term 1.',
+            subjectId: 2,
+            subjectName: 'Science',
+            numbers: {'change': '12'},
+          ),
+        ],
     weakBelowPercentage: weakBelow,
   );
 }

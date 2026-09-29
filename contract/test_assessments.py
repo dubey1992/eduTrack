@@ -262,6 +262,7 @@ class Performance(unittest.TestCase):
                 "subjects": "list",
                 "overall": "dict",
                 "attendance": "dict",
+                "insights": "list",
                 "weak_below_percentage": "int",
             },
             "GET /students/{student}/performance",
@@ -292,6 +293,28 @@ class Performance(unittest.TestCase):
                     "change": "str?",
                 },
                 "a subject row",
+            )
+
+    def test_an_insight_carries_a_code_a_sentence_and_its_numbers(self):
+        """The rules themselves are unit-tested; this is the wire shape.
+
+        A client acts on the code and prints the sentence, so both have to
+        be there whatever the world happens to hold.
+        """
+        response = self.w.admin.get(f"/students/{self.w.student_id}/performance")
+
+        for row in response.body["insights"]:
+            shapes.assert_shape(
+                self,
+                row,
+                {
+                    "code": "str",
+                    "message": "str",
+                    "subject_id": "int?",
+                    "subject_name": "str?",
+                    "numbers": "dict",
+                },
+                "an insight",
             )
 
     def test_a_term_that_is_not_this_school_s_is_refused_by_field(self):

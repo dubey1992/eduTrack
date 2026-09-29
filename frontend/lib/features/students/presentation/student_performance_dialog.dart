@@ -53,6 +53,10 @@ class StudentPerformanceDialog extends ConsumerWidget {
                   _Summary(performance: performance),
                   const SizedBox(height: 16),
                   _SubjectTable(performance: performance),
+                  if (performance.insights.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _Insights(insights: performance.insights),
+                  ],
                 ],
                 const SizedBox(height: 20),
                 _Attendance(performance: performance),
@@ -236,6 +240,46 @@ class _Change extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Text(value.abs().toStringAsFixed(2), style: TextStyle(color: rising ? colors.success : colors.danger)),
+      ],
+    );
+  }
+}
+
+/// What the rules made of the figures above.
+///
+/// Sentences rather than scores, each one drawn from numbers the page is
+/// already showing - so a teacher can check every claim without leaving the
+/// dialog (docs/assessments.md).
+class _Insights extends StatelessWidget {
+  const _Insights({required this.insights});
+
+  final List<PerformanceInsight> insights;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('What this looks like', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        for (final insight in insights)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  insight.isConcerning ? Icons.error_outline : Icons.trending_up,
+                  size: 16,
+                  color: insight.isConcerning ? colors.warning : colors.success,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(insight.message)),
+              ],
+            ),
+          ),
       ],
     );
   }

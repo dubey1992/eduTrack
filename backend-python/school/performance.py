@@ -28,7 +28,7 @@ import decimal
 
 from django.db.models import Count, Q, Sum
 
-from . import modules
+from . import insights, modules
 from .clock import SchoolClock
 from .enums import AssessmentStatus, AttendanceStatus
 from .models import AcademicTerm, Assessment, AssessmentMark, Attendance, GradeScale, Student
@@ -154,7 +154,7 @@ class StudentPerformance:
 
         subjects = [] if term is None else cls.subjects(student, term, previous)
 
-        return {
+        payload = {
             "student": {
                 "id": student.id,
                 "name": student.name,
@@ -173,6 +173,13 @@ class StudentPerformance:
                 modules.setting(student.school_id, MODULE, "weak_below_percentage")
             ),
         }
+
+        # Read from the figures above rather than from the database: the
+        # rules see exactly what the screen shows, so a sentence can never
+        # describe numbers the page does not carry (school/insights.py).
+        payload["insights"] = insights.for_performance(payload)
+
+        return payload
 
     @staticmethod
     def section_name(student: Student) -> str | None:

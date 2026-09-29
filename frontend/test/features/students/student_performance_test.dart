@@ -320,6 +320,60 @@ void main() {
     });
   });
 
+  group('the insights', () {
+    testWidgets('are read as sentences, with the concerning ones marked', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(wrap(FakeStudentRepository(students: [_student])));
+      await tester.pumpAndSettle();
+
+      expect(find.text('What this looks like'), findsOneWidget);
+      expect(find.text("Mathematics is at 34%, below the school's 40% mark."), findsOneWidget);
+      expect(find.text('Science is up 12 points since Term 1.'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget, reason: 'the weak one');
+      expect(find.byIcon(Icons.trending_up), findsOneWidget, reason: 'the improving one');
+    });
+
+    testWidgets('a steady term shows no heading at all rather than an empty one', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(
+          FakeStudentRepository(
+            students: [_student],
+            performance: fakePerformance(insights: const []),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('What this looks like'), findsNothing);
+    });
+
+    test('an insight parses with everything it was drawn from', () {
+      final parsed = PerformanceInsight.fromJson(const {
+        'code': 'slipping',
+        'message': 'Science has fallen 14 points since Term 1.',
+        'subject_id': 2,
+        'subject_name': 'Science',
+        'numbers': {'change': '-14', 'average': '52', 'previous': '66'},
+      });
+
+      expect(parsed.code, 'slipping');
+      expect(parsed.subjectName, 'Science');
+      expect(parsed.numbers['previous'], '66');
+      expect(parsed.isConcerning, isTrue);
+    });
+
+    test('only improvement reads as good news', () {
+      const improving = PerformanceInsight(code: 'improving', message: 'up');
+      const missed = PerformanceInsight(code: 'missed_tests', message: 'absent');
+
+      expect(improving.isConcerning, isFalse);
+      expect(missed.isConcerning, isTrue);
+    });
+  });
+
   group('who is offered it', () {
     test('a school with the assessments module off does not see the action', () {
       final off = sessionUser(UserRole.teacher, modules: {AppModules.assessments: false});

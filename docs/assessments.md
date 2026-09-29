@@ -1,10 +1,10 @@
 # Class Tests & Assessments
 
-**Status (2026-09-29): slices 1 to 11 built, 12 to 14 planned.** Terms, grade
+**Status (2026-09-29): slices 1 to 12 built, 13 and 14 planned.** Terms, grade
 scales, enrollment history, the class test, its marks sheet, publishing, the
 message to the guardian, the whole of promotion and a student's performance
 are live, each with a flow that runs in a browser. What remains is the
-insights, the two report kinds and the printable progress report. Decided with the user on
+the two report kinds and the printable progress report. Decided with the user on
 2026-09-21: the school year is divided into terms, marks are entered against
 a maximum and turned into a grade by a scale the school configures, and
 results reach guardians as a message and as a printable progress report.
@@ -332,10 +332,9 @@ Performance is computed, never stored. Two report classes join the seven in
 the PDF machinery, so a branch group gets the same combined view it gets
 today.
 
-Slice 11 built the first three-quarters of this: `GET
-/students/{id}/performance` and the Performance dialog answer questions 1, 2
-and 4. The insights of question 3 are slice 12, and the two report kinds are
-slice 13.
+Slices 11 and 12 built all four: `GET /students/{id}/performance` and the
+Performance dialog answer them, and the sentences come back in the same
+payload as `insights`. The two report kinds are slice 13.
 
 Four rules decide every figure on it:
 
@@ -384,6 +383,24 @@ numbers it was drawn from, so a teacher can see why it was said:
 No insight is produced from fewer than two published assessments. One test
 is not a trend, and a confident sentence drawn from a single mark is worse
 than silence.
+
+The rules live in `school/insights.py`, which touches no database and no
+clock: it is handed the performance payload and returns a list, which is
+what lets every threshold be tested at the exact point it turns. Those
+points, decided here so they are not decided twice:
+
+| Rule | Fires at |
+|---|---|
+| `weak_subject` | strictly **below** the school's mark - exactly on it is not below it |
+| `slipping` / `improving` | ten points **or more**, either way; nine is the ordinary movement of one hard paper |
+| `missed_tests` | a third of the term's tests **or more**, counted across the term rather than per subject - three missed tests in three subjects is one fortnight away from school |
+| `attendance_may_explain` | strictly **under** 75%, and only beside a subject that is already weak |
+
+One rule was added while building it: nothing is said about attendance in a
+term whose register was never taken. That reads as 0%, which is the truth
+about the school's paperwork and says nothing about the child - and it is
+the one place the product would otherwise have accused somebody on the
+strength of a blank.
 
 ## Audit
 

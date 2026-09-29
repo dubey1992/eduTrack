@@ -78,6 +78,41 @@ class SubjectPerformance {
 
 /// The term as a whole: every subject's average, evenly, so a subject with
 /// eight tests does not drown one with two.
+/// Something the figures seem to be saying (docs/assessments.md).
+///
+/// A rule, never a model: each one carries the code a client acts on, the
+/// sentence a teacher reads, and the numbers it was drawn from - so nothing
+/// on the screen is a claim anybody has to take on trust.
+class PerformanceInsight {
+  const PerformanceInsight({
+    required this.code,
+    required this.message,
+    this.subjectId,
+    this.subjectName,
+    this.numbers = const {},
+  });
+
+  factory PerformanceInsight.fromJson(Map<String, dynamic> json) {
+    return PerformanceInsight(
+      code: json['code'] as String? ?? '',
+      message: json['message'] as String? ?? '',
+      subjectId: json['subject_id'] as int?,
+      subjectName: json['subject_name'] as String?,
+      numbers: (json['numbers'] as Map<String, dynamic>?) ?? const {},
+    );
+  }
+
+  final String code;
+  final String message;
+  final int? subjectId;
+  final String? subjectName;
+  final Map<String, dynamic> numbers;
+
+  /// Whether this one is about something going wrong. Used for the icon and
+  /// its colour, never to hide anything.
+  bool get isConcerning => code != 'improving';
+}
+
 class OverallPerformance {
   const OverallPerformance({
     required this.subjects,
@@ -158,6 +193,7 @@ class StudentPerformance {
     required this.subjects,
     required this.overall,
     required this.attendance,
+    required this.insights,
     this.weakBelowPercentage,
   });
 
@@ -181,6 +217,10 @@ class StudentPerformance {
       ],
       overall: OverallPerformance.fromJson(json['overall'] as Map<String, dynamic>?),
       attendance: PerformanceAttendance.fromJson(json['attendance'] as Map<String, dynamic>?),
+      insights: [
+        for (final row in (json['insights'] as List<dynamic>? ?? const []))
+          PerformanceInsight.fromJson(row as Map<String, dynamic>),
+      ],
       weakBelowPercentage: (json['weak_below_percentage'] as num?)?.toDouble(),
     );
   }
@@ -197,6 +237,10 @@ class StudentPerformance {
   final List<SubjectPerformance> subjects;
   final OverallPerformance overall;
   final PerformanceAttendance attendance;
+
+  /// What the rules made of the figures. Empty is the ordinary case for a
+  /// student with one test or a steady term.
+  final List<PerformanceInsight> insights;
 
   /// The subject average the school calls weak.
   final double? weakBelowPercentage;

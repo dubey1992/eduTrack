@@ -383,6 +383,50 @@ class WhenThereIsNothingToSay(PerformanceTestCase):
         self.assertEqual(["Term 2", "Term 1"], names, "newest first, which is what a picker opens on")
 
 
+class TheSentencesOnThePage(PerformanceTestCase):
+    """The rules themselves are unit-tested in test_insights.py; these are
+    about the figures reaching them at all."""
+
+    def test_a_weak_subject_is_said_in_words_with_the_school_s_own_mark(self):
+        self.mark(self.published(), marks="6")
+        self.mark(self.published(), marks="8")
+
+        insights = self.ask().data["insights"]
+
+        self.assertEqual(
+            ["weak_subject"],
+            [row["code"] for row in insights],
+            "no register was taken, so nothing is said about attendance",
+        )
+        self.assertEqual("Mathematics is at 35%, below the school's 40% mark.", insights[0]["message"])
+        self.assertEqual(self.maths.id, insights[0]["subject_id"])
+
+    def test_a_slipping_subject_names_the_term_it_fell_from(self):
+        self.mark(self.published(term=self.term_1), marks="18")
+        self.mark(self.published(term=self.term_1), marks="18")
+        self.mark(self.published(term=self.term_2), marks="10")
+        self.mark(self.published(term=self.term_2), marks="10")
+
+        codes = {row["code"]: row for row in self.ask().data["insights"]}
+
+        self.assertIn("slipping", codes)
+        self.assertEqual("Mathematics has fallen 40 points since Term 1.", codes["slipping"]["message"])
+
+    def test_a_student_too_new_to_say_anything_about_hears_nothing(self):
+        self.mark(self.published(), marks="2")
+
+        self.assertEqual([], self.ask().data["insights"], "one test is not a trend")
+
+    def test_the_rules_read_the_same_figures_the_page_shows(self):
+        self.mark(self.published(), marks="6")
+        self.mark(self.published(), marks="8")
+
+        response = self.ask()
+        average = self.subjects(response)["Mathematics"]["average_percentage"]
+
+        self.assertIn(average.rstrip("0").rstrip("."), response.data["insights"][0]["message"])
+
+
 class WhoMayRead(PerformanceTestCase):
     def test_a_term_from_another_school_is_a_field_error(self):
         elsewhere = factories.SchoolFactory()
