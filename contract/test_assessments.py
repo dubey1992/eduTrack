@@ -218,3 +218,92 @@ class Assessments(unittest.TestCase):
         shapes.assert_validation_error(self, refused, "class_section_id", "POST into another school's class")
 
         self.w.admin.delete(f"/assessments/{assessment['id']}")
+
+
+class Performance(unittest.TestCase):
+    """A student's numbers - served by the Python backend only
+    (docs/assessments.md).
+
+    Against Laravel these skip. Against Django they check the shape the
+    Performance dialog reads, and the two rules a client cannot see for
+    itself: a draft counts for nothing, and a term belonging to somebody
+    else is refused by field rather than answered with an empty page.
+    """
+
+    WORLD: world.World | None = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.WORLD = world.shared()
+
+        probe = cls.WORLD.admin.get(f"/students/{cls.WORLD.student_id}/performance")
+        if probe.status == 404:
+            raise unittest.SkipTest("student performance is served by the Python backend only")
+
+        coverage.PYTHON_ONLY_SERVED = True
+
+    @property
+    def w(self) -> world.World:
+        assert Performance.WORLD is not None
+        return Performance.WORLD
+
+    def test_the_page_is_shaped_the_way_the_dialog_reads_it(self):
+        response = self.w.admin.get(f"/students/{self.w.student_id}/performance")
+
+        self.assertEqual(200, response.status, f"GET /students/{{student}}/performance\n{response!r}")
+        shapes.assert_shape(
+            self,
+            response.body,
+            {
+                "student": "dict",
+                "term": "dict?",
+                "previous_term": "dict?",
+                "terms": "list",
+                "subjects": "list",
+                "overall": "dict",
+                "attendance": "dict",
+                "weak_below_percentage": "int",
+            },
+            "GET /students/{student}/performance",
+        )
+
+        overall = response.body["overall"]
+        for key in ("subjects", "assessments", "absent"):
+            self.assertIsInstance(overall[key], int, f"overall.{key}: {overall!r}")
+
+        attendance = response.body["attendance"]
+        self.assertIsInstance(attendance["working_days"], int, f"{attendance!r}")
+        # Nothing rather than zero where there is no working day at all.
+        self.assertIn(type(attendance["attendance_rate"]).__name__, ("int", "float", "NoneType"))
+
+        for row in response.body["subjects"]:
+            shapes.assert_shape(
+                self,
+                row,
+                {
+                    "subject_id": "int",
+                    "subject_name": "str",
+                    "assessments": "int",
+                    "absent": "int",
+                    "average_percentage": "str?",
+                    "grade": "str?",
+                    "class_average_percentage": "str?",
+                    "previous_average_percentage": "str?",
+                    "change": "str?",
+                },
+                "a subject row",
+            )
+
+    def test_a_term_that_is_not_this_school_s_is_refused_by_field(self):
+        response = self.w.admin.get(
+            f"/students/{self.w.student_id}/performance", academic_term_id=99999999
+        )
+
+        shapes.assert_validation_error(
+            self, response, "academic_term_id", "GET performance for somebody else's term"
+        )
+
+    def test_another_school_reaches_none_of_it(self):
+        response = self.w.other_admin.get(f"/students/{self.w.student_id}/performance")
+
+        self.assertEqual(403, response.status, f"{response!r}")

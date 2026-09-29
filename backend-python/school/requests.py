@@ -576,6 +576,33 @@ class PromotionPreviewRequest(serializers.Serializer):
         return value
 
 
+class StudentPerformanceRequest(serializers.Serializer):
+    """Which term to read. Left out, the service picks the one being lived.
+
+    The term is checked against the student's own school, so a term id from
+    somewhere else is a field error rather than an empty page that looks
+    like a child with no marks.
+    """
+
+    academic_term_id = LaravelIntegerField("academic_term_id", required=False, allow_null=True)
+
+    def __init__(self, *args, student=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.student = student
+
+    def validate_academic_term_id(self, value):
+        if value is None:
+            return value
+
+        if not AcademicTerm.objects.filter(pk=value, school_id=self.student.school_id).exists():
+            raise serializers.ValidationError(does_not_exist("academic_term_id"))
+
+        return value
+
+
 class RunPromotionRequest(serializers.Serializer):
     """A promotion batch: the section, the year, and a decision per student.
 

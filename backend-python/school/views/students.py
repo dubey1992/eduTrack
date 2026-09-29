@@ -17,8 +17,9 @@ from rest_framework.response import Response
 from ..enums import StudentStatus
 from ..models import Student
 from ..pagination import LaravelPagination
-from ..policies import StudentPolicy, authorize
-from ..requests import StoreStudentRequest, UpdateStudentRequest
+from ..performance import for_student as performance_of
+from ..policies import StudentPolicy, authorize, permitted
+from ..requests import StoreStudentRequest, StudentPerformanceRequest, UpdateStudentRequest
 from ..resources import student_enrollment_resource, student_resource
 from ..services import StudentEnrollmentService, StudentService
 
@@ -134,6 +135,30 @@ def reload(student_id: int) -> Student:
     the moment it is fetched again.
     """
     return Student.objects.select_related(*WITH).get(pk=student_id)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def performance(request, student_id: int) -> Response:
+    """What this student's marks add up to (docs/assessments.md).
+
+    A term at a time, with the previous one beside it. Computed on the way
+    out - there is no summary table - so a corrected mark changes the answer
+    immediately.
+    """
+    student = get_object_or_404(
+        Student.objects.select_related("school", "class_section__school_class"), pk=student_id
+    )
+
+    authorize(StudentPolicy.view(request.user, student))
+    # The Performance tab belongs to the assessments module: a school that
+    # has switched class tests off has no performance to read.
+    authorize(permitted(request.user, "assessments", school_id=student.school_id))
+
+    form = StudentPerformanceRequest(data=request.query_params, student=student)
+    form.is_valid(raise_exception=True)
+
+    return Response(performance_of(student, form.validated_data.get("academic_term_id")))
 
 
 @api_view(["GET"])

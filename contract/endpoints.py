@@ -286,6 +286,7 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
 
     # -- enrollment history and promotion (docs/promotion.md) -----------
     ("GET", "students/{student}/enrollments"),
+    ("GET", "students/{student}/performance"),
     ("GET", "promotions/preview"),
     ("POST", "promotions"),
     ("GET", "promotions"),

@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/student.dart';
 import 'models/student_enrollment.dart';
+import 'models/student_performance.dart';
 import 'student_api.dart';
 
 final studentRepositoryProvider = Provider<StudentRepository>(
@@ -129,6 +130,14 @@ class StudentRepository {
   Future<Student> setActive(int studentId, bool active) async {
     try {
       return active ? await _api.activate(studentId) : await _api.deactivate(studentId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<StudentPerformance> performance(int studentId, {int? academicTermId}) async {
+    try {
+      return await _api.performance(studentId, academicTermId: academicTermId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

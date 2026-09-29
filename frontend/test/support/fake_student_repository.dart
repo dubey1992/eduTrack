@@ -2,6 +2,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/students/data/models/student.dart';
 import 'package:edutrack_app/features/students/data/models/student_enrollment.dart';
+import 'package:edutrack_app/features/students/data/models/student_performance.dart';
 import 'package:edutrack_app/features/students/data/student_repository.dart';
 
 import 'fake_pagination.dart';
@@ -10,6 +11,7 @@ class FakeStudentRepository implements StudentRepository {
   FakeStudentRepository({
     List<Student>? students,
     List<StudentEnrollment>? enrollments,
+    StudentPerformance? performance,
     this.failCreateWith,
     this.failUpdateWith,
     this.failSetActiveWith,
@@ -17,10 +19,16 @@ class FakeStudentRepository implements StudentRepository {
     this.failSetTransportWith,
     this.failWith = const {},
   }) : _students = students ?? [],
-       _enrollments = enrollments ?? [];
+       _enrollments = enrollments ?? [],
+       _performance = performance ?? fakePerformance();
 
   final List<Student> _students;
   final List<StudentEnrollment> _enrollments;
+  final StudentPerformance _performance;
+
+  /// Which term each performance call asked for - null for "the one being
+  /// lived", which is what the server picks.
+  final List<int?> termCalls = [];
 
   /// Keyed by method name, for the methods added since: {'enrollments': ...}.
   final Map<String, Failure> failWith;
@@ -235,6 +243,16 @@ class FakeStudentRepository implements StudentRepository {
   }
 
   @override
+  Future<StudentPerformance> performance(int studentId, {int? academicTermId}) async {
+    calls.add('performance');
+    termCalls.add(academicTermId);
+    final failure = failWith['performance'];
+    if (failure != null) throw failure;
+
+    return _performance;
+  }
+
+  @override
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     calls.add('enrollments');
     final failure = failWith['enrollments'];
@@ -242,4 +260,84 @@ class FakeStudentRepository implements StudentRepository {
 
     return List.unmodifiable(_enrollments);
   }
+}
+
+/// A term of marks without a server: two subjects, one of them weak, one
+/// term to compare against, and a register beside it.
+StudentPerformance fakePerformance({
+  List<SubjectPerformance>? subjects,
+  OverallPerformance? overall,
+  PerformanceTerm? term,
+  PerformanceTerm? previousTerm,
+  List<PerformanceTerm>? terms,
+  PerformanceAttendance? attendance,
+  double? weakBelow = 40,
+
+  /// Flags rather than null arguments: with `term ?? default` there is no
+  /// way to ask for a school that has no term at all.
+  bool withoutTerm = false,
+  bool withoutPreviousTerm = false,
+}) {
+  return StudentPerformance(
+    studentName: 'Arjun Kumar',
+    classSectionName: 'Grade 8 A',
+    term: withoutTerm ? null : (term ?? const PerformanceTerm(id: 2, name: 'Term 2', sequenceNumber: 2)),
+    previousTerm: withoutTerm || withoutPreviousTerm
+        ? null
+        : (previousTerm ?? const PerformanceTerm(id: 1, name: 'Term 1', sequenceNumber: 1)),
+    terms:
+        terms ??
+        const [
+          PerformanceTerm(id: 2, name: 'Term 2', sequenceNumber: 2),
+          PerformanceTerm(id: 1, name: 'Term 1', sequenceNumber: 1),
+        ],
+    subjects:
+        subjects ??
+        const [
+          SubjectPerformance(
+            subjectId: 1,
+            subjectName: 'Mathematics',
+            assessments: 3,
+            absent: 1,
+            averagePercentage: '34.00',
+            grade: 'Pass',
+            classAveragePercentage: '61.00',
+            previousAveragePercentage: '48.00',
+            change: '-14.00',
+          ),
+          SubjectPerformance(
+            subjectId: 2,
+            subjectName: 'Science',
+            assessments: 2,
+            absent: 0,
+            averagePercentage: '78.00',
+            grade: 'A2',
+            classAveragePercentage: '66.00',
+            previousAveragePercentage: '66.00',
+            change: '12.00',
+          ),
+        ],
+    overall:
+        overall ??
+        const OverallPerformance(
+          subjects: 2,
+          assessments: 5,
+          absent: 1,
+          averagePercentage: '56.00',
+          classAveragePercentage: '63.50',
+          previousAveragePercentage: '57.00',
+          change: '-1.00',
+        ),
+    attendance:
+        attendance ??
+        const PerformanceAttendance(
+          workingDays: 20,
+          present: 14,
+          absent: 4,
+          leave: 1,
+          notMarked: 1,
+          attendanceRate: 70,
+        ),
+    weakBelowPercentage: weakBelow,
+  );
 }

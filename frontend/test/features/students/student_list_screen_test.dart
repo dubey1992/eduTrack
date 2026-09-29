@@ -251,6 +251,10 @@ void main() {
     expect(find.text('Active'), findsOneWidget);
     expect(find.text('Inactive'), findsNothing);
 
+    // The actions row scrolls: Performance sits beside Class history now, so
+    // Deactivate can start off the right-hand edge.
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'Deactivate'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(TextButton, 'Deactivate'));
     await tester.pumpAndSettle();
     expect(find.text('Inactive'), findsOneWidget);

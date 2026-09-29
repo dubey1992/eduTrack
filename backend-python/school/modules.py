@@ -63,6 +63,10 @@ MODULES: tuple[Module, ...] = (
                 "pass_percentage", "Pass mark, as a percentage", "int", 33, min=0, max=100,
                 help="Used when a test does not set its own pass mark.",
             ),
+            Setting(
+                "weak_below_percentage", "Weak subject, below", "int", 40, min=0, max=100,
+                help="A subject average under this is flagged on a student's performance.",
+            ),
         ),
     ),
     Module(

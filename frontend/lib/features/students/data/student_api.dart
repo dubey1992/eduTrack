@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/student.dart';
 import 'models/student_enrollment.dart';
+import 'models/student_performance.dart';
 
 final studentApiProvider = Provider<StudentApi>((ref) => StudentApi(ref.watch(dioClientProvider)));
 
@@ -129,6 +130,17 @@ class StudentApi {
 
   /// A student's year-by-year history. A plain list, not a page: it holds one
   /// row per academic year the school has run.
+  /// What this student's marks add up to, one term at a time. Left without
+  /// a term, the server picks the one being lived.
+  Future<StudentPerformance> performance(int studentId, {int? academicTermId}) async {
+    final response = await _dio.get(
+      '/students/$studentId/performance',
+      queryParameters: {'academic_term_id': ?academicTermId},
+    );
+
+    return StudentPerformance.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     final response = await _dio.get('/students/$studentId/enrollments');
 

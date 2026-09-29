@@ -80,6 +80,7 @@ urlpatterns = [
     path("api/v1/assessments/<int:assessment_id>/publish", assessments.publish),
     path("api/v1/assessments/<int:assessment_id>/reopen", assessments.reopen),
     # -- class promotion, on this backend only. docs/promotion.md ----------
+    path("api/v1/students/<int:student_id>/performance", students.performance),
     path("api/v1/promotions/preview", promotions.preview),
     path("api/v1/promotions", promotions.collection),
     path("api/v1/promotions/<int:batch_id>", promotions.detail),

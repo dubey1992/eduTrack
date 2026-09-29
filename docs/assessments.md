@@ -1,15 +1,16 @@
 # Class Tests & Assessments
 
-**Status (2026-09-24): slices 1 to 7 built, the rest planned.** Terms, grade
-scales, enrollment history, the class test, its marks sheet, publishing and
-the message to the guardian are live, each with a flow that runs in a
-browser. Promotion and performance are still a plan. Decided with the user on
+**Status (2026-09-29): slices 1 to 11 built, 12 to 14 planned.** Terms, grade
+scales, enrollment history, the class test, its marks sheet, publishing, the
+message to the guardian, the whole of promotion and a student's performance
+are live, each with a flow that runs in a browser. What remains is the
+insights, the two report kinds and the printable progress report. Decided with the user on
 2026-09-21: the school year is divided into terms, marks are entered against
 a maximum and turned into a grade by a scale the school configures, and
 results reach guardians as a message and as a printable progress report.
 Built on the Python backend and the Flutter app only, like everything since
 Phase 19. Laravel stays the frozen reference, but its migrations still own
-the schema, so the five tables below are Laravel migrations dated
+the schema, so the tables below are Laravel migrations dated
 `2026_10_01`. Promotion and the enrollment history it needs are a separate
 document, [promotion.md](promotion.md); the two are built in that order
 because a term belongs to an academic year and a result belongs to a term.
@@ -330,6 +331,32 @@ Performance is computed, never stored. Two report classes join the seven in
 `school/reports/`, using the existing `ReportRange`, the group roll-up and
 the PDF machinery, so a branch group gets the same combined view it gets
 today.
+
+Slice 11 built the first three-quarters of this: `GET
+/students/{id}/performance` and the Performance dialog answer questions 1, 2
+and 4. The insights of question 3 are slice 12, and the two report kinds are
+slice 13.
+
+Four rules decide every figure on it:
+
+- **A draft counts for nothing**, because a draft is nobody's business yet.
+- **Absent is not zero.** An absentee leaves the average's denominator, so a
+  subject missed entirely has *no* average rather than a nought.
+- **The class average covers exactly the tests the student sat.** "72%
+  against a class average of 65%" only means something when both figures
+  describe the same assessments.
+- **Weightages are used only where every test in a subject carries one**,
+  and are then normalised by the weights actually present: a term whose
+  weightages add up to 80 is a school part-way through setting them, not a
+  reason to report everybody as failing. Half a weighting is not a
+  weighting, so a mixed subject falls back to a plain mean.
+
+The term's own average weighs each subject evenly rather than each mark, so
+a subject with eight tests does not drown one with two - the page reads
+subject by subject, and the summary means the same thing. Marks are read by
+student rather than by section, which is what keeps a term intact for a
+child who changed class or was promoted between the two terms being
+compared.
 
 A student's page answers four questions:
 

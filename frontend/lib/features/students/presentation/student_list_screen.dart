@@ -19,6 +19,7 @@ import '../data/models/student.dart';
 import 'add_student_dialog.dart';
 import 'edit_student_dialog.dart';
 import 'student_history_dialog.dart';
+import 'student_performance_dialog.dart';
 
 class StudentListScreen extends ConsumerStatefulWidget {
   const StudentListScreen({super.key});
@@ -270,6 +271,10 @@ class _StudentActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isActive = student.status == StudentStatus.active;
+    // The Performance dialog belongs to the assessments module: a school
+    // with class tests switched off has no performance, and the API says so
+    // too (docs/assessments.md).
+    final seesPerformance = ref.watch(authNotifierProvider).value?.moduleOn(AppModules.assessments) ?? false;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -282,6 +287,17 @@ class _StudentActions extends ConsumerWidget {
             builder: (_) => StudentHistoryDialog(student: student),
           ),
         ),
+        // Open to every role that may see the student, like the history:
+        // "how is this child doing" is the question a teacher asks most.
+        if (seesPerformance)
+          IconButton(
+            icon: const Icon(Icons.insights_outlined, size: 20),
+            tooltip: 'Performance',
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => StudentPerformanceDialog(student: student),
+            ),
+          ),
         if (canManage)
           TextButton(
             onPressed: () => showDialog(
