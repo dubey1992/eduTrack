@@ -14,6 +14,7 @@ import '../../auth/application/auth_notifier.dart';
 import '../application/grade_scale_notifier.dart';
 import '../data/models/grade_scale.dart';
 import 'grade_scale_dialog.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 /// The grade scales a school keeps, and their bands (docs/assessments.md).
 ///
@@ -189,7 +190,7 @@ class _ScaleCard extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete grade scale?'),
-        content: Text('This will permanently delete "${scale.name}" and its bands. This cannot be undone.'),
+        content: DialogMessage('This will permanently delete "${scale.name}" and its bands. This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

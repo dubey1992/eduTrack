@@ -16,6 +16,7 @@ import 'add_class_dialog.dart';
 import 'add_section_dialog.dart';
 import 'edit_class_dialog.dart';
 import 'edit_section_dialog.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 class ClassListScreen extends ConsumerStatefulWidget {
   const ClassListScreen({super.key});
@@ -218,7 +219,7 @@ class _ClassCard extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete class?'),
-        content: Text('This will permanently delete "${schoolClass.name}". This cannot be undone.'),
+        content: DialogMessage('This will permanently delete "${schoolClass.name}". This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
@@ -242,7 +243,7 @@ class _ClassCard extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete section?'),
-        content: Text('This will permanently delete Section ${section.name}. This cannot be undone.'),
+        content: DialogMessage('This will permanently delete Section ${section.name}. This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

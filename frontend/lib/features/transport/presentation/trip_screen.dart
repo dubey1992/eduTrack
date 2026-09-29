@@ -19,6 +19,7 @@ import '../data/models/transport_route.dart';
 import '../data/models/transport_trip.dart';
 import 'widgets/trip_detail_view.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 /// Phase 15 - the prototype's "School Transport" page: pick a route, start
 /// today's pickup/drop trip, mark stops reached and students boarded /
@@ -202,7 +203,7 @@ class _LiveTripPanelState extends ConsumerState<_LiveTripPanel> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
-        content: Text(message),
+        content: DialogMessage(message),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Back')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(action)),

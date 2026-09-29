@@ -14,6 +14,7 @@ import '../application/department_list_notifier.dart';
 import '../data/models/department.dart';
 import 'add_department_dialog.dart';
 import 'edit_department_dialog.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 class DepartmentListScreen extends ConsumerStatefulWidget {
   const DepartmentListScreen({super.key});
@@ -169,7 +170,7 @@ class _DepartmentCard extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete department?'),
-        content: Text('This will permanently delete "${department.name}". This cannot be undone.'),
+        content: DialogMessage('This will permanently delete "${department.name}". This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

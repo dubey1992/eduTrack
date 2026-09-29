@@ -14,6 +14,7 @@ import '../application/assessment_list_notifier.dart';
 import '../application/assessment_sheet_notifier.dart';
 import '../data/models/assessment.dart';
 import '../data/models/assessment_sheet.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 /// The marks sheet for one class test (docs/assessments.md).
 ///
@@ -175,7 +176,7 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Publish this result?'),
-        content: Text(
+        content: DialogMessage(
           'Grades are worked out from the grade scale and fixed as they are now. The sheet closes, '
           'and only an administrator or the head of department can reopen it. '
           '${sheet.entries.length} in the class.\n\n'

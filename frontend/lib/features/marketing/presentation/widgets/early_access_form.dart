@@ -6,6 +6,7 @@ import '../../../../core/errors/failure.dart';
 import '../../../../core/widgets/phone_number_field.dart';
 import '../../../early_access/data/early_access_repository.dart';
 import '../marketing_colors.dart';
+import '../../../../core/widgets/dialog_message.dart';
 
 /// The form behind every "Join Early Access" button.
 ///
@@ -105,7 +106,7 @@ class _EarlyAccessDialogState extends ConsumerState<_EarlyAccessDialog> {
     if (thankYou != null) {
       return AlertDialog(
         title: Text('Thanks for your interest!', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
-        content: Text(thankYou, style: GoogleFonts.poppins()),
+        content: DialogMessage(thankYou, style: GoogleFonts.poppins()),
         actions: [
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),

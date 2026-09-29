@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../marketing_colors.dart';
 import 'marketing_wrap.dart';
+import '../../../../core/widgets/dialog_message.dart';
 
 class MarketingFooter extends StatefulWidget {
   const MarketingFooter({super.key});
@@ -27,7 +28,7 @@ class _MarketingFooterState extends State<MarketingFooter> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text("You're on the list", style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
-        content: Text(
+        content: DialogMessage(
           "We'll send the latest School365ai news and updates to this address.",
           style: GoogleFonts.poppins(),
         ),

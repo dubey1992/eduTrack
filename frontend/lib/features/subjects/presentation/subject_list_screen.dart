@@ -16,6 +16,7 @@ import '../application/subject_list_notifier.dart';
 import '../data/models/subject.dart';
 import 'add_subject_dialog.dart';
 import 'edit_subject_dialog.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 class SubjectListScreen extends ConsumerStatefulWidget {
   const SubjectListScreen({super.key});
@@ -196,7 +197,7 @@ class _SubjectActions extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete subject?'),
-        content: Text('This will permanently delete "${subject.name}". This cannot be undone.'),
+        content: DialogMessage('This will permanently delete "${subject.name}". This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

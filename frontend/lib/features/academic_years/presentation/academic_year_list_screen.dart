@@ -18,6 +18,7 @@ import 'edit_academic_year_dialog.dart';
 import 'manage_terms_dialog.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 class AcademicYearListScreen extends ConsumerStatefulWidget {
   const AcademicYearListScreen({super.key});
@@ -233,7 +234,7 @@ class _AcademicYearActions extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete academic year?'),
-        content: Text('This will permanently delete "${year.name}". This cannot be undone.'),
+        content: DialogMessage('This will permanently delete "${year.name}". This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

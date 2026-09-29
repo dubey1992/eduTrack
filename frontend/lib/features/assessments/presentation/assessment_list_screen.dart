@@ -19,6 +19,7 @@ import '../application/assessment_list_notifier.dart';
 import '../data/models/assessment.dart';
 import 'assessment_dialog.dart';
 import 'marks_sheet_dialog.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 /// The class tests a school has set (docs/assessments.md).
 ///
@@ -306,7 +307,7 @@ class _Actions extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reopen this result?'),
-        content: Text(
+        content: DialogMessage(
           'The grades on "${assessment.title}" are cleared and the sheet opens for marking again. '
           'Guardians who were told the result are not told again automatically.',
         ),
@@ -334,7 +335,7 @@ class _Actions extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete test?'),
-        content: Text('This will permanently delete "${assessment.title}". This cannot be undone.'),
+        content: DialogMessage('This will permanently delete "${assessment.title}". This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

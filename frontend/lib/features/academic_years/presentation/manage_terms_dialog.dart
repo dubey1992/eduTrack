@@ -9,6 +9,7 @@ import '../../../core/widgets/async_value_view.dart';
 import '../application/academic_term_notifier.dart';
 import '../data/models/academic_term.dart';
 import '../data/models/academic_year.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 /// The terms of one academic year - add, edit and delete, like the transport
 /// module's Manage Stops dialog (docs/assessments.md).
@@ -111,7 +112,7 @@ class _TermRow extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove term?'),
-        content: Text('This will remove "${term.name}" from ${year.name}. This cannot be undone.'),
+        content: DialogMessage('This will remove "${term.name}" from ${year.name}. This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

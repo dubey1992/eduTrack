@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'dialog_message.dart';
+
 /// Asks before doing something the person cannot simply undo.
 ///
 /// Returns true only if they actually chose to go ahead - dismissing the
@@ -21,7 +23,7 @@ Future<bool> confirmDialog(
     context: context,
     builder: (context) => AlertDialog(
       title: Text(title),
-      content: Text(message),
+      content: DialogMessage(message),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(cancelLabel)),
         FilledButton(

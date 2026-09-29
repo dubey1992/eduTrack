@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../data/models/transport_status.dart';
+import '../../../../core/widgets/dialog_message.dart';
 
 /// Shared bits of the three transport list screens.
 class TransportStatusBadge extends StatelessWidget {
@@ -33,7 +34,7 @@ Future<void> confirmAndRun(
     context: context,
     builder: (context) => AlertDialog(
       title: Text(title),
-      content: Text(message),
+      content: DialogMessage(message),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

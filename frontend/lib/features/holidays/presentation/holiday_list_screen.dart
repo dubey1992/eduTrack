@@ -16,6 +16,7 @@ import '../data/models/holiday.dart';
 import 'add_holiday_dialog.dart';
 import 'edit_holiday_dialog.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 /// The school's holiday calendar. Everyone can see it (attendance, leave,
 /// teaching reports and the HOD report all depend on it); admins define it.
@@ -118,7 +119,7 @@ Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Holiday holiday
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Delete holiday?'),
-      content: Text('This will remove "${holiday.name}" from the calendar. This cannot be undone.'),
+      content: DialogMessage('This will remove "${holiday.name}" from the calendar. This cannot be undone.'),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

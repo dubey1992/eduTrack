@@ -15,6 +15,7 @@ import '../../students/data/student_repository.dart';
 import '../application/message_page_notifier.dart';
 import '../application/template_notifier.dart';
 import '../data/models/message.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 /// How long the form waits after the last change before counting the
 /// audience again, so typing a name does not fire a request per keystroke.
@@ -143,7 +144,7 @@ class _SendNoticeDialogState extends ConsumerState<SendNoticeDialog> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Send emergency alert?'),
-        content: Text('Send this emergency alert to $audience?'),
+        content: DialogMessage('Send this emergency alert to $audience?'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Back')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Send alert')),

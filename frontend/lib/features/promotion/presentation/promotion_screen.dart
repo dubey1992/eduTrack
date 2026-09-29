@@ -17,6 +17,7 @@ import '../application/promotion_target_provider.dart';
 import '../data/models/promotion_batch.dart';
 import '../data/models/promotion_preview.dart';
 import 'promotion_batch_dialog.dart';
+import '../../../core/widgets/dialog_message.dart';
 
 /// Moving a class into the next year (docs/promotion.md).
 ///
@@ -84,7 +85,7 @@ class _Choices extends ConsumerWidget {
     final targets = ref.watch(promotionTargetSectionsProvider(state.toAcademicYearId));
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -133,9 +134,10 @@ class _Choices extends ConsumerWidget {
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Into class (optional)',
-                    // Short enough to fit the box: a helper clipped to
-                    // "the class above is sugg…" helps nobody.
+                    // Allowed to wrap: at this width the line was being
+                    // clipped to "...be suggest…", which helps nobody.
                     helperText: 'Or let the class above be suggested',
+                    helperMaxLines: 2,
                   ),
                   items: [
                     const DropdownMenuItem<int?>(value: null, child: Text('Suggest one for me')),
@@ -274,7 +276,7 @@ class _Roster extends ConsumerWidget {
     final students = state.visibleStudents;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -403,7 +405,7 @@ class _Roster extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Promote this class?'),
-        content: Text(
+        content: DialogMessage(
           '${preview.from.classSectionName} moves into ${preview.to.academicYearName}.\n\n'
           '${counts[PromotionOutcome.promote]} promoted to ${preview.to.classSectionName ?? 'the next class'}, '
           '${counts[PromotionOutcome.retain]} retained, '
@@ -441,7 +443,7 @@ class _Done extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
