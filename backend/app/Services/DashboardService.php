@@ -361,7 +361,8 @@ class DashboardService
 
         return $dates->map(fn (string $date) => [
             'date' => $date,
-            'label' => Carbon::parse($date)->format('d M'),
+            // US order, like every other date a person reads: "Sep 29".
+            'label' => Carbon::parse($date)->format('M d'),
             'attendance_rate' => $this->attendanceRateOn($schoolId, $date),
         ])->values()->all();
     }

@@ -836,6 +836,18 @@ class PromotionPolicy:
     MODULE = "academics"
 
     @staticmethod
+    def view_any(actor: User) -> bool:
+        """Reading the history is not running one: a Super Admin reads any
+        school's, and every role the matrix grants academics reads their own
+        school's, because "what happened to my class last year" is ordinary
+        academic information."""
+        return permitted(actor, PromotionPolicy.MODULE)
+
+    @staticmethod
+    def view(actor: User, school_id: int) -> bool:
+        return permitted(actor, PromotionPolicy.MODULE, school_id=school_id) and in_scope(actor, school_id)
+
+    @staticmethod
     def preview(actor: User, school_id: int) -> bool:
         """Deliberately the same answer as run(): the preview is step one of
         promoting, not a report about it."""

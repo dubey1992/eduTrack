@@ -15,6 +15,7 @@ import ast
 import datetime as dt
 import inspect
 import io
+import pathlib
 from csv import reader
 from unittest import mock
 
@@ -23,7 +24,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from school import audit, factories, services, tokens
+from school import audit, factories, promotion, services, tokens
 from school.enums import AttendanceStatus, UserRole
 from school.models import AuditLog
 
@@ -43,6 +44,10 @@ NOT_RECORDED = {
     # Part of publishing, which records the whole act: the grades are what
     # publishing means, not a change of their own.
     "AssessmentPublishService.freeze_grades",
+    # Steps of one promotion, which records the whole run: a closed year, an
+    # opened one and a repointed student are what promoting *is*, and forty
+    # entries for one intended act would bury the log.
+    "PromotionRun.close_year", "PromotionRun.open_year", "PromotionRun.repoint",
     # The fan-out's own stamp: it says the guardians were messaged, and the
     # message log is the record of that. Publishing is what was audited.
     "AssessmentPublishService.announce",
@@ -59,25 +64,69 @@ NOT_RECORDED = {
 WRITES = ("objects.create(", ".save(", ".delete()", "update_or_create(", "get_or_create(", ").update(")
 
 
+# Every module that writes school data. A module left off this list is not
+# swept at all, which is how an unrecorded write gets in - promotion.py spent
+# one slice invisible to this test for exactly that reason.
+SWEPT = (services, promotion)
+
+
 class EveryWriteIsRecorded(TestCase):
     def test_no_service_method_writes_without_an_audit_entry(self):
-        source = inspect.getsource(services)
         unrecorded = []
 
-        for node in ast.parse(source).body:
-            if not isinstance(node, ast.ClassDef):
-                continue
-            for method in node.body:
-                if not isinstance(method, ast.FunctionDef):
+        for module in SWEPT:
+            source = inspect.getsource(module)
+
+            for node in ast.parse(source).body:
+                if not isinstance(node, ast.ClassDef):
                     continue
-                body = ast.get_source_segment(source, method)
-                name = f"{node.name}.{method.name}"
-                # Sign-in events record through AuthService._record.
-                records = "audit." in body or "._record(" in body
-                if any(write in body for write in WRITES) and not records and name not in NOT_RECORDED:
-                    unrecorded.append(name)
+                for method in node.body:
+                    if not isinstance(method, ast.FunctionDef):
+                        continue
+                    body = ast.get_source_segment(source, method)
+                    name = f"{node.name}.{method.name}"
+                    # Sign-in events record through AuthService._record.
+                    records = "audit." in body or "._record(" in body
+                    if any(write in body for write in WRITES) and not records and name not in NOT_RECORDED:
+                        unrecorded.append(name)
 
         self.assertEqual([], unrecorded, "these write without recording - add an audit call or a reason above")
+
+    def test_every_module_that_writes_is_swept(self):
+        """The sweep is only as good as its list.
+
+        A service module missing from SWEPT passes this file silently, so the
+        list is checked against the package rather than trusted.
+        """
+        import pkgutil
+
+        writes = set()
+
+        for info in pkgutil.iter_modules(["school"]):
+            if info.name in {"models", "factories", "migrations"}:
+                continue
+
+            path = pathlib.Path("school") / f"{info.name}.py"
+
+            if not path.exists():
+                continue
+
+            source = path.read_text(encoding="utf-8")
+
+            # A module that creates or saves a row through a model manager.
+            if "objects.create(" in source or "objects.update_or_create(" in source:
+                writes.add(info.name)
+
+        swept = {module.__name__.rsplit(".", 1)[-1] for module in SWEPT}
+        # Known writers that record elsewhere or write nothing about a
+        # school: the audit log itself, the queue, the notification pipeline
+        # (whose rows *are* the record), sign-in security, and the fixtures.
+        exempt = {
+            "audit", "queue", "jobs", "notifications", "security", "attendants",
+            "tokens", "notices", "receipts", "photos", "dashboard", "modules", "permissions",
+        }
+
+        self.assertEqual(set(), writes - swept - exempt, "add these to SWEPT, or say why they are exempt")
 
 
 class AuditTest(TestCase):

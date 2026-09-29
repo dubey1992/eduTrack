@@ -13,7 +13,7 @@ const absenceSms = Message(
   studentId: 7,
   studentName: 'Arjun Kumar',
   subject: null,
-  body: 'Arjun Kumar was marked ABSENT on 16 Sep 2026.',
+  body: 'Arjun Kumar was marked ABSENT on 09/16/2026.',
   status: MessageStatus.sent,
   provider: 'log',
   providerLabel: 'Demo Gateway',
@@ -23,7 +23,7 @@ const absenceSms = Message(
   createdAt: '2026-09-16T08:42:00.000000Z',
   createdAtLabel: '8:42 AM',
   sentAtLabel: null,
-  createdOnLabel: '16 Sep 2026',
+  createdOnLabel: '09/16/2026',
 );
 
 const boardingSms = Message(
@@ -48,7 +48,7 @@ const boardingSms = Message(
   createdAt: '2026-09-16T07:42:00.000000Z',
   createdAtLabel: '7:42 AM',
   sentAtLabel: null,
-  createdOnLabel: '16 Sep 2026',
+  createdOnLabel: '09/16/2026',
 );
 
 /// One the gateway rejected, so the log offers to send it again.
@@ -64,7 +64,7 @@ const failedSms = Message(
   studentId: 9,
   studentName: 'Meera Singh',
   subject: null,
-  body: 'Meera Singh was marked ABSENT on 16 Sep 2026.',
+  body: 'Meera Singh was marked ABSENT on 09/16/2026.',
   status: MessageStatus.failed,
   provider: 'log',
   providerLabel: 'Demo Gateway',
@@ -74,7 +74,7 @@ const failedSms = Message(
   createdAt: '2026-09-16T08:45:00.000000Z',
   createdAtLabel: '8:45 AM',
   sentAtLabel: null,
-  createdOnLabel: '16 Sep 2026',
+  createdOnLabel: '09/16/2026',
 );
 
 /// One the school wanted to send but had no number for.
@@ -90,7 +90,7 @@ const skippedSms = Message(
   studentId: 10,
   studentName: 'Kiran Rao',
   subject: null,
-  body: 'Kiran Rao was marked ABSENT on 16 Sep 2026.',
+  body: 'Kiran Rao was marked ABSENT on 09/16/2026.',
   status: MessageStatus.skipped,
   provider: 'log',
   providerLabel: 'Demo Gateway',
@@ -100,7 +100,7 @@ const skippedSms = Message(
   createdAt: '2026-09-16T08:46:00.000000Z',
   createdAtLabel: '8:46 AM',
   sentAtLabel: null,
-  createdOnLabel: '16 Sep 2026',
+  createdOnLabel: '09/16/2026',
 );
 
 const leaveInApp = Message(
@@ -115,7 +115,7 @@ const leaveInApp = Message(
   studentId: null,
   studentName: null,
   subject: null,
-  body: 'Your casual leave from 21 Sep 2026 to 22 Sep 2026 has been approved.',
+  body: 'Your casual leave from 09/21/2026 to 09/22/2026 has been approved.',
   status: MessageStatus.sent,
   provider: null,
   providerLabel: null,
@@ -125,7 +125,7 @@ const leaveInApp = Message(
   createdAt: '2026-09-16T09:00:00.000000Z',
   createdAtLabel: '9:00 AM',
   sentAtLabel: null,
-  createdOnLabel: '16 Sep 2026',
+  createdOnLabel: '09/16/2026',
 );
 
 const readInApp = Message(
@@ -150,7 +150,7 @@ const readInApp = Message(
   createdAt: '2026-09-15T09:00:00.000000Z',
   createdAtLabel: '9:00 AM',
   sentAtLabel: null,
-  createdOnLabel: '15 Sep 2026',
+  createdOnLabel: '09/15/2026',
 );
 
 /// An announcement's in-app copy, which carries its title as the subject.
@@ -176,7 +176,7 @@ const announcementInApp = Message(
   createdAt: '2026-09-16T09:30:00.000000Z',
   createdAtLabel: '9:30 AM',
   sentAtLabel: null,
-  createdOnLabel: '16 Sep 2026',
+  createdOnLabel: '09/16/2026',
 );
 
 /// A fee reminder's email copy - the log shows where it went.
@@ -203,7 +203,7 @@ const feeEmail = Message(
   createdAt: '2026-09-16T10:00:00.000000Z',
   createdAtLabel: '10:00 AM',
   sentAtLabel: null,
-  createdOnLabel: '16 Sep 2026',
+  createdOnLabel: '09/16/2026',
 );
 
 /// A WhatsApp copy of a message written by hand.
@@ -229,7 +229,7 @@ const noticeWhatsapp = Message(
   createdAt: '2026-09-16T10:05:00.000000Z',
   createdAtLabel: '10:05 AM',
   sentAtLabel: null,
-  createdOnLabel: '16 Sep 2026',
+  createdOnLabel: '09/16/2026',
 );
 
 const absentTemplate = MessageTemplate(

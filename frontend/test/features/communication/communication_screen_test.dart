@@ -161,7 +161,7 @@ void main() {
     expect(find.text('Message details'), findsOneWidget);
     expect(find.text('Why it was not sent'), findsOneWidget);
     expect(find.text('No mobile number on record.'), findsOneWidget);
-    expect(find.text('Kiran Rao was marked ABSENT on 16 Sep 2026.'), findsNWidgets(2));
+    expect(find.text('Kiran Rao was marked ABSENT on 09/16/2026.'), findsNWidgets(2));
 
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));
     await tester.pumpAndSettle();

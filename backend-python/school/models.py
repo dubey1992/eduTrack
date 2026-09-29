@@ -935,6 +935,10 @@ class StudentEnrollment(models.Model):
     class_section = models.ForeignKey('ClassSection', models.DO_NOTHING, blank=True, null=True)
     roll_number = models.CharField(max_length=20, blank=True, null=True)
     status = models.CharField(max_length=16)
+    # The run that closed this year or opened the next one, and - on a row a
+    # promotion created - the year it came from (docs/promotion.md).
+    promotion_batch = models.ForeignKey('PromotionBatch', models.DO_NOTHING, blank=True, null=True)
+    promoted_from_enrollment = models.ForeignKey('self', models.DO_NOTHING, blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -942,6 +946,37 @@ class StudentEnrollment(models.Model):
         managed = False
         db_table = 'student_enrollments'
         unique_together = (('student', 'academic_year'),)
+
+
+class PromotionBatch(models.Model):
+    """One run of a class promotion (docs/promotion.md).
+
+    The counts are what the batch was when it ran, stored rather than
+    derived: a figure worked out later would drift the moment somebody moves
+    a child by hand afterwards, which is the correction the product expects.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    from_academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING, related_name='+')
+    to_academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING, related_name='+')
+    from_class_section = models.ForeignKey('ClassSection', models.DO_NOTHING, related_name='+')
+    # Null when every student graduated: there was nowhere to land.
+    to_class_section = models.ForeignKey(
+        'ClassSection', models.DO_NOTHING, blank=True, null=True, related_name='+'
+    )
+    promoted_count = models.PositiveIntegerField(default=0)
+    retained_count = models.PositiveIntegerField(default=0)
+    graduated_count = models.PositiveIntegerField(default=0)
+    left_count = models.PositiveIntegerField(default=0)
+    run_by = models.ForeignKey('User', models.DO_NOTHING, db_column='run_by', related_name='+')
+    run_at = UtcDateTimeField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'promotion_batches'
 
 
 class StudentTransportAssignment(models.Model):

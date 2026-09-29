@@ -94,6 +94,20 @@ class EnrollmentStatus(models.TextChoices):
     LEFT = "left"
 
 
+class PromotionOutcome(models.TextChoices):
+    """What an administrator asks for one student in a promotion batch.
+
+    Present tense on purpose: these are instructions, and what a run records
+    afterwards is [EnrollmentStatus] - promoted, retained. The two lists look
+    alike and are not the same thing, so they stay apart.
+    """
+
+    PROMOTE = "promote"
+    RETAIN = "retain"
+    GRADUATE = "graduate"
+    LEAVE = "leave"
+
+
 class StudentStatus(models.TextChoices):
     """Where a student stands today.
 

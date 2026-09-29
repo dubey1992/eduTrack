@@ -186,6 +186,50 @@ class TargetSectionMismatch(ApiError):
     error_code = "TARGET_SECTION_MISMATCH"
 
 
+class AlreadyEnrolled(ApiError):
+    """A student in this batch already has a place in the target year.
+
+    409: the request is well formed and the answer is no because of what has
+    already happened - somebody promoted them, or admitted them straight into
+    the new year. The unique key on (student, year) is what really enforces
+    it; this is the same rule, said in a sentence.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ALREADY_ENROLLED"
+
+
+class RosterChanged(ApiError):
+    """The class is not the class that was previewed.
+
+    The refusal that matters in practice: two administrators, one admits a
+    child while the other is reviewing, and the run must refuse rather than
+    quietly promote a stale list.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ROSTER_CHANGED"
+
+
+class NothingToPromote(ApiError):
+    """An empty section, or a batch that names nobody."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "NOTHING_TO_PROMOTE"
+
+
+class RetainClassMissing(ApiError):
+    """A child held back needs the same class to exist in the new year.
+
+    Retaining means repeating the year in the same class, so a school that
+    has not set that class up in the target year is asked to, rather than
+    having a child quietly promoted or silently dropped from the batch.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "RETAIN_CLASS_MISSING"
+
+
 class MarksIncomplete(ApiError):
     """A class with anybody unmarked cannot be published.
 

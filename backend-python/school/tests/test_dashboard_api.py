@@ -100,7 +100,7 @@ class SchoolAdmin(DashboardTestCase):
             ["2026-09-03", "2026-09-04", "2026-09-07", "2026-09-08", "2026-09-10", "2026-09-11", "2026-09-14"],
             [point["date"] for point in trend],
         )
-        self.assertEqual({"date": "2026-09-11", "label": "11 Sep", "attendance_rate": 100}, trend[5])
+        self.assertEqual({"date": "2026-09-11", "label": "Sep 11", "attendance_rate": 100}, trend[5])
         self.assertIsNone(trend[6]["attendance_rate"])
 
     def test_what_wants_attention(self):

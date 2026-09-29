@@ -1,13 +1,32 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/network/paginated_response.dart';
+import 'package:edutrack_app/features/promotion/data/models/promotion_batch.dart';
 import 'package:edutrack_app/features/promotion/data/models/promotion_preview.dart';
 import 'package:edutrack_app/features/promotion/data/promotion_repository.dart';
 
 /// A promotion preview without a server (docs/promotion.md).
 class FakePromotionRepository implements PromotionRepository {
-  FakePromotionRepository({PromotionPreview? preview, this.failure}) : _preview = preview ?? fakePreview();
+  FakePromotionRepository({
+    PromotionPreview? preview,
+    this.failure,
+    this.runFailure,
+    PromotionBatch? batch,
+    List<PromotionBatch>? history,
+  }) : _preview = preview ?? fakePreview(),
+       _batch = batch ?? fakeBatch(),
+       _history = history ?? const [];
 
   final PromotionPreview _preview;
+  final PromotionBatch _batch;
+  final List<PromotionBatch> _history;
   final Failure? failure;
+
+  /// Thrown by [run] alone, so a test can refuse the write while the
+  /// preview still reads.
+  final Failure? runFailure;
+
+  Map<int, String>? lastRun;
+  int runs = 0;
 
   /// What the screen last asked for, so a test can check the section and the
   /// year really travelled.
@@ -31,6 +50,97 @@ class FakePromotionRepository implements PromotionRepository {
 
     return _preview;
   }
+
+  @override
+  Future<PromotionBatch> run({
+    required int classSectionId,
+    required int toAcademicYearId,
+    int? toClassSectionId,
+    required Map<int, String> outcomes,
+  }) async {
+    runs++;
+    lastRun = outcomes;
+    lastCall = {
+      'class_section_id': classSectionId,
+      'to_academic_year_id': toAcademicYearId,
+      'to_class_section_id': toClassSectionId,
+    };
+
+    if (runFailure != null) throw runFailure!;
+
+    return _batch;
+  }
+
+  @override
+  Future<PaginatedResponse<PromotionBatch>> history({int? page, int? perPage, int? academicYearId}) async {
+    if (failure != null) throw failure!;
+
+    return PaginatedResponse(
+      items: _history,
+      currentPage: page ?? 1,
+      lastPage: 1,
+      total: _history.length,
+      perPage: perPage ?? 20,
+    );
+  }
+
+  @override
+  Future<PromotionBatch> batch(int batchId) async {
+    if (failure != null) throw failure!;
+
+    return _batch;
+  }
+}
+
+PromotionBatch fakeBatch({
+  int id = 7,
+  int promoted = 2,
+  int retained = 1,
+  int graduated = 0,
+  int left = 0,
+  String? toClassSectionName = 'Grade 9 A',
+  List<PromotionBatchStudent>? students,
+}) {
+  return PromotionBatch(
+    id: id,
+    fromAcademicYearName: '2026-27',
+    toAcademicYearName: '2027-28',
+    fromClassSectionName: 'Grade 8 A',
+    toClassSectionName: toClassSectionName,
+    promotedCount: promoted,
+    retainedCount: retained,
+    graduatedCount: graduated,
+    leftCount: left,
+    studentCount: promoted + retained + graduated + left,
+    runByName: 'Asha Admin',
+    runAt: DateTime(2027, 3, 31, 9, 30),
+    students:
+        students ??
+        const [
+          PromotionBatchStudent(
+            studentId: 1,
+            name: 'Aarav Sharma',
+            admissionNumber: 'ADM-1',
+            rollNumber: '1',
+            fromClassName: 'Grade 8',
+            fromSectionName: 'A',
+            outcome: 'promoted',
+            toClassName: 'Grade 9',
+            toSectionName: 'A',
+          ),
+          PromotionBatchStudent(
+            studentId: 2,
+            name: 'Bina Kapoor',
+            admissionNumber: 'ADM-2',
+            rollNumber: '2',
+            fromClassName: 'Grade 8',
+            fromSectionName: 'A',
+            outcome: 'graduated',
+            toClassName: null,
+            toSectionName: null,
+          ),
+        ],
+  );
 }
 
 PromotionStudent fakePromotionStudent({

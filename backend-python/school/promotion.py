@@ -27,12 +27,29 @@ from __future__ import annotations
 
 import decimal
 
-from django.db.models import Avg, Count, DecimalField, ExpressionWrapper, F
+from django.db import transaction
+from django.db.models import Avg, Count, DecimalField, ExpressionWrapper, F, Q
+from django.utils import timezone
 
-from . import modules
+from . import audit, modules
 from .clock import SchoolClock
-from .enums import AssessmentStatus, AttendanceStatus, StudentStatus, UserRole
-from .errors import SameAcademicYear, TargetSectionMismatch, TargetYearNotFound
+from .enums import (
+    AssessmentStatus,
+    AttendanceStatus,
+    EnrollmentStatus,
+    PromotionOutcome,
+    StudentStatus,
+    UserRole,
+)
+from .errors import (
+    AlreadyEnrolled,
+    NothingToPromote,
+    RetainClassMissing,
+    RosterChanged,
+    SameAcademicYear,
+    TargetSectionMismatch,
+    TargetYearNotFound,
+)
 from .models import (
     AcademicTerm,
     AcademicYear,
@@ -40,24 +57,25 @@ from .models import (
     AssessmentMark,
     Attendance,
     ClassSection,
+    PromotionBatch,
     SchoolClass,
     Student,
     StudentEnrollment,
+    User,
 )
 from .reports.range import ReportRange
+from .scope import SchoolScope
 from .services import HolidayService, php_number
 
 MODULE = "academics"
 ASSESSMENTS = "assessments"
 
-# What the screen offers per student. Kept as strings rather than an enum
-# because they are the *request's* vocabulary, not a column's: the outcome a
-# run records (EnrollmentStatus) is past tense - promoted, retained - and
-# these are the instruction.
-PROMOTE = "promote"
-RETAIN = "retain"
-GRADUATE = "graduate"
-LEAVE = "leave"
+# What the screen offers per student. The instruction, not the record: what
+# a run writes afterwards is EnrollmentStatus, which is past tense.
+PROMOTE = PromotionOutcome.PROMOTE
+RETAIN = PromotionOutcome.RETAIN
+GRADUATE = PromotionOutcome.GRADUATE
+LEAVE = PromotionOutcome.LEAVE
 
 NOTHING_TO_PROMOTE = "NOTHING_TO_PROMOTE"
 
@@ -357,3 +375,339 @@ def target_year(section: ClassSection, to_academic_year_id: int) -> AcademicYear
 
 def preview(section: ClassSection, to_academic_year_id: int, to_class_section_id=None) -> dict:
     return PromotionPreview.build(section, target_year(section, to_academic_year_id), to_class_section_id)
+
+
+class PromotionRun:
+    """Moving a class into the next year, for real (docs/promotion.md).
+
+    One transaction. The batch row, every closed enrollment, every new one
+    and every repointed student commit together or not at all, because a
+    half-promoted class is worse than an unpromoted one: nobody could tell by
+    looking which children had been moved.
+
+    What each outcome does:
+
+    - **Promoted**: the year closes as `promoted`, a new `studying` row opens
+      in the target class, and `students.class_section_id` is repointed.
+    - **Retained**: closes as `retained`, and the new row is in the *same*
+      class of the new year - repeating a year means repeating it.
+    - **Graduated**: closes as `graduated`, no new row, the section pointer
+      cleared and the student marked graduated.
+    - **Left out**: closes as `left` and nothing else is touched. They had
+      already gone, and the year closes honestly rather than pretending they
+      finished it.
+
+    The refusals matter as much as the outcomes. A roster that changed since
+    the list was drawn up is refused whole rather than promoted stale, and a
+    student who already has a place in the target year is named rather than
+    skipped - the unique key on (student, year) would stop it anyway, and
+    being told which child is the point.
+    """
+
+    MODULE = "academic"
+
+    OUTCOME_STATUS = {
+        PROMOTE: EnrollmentStatus.PROMOTED,
+        RETAIN: EnrollmentStatus.RETAINED,
+        GRADUATE: EnrollmentStatus.GRADUATED,
+        LEAVE: EnrollmentStatus.LEFT,
+    }
+
+    @classmethod
+    def run(cls, section: ClassSection, data: dict, actor: User) -> PromotionBatch:
+        to_year = target_year(section, data["to_academic_year_id"])
+        from_year = section.school_class.academic_year
+
+        if from_year.id == to_year.id:
+            raise SameAcademicYear("A class cannot be promoted into the year it is already in.")
+
+        target = PromotionPreview.resolve_target(section, to_year, data.get("to_class_section_id"))
+        outcomes = {row["student_id"]: row["outcome"] for row in data["outcomes"]}
+
+        if not outcomes:
+            raise NothingToPromote("Say what should happen to each student before running a promotion.")
+
+        now = timezone.now()
+
+        with transaction.atomic():
+            students = cls.locked_roster(section)
+            # The most specific answer first: running the same batch twice
+            # empties the section, and "there is nobody here" would be a
+            # true, useless answer to "you already did this".
+            cls.check_free(outcomes, to_year)
+            cls.check_roster(students, outcomes)
+
+            batch = PromotionBatch.objects.create(
+                school_id=school_id_of(section),
+                from_academic_year_id=from_year.id,
+                to_academic_year_id=to_year.id,
+                from_class_section_id=section.id,
+                to_class_section_id=None if target["section"] is None else target["section"].id,
+                run_by_id=actor.id,
+                run_at=now,
+                created_at=now,
+                updated_at=now,
+            )
+
+            counted = {PROMOTE: [], RETAIN: [], GRADUATE: [], LEAVE: []}
+
+            for student in students:
+                outcome = outcomes.get(student.id)
+
+                # Not named in the batch: the administrator left them out of
+                # this run, and leaving somebody alone is not an error.
+                if outcome is None:
+                    continue
+
+                cls.apply(student, outcome, section, to_year, target, batch, from_year, now)
+                counted[outcome].append(student.id)
+
+            PromotionBatch.objects.filter(pk=batch.id).update(
+                promoted_count=len(counted[PROMOTE]),
+                retained_count=len(counted[RETAIN]),
+                graduated_count=len(counted[GRADUATE]),
+                left_count=len(counted[LEAVE]),
+                updated_at=now,
+            )
+
+            cls._record(batch, section, target, counted)
+
+        return cls.with_names().get(pk=batch.id)
+
+    @staticmethod
+    def with_names():
+        return PromotionBatch.objects.select_related(
+            "from_academic_year",
+            "to_academic_year",
+            "from_class_section__school_class",
+            "to_class_section__school_class",
+            "run_by",
+        )
+
+    # -- the checks ---------------------------------------------------------
+
+    @staticmethod
+    def locked_roster(section: ClassSection):
+        """The class as it is right now, held for the length of the run so two
+        administrators cannot promote the same children twice."""
+        return list(
+            Student.objects.select_for_update()
+            .filter(class_section_id=section.id)
+            .exclude(status=StudentStatus.GRADUATED)
+            .order_by("id")
+        )
+
+    @staticmethod
+    def check_roster(students, outcomes: dict) -> None:
+        """The batch must describe the class in front of it.
+
+        Two administrators on two screens, one admits a child while the other
+        is reviewing: the run refuses rather than promoting a stale list. A
+        student named who is not in the section is the same mistake from the
+        other end, and gets the same answer.
+        """
+        if not students:
+            raise NothingToPromote("There is nobody in this class to promote.")
+
+        roster = {student.id for student in students}
+
+        if [student_id for student_id in outcomes if student_id not in roster]:
+            raise RosterChanged(
+                "This class has changed since the list was drawn up. Review it again before promoting."
+            )
+
+    @staticmethod
+    def check_free(outcomes: dict, to_year: AcademicYear) -> None:
+        """Nobody in the batch may already have a place in the target year."""
+        taken = list(
+            StudentEnrollment.objects.filter(academic_year_id=to_year.id, student_id__in=list(outcomes))
+            .select_related("student")
+            .values_list("student__first_name", "student__last_name")[:5]
+        )
+
+        if taken:
+            names = ", ".join(f"{first} {last}".strip() for first, last in taken)
+
+            raise AlreadyEnrolled(f"Already has a place in {to_year.name}: {names}.")
+
+    # -- one student --------------------------------------------------------
+
+    @classmethod
+    def apply(cls, student, outcome, section, to_year, target, batch, from_year, now) -> None:
+        closed = cls.close_year(student, section, from_year, outcome, batch, now)
+
+        if outcome == PROMOTE:
+            landing = target["section"]
+
+            if landing is None:
+                # Nothing above this class, so there is nowhere to promote
+                # into. Said by name rather than left to a foreign key.
+                raise RetainClassMissing(
+                    f"There is no class above {section.school_class.name} in {to_year.name} to promote into."
+                )
+
+            cls.open_year(student, landing, to_year, batch, closed, now)
+            cls.repoint(student, landing.id, now)
+
+            return
+
+        if outcome == RETAIN:
+            landing = cls.same_class_next_year(section, to_year)
+            cls.open_year(student, landing, to_year, batch, closed, now)
+            cls.repoint(student, landing.id, now)
+
+            return
+
+        if outcome == GRADUATE:
+            # They have finished: no new year, no class, and a status that
+            # keeps them out of every register and every bus list.
+            cls.repoint(student, None, now, status=StudentStatus.GRADUATED)
+
+        # LEAVE repoints nothing. The child had already gone; the year simply
+        # closes for them.
+
+    @classmethod
+    def close_year(cls, student, section, from_year, outcome, batch, now) -> StudentEnrollment:
+        """Writes how this student's year ended, making the row if the
+        backfill never did - a year that ends unrecorded would be a hole in
+        the history the promotion itself had caused."""
+        enrollment, created = StudentEnrollment.objects.update_or_create(
+            student_id=student.id,
+            academic_year_id=from_year.id,
+            defaults={
+                "school_id": student.school_id,
+                "school_class_id": section.school_class_id,
+                "class_section_id": section.id,
+                "roll_number": student.roll_number,
+                "status": cls.OUTCOME_STATUS[outcome],
+                "promotion_batch_id": batch.id,
+                "updated_at": now,
+            },
+        )
+
+        if created:
+            StudentEnrollment.objects.filter(pk=enrollment.id).update(created_at=now)
+
+        return enrollment
+
+    @staticmethod
+    def open_year(student, landing: ClassSection, to_year, batch, closed, now) -> None:
+        StudentEnrollment.objects.create(
+            school_id=student.school_id,
+            student_id=student.id,
+            academic_year_id=to_year.id,
+            school_class_id=landing.school_class_id,
+            class_section_id=landing.id,
+            roll_number=student.roll_number,
+            status=EnrollmentStatus.STUDYING,
+            promotion_batch_id=batch.id,
+            promoted_from_enrollment_id=closed.id,
+            created_at=now,
+            updated_at=now,
+        )
+
+    @staticmethod
+    def repoint(student, class_section_id, now, status=None) -> None:
+        """`students.class_section_id` is the present tense, and a promotion
+        changes it here and nowhere else."""
+        fields = {"class_section_id": class_section_id, "updated_at": now}
+
+        if status is not None:
+            fields["status"] = status
+
+        Student.objects.filter(pk=student.id).update(**fields)
+
+    @staticmethod
+    def same_class_next_year(section: ClassSection, to_year: AcademicYear) -> ClassSection:
+        """Where a retained child repeats: the same class in the new year, and
+        inside it the section of the same name where there is one."""
+        same_class = SchoolClass.objects.filter(
+            school_id=school_id_of(section), academic_year_id=to_year.id, level=section.school_class.level
+        ).first()
+
+        if same_class is None:
+            raise RetainClassMissing(
+                f"{section.school_class.name} does not exist in {to_year.name}, "
+                "so there is nowhere for a retained student to repeat the year."
+            )
+
+        sections = ClassSection.objects.filter(school_class_id=same_class.id)
+        landing = sections.filter(name=section.name).first() or sections.order_by("name", "id").first()
+
+        if landing is None:
+            raise RetainClassMissing(
+                f"{same_class.name} in {to_year.name} has no sections, "
+                "so there is nowhere for a retained student to repeat the year."
+            )
+
+        return landing
+
+    # -- the record ---------------------------------------------------------
+
+    @classmethod
+    def _record(cls, batch, section, target, counted: dict) -> None:
+        """One entry for the whole run.
+
+        One per student would put forty rows in the log for a single intended
+        act and bury everything else, and the enrollment rows already carry
+        who ran the batch and when.
+        """
+        audit.record(
+            action="promotion.completed",
+            module=cls.MODULE,
+            entity_type="PromotionBatch",
+            entity_id=batch.id,
+            school_id=batch.school_id,
+            new={
+                "from": PromotionPreview.section_name(section),
+                "to": PromotionPreview.section_name(target["section"]),
+                "from_academic_year_id": batch.from_academic_year_id,
+                "to_academic_year_id": batch.to_academic_year_id,
+                "counts": {outcome: len(students) for outcome, students in counted.items()},
+                "students": {outcome: students for outcome, students in counted.items() if students},
+            },
+        )
+
+
+def run(section: ClassSection, data: dict, actor: User) -> PromotionBatch:
+    return PromotionRun.run(section, data, actor)
+
+
+def history(actor: User, filters: dict):
+    """Past runs, newest first - what a school reads to see what was done."""
+    batches = SchoolScope.for_actor(actor).apply_to(PromotionRun.with_names(), filters.get("school_id"))
+
+    if filters.get("academic_year_id"):
+        # Either side of the move: "what happened to 2026-27" and "what
+        # arrived in 2027-28" are the same question asked from two ends.
+        batches = batches.filter(
+            Q(from_academic_year_id=filters["academic_year_id"])
+            | Q(to_academic_year_id=filters["academic_year_id"])
+        )
+
+    if filters.get("class_section_id"):
+        batches = batches.filter(from_class_section_id=filters["class_section_id"])
+
+    return batches.order_by("-run_at", "-id")
+
+
+def outcomes_of(batch: PromotionBatch):
+    """What the batch did, student by student: the rows it closed, each with
+    the year it opened where there was one."""
+    return (
+        StudentEnrollment.objects.filter(promotion_batch_id=batch.id)
+        .exclude(status=EnrollmentStatus.STUDYING)
+        .select_related("student", "school_class", "class_section")
+        .order_by("student__first_name", "student__last_name", "student_id")
+    )
+
+
+def landing_of(batch: PromotionBatch) -> dict:
+    """The new rows the batch opened, keyed by student - so a row can say
+    where the child went without a query each."""
+    rows = (
+        StudentEnrollment.objects.filter(promotion_batch_id=batch.id, status=EnrollmentStatus.STUDYING)
+        .select_related("school_class", "class_section")
+    )
+
+    return {row.student_id: row for row in rows}

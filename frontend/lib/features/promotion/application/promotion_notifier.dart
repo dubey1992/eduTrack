@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/failure.dart';
+
+import '../data/models/promotion_batch.dart';
 import '../data/models/promotion_preview.dart';
 import '../data/promotion_repository.dart';
 
@@ -11,8 +14,9 @@ import '../data/promotion_repository.dart';
 /// because a search box that filters the list must not lose what has been
 /// decided about the rows it hides.
 ///
-/// Nothing in this slice writes. The preview reads, and the choices sit in
-/// memory until the run lands.
+/// The run is the last step and the only one that writes: it sends the
+/// decisions as they stand, and what comes back is the batch, which the
+/// screen shows instead of the roster it was working on.
 final promotionNotifierProvider = NotifierProvider<PromotionNotifier, PromotionState>(PromotionNotifier.new);
 
 class PromotionState {
@@ -23,6 +27,9 @@ class PromotionState {
     this.preview = const AsyncValue<PromotionPreview?>.data(null),
     this.outcomes = const {},
     this.search = '',
+    this.isRunning = false,
+    this.completed,
+    this.error,
   });
 
   /// What was asked for.
@@ -40,7 +47,21 @@ class PromotionState {
 
   final String search;
 
+  /// True while the run is in flight, so the button cannot be pressed twice
+  /// - and a promotion is the last thing that should happen twice.
+  final bool isRunning;
+
+  /// The batch, once it has run. The screen shows this instead of the
+  /// roster, because the roster describes a class that has just changed.
+  final PromotionBatch? completed;
+
+  /// What the server said when it refused, shown above the list it refers
+  /// to rather than in a snackbar that disappears.
+  final String? error;
+
   bool get hasPreview => preview.value != null;
+
+  bool get hasRun => completed != null;
 
   /// Everything needed to ask for a preview at all.
   bool get canPreview => classSectionId != null && toAcademicYearId != null;
@@ -53,6 +74,11 @@ class PromotionState {
     AsyncValue<PromotionPreview?>? preview,
     Map<int, PromotionOutcome>? outcomes,
     String? search,
+    bool? isRunning,
+    PromotionBatch? completed,
+    bool clearCompleted = false,
+    String? error,
+    bool clearError = false,
   }) {
     return PromotionState(
       classSectionId: classSectionId ?? this.classSectionId,
@@ -61,6 +87,9 @@ class PromotionState {
       preview: preview ?? this.preview,
       outcomes: outcomes ?? this.outcomes,
       search: search ?? this.search,
+      isRunning: isRunning ?? this.isRunning,
+      completed: clearCompleted ? null : (completed ?? this.completed),
+      error: clearError ? null : (error ?? this.error),
     );
   }
 
@@ -148,7 +177,57 @@ class PromotionNotifier extends Notifier<PromotionState> {
   /// Back to step one, keeping the choices that got here so the screen does
   /// not ask for them twice.
   void backToChoices() {
-    state = state.copyWith(preview: const AsyncValue<PromotionPreview?>.data(null), outcomes: const {}, search: '');
+    state = state.copyWith(
+      preview: const AsyncValue<PromotionPreview?>.data(null),
+      outcomes: const {},
+      search: '',
+      clearCompleted: true,
+      clearError: true,
+    );
+  }
+
+  /// Runs the batch as it stands on screen.
+  ///
+  /// Every student in the roster is sent, blocked ones excepted: they cannot
+  /// be moved, and naming them would only earn the whole batch a refusal.
+  Future<bool> run() async {
+    final preview = state.preview.value;
+
+    if (preview == null || state.isRunning || state.hasRun) return false;
+
+    final outcomes = {
+      for (final student in preview.students)
+        if (!student.isBlocked) student.studentId: state.outcomeFor(student).apiValue,
+    };
+
+    if (outcomes.isEmpty) return false;
+
+    state = state.copyWith(isRunning: true, clearError: true);
+
+    try {
+      final batch = await ref
+          .read(promotionRepositoryProvider)
+          .run(
+            classSectionId: state.classSectionId!,
+            toAcademicYearId: state.toAcademicYearId!,
+            toClassSectionId: state.toClassSectionId,
+            outcomes: outcomes,
+          );
+
+      state = state.copyWith(isRunning: false, completed: batch);
+
+      return true;
+    } catch (error) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      state = state.copyWith(isRunning: false, error: failure.message);
+
+      return false;
+    }
+  }
+
+  /// After a run: start again from the first step, with nothing carried over.
+  void startAgain() {
+    state = const PromotionState();
   }
 
   void setOutcome(int studentId, PromotionOutcome outcome) {

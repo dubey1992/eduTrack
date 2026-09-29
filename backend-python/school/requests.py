@@ -23,6 +23,7 @@ import re
 from . import attendants, audit, hashing, mailer, notices, notifications, permissions, sms, whatsapp
 from .enums import (
     UserStatus,
+    PromotionOutcome,
     MessageChannel,
     NoticeAudience,
     NoticeKind,
@@ -573,6 +574,86 @@ class PromotionPreviewRequest(serializers.Serializer):
             raise serializers.ValidationError(does_not_exist("class_section_id"))
 
         return value
+
+
+class RunPromotionRequest(serializers.Serializer):
+    """A promotion batch: the section, the year, and a decision per student.
+
+    Every student is named explicitly rather than "do what the preview said",
+    because the preview is a screen an administrator edits and the run must
+    act on what they actually decided - not on what the defaults would be if
+    it worked them out again.
+
+    The rows are checked by hand so a bad one is reported against its own
+    line - `outcomes.3.outcome` - the way the marks sheet does it. A client
+    that gets "outcomes: something is wrong" cannot mark up the row.
+    """
+
+    class_section_id = LaravelIntegerField("class_section_id")
+    to_academic_year_id = LaravelIntegerField("to_academic_year_id")
+    to_class_section_id = LaravelIntegerField("to_class_section_id", required=False, allow_null=True)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_class_section_id(self, value):
+        if not ClassSection.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(does_not_exist("class_section_id"))
+
+        return value
+
+    def validate(self, attrs):
+        attrs["outcomes"] = self.rows()
+
+        return attrs
+
+    def rows(self) -> list:
+        raw = self.initial_data.get("outcomes")
+
+        if raw is None:
+            raw = []
+
+        if not isinstance(raw, list):
+            raise serializers.ValidationError({"outcomes": ["The outcomes must be a list."]})
+
+        if not raw:
+            raise serializers.ValidationError({"outcomes": ["Say what should happen to each student."]})
+
+        errors: dict[str, list[str]] = {}
+        rows, seen = [], set()
+
+        for index, item in enumerate(raw):
+            prefix = f"outcomes.{index}"
+            item = item if isinstance(item, dict) else {}
+
+            try:
+                student_id = int(item.get("student_id"))
+            except (TypeError, ValueError):
+                errors[f"{prefix}.student_id"] = [required("student_id")]
+                continue
+
+            # The same child twice, with two different answers, is a form
+            # that cannot be obeyed - refused rather than resolved by
+            # whichever row happens to be last.
+            if student_id in seen:
+                errors[f"{prefix}.student_id"] = ["This student appears twice."]
+
+            seen.add(student_id)
+            outcome = item.get("outcome")
+
+            if outcome not in PromotionOutcome.values:
+                errors[f"{prefix}.outcome"] = [selected_is_invalid("outcome")]
+                continue
+
+            rows.append({"student_id": student_id, "outcome": outcome})
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return rows
 
 
 class MarkAttendanceRequest(serializers.Serializer):

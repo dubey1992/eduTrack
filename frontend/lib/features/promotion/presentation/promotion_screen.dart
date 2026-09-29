@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/paged_list.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
+import '../../../core/widgets/pagination_controls.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../academic_years/application/academic_year_picker_provider.dart';
 import '../../academic_years/data/models/academic_year.dart';
 import '../../classes/application/class_section_picker_provider.dart';
+import '../application/promotion_history_notifier.dart';
 import '../application/promotion_notifier.dart';
 import '../application/promotion_target_provider.dart';
+import '../data/models/promotion_batch.dart';
 import '../data/models/promotion_preview.dart';
+import 'promotion_batch_dialog.dart';
 
 /// Moving a class into the next year (docs/promotion.md).
 ///
@@ -22,6 +28,18 @@ import '../data/models/promotion_preview.dart';
 class PromotionScreen extends ConsumerWidget {
   const PromotionScreen({super.key});
 
+  /// Which of the three steps the screen is on. The run's result replaces
+  /// the roster, because the roster describes a class that has just changed.
+  Widget _step(PromotionState state) {
+    if (state.hasRun) return _Done(batch: state.completed!);
+
+    if (state.preview.isLoading || state.hasPreview || state.preview.hasError) {
+      return _Review(state: state);
+    }
+
+    return _Choices(state: state);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(promotionNotifierProvider);
@@ -32,19 +50,21 @@ class PromotionScreen extends ConsumerWidget {
         SectionHeader(
           title: 'Class Promotion',
           actions: [
-            if (state.hasPreview)
+            if (state.hasRun)
+              FilledButton.icon(
+                onPressed: () => ref.read(promotionNotifierProvider.notifier).startAgain(),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Promote another class'),
+              )
+            else if (state.hasPreview)
               OutlinedButton.icon(
-                onPressed: () => ref.read(promotionNotifierProvider.notifier).backToChoices(),
+                onPressed: state.isRunning ? null : () => ref.read(promotionNotifierProvider.notifier).backToChoices(),
                 icon: const Icon(Icons.arrow_back, size: 18),
                 label: const Text('Change class'),
               ),
           ],
         ),
-        Expanded(
-          child: state.preview.isLoading || state.hasPreview || state.preview.hasError
-              ? _Review(state: state)
-              : _Choices(state: state),
-        ),
+        Expanded(child: _step(state)),
       ],
     );
   }
@@ -133,8 +153,93 @@ class _Choices extends ConsumerWidget {
             icon: const Icon(Icons.groups_outlined, size: 18),
             label: const Text('Review students'),
           ),
+          const SizedBox(height: 32),
+          const _History(),
         ],
       ),
+    );
+  }
+}
+
+/// What has been promoted already. Shown under the first step, because the
+/// question "did somebody already do this" belongs before the doing.
+class _History extends ConsumerWidget {
+  const _History();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history = ref.watch(promotionHistoryProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Promotions already run', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        AsyncValueView<PagedList<PromotionBatch>>(
+          value: history,
+          onRetry: () => ref.read(promotionHistoryProvider.notifier).refresh(),
+          isEmpty: (page) => page.items.isEmpty,
+          emptyBuilder: (context) => Text(
+            'No class has been promoted yet.',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          data: (context, page) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HorizontalScrollTable(
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('When')),
+                    DataColumn(label: Text('Class')),
+                    DataColumn(label: Text('Into')),
+                    DataColumn(label: Text('Students')),
+                    DataColumn(label: Text('Outcomes')),
+                    DataColumn(label: Text('Run by')),
+                    DataColumn(label: Text('')),
+                  ],
+                  rows: [
+                    for (final batch in page.items)
+                      DataRow(
+                        cells: [
+                          DataCell(Text(batch.runAt == null ? '-' : formatDate(batch.runAt!))),
+                          DataCell(Text('${batch.fromClassSectionName} · ${batch.fromAcademicYearName}')),
+                          DataCell(
+                            Text('${batch.toClassSectionName ?? 'Finished school'} · ${batch.toAcademicYearName}'),
+                          ),
+                          DataCell(Text('${batch.studentCount}')),
+                          DataCell(
+                            Text(
+                              '${batch.promotedCount} up · ${batch.retainedCount} held · '
+                              '${batch.graduatedCount} out · ${batch.leftCount} left',
+                            ),
+                          ),
+                          DataCell(Text(batch.runByName)),
+                          DataCell(
+                            TextButton(
+                              onPressed: () => showDialog(
+                                context: context,
+                                builder: (_) => PromotionBatchDialog(batchId: batch.id),
+                              ),
+                              child: const Text('View'),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+              PaginationControls(
+                currentPage: page.currentPage,
+                lastPage: page.lastPage,
+                total: page.total,
+                perPage: page.perPage,
+                onPageChanged: (value) => ref.read(promotionHistoryProvider.notifier).setPage(value),
+                onPerPageChanged: (value) => ref.read(promotionHistoryProvider.notifier).setPerPage(value),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -265,9 +370,106 @@ class _Roster extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 16),
-          Text(
-            'Nothing has been saved. Running the promotion is the next step, and it is not switched on yet.',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          if (state.error != null) ...[
+            _Notice(icon: Icons.error_outline, isWarning: true, text: state.error!),
+            const SizedBox(height: 12),
+          ],
+          Row(
+            children: [
+              FilledButton.icon(
+                onPressed: preview.canRun && !state.isRunning ? () => _confirm(context, ref, state, preview) : null,
+                icon: state.isRunning
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.check, size: 18),
+                label: const Text('Promote this class'),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Nothing has been saved yet.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The last thing between a decision and a child's record: the counts
+  /// spelled out, in the app's own dialog.
+  Future<void> _confirm(BuildContext context, WidgetRef ref, PromotionState state, PromotionPreview preview) async {
+    final counts = state.counts;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Promote this class?'),
+        content: Text(
+          '${preview.from.classSectionName} moves into ${preview.to.academicYearName}.\n\n'
+          '${counts[PromotionOutcome.promote]} promoted to ${preview.to.classSectionName ?? 'the next class'}, '
+          '${counts[PromotionOutcome.retain]} retained, '
+          '${counts[PromotionOutcome.graduate]} graduated, '
+          '${counts[PromotionOutcome.leave]} left out.\n\n'
+          'Each student keeps every past year on record. This cannot be undone from here: '
+          'correcting it afterwards means moving those students by hand.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Promote')),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final ran = await ref.read(promotionNotifierProvider.notifier).run();
+
+    if (ran) {
+      // The history under the first step is now a batch out of date.
+      ref.invalidate(promotionHistoryProvider);
+      messenger.showSnackBar(const SnackBar(content: Text('The class has been promoted.')));
+    }
+  }
+}
+
+/// Step three: what the run did.
+class _Done extends ConsumerWidget {
+  const _Done({required this.batch});
+
+  final PromotionBatch batch;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Notice(
+            icon: Icons.check_circle_outline,
+            text:
+                '${batch.fromClassSectionName} has moved into ${batch.toAcademicYearName}. '
+                '${batch.studentCount} ${batch.studentCount == 1 ? 'student' : 'students'} in the batch.',
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('Promoted: ${batch.promotedCount}')),
+              Chip(label: Text('Retained: ${batch.retainedCount}')),
+              Chip(label: Text('Graduated: ${batch.graduatedCount}')),
+              Chip(label: Text('Left out: ${batch.leftCount}')),
+            ],
+          ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => PromotionBatchDialog(batchId: batch.id),
+            ),
+            icon: const Icon(Icons.list_alt_outlined, size: 18),
+            label: const Text('See what happened to each student'),
           ),
         ],
       ),

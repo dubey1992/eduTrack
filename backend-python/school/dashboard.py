@@ -358,7 +358,9 @@ def attendance_trend(school_id: int, today: dt.date, days: int = 7) -> list[dict
     return [
         {
             "date": date.isoformat(),
-            "label": date.strftime("%d %b"),
+            # US order, like every other date a person reads here: "Sep 29",
+            # not "29 Sep" (docs/timezones.md, App\Support\DateFormats).
+            "label": date.strftime("%b %d"),
             "attendance_rate": php_number(school_attendance_rate(school_id, date)),
         }
         for date in dates

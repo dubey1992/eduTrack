@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
@@ -13,6 +12,7 @@ import '../../../core/widgets/pagination_controls.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/utils/school_clock.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../auth/application/school_clock_provider.dart';
@@ -560,7 +560,9 @@ class MessageStatusBadge extends StatelessWidget {
 String messageTimeOf(Message message, SchoolClock clock) {
   if (message.createdAtLabel == null) return formatMessageTime(message.createdOnLabel, message.createdAtLabel);
 
-  final sentToday = message.createdOnLabel == DateFormat('d MMM y').format(clock.today);
+  // Both sides in the app's one date format: the server writes 09/29/2026,
+  // and comparing it against anything else made "today" never true.
+  final sentToday = message.createdOnLabel == formatDate(clock.today);
 
   return sentToday ? message.createdAtLabel! : '${message.createdOnLabel}, ${message.createdAtLabel}';
 }

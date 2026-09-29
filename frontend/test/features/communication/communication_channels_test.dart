@@ -1,6 +1,7 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/core/utils/school_clock.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/communication/application/message_page_notifier.dart';
@@ -499,7 +500,7 @@ void main() {
       await tester.pumpWidget(wrap(FakeCommunicationRepository(messages: [readInApp])));
       await tester.pumpAndSettle();
 
-      expect(find.text('15 Sep 2026, 9:00 AM'), findsOneWidget);
+      expect(find.text('09/15/2026, 9:00 AM'), findsOneWidget);
     });
 
     testWidgets('Send Message opens the compose dialog', (tester) async {
@@ -512,6 +513,25 @@ void main() {
 
       expect(find.byType(SendNoticeDialog), findsOneWidget);
       expect(find.widgetWithText(TextFormField, 'Student'), findsOneWidget);
+    });
+  });
+
+  group('when a message was sent', () {
+    /// The log shows the time alone for today and the date as well for any
+    /// other day - and "today" is today at the school, not in the browser.
+    SchoolClock clockOn(DateTime schoolNow) =>
+        SchoolClock(timezone: 'Asia/Kolkata', schoolTimeAtAnchor: schoolNow, anchorUtc: DateTime.now().toUtc());
+
+    test('today reads as the time alone', () {
+      final time = messageTimeOf(absenceSms, clockOn(DateTime(2026, 9, 16, 10, 0)));
+
+      expect(time, '8:42 AM', reason: 'the server writes 09/16/2026, and so does the app');
+    });
+
+    test('another day carries its date', () {
+      final time = messageTimeOf(absenceSms, clockOn(DateTime(2026, 9, 18, 10, 0)));
+
+      expect(time, '09/16/2026, 8:42 AM');
     });
   });
 }

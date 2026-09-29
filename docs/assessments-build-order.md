@@ -1,6 +1,6 @@
 # Assessments and promotion: the build order
 
-**Status (2026-09-29): slices 1 to 8 done, 9 to 14 planned.** This is the slicing of
+**Status (2026-09-29): slices 1 to 9 done, 10 to 14 planned.** This is the slicing of
 [assessments.md](assessments.md) and [promotion.md](promotion.md) into
 fourteen slices. Each slice is a vertical one: a migration where it needs
 one, the backend, the Flutter screen, the tests, and a demo in a browser

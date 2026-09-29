@@ -1,14 +1,12 @@
 # Class Promotion
 
-**Status (2026-09-29): enrollment history and the preview are built; the run
-is still planned.** The history table, the backfill and the Class history
-dialog are live, and so is `GET /promotions/preview` with the two-step wizard
-that reads it - the roster, a default per student and a suggestion beside the
-marks, all of it read-only. `promotion_batches`, the transactional run and
-the four recorded outcomes are still a plan, and so are the two columns that
-will record which batch moved a student. `graduated` exists on the student
-status enum, because the preview already reads it: a student who finished is
-not offered a fifth year. Nothing writes it until the run lands. Decided with
+**Status (2026-09-29): built, apart from the year-change checks.** The
+history table, the backfill, the Class history dialog, the preview, the
+three-step wizard, `promotion_batches`, the transactional run, the four
+outcomes, the `graduated` student status, the audit entry and the batch
+history are all live. What remains is slice 10: a pass that proves a change
+of year survives across attendance, the timetable, transport, imports and
+the reports. Decided with
 the user on
 2026-09-21: an administrator promotes a class into the next academic year in
 one pass, deciding per student whether they move up, repeat the year,
@@ -166,6 +164,24 @@ target, and an explicit outcome per student. All of it commits or none of it
 does. The batch row, every enrollment row and every repointed student go
 together.
 
+The roster is locked for the length of the run (`select_for_update`), so two
+administrators cannot promote the same children twice, and the refusals are
+checked most-specific first: a student already in the target year is
+`ALREADY_ENROLLED` before the emptied section can report
+`NOTHING_TO_PROMOTE`. Running the same batch twice therefore says what
+actually happened rather than "there is nobody here".
+
+A student the batch does not name is left alone rather than defaulted:
+leaving somebody out of a run is a decision too. A student whose year was
+never recorded - admitted before the history table existed, missed by the
+backfill - has it written as part of the run, so a promotion never leaves a
+hole where a year should be.
+
+Each row the run touches carries `promotion_batch_id`, and each new row also
+carries `promoted_from_enrollment_id`. Together they answer "what did this
+run do" and "where did this child come from" without either needing a guess,
+which is what `GET /promotions/{id}` reads.
+
 It is refused, each with its own error code, when:
 
 | Refusal | Why |
@@ -175,7 +191,8 @@ It is refused, each with its own error code, when:
 | `TARGET_SECTION_MISMATCH` | the target section is not in the target year, or another school (422, and the refusal that stops children being moved into somebody else's class by changing an id) |
 | `ALREADY_ENROLLED` | a student already has a row in the target year |
 | `ROSTER_CHANGED` | a student in the request is no longer in the source section |
-| `NOTHING_TO_PROMOTE` | the source section is empty |
+| `NOTHING_TO_PROMOTE` | the source section is empty, or the batch names nobody |
+| `RETAIN_CLASS_MISSING` | the class a retained child would repeat does not exist in the target year, or the class being promoted has nothing above it. Added with the run: a child held back needs somewhere to be held back *in*, and refusing by name beats a foreign key error or a quiet promotion |
 
 `ROSTER_CHANGED` is the one that matters in practice. Two administrators on
 two screens, one admits a child while the other is reviewing, and the run
@@ -265,7 +282,7 @@ themselves carry who ran the batch and when, so nothing is lost. A
 
 ## Order of work
 
-Slice 8 - the preview and the first two steps of the wizard - is built.
+Slices 8 and 9 - the preview, the wizard and the run - are built.
 Promotion is slices 8 to 10 of
 [assessments-build-order.md](assessments-build-order.md): the preview, the
 run, and then a slice that does nothing but prove a change of year is

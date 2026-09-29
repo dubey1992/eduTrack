@@ -1061,6 +1061,59 @@ def grade_scale_resource(scale) -> dict:
     return body
 
 
+def promotion_batch_resource(batch) -> dict:
+    """One run of a promotion, as the history list prints it."""
+    landing = batch.to_class_section
+
+    return {
+        "id": batch.id,
+        "school_id": batch.school_id,
+        "from_academic_year_id": batch.from_academic_year_id,
+        "from_academic_year_name": batch.from_academic_year.name,
+        "to_academic_year_id": batch.to_academic_year_id,
+        "to_academic_year_name": batch.to_academic_year.name,
+        "from_class_section_id": batch.from_class_section_id,
+        "from_class_section_name": section_label(batch.from_class_section),
+        "to_class_section_id": batch.to_class_section_id,
+        # Null when every student graduated: there was nowhere to land.
+        "to_class_section_name": section_label(landing),
+        "promoted_count": batch.promoted_count,
+        "retained_count": batch.retained_count,
+        "graduated_count": batch.graduated_count,
+        "left_count": batch.left_count,
+        "student_count": (
+            batch.promoted_count + batch.retained_count + batch.graduated_count + batch.left_count
+        ),
+        "run_by_name": batch.run_by.name,
+        "run_at": timestamp(batch.run_at),
+    }
+
+
+def section_label(section) -> str | None:
+    if section is None:
+        return None
+
+    return f"{section.school_class.name} {section.name}".strip()
+
+
+def promotion_outcome_resource(enrollment, landing=None) -> dict:
+    """What one run did to one student: the year it closed, and where the
+    child went, for the two outcomes where they went anywhere."""
+    return {
+        "student_id": enrollment.student_id,
+        "name": enrollment.student.name,
+        "admission_number": enrollment.student.admission_number,
+        "roll_number": enrollment.roll_number,
+        "from_class_name": enrollment.school_class.name,
+        "from_section_name": enrollment.class_section.name if enrollment.class_section_id else None,
+        # The instruction that produced it, said the way the record does:
+        # promoted, retained, graduated, left.
+        "outcome": enrollment.status,
+        "to_class_name": None if landing is None else landing.school_class.name,
+        "to_section_name": None if landing is None or landing.class_section is None else landing.class_section.name,
+    }
+
+
 def student_enrollment_resource(enrollment) -> dict:
     """One year of a student's history.
 
