@@ -284,8 +284,9 @@ PYTHON_ONLY_ENDPOINTS: list[tuple[str, str]] = [
     ("PATCH", "academic-terms/{academicTerm}"),
     ("DELETE", "academic-terms/{academicTerm}"),
 
-    # -- enrollment history (docs/promotion.md) -------------------------
+    # -- enrollment history and promotion (docs/promotion.md) -----------
     ("GET", "students/{student}/enrollments"),
+    ("GET", "promotions/preview"),
 
     # -- bulk upload preview (docs/imports.md) --------------------------
     ("POST", "imports/{kind}/preview"),

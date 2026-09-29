@@ -547,6 +547,34 @@ class AttendanceRegisterRequest(serializers.Serializer):
         return value
 
 
+class PromotionPreviewRequest(serializers.Serializer):
+    """The question a preview asks: which section, into which year.
+
+    Query parameters rather than a body, because a preview reads. The section
+    and the year are checked for existence here and for ownership in the
+    view, once each is known to be real - a 403 about a section that does not
+    exist would tell a caller it does.
+    """
+
+    class_section_id = LaravelIntegerField("class_section_id")
+    to_academic_year_id = LaravelIntegerField("to_academic_year_id")
+    # Left out on the first look: the backend suggests the class one level up,
+    # and the screen sends a section back once somebody chooses one.
+    to_class_section_id = LaravelIntegerField("to_class_section_id", required=False, allow_null=True)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_class_section_id(self, value):
+        if not ClassSection.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(does_not_exist("class_section_id"))
+
+        return value
+
+
 class MarkAttendanceRequest(serializers.Serializer):
     class_section_id = LaravelIntegerField("class_section_id")
     attendance_date = SchoolDateField("attendance_date")

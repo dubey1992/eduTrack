@@ -287,6 +287,20 @@ class AppNav {
         pageSubtitle: 'Class structure and teacher assignment',
       ),
       NavItem(
+        path: '/promotion',
+        module: AppModules.academics,
+        // Deciding that a child repeats a year is staff work, so the API
+        // refuses everyone else - including the Super Admin, who is not a
+        // member of staff (docs/promotion.md).
+        requiredLevel: PermissionLevel.manage,
+        deniedRoles: {UserRole.superAdmin},
+        label: 'Class Promotion',
+        icon: Icons.move_up_outlined,
+        allowedRoles: {UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Class Promotion',
+        pageSubtitle: 'Move a class into the next academic year',
+      ),
+      NavItem(
         path: '/timetable',
         module: AppModules.timetable,
         label: 'Timetable',

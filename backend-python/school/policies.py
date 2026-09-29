@@ -817,6 +817,38 @@ class GradeScalePolicy(SchoolOwnedPolicy):
     what an 81 will be called."""
 
 
+class PromotionPolicy:
+    """Who may move a class into the next year (docs/promotion.md).
+
+    Promotion sits inside the existing `academics` module rather than adding
+    a row to the matrix, and the matrix already says only an administrator
+    manages academics. This narrows it twice more:
+
+    - **A Super Admin runs none of it.** The platform's owner is not a member
+      of staff, and deciding that a child repeats a year is staff work. They
+      read a school's promotion history and change nothing, exactly as in
+      payroll.
+    - **Previewing is not reading.** An HOD or a teacher may view academic
+      set-up - classes, terms, the timetable - but a preview is the first
+      step of a run, so it answers to the same rule as the run.
+    """
+
+    MODULE = "academics"
+
+    @staticmethod
+    def preview(actor: User, school_id: int) -> bool:
+        """Deliberately the same answer as run(): the preview is step one of
+        promoting, not a report about it."""
+        return PromotionPolicy.run(actor, school_id)
+
+    @staticmethod
+    def run(actor: User, school_id: int) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return False
+
+        return permitted(actor, PromotionPolicy.MODULE, write=True, school_id=school_id) and in_scope(actor, school_id)
+
+
 class AssessmentPolicy:
     """Who may set a test, and for whom (docs/assessments.md).
 

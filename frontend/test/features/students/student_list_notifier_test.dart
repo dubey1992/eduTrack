@@ -86,4 +86,17 @@ void main() {
     expect(state.currentPage, 1);
     expect(state.items, hasLength(25));
   });
+
+  group('the status a student carries', () {
+    test('graduated is its own thing, not a kind of inactive', () {
+      expect(StudentStatus.fromApiValue('graduated'), StudentStatus.graduated);
+      expect(StudentStatus.graduated.label, 'Graduated');
+    });
+
+    test('a status this app has never heard of reads as inactive rather than crashing the list', () {
+      // A backend that learns a new status must never blank the screen of an
+      // app that has not been updated yet.
+      expect(StudentStatus.fromApiValue('on-the-moon'), StudentStatus.inactive);
+    });
+  });
 }

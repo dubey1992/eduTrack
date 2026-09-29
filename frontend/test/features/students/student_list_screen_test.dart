@@ -260,6 +260,19 @@ void main() {
     expect(find.widgetWithText(TextButton, 'Activate'), findsOneWidget);
   });
 
+  testWidgets('a graduated student reads as finished, not as a red Inactive', (tester) async {
+    _useDesktopLayout(tester);
+
+    // Written by a promotion (docs/promotion.md): a child who finished the
+    // school's last class has not left and is not inactive.
+    final fake = FakeStudentRepository(students: [_student.copyWith(status: StudentStatus.graduated)]);
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Graduated'), findsOneWidget);
+    expect(find.text('Inactive'), findsNothing);
+  });
+
   testWidgets('shows an error state with a retry button when loading fails', (tester) async {
     final fake = FakeStudentRepository(
       failListWith: const Failure(code: 'SERVER_ERROR', message: 'Could not load students.'),

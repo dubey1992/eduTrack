@@ -95,8 +95,18 @@ class EnrollmentStatus(models.TextChoices):
 
 
 class StudentStatus(models.TextChoices):
+    """Where a student stands today.
+
+    GRADUATED is written by a promotion and by nothing else: a child who
+    finished the school's last class has not left and is not inactive, and
+    the difference matters to every list that offers to mark them present.
+    The promotion preview already reads it - it is why a graduated student is
+    not offered a fifth year - and the run that writes it is the next slice.
+    """
+
     ACTIVE = "active"
     INACTIVE = "inactive"
+    GRADUATED = "graduated"
 
 
 class SchoolStatus(models.TextChoices):

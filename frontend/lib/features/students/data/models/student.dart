@@ -1,12 +1,20 @@
 enum StudentStatus {
-  active('active'),
-  inactive('inactive');
+  active('active', 'Active'),
+  inactive('inactive', 'Inactive'),
+  // Written by a promotion: a child who finished the school's last class has
+  // not left and is not inactive (docs/promotion.md).
+  graduated('graduated', 'Graduated');
 
-  const StudentStatus(this.apiValue);
+  const StudentStatus(this.apiValue, this.label);
 
   final String apiValue;
+  final String label;
 
-  static StudentStatus fromApiValue(String value) => StudentStatus.values.firstWhere((s) => s.apiValue == value);
+  /// An unknown value reads as inactive rather than throwing: a backend that
+  /// learns a new status must never blank the students list of an app that
+  /// has not been updated yet.
+  static StudentStatus fromApiValue(String value) =>
+      StudentStatus.values.firstWhere((s) => s.apiValue == value, orElse: () => StudentStatus.inactive);
 }
 
 /// The student's current bus route + stop (Phase 14), or absent when they

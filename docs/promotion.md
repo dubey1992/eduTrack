@@ -1,10 +1,14 @@
 # Class Promotion
 
-**Status (2026-09-24): enrollment history built, promotion still planned.**
-The history table, the backfill and the Class history dialog are live; the
-rows are written by admissions rather than by anything here. The promotion
-batch, its outcomes and the `graduated` status are still a plan, and so are
-the two columns that will record which batch moved a student. Decided with
+**Status (2026-09-29): enrollment history and the preview are built; the run
+is still planned.** The history table, the backfill and the Class history
+dialog are live, and so is `GET /promotions/preview` with the two-step wizard
+that reads it - the roster, a default per student and a suggestion beside the
+marks, all of it read-only. `promotion_batches`, the transactional run and
+the four recorded outcomes are still a plan, and so are the two columns that
+will record which batch moved a student. `graduated` exists on the student
+status enum, because the preview already reads it: a student who finished is
+not offered a fifth year. Nothing writes it until the run lands. Decided with
 the user on
 2026-09-21: an administrator promotes a class into the next academic year in
 one pass, deciding per student whether they move up, repeat the year,
@@ -125,9 +129,29 @@ honestly rather than pretending they finished it.
 ## How a promotion runs
 
 **Preview first, always.** `GET /promotions/preview` takes the source
-section and the target year and class, and answers with the roster, each
-student's default outcome, and anything that would refuse. The screen shows
-it as a list the administrator edits per student. Nothing has been written.
+section (`class_section_id`), the target year (`to_academic_year_id`) and
+optionally the target section (`to_class_section_id`), and answers with the
+roster, each student's default outcome, and anything that would refuse. The
+screen shows it as a list the administrator edits per student. Nothing has
+been written.
+
+Leaving the target section out is the ordinary case: the backend suggests the
+class one level up in the target year and, inside it, the section of the same
+name where there is one, and says `is_suggested` so the screen can mark it.
+A source class with nothing above it is not an error - it is the graduating
+case, and every student defaults to graduated.
+
+A student who already has a row in the target year comes back `is_blocked`
+with the reason rather than being dropped from the list: a roster that
+quietly omits a child is how a child gets left behind. A section with nobody
+in it answers 200 with `can_run: false` and `cannot_run_reason:
+NOTHING_TO_PROMOTE`, because an empty list is something to show, not an
+error to raise.
+
+Where the assessments module is on and the source year has published
+results, each row also carries the final term's average and the year's
+attendance, and `suggested_outcome: "retain"` where the average is under the
+school's pass percentage. The default is untouched by it.
 
 The default outcome is **promote**, for everyone active. Where the
 assessments module is on and the year has published results, the preview
@@ -146,9 +170,9 @@ It is refused, each with its own error code, when:
 
 | Refusal | Why |
 |---|---|
-| `SAME_ACADEMIC_YEAR` | source and target year are the same |
-| `TARGET_YEAR_NOT_FOUND` | the target year does not exist for this school |
-| `TARGET_SECTION_MISMATCH` | the target section is not in the target year, or another school |
+| `SAME_ACADEMIC_YEAR` | source and target year are the same (422, and the preview refuses it too) |
+| `TARGET_YEAR_NOT_FOUND` | the target year does not exist for this school (404 - another school's year is not a year this one may be told about) |
+| `TARGET_SECTION_MISMATCH` | the target section is not in the target year, or another school (422, and the refusal that stops children being moved into somebody else's class by changing an id) |
 | `ALREADY_ENROLLED` | a student already has a row in the target year |
 | `ROSTER_CHANGED` | a student in the request is no longer in the source section |
 | `NOTHING_TO_PROMOTE` | the source section is empty |
@@ -241,6 +265,7 @@ themselves carry who ran the batch and when, so nothing is lost. A
 
 ## Order of work
 
+Slice 8 - the preview and the first two steps of the wizard - is built.
 Promotion is slices 8 to 10 of
 [assessments-build-order.md](assessments-build-order.md): the preview, the
 run, and then a slice that does nothing but prove a change of year is

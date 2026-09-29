@@ -153,6 +153,39 @@ class AssessmentNotPublished(ApiError):
     error_code = "ASSESSMENT_NOT_PUBLISHED"
 
 
+class SameAcademicYear(ApiError):
+    """A class cannot be promoted into the year it is already in.
+
+    422: the request is well formed and the pairing is not, and the fix is to
+    pick a different year.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "SAME_ACADEMIC_YEAR"
+
+
+class TargetYearNotFound(ApiError):
+    """The year to promote into does not belong to this school.
+
+    404 rather than 403: another school's year is not a year this one may be
+    told about, even to be refused it.
+    """
+
+    status_code = status.HTTP_404_NOT_FOUND
+    error_code = "TARGET_YEAR_NOT_FOUND"
+
+
+class TargetSectionMismatch(ApiError):
+    """The named section is not in the year being promoted into.
+
+    The one refusal that stops children being moved into somebody else's
+    class by changing an id in the request.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "TARGET_SECTION_MISMATCH"
+
+
 class MarksIncomplete(ApiError):
     """A class with anybody unmarked cannot be published.
 

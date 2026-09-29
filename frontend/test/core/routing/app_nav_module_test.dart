@@ -134,6 +134,36 @@ void main() {
     });
   });
 
+  group('Class Promotion', () {
+    test('belongs to an administrator, not to a teacher or a head', () {
+      expect(_item('/promotion').allows(sessionUser(UserRole.schoolAdmin)), isTrue);
+      expect(_item('/promotion').allows(sessionUser(UserRole.groupAdmin)), isTrue);
+      expect(_item('/promotion').allows(sessionUser(UserRole.teacher)), isFalse);
+      expect(_item('/promotion').allows(sessionUser(UserRole.hod)), isFalse);
+    });
+
+    test("is never the Super Admin's, whatever the matrix grants them", () {
+      // They are full on every module by definition, so only the denial
+      // keeps them out - and the API refuses them too (docs/promotion.md).
+      expect(
+        _item('/promotion').allows(sessionUser(UserRole.superAdmin, permissions: allModulesAt(PermissionLevel.manage))),
+        isFalse,
+      );
+    });
+
+    test('needs manage on academics, not just a look at it', () {
+      final reader = sessionUser(UserRole.schoolAdmin, permissions: {AppModules.academics: PermissionLevel.view});
+
+      expect(_item('/promotion').allows(reader), isFalse);
+    });
+
+    test('goes with the academics module', () {
+      final admin = sessionUser(UserRole.schoolAdmin, modules: {AppModules.academics: false});
+
+      expect(_item('/promotion').allows(admin), isFalse);
+    });
+  });
+
   group('a role-gated item', () {
     test('ignores the matrix and the switches', () {
       final admin = sessionUser(

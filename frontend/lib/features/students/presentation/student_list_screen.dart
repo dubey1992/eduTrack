@@ -226,8 +226,15 @@ class _StatusBadgeFor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = student.status == StudentStatus.active;
-    return StatusBadge(label: isActive ? 'Active' : 'Inactive', tone: isActive ? BadgeTone.success : BadgeTone.danger);
+    // Graduated is neither active nor a failure: a child who finished reads
+    // as finished, not as a red "Inactive" (docs/promotion.md).
+    const tones = {
+      StudentStatus.active: BadgeTone.success,
+      StudentStatus.inactive: BadgeTone.danger,
+      StudentStatus.graduated: BadgeTone.info,
+    };
+
+    return StatusBadge(label: student.status.label, tone: tones[student.status] ?? BadgeTone.danger);
   }
 }
 
