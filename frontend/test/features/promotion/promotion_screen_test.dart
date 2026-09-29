@@ -5,7 +5,6 @@ import 'package:edutrack_app/features/academic_years/application/academic_year_p
 import 'package:edutrack_app/features/academic_years/data/models/academic_year.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/classes/application/class_section_picker_provider.dart';
-import 'package:edutrack_app/features/promotion/application/promotion_notifier.dart';
 import 'package:edutrack_app/features/promotion/application/promotion_target_provider.dart';
 import 'package:edutrack_app/features/promotion/data/models/promotion_preview.dart';
 import 'package:edutrack_app/features/promotion/data/promotion_repository.dart';
