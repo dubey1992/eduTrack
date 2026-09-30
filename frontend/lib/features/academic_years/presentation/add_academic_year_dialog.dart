@@ -3,13 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/school_clock_provider.dart';
 
-import 'package:intl/intl.dart';
-
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/academic_year_list_notifier.dart';
 import '../../../core/widgets/school_picker.dart';
+import '../../../core/utils/date_format.dart';
 
 class AddAcademicYearDialog extends ConsumerStatefulWidget {
   const AddAcademicYearDialog({super.key});
@@ -88,7 +87,6 @@ class _AddAcademicYearDialogState extends ConsumerState<AddAcademicYearDialog> {
   @override
   Widget build(BuildContext context) {
     final picksSchool = ref.watch(authNotifierProvider).value?.picksSchool ?? false;
-    final dateFormat = DateFormat.yMMMd();
 
     return AlertDialog(
       title: const Text('Add Academic Year'),
@@ -118,7 +116,7 @@ class _AddAcademicYearDialogState extends ConsumerState<AddAcademicYearDialog> {
                   onTap: () => _pickDate(isStart: true),
                   child: InputDecorator(
                     decoration: const InputDecoration(labelText: 'Start date'),
-                    child: Text(_startDate == null ? 'Select a date' : dateFormat.format(_startDate!)),
+                    child: Text(_startDate == null ? 'Select a date' : formatDate(_startDate!)),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -126,7 +124,7 @@ class _AddAcademicYearDialogState extends ConsumerState<AddAcademicYearDialog> {
                   onTap: () => _pickDate(isStart: false),
                   child: InputDecorator(
                     decoration: const InputDecoration(labelText: 'End date'),
-                    child: Text(_endDate == null ? 'Select a date' : dateFormat.format(_endDate!)),
+                    child: Text(_endDate == null ? 'Select a date' : formatDate(_endDate!)),
                   ),
                 ),
                 CheckboxListTile(

@@ -54,5 +54,31 @@ void main() {
 
       expect(offenders, isEmpty, reason: 'use formatDate/formatDateTime so every date reads the same way');
     });
+
+    /// The subtler half of the same bug, and the one that got past the
+    /// check above: DateFormat.yMMMd() names no pattern at all, so what it
+    /// prints is whatever locale the browser reports. It read "Sep 29,
+    /// 2026" on the machine it was written on and "29 Sep 2026" on a UK
+    /// one - day before month, on four screens, without a single character
+    /// of the app changing.
+    ///
+    /// Month-only labels are left alone: "September 2026" carries no day to
+    /// put in the wrong place.
+    test('no screen lets the browser decide how a date is written', () {
+      final offenders = <String>[];
+      // A named constructor carrying a day: yMd, yMMMd, yMMMMEEEEd, Md...
+      final localeDecides = RegExp(r'DateFormat\.(y?M+E*d|d\w*)\(');
+
+      for (final file in Directory('lib').listSync(recursive: true).whereType<File>()) {
+        if (!file.path.endsWith('.dart')) continue;
+        if (file.path.endsWith('date_format.dart')) continue;
+
+        for (final match in localeDecides.allMatches(file.readAsStringSync())) {
+          offenders.add('${file.path}: ${match.group(0)}');
+        }
+      }
+
+      expect(offenders, isEmpty, reason: 'use formatDate so the order never depends on the reader');
+    });
   });
 }

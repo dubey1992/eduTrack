@@ -32,7 +32,7 @@ from dataclasses import dataclass
 
 from django.utils import timezone
 
-from . import attendants, crypto, modules, queue
+from . import attendants, crypto, dates, modules, queue
 from .clock import SchoolClock
 from .enums import (
     AttendanceAlertMode,
@@ -251,7 +251,7 @@ def school_name(school_id) -> str | None:
 
 
 def stamp(clock: SchoolClock) -> dict:
-    return {"date": clock.now().strftime("%m/%d/%Y"), "time": clock.now().strftime("%I:%M %p").lstrip("0")}
+    return {"date": dates.us(clock.now()), "time": dates.us_time(clock.now())}
 
 
 def notify_guardian(event: str, student, tokens: dict, actor=None, channels=None, announcement=None, subject=None):

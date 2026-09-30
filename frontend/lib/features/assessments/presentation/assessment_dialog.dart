@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
@@ -13,6 +12,7 @@ import '../../subjects/data/models/subject.dart';
 import '../../timetable/application/subject_picker_provider.dart';
 import '../application/assessment_list_notifier.dart';
 import '../data/models/assessment.dart';
+import '../../../core/utils/date_format.dart';
 
 /// Set a class test, or edit one (docs/assessments.md).
 ///
@@ -283,7 +283,7 @@ class _AssessmentDialogState extends ConsumerState<AssessmentDialog> {
                         onTap: _pickDate,
                         child: InputDecorator(
                           decoration: InputDecoration(labelText: 'Date', errorText: _serverError('assessment_date')),
-                          child: Text(_date == null ? 'Select a date' : DateFormat.yMMMd().format(_date!)),
+                          child: Text(_date == null ? 'Select a date' : formatDate(_date!)),
                         ),
                       ),
                     ),

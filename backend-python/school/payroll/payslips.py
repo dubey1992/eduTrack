@@ -11,7 +11,7 @@ import io
 
 from xhtml2pdf import pisa
 
-from .. import money
+from .. import dates, money
 from ..enums import PayComponentType, PaymentMode, PayrollRunStatus
 from ..receipts import STYLESHEET, e, label, row
 from .service import period_label
@@ -60,7 +60,7 @@ def document(slip) -> str:
     draft = run.status == PayrollRunStatus.DRAFT
     paid = ""
     if slip.paid_on:
-        paid = row("Paid on", e(f"{slip.paid_on:%m/%d/%Y} by {label(PaymentMode, slip.payment_mode)}"))
+        paid = row("Paid on", e(f"{dates.us(slip.paid_on)} by {label(PaymentMode, slip.payment_mode)}"))
         if slip.payment_reference:
             paid += row("Reference", e(slip.payment_reference))
 

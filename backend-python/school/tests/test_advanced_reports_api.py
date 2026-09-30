@@ -450,10 +450,15 @@ class AsPdf(ReportTestCase):
 
         document = pdf.document(report, built, school_label="Sunrise Public School", generated_at="09/14/2026 12:00 PM")
 
-        for text in ("Sunrise Public School", "Student attendance", "2026-09-07 to 2026-09-11", "5 working days",
-                     "Arjun Kumar", "ADM-0042", "Attendance % (previous period)", "2026-09-02 to 2026-09-06",
+        # The period reads the way every other date in the app does. The
+        # report's own `range` stays ISO for the client and the filename;
+        # only what a person reads is turned round.
+        for text in ("Sunrise Public School", "Student attendance", "09/07/2026 to 09/11/2026", "5 working days",
+                     "Arjun Kumar", "ADM-0042", "Attendance % (previous period)", "09/02/2026 to 09/06/2026",
                      "Generated 09/14/2026 12:00 PM"):
             self.assertIn(text, document)
+
+        self.assertNotIn("2026-09-07 to", document, "no ISO date should reach the page")
         # A zero is written as 0, never as a blank cell.
         self.assertIn("<td>0</td>", document)
 

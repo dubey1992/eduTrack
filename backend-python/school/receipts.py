@@ -20,7 +20,7 @@ import io
 
 from xhtml2pdf import pisa
 
-from . import money
+from . import dates, money
 from .clock import SchoolClock
 from .enums import PaymentMode, PaymentStatus, PaymentType
 
@@ -94,7 +94,7 @@ def document(payment) -> str:
 
     school = payment.school
     # Dates on the receipt are read at the school, not on the server.
-    issued_on = SchoolClock.for_school(school).now().strftime("%m/%d/%Y")
+    issued_on = dates.us(SchoolClock.for_school(school).now())
 
     rows = [
         row("School", e(school.name) if school else "-"),
@@ -109,7 +109,7 @@ def document(payment) -> str:
 
     payment_rows = [
         row("For", e(label(PaymentType, payment.payment_type))),
-        row("Date", payment.payment_date.strftime("%m/%d/%Y")),
+        row("Date", dates.us(payment.payment_date)),
         row("Method", e(label(PaymentMode, payment.payment_mode))),
     ]
 

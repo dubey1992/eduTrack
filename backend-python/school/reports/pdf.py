@@ -18,7 +18,7 @@ from decimal import Decimal
 
 from xhtml2pdf import pisa
 
-from .. import money
+from .. import dates, money
 from ..receipts import STYLESHEET, e
 from . import comparison
 
@@ -80,7 +80,7 @@ def document(report, built: dict, *, school_label: str, generated_at: str) -> st
 <div class="sheet">
     <table class="head"><tr>
         <td><div class="brand">{e(school_label)}</div><div class="muted">{e(report.TITLE)}</div></td>
-        <td class="right"><div>{e(period["from"])} to {e(period["to"])}</div><div class="muted">{days}</div></td>
+        <td class="right"><div>{e(dates.range_label_iso(period["from"], period["to"]))}</div><div class="muted">{days}</div></td>
     </tr></table>
 
     <h1>Summary</h1>
@@ -112,7 +112,10 @@ def totals_table(built: dict) -> str:
 
     if previous is not None:
         period = built["comparison"]["range"]
-        lines.append(f'<tr><td class="key">Previous period</td><td>{e(period["from"])} to {e(period["to"])}</td></tr>')
+        lines.append(
+            f'<tr><td class="key">Previous period</td>'
+            f'<td>{e(dates.range_label_iso(period["from"], period["to"]))}</td></tr>'
+        )
 
     return f'<table class="facts">{"".join(lines)}</table>'
 

@@ -20,6 +20,7 @@ from . import (
     attendants,
     audit,
     crypto,
+    dates,
     photos,
     hashing,
     jobs,
@@ -633,7 +634,7 @@ class AttendanceService:
                 student,
                 {
                     "class_name": f"{section.school_class.name} {section.name}".strip(),
-                    "date": as_date(date).strftime("%m/%d/%Y"),
+                    "date": dates.us(as_date(date)),
                 },
                 actor=actor,
             )
@@ -988,8 +989,8 @@ class StaffLeaveService:
             applicant,
             {
                 "leave_type": LeaveType.label_for(leave.leave_type),
-                "start_date": leave.start_date.strftime("%m/%d/%Y"),
-                "end_date": leave.end_date.strftime("%m/%d/%Y"),
+                "start_date": dates.us(leave.start_date),
+                "end_date": dates.us(leave.end_date),
                 "days": str((leave.end_date - leave.start_date).days + 1),
                 "remarks": leave.review_remarks,
             },
@@ -2361,7 +2362,7 @@ class NoticeService:
             tokens["amount"] = money.formatted(Decimal(payload["amount"]), school.currency_code)
 
         if payload.get("due_date"):
-            tokens["due_date"] = dt.date.fromisoformat(payload["due_date"]).strftime("%m/%d/%Y")
+            tokens["due_date"] = dates.us_from_iso(payload["due_date"])
 
         return tokens
 
@@ -3067,7 +3068,7 @@ class TransportTripService:
                 "vehicle_name": trip.vehicle.name,
                 "route_name": trip.route.name,
                 "direction": trip.direction,
-                "date": trip.trip_date.strftime("%m/%d/%Y"),
+                "date": dates.us(trip.trip_date),
             },
             actor,
         )
@@ -4835,7 +4836,7 @@ class AssessmentPublishService:
             "max_marks": cls.plain(assessment.max_marks),
             "percentage": cls.plain(percentage),
             "grade": mark.grade,
-            "test_date": assessment.assessment_date.strftime("%m/%d/%Y"),
+            "test_date": dates.us(assessment.assessment_date),
         }
 
     @staticmethod

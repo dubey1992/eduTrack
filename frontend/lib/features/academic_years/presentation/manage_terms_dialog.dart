@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
@@ -239,8 +238,6 @@ class _TermFormDialogState extends ConsumerState<TermFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat.yMMMd();
-
     return AlertDialog(
       title: Text(_isEdit ? 'Edit Term' : 'Add Term'),
       content: SizedBox(
@@ -276,14 +273,14 @@ class _TermFormDialogState extends ConsumerState<TermFormDialog> {
                 const SizedBox(height: 10),
                 _DateField(
                   label: 'Start date',
-                  value: _startDate == null ? null : dateFormat.format(_startDate!),
+                  value: _startDate == null ? null : formatDate(_startDate!),
                   error: _fieldErrors['start_date']?.first,
                   onTap: () => _pickDate(isStart: true),
                 ),
                 const SizedBox(height: 10),
                 _DateField(
                   label: 'End date',
-                  value: _endDate == null ? null : dateFormat.format(_endDate!),
+                  value: _endDate == null ? null : formatDate(_endDate!),
                   error: _fieldErrors['end_date']?.first,
                   onTap: () => _pickDate(isStart: false),
                 ),

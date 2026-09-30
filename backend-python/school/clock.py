@@ -28,6 +28,7 @@ import zoneinfo
 from django.conf import settings
 from django.utils import timezone
 
+from . import dates
 from .fields import as_utc
 
 from .enums import UserRole
@@ -130,9 +131,9 @@ class SchoolClock:
             return time
 
         if pattern == DATE_TIME:
-            return f"{local.strftime('%m/%d/%Y')} {time}"
+            return f"{dates.us(local)} {time}"
 
-        return local.strftime("%m/%d/%Y")
+        return dates.us(local)
 
     def start_of_day_utc(self, day) -> dt.datetime:
         """The UTC instant a school-local calendar day begins."""

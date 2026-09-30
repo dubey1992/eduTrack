@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from . import mailer, modules, money, permissions, sms, whatsapp, working_hours
+from . import dates, mailer, modules, money, permissions, sms, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
 from .enums import EarlyAccessStatus, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
@@ -788,7 +788,7 @@ def profile_resource(user) -> dict:
             "department_name": profile.department.name if profile.department_id else None,
             "designation": profile.designation,
             "joining_date": profile.joining_date.isoformat(),
-            "joining_date_label": profile.joining_date.strftime("%m/%d/%Y"),
+            "joining_date_label": dates.us(profile.joining_date),
         },
         "updated_at": timestamp(user.updated_at),
     }
