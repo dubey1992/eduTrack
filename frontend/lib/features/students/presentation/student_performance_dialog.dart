@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/file_saver.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../application/student_performance_notifier.dart';
 import '../data/models/student.dart';
+import '../data/student_repository.dart';
 import '../data/models/student_performance.dart';
 
 /// What one student's marks add up to (docs/assessments.md).
@@ -16,14 +19,52 @@ import '../data/models/student_performance.dart';
 ///
 /// Nothing on this page is invented: a subject with no mark, a term with
 /// nothing before it and a period with no working day all read as a dash.
-class StudentPerformanceDialog extends ConsumerWidget {
+class StudentPerformanceDialog extends ConsumerStatefulWidget {
   const StudentPerformanceDialog({super.key, required this.student});
 
   final Student student;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StudentPerformanceDialog> createState() => _StudentPerformanceDialogState();
+}
+
+class _StudentPerformanceDialogState extends ConsumerState<StudentPerformanceDialog> {
+  bool _downloading = false;
+
+  Student get student => widget.student;
+
+  /// The same figures as a page to print or send home.
+  ///
+  /// Only offered once there is something to print: a button that produces
+  /// a sheet saying "nothing published yet" wastes somebody's paper.
+  Future<void> _download(StudentPerformance performance) async {
+    setState(() => _downloading = true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final bytes = await ref
+          .read(studentRepositoryProvider)
+          .progressReport(student.id, academicTermId: performance.term?.id);
+
+      saveBytes(fileName: 'progress-report-${student.admissionNumber}.pdf', bytes: bytes, mimeType: 'application/pdf');
+
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(const SnackBar(content: Text('Progress report downloaded.')));
+    } catch (error) {
+      final message = error is Failure ? error.message : error.toString().replaceFirst('UnsupportedError: ', '');
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(studentPerformanceProvider(student.id));
+    final performance = state.value;
 
     return AlertDialog(
       title: Text('Performance · ${student.name}'),
@@ -65,7 +106,17 @@ class StudentPerformanceDialog extends ConsumerWidget {
           ),
         ),
       ),
-      actions: [FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done'))],
+      actions: [
+        if (performance != null && performance.hasMarks)
+          OutlinedButton.icon(
+            onPressed: _downloading ? null : () => _download(performance),
+            icon: _downloading
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+            label: const Text('Download PDF'),
+          ),
+        FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
+      ],
     );
   }
 }
@@ -302,6 +353,14 @@ class _Attendance extends StatelessWidget {
         const SizedBox(height: 8),
         if (attendance.workingDays == 0)
           Text('No school days in this period yet.', style: muted)
+        else if (!attendance.wasTaken)
+          // The same sentence the progress report prints, so the screen and
+          // the page a family is handed cannot say different things.
+          Text(
+            'The register was not taken in this period '
+            '(${attendance.workingDays} school days).',
+            style: muted,
+          )
         else
           Wrap(
             spacing: 12,

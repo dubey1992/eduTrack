@@ -8,12 +8,15 @@ already read the row is a policy that has already leaked it.
 
 from __future__ import annotations
 
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .. import progress_reports
+from ..clock import DATE_TIME, SchoolClock
 from ..enums import StudentStatus
 from ..models import Student
 from ..pagination import LaravelPagination
@@ -159,6 +162,38 @@ def performance(request, student_id: int) -> Response:
     form.is_valid(raise_exception=True)
 
     return Response(performance_of(student, form.validated_data.get("academic_term_id")))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def progress_report(request, student_id: int) -> HttpResponse:
+    """The same figures as the Performance tab, as a page to print or send
+    home (docs/assessments.md).
+
+    Whoever may read a student's performance may print it: the document
+    states nothing the screen does not, so a second rule here could only
+    ever be a way for the two to disagree.
+    """
+    student = get_object_or_404(
+        Student.objects.select_related("school", "class_section__school_class"), pk=student_id
+    )
+
+    authorize(StudentPolicy.view(request.user, student))
+    authorize(permitted(request.user, "assessments", school_id=student.school_id))
+
+    form = StudentPerformanceRequest(data=request.query_params, student=student)
+    form.is_valid(raise_exception=True)
+
+    payload = performance_of(student, form.validated_data.get("academic_term_id"))
+    clock = SchoolClock.for_school(student.school_id)
+    document = progress_reports.render(
+        payload, school_name=student.school.name, generated_at=clock.format(clock.now(), DATE_TIME)
+    )
+
+    response = HttpResponse(document, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{progress_reports.file_name(payload)}"'
+
+    return response
 
 
 @api_view(["GET"])

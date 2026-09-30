@@ -252,6 +252,21 @@ class FakeStudentRepository implements StudentRepository {
     return _performance;
   }
 
+  /// Which term each progress report asked for, so a test can check the
+  /// download is of the term on screen rather than of whatever the server
+  /// would have picked.
+  final List<int?> progressReportCalls = [];
+
+  @override
+  Future<List<int>> progressReport(int studentId, {int? academicTermId}) async {
+    calls.add('progressReport');
+    progressReportCalls.add(academicTermId);
+    final failure = failWith['progressReport'];
+    if (failure != null) throw failure;
+
+    return const [37, 80, 68, 70];
+  }
+
   @override
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     calls.add('enrollments');

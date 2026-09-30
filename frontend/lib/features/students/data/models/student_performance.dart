@@ -181,6 +181,14 @@ class PerformanceAttendance {
   /// Null where the period holds no working day at all - a percentage out of
   /// nothing is nothing, not zero.
   final double? attendanceRate;
+
+  /// Whether anybody took the register in this period at all.
+  ///
+  /// A term nobody marked reads as 0% out of the working days, which is a
+  /// fact about the school's paperwork. Shown under a child's name - on the
+  /// screen or on the page that goes home - it would be read as a child who
+  /// attended nothing, so neither prints it.
+  bool get wasTaken => present + absent + leave > 0;
 }
 
 class StudentPerformance {

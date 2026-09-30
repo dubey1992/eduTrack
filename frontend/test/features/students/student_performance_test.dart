@@ -383,4 +383,73 @@ void main() {
       expect(on.moduleOn(AppModules.assessments), isTrue);
     });
   });
+
+  group('the printable report', () {
+    testWidgets('is offered once there is a result, and asks for the term on screen', (tester) async {
+      useDesktop(tester);
+      final fake = FakeStudentRepository();
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(OutlinedButton, 'Download PDF'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Download PDF'));
+      await tester.pumpAndSettle();
+
+      expect(fake.progressReportCalls, [
+        2,
+      ], reason: 'the term the dialog is showing, not whichever the server would pick');
+    });
+
+    testWidgets('is not offered for a term with nothing published', (tester) async {
+      useDesktop(tester);
+      final fake = FakeStudentRepository(performance: fakePerformance(subjects: const []));
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      // A sheet reading "nothing published yet" wastes somebody's paper.
+      expect(find.widgetWithText(OutlinedButton, 'Download PDF'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Done'), findsOneWidget);
+    });
+
+    testWidgets('says why when the download fails, rather than failing quietly', (tester) async {
+      useDesktop(tester);
+      final fake = FakeStudentRepository(
+        failWith: {'progressReport': const Failure(code: 'SERVER_ERROR', message: 'The report could not be built.')},
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Download PDF'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The report could not be built.'), findsOneWidget);
+      // And the button comes back, so it can be tried again.
+      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Download PDF')).onPressed, isNotNull);
+    });
+  });
+
+  testWidgets('a term nobody took the register for says so rather than showing 0%', (tester) async {
+    useDesktop(tester);
+    final fake = FakeStudentRepository(
+      performance: fakePerformance(
+        attendance: const PerformanceAttendance(
+          workingDays: 22,
+          present: 0,
+          absent: 0,
+          leave: 0,
+          notMarked: 22,
+          attendanceRate: 0,
+        ),
+      ),
+    );
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    // 0% is the truth about the school's paperwork. Under a child's name it
+    // reads as a child who attended nothing, and the progress report says
+    // the same sentence for the same reason.
+    expect(find.textContaining('The register was not taken in this period'), findsOneWidget);
+    expect(find.text('0%'), findsNothing);
+  });
 }

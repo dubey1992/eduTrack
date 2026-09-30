@@ -141,6 +141,20 @@ class StudentApi {
     return StudentPerformance.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// The same figures as a page to print or send home.
+  ///
+  /// Fetched through the authenticated client rather than by opening a URL:
+  /// a token does not belong in a link, and this one would name a child.
+  Future<List<int>> progressReport(int studentId, {int? academicTermId}) async {
+    final response = await _dio.get<List<int>>(
+      '/students/$studentId/progress-report',
+      queryParameters: {'academic_term_id': ?academicTermId},
+      options: Options(responseType: ResponseType.bytes),
+    );
+
+    return response.data ?? const [];
+  }
+
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     final response = await _dio.get('/students/$studentId/enrollments');
 

@@ -1,10 +1,10 @@
 # Class Tests & Assessments
 
-**Status (2026-09-29): slices 1 to 12 built, 13 and 14 planned.** Terms, grade
-scales, enrollment history, the class test, its marks sheet, publishing, the
-message to the guardian, the whole of promotion and a student's performance
-are live, each with a flow that runs in a browser. What remains is the
-the two report kinds and the printable progress report. Decided with the user on
+**Status (2026-09-30): built.** Terms, grade scales, enrollment history, the
+class test, its marks sheet, publishing, the message to the guardian, the
+whole of promotion, a student's performance, the two report kinds and the
+printable progress report are all live, each with a flow that runs in a
+browser. Decided with the user on
 2026-09-21: the school year is divided into terms, marks are entered against
 a maximum and turned into a grade by a scale the school configures, and
 results reach guardians as a message and as a printable progress report.
@@ -355,6 +355,31 @@ questions, and the figure alone does not say which.
 The school's dashboard gained the same term figure, and a head of
 department's their own departments' - a card that disagreed with the report
 behind it would be worse than no card.
+
+## The report that goes home
+
+Slice 14: `GET /students/{id}/progress-report` lays the same payload out as
+a page to print, and the Performance dialog offers it once there is a
+result to print. Whoever may read a student's performance may print it -
+the document states nothing the screen does not, so a second rule here
+could only be a way for the two to disagree.
+
+It shows one thing the screen does not: every test inside each subject with
+**the grade frozen onto it at publish**. A subject average is worked out
+when somebody asks; a test's grade was decided the day the result went out,
+and that is the one a guardian questioning a report is entitled to see,
+whatever the school has done to its bands since.
+
+Two things it refuses to print, both for the same reason - this page goes
+home to a family:
+
+- **An absence is said in words**, not left blank. A blank cell reads as a
+  nought, and a nought would be a lie about a child who was not there.
+- **A term whose register was never taken says so.** It reads as 0% out of
+  the working days, which is a fact about the school's paperwork; printed
+  under a child's name it would be read as a child who attended nothing.
+  `school/insights.py` already refuses to speak from that blank, and the
+  page refuses to print from it.
 
 Four rules decide every figure on it:
 
