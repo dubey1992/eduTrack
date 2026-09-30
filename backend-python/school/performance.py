@@ -29,6 +29,7 @@ import decimal
 from django.db.models import Count, Q, Sum
 
 from . import insights, modules
+from .marks import CENT, average_of, change_between, percentage_of
 from .clock import SchoolClock
 from .enums import AssessmentStatus, AttendanceStatus
 from .models import AcademicTerm, Assessment, AssessmentMark, Attendance, GradeScale, Student
@@ -36,9 +37,6 @@ from .reports.range import ReportRange
 from .services import GradeScaleService, HolidayService, php_number
 
 MODULE = "assessments"
-
-CENT = decimal.Decimal("0.01")
-
 
 def terms_of(student: Student):
     """Every term of the year the student is in, newest first.
@@ -102,47 +100,6 @@ def published_marks(student: Student, term: AcademicTerm):
         .select_related("assessment__subject")
         .order_by("assessment__subject__name", "assessment__assessment_date", "assessment_id")
     )
-
-
-def percentage_of(mark) -> decimal.Decimal | None:
-    """One mark as a percentage, or nothing where the question does not
-    arise: absent, unmarked, or a test out of nothing."""
-    assessment = mark.assessment
-
-    if mark.is_absent or mark.marks_obtained is None or not assessment.max_marks:
-        return None
-
-    return (mark.marks_obtained / assessment.max_marks * 100).quantize(CENT)
-
-
-def average_of(rows: list[tuple]) -> decimal.Decimal | None:
-    """The mean of (percentage, weightage) pairs.
-
-    Weighted only when every test counted carries a weightage, and then
-    normalised by the weights actually present - a term whose weightages add
-    up to 80 is a school part-way through setting them, not a reason to
-    divide by 100 and report everybody as failing. Mixed weightages and
-    blanks fall back to a plain mean, because half a weighting is not a
-    weighting.
-    """
-    if not rows:
-        return None
-
-    weights = [weight for _, weight in rows]
-
-    if all(weight is not None and weight > 0 for weight in weights):
-        total = sum(weights)
-
-        return (sum(value * weight for value, weight in rows) / total).quantize(CENT)
-
-    return (sum(value for value, _ in rows) / len(rows)).quantize(CENT)
-
-
-def change_between(now, before) -> decimal.Decimal | None:
-    if now is None or before is None:
-        return None
-
-    return (now - before).quantize(CENT)
 
 
 class StudentPerformance:

@@ -19,13 +19,15 @@ from rest_framework.response import Response
 from .. import csv_export
 from ..clock import DATE_TIME, SchoolClock
 from ..enums import UserRole
-from ..models import Department, School
+from ..models import ClassSection, Department, School
 from ..policies import PayrollPolicy, authorize, permitted
 from ..reports import (
+    ClassPerformanceReport,
     LeaveUsageReport,
     PayrollSummaryReport,
     StaffAttendanceReport,
     StudentAttendanceReport,
+    StudentPerformanceReport,
     SyllabusProgressReport,
     TeachingCoverageReport,
     TransportUsageReport,
@@ -36,6 +38,7 @@ from ..reports.group import build_group
 from ..reports.range import ReportRange
 from ..requests import ReportRequest
 from ..scope import SchoolScope
+from ..services import php_number
 
 ADMINS = (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN)
 
@@ -85,6 +88,20 @@ def syllabus_progress(request):
     return respond(request, SyllabusProgressReport(), "syllabus-progress", (*ADMINS, UserRole.HOD))
 
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def student_performance(request):
+    # A head of department reads it for their own subjects; a class teacher
+    # reaches the same figures one child at a time on the student's page.
+    return respond(request, StudentPerformanceReport(), "student-performance", (*ADMINS, UserRole.HOD))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def class_performance(request):
+    return respond(request, ClassPerformanceReport(), "class-performance", (*ADMINS, UserRole.HOD))
+
+
 def respond(request, report, name: str, roles):
     actor = request.user
     form = ReportRequest(data=request.query_params.dict(), actor=actor)
@@ -121,7 +138,7 @@ def respond(request, report, name: str, roles):
         return Response(built)
 
     if form.validated_data["format"] == "pdf":
-        return pdf_response(report, name, built, actor, school_id)
+        return pdf_response(report, name, built, actor, school_id, filter_labels(form.validated_data))
 
     is_group = built.get("group", False)
     start, end = built["range"]["from"], built["range"]["to"]
@@ -144,7 +161,36 @@ def respond(request, report, name: str, roles):
     )
 
 
-def pdf_response(report, name: str, built: dict, actor, school_id: int | None) -> HttpResponse:
+def filter_labels(validated: dict) -> list[tuple[str, str]]:
+    """What was asked for, in the words the screen uses for it.
+
+    Printed across the top of the PDF, because a sheet narrowed to one
+    class or to the students under 40% is otherwise indistinguishable from
+    the whole school's - and it is the whole school's that somebody will
+    take it for.
+    """
+    labels = []
+
+    if validated.get("class_section_id"):
+        section = ClassSection.objects.select_related("school_class").filter(
+            pk=validated["class_section_id"]
+        ).first()
+        if section is not None:
+            labels.append(("Class", f"{section.school_class.name} {section.name}"))
+
+    if validated.get("department_id"):
+        department = Department.objects.filter(pk=validated["department_id"]).first()
+        if department is not None:
+            labels.append(("Department", department.name))
+
+    if validated.get("below") is not None:
+        labels.append(("Below", f"{php_number(float(validated['below']))}%"))
+
+    return labels
+
+
+def pdf_response(report, name: str, built: dict, actor, school_id: int | None,
+                 filters: list | None = None) -> HttpResponse:
     if school_id is None:
         school_label = f"All {len(built['branches'])} branches"
         clock = SchoolClock.for_user(actor)
@@ -152,7 +198,9 @@ def pdf_response(report, name: str, built: dict, actor, school_id: int | None) -
         school_label = School.objects.get(pk=school_id).name
         clock = SchoolClock.for_school(school_id)
 
-    document = pdf.render(report, built, school_label=school_label, generated_at=clock.format(clock.now(), DATE_TIME))
+    document = pdf.render(
+        report, built, school_label=school_label, generated_at=clock.format(clock.now(), DATE_TIME), filters=filters
+    )
 
     response = HttpResponse(document, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{pdf.file_name(name, built)}"'

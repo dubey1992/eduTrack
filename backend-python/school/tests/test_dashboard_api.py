@@ -82,6 +82,11 @@ class SchoolAdmin(DashboardTestCase):
                 # Two of three, to one decimal, written as PHP writes a float.
                 {"key": "attendance", "label": "Attendance today", "value": "66.7%", "hint": "of students present", "tone": "neutral"},
                 {"key": "transport", "label": "Trips today", "value": "0", "hint": "1 active routes", "tone": "neutral"},
+                # A school that has not set its terms out has no results to
+                # show - and a dash rather than a 0% that would read as
+                # everybody having failed (docs/assessments.md).
+                {"key": "performance", "label": "Results this term", "value": "-",
+                 "hint": "no terms set out yet", "tone": "neutral"},
             ],
             data["cards"],
         )
@@ -241,7 +246,8 @@ class EverybodyElse(DashboardTestCase):
         data = self.dashboard(hod)
 
         self.assertEqual(
-            [("departments", "1", "neutral"), ("teachers", "1", "neutral"), ("reviews", "1", "warning")],
+            [("departments", "1", "neutral"), ("teachers", "1", "neutral"), ("reviews", "1", "warning"),
+             ("performance", "-", "neutral")],
             [(card["key"], card["value"], card["tone"]) for card in data["cards"]],
         )
         self.assertEqual([{"key": "reviews", "message": "1 teaching reports are waiting for your review."}], data["attention"])
@@ -256,7 +262,7 @@ class EverybodyElse(DashboardTestCase):
 
         data = self.dashboard(hod)
 
-        self.assertEqual(["0", "0", "0"], [card["value"] for card in data["cards"]])
+        self.assertEqual(["0", "0", "0", "-"], [card["value"] for card in data["cards"]])
         self.assertEqual([], data["attention"])
 
     def test_a_teacher(self):
@@ -321,3 +327,117 @@ class EverybodyElse(DashboardTestCase):
 
     def test_signing_in_is_required(self):
         self.assertEqual(401, APIClient().get("/api/v1/dashboard").status_code)
+
+
+class ResultsThisTerm(DashboardTestCase):
+    """The performance card (docs/assessments.md, slice 13).
+
+    Its whole job is to say something true at a glance, so what is pinned
+    here is mostly what it must *not* say: no 0% for a school that has
+    published nothing, and no school-wide figure on a head of department's
+    own card.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.year.is_current = True
+        self.year.save()
+        self.term = factories.AcademicTermFactory(
+            academic_year=self.year, school=self.school, name="Term 2", sequence_number=2,
+            start_date=dt.date(2026, 9, 1), end_date=dt.date(2026, 12, 31),
+        )
+        self.science = factories.DepartmentFactory(school=self.school, name="Science")
+        self.physics = factories.SubjectFactory(school=self.school, department=self.science, name="Physics")
+
+    def publish(self, obtained, *, student=None, subject=None, absent=False):
+        assessment = factories.AssessmentFactory(
+            class_section=self.section, school=self.school, academic_year=self.year, academic_term=self.term,
+            subject=subject or self.physics, max_marks=100, assessment_date=dt.date(2026, 9, 10),
+            status="published", created_by=self.teacher,
+        )
+        factories.AssessmentMarkFactory(
+            assessment=assessment, school=self.school,
+            student=student or factories.StudentFactory(class_section=self.section),
+            marks_obtained=None if absent else obtained, is_absent=absent, entered_by=self.teacher,
+        )
+
+    def card(self, user=None) -> dict:
+        return next(card for card in self.dashboard(user or self.admin)["cards"] if card["key"] == "performance")
+
+    def test_a_term_with_nothing_published_reads_as_nothing_not_as_nought(self):
+        card = self.card()
+
+        self.assertEqual("Results · Term 2", card["label"])
+        self.assertEqual("-", card["value"])
+        self.assertEqual("nothing published yet", card["hint"])
+
+    def test_a_draft_is_still_nothing(self):
+        assessment = factories.AssessmentFactory(
+            class_section=self.section, school=self.school, academic_year=self.year, academic_term=self.term,
+            subject=self.physics, max_marks=100, assessment_date=dt.date(2026, 9, 10),
+            status="draft", created_by=self.teacher,
+        )
+        factories.AssessmentMarkFactory(
+            assessment=assessment, school=self.school,
+            student=factories.StudentFactory(class_section=self.section), marks_obtained=90,
+            is_absent=False, entered_by=self.teacher,
+        )
+
+        self.assertEqual("-", self.card()["value"])
+
+    def test_it_averages_the_students_of_the_term(self):
+        self.publish(40)
+        self.publish(80)
+
+        card = self.card()
+
+        self.assertEqual("60%", card["value"])
+        self.assertEqual("2 students", card["hint"])
+        self.assertEqual("ok", card["tone"])
+
+    def test_it_warns_when_somebody_is_under_the_schools_mark(self):
+        from school.models import ModuleSetting
+
+        ModuleSetting.objects.create(
+            school=self.school, module="assessments", settings={"weak_below_percentage": 50},
+            created_at=NOW, updated_at=NOW,
+        )
+        cache.clear()
+        self.publish(30)
+        self.publish(90)
+
+        card = self.card()
+
+        self.assertEqual("60%", card["value"])
+        self.assertEqual("1 below the school's mark", card["hint"])
+        self.assertEqual("warning", card["tone"])
+
+    def test_an_absentee_is_left_out_rather_than_counted_as_nought(self):
+        self.publish(80)
+        self.publish(None, absent=True)
+
+        self.assertEqual("80%", self.card()["value"])
+
+    def test_a_term_that_is_not_todays_says_nothing(self):
+        self.term.start_date = dt.date(2026, 4, 1)
+        self.term.end_date = dt.date(2026, 8, 31)
+        self.term.save()
+        self.publish(90)
+
+        card = self.card()
+
+        self.assertEqual("Results this term", card["label"])
+        self.assertEqual("no terms set out yet", card["hint"])
+
+    def test_a_head_of_department_sees_their_own_subjects_only(self):
+        hod = factories.UserFactory(school=self.school, role=UserRole.HOD)
+        self.science.hod_user = hod
+        self.science.save()
+        elsewhere = factories.SubjectFactory(
+            school=self.school, department=factories.DepartmentFactory(school=self.school, name="Arts"), name="History"
+        )
+
+        self.publish(40)
+        self.publish(100, subject=elsewhere)
+
+        self.assertEqual("40%", self.card(hod)["value"], "History is in no department they head")

@@ -25,20 +25,30 @@ from . import comparison
 DEFAULT_NOTE = "Every rate is out of the days the school actually ran: weekends and the school's holidays are not counted."
 
 REPORT_STYLES = """
-@page { size: a4 landscape; margin: 14mm 12mm; }
+@page {
+    size: a4 landscape;
+    margin: 14mm 12mm 16mm 12mm;
+    @frame footer { -pdf-frame-content: page-footer; bottom: 7mm; height: 7mm; margin-left: 12mm; margin-right: 12mm; }
+}
 .sheet { padding: 0; }
 .grid { margin-top: 10px; border: 1px solid #d7dbe3; }
 .grid th { background: #f3f4f6; text-align: left; font-size: 9px; padding: 5px 6px; border-bottom: 1px solid #d7dbe3; }
 .grid td { font-size: 9px; padding: 4px 6px; border-bottom: 1px solid #eceef2; }
 .facts td { padding: 3px 12px 3px 0; font-size: 11px; }
-.facts .key { color: #6b7280; }
+.facts .key { color: #6b7280; width: 160px; }
+.grid th.num, .grid td.num { text-align: right; }
+.strip { margin-top: 10px; border-top: 1px solid #eceef2; border-bottom: 1px solid #eceef2; }
+.strip td { padding: 5px 12px 5px 0; font-size: 10px; }
+.strip .key { color: #6b7280; width: 90px; }
+.foot { font-size: 9px; color: #6b7280; }
+.foot .right { text-align: right; }
 """
 
 
-def render(report, built: dict, *, school_label: str, generated_at: str) -> bytes:
+def render(report, built: dict, *, school_label: str, generated_at: str, filters: list | None = None) -> bytes:
     out = io.BytesIO()
-    result = pisa.CreatePDF(document(report, built, school_label=school_label, generated_at=generated_at), dest=out,
-                            encoding="utf-8")
+    page = document(report, built, school_label=school_label, generated_at=generated_at, filters=filters)
+    result = pisa.CreatePDF(page, dest=out, encoding="utf-8")
 
     if result.err:
         raise RuntimeError(f"Could not render the {report.TITLE} report")
@@ -51,8 +61,14 @@ def file_name(slug: str, built: dict) -> str:
     return f"{slug}-group-{start}-to-{end}.pdf" if built.get("group") else f"{slug}-{start}-to-{end}.pdf"
 
 
-def document(report, built: dict, *, school_label: str, generated_at: str) -> str:
-    """The report as HTML. Separate from render() so a test can read it."""
+def document(report, built: dict, *, school_label: str, generated_at: str, filters: list | None = None) -> str:
+    """The report as HTML. Separate from render() so a test can read it.
+
+    `filters` is what was asked for, already turned into labels by the view
+    - the one thing a printed report cannot leave out. A sheet narrowed to
+      one class, or to the students under 40%, looks exactly like the whole
+      school's on paper, and somebody will read it as the whole school's.
+    """
     is_group = built.get("group", False)
     compared = "comparison" in built
     period = built["range"]
@@ -66,8 +82,16 @@ def document(report, built: dict, *, school_label: str, generated_at: str) -> st
         headings += comparison.headings(report)
         rows = [[*line, *comparison.cells(report, row)] for row, line in zip(built["rows"], rows)]
 
-    head_cells = "".join(f"<th>{e(heading)}</th>" for heading in headings)
-    body = "".join("<tr>" + "".join(f"<td>{cell(value)}</td>" for value in line) + "</tr>" for line in rows)
+    numeric = numeric_columns(rows, len(headings))
+    head_cells = "".join(
+        f"<th{align(numeric[index])}>{e(heading)}</th>" for index, heading in enumerate(headings)
+    )
+    body = "".join(
+        "<tr>"
+        + "".join(f"<td{align(numeric[index])}>{cell(value)}</td>" for index, value in enumerate(line))
+        + "</tr>"
+        for line in rows
+    )
     if not rows:
         body = f'<tr><td colspan="{len(headings)}" class="muted">Nothing to report for this period.</td></tr>'
 
@@ -77,24 +101,74 @@ def document(report, built: dict, *, school_label: str, generated_at: str) -> st
 <html>
 <head><meta charset="utf-8"><style>{STYLESHEET}{REPORT_STYLES}</style></head>
 <body>
+<div id="page-footer">
+    <table class="foot"><tr>
+        <td>{e(school_label)} &#183; {e(report.TITLE)}</td>
+        <td class="right">Page <pdf:pagenumber> of <pdf:pagecount></td>
+    </tr></table>
+</div>
 <div class="sheet">
     <table class="head"><tr>
         <td><div class="brand">{e(school_label)}</div><div class="muted">{e(report.TITLE)}</div></td>
         <td class="right"><div>{e(dates.range_label_iso(period["from"], period["to"]))}</div><div class="muted">{days}</div></td>
     </tr></table>
 
+    {sheet_facts(built, rows, filters, generated_at)}
+
     <h1>Summary</h1>
     {totals_table(built)}
 
     <h1>Detail</h1>
-    <table class="grid"><tr>{head_cells}</tr>{body}</table>
+    <table class="grid"><thead><tr>{head_cells}</tr></thead><tbody>{body}</tbody></table>
 
     <div class="note muted">
-        {e(getattr(report, "PDF_NOTE", DEFAULT_NOTE))} Generated {e(generated_at)}.
+        {e(getattr(report, "PDF_NOTE", DEFAULT_NOTE))}
     </div>
 </div>
 </body>
 </html>"""
+
+
+def align(is_numeric: bool) -> str:
+    return ' class="num"' if is_numeric else ""
+
+
+def numeric_columns(rows: list, width: int) -> list[bool]:
+    """Which columns hold figures rather than words.
+
+    Decided from the rows rather than declared by each report, so a new
+    column lines up without anybody remembering to say so. A column with
+    nothing in it is not numeric - there is nothing to line up.
+    """
+    numeric = []
+
+    for index in range(width):
+        values = [line[index] for line in rows if index < len(line) and line[index] not in (None, "")]
+        numeric.append(bool(values) and all(isinstance(value, (int, float, Decimal)) for value in values))
+
+    return numeric
+
+
+def sheet_facts(built: dict, rows: list, filters: list | None, generated_at: str) -> str:
+    """What this particular sheet is, above the figures.
+
+    Every line here answers a question somebody holding the paper will ask:
+    what was it narrowed to, how many lines should there be, and when was
+    it run. Without the first, a filtered report is indistinguishable from
+    the whole school's.
+    """
+    lines = [("Filters", ", ".join(f"{label}: {value}" for label, value in (filters or [])) or "None")]
+
+    if built.get("group"):
+        branches = built.get("branches") or []
+        lines.append(("Branches", ", ".join(branch["school_name"] for branch in branches) or "None"))
+
+    lines.append(("Rows", str(len(rows))))
+    lines.append(("Generated", generated_at))
+
+    cells = "".join(f'<tr><td class="key">{e(label)}</td><td>{e(value)}</td></tr>' for label, value in lines)
+
+    return f'<table class="strip">{cells}</table>'
 
 
 def totals_table(built: dict) -> str:

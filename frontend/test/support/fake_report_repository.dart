@@ -254,3 +254,106 @@ final payrollResult = ReportResult(
     ],
   },
 );
+
+/// One class's students, two of whom sat two tests (docs/assessments.md).
+///
+/// Chetan has no average at all - he was absent for everything - which is
+/// the case the screen must show as a dash rather than as a nought.
+final studentPerformanceResult = ReportResult(
+  range: const ReportRange(from: '2026-09-01', to: '2026-09-30', workingDays: 22),
+  rows: const [
+    {
+      'student_id': 1,
+      'admission_number': 'ITEST-1',
+      'student': 'Aarav Sharma',
+      'class_section': 'Grade 8 A',
+      'subjects': 2,
+      'assessments': 2,
+      'absent': 0,
+      'average_percentage': 68,
+      'grade': 'B',
+      'class_average_percentage': 66.7,
+      'weak_subjects': 0,
+      'attendance_rate': 95.5,
+    },
+    {
+      'student_id': 3,
+      'admission_number': 'ITEST-3',
+      'student': 'Chetan Rao',
+      'class_section': 'Grade 8 A',
+      'subjects': 1,
+      'assessments': 2,
+      'absent': 2,
+      'average_percentage': null,
+      'grade': null,
+      'class_average_percentage': 66.7,
+      'weak_subjects': 0,
+      'attendance_rate': null,
+    },
+  ],
+  totals: const {
+    'students': 2,
+    'students_with_a_result': 1,
+    'assessments': 4,
+    'absent': 2,
+    'average_percentage': 68,
+    'students_below_the_mark': 0,
+  },
+);
+
+final classPerformanceResult = ReportResult(
+  range: const ReportRange(from: '2026-09-01', to: '2026-09-30', workingDays: 22),
+  rows: const [
+    {
+      'class_section_id': 1,
+      'class_section': 'Grade 8 A',
+      'subject_id': 1,
+      'subject': 'Mathematics',
+      'department': 'Science',
+      'students': 3,
+      'assessments': 1,
+      'marks_counted': 3,
+      'absent': 0,
+      'average_percentage': 55,
+      'highest_percentage': 72,
+      'lowest_percentage': 38,
+      'students_below_the_mark': 1,
+    },
+  ],
+  totals: const {
+    'classes_and_subjects': 1,
+    'assessments': 1,
+    'marks_counted': 3,
+    'absent': 0,
+    'average_percentage': 55,
+    'students_below_the_mark': 1,
+  },
+);
+
+/// One class's syllabus, with the date a topic was last finished - the one
+/// report column that carries a date.
+final syllabusProgressResult = ReportResult(
+  range: const ReportRange(from: '2026-09-01', to: '2026-09-30', workingDays: 22),
+  rows: const [
+    {
+      'class_section_id': 1,
+      'class_section': 'Grade 8 A',
+      'subject_id': 1,
+      'subject': 'Physics',
+      'department': 'Science',
+      'teacher': 'Rahul Verma',
+      'topics_total': 10,
+      'topics_completed': 4,
+      'syllabus_completion': 40,
+      'completed_in_period': 2,
+      'last_completed_on': '2026-09-22',
+    },
+  ],
+  totals: const {
+    'classes_and_subjects': 1,
+    'topics_total': 10,
+    'topics_completed': 4,
+    'syllabus_completion': 40,
+    'completed_in_period': 2,
+  },
+);

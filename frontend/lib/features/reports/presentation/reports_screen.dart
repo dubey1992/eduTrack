@@ -37,8 +37,26 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   int? _below;
   ExportFormat? _downloading;
 
-  /// The chronic-absentee thresholds on offer, as a percentage.
-  static const _belowOptions = [50, 75, 85, 90];
+  /// The thresholds on offer, as a percentage. Attendance and marks are
+  /// asked about at different levels: 75% attendance is a worry, 75% in a
+  /// subject is not.
+  static const _attendanceThresholds = [50, 75, 85, 90];
+  static const _markThresholds = [33, 40, 50, 60];
+
+  /// Which reports the "below" filter narrows, and what it narrows by. The
+  /// server takes one `below` for all of them; the word beside it is what
+  /// stops somebody reading "below 50%" as the wrong thing.
+  String? get _belowMeasure => switch (_kind) {
+    ReportKind.studentAttendance => 'attendance',
+    ReportKind.studentPerformance || ReportKind.classPerformance => 'average',
+    _ => null,
+  };
+
+  bool get _takesBelow => _belowMeasure != null;
+
+  List<int> get _belowOptions => _kind == ReportKind.studentAttendance ? _attendanceThresholds : _markThresholds;
+
+  String get _belowEverything => _kind == ReportKind.classPerformance ? 'All subjects' : 'All students';
 
   /// Which reports this role can actually open. Mirrors ReportController -
   /// offering a tab that answers 403 is a worse experience than not
@@ -51,6 +69,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ReportKind.teachingCoverage,
         ReportKind.leaveUsage,
         ReportKind.syllabusProgress,
+        ReportKind.studentPerformance,
+        ReportKind.classPerformance,
       ],
       UserRole.transportManager => [ReportKind.transportUsage],
       UserRole.accountant => [ReportKind.staffAttendance, ReportKind.payrollSummary],
@@ -67,7 +87,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     to: _to == null ? null : _iso(_to!),
     compare: _compare,
     // Only the student report narrows to chronic absentees.
-    below: _kind == ReportKind.studentAttendance ? _below : null,
+    below: _takesBelow ? _below : null,
   );
 
   Future<void> _pickRange() async {
@@ -198,7 +218,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ChoiceChip(
                   label: Text(kind.label),
                   selected: _kind == kind,
-                  onSelected: (_) => setState(() => _kind = kind),
+                  onSelected: (_) => setState(() {
+                    _kind = kind;
+                    // A threshold chosen for one measure means something
+                    // else against the other, so it does not carry over.
+                    if (!_belowOptions.contains(_below)) _below = null;
+                  }),
                 ),
             ],
           ),
@@ -213,14 +238,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 selected: _compare,
                 onSelected: (selected) => setState(() => _compare = selected),
               ),
-              if (_kind == ReportKind.studentAttendance)
+              if (_takesBelow)
                 DropdownButton<int?>(
                   value: _below,
                   underline: const SizedBox.shrink(),
                   items: [
-                    const DropdownMenuItem<int?>(value: null, child: Text('All students')),
+                    DropdownMenuItem<int?>(value: null, child: Text(_belowEverything)),
                     for (final threshold in _belowOptions)
-                      DropdownMenuItem<int?>(value: threshold, child: Text('Below $threshold% attendance')),
+                      DropdownMenuItem<int?>(value: threshold, child: Text('Below $threshold% $_belowMeasure')),
                   ],
                   onChanged: (value) => setState(() => _below = value),
                 ),
@@ -267,7 +292,7 @@ class _ReportBody extends StatelessWidget {
               spacing: 20,
               runSpacing: 8,
               children: [
-                _Fact(label: 'Period', value: '${report.range.from} to ${report.range.to}'),
+                _Fact(label: 'Period', value: rangeLabel(report.range)),
                 // The denominator, stated: every rate below is out of this,
                 // which is why a holiday cannot drag a percentage down. A
                 // group has no single one - each branch keeps its own, shown
@@ -291,8 +316,7 @@ class _ReportBody extends StatelessWidget {
                     value: _money(entry['net'], entry['currency_code'] as String),
                     previous: comparison == null ? null : _previousNet(comparison.totals, entry['currency_code']),
                   ),
-                if (comparison != null)
-                  _Fact(label: 'Previous period', value: '${comparison.range.from} to ${comparison.range.to}'),
+                if (comparison != null) _Fact(label: 'Previous period', value: rangeLabel(comparison.range)),
               ],
             ),
           ),
@@ -354,6 +378,8 @@ class _ReportTable extends StatelessWidget {
                       _Cell(
                         value: row[column.key],
                         isRate: column.isRate,
+                        isDate: column.isDate,
+                        warnBelow: column.warnBelow,
                         currencyCode: column.isMoney ? row['currency_code'] as String? : null,
                         comparison: _earlier(row, column.key),
                       ),
@@ -378,10 +404,19 @@ class _ReportTable extends StatelessWidget {
 }
 
 class _Cell extends StatelessWidget {
-  const _Cell({required this.value, required this.isRate, this.currencyCode, this.comparison});
+  const _Cell({
+    required this.value,
+    required this.isRate,
+    this.isDate = false,
+    this.warnBelow,
+    this.currencyCode,
+    this.comparison,
+  });
 
   final Object? value;
   final bool isRate;
+  final bool isDate;
+  final double? warnBelow;
 
   /// Set for money: the amount is shown in this currency.
   final String? currencyCode;
@@ -402,10 +437,13 @@ class _Cell extends StatelessWidget {
       main = Text(_money(value, currencyCode!));
     } else if (isRate) {
       final rate = (value as num).toDouble();
+      final warn = warnBelow != null && rate < warnBelow!;
       main = Text(
         '${rate.toStringAsFixed(1)}%',
-        style: TextStyle(fontWeight: FontWeight.w700, color: rate < 75 ? scheme.error : scheme.onSurface),
+        style: TextStyle(fontWeight: FontWeight.w700, color: warn ? scheme.error : scheme.onSurface),
       );
+    } else if (isDate) {
+      main = Text(formatIsoDate('$value'));
     } else {
       main = Text('$value');
     }

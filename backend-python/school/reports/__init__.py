@@ -13,6 +13,7 @@ mark a Saturday.
 """
 
 from .leave_usage import LeaveUsageReport
+from .performance import ClassPerformanceReport, StudentPerformanceReport
 from .payroll_summary import PayrollSummaryReport
 from .staff_attendance import StaffAttendanceReport
 from .student_attendance import StudentAttendanceReport
@@ -21,10 +22,12 @@ from .teaching_coverage import TeachingCoverageReport
 from .transport_usage import TransportUsageReport
 
 __all__ = [
+    "ClassPerformanceReport",
     "LeaveUsageReport",
     "PayrollSummaryReport",
     "StaffAttendanceReport",
     "StudentAttendanceReport",
+    "StudentPerformanceReport",
     "SyllabusProgressReport",
     "TeachingCoverageReport",
     "TransportUsageReport",

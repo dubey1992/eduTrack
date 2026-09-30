@@ -1,4 +1,7 @@
-/// Every report, in one shape - Phase 18's four and Phase 20's three.
+import '../../../../core/utils/date_format.dart';
+
+/// Every report, in one shape - Phase 18's four, Phase 20's three, and
+/// the two performance reports (docs/assessments.md).
 ///
 /// Every report is a range, a list of rows and a set of totals; only the
 /// columns differ. Modelling them as generic rows keeps one screen, one
@@ -28,6 +31,16 @@ enum ReportKind {
     'syllabus-progress',
     'Syllabus by class',
     'How far each class is through each subject, and what was covered in the period.',
+  ),
+  studentPerformance(
+    'student-performance',
+    'Student performance',
+    'What each student averaged in the period, against the class and their attendance.',
+  ),
+  classPerformance(
+    'class-performance',
+    'Class performance',
+    'How each subject went in each class, its best and worst, and who is under the mark.',
   );
 
   const ReportKind(this.apiPath, this.label, this.description);
@@ -36,6 +49,13 @@ enum ReportKind {
   final String label;
   final String description;
 }
+
+/// A report's period, as a person reads one: 09/01/2026 to 09/30/2026.
+///
+/// The range itself stays ISO - it is what the server sent, what the
+/// download filenames are named for, and the only order that sorts - so it
+/// is turned round here, at the edge, and nowhere else.
+String rangeLabel(ReportRange range) => '${formatIsoDate(range.from)} to ${formatIsoDate(range.to)}';
 
 class ReportRange {
   const ReportRange({required this.from, required this.to, required this.workingDays});
@@ -151,7 +171,15 @@ class ReportResult {
 
 /// How one column of a report is shown.
 class ReportColumn {
-  const ReportColumn(this.key, this.label, {this.numeric = false, this.isRate = false, this.isMoney = false});
+  const ReportColumn(
+    this.key,
+    this.label, {
+    this.numeric = false,
+    this.isRate = false,
+    this.isMoney = false,
+    this.isDate = false,
+    this.warnBelow = 75,
+  });
 
   final String key;
   final String label;
@@ -163,6 +191,18 @@ class ReportColumn {
   /// Rendered as a percentage, and as a dash when null - a missing rate is
   /// "nobody counted", not "nobody came".
   final bool isRate;
+
+  /// An ISO date from the server, shown the way people here write one.
+  final bool isDate;
+
+  /// The rate below which this column reads as a worry, or null for a rate
+  /// that has no such line.
+  ///
+  /// 75% attendance is a worry; 75% in a subject is a good mark. Colouring
+  /// every percentage by the same rule would have the marks reports calling
+  /// most of a school a problem - and contradicting the "below the mark"
+  /// column beside them, which uses the school's own figure.
+  final double? warnBelow;
 }
 
 /// The columns each report shows, in order. Kept beside the enum so a report
@@ -238,6 +278,32 @@ const Map<ReportKind, List<ReportColumn>> reportColumns = {
     ReportColumn('topics_completed', 'Completed', numeric: true),
     ReportColumn('syllabus_completion', 'Syllabus', numeric: true, isRate: true),
     ReportColumn('completed_in_period', 'In period', numeric: true),
-    ReportColumn('last_completed_on', 'Last completed'),
+    ReportColumn('last_completed_on', 'Last completed', isDate: true),
+  ],
+  ReportKind.studentPerformance: [
+    ReportColumn('admission_number', 'Admission No.'),
+    ReportColumn('student', 'Student'),
+    ReportColumn('class_section', 'Class'),
+    ReportColumn('subjects', 'Subjects', numeric: true),
+    ReportColumn('assessments', 'Tests', numeric: true),
+    ReportColumn('absent', 'Absent', numeric: true),
+    ReportColumn('average_percentage', 'Average', numeric: true, isRate: true, warnBelow: null),
+    ReportColumn('grade', 'Grade'),
+    ReportColumn('class_average_percentage', 'Class average', numeric: true, isRate: true, warnBelow: null),
+    ReportColumn('weak_subjects', 'Weak subjects', numeric: true),
+    ReportColumn('attendance_rate', 'Attendance', numeric: true, isRate: true),
+  ],
+  ReportKind.classPerformance: [
+    ReportColumn('class_section', 'Class'),
+    ReportColumn('subject', 'Subject'),
+    ReportColumn('department', 'Department'),
+    ReportColumn('students', 'Students', numeric: true),
+    ReportColumn('assessments', 'Tests', numeric: true),
+    ReportColumn('marks_counted', 'Marks', numeric: true),
+    ReportColumn('absent', 'Absent', numeric: true),
+    ReportColumn('average_percentage', 'Average', numeric: true, isRate: true, warnBelow: null),
+    ReportColumn('highest_percentage', 'Highest', numeric: true, isRate: true, warnBelow: null),
+    ReportColumn('lowest_percentage', 'Lowest', numeric: true, isRate: true, warnBelow: null),
+    ReportColumn('students_below_the_mark', 'Below the mark', numeric: true),
   ],
 };

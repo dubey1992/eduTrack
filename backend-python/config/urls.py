@@ -197,6 +197,9 @@ urlpatterns = [
     path("api/v1/reports/payroll-summary", reports.payroll_summary),
     path("api/v1/reports/leave-usage", reports.leave_usage),
     path("api/v1/reports/syllabus-progress", reports.syllabus_progress),
+    # The two performance reports (docs/assessments.md, slice 13).
+    path("api/v1/reports/student-performance", reports.student_performance),
+    path("api/v1/reports/class-performance", reports.class_performance),
     # -- communication -----------------------------------------------------
     path("api/v1/communication/messages", communication.messages),
     path("api/v1/communication/summary", communication.summary),

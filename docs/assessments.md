@@ -334,7 +334,27 @@ today.
 
 Slices 11 and 12 built all four: `GET /students/{id}/performance` and the
 Performance dialog answer them, and the sentences come back in the same
-payload as `insights`. The two report kinds are slice 13.
+payload as `insights`.
+
+Slice 13 added the two reports on top of them. Both go through the report
+machinery the other seven use - one `ReportRange`, the previous-period
+comparison, the group roll-up, CSV and PDF - rather than a shape of their
+own, so a term is asked for by sending its dates. The arithmetic they share
+with the student's page lives in `school/marks.py`, which touches no
+database and no clock: a figure on the report and the same figure on the
+screen cannot disagree, because there is only one of them.
+
+`student-performance` is one line per student - subjects, tests, average,
+grade, the class average, weak subjects, attendance. `class-performance` is
+one line per class and subject - the average, its best and worst, and how
+many students are under the school's mark. Both take `below` as a mark
+rather than an attendance rate, which is why the screen writes the measure
+beside it: "below 40% average" and "below 75% attendance" are different
+questions, and the figure alone does not say which.
+
+The school's dashboard gained the same term figure, and a head of
+department's their own departments' - a card that disagreed with the report
+behind it would be worse than no card.
 
 Four rules decide every figure on it:
 

@@ -15,6 +15,7 @@ from decimal import Decimal
 from django.db.models import Count, Exists, OuterRef, Sum
 
 from .clock import SchoolClock
+from .reports.performance import term_summary
 from .enums import (
     AttendanceStatus,
     LeaveStatus,
@@ -169,6 +170,7 @@ class DashboardService:
                 card("staff", "Teachers & staff", str(staff), "on the payroll"),
                 attendance_card(rate),
                 card("transport", "Trips today", str(trips_today), f"{routes} active routes"),
+                performance_card(term_summary(school_id, today)),
             ],
             "attendance_trend": attendance_trend(school_id, today),
             "attention": school_attention(school_id, today),
@@ -196,6 +198,8 @@ class DashboardService:
                     "reviews", "Reports to review", str(pending_reviews), "awaiting you",
                     "warning" if pending_reviews > 0 else "ok",
                 ),
+                # Their own departments' results, not the school's.
+                performance_card(term_summary(school_id, today, department_ids)),
             ],
             "attendance_trend": attendance_trend(school_id, today),
             "attention": (
@@ -352,6 +356,31 @@ def attendance_card(rate: float | None) -> dict:
         "Attendance today",
         "-" if rate is None else f"{php_number(rate)}%",
         "not marked yet" if rate is None else "of students present",
+    )
+
+
+def performance_card(summary: dict) -> dict:
+    """This term's results, in a line (docs/assessments.md).
+
+    A school with no terms, or a term nobody has published a result in yet,
+    gets a dash and a hint saying so - never a 0% that would read as
+    everybody having failed.
+    """
+    if summary["term"] is None:
+        return card("performance", "Results this term", "-", "no terms set out yet")
+
+    if summary["average_percentage"] is None:
+        return card("performance", f"Results · {summary['term']}", "-", "nothing published yet")
+
+    below = summary["students_below_the_mark"]
+    hint = f"{summary['students']} students" if below == 0 else f"{below} below the school's mark"
+
+    return card(
+        "performance",
+        f"Results · {summary['term']}",
+        f"{summary['average_percentage']}%",
+        hint,
+        "warning" if below > 0 else "ok",
     )
 
 

@@ -227,7 +227,7 @@ void main() {
 
       expect(find.text('was 33.3%'), findsOneWidget);
       expect(find.text('Previous period'), findsOneWidget);
-      expect(find.text('2026-09-02 to 2026-09-06'), findsOneWidget);
+      expect(find.text('09/02/2026 to 09/06/2026'), findsOneWidget);
     });
 
     testWidgets('shows how each row moved, and says so when a row is new', (tester) async {
@@ -364,5 +364,150 @@ void main() {
       expect(find.text('By branch'), findsNothing);
       expect(find.text('School'), findsNothing);
     });
+  });
+
+  group('the performance reports', () {
+    testWidgets('a student line reads across, and a student with no result shows a dash', (tester) async {
+      useDesktop(tester);
+      final fake = FakeReportRepository(resultsByKind: {ReportKind.studentPerformance: studentPerformanceResult});
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Student performance'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastKind, ReportKind.studentPerformance);
+      expect(find.text('Aarav Sharma'), findsOneWidget);
+      expect(find.text('68.0%'), findsWidgets);
+      expect(find.text('B'), findsOneWidget);
+      expect(find.text('95.5%'), findsOneWidget);
+      // Absent for everything is not nought - it is nothing to report.
+      expect(find.text('Chetan Rao'), findsOneWidget);
+      expect(find.text('0.0%'), findsNothing, reason: 'a missing average must never read as zero');
+    });
+
+    testWidgets('a class line carries the subject, its spread and who is under the mark', (tester) async {
+      useDesktop(tester);
+      final fake = FakeReportRepository(resultsByKind: {ReportKind.classPerformance: classPerformanceResult});
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Class performance'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastKind, ReportKind.classPerformance);
+      expect(find.text('Mathematics'), findsOneWidget);
+      expect(find.text('55.0%'), findsWidgets);
+      expect(find.text('72.0%'), findsOneWidget);
+      expect(find.text('38.0%'), findsOneWidget);
+    });
+
+    testWidgets('the threshold asks about marks here, not attendance', (tester) async {
+      useDesktop(tester);
+      final fake = FakeReportRepository(resultsByKind: {ReportKind.studentPerformance: studentPerformanceResult});
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Student performance'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('All students'));
+      await tester.pumpAndSettle();
+
+      // The word matters: "below 40%" means two different things on the two
+      // reports, and only the label says which.
+      expect(find.text('Below 40% average'), findsWidgets);
+      expect(find.text('Below 75% attendance'), findsNothing);
+
+      await tester.tap(find.text('Below 40% average').last);
+      await tester.pumpAndSettle();
+
+      expect(fake.lastBelow, 40);
+    });
+
+    testWidgets('a threshold chosen for attendance does not carry over to marks', (tester) async {
+      useDesktop(tester);
+      final fake = FakeReportRepository(resultsByKind: {ReportKind.studentPerformance: studentPerformanceResult});
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('All students'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Below 85% attendance').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Student performance'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastBelow, isNull, reason: '85% attendance is not 85% in a subject');
+      expect(find.text('All students'), findsOneWidget);
+    });
+
+    testWidgets('the class report offers subjects rather than students', (tester) async {
+      useDesktop(tester);
+      final fake = FakeReportRepository(resultsByKind: {ReportKind.classPerformance: classPerformanceResult});
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Class performance'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('All subjects'), findsOneWidget);
+    });
+
+    testWidgets('a head of department is offered both', (tester) async {
+      useDesktop(tester);
+      const hod = AuthenticatedUser(id: 5, name: 'Ravi', email: 'r@example.com', role: UserRole.hod);
+      await tester.pumpWidget(wrap(FakeReportRepository(), actor: hod));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ChoiceChip, 'Student performance'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Class performance'), findsOneWidget);
+    });
+  });
+
+  testWidgets('the period reads the way every other date in the app does', (tester) async {
+    useDesktop(tester);
+    await tester.pumpWidget(wrap(FakeReportRepository()));
+    await tester.pumpAndSettle();
+
+    // The range travels as ISO and is turned round here, at the edge - the
+    // screen showed 2026-09-07 to 2026-09-11 until it was.
+    expect(find.text('09/07/2026 to 09/11/2026'), findsOneWidget);
+    expect(find.textContaining('2026-09-07'), findsNothing);
+  });
+
+  testWidgets('a date in a report column is written the way the rest of the app writes one', (tester) async {
+    useDesktop(tester);
+    final fake = FakeReportRepository(resultsByKind: {ReportKind.syllabusProgress: syllabusProgressResult});
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Syllabus by class'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('09/22/2026'), findsOneWidget);
+    expect(find.text('2026-09-22'), findsNothing);
+  });
+
+  testWidgets('a mark under 75% is not flagged the way attendance under 75% is', (tester) async {
+    useDesktop(tester);
+    final fake = FakeReportRepository(resultsByKind: {ReportKind.studentPerformance: studentPerformanceResult});
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+
+    final scheme = AppTheme.light().colorScheme;
+
+    // 60% attendance is a worry and is coloured as one.
+    expect(tester.widget<Text>(find.text('60.0%')).style?.color, scheme.error);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Student performance'));
+    await tester.pumpAndSettle();
+
+    // 68% in a subject is a decent mark. Colouring it by the attendance
+    // rule would have the report calling most of a school a problem, and
+    // contradicting the "weak subjects" column beside it.
+    expect(tester.widget<Text>(find.text('68.0%').first).style?.color, isNot(scheme.error));
+    // Attendance on the same report keeps the attendance rule.
+    expect(tester.widget<Text>(find.text('95.5%')).style?.color, isNot(scheme.error));
   });
 }
