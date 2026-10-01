@@ -665,11 +665,22 @@ class GroupReports(TestCase):
         self.assertIsNone(self.get(report="teaching-coverage").data["totals"]["coverage_rate"])
 
     def test_branches_that_share_a_name_are_listed_in_a_fixed_order(self):
-        twin = factories.SchoolFactory(id=9000, name="B North", timezone="UTC", parent_school=self.group)
+        """Two branches called the same thing have to come out in the same
+        order every run, or the report's rows move about between exports.
+
+        The tie is broken by id, and the ids are whatever the database
+        hands out - naming one here would make the test depend on how many
+        rows the rest of the suite happened to create first.
+        """
+        twin = factories.SchoolFactory(name="B North", timezone="UTC", parent_school=self.group)
 
         names = [(branch["school_name"], branch["school_id"]) for branch in self.get().data["branches"]]
+        twins = sorted([self.north.id, twin.id])
 
-        self.assertEqual([("A Group", self.group.id), ("B North", self.north.id), ("B North", twin.id), ("C South", self.south.id)], names)
+        self.assertEqual(
+            [("A Group", self.group.id), ("B North", twins[0]), ("B North", twins[1]), ("C South", self.south.id)],
+            names,
+        )
 
     def test_a_group_csv_names_the_branch_on_every_line(self):
         self.students_at(self.north, 1)
