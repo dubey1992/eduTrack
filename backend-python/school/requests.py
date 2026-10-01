@@ -20,7 +20,7 @@ import datetime as dt
 import decimal
 import re
 
-from . import attendants, audit, hashing, mailer, notices, notifications, permissions, sms, whatsapp
+from . import attendants, audit, hashing, mailer, marketing, notices, notifications, permissions, sms, whatsapp
 from .enums import (
     UserStatus,
     PromotionOutcome,
@@ -1845,6 +1845,71 @@ class UpdatePermissionsRequest(serializers.Serializer):
             raise serializers.ValidationError(problems)
 
         return value
+
+
+class UpdateMarketingContentRequest(serializers.Serializer):
+    """The words of the public homepage, checked one by one against what
+    the page declares (docs/marketing-content.md).
+
+    Every problem is reported at once rather than at the first one: the
+    editor marks up the boxes it names, and somebody who has rewritten six
+    fields should not have to press Save six times to learn about each.
+
+    **A key nobody recognises is refused rather than stored.** The document
+    is a loose JSON column, so without this it would quietly accumulate
+    whatever any client sent and nothing would ever read it back.
+
+    **A field cleared is a field removed, not an empty string.** The page
+    falls back to the copy it ships with, which is what clearing it means -
+    and it keeps the stored document to what somebody actually changed.
+    """
+
+    document = serializers.JSONField()
+
+    def validate_document(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("The document field must be an object.")
+
+        declared = marketing.fields()
+        problems = []
+        clean = {}
+
+        for key, raw in value.items():
+            field = declared.get(key)
+
+            if field is None:
+                problems.append(f'"{key}" is not something on the page.')
+                continue
+
+            if raw is None or (isinstance(raw, str) and not raw.strip()):
+                # Cleared: the page goes back to what it ships with.
+                continue
+
+            if not isinstance(raw, str):
+                problems.append(f"{field.label} must be text.")
+                continue
+
+            text = raw.strip()
+
+            if len(text) > field.max_length:
+                problems.append(
+                    f"{field.label} must be {field.max_length} characters or fewer - "
+                    f"it is {len(text)}."
+                )
+                continue
+
+            # A line break is meaningful in the two headings that use one,
+            # and nowhere else - everything else is drawn as a single run.
+            if not field.multiline and "\n" in text:
+                problems.append(f"{field.label} is a single line.")
+                continue
+
+            clean[key] = text
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return clean
 
 
 class UpdateMailSettingRequest(serializers.Serializer):

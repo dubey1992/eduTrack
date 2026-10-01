@@ -1,6 +1,6 @@
 # The marketing page, managed from the Super Admin panel
 
-**Status (2026-10-01): planned.** Decided with the user on 2026-10-01. The
+**Status (2026-10-01): slices 1 and 2 built; slices 3 and 4 planned.** The
 public homepage at `/` is a Flutter recreation of the marketing prototype
 with every word written into the widgets as a `const`. Changing the
 headline currently means a code change, a build and a deploy. This puts the
@@ -105,15 +105,48 @@ the declaration after a document was saved; the API refusing; a slow API
 (the page must not flash empty); the cache serving a stale document after
 a publish.
 
-### Slice 2 - Editing, and publishing
+### Slice 2 - Editing, and publishing *(built)*
 
-The Super Admin screen for the fixed text fields, built from the
-declaration, with the draft/preview/publish cycle. Publishing clears the
-public cache.
+The Super Admin screen at `/homepage-content`, drawn from the declaration
+in `school/marketing.py`, with the draft/preview/publish cycle. Publishing
+clears the public cache.
 
-Edge cases: a field left empty (the default, or a refusal); a very long
-headline; markup typed into a field; two admins editing at once;
-publishing with nothing changed; previewing a draft that is not published.
+What the edge cases turned into:
+
+- **A field left empty is removed, not stored as an empty string.** The
+  page falls back to the copy it ships with, which is what clearing a box
+  means. The box shows that copy as its placeholder, so an empty field
+  still says what the visitor will read.
+- **A very long headline is refused** by the form and again by the server,
+  against the length the declaration gives each field. The limits are about
+  layout - a 46px headline beside a drawn mockup does not wrap, it wrecks
+  the section - so refusing is kinder than publishing and finding out.
+  Every problem is reported at once rather than one per save.
+- **Markup typed into a field is the characters somebody typed.** Flutter
+  draws these as text, not HTML. Pinned by a test, so the day the page
+  gains a rich-text field that test starts the conversation.
+- **Two admins editing at once:** no locking. There is one row; whoever
+  saves last wins, and the other's unsaved boxes are simply not in the
+  document. A handful of fields, edited rarely, by the few people with the
+  role - a lock would cost more than it saves. The PUT answers with the
+  document as it now stands, so the other editor sees it on their next
+  save or refresh.
+- **Publishing with nothing changed** is allowed and uneventful. Pressing
+  the button twice is a thing people do.
+- **Previewing shows the real homepage**, inside a scope where the content
+  provider answers with the boxes as they are now - including typing that
+  has not been saved. A preview drawn separately would eventually disagree
+  with the page, which is the one thing a preview must not do.
+
+Two things that came out of building it:
+
+**Publish saves the form first.** Pressing Publish with unsaved boxes on
+screen means "put *this* on the homepage". Publishing the last saved draft
+instead would be technically defensible and completely baffling.
+
+**Never published is its own state**, separate from "the draft matches the
+page" - with no row, both documents are empty and "the homepage matches
+this draft" is true and useless.
 
 ### Slice 3 - The lists
 

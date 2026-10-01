@@ -75,8 +75,9 @@ class ReadingThePage(TestCase):
         self.assertEqual(self.client.get(URL).data, signed_in.get(URL).data)
 
     def test_only_reading_is_allowed(self):
-        """Editing arrives with the Super Admin screen in the next slice.
-        Until then nothing may write through this path, signed in or not.
+        """Editing happens at /marketing-content/draft, behind the Super
+        Admin check. Nothing may write through the public path, signed in
+        or not - see test_marketing_content_editor_api.
         """
         for method in (self.client.post, self.client.put, self.client.patch, self.client.delete):
             self.assertEqual(405, method(URL).status_code)

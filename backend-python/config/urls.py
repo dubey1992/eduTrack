@@ -264,6 +264,8 @@ urlpatterns = [
     # The public homepage's words (docs/marketing-content.md). Public:
     # the page is served to anybody, so its words are readable by anybody.
     path("api/v1/marketing-content", marketing_content.content),
+    path("api/v1/marketing-content/draft", marketing_content.draft),
+    path("api/v1/marketing-content/publish", marketing_content.publish),
     path("api/v1/early-access", early_access.collection),
     path("api/v1/early-access/<int:request_id>", early_access.detail),
     # -- students ----------------------------------------------------------

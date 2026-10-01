@@ -15,11 +15,16 @@ than one nobody can edit.
 from __future__ import annotations
 
 from django.core.cache import cache
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from .. import audit, marketing
+from ..enums import UserRole
 from ..models import MarketingContent
+from ..policies import authorize
+from ..requests import UpdateMarketingContentRequest
 from ..throttling import MarketingContentThrottle
 
 CACHE_KEY = "marketing-content"
@@ -58,3 +63,99 @@ def published() -> dict:
 def forget() -> None:
     """Called when the document changes, so the next visitor sees it."""
     cache.delete(CACHE_KEY)
+
+
+# -- the Super Admin's side ---------------------------------------------------
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def draft(request) -> Response:
+    """What the page could say, and what it says now.
+
+    The declaration comes back with it so the editor is built from one
+    description of the page rather than a form kept in step by hand.
+    """
+    authorize(request.user.role == UserRole.SUPER_ADMIN)
+
+    row = MarketingContent.objects.order_by("id").first()
+
+    if request.method == "PUT":
+        form = UpdateMarketingContentRequest(data=request.data)
+        form.is_valid(raise_exception=True)
+        row = save_draft(row, form.validated_data["document"])
+
+    return Response(
+        {
+            "sections": marketing.resource(),
+            "draft": draft_of(row),
+            "published": (row.document if row else None) or {},
+            "published_at": None if row is None or row.published_at is None else row.published_at.isoformat(),
+            "has_unpublished_changes": draft_of(row) != ((row.document if row else None) or {}),
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def publish(request) -> Response:
+    """Puts the draft in front of the world.
+
+    One explicit act, audited: "who changed the front page, and when" is
+    the first question anybody asks when the wording surprises them.
+    """
+    authorize(request.user.role == UserRole.SUPER_ADMIN)
+
+    row = MarketingContent.objects.order_by("id").first()
+    wanted = draft_of(row)
+    now = timezone.now()
+
+    if row is None:
+        row = MarketingContent.objects.create(draft=wanted, created_at=now, updated_at=now)
+
+    before = (row.document or {})
+
+    MarketingContent.objects.filter(pk=row.pk).update(
+        document=wanted, published_at=now, published_by_id=request.user.id, updated_at=now
+    )
+    forget()
+
+    audit.record(
+        action="marketing_content.published",
+        module="settings",
+        entity_type="marketing_content",
+        entity_id=row.pk,
+        school_id=None,
+        old=before,
+        new=wanted,
+    )
+
+    return Response({"published": wanted, "published_at": now.isoformat()})
+
+
+def draft_of(row) -> dict:
+    """What is being worked on.
+
+    A row that has been published but never drafted since reads back as
+    the published document, so opening the editor shows the live page
+    rather than an empty form.
+    """
+    if row is None:
+        return {}
+
+    if row.draft is not None:
+        return row.draft
+
+    return row.document or {}
+
+
+def save_draft(row, document: dict):
+    now = timezone.now()
+
+    if row is None:
+        return MarketingContent.objects.create(draft=document, created_at=now, updated_at=now)
+
+    MarketingContent.objects.filter(pk=row.pk).update(draft=document, updated_at=now)
+    row.refresh_from_db()
+
+    return row

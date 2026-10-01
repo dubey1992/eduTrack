@@ -203,6 +203,15 @@ class AppNav {
         pageSubtitle: 'What each role may see and do',
       ),
       NavItem(
+        path: '/homepage-content',
+        label: 'Homepage Content',
+        icon: Icons.web_outlined,
+        // The words on the product's public front page, not any school's.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Homepage Content',
+        pageSubtitle: 'The words visitors read on the public homepage',
+      ),
+      NavItem(
         path: '/mail-settings',
         label: 'Email Settings',
         icon: Icons.outgoing_mail,

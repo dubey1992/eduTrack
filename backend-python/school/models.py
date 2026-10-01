@@ -558,6 +558,14 @@ class MarketingContent(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     document = LaravelJSONField(blank=True, null=True)
+    # What the Super Admin is working on. Separate from `document` because
+    # the point is that both exist at once: somebody rewrites the hero over
+    # a morning while visitors read the version that was signed off.
+    draft = LaravelJSONField(blank=True, null=True)
+    published_at = UtcDateTimeField(blank=True, null=True)
+    published_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='published_by', blank=True, null=True, related_name='+'
+    )
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 

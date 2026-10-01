@@ -27,6 +27,7 @@ import '../../features/hod/presentation/hod_report_screen.dart';
 import '../../features/holidays/presentation/holiday_list_screen.dart';
 import '../../features/mail_settings/presentation/mail_settings_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
+import '../../features/marketing/presentation/marketing_content_screen.dart';
 import '../../features/marketing/presentation/marketing_screen.dart';
 import '../../features/payments/presentation/payment_list_screen.dart';
 import '../../features/payroll/presentation/my_payslips_screen.dart';
@@ -118,6 +119,7 @@ const appRoutePaths = {
   '/my-payslips',
   '/audit-log',
   '/mail-settings',
+  '/homepage-content',
   '/profile',
   '/module-settings',
   '/permissions',
@@ -192,6 +194,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/my-payslips', builder: (context, state) => const MyPayslipsScreen()),
           GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
           GoRoute(path: '/mail-settings', builder: (context, state) => const MailSettingsScreen()),
+          GoRoute(path: '/homepage-content', builder: (context, state) => const MarketingContentScreen()),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/module-settings', builder: (context, state) => const ModuleSettingsScreen()),
           GoRoute(path: '/permissions', builder: (context, state) => const PermissionsScreen()),
