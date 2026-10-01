@@ -1,8 +1,9 @@
 # Multi-branch schools
 
-**Status: built.** Steps 1-4 of the phasing below have landed; step 5 is
-partly done (the group dashboard exists; per-branch report breakdowns do
-not). Decisions were taken on 2026-09-15.
+**Status: built.** All five steps of the phasing below have landed.
+Decisions were taken on 2026-09-15; the status line was corrected on
+2026-10-01, having claimed for a fortnight that per-branch report
+breakdowns did not exist while step 5 below recorded them as done.
 
 A school group runs several branches — St Mary's North, South and East — under
 one name. Today eduTrack has no idea they are related: each is an unconnected
@@ -228,8 +229,9 @@ A group CSV gains a leading **School** column, so the rows are not a heap.
    group" for a Group Admin, the school form has a parent picker that refuses
    to offer an impossible parent, and the school list shows the hierarchy.
 5. **Group dashboards and reports.** ✅ The group dashboard rolls up its
-   branches, and all four reports break down by branch when no branch is
-   named.
+   branches, and every report breaks down by branch when no branch is
+   named - the four of Phase 18, Phase 20's three, and the two performance
+   reports (docs/assessments.md).
 
 ### Two things the refactor caught
 
