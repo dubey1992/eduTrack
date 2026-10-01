@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/marketing_content_repository.dart';
+import '../../data/marketing_links.dart';
 
 import 'package:google_fonts/google_fonts.dart';
 
@@ -178,9 +179,48 @@ class _LinkColumn extends StatelessWidget {
         for (final link in links)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Text(link['label'] ?? '', style: const TextStyle(color: MarketingColors.subtle, fontSize: 13)),
+            child: _FooterLink(label: link['label'] ?? '', url: link['url']),
           ),
       ],
+    );
+  }
+}
+
+/// One line in a footer column.
+///
+/// With an address it behaves like a link - a pointer, an underline under
+/// the cursor, and a tap that goes somewhere. Without one it is the plain
+/// text the whole column used to be, which is what every line ships as.
+class _FooterLink extends StatefulWidget {
+  const _FooterLink({required this.label, required this.url});
+
+  final String label;
+  final String? url;
+
+  @override
+  State<_FooterLink> createState() => _FooterLinkState();
+}
+
+class _FooterLinkState extends State<_FooterLink> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const style = TextStyle(color: MarketingColors.subtle, fontSize: 13);
+
+    if (linkKind(widget.url) == null) return Text(widget.label, style: style);
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: () => followMarketingLink(context, widget.url),
+        child: Semantics(
+          link: true,
+          child: Text(widget.label, style: style.copyWith(decoration: _hovered ? TextDecoration.underline : null)),
+        ),
+      ),
     );
   }
 }

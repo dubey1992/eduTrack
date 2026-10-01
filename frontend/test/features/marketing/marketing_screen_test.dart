@@ -118,4 +118,76 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group('the footer lines', () {
+    Future<void> openFooter(WidgetTester tester, MarketingContent content) async {
+      tester.view.physicalSize = const Size(1600, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(wrap(content: content));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a line without an address is the plain text it has always been', (tester) async {
+      await openFooter(
+        tester,
+        const MarketingContent({}, {
+          'footer.productLinks': [
+            {'label': 'Open Roles'},
+          ],
+        }),
+      );
+
+      expect(find.text('Open Roles'), findsOneWidget);
+      expect(find.ancestor(of: find.text('Open Roles'), matching: find.byType(GestureDetector)), findsNothing);
+    });
+
+    testWidgets('a line with an address behaves like a link', (tester) async {
+      await openFooter(
+        tester,
+        const MarketingContent({}, {
+          'footer.productLinks': [
+            {'label': 'Our Privacy Note', 'url': 'https://example.com/privacy'},
+          ],
+        }),
+      );
+
+      expect(find.text('Our Privacy Note'), findsOneWidget);
+      expect(find.ancestor(of: find.text('Our Privacy Note'), matching: find.byType(GestureDetector)), findsOneWidget);
+    });
+
+    testWidgets('a line pointing at a page of this app goes there', (tester) async {
+      await openFooter(
+        tester,
+        const MarketingContent({}, {
+          'footer.productLinks': [
+            {'label': 'Sign in', 'url': '/login'},
+          ],
+        }),
+      );
+
+      await tester.ensureVisible(find.text('Sign in'));
+      await tester.tap(find.text('Sign in'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Login Screen'), findsOneWidget);
+    });
+
+    testWidgets('an address this page will not follow is not a link at all', (tester) async {
+      // Nothing can store one, so this is the second gate rather than the
+      // only one - but a page on the open web should not be one bug away
+      // from following an address nobody checked.
+      await openFooter(
+        tester,
+        const MarketingContent({}, {
+          'footer.productLinks': [
+            {'label': 'Open Roles', 'url': 'javascript:alert(1)'},
+          ],
+        }),
+      );
+
+      expect(find.ancestor(of: find.text('Open Roles'), matching: find.byType(GestureDetector)), findsNothing);
+    });
+  });
 }

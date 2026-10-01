@@ -202,6 +202,9 @@ class MarketingListField {
   List<Map<String, String>> get shipped => marketingListDefaults[key] ?? const [];
 
   Map<String, String> get blankItem => {for (final field in fields) field.key: field.firstChoice};
+
+  /// The address box, if this list has one - the footer's columns do.
+  bool get hasAddresses => fields.any((field) => field.key == 'url');
 }
 
 /// One box inside a repeating item. [choices] turns it into a picker.
@@ -212,6 +215,7 @@ class MarketingItemField {
     required this.maxLength,
     required this.help,
     required this.choices,
+    this.required = true,
   });
 
   factory MarketingItemField.fromJson(Map<String, dynamic> json) {
@@ -228,6 +232,9 @@ class MarketingItemField {
           for (final choice in choices)
             if (choice is Map<String, dynamic>) MarketingChoice.fromJson(choice),
       ],
+      // Absent means required - the safer reading of a declaration this
+      // build does not fully understand.
+      required: json['required'] != false,
     );
   }
 
@@ -236,6 +243,11 @@ class MarketingItemField {
   final int maxLength;
   final String help;
   final List<MarketingChoice> choices;
+
+  /// A blank required box is a hole in the page - a card with no title.
+  /// An optional one is a real choice: a footer line with no address is
+  /// the plain text it has always been.
+  final bool required;
 
   /// What a newly added item gets: the first thing on the picker, or an
   /// empty box for somebody to fill in.

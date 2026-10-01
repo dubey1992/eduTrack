@@ -1969,6 +1969,11 @@ def _marketing_list(declared, raw, problems: list) -> list | None:
             text = item.get(field.key)
 
             if not isinstance(text, str) or not text.strip():
+                # An optional box left empty is a choice, not a hole: a
+                # footer line with no address stays the plain text it is.
+                if not field.required:
+                    continue
+
                 problems.append(f"{where} needs a {field.label.lower()}.")
                 continue
 
@@ -1989,13 +1994,20 @@ def _marketing_list(declared, raw, problems: list) -> list | None:
                 problems.append(f"{where}: {field.label.lower()} is a single line.")
                 continue
 
+            if field.is_url:
+                problem = marketing.url_problem(text)
+
+                if problem is not None:
+                    problems.append(f"{where}: {problem}")
+                    continue
+
             clean_item[field.key] = text
 
-        if len(clean_item) == len(declared.fields):
-            items.append(clean_item)
+        items.append(clean_item)
 
-    # Any problem above aborts the whole save, so a short list here is
-    # never stored - the caller raises before it is looked at.
+    # Any problem above aborts the whole save, so a short list, or an item
+    # missing a box it needed, is never stored - the caller raises before
+    # either is looked at.
     return items
 
 

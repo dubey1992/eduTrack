@@ -1,6 +1,6 @@
 # The marketing page, managed from the Super Admin panel
 
-**Status (2026-10-01): built, all four slices.** The
+**Status (2026-10-01): built, five slices.** The
 public homepage at `/` is a Flutter recreation of the marketing prototype
 with every word written into the widgets as a `const`. Changing the
 headline currently means a code change, a build and a deploy. This puts the
@@ -162,9 +162,9 @@ same document as the words, because they are published as one.
   font has no room for, which draws an empty box where an icon belongs.
   Replacing them with Material icons was offered and declined: it would
   change how the public page looks.
-- **The footer links stay wording only.** They are plain text that goes
-  nowhere today, and they still are. Giving each one an address was
-  offered and declined.
+- **The footer links stay wording only** *(reversed - see slice 5)*. This
+  was asked and answered "labels only", with "(Recommended)" against that
+  option, which steered it. What was actually wanted was links that work.
 
 **Three columns, not a variable number.** The footer row is the brand,
 these three, and the newsletter across five. So each column's heading is
@@ -255,3 +255,40 @@ a word stands on its own.
 **Choosing a source did not refresh the line under it.** The line says what
 that source reads today, and it was still describing the source you had
 just moved away from.
+
+### Slice 5 - Footer lines that go somewhere *(built)*
+
+A footer line may carry an address. One with an address becomes a link;
+one without stays the plain text it has always been, which is what every
+line ships as. The address box is optional, and the editor says what
+leaving it empty means.
+
+Four shapes, each doing what a visitor would expect:
+
+| Address | What happens |
+|---|---|
+| `https://` or `http://` | opens in a new tab, so the homepage is not lost behind it |
+| `/something` | a page of this app, such as `/login` |
+| `mailto:` or `tel:` | handed to whatever the device uses for those |
+| anything else | refused |
+
+**The list is of what is allowed, not of what is banned.** The page is
+served to the open web, and `javascript:` in an address would run that
+script in a visitor's browser with the Super Admin's typing as its source.
+Anything not named is refused, so a scheme nobody thought about cannot
+slip through. A bare `example.com` is refused too: it could be a site or a
+page of this one, and guessing wrong sends visitors somewhere nobody
+meant.
+
+The rule is checked on the server, which is the gate, and again in the
+client before a line is drawn as a link - a page on the open web should
+not be one bug away from following an address nobody checked.
+
+This needed one thing the declaration did not have: **an optional item
+box.** Until now every box inside a repeating item had to be filled,
+because a card with no title is a hole in the grid. A footer line with no
+address is not a hole, it is the commonest case.
+
+The shipped lines still carry no addresses. The pages they name - Pricing,
+Careers, Blog - do not exist yet, and inventing addresses for them would
+put broken links on the front page.

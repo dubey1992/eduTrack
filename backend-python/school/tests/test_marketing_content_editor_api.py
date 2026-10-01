@@ -440,14 +440,21 @@ class TheDeclarationAndTheClient(TestCase):
 
     def test_each_list_ships_the_fields_the_declaration_names(self):
         """An item key only one side knows is a box that edits nothing, or
-        a word on the page nobody can reach."""
+        a word on the page nobody can reach.
+
+        An optional box may be absent - a footer line ships without an
+        address, which is what keeps it the plain text it is today.
+        """
         declared = marketing.lists()
 
         for key, items in self.client_lists().items():
-            expected = {field.key for field in declared[key].fields}
+            every = {field.key for field in declared[key].fields}
+            needed = {field.key for field in declared[key].fields if field.required}
 
             for position, item in enumerate(items, start=1):
-                self.assertEqual(expected, set(item), f"{key}, item {position}")
+                where = f"{key}, item {position}"
+                self.assertEqual(set(), needed - set(item), where)
+                self.assertEqual(set(), set(item) - every, where)
 
     def test_the_list_the_page_ships_fits_what_the_design_holds(self):
         """The editor starts from the shipped list, so a limit below it

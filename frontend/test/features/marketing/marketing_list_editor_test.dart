@@ -41,6 +41,26 @@ const sourced = MarketingListField(
   maxItems: 5,
 );
 
+const footerLinks = MarketingListField(
+  key: 'footer.productLinks',
+  label: 'First column',
+  itemLabel: 'Line',
+  help: 'A line with an address becomes a link; one without stays plain text.',
+  fields: [
+    MarketingItemField(key: 'label', label: 'Line', maxLength: 28, help: '', choices: []),
+    MarketingItemField(
+      key: 'url',
+      label: 'Address',
+      maxLength: 200,
+      help: 'Leave empty and the line stays plain text, as it is today.',
+      choices: [],
+      required: false,
+    ),
+  ],
+  minItems: 1,
+  maxItems: 6,
+);
+
 const cards = MarketingListField(
   key: 'features.items',
   label: 'The feature cards',
@@ -540,6 +560,68 @@ void main() {
 
       expect(find.text('What I type below'), findsOneWidget);
       expect(find.textContaining('typed   '), findsNothing);
+    });
+  });
+
+  group('a line that may have an address', () {
+    Future<bool> validate(WidgetTester tester) async {
+      final valid = tester.state<FormState>(find.byType(Form)).validate();
+      await tester.pumpAndSettle();
+
+      return valid;
+    }
+
+    testWidgets('the address box may be left empty', (tester) async {
+      // What every line ships as, and the commonest thing to do.
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(footerLinks, [
+          {'label': 'Careers', 'url': ''},
+        ]),
+      );
+
+      expect(await validate(tester), isTrue);
+    });
+
+    testWidgets('the wording is still required', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(footerLinks, [
+          {'label': '', 'url': 'https://example.com'},
+        ]),
+      );
+
+      expect(await validate(tester), isFalse);
+      expect(find.text('Every Line needs a line.'), findsOneWidget);
+    });
+
+    testWidgets('an address typed in is what gets sent', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(footerLinks, [
+          {'label': 'Careers', 'url': ''},
+        ]),
+      );
+
+      await tester.enterText(find.widgetWithText(TextFormField, '').last, 'https://example.com/jobs');
+      await tester.pump();
+
+      expect(reported.single['url'], 'https://example.com/jobs');
+    });
+
+    testWidgets('it says what leaving the address empty means', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(footerLinks, [
+          {'label': 'Careers', 'url': ''},
+        ]),
+      );
+
+      expect(find.text('Leave empty and the line stays plain text, as it is today.'), findsOneWidget);
     });
   });
 }

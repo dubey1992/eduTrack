@@ -328,9 +328,12 @@ class _ItemCardState extends State<_ItemCard> {
   String? _problemWith(MarketingItemField field, String value) {
     final text = value.trim();
 
-    // Unlike a page-level box, a blank here is not a fallback to anything:
-    // a card with no title is a hole in the grid.
-    if (text.isEmpty) return 'Every $itemLabel needs a ${field.label.toLowerCase()}.';
+    if (text.isEmpty) {
+      // Unlike a page-level box, a blank required one is not a fallback to
+      // anything: a card with no title is a hole in the grid. An optional
+      // box left empty is a choice, and the commonest one.
+      return field.required ? 'Every $itemLabel needs a ${field.label.toLowerCase()}.' : null;
+    }
 
     if (text.length > field.maxLength) {
       return '${field.label} must be ${field.maxLength} characters or fewer - it is ${text.length}.';

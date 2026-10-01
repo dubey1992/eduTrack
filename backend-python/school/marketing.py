@@ -52,6 +52,14 @@ class ItemField(Field):
 
     choices: tuple[Choice, ...] = ()
 
+    # A blank required box is a hole in the page - a card with no title.
+    # An optional one is a real choice: a footer line with no address is
+    # the plain text it has always been.
+    required: bool = True
+
+    # Checked as a web address rather than as words.
+    is_url: bool = False
+
 
 @dataclass(frozen=True)
 class ListField:
@@ -228,20 +236,32 @@ SECTIONS: tuple[Section, ...] = (
         lists=(
             ListField(
                 "footer.productLinks", "First column", "Line",
-                "Wording only - these are not links yet, and nothing happens when one is clicked.",
-                (ItemField("label", "Line", max_length=28),),
+                "A line with an address becomes a link; one without stays plain text.",
+                (
+                    ItemField("label", "Line", max_length=28),
+                    ItemField("url", "Address", max_length=200, required=False, is_url=True,
+                              help="Leave empty and the line stays plain text, as it is today."),
+                ),
                 min_items=1, max_items=6,
             ),
             ListField(
                 "footer.companyLinks", "Second column", "Line",
-                "Wording only - these are not links yet, and nothing happens when one is clicked.",
-                (ItemField("label", "Line", max_length=28),),
+                "A line with an address becomes a link; one without stays plain text.",
+                (
+                    ItemField("label", "Line", max_length=28),
+                    ItemField("url", "Address", max_length=200, required=False, is_url=True,
+                              help="Leave empty and the line stays plain text, as it is today."),
+                ),
                 min_items=1, max_items=6,
             ),
             ListField(
                 "footer.resourceLinks", "Third column", "Line",
-                "Wording only - these are not links yet, and nothing happens when one is clicked.",
-                (ItemField("label", "Line", max_length=28),),
+                "A line with an address becomes a link; one without stays plain text.",
+                (
+                    ItemField("label", "Line", max_length=28),
+                    ItemField("url", "Address", max_length=200, required=False, is_url=True,
+                              help="Leave empty and the line stays plain text, as it is today."),
+                ),
                 min_items=1, max_items=6,
             ),
         ),
@@ -299,6 +319,8 @@ def resource() -> list[dict]:
                             "multiline": field.multiline,
                             "max_length": field.max_length,
                             "help": field.help,
+                            "required": field.required,
+                            "is_url": field.is_url,
                             "choices": [
                                 {"value": choice.value, "label": choice.label} for choice in field.choices
                             ],
@@ -342,3 +364,39 @@ def resolve(document: dict, figures: dict[str, int]) -> dict:
         resolved.append({**item, "value": f"{count:,}"} if count > 0 else item)
 
     return {**document, STATS: resolved}
+
+
+# Where a footer line may point.
+#
+# `javascript:` is the reason this is a list of what is allowed rather than
+# a list of what is not. The page is served to the open web, and a link
+# whose address is script would run that script in the visitor's browser,
+# with the Super Admin's typing as the source. Anything not named here is
+# refused, so a scheme nobody thought about cannot slip through.
+WEB_SCHEMES = ("https://", "http://")
+HANDOFF_SCHEMES = ("mailto:", "tel:")
+
+
+def url_problem(url: str) -> str | None:
+    """Why this address may not be used, or None if it may.
+
+    Four shapes, each doing something a visitor would expect:
+
+    - `https://` or `http://` - somewhere else on the web, opened in a new
+      tab so the homepage is not lost.
+    - `/something` - a page of this app, such as `/login`.
+    - `mailto:` or `tel:` - handed to whatever the device uses for those.
+    """
+    if url.startswith(WEB_SCHEMES):
+        return None if len(url.split("://", 1)[1]) > 0 else "that address has nothing after the ://."
+
+    if url.startswith(HANDOFF_SCHEMES):
+        return None if len(url.split(":", 1)[1]) > 0 else "that address has nothing after the colon."
+
+    if url.startswith("/"):
+        return None if " " not in url else "a page of this site cannot have a space in it."
+
+    return (
+        "an address has to start with https://, http://, a / for a page of this site, "
+        "or mailto: or tel:."
+    )
