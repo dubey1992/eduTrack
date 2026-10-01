@@ -1430,10 +1430,12 @@ class DailyTeachingReportService:
         if holiday is not None:
             scheduled = 0
         else:
-            scheduled = TimetableService.this_year(
+            entries = TimetableService.this_year(
                 cls.scoped(TimetableEntry.objects.all(), actor, filters.get("school_id")),
                 school_id,
-            ).filter(day_of_week=date.strftime("%A").lower()).count()
+            ).filter(day_of_week=date.strftime("%A").lower())
+
+            scheduled = entries.exclude(teacher_id__in=cls.on_leave(school_id, date)).count()
 
         submitted = cls.scoped(
             DailyTeachingReport.objects.all(), actor, filters.get("school_id")
@@ -1445,6 +1447,36 @@ class DailyTeachingReportService:
             "pending": max(0, scheduled - submitted),
             "holiday": holiday.name if holiday else None,
         }
+
+    @staticmethod
+    def on_leave(school_id, date) -> list:
+        """Whose leave the school has already approved for this date.
+
+        A period taught by somebody the school agreed would not be there is
+        not a period anybody failed to report on, so it is not counted as
+        scheduled and never becomes pending. The approval already wrote the
+        staff register; this stops it also needing a human to know to
+        ignore the nag (docs/insights.md, slice 5).
+
+        **Only this count.** The teaching coverage report still counts the
+        period as missing, and that is not an oversight: "who owes me a
+        report" and "did the class get the lesson" are different questions,
+        and a lesson nobody taught is a gap in coverage whatever the reason.
+
+        Approved only. A request still waiting is somebody's hope, not the
+        school's decision.
+        """
+        if school_id is None:
+            return []
+
+        return list(
+            StaffLeave.objects.filter(
+                school_id=school_id,
+                status=LeaveStatus.APPROVED,
+                start_date__lte=date,
+                end_date__gte=date,
+            ).values_list("staff_profile__user_id", flat=True)
+        )
 
     @staticmethod
     def scoped(rows, actor: User, school_id_filter):

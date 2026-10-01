@@ -1,6 +1,6 @@
 # Weak areas, recommendations, and one entry instead of two
 
-**Status (2026-10-01): slices 1 to 4 built; 5 planned.** Decided with the user on 2026-10-01. This
+**Status (2026-10-01): all five slices built.** Decided with the user on 2026-10-01. This
 continues [assessments.md](assessments.md) rather than replacing it: terms,
 grade scales, marks, publishing, the two performance reports and the
 progress report are all built and live. What follows is the part of
@@ -154,3 +154,25 @@ A pass over every write path looking for anything else entered twice, and
 regression tests pinning the chains that must stay automatic:
 attendance to alerts, leave to the staff register, publishing to the
 guardian alert, and the daily report to the syllabus.
+
+**What the sweep found.** Most of what looked like a gap was already
+automatic or already a decision: admitting a student writes their
+enrollment year, a student who leaves drops off the bus roster because the
+roster is derived rather than stored, and a holiday declared after the
+fact deliberately leaves its records alone and returns a count so an admin
+can act - "never silently" is the rule there, not an oversight.
+
+One real gap: **a teacher on approved leave was still being chased for
+teaching reports.** The leave was approved and already written to the
+staff register, and the period still counted as scheduled, so the Teaching
+Reports screen showed it as pending and the teacher's own dashboard showed
+"0/2 filed" in warning orange. Both now exclude it.
+
+The teaching coverage report still counts that period as missing, and that
+is not an oversight either: "who owes me a report" and "did the class get
+the lesson" are different questions, and a lesson nobody taught is a gap
+in coverage whatever the reason for it.
+
+The chains live in `school/tests/test_automation_chains.py` - one file,
+read as a list, so a refactor that quietly breaks one fails with a name
+that says what a school would notice.

@@ -52,7 +52,7 @@ from .models import (
 from .payroll.service import PayrollRunService, period_label
 from .requests import php_int
 from .scope import SchoolScope, group_school_ids
-from .services import HolidayService, TimetableService, php_number, php_round_1
+from .services import DailyTeachingReportService, HolidayService, TimetableService, php_number, php_round_1
 
 
 class DashboardService:
@@ -215,7 +215,13 @@ class DashboardService:
 
         # This year's grid only: a school in its second year would otherwise
         # count last year's Monday as well (docs/promotion.md).
-        periods_today = TimetableService.this_year(
+        #
+        # And nothing at all on a day the school approved their leave for.
+        # The Teaching Reports screen stopped counting those periods as
+        # pending, and a dashboard reading "0/2 filed" in warning orange
+        # beside it would be the product arguing with itself.
+        on_leave = actor.id in DailyTeachingReportService.on_leave(school_id, today)
+        periods_today = 0 if on_leave else TimetableService.this_year(
             TimetableEntry.objects.filter(
                 school_id=school_id, teacher_id=actor.id, day_of_week=today.strftime("%A").lower()
             ),
