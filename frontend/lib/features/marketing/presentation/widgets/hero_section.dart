@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/marketing_content_repository.dart';
 
 import '../marketing_colors.dart';
 import 'dashboard_mockup.dart';
@@ -7,11 +10,11 @@ import 'marketing_buttons.dart';
 import 'marketing_wrap.dart';
 import 'phone_mockup.dart';
 
-class HeroSection extends StatelessWidget {
+class HeroSection extends ConsumerWidget {
   const HeroSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.only(top: 58, bottom: 22),
       decoration: const BoxDecoration(
@@ -48,19 +51,21 @@ class HeroSection extends StatelessWidget {
   }
 }
 
-class _HeroCopy extends StatelessWidget {
+class _HeroCopy extends ConsumerWidget {
   const _HeroCopy();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final words = ref.watch(marketingContentProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const MarketingEyebrow(text: 'A Complete School Management Platform'),
+        MarketingEyebrow(text: words.text('hero.eyebrow')),
         const SizedBox(height: 16),
         Text(
-          'Run Your School Smarter, Together.',
-          style: TextStyle(
+          words.text('hero.headline'),
+          style: const TextStyle(
             fontSize: 46,
             height: 1.05,
             letterSpacing: -1.5,
@@ -69,19 +74,18 @@ class _HeroCopy extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Students, Teachers, Academics, Attendance, Transport, Communication, '
-          'Payroll and more — all in one simple and powerful platform.',
-          style: TextStyle(fontSize: 17, color: Color(0xFF334155), height: 1.4),
-        ),
+        Text(words.text('hero.body'), style: const TextStyle(fontSize: 17, color: Color(0xFF334155), height: 1.4)),
         const SizedBox(height: 24),
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
-            MarketingPrimaryButton(label: 'Join Early Access →', onPressed: () => showEarlyAccessDialog(context)),
+            MarketingPrimaryButton(
+              label: words.text('hero.primaryButton'),
+              onPressed: () => showEarlyAccessDialog(context),
+            ),
             MarketingOutlineButton(
-              label: 'Watch Video',
+              label: words.text('hero.secondaryButton'),
               icon: Icons.play_arrow,
               onPressed: () => showEarlyAccessDialog(context),
             ),
@@ -94,10 +98,7 @@ class _HeroCopy extends StatelessWidget {
             const _AvatarStack(),
             const SizedBox(width: 10),
             Flexible(
-              child: Text(
-                'Trusted by forward-thinking school leaders worldwide.',
-                style: TextStyle(fontSize: 13, color: MarketingColors.subtle),
-              ),
+              child: Text(words.text('hero.trustLine'), style: TextStyle(fontSize: 13, color: MarketingColors.subtle)),
             ),
           ],
         ),

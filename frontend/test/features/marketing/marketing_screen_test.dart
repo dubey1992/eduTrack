@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../support/marketing_scope.dart';
+
 Widget wrap() {
-  return MaterialApp.router(
-    routerConfig: GoRouter(
-      routes: [
-        GoRoute(path: '/', builder: (context, state) => const MarketingScreen()),
-        GoRoute(
-          path: '/login',
-          builder: (context, state) => const Scaffold(body: Text('Login Screen')),
-        ),
-      ],
+  return marketingScope(
+    MaterialApp.router(
+      routerConfig: GoRouter(
+        routes: [
+          GoRoute(path: '/', builder: (context, state) => const MarketingScreen()),
+          GoRoute(
+            path: '/login',
+            builder: (context, state) => const Scaffold(body: Text('Login Screen')),
+          ),
+        ],
+      ),
     ),
   );
 }

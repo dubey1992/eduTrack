@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/marketing_content_repository.dart';
 import '../marketing_colors.dart';
 import 'early_access_form.dart';
 import 'marketing_buttons.dart';
 import 'marketing_wrap.dart';
 
-class CtaSection extends StatelessWidget {
+class CtaSection extends ConsumerWidget {
   const CtaSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final words = ref.watch(marketingContentProvider);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 48),
       decoration: const BoxDecoration(
@@ -22,21 +26,17 @@ class CtaSection extends StatelessWidget {
             final copy = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Text(
-                  'Be Part of the Future of Education',
-                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
+                  words.text('cta.headline'),
+                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
                 ),
-                SizedBox(height: 6),
-                Text(
-                  "We're currently inviting schools worldwide to join our early access program.\n"
-                  'Get exclusive access, provide feedback, and help shape the future of School365ai.',
-                  style: TextStyle(color: Color(0xFFDBEAFE), fontSize: 14),
-                ),
+                const SizedBox(height: 6),
+                Text(words.text('cta.body'), style: const TextStyle(color: Color(0xFFDBEAFE), fontSize: 14)),
               ],
             );
             final button = MarketingPrimaryButton(
-              label: 'Join Early Access →',
+              label: words.text('cta.button'),
               onPressed: () => showEarlyAccessDialog(context),
               background: Colors.white,
               foreground: MarketingColors.primary,

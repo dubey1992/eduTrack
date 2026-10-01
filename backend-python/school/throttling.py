@@ -59,6 +59,23 @@ class EarlyAccessThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
 
 
+class MarketingContentThrottle(SimpleRateThrottle):
+    """The homepage's words, read by anybody who opens the page.
+
+    Generous rather than tight: this is a public page and a classroom of
+    thirty behind one school address opening it at once is ordinary
+    traffic, not an attack. The limit is here so a script cannot make the
+    endpoint a cheap way to hammer the database - which the cache in front
+    of it already makes unlikely (docs/marketing-content.md).
+    """
+
+    scope = "marketing-content"
+    rate = "120/min"
+
+    def get_cache_key(self, request, view) -> str | None:
+        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
+
+
 class PasswordResetThrottle(SimpleRateThrottle):
     """Tighter than signing in: each attempt can send a real email, so this is
     also a way to fill somebody's inbox."""

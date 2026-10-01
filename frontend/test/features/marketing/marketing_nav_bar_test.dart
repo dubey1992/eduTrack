@@ -2,6 +2,8 @@ import 'package:edutrack_app/features/marketing/presentation/widgets/marketing_n
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/marketing_scope.dart';
+
 /// The marketing bar is the first thing anyone sees, on whatever they own.
 ///
 /// It used to decide whether to show its links from the *window* width, while
@@ -11,11 +13,13 @@ void main() {
   const labels = ['Features', 'Modules', 'Pricing', 'Contact'];
 
   Widget wrap(double width, {List<String> links = labels}) {
-    return MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: width,
-          child: MarketingNavBar(onNavigate: {for (final label in links) label: () {}}, onJoinEarlyAccess: () {}),
+    return marketingScope(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: width,
+            child: MarketingNavBar(onNavigate: {for (final label in links) label: () {}}, onJoinEarlyAccess: () {}),
+          ),
         ),
       ),
     );

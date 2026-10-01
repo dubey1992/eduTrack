@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/marketing_content_repository.dart';
 
 import '../marketing_colors.dart';
 import 'marketing_wrap.dart';
@@ -6,11 +9,11 @@ import 'phone_mockup.dart';
 
 /// "Your School in Your Pocket" - matching the prototype's `.app` section:
 /// copy + store badges on one side, a parent/teacher phone pair on the other.
-class MobileAppSection extends StatelessWidget {
+class MobileAppSection extends ConsumerWidget {
   const MobileAppSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 78),
       decoration: const BoxDecoration(
@@ -43,25 +46,24 @@ class MobileAppSection extends StatelessWidget {
   }
 }
 
-class _MobileCopy extends StatelessWidget {
+class _MobileCopy extends ConsumerWidget {
   const _MobileCopy();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final words = ref.watch(marketingContentProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const MarketingEyebrow(text: 'MOBILE APP'),
+        MarketingEyebrow(text: words.text('mobile.eyebrow')),
         const SizedBox(height: 12),
-        const Text(
-          'Your School in\nYour Pocket',
-          style: TextStyle(fontSize: 34, height: 1.08, fontWeight: FontWeight.w800, color: MarketingColors.text),
+        Text(
+          words.text('mobile.headline'),
+          style: const TextStyle(fontSize: 34, height: 1.08, fontWeight: FontWeight.w800, color: MarketingColors.text),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Stay connected on the go with mobile apps for parents, teachers, students, and staff.',
-          style: TextStyle(fontSize: 14, color: MarketingColors.muted, height: 1.5),
-        ),
+        Text(words.text('mobile.body'), style: TextStyle(fontSize: 14, color: MarketingColors.muted, height: 1.5)),
         const SizedBox(height: 22),
         Wrap(
           spacing: 10,

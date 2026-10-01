@@ -37,6 +37,7 @@ from school.views import (
     inbox,
     leave,
     mail_settings,
+    marketing_content,
     permissions,
     profile,
     settings_modules,
@@ -260,6 +261,9 @@ urlpatterns = [
     path("api/v1/staff/<int:profile_id>/attendant/setup-code", attendants.setup_code),
     path("api/v1/staff/<int:profile_id>/attendant/devices/<int:device_id>", attendants.device),
     # -- early access ------------------------------------------------------
+    # The public homepage's words (docs/marketing-content.md). Public:
+    # the page is served to anybody, so its words are readable by anybody.
+    path("api/v1/marketing-content", marketing_content.content),
     path("api/v1/early-access", early_access.collection),
     path("api/v1/early-access/<int:request_id>", early_access.detail),
     # -- students ----------------------------------------------------------

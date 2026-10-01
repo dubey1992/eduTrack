@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/marketing_content_repository.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../marketing_colors.dart';
@@ -8,11 +12,11 @@ import 'marketing_wrap.dart';
 /// "Complete Control on the Web" - a browser-chrome mockup of the school
 /// dashboard beside a feature checklist, matching the prototype's `.web`
 /// section.
-class WebAppSection extends StatelessWidget {
+class WebAppSection extends ConsumerWidget {
   const WebAppSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 78),
       child: MarketingWrap(
@@ -130,7 +134,7 @@ class _BrowserMockup extends StatelessWidget {
   }
 }
 
-class _WebCopy extends StatelessWidget {
+class _WebCopy extends ConsumerWidget {
   const _WebCopy();
 
   static const _checks = [
@@ -141,21 +145,20 @@ class _WebCopy extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final words = ref.watch(marketingContentProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const MarketingEyebrow(text: 'WEB APPLICATION'),
+        MarketingEyebrow(text: words.text('web.eyebrow')),
         const SizedBox(height: 12),
-        const Text(
-          'Complete Control\non the Web',
-          style: TextStyle(fontSize: 34, height: 1.08, fontWeight: FontWeight.w800, color: MarketingColors.text),
+        Text(
+          words.text('web.headline'),
+          style: const TextStyle(fontSize: 34, height: 1.08, fontWeight: FontWeight.w800, color: MarketingColors.text),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Powerful admin dashboard for school leaders and staff.',
-          style: TextStyle(fontSize: 14, color: MarketingColors.muted),
-        ),
+        Text(words.text('web.body'), style: TextStyle(fontSize: 14, color: MarketingColors.muted)),
         const SizedBox(height: 18),
         MarketingPrimaryButton(label: 'Explore Web Dashboard →', onPressed: () => context.go('/login')),
         const SizedBox(height: 18),

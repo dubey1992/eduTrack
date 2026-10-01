@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/marketing_content_repository.dart';
 
 import '../marketing_colors.dart';
 import 'marketing_wrap.dart';
 
-class FeaturesSection extends StatelessWidget {
+class FeaturesSection extends ConsumerWidget {
   const FeaturesSection({super.key});
 
   static const _features = [
@@ -20,16 +23,18 @@ class FeaturesSection extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final words = ref.watch(marketingContentProvider);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 78),
       child: MarketingWrap(
         child: Column(
           children: [
-            const SectionHead(
-              eyebrow: 'EVERYTHING YOUR SCHOOL NEEDS',
-              title: 'Powerful Features for Modern Schools',
-              body: 'A complete solution to simplify school operations and enhance learning experiences.',
+            SectionHead(
+              eyebrow: words.text('features.eyebrow'),
+              title: words.text('features.title'),
+              body: words.text('features.body'),
             ),
             LayoutBuilder(
               builder: (context, constraints) {

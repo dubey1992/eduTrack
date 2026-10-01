@@ -544,6 +544,28 @@ class MailSetting(models.Model):
         managed = False
         db_table = 'mail_settings'
 
+class MarketingContent(models.Model):
+    """The words on the public homepage (docs/marketing-content.md).
+
+    One row, like MailSetting: the platform's own page belongs to no
+    school, so there is nothing to scope it by.
+
+    `document` holds only what somebody has changed. The page's own copy is
+    the client's defaults, which is what lets the homepage render correctly
+    when this table is empty, when the request fails, and before the first
+    byte of it arrives.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    document = LaravelJSONField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'marketing_content'
+
+
 class MessageTemplate(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)

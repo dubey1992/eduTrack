@@ -13,8 +13,11 @@ void main() {
     final reset = File('lib/features/auth/application/auth_notifier.dart').readAsStringSync();
     final declaration = RegExp(r'^final (\w+Provider) =\s*(\w+Provider)(\.\w+)?', multiLine: true);
 
-    // Not data about anybody: the session itself, and the fixed list of zones.
-    const exempt = {'authNotifierProvider', 'timezoneListProvider'};
+    // Not data about anybody: the session itself, the fixed list of zones,
+    // and the public homepage's words - which are the same for every
+    // visitor, signed in or not, and would only be refetched for nothing
+    // (docs/marketing-content.md).
+    const exempt = {'authNotifierProvider', 'timezoneListProvider', 'marketingContentProvider'};
 
     final missing = <String>[];
     for (final file in Directory('lib/features').listSync(recursive: true).whereType<File>()) {

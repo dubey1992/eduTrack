@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/marketing_content_repository.dart';
+
 import 'package:google_fonts/google_fonts.dart';
 
 import '../marketing_colors.dart';
 import 'marketing_wrap.dart';
 import '../../../../core/widgets/dialog_message.dart';
 
-class MarketingFooter extends StatefulWidget {
+class MarketingFooter extends ConsumerStatefulWidget {
   const MarketingFooter({super.key});
 
   @override
-  State<MarketingFooter> createState() => _MarketingFooterState();
+  ConsumerState<MarketingFooter> createState() => _MarketingFooterState();
 }
 
-class _MarketingFooterState extends State<MarketingFooter> {
+class _MarketingFooterState extends ConsumerState<MarketingFooter> {
   final _emailController = TextEditingController();
 
   @override
@@ -46,6 +50,8 @@ class _MarketingFooterState extends State<MarketingFooter> {
 
   @override
   Widget build(BuildContext context) {
+    final words = ref.watch(marketingContentProvider);
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 42),
@@ -86,19 +92,19 @@ class _MarketingFooterState extends State<MarketingFooter> {
             // at ~760px). Expanded on each side guarantees it never can,
             // while still spreading apart exactly like spaceBetween would
             // whenever there's room.
-            const Row(
+            Row(
               children: [
                 Expanded(
                   child: Text(
-                    '© 2026 School365ai. All rights reserved.',
-                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                    words.text('footer.copyright'),
+                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                   ),
                 ),
                 Expanded(
                   child: Text(
-                    'Smarter Schools. Brighter Futures.',
+                    words.text('footer.tagline'),
                     textAlign: TextAlign.right,
-                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                   ),
                 ),
               ],
@@ -110,11 +116,13 @@ class _MarketingFooterState extends State<MarketingFooter> {
   }
 }
 
-class _BrandColumn extends StatelessWidget {
+class _BrandColumn extends ConsumerWidget {
   const _BrandColumn();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final words = ref.watch(marketingContentProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -132,21 +140,18 @@ class _BrandColumn extends StatelessWidget {
             const SizedBox(width: 10),
             // Trims rather than spilling: this column is one of several in a
             // footer that narrows with the viewport.
-            const Flexible(
+            Flexible(
               child: Text(
-                'School365ai',
+                words.text('footer.wordmark'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: MarketingColors.text),
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: MarketingColors.text),
               ),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Modern school management for smarter schools and brighter futures.',
-          style: TextStyle(color: MarketingColors.subtle, fontSize: 13),
-        ),
+        Text(words.text('footer.blurb'), style: const TextStyle(color: MarketingColors.subtle, fontSize: 13)),
       ],
     );
   }
@@ -178,27 +183,29 @@ class _LinkColumn extends StatelessWidget {
   }
 }
 
-class _NewsletterColumn extends StatelessWidget {
+class _NewsletterColumn extends ConsumerWidget {
   const _NewsletterColumn({required this.emailController, required this.onSubscribe});
 
   final TextEditingController emailController;
   final VoidCallback onSubscribe;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final words = ref.watch(marketingContentProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
-          'Stay Updated',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: MarketingColors.text),
+        Text(
+          words.text('footer.newsletterTitle'),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: MarketingColors.text),
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 7),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7),
           child: Text(
-            'Get the latest news and updates.',
-            style: TextStyle(color: MarketingColors.subtle, fontSize: 13),
+            words.text('footer.newsletterBody'),
+            style: const TextStyle(color: MarketingColors.subtle, fontSize: 13),
           ),
         ),
         Container(
