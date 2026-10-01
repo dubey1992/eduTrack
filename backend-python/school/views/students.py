@@ -15,9 +15,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import progress_reports
+from .. import jobs, notifications, progress_reports
 from ..clock import DATE_TIME, SchoolClock
-from ..enums import StudentStatus
+from ..enums import MessageEvent, StudentStatus
+from ..errors import EmailNotSent, NoGuardianEmail, NothingToReport
 from ..models import Student
 from ..pagination import LaravelPagination
 from ..performance import for_student as performance_of
@@ -194,6 +195,63 @@ def progress_report(request, student_id: int) -> HttpResponse:
     response["Content-Disposition"] = f'attachment; filename="{progress_reports.file_name(payload)}"'
 
     return response
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def send_progress_report(request, student_id: int) -> Response:
+    """Sends the progress report to the student's guardian.
+
+    Staff choose when, which is the whole decision here: this is a document
+    about a child, and nothing goes out at a term boundary without somebody
+    having looked at it (docs/insights.md).
+
+    Whoever may print it may send it - the email carries exactly the page
+    they were looking at.
+    """
+    student = get_object_or_404(
+        Student.objects.select_related("school", "class_section__school_class"), pk=student_id
+    )
+
+    authorize(StudentPolicy.view(request.user, student))
+    authorize(permitted(request.user, "assessments", school_id=student.school_id))
+
+    # A POST carries the term in its body; a QueryDict has to be flattened
+    # or every value arrives as a one-item list.
+    body = request.data.dict() if hasattr(request.data, "dict") else request.data
+    asked = {**request.query_params.dict(), **(body if isinstance(body, dict) else {})}
+    form = StudentPerformanceRequest(data=asked, student=student)
+    form.is_valid(raise_exception=True)
+
+    term_id = form.validated_data.get("academic_term_id")
+    payload = performance_of(student, term_id)
+
+    # Nothing published is nothing to send: a sheet reading "no result yet"
+    # is not what a family is waiting for.
+    if not payload["subjects"]:
+        raise NothingToReport("There is no published result to send for this term.")
+
+    if not student.guardian_email:
+        raise NoGuardianEmail("This student has no guardian email address on record.")
+
+    term = payload["term"]
+    messages = notifications.notify_guardian(
+        MessageEvent.PROGRESS_REPORT,
+        student,
+        {"term_name": "" if term is None else term["name"], "class_name": payload["student"]["class_section_name"] or ""},
+        actor=request.user,
+        carrier=(
+            jobs.SEND_PROGRESS_REPORT,
+            {"student_id": student.id, "academic_term_id": None if term is None else term["id"]},
+        ),
+    )
+
+    # A school with the channel switched off records nothing and sends
+    # nothing, and is told so rather than left to wonder (docs/settings.md).
+    if not messages:
+        raise EmailNotSent("Email is switched off for this school, so nothing was sent.")
+
+    return Response({"queued": True, "recipient_email": student.guardian_email}, status=status.HTTP_202_ACCEPTED)
 
 
 @api_view(["GET"])

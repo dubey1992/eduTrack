@@ -151,6 +151,14 @@ class StudentRepository {
     }
   }
 
+  Future<void> sendProgressReport(int studentId, {int? academicTermId}) async {
+    try {
+      await _api.sendProgressReport(studentId, academicTermId: academicTermId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     try {
       return await _api.enrollments(studentId);

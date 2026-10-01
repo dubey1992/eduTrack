@@ -82,6 +82,7 @@ urlpatterns = [
     # -- class promotion, on this backend only. docs/promotion.md ----------
     path("api/v1/students/<int:student_id>/performance", students.performance),
     path("api/v1/students/<int:student_id>/progress-report", students.progress_report),
+    path("api/v1/students/<int:student_id>/progress-report/send", students.send_progress_report),
     path("api/v1/promotions/preview", promotions.preview),
     path("api/v1/promotions", promotions.collection),
     path("api/v1/promotions/<int:batch_id>", promotions.detail),

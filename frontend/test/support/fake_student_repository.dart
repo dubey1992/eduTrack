@@ -267,6 +267,18 @@ class FakeStudentRepository implements StudentRepository {
     return const [37, 80, 68, 70];
   }
 
+  /// Which term each send asked for, so a test can check the guardian is
+  /// sent the term on screen rather than whatever the server would pick.
+  final List<int?> sendCalls = [];
+
+  @override
+  Future<void> sendProgressReport(int studentId, {int? academicTermId}) async {
+    calls.add('sendProgressReport');
+    sendCalls.add(academicTermId);
+    final failure = failWith['sendProgressReport'];
+    if (failure != null) throw failure;
+  }
+
   @override
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     calls.add('enrollments');

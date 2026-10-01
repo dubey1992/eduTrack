@@ -215,6 +215,7 @@ class MessageEvent(models.TextChoices):
     LEAVE_APPROVED = "leave.approved", "Leave approved"
     LEAVE_REJECTED = "leave.rejected", "Leave rejected"
     RESULT_PUBLISHED = "result.published", "Result published"
+    PROGRESS_REPORT = "result.progress_report", "Progress report"
     ANNOUNCEMENT_PUBLISHED = "announcement.published", "Announcement"
     GENERAL_MESSAGE = "general.message", "Message"
     EMERGENCY_ALERT = "emergency.alert", "Emergency alert"
@@ -235,6 +236,12 @@ class MessageEvent(models.TextChoices):
         Alerts about a student go to whoever is told about that student and
         never into an inbox; everything else reaches staff, who have one.
         """
+        # A progress report *is* its attachment, and only one carrier takes
+        # one. An SMS saying "your child's report is attached" with nothing
+        # attached would be a lie the school did not tell (docs/insights.md).
+        if event == cls.PROGRESS_REPORT:
+            return [MessageChannel.EMAIL]
+
         category = cls.category(event)
 
         if category in (
@@ -283,6 +290,11 @@ DEFAULT_BODIES = {
     # grade scale sends "scored 17.5/20 in Unit Test 1 (Mathematics)".
     MessageEvent.RESULT_PUBLISHED: (
         "{student_name} scored {marks}/{max_marks} {grade} in {assessment_title} ({subject_name}). - {school_name}"
+    ),
+    # The report itself is the attachment; the wording only has to say what
+    # has arrived and who it is about (docs/insights.md).
+    MessageEvent.PROGRESS_REPORT: (
+        "Dear {guardian_name}, the progress report for {student_name} in {term_name} is attached. - {school_name}"
     ),
     MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
     MessageEvent.GENERAL_MESSAGE: "{school_name}: {subject} - {body}",

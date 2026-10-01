@@ -155,6 +155,15 @@ class StudentApi {
     return response.data ?? const [];
   }
 
+  /// Asks the server to email the report to the student's guardian.
+  ///
+  /// The rendering and the mail happen on a queue, so this returns as soon
+  /// as the message is recorded - the answer is "it is on its way", not
+  /// "it has arrived".
+  Future<void> sendProgressReport(int studentId, {int? academicTermId}) async {
+    await _dio.post<dynamic>('/students/$studentId/progress-report/send', data: {'academic_term_id': ?academicTermId});
+  }
+
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     final response = await _dio.get('/students/$studentId/enrollments');
 

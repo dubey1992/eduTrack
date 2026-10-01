@@ -1,6 +1,6 @@
 # Weak areas, recommendations, and one entry instead of two
 
-**Status (2026-10-01): slices 1, 2 and 3 built; 4 and 5 planned.** Decided with the user on 2026-10-01. This
+**Status (2026-10-01): slices 1 to 4 built; 5 planned.** Decided with the user on 2026-10-01. This
 continues [assessments.md](assessments.md) rather than replacing it: terms,
 grade scales, marks, publishing, the two performance reports and the
 progress report are all built and live. What follows is the part of
@@ -139,6 +139,14 @@ and payslip jobs. Offered beside the download.
 
 Edge cases: a student with no guardian email; the email channel switched
 off; a term with nothing published; a send that fails; who may send whose.
+
+**Built.** It goes by email and no other channel - a text saying "the
+report is attached" with nothing attached would be a lie the school did
+not tell. Email is off until a school configures SMTP, which is the
+product default rather than an oversight, so somebody pressing Send at a
+school that has not is told exactly that instead of watching nothing
+happen: a switched-off channel records nothing anywhere, which would
+otherwise leave them with no message and no explanation.
 
 ### Slice 5 - The automation sweep
 

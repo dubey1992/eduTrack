@@ -13,15 +13,17 @@ import logging
 
 from django.utils import timezone
 
-from . import mailer, notifications, receipts, sms, whatsapp
+from . import mailer, notifications, progress_reports, receipts, sms, whatsapp
 from .enums import MessageChannel, MessageStatus, UserRole, UserStatus
 from .gateways import Result, Template
-from .models import Message, Payment, User
+from .clock import DATE_TIME, SchoolClock
+from .models import Message, Payment, Student, User
 from .queue import handler
 
 logger = logging.getLogger(__name__)
 
 SEND_PAYMENT_RECEIPT = "payment_receipt"
+SEND_PROGRESS_REPORT = "progress_report"
 SEND_NOTICE = "send_notice"
 EMAIL_CHANGED_NOTICE = "email_changed_notice"
 
@@ -62,8 +64,13 @@ def send_message(message_id: int) -> None:
 
         return
 
-    result = deliver(message)
+    record_outcome(message, deliver(message), now)
 
+
+def record_outcome(message: Message, result: Result, now) -> None:
+    """However a message was carried, it ends in an honest state: sent, or
+    failed with a reason. Never left at "queued", which looks like one still
+    on its way."""
     if result.accepted:
         Message.objects.filter(pk=message.pk).update(
             status=MessageStatus.SENT,
@@ -134,6 +141,81 @@ def send_notice(**payload) -> None:
     from .services import NoticeService
 
     NoticeService.fan_out(payload)
+
+
+@handler(SEND_PROGRESS_REPORT)
+def send_progress_report(message_id: int, student_id: int, academic_term_id: int | None = None) -> None:
+    """Emails one child's progress report to their guardian.
+
+    The message row was written before this ran - gated by the school's own
+    switches and already in the log - so this only has to render the page,
+    carry it, and say honestly what happened.
+
+    Rendered here rather than when the send was asked for: a PDF and an SMTP
+    conversation have no business holding up the person who pressed the
+    button, and a mail server having a bad morning must never be why the
+    request failed.
+    """
+    # Imported here rather than at the top: performance reaches the report
+    # package, which reaches services, which reaches this module.
+    from . import performance
+
+    message = Message.objects.select_related("school").filter(pk=message_id).first()
+
+    if message is None or message.status != MessageStatus.QUEUED:
+        return
+
+    now = timezone.now()
+    student = Student.objects.select_related("school", "class_section__school_class").filter(pk=student_id).first()
+
+    # Removed between the asking and the sending: nothing to send, and
+    # nothing wrong either.
+    if student is None:
+        Message.objects.filter(pk=message.pk).update(
+            status=MessageStatus.SKIPPED,
+            failure_reason="The student was removed before the report could be sent.",
+            updated_at=now,
+        )
+
+        return
+
+    if not message.recipient_email:
+        Message.objects.filter(pk=message.pk).update(
+            status=MessageStatus.SKIPPED, failure_reason=notifications.NO_EMAIL, updated_at=now
+        )
+
+        return
+
+    payload = performance.for_student(student, academic_term_id)
+    clock = SchoolClock.for_school(student.school_id)
+
+    try:
+        mail = mailer.message(
+            subject=message.subject or f"Progress report - {student.name}",
+            body=message.body,
+            to=[message.recipient_email],
+        )
+        mail.attach(
+            progress_reports.file_name(payload),
+            progress_reports.render(
+                payload,
+                school_name=student.school.name,
+                generated_at=clock.format(clock.now(), DATE_TIME),
+            ),
+            "application/pdf",
+        )
+        mail.send()
+    except Exception as error:
+        logger.warning("Progress report for message %s failed: %s", message.id, error)
+        record_outcome(
+            message,
+            Result(accepted=False, failure_reason=str(error)[:255] or "The mail server refused the message."),
+            now,
+        )
+
+        return
+
+    record_outcome(message, Result(accepted=True), now)
 
 
 @handler(SEND_PAYMENT_RECEIPT)

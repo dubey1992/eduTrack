@@ -564,4 +564,67 @@ void main() {
       expect(find.text('What to do next'), findsOneWidget);
     });
   });
+
+  group('sending it to the guardian', () {
+    Future<void> openAndSend(WidgetTester tester, FakeStudentRepository fake, {bool confirm = true}) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(TextButton, 'Send to guardian'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(confirm ? FilledButton : TextButton, confirm ? 'Send' : 'Cancel'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('asks first, then sends the term on screen', (tester) async {
+      final fake = FakeStudentRepository();
+      await openAndSend(tester, fake);
+
+      expect(fake.sendCalls, [2], reason: 'the term the dialog is showing');
+      expect(find.text('Progress report sent to the guardian.'), findsOneWidget);
+    });
+
+    testWidgets('saying no sends nothing', (tester) async {
+      final fake = FakeStudentRepository();
+      await openAndSend(tester, fake, confirm: false);
+
+      expect(fake.sendCalls, isEmpty, reason: 'a document about a child does not go out on a mistaken tap');
+    });
+
+    testWidgets('the warning says what the guardian will see', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStudentRepository()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(TextButton, 'Send to guardian'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('will be emailed to their guardian'), findsOneWidget);
+      expect(find.textContaining('every figure on this page'), findsOneWidget);
+    });
+
+    testWidgets('a school with email switched off is told why', (tester) async {
+      final fake = FakeStudentRepository(
+        failWith: {
+          'sendProgressReport': const Failure(
+            code: 'EMAIL_NOT_SENT',
+            message: 'Email is switched off for this school, so nothing was sent.',
+          ),
+        },
+      );
+      await openAndSend(tester, fake);
+
+      expect(find.text('Email is switched off for this school, so nothing was sent.'), findsOneWidget);
+    });
+
+    testWidgets('it is not offered for a term with nothing published', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStudentRepository(performance: fakePerformance(subjects: const []))));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextButton, 'Send to guardian'), findsNothing);
+    });
+  });
 }

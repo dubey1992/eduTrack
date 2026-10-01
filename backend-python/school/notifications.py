@@ -254,7 +254,9 @@ def stamp(clock: SchoolClock) -> dict:
     return {"date": dates.us(clock.now()), "time": dates.us_time(clock.now())}
 
 
-def notify_guardian(event: str, student, tokens: dict, actor=None, channels=None, announcement=None, subject=None):
+def notify_guardian(
+    event: str, student, tokens: dict, actor=None, channels=None, announcement=None, subject=None, carrier=None
+):
     """Tells a student's guardian something."""
     # The guardian reads this on a phone in the school's country, so the date
     # and time inside the text are the school's, not the server's.
@@ -285,6 +287,7 @@ def notify_guardian(event: str, student, tokens: dict, actor=None, channels=None
         channels=channels,
         announcement=announcement,
         subject=subject,
+        carrier=carrier,
     )
 
 
@@ -355,8 +358,15 @@ def record(
     channels=None,
     announcement=None,
     subject=None,
+    carrier=None,
 ) -> list[Message]:
-    """Writes what should be sent, and queues the sending."""
+    """Writes what should be sent, and queues the sending.
+
+    `carrier` names the job that will take the message, for an event whose
+    delivery needs something the row does not hold - a progress report
+    needs the term its PDF is of. Left out, every queued copy goes to the
+    ordinary sender.
+    """
     if school_id is None:
         return []
 
@@ -425,8 +435,10 @@ def record(
                 school_id,
             )
 
+    job, payload = carrier or (SEND_MESSAGE, {})
+
     for message in messages:
         if message.status == MessageStatus.QUEUED:
-            queue.push(SEND_MESSAGE, {"message_id": message.id})
+            queue.push(job, {**payload, "message_id": message.id})
 
     return messages

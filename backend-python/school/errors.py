@@ -568,6 +568,42 @@ class TripRule(ApiError):
         return cls("INVALID_RIDER_STATUS_CHANGE", f"A {current} student cannot be marked {following}.")
 
 
+class NothingToReport(ApiError):
+    """There is no published result to put in a progress report.
+
+    422: the request is well formed and the term simply holds nothing yet.
+    A sheet reading "no result published" is not what a family is waiting
+    for, so it is refused rather than sent (docs/insights.md).
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "NOTHING_TO_REPORT"
+
+
+class NoGuardianEmail(ApiError):
+    """The student has no guardian email address on record.
+
+    422 and said plainly: the fix is a field on the student, and the person
+    sending can go and fill it in.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "NO_GUARDIAN_EMAIL"
+
+
+class EmailNotSent(ApiError):
+    """The school has email switched off, so nothing was recorded or sent.
+
+    409: a switched-off channel logs nothing anywhere in the product
+    (docs/settings.md), which would leave somebody who pressed Send with no
+    message and no explanation. This is the explanation.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "EMAIL_NOT_SENT"
+
+
+
 def envelope(status_code: int, code: str, message: str, details: dict | None = None) -> Response:
     return Response(
         {

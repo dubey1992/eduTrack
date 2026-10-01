@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/file_saver.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../application/student_performance_notifier.dart';
@@ -30,6 +31,7 @@ class StudentPerformanceDialog extends ConsumerStatefulWidget {
 
 class _StudentPerformanceDialogState extends ConsumerState<StudentPerformanceDialog> {
   bool _downloading = false;
+  bool _sending = false;
 
   Student get student => widget.student;
 
@@ -58,6 +60,41 @@ class _StudentPerformanceDialogState extends ConsumerState<StudentPerformanceDia
         ..showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  /// Emails the report to the guardian, when staff ask for it.
+  ///
+  /// Never on a schedule: this is a document about a child, and somebody
+  /// should have looked at it first (docs/insights.md).
+  Future<void> _send(StudentPerformance performance) async {
+    final confirmed = await confirmDialog(
+      context,
+      title: 'Send to the guardian?',
+      message:
+          "The progress report for ${student.name} will be emailed to their guardian. "
+          'They will see every figure on this page.',
+      confirmLabel: 'Send',
+    );
+
+    if (!confirmed || !mounted) return;
+
+    setState(() => _sending = true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await ref.read(studentRepositoryProvider).sendProgressReport(student.id, academicTermId: performance.term?.id);
+
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(const SnackBar(content: Text('Progress report sent to the guardian.')));
+    } catch (error) {
+      final message = error is Failure ? error.message : error.toString();
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -113,8 +150,16 @@ class _StudentPerformanceDialogState extends ConsumerState<StudentPerformanceDia
       ),
       actions: [
         if (performance != null && performance.hasMarks)
+          TextButton.icon(
+            onPressed: _sending || _downloading ? null : () => _send(performance),
+            icon: _sending
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.mail_outlined, size: 18),
+            label: const Text('Send to guardian'),
+          ),
+        if (performance != null && performance.hasMarks)
           OutlinedButton.icon(
-            onPressed: _downloading ? null : () => _download(performance),
+            onPressed: _downloading || _sending ? null : () => _download(performance),
             icon: _downloading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.picture_as_pdf_outlined, size: 18),

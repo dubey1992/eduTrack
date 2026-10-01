@@ -262,7 +262,7 @@ class TemplateTest(CommunicationTestCase):
     def test_every_event_is_listed_with_its_default_wording(self):
         response = self.as_user(self.admin).get(self.URL)
 
-        self.assertEqual(12, len(response.data))
+        self.assertEqual(13, len(response.data))
         self.assertEqual(
             {
                 "event": "attendance.present",
