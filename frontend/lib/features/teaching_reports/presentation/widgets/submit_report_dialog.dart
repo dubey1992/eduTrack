@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../syllabus/data/models/syllabus_topic.dart';
+import '../../../syllabus/data/syllabus_topic_repository.dart';
 import '../../../timetable/data/models/timetable_entry.dart';
 import '../../application/teaching_report_list_notifier.dart';
 
@@ -27,6 +29,7 @@ class _SubmitReportDialogState extends ConsumerState<SubmitReportDialog> {
 
   bool _isSubmitting = false;
   String? _errorMessage;
+  int? _syllabusTopicId;
 
   @override
   void dispose() {
@@ -52,6 +55,7 @@ class _SubmitReportDialogState extends ConsumerState<SubmitReportDialog> {
             timetableEntryId: widget.entry.id,
             reportDate: widget.reportDate,
             topicTaught: _topicController.text.trim(),
+            syllabusTopicId: _syllabusTopicId,
             homework: _homeworkController.text.trim().isEmpty ? null : _homeworkController.text.trim(),
             remarks: _remarksController.text.trim().isEmpty ? null : _remarksController.text.trim(),
           );
@@ -95,6 +99,12 @@ class _SubmitReportDialogState extends ConsumerState<SubmitReportDialog> {
                   validator: (value) => (value == null || value.trim().isEmpty) ? 'Topic taught is required' : null,
                 ),
                 const SizedBox(height: 10),
+                _TopicPicker(
+                  subjectId: widget.entry.subjectId,
+                  value: _syllabusTopicId,
+                  onChanged: (id) => setState(() => _syllabusTopicId = id),
+                ),
+                const SizedBox(height: 10),
                 TextFormField(
                   controller: _homeworkController,
                   decoration: const InputDecoration(labelText: 'Homework (optional)'),
@@ -125,5 +135,57 @@ class _SubmitReportDialogState extends ConsumerState<SubmitReportDialog> {
         ),
       ],
     );
+  }
+}
+
+/// The syllabus topics of the subject this period teaches.
+///
+/// Picking one marks it covered for the class when the report is filed, so
+/// the teacher does not write the topic here and tick the same topic on the
+/// Syllabus screen (docs/insights.md).
+///
+/// Optional on purpose: a revision period, a test or a visiting speaker is a
+/// real lesson that belongs to no chapter, and "Topic taught" still says what
+/// happened. A subject with no syllabus shows nothing rather than an empty
+/// box somebody has to wonder about.
+final _topicsProvider = FutureProvider.autoDispose.family<List<SyllabusTopic>, int>((ref, subjectId) {
+  return ref.watch(syllabusTopicRepositoryProvider).list(subjectId: subjectId);
+});
+
+class _TopicPicker extends ConsumerWidget {
+  const _TopicPicker({required this.subjectId, required this.value, required this.onChanged});
+
+  final int subjectId;
+  final int? value;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // A syllabus that cannot be loaded must not stop a report being filed,
+    // so a failure here shows nothing rather than an error.
+    return ref
+        .watch(_topicsProvider(subjectId))
+        .maybeWhen(
+          data: (topics) {
+            if (topics.isEmpty) return const SizedBox.shrink();
+
+            return DropdownButtonFormField<int?>(
+              key: const Key('report-syllabus-topic'),
+              initialValue: value,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Syllabus topic (optional)',
+                helperText: 'Picking one ticks it off for this class',
+                helperMaxLines: 2,
+              ),
+              items: [
+                const DropdownMenuItem<int?>(value: null, child: Text('Not a syllabus topic')),
+                for (final topic in topics) DropdownMenuItem<int?>(value: topic.id, child: Text(topic.title)),
+              ],
+              onChanged: onChanged,
+            );
+          },
+          orElse: () => const SizedBox.shrink(),
+        );
   }
 }

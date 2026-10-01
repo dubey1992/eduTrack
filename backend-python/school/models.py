@@ -252,6 +252,10 @@ class DailyTeachingReport(models.Model):
     teacher = models.ForeignKey('User', models.DO_NOTHING)
     report_date = models.DateField()
     topic_taught = models.CharField(max_length=255)
+    # The syllabus topic the lesson was about, where it was one. Null for a
+    # revision period, a test, or any of the reports filed before the column
+    # existed - `topic_taught` still says what happened (docs/insights.md).
+    syllabus_topic = models.ForeignKey('SyllabusTopic', models.DO_NOTHING, blank=True, null=True)
     homework = models.CharField(max_length=500, blank=True, null=True)
     remarks = models.CharField(max_length=500, blank=True, null=True)
     reviewed_by = models.ForeignKey('User', models.DO_NOTHING, db_column='reviewed_by', related_name='dailyteachingreports_reviewed_by_set', blank=True, null=True)

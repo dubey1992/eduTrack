@@ -23,6 +23,7 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
     required int timetableEntryId,
     required String reportDate,
     required String topicTaught,
+    int? syllabusTopicId,
     String? homework,
     String? remarks,
   }) async {
@@ -31,6 +32,7 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
       'timetable_entry_id': timetableEntryId,
       'report_date': reportDate,
       'topic_taught': topicTaught,
+      'syllabus_topic_id': syllabusTopicId,
       'homework': homework,
       'remarks': remarks,
     };

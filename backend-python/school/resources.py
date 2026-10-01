@@ -179,6 +179,8 @@ def daily_teaching_report_resource(report) -> dict:
         "teacher_name": report.teacher.name if report.teacher_id else None,
         "report_date": report.report_date.isoformat(),
         "topic_taught": report.topic_taught,
+        "syllabus_topic_id": report.syllabus_topic_id,
+        "syllabus_topic_name": report.syllabus_topic.title if report.syllabus_topic_id else None,
         "homework": report.homework,
         "remarks": report.remarks,
         "reviewed_by": report.reviewed_by_id,

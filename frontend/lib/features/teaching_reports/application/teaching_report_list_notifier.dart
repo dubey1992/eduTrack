@@ -84,6 +84,7 @@ class TeachingReportListNotifier extends AsyncNotifier<PagedList<TeachingReport>
     required int timetableEntryId,
     required String reportDate,
     required String topicTaught,
+    int? syllabusTopicId,
     String? homework,
     String? remarks,
   }) async {
@@ -93,6 +94,7 @@ class TeachingReportListNotifier extends AsyncNotifier<PagedList<TeachingReport>
           timetableEntryId: timetableEntryId,
           reportDate: reportDate,
           topicTaught: topicTaught,
+          syllabusTopicId: syllabusTopicId,
           homework: homework,
           remarks: remarks,
         );

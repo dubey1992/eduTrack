@@ -16,13 +16,18 @@ department they head, so without a check they would pass the department test.
 
 import datetime as dt
 
+from unittest import mock
+
 from django.core.cache import cache
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.test import TestCase
 from rest_framework.test import APIClient
 
 from school import factories, tokens
 from school.enums import UserRole
-from school.models import DailyTeachingReport, Holiday
+from school.services import SyllabusProgressService
+from school.models import AuditLog, DailyTeachingReport, Holiday, SyllabusTopicProgress
 
 # A Monday already in the past, so "not in the future" never interferes with
 # the rule a test is actually about.
@@ -416,9 +421,154 @@ class TeachingReportTest(TestCase):
             {
                 "id", "school_id", "timetable_entry_id", "class_section_name",
                 "period_number", "subject_name", "teacher_id", "teacher_name",
-                "report_date", "topic_taught", "homework", "remarks", "reviewed_by",
-                "reviewed_by_name", "reviewed_at",
+                "report_date", "topic_taught", "syllabus_topic_id", "syllabus_topic_name",
+                "homework", "remarks", "reviewed_by", "reviewed_by_name", "reviewed_at",
             },
             set(response.data),
         )
         self.assertEqual(1, DailyTeachingReport.objects.count())
+
+
+class FilingTicksTheSyllabus(TeachingReportTest):
+    """One entry instead of two (docs/insights.md, slice 3).
+
+    A teacher used to write the topic in the daily report and then tick the
+    same topic on the Syllabus screen. Filing now does both - which puts a
+    write on a path that only ever read before, so most of what is pinned
+    here is what it must *not* do.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.topic = factories.SyllabusTopicFactory(
+            subject=self.subject, school=self.school, title="Linear equations", sequence_number=1
+        )
+
+    def covered(self, topic=None, section=None) -> bool:
+        return SyllabusTopicProgress.objects.filter(
+            syllabus_topic_id=(topic or self.topic).id,
+            class_section_id=(section or self.section).id,
+        ).exists()
+
+    def test_filing_a_report_that_names_a_topic_marks_it_covered(self):
+        response = self.file(syllabus_topic_id=self.topic.id)
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(self.topic.id, response.data["syllabus_topic_id"])
+        self.assertEqual("Linear equations", response.data["syllabus_topic_name"])
+        self.assertTrue(self.covered(), "the syllabus should not need ticking a second time")
+
+    def test_the_mark_records_who_taught_it(self):
+        self.file(syllabus_topic_id=self.topic.id)
+
+        progress = SyllabusTopicProgress.objects.get(syllabus_topic_id=self.topic.id)
+
+        self.assertEqual(self.teacher.id, progress.completed_by_id)
+        self.assertEqual(self.school.id, progress.school_id)
+
+    def test_a_report_naming_no_topic_ticks_nothing(self):
+        """A revision period, a test or a visiting speaker is a real lesson
+        and names no chapter."""
+        response = self.file()
+
+        self.assertEqual(201, response.status_code)
+        self.assertIsNone(response.data["syllabus_topic_id"])
+        self.assertFalse(SyllabusTopicProgress.objects.exists())
+
+    def test_topic_taught_still_says_what_happened(self):
+        """The text is not replaced by the foreign key: a year of existing
+        reports have only the text, and a lesson is often not a chapter."""
+        response = self.file(topic_taught="Revision before the test")
+
+        self.assertEqual("Revision before the test", response.data["topic_taught"])
+
+    def test_a_topic_already_covered_keeps_the_record_of_who_did_it_first(self):
+        other = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+        SyllabusProgressService.toggle(self.topic, self.section, True, other)
+        before = SyllabusTopicProgress.objects.get(syllabus_topic_id=self.topic.id)
+
+        self.file(syllabus_topic_id=self.topic.id)
+
+        after = SyllabusTopicProgress.objects.get(syllabus_topic_id=self.topic.id)
+        self.assertEqual(before.completed_by_id, after.completed_by_id, "teaching it again is not covering it again")
+        self.assertEqual(before.completed_at, after.completed_at)
+
+    def test_two_reports_on_the_same_topic_leave_one_mark(self):
+        self.file(syllabus_topic_id=self.topic.id)
+        self.file(user=self.hod, syllabus_topic_id=self.topic.id,
+                  timetable_entry_id=self.period_for(self.hod, self.second).id)
+
+        self.assertEqual(1, SyllabusTopicProgress.objects.filter(syllabus_topic_id=self.topic.id).count())
+
+    def test_it_is_covered_for_the_class_that_was_taught_only(self):
+        elsewhere = factories.ClassSectionFactory(school_class=self.section.school_class, name="B")
+
+        self.file(syllabus_topic_id=self.topic.id)
+
+        self.assertTrue(self.covered())
+        self.assertFalse(self.covered(section=elsewhere), "8 B has not been taught it")
+
+    def test_a_topic_of_another_subject_is_refused(self):
+        """It would tick the wrong syllabus, silently."""
+        other_subject = factories.SubjectFactory(school=self.school, name="History")
+        stranger = factories.SyllabusTopicFactory(
+            subject=other_subject, school=self.school, title="The Mughals", sequence_number=1
+        )
+
+        response = self.file(syllabus_topic_id=stranger.id)
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("syllabus_topic_id", self.errors(response))
+        self.assertFalse(SyllabusTopicProgress.objects.exists())
+
+    def test_a_topic_that_does_not_exist_is_refused(self):
+        response = self.file(syllabus_topic_id=9_999_999)
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("syllabus_topic_id", self.errors(response))
+
+    def test_a_report_refused_before_it_is_written_ticks_nothing(self):
+        response = self.file(syllabus_topic_id=self.topic.id, report_date="2026-01-03")
+
+        self.assertEqual(422, response.status_code)
+        self.assertFalse(SyllabusTopicProgress.objects.exists())
+
+    def test_a_tick_that_fails_takes_the_report_down_with_it(self):
+        """The two are one transaction, and this is the only case that
+        proves it. A report refused by validation never reaches the service
+        at all, so asserting on that one would pass whether the transaction
+        were there or not - it did, until a sabotage pass said so.
+        """
+        with mock.patch(
+            "school.services.SyllabusTopicProgress.objects.get_or_create",
+            side_effect=RuntimeError("the syllabus write failed"),
+        ):
+            # The API turns an unhandled error into a 500 rather than
+            # letting it out, so the status is what there is to assert on.
+            response = self.file(syllabus_topic_id=self.topic.id)
+
+        self.assertEqual(500, response.status_code)
+
+        self.assertFalse(
+            DailyTeachingReport.objects.exists(),
+            "a report filed but never credited to the syllabus is the half-done state the transaction exists to prevent",
+        )
+        self.assertFalse(SyllabusTopicProgress.objects.exists())
+
+    def test_the_tick_is_audited_the_way_the_syllabus_screen_audits_one(self):
+        self.file(syllabus_topic_id=self.topic.id)
+
+        entry = AuditLog.objects.filter(action="syllabus_topic.ticked").first()
+
+        self.assertIsNotNone(entry, "one trail answers when a topic was ticked, and by what")
+        self.assertEqual("daily_teaching_report", entry.new_values["from"])
+
+    def test_the_list_costs_no_query_per_report(self):
+        for index in range(4):
+            entry = self.period_for(self.teacher, factories.PeriodFactory(school=self.school, period_number=10 + index))
+            self.file(timetable_entry_id=entry.id, syllabus_topic_id=self.topic.id)
+
+        with CaptureQueriesContext(connection) as many:
+            self.as_user(self.teacher).get("/api/v1/teaching-reports")
+
+        self.assertLess(len(many), 15, "the topic should ride on the existing select_related")

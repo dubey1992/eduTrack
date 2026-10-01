@@ -970,12 +970,43 @@ class StoreDailyTeachingReportRequest(ScopedSerializer):
     timetable_entry_id = LaravelIntegerField("timetable_entry_id")
     report_date = LaravelDateField("report_date")
     topic_taught = LaravelCharField("topic_taught", max_length=255)
+    syllabus_topic_id = LaravelIntegerField("syllabus_topic_id", required=False, allow_null=True)
     homework = optional_text("homework", 500)
     remarks = optional_text("remarks", 500)
 
     def validate_timetable_entry_id(self, value):
         if not TimetableEntry.objects.filter(pk=value).exists():
             raise serializers.ValidationError(selected_is_invalid("timetable_entry_id"))
+
+        return value
+
+    def validate_syllabus_topic_id(self, value):
+        """The topic must be one of this period's subject's.
+
+        Filing a report ticks the topic off for the class, so a topic from
+        another subject would quietly mark the wrong syllabus complete
+        (docs/insights.md). Optional: a revision period or a test is a real
+        lesson and names no chapter.
+        """
+        if value is None:
+            return value
+
+        topic = SyllabusTopic.objects.filter(pk=value).first()
+
+        if topic is None:
+            raise serializers.ValidationError(selected_is_invalid("syllabus_topic_id"))
+
+        try:
+            entry_id = int(str(self.initial_data.get("timetable_entry_id")))
+        except (TypeError, ValueError):
+            return value
+
+        entry = TimetableEntry.objects.filter(pk=entry_id).first()
+
+        if entry is not None and topic.subject_id != entry.subject_id:
+            raise serializers.ValidationError(
+                "The topic must belong to the subject this period teaches."
+            )
 
         return value
 

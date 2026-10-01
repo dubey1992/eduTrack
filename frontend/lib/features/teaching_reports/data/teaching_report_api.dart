@@ -17,6 +17,7 @@ class TeachingReportApi {
     required int timetableEntryId,
     required String reportDate,
     required String topicTaught,
+    int? syllabusTopicId,
     String? homework,
     String? remarks,
   }) async {
@@ -26,6 +27,7 @@ class TeachingReportApi {
         'timetable_entry_id': timetableEntryId,
         'report_date': reportDate,
         'topic_taught': topicTaught,
+        'syllabus_topic_id': ?syllabusTopicId,
         'homework': homework,
         'remarks': remarks,
       },

@@ -1280,6 +1280,8 @@ class DailyTeachingReportService:
         "timetable_entry__subject",
         "teacher",
         "reviewed_by",
+        # The topic rides along, or every row in the list costs a query.
+        "syllabus_topic",
     )
 
     @classmethod
@@ -1315,20 +1317,66 @@ class DailyTeachingReportService:
 
         now = timezone.now()
 
-        report = DailyTeachingReport.objects.create(
-            school_id=entry.school_id,
-            timetable_entry_id=entry.id,
-            teacher_id=actor.id,
-            report_date=data["report_date"],
-            topic_taught=data["topic_taught"],
-            homework=data.get("homework"),
-            remarks=data.get("remarks"),
-            created_at=now,
-            updated_at=now,
-        )
-        audit.created("teaching", report)
+        with transaction.atomic():
+            report = DailyTeachingReport.objects.create(
+                school_id=entry.school_id,
+                timetable_entry_id=entry.id,
+                teacher_id=actor.id,
+                report_date=data["report_date"],
+                topic_taught=data["topic_taught"],
+                syllabus_topic_id=data.get("syllabus_topic_id"),
+                homework=data.get("homework"),
+                remarks=data.get("remarks"),
+                created_at=now,
+                updated_at=now,
+            )
+            audit.created("teaching", report)
+            cls.cover_the_topic(report, entry, actor, now)
 
         return cls.fresh(report)
+
+    @staticmethod
+    def cover_the_topic(report, entry, actor: User, now) -> None:
+        """Filing a report that names a topic marks it covered for the class
+        it was taught to (docs/insights.md, slice 3).
+
+        One entry instead of two: the teacher used to write the topic here
+        and then tick the same topic on the Syllabus screen.
+
+        **It only ever adds.** A topic already covered is left exactly as it
+        was - the same lesson taught again, or revised, does not rewrite who
+        covered it first or when. And nothing here un-covers anything: a
+        report edited to name a different topic does not withdraw the first,
+        because another teacher or another section may be relying on it, and
+        a record quietly reversed by somebody else's edit is worse than one
+        corrected on purpose. The Syllabus screen is where it comes off.
+        """
+        if report.syllabus_topic_id is None:
+            return
+
+        _, created = SyllabusTopicProgress.objects.get_or_create(
+            syllabus_topic_id=report.syllabus_topic_id,
+            class_section_id=entry.class_section_id,
+            defaults={
+                "school_id": entry.school_id,
+                "completed_by_id": actor.id,
+                "completed_at": now,
+                "created_at": now,
+                "updated_at": now,
+            },
+        )
+
+        if created:
+            # The same action the Syllabus screen records, so one audit
+            # trail answers "when was this ticked, and by what".
+            audit.record(
+                action="syllabus_topic.ticked",
+                module="syllabus",
+                entity_type="syllabus_topic",
+                entity_id=report.syllabus_topic_id,
+                school_id=entry.school_id,
+                new={"class_section_id": entry.class_section_id, "from": "daily_teaching_report"},
+            )
 
     @classmethod
     def review(cls, report, actor: User):

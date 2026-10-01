@@ -20,6 +20,7 @@ class TeachingReportRepository {
     required int timetableEntryId,
     required String reportDate,
     required String topicTaught,
+    int? syllabusTopicId,
     String? homework,
     String? remarks,
   }) async {
@@ -28,6 +29,7 @@ class TeachingReportRepository {
         timetableEntryId: timetableEntryId,
         reportDate: reportDate,
         topicTaught: topicTaught,
+        syllabusTopicId: syllabusTopicId,
         homework: homework,
         remarks: remarks,
       );
