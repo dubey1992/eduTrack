@@ -17,6 +17,8 @@ import datetime as dt
 from decimal import Decimal
 
 from django.core.cache import cache
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -479,3 +481,155 @@ class WhoMayRead(PerformanceTestCase):
 
     def test_a_student_who_does_not_exist_is_a_404(self):
         self.assertEqual(404, self.client.get("/api/v1/students/99999999/performance").status_code)
+
+
+class TheTopicsInsideASubject(PerformanceTestCase):
+    """Which parts of a subject are weak (docs/insights.md, slice 1).
+
+    `assessments.syllabus_topic_id` had been written since assessments were
+    built and read by nothing. A subject average says Mathematics is at
+    52%; what a teacher can act on is that it is the trigonometry half.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.vectors = factories.SyllabusTopicFactory(
+            subject=self.maths, school=self.school, title="Vectors", sequence_number=1
+        )
+        self.trig = factories.SyllabusTopicFactory(
+            subject=self.maths, school=self.school, title="Trigonometry", sequence_number=2
+        )
+
+    def on_topic(self, topic, marks=None, is_absent=False, max_marks="20"):
+        assessment = self.published(max_marks=max_marks)
+        assessment.syllabus_topic = topic
+        assessment.save()
+        self.mark(assessment, marks=marks, is_absent=is_absent)
+
+        return assessment
+
+    def topics(self, subject="Mathematics") -> list:
+        return self.subjects(self.ask())[subject]["topics"]
+
+    def test_each_topic_is_averaged_on_its_own(self):
+        self.on_topic(self.vectors, marks="18")
+        self.on_topic(self.trig, marks="8")
+
+        topics = self.topics()
+
+        self.assertEqual(["Vectors", "Trigonometry"], [row["topic_name"] for row in topics])
+        self.assertEqual("90.00", topics[0]["average_percentage"])
+        self.assertEqual("40.00", topics[1]["average_percentage"])
+
+    def test_they_come_in_the_order_the_syllabus_teaches_them(self):
+        """Not alphabetically, and not by when the test happened: a
+        syllabus has an order and a teacher reads down it."""
+        self.on_topic(self.trig, marks="8")
+        self.on_topic(self.vectors, marks="18")
+
+        self.assertEqual(["Vectors", "Trigonometry"], [row["topic_name"] for row in self.topics()])
+
+    def test_several_tests_on_one_topic_average_together(self):
+        self.on_topic(self.trig, marks="8")
+        self.on_topic(self.trig, marks="12")
+
+        topics = self.topics()
+
+        self.assertEqual(1, len(topics))
+        self.assertEqual("50.00", topics[0]["average_percentage"], "40% and 60%")
+        self.assertEqual(2, topics[0]["assessments"])
+
+    def test_a_topic_the_student_missed_entirely_has_no_average_rather_than_a_nought(self):
+        self.on_topic(self.trig, is_absent=True)
+
+        topics = self.topics()
+
+        self.assertIsNone(topics[0]["average_percentage"])
+        self.assertEqual(1, topics[0]["absent"])
+        self.assertEqual(1, topics[0]["assessments"])
+
+    def test_an_absence_leaves_the_topic_average_the_way_it_leaves_the_subjects(self):
+        self.on_topic(self.trig, marks="8")
+        self.on_topic(self.trig, is_absent=True)
+
+        topics = self.topics()
+
+        self.assertEqual("40.00", topics[0]["average_percentage"], "the missed test does not drag it down")
+        self.assertEqual(2, topics[0]["assessments"])
+        self.assertEqual(1, topics[0]["absent"])
+
+    def test_a_test_naming_no_topic_still_counts_towards_the_subject(self):
+        """Most name one, but a subject is not only its syllabus - a term
+        paper covers everything and belongs to no chapter."""
+        self.on_topic(self.trig, marks="8")
+        self.mark(self.published(), marks="20")
+
+        maths = self.subjects(self.ask())["Mathematics"]
+
+        self.assertEqual(2, maths["assessments"])
+        self.assertEqual(1, len(maths["topics"]), "only the one that named a topic")
+
+    def test_a_subject_whose_tests_name_no_topic_has_an_empty_list_not_a_lie(self):
+        self.mark(self.published(), marks="18")
+
+        self.assertEqual([], self.subjects(self.ask())["Mathematics"]["topics"])
+
+    def test_a_topic_belongs_to_its_own_subject_only(self):
+        """A topic of Science cannot appear under Mathematics even if an
+        assessment names it - the row is grouped by the test's subject."""
+        science_topic = factories.SyllabusTopicFactory(
+            subject=self.science, school=self.school, title="Optics", sequence_number=1
+        )
+        self.on_topic(self.trig, marks="8")
+
+        assessment = self.published(subject=self.science)
+        assessment.syllabus_topic = science_topic
+        assessment.save()
+        self.mark(assessment, marks="16")
+
+        subjects = self.subjects(self.ask())
+
+        self.assertEqual(["Trigonometry"], [row["topic_name"] for row in subjects["Mathematics"]["topics"]])
+        self.assertEqual(["Optics"], [row["topic_name"] for row in subjects["Science"]["topics"]])
+
+    def test_a_draft_says_nothing_about_a_topic_either(self):
+        draft = self.draft()
+        draft.syllabus_topic = self.trig
+        draft.save()
+        self.mark(draft, marks="1")
+        self.on_topic(self.vectors, marks="18")
+
+        self.assertEqual(["Vectors"], [row["topic_name"] for row in self.topics()])
+
+    def test_the_previous_terms_topics_do_not_leak_into_this_ones(self):
+        before = self.published(term=self.term_1)
+        before.syllabus_topic = self.trig
+        before.save()
+        self.mark(before, marks="2")
+        self.on_topic(self.vectors, marks="18")
+
+        self.assertEqual(["Vectors"], [row["topic_name"] for row in self.topics()])
+
+    def test_reading_the_topics_costs_nothing_per_topic(self):
+        """The topic rides on the same select_related as the subject.
+
+        Asserted as "the same number of queries either way" rather than
+        against a magic number: what matters is that a syllabus of forty
+        chapters does not ask forty more questions, and a count pinned to
+        today's total would only ever be a test of today's total.
+        """
+        self.on_topic(self.trig, marks="8")
+
+        with CaptureQueriesContext(connection) as one_topic:
+            self.ask()
+
+        for index in range(6):
+            topic = factories.SyllabusTopicFactory(
+                subject=self.maths, school=self.school, title=f"Topic {index}", sequence_number=10 + index
+            )
+            self.on_topic(topic, marks="15")
+
+        with CaptureQueriesContext(connection) as seven_topics:
+            self.ask()
+
+        self.assertEqual(len(one_topic), len(seven_topics))

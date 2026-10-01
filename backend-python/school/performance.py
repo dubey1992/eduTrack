@@ -97,7 +97,7 @@ def published_marks(student: Student, term: AcademicTerm):
             assessment__academic_term_id=term.id,
             assessment__status=AssessmentStatus.PUBLISHED,
         )
-        .select_related("assessment__subject")
+        .select_related("assessment__subject", "assessment__syllabus_topic")
         .order_by("assessment__subject__name", "assessment__assessment_date", "assessment_id")
     )
 
@@ -181,20 +181,30 @@ class StudentPerformance:
                     "absent": 0,
                     "marks": [],
                     "assessment_ids": [],
+                    "topics": {},
                 },
             )
 
             entry["assessments"] += 1
             entry["assessment_ids"].append(mark.assessment_id)
 
+            topic = cls.topic_entry(entry, mark)
+
             if mark.is_absent:
                 entry["absent"] += 1
+
+                if topic is not None:
+                    topic["absent"] += 1
+
                 continue
 
             percentage = percentage_of(mark)
 
             if percentage is not None:
                 entry["marks"].append((percentage, mark.assessment.weightage))
+
+                if topic is not None:
+                    topic["marks"].append((percentage, mark.assessment.weightage))
 
         class_averages = cls.class_averages(
             [assessment_id for entry in counted.values() for assessment_id in entry["assessment_ids"]]
@@ -216,11 +226,61 @@ class StudentPerformance:
                 "class_average_percentage": cls.text(
                     average_of([(class_averages[a], None) for a in entry["assessment_ids"] if a in class_averages])
                 ),
+                "topics": cls.topics_of(entry),
                 "previous_average_percentage": cls.text(was),
                 "change": cls.text(change_between(average, was)),
             })
 
         return sorted(subjects, key=lambda row: row["subject_name"])
+
+    @staticmethod
+    def topic_entry(subject: dict, mark) -> dict | None:
+        """The running figures for the topic this test was about.
+
+        Nothing for a test that names no topic. Most do - the field has
+        been on assessments since they were built - but a school that
+        never fills it in gets no topic breakdown rather than an empty one
+        (docs/insights.md).
+        """
+        topic = mark.assessment.syllabus_topic
+
+        if topic is None:
+            return None
+
+        return subject["topics"].setdefault(
+            topic.id,
+            {
+                "topic_id": topic.id,
+                "topic_name": topic.title,
+                "sequence_number": topic.sequence_number,
+                "assessments": 0,
+                "absent": 0,
+                "marks": [],
+            },
+        )
+
+    @classmethod
+    def topics_of(cls, subject: dict) -> list[dict]:
+        """The subject's topics, in the order the syllabus teaches them.
+
+        Each is averaged by exactly the rules the subject is: an absentee
+        leaves the denominator, so a topic the student missed entirely has
+        no average rather than a nought.
+        """
+        topics = []
+
+        for entry in subject["topics"].values():
+            entry["assessments"] = len(entry["marks"]) + entry["absent"]
+            topics.append({
+                "topic_id": entry["topic_id"],
+                "topic_name": entry["topic_name"],
+                "assessments": entry["assessments"],
+                "absent": entry["absent"],
+                "average_percentage": cls.text(average_of(entry["marks"])),
+                "sequence_number": entry["sequence_number"],
+            })
+
+        return sorted(topics, key=lambda row: (row["sequence_number"], row["topic_name"]))
 
     @classmethod
     def averages_by_subject(cls, student: Student, term: AcademicTerm) -> dict:

@@ -33,6 +33,7 @@ class SubjectPerformance {
     this.classAveragePercentage,
     this.previousAveragePercentage,
     this.change,
+    this.topics = const [],
   });
 
   factory SubjectPerformance.fromJson(Map<String, dynamic> json) {
@@ -46,6 +47,10 @@ class SubjectPerformance {
       classAveragePercentage: json['class_average_percentage'] as String?,
       previousAveragePercentage: json['previous_average_percentage'] as String?,
       change: json['change'] as String?,
+      topics: [
+        for (final row in (json['topics'] as List<dynamic>? ?? const []))
+          TopicPerformance.fromJson(row as Map<String, dynamic>),
+      ],
     );
   }
 
@@ -65,10 +70,55 @@ class SubjectPerformance {
   /// nothing to compare against.
   final String? change;
 
+  /// The parts of this subject the tests named, in syllabus order.
+  ///
+  /// Empty where no test named one - a school that has not filled the
+  /// field in, rather than a subject with no chapters - so the screen
+  /// shows nothing rather than an empty table (docs/insights.md).
+  final List<TopicPerformance> topics;
+
   double? get average => averagePercentage == null ? null : double.tryParse(averagePercentage!);
   double? get changeValue => change == null ? null : double.tryParse(change!);
 
   /// Whether this subject is under the school's own weak mark.
+  bool isWeak(num? below) {
+    final value = average;
+
+    return below != null && value != null && value < below;
+  }
+}
+
+/// One part of a subject, as its own average.
+///
+/// "Mathematics is at 52%" is a fact a teacher can check; "the
+/// trigonometry half is at 38%" is one they can act on.
+class TopicPerformance {
+  const TopicPerformance({
+    required this.topicId,
+    required this.topicName,
+    required this.assessments,
+    required this.absent,
+    this.averagePercentage,
+  });
+
+  factory TopicPerformance.fromJson(Map<String, dynamic> json) {
+    return TopicPerformance(
+      topicId: json['topic_id'] as int,
+      topicName: json['topic_name'] as String? ?? '',
+      assessments: json['assessments'] as int? ?? 0,
+      absent: json['absent'] as int? ?? 0,
+      averagePercentage: json['average_percentage'] as String?,
+    );
+  }
+
+  final int topicId;
+  final String topicName;
+  final int assessments;
+  final int absent;
+  final String? averagePercentage;
+
+  double? get average => averagePercentage == null ? null : double.tryParse(averagePercentage!);
+
   bool isWeak(num? below) {
     final value = average;
 
@@ -254,4 +304,8 @@ class StudentPerformance {
   final double? weakBelowPercentage;
 
   bool get hasMarks => subjects.isNotEmpty;
+
+  /// Whether any test named the chapter it was about. A school that leaves
+  /// the field empty gets no topic section rather than an empty one.
+  bool get hasTopics => subjects.any((subject) => subject.topics.isNotEmpty);
 }

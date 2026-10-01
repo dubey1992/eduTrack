@@ -94,6 +94,7 @@ class _StudentPerformanceDialogState extends ConsumerState<StudentPerformanceDia
                   _Summary(performance: performance),
                   const SizedBox(height: 16),
                   _SubjectTable(performance: performance),
+                  if (performance.hasTopics) ...[const SizedBox(height: 20), _Topics(performance: performance)],
                   if (performance.insights.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     _Insights(insights: performance.insights),
@@ -292,6 +293,90 @@ class _Change extends StatelessWidget {
         const SizedBox(width: 4),
         Text(value.abs().toStringAsFixed(2), style: TextStyle(color: rising ? colors.success : colors.danger)),
       ],
+    );
+  }
+}
+
+/// Which parts of a subject are weak (docs/insights.md).
+///
+/// A subject average says Mathematics is at 52%, which a teacher can check
+/// and not much else. The chapters the tests named say it is the
+/// trigonometry half, which is a lesson they can plan.
+///
+/// Only subjects whose tests named a topic appear. A school that leaves the
+/// field empty sees nothing here rather than a table of dashes.
+class _Topics extends StatelessWidget {
+  const _Topics({required this.performance});
+
+  final StudentPerformance performance;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Inside each subject', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        for (final subject in performance.subjects.where((subject) => subject.topics.isNotEmpty))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(subject.subjectName, style: muted),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final topic in subject.topics)
+                      _TopicPill(topic: topic, weakBelow: performance.weakBelowPercentage),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _TopicPill extends StatelessWidget {
+  const _TopicPill({required this.topic, required this.weakBelow});
+
+  final TopicPerformance topic;
+  final num? weakBelow;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final weak = topic.isWeak(weakBelow);
+    final scheme = Theme.of(context).colorScheme;
+
+    // A topic the student missed entirely has no average - and is not weak,
+    // because nobody has measured it.
+    final value = topic.averagePercentage == null ? 'not sat' : '${topic.averagePercentage}%';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        border: Border.all(color: weak ? colors.warning : Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (weak) ...[Icon(Icons.flag_outlined, size: 14, color: colors.warning), const SizedBox(width: 6)],
+          Text(topic.topicName),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: TextStyle(fontWeight: FontWeight.w700, color: weak ? colors.warning : scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 }

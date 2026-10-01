@@ -452,4 +452,66 @@ void main() {
     expect(find.textContaining('The register was not taken in this period'), findsOneWidget);
     expect(find.text('0%'), findsNothing);
   });
+
+  group('inside each subject', () {
+    const weakMaths = SubjectPerformance(
+      subjectId: 1,
+      subjectName: 'Mathematics',
+      assessments: 3,
+      absent: 1,
+      averagePercentage: '52.00',
+      grade: 'Pass',
+      topics: [
+        TopicPerformance(topicId: 1, topicName: 'Vectors', assessments: 1, absent: 0, averagePercentage: '72.00'),
+        TopicPerformance(topicId: 2, topicName: 'Trigonometry', assessments: 1, absent: 0, averagePercentage: '38.00'),
+        TopicPerformance(topicId: 3, topicName: 'Calculus', assessments: 1, absent: 1),
+      ],
+    );
+
+    testWidgets('names the chapters a subject average hides', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStudentRepository(performance: fakePerformance(subjects: [weakMaths]))));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Inside each subject'), findsOneWidget);
+      expect(find.text('Vectors'), findsOneWidget);
+      expect(find.text('Trigonometry'), findsOneWidget);
+      expect(find.text('72.00%'), findsOneWidget);
+      expect(find.text('38.00%'), findsOneWidget);
+    });
+
+    testWidgets('a topic nobody has measured reads as not sat, never as nought', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStudentRepository(performance: fakePerformance(subjects: [weakMaths]))));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Calculus'), findsOneWidget);
+      expect(find.text('not sat'), findsOneWidget);
+      expect(find.text('0.00%'), findsNothing, reason: 'a topic they were absent for is not a zero');
+    });
+
+    testWidgets('a school that names no topics sees no section rather than an empty one', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStudentRepository()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Inside each subject'), findsNothing);
+    });
+
+    test("a topic is weak against the school's own mark, and an unmeasured one never is", () {
+      const trig = TopicPerformance(
+        topicId: 2,
+        topicName: 'Trigonometry',
+        assessments: 1,
+        absent: 0,
+        averagePercentage: '38.00',
+      );
+      const missed = TopicPerformance(topicId: 3, topicName: 'Calculus', assessments: 1, absent: 1);
+
+      expect(trig.isWeak(40), isTrue);
+      expect(trig.isWeak(30), isFalse);
+      expect(trig.isWeak(null), isFalse, reason: 'a school that keeps no mark flags nothing');
+      expect(missed.isWeak(40), isFalse, reason: 'nobody has measured it, so it cannot be weak');
+    });
+  });
 }

@@ -151,8 +151,46 @@ def body(payload: dict, subjects: list) -> str:
     <h1>Subjects</h1>
     {subject_table(payload, subjects)}
 
+    {topic_section(payload, subjects)}
+
     <h1>Tests</h1>
     {test_table(payload, subjects)}"""
+
+
+def topic_section(payload: dict, subjects: list) -> str:
+    """Which parts of each subject the tests named (docs/insights.md).
+
+    Left out entirely where no test named a chapter - a school that does
+    not fill the field in should see nothing here, not a table of dashes.
+    """
+    with_topics = [subject for subject in subjects if subject.get("topics")]
+
+    if not with_topics:
+        return ""
+
+    weak = payload.get("weak_below_percentage")
+    head = (
+        "<tr><th>Subject</th><th>Topic</th><th class='num'>Tests</th>"
+        "<th class='num'>Missed</th><th class='num'>Average</th></tr>"
+    )
+    rows = []
+
+    for subject in with_topics:
+        for topic in subject["topics"]:
+            average = topic["average_percentage"]
+            flag = ""
+            if weak is not None and average is not None and float(average) < float(weak):
+                flag = f' <span class="muted">(below {text(weak)}%)</span>'
+
+            rows.append(
+                f'<tr><td>{text(subject["subject_name"])}</td>'
+                f'<td>{text(topic["topic_name"])}{flag}</td>'
+                f'<td class="num">{text(topic["assessments"])}</td>'
+                f'<td class="num">{text(topic["absent"])}</td>'
+                f'<td class="num">{percent(average)}</td></tr>'
+            )
+
+    return f'<h1>Inside each subject</h1><table class="grid"><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table>'
 
 
 def summary_table(payload: dict) -> str:

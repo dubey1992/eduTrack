@@ -342,3 +342,62 @@ class TheSameFiguresAsTheScreen(ProgressReportTestCase):
         self.assertTrue(payload["insights"], "the rules should have something to say about 22.5%")
         for insight in payload["insights"]:
             self.assertIn(insight["message"].split(" is ")[0], page)
+
+
+class TheTopicsOnThePage(ProgressReportTestCase):
+    """The topic breakdown, printed (docs/insights.md, slice 1)."""
+
+    def setUp(self):
+        super().setUp()
+        self.trig = factories.SyllabusTopicFactory(
+            subject=self.maths, school=self.school, title="Trigonometry", sequence_number=2
+        )
+        self.vectors = factories.SyllabusTopicFactory(
+            subject=self.maths, school=self.school, title="Vectors", sequence_number=1
+        )
+
+    def on_topic(self, topic, marks=None, is_absent=False):
+        assessment = self.published()
+        assessment.syllabus_topic = topic
+        assessment.save()
+        self.mark(assessment, marks=marks, is_absent=is_absent)
+
+    def test_each_topic_is_printed_with_its_own_average(self):
+        self.on_topic(self.vectors, marks="18")
+        self.on_topic(self.trig, marks="8")
+
+        page = self.page()
+
+        self.assertIn("Inside each subject", page)
+        self.assertIn("Vectors", page)
+        self.assertIn("Trigonometry", page)
+        self.assertIn("90%", page)
+        self.assertIn("40%", page)
+
+    def test_a_weak_topic_is_marked_as_one(self):
+        from school.models import ModuleSetting
+
+        ModuleSetting.objects.create(
+            school=self.school, module="assessments", settings={"weak_below_percentage": 50},
+            created_at=timezone.now(), updated_at=timezone.now(),
+        )
+        cache.clear()
+        self.on_topic(self.trig, marks="8")
+
+        self.assertIn("below 50%", self.page())
+
+    def test_a_topic_the_student_missed_reads_as_a_dash_not_a_nought(self):
+        self.on_topic(self.trig, is_absent=True)
+        self.on_topic(self.vectors, marks="18")
+
+        page = self.page()
+
+        self.assertIn("Trigonometry", page)
+        # The dash is the topic's average; a nought would say they sat it
+        # and scored nothing.
+        self.assertNotIn("<td class=\"num\">0%</td>", page)
+
+    def test_a_school_that_names_no_topics_gets_no_section_rather_than_an_empty_one(self):
+        self.mark(self.published(), marks="18")
+
+        self.assertNotIn("Inside each subject", self.page())
