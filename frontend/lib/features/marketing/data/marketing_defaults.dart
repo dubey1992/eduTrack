@@ -102,7 +102,8 @@ const marketingListDefaults = <String, List<Map<String, String>>>{
   ],
   'footer.productLinks': [
     {'label': 'Features'},
-    {'label': 'Web Dashboard'},
+    // The one line of the twelve with a real destination today.
+    {'label': 'Web Dashboard', 'url': '/login'},
     {'label': 'Mobile App'},
     {'label': 'Pricing'},
   ],

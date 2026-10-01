@@ -201,14 +201,15 @@ void main() {
       }
     });
 
-    test('every item in a list has the same boxes as its neighbours', () {
-      // One item short of a field is a card that draws a blank where the
-      // others draw a title.
+    test('no item ships a box with nothing in it', () {
+      // A stored blank is always wrong: a card with no title draws a hole
+      // where the others draw words. A box simply left out is different -
+      // a footer line without an address is the ordinary case - and which
+      // boxes may be left out is checked against the declaration itself,
+      // in test_marketing_content_editor_api.py.
       for (final entry in marketingListDefaults.entries) {
-        final expected = entry.value.first.keys.toSet();
-
         for (final item in entry.value) {
-          expect(item.keys.toSet(), expected, reason: entry.key);
+          expect(item, isNotEmpty, reason: entry.key);
           expect(item.values.every((value) => value.trim().isNotEmpty), isTrue, reason: '$item');
         }
       }

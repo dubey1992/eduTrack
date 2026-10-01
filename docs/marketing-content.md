@@ -289,6 +289,14 @@ box.** Until now every box inside a repeating item had to be filled,
 because a card with no title is a hole in the grid. A footer line with no
 address is not a hole, it is the commonest case.
 
-The shipped lines still carry no addresses. The pages they name - Pricing,
-Careers, Blog - do not exist yet, and inventing addresses for them would
-put broken links on the front page.
+One shipped line carries an address: **Web Dashboard goes to `/login`**,
+the only one of the twelve with a real destination today. The rest do not.
+Pricing, Careers, Blog, Help Center, Privacy Policy, Terms and Security
+are pages that do not exist, and inventing addresses for them would put
+broken links on the front page. Features, About Us and Contact are scroll
+targets in the top nav rather than routes, so pointing them at `/` would
+only reload the homepage.
+
+That one line is also the proof the shipped defaults carry addresses at
+all: it works with nothing stored on the server, which is the state the
+page is in before anybody edits it and whenever the API is down.

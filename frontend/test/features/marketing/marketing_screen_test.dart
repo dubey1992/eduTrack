@@ -190,4 +190,21 @@ void main() {
       expect(find.ancestor(of: find.text('Open Roles'), matching: find.byType(GestureDetector)), findsNothing);
     });
   });
+
+  testWidgets('the one shipped line with a destination works without a server', (tester) async {
+    // No document at all - the page drawing its own copy, which is the
+    // state it is in before anybody edits it and whenever the API is down.
+    tester.view.physicalSize = const Size(1600, 4000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap());
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Web Dashboard'));
+    await tester.tap(find.text('Web Dashboard'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Login Screen'), findsOneWidget);
+  });
 }
