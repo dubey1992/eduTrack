@@ -34,11 +34,71 @@ class Field:
 
 
 @dataclass(frozen=True)
+class Choice:
+    """One of a fixed set of values a field may take."""
+
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class ItemField(Field):
+    """A field inside a repeating item.
+
+    `choices` turns the box into a picker. The feature cards use it for
+    their icon: the page draws the icon as a character, so free text lets
+    somebody type one the font has no glyph for and the card shows a box.
+    """
+
+    choices: tuple[Choice, ...] = ()
+
+
+@dataclass(frozen=True)
+class ListField:
+    """A repeating list - the feature cards, the hero stats, and so on.
+
+    `min_items` and `max_items` are the layout again, not storage. The hero
+    stats sit in a five-column rule across the width of the hero; a sixth
+    wraps onto a row of its own at a fifth of the width, with the divider
+    logic still expecting it to be last. The grid of features has room for
+    three rows of five.
+
+    A list absent from the document is the one the page ships with, exactly
+    as a cleared box is. The editor says so and offers a way back to it.
+    """
+
+    key: str
+    label: str
+    item_label: str
+    help: str
+    fields: tuple[ItemField, ...]
+    min_items: int = 1
+    max_items: int = 10
+
+
+@dataclass(frozen=True)
 class Section:
     key: str
     label: str
     description: str
     fields: tuple[Field, ...]
+    lists: tuple[ListField, ...] = ()
+
+
+# The characters the feature cards already draw. A picker rather than free
+# text, so a card cannot be given a glyph the font has no room for - the
+# page would show an empty box where an icon belongs.
+FEATURE_ICONS: tuple[Choice, ...] = (
+    Choice("☺", "Face"),
+    Choice("✓", "Tick"),
+    Choice("¤", "Sun"),
+    Choice("⌣", "Smile"),
+    Choice("🚌", "Bus"),
+    Choice("✉", "Envelope"),
+    Choice("⚭", "Rings"),
+    Choice("▥", "Chart"),
+    Choice("☰", "Lines"),
+)
 
 
 SECTIONS: tuple[Section, ...] = (
@@ -66,6 +126,17 @@ SECTIONS: tuple[Section, ...] = (
             Field("secondaryButton", "Second button", max_length=32),
             Field("trustLine", "Line under the buttons", max_length=90),
         ),
+        lists=(
+            ListField(
+                "hero.stats", "The figures under the hero", "Figure",
+                "Five across the width of the hero; a sixth wraps onto a row of its own and looks wrong.",
+                (
+                    ItemField("value", "Figure", max_length=16),
+                    ItemField("label", "What it is", max_length=24),
+                ),
+                min_items=1, max_items=5,
+            ),
+        ),
     ),
     Section(
         "features", "What it does", "The heading above the grid of features.",
@@ -73,6 +144,19 @@ SECTIONS: tuple[Section, ...] = (
             Field("eyebrow", "Eyebrow", max_length=60),
             Field("title", "Heading", max_length=90),
             Field("body", "Paragraph", multiline=True, max_length=240),
+        ),
+        lists=(
+            ListField(
+                "features.items", "The feature cards", "Card",
+                "Five to a row on a desktop, two on a phone. Three rows is as many as the section holds.",
+                (
+                    ItemField("icon", "Icon", max_length=4, choices=FEATURE_ICONS),
+                    ItemField("title", "Title", max_length=28),
+                    ItemField("body", "Description", max_length=70,
+                              help="Wraps to three lines at the narrowest; longer than that is cut off."),
+                ),
+                min_items=1, max_items=15,
+            ),
         ),
     ),
     Section(
@@ -91,6 +175,15 @@ SECTIONS: tuple[Section, ...] = (
             Field("headline", "Heading", multiline=True, max_length=60,
                   help="Breaks across two lines in the design; a line break here is kept."),
             Field("body", "Paragraph", multiline=True, max_length=240),
+            Field("button", "Button", max_length=32),
+        ),
+        lists=(
+            ListField(
+                "web.bullets", "The ticked list", "Line",
+                "Stacked under the button, each with a tick. Six is as many as fit beside the mockup.",
+                (ItemField("text", "Line", max_length=40),),
+                min_items=1, max_items=6,
+            ),
         ),
     ),
     Section(
@@ -110,6 +203,29 @@ SECTIONS: tuple[Section, ...] = (
             Field("newsletterBody", "Newsletter line", max_length=90),
             Field("copyright", "Copyright", max_length=90),
             Field("tagline", "Tagline", max_length=60),
+            Field("productTitle", "First column heading", max_length=24),
+            Field("companyTitle", "Second column heading", max_length=24),
+            Field("resourceTitle", "Third column heading", max_length=24),
+        ),
+        lists=(
+            ListField(
+                "footer.productLinks", "First column", "Line",
+                "Wording only - these are not links yet, and nothing happens when one is clicked.",
+                (ItemField("label", "Line", max_length=28),),
+                min_items=1, max_items=6,
+            ),
+            ListField(
+                "footer.companyLinks", "Second column", "Line",
+                "Wording only - these are not links yet, and nothing happens when one is clicked.",
+                (ItemField("label", "Line", max_length=28),),
+                min_items=1, max_items=6,
+            ),
+            ListField(
+                "footer.resourceLinks", "Third column", "Line",
+                "Wording only - these are not links yet, and nothing happens when one is clicked.",
+                (ItemField("label", "Line", max_length=28),),
+                min_items=1, max_items=6,
+            ),
         ),
     ),
 )
@@ -122,6 +238,15 @@ def fields() -> dict[str, Field]:
 
 def keys() -> set[str]:
     return set(fields())
+
+
+def lists() -> dict[str, ListField]:
+    """Every repeating list, by its `section.field` key."""
+    return {declared.key: declared for section in SECTIONS for declared in section.lists}
+
+
+def list_keys() -> set[str]:
+    return set(lists())
 
 
 def resource() -> list[dict]:
@@ -140,6 +265,30 @@ def resource() -> list[dict]:
                     "help": field.help,
                 }
                 for field in section.fields
+            ],
+            "lists": [
+                {
+                    "key": declared.key,
+                    "label": declared.label,
+                    "item_label": declared.item_label,
+                    "help": declared.help,
+                    "min_items": declared.min_items,
+                    "max_items": declared.max_items,
+                    "fields": [
+                        {
+                            "key": field.key,
+                            "label": field.label,
+                            "multiline": field.multiline,
+                            "max_length": field.max_length,
+                            "help": field.help,
+                            "choices": [
+                                {"value": choice.value, "label": choice.label} for choice in field.choices
+                            ],
+                        }
+                        for field in declared.fields
+                    ],
+                }
+                for declared in section.lists
             ],
         }
         for section in SECTIONS

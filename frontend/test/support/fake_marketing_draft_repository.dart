@@ -18,6 +18,7 @@ class FakeMarketingDraftRepository implements MarketingDraftRepository {
        published = published ?? const {};
 
   Map<String, String> draft;
+  Map<String, List<Map<String, String>>> draftLists = {};
   Map<String, String> published;
   DateTime? publishedAt;
 
@@ -34,11 +35,12 @@ class FakeMarketingDraftRepository implements MarketingDraftRepository {
   int getCalls = 0;
   int saveCalls = 0;
   int publishCalls = 0;
-  Map<String, String>? lastSave;
+  Map<String, Object>? lastSave;
 
   MarketingDraft get current => MarketingDraft(
     sections: marketingSections,
     draft: draft,
+    draftLists: draftLists,
     published: published,
     publishedAt: publishedAt,
     hasUnpublishedChanges: !_sameWords(draft, published),
@@ -53,13 +55,20 @@ class FakeMarketingDraftRepository implements MarketingDraftRepository {
   }
 
   @override
-  Future<MarketingDraft> save(Map<String, String> document) async {
+  Future<MarketingDraft> save(Map<String, Object> document) async {
     saveCalls++;
     lastSave = Map.of(document);
     if (saveGate != null) await saveGate!.future;
     if (failSaveWith != null) throw failSaveWith!;
 
-    draft = Map.of(document);
+    draft = {
+      for (final entry in document.entries)
+        if (entry.value is String) entry.key: entry.value as String,
+    };
+    draftLists = {
+      for (final entry in document.entries)
+        if (entry.value is List) entry.key: (entry.value as List).cast<Map<String, String>>(),
+    };
     return current;
   }
 
@@ -102,5 +111,19 @@ const marketingSections = [
     label: 'The invitation',
     description: 'The blue band near the bottom.',
     fields: [MarketingField(key: 'cta.button', label: 'Button', multiline: false, maxLength: 32, help: '')],
+    lists: [
+      MarketingListField(
+        key: 'hero.stats',
+        label: 'The figures under the hero',
+        itemLabel: 'Figure',
+        help: 'Five across the width of the hero.',
+        fields: [
+          MarketingItemField(key: 'value', label: 'Figure', maxLength: 16, help: '', choices: []),
+          MarketingItemField(key: 'label', label: 'What it is', maxLength: 24, help: '', choices: []),
+        ],
+        minItems: 1,
+        maxItems: 5,
+      ),
+    ],
   ),
 ];

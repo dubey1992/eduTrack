@@ -9,22 +9,10 @@ import 'marketing_wrap.dart';
 class FeaturesSection extends ConsumerWidget {
   const FeaturesSection({super.key});
 
-  static const _features = [
-    ('☺', 'Student Management', 'Complete student records and academic details'),
-    ('☺', 'Teacher Management', 'Staff records, workload and performance'),
-    ('✓', 'Attendance', 'Real-time attendance with notifications'),
-    ('¤', 'Academics', 'Timetable, exams and report cards'),
-    ('⌣', 'Fees & Payments', 'Online and offline fee management'),
-    ('🚌', 'Transport Management', 'Live tracking and route management'),
-    ('✉', 'Communication', 'Connect with parents, teachers and students'),
-    ('⚭', 'HR & Payroll', 'Leave, salary and staff management'),
-    ('▥', 'Reports & Analytics', 'Insights for better decision making'),
-    ('☰', 'Administration', 'Manage your school effortlessly'),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final words = ref.watch(marketingContentProvider);
+    final cards = words.list('features.items');
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 78),
@@ -46,7 +34,7 @@ class FeaturesSection extends ConsumerWidget {
                 return GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _features.length,
+                  itemCount: cards.length,
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
                     // Two columns means narrower cards, and narrower cards
@@ -57,12 +45,15 @@ class FeaturesSection extends ConsumerWidget {
                     mainAxisSpacing: 26,
                   ),
                   itemBuilder: (context, index) {
-                    final (icon, title, body) = _features[index];
+                    final card = cards[index];
                     return _FeatureCard(
-                      icon: icon,
-                      title: title,
-                      body: body,
-                      color: MarketingColors.featureIconColors[index],
+                      icon: card['icon'] ?? '',
+                      title: card['title'] ?? '',
+                      body: card['body'] ?? '',
+                      // The colours run out before the cards can: the list
+                      // holds ten and the section takes fifteen, so it
+                      // cycles rather than reaching past its end.
+                      color: MarketingColors.featureIconColors[index % MarketingColors.featureIconColors.length],
                     );
                   },
                 );

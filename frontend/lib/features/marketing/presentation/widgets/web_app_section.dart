@@ -137,16 +137,10 @@ class _BrowserMockup extends StatelessWidget {
 class _WebCopy extends ConsumerWidget {
   const _WebCopy();
 
-  static const _checks = [
-    'All features in one place',
-    'Real-time insights',
-    'Secure and scalable',
-    'Access from anywhere',
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final words = ref.watch(marketingContentProvider);
+    final checks = words.list('web.bullets');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,9 +154,9 @@ class _WebCopy extends ConsumerWidget {
         const SizedBox(height: 10),
         Text(words.text('web.body'), style: TextStyle(fontSize: 14, color: MarketingColors.muted)),
         const SizedBox(height: 18),
-        MarketingPrimaryButton(label: 'Explore Web Dashboard →', onPressed: () => context.go('/login')),
+        MarketingPrimaryButton(label: words.text('web.button'), onPressed: () => context.go('/login')),
         const SizedBox(height: 18),
-        for (final check in _checks)
+        for (final check in checks)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
@@ -173,7 +167,7 @@ class _WebCopy extends ConsumerWidget {
                   style: TextStyle(color: MarketingColors.success, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(width: 8),
-                Text(check, style: const TextStyle(fontSize: 14, color: MarketingColors.muted)),
+                Text(check['text'] ?? '', style: const TextStyle(fontSize: 14, color: MarketingColors.muted)),
               ],
             ),
           ),

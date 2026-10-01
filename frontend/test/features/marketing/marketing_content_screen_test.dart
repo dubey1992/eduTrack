@@ -179,7 +179,7 @@ void main() {
       await type(tester, 'Headline', 'Run Your School Smarter');
       await tapButton(tester, 'Save Draft');
 
-      expect(fake.lastSave, {'hero.headline': 'Run Your School Smarter'});
+      expect(fake.lastSave!['hero.headline'], 'Run Your School Smarter');
     });
 
     testWidgets('an empty box is left out, so the page falls back to what it ships with', (tester) async {
@@ -191,7 +191,7 @@ void main() {
       await type(tester, 'Headline', '');
       await tapButton(tester, 'Save Draft');
 
-      expect(fake.lastSave, isEmpty);
+      expect(fake.lastSave, isNot(contains('hero.headline')));
     });
 
     testWidgets('it says the save landed, and that the page has not changed yet', (tester) async {
@@ -213,6 +213,7 @@ void main() {
       await tester.pumpAndSettle();
       await type(tester, 'Headline', 'Once');
 
+      await tester.ensureVisible(find.text('Save Draft'));
       await tester.tap(find.text('Save Draft'));
       await tester.pump();
       await tester.tap(find.text('Save Draft'), warnIfMissed: false);
@@ -467,6 +468,88 @@ void main() {
 
       expect(find.text('Publish the homepage?'), findsNothing);
       expect(fake.publishCalls, 0);
+    });
+  });
+
+  group('the repeating lists', () {
+    testWidgets('a list opens on the one the page ships with', (tester) async {
+      // There is no placeholder to show a shipped list in, so the editor
+      // starts from it rather than from an empty form.
+      useDesktop(tester);
+
+      await tester.pumpWidget(wrap(FakeMarketingDraftRepository()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The figures under the hero'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Schools (Target)'), findsOneWidget);
+    });
+
+    testWidgets('a saved list opens on what was saved', (tester) async {
+      useDesktop(tester);
+      final fake = FakeMarketingDraftRepository()
+        ..draftLists = {
+          'hero.stats': [
+            {'value': '12', 'label': 'Schools signed up'},
+          ],
+        };
+
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextFormField, 'Schools signed up'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Schools (Target)'), findsNothing);
+    });
+
+    testWidgets('the lists go to the server beside the words', (tester) async {
+      useDesktop(tester);
+      final fake = FakeMarketingDraftRepository();
+
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await type(tester, 'Headline', 'New words');
+      await tapButton(tester, 'Save Draft');
+
+      expect(fake.lastSave!['hero.headline'], 'New words');
+      expect(fake.lastSave!['hero.stats'], marketingListDefaults['hero.stats']);
+    });
+
+    testWidgets('an item edited in the list is what gets sent', (tester) async {
+      useDesktop(tester);
+      final fake = FakeMarketingDraftRepository();
+
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, '500+'), '12');
+      await tester.pump();
+      await tapButton(tester, 'Save Draft');
+
+      expect((fake.lastSave!['hero.stats']! as List).first, {'value': '12', 'label': 'Schools (Target)'});
+    });
+
+    testWidgets('a blank box in an item stops the save before it is sent', (tester) async {
+      useDesktop(tester);
+      final fake = FakeMarketingDraftRepository();
+
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, '500+'), '');
+      await tester.pump();
+      await tapButton(tester, 'Save Draft');
+
+      expect(fake.saveCalls, 0);
+      expect(find.text('Every Figure needs a figure.'), findsOneWidget);
+    });
+
+    testWidgets('previewing shows the page with the edited list', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(wrap(FakeMarketingDraftRepository()));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Schools (Target)'), 'Schools signed up');
+      await tester.pump();
+      await tapButton(tester, 'Preview');
+
+      expect(find.text('Schools signed up'), findsWidgets);
     });
   });
 }

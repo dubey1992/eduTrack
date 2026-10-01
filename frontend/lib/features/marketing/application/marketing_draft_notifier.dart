@@ -24,7 +24,7 @@ class MarketingDraftNotifier extends AsyncNotifier<MarketingDraft> {
 
   /// [document] is the whole form. A field left out of it was cleared, and
   /// the page falls back to the copy it ships with.
-  Future<void> save(Map<String, String> document) async {
+  Future<void> save(Map<String, Object> document) async {
     state = AsyncData(await ref.read(marketingDraftRepositoryProvider).save(document));
   }
 

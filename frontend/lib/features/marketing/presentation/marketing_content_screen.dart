@@ -11,6 +11,7 @@ import '../application/marketing_draft_notifier.dart';
 import '../data/marketing_content.dart';
 import '../data/models/marketing_draft.dart';
 import 'marketing_preview_dialog.dart';
+import 'widgets/marketing_list_editor.dart';
 
 /// The words on the public homepage. Super Admin only - the API refuses
 /// everyone else, and the nav item is not shown to them.
@@ -55,6 +56,11 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
   final _formKey = GlobalKey<FormState>();
   final _controllers = <String, TextEditingController>{};
 
+  /// The repeating lists as they stand, by key. Seeded with what somebody
+  /// saved, or the list the page ships with when they have not touched it -
+  /// a list has no placeholder to show the shipped one in.
+  final _lists = <String, List<Map<String, String>>>{};
+
   bool _saving = false;
   bool _publishing = false;
   String? _error;
@@ -69,6 +75,10 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
 
     for (final field in widget.draft.fields) {
       _controllers[field.key] = TextEditingController(text: widget.draft.draft[field.key] ?? '');
+    }
+
+    for (final declared in widget.draft.listFields) {
+      _lists[declared.key] = widget.draft.itemsFor(declared.key);
     }
   }
 
@@ -93,6 +103,10 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
     return document;
   }
 
+  /// The form as it goes to the server: the words, and the lists beside
+  /// them in the same document.
+  Map<String, Object> get _document => {..._typed, ..._lists};
+
   bool get _busy => _saving || _publishing;
 
   Future<void> _save() async {
@@ -107,7 +121,7 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      await ref.read(marketingDraftNotifierProvider.notifier).save(_typed);
+      await ref.read(marketingDraftNotifierProvider.notifier).save(_document);
 
       if (!mounted) return;
       messenger
@@ -147,7 +161,7 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
     final notifier = ref.read(marketingDraftNotifierProvider.notifier);
 
     try {
-      await notifier.save(_typed);
+      await notifier.save(_document);
       await notifier.publish();
 
       if (!mounted) return;
@@ -193,7 +207,7 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
     // The real homepage, drawn from the boxes as they are now - including
     // anything typed and not yet saved, which is what "preview" has to mean
     // for it to be worth pressing.
-    showMarketingPreview(context, MarketingContent(_typed));
+    showMarketingPreview(context, MarketingContent(_typed, _lists));
   }
 
   @override
@@ -213,7 +227,14 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
                 if (_error != null) ...[const SizedBox(height: 12), _ErrorBanner(message: _error!)],
                 for (final section in widget.draft.sections) ...[
                   const SizedBox(height: 16),
-                  _SectionCard(section: section, controllers: _controllers, fieldErrors: _fieldErrors, enabled: !_busy),
+                  _SectionCard(
+                    section: section,
+                    controllers: _controllers,
+                    lists: _lists,
+                    fieldErrors: _fieldErrors,
+                    onListChanged: (key, items) => _lists[key] = items,
+                    enabled: !_busy,
+                  ),
                 ],
                 const SizedBox(height: 20),
                 _Actions(
@@ -306,13 +327,17 @@ class _SectionCard extends StatelessWidget {
   const _SectionCard({
     required this.section,
     required this.controllers,
+    required this.lists,
     required this.fieldErrors,
+    required this.onListChanged,
     required this.enabled,
   });
 
   final MarketingSection section;
   final Map<String, TextEditingController> controllers;
+  final Map<String, List<Map<String, String>>> lists;
   final Map<String, String> fieldErrors;
+  final void Function(String key, List<Map<String, String>> items) onListChanged;
   final bool enabled;
 
   @override
@@ -335,6 +360,18 @@ class _SectionCard extends StatelessWidget {
                 field: field,
                 controller: controllers[field.key]!,
                 serverError: fieldErrors[field.key],
+                enabled: enabled,
+              ),
+            ],
+            for (final declared in section.lists) ...[
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 8),
+              MarketingListEditor(
+                declared: declared,
+                initial: lists[declared.key] ?? declared.shipped,
+                onChanged: (items) => onListChanged(declared.key, items),
+                serverError: fieldErrors[declared.key],
                 enabled: enabled,
               ),
             ],

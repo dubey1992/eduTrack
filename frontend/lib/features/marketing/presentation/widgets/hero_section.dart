@@ -197,19 +197,13 @@ class _HeroVisual extends StatelessWidget {
   }
 }
 
-class _StatsRow extends StatelessWidget {
+class _StatsRow extends ConsumerWidget {
   const _StatsRow();
 
-  static const _stats = [
-    ('500+', 'Schools (Target)'),
-    ('Global', 'Reach'),
-    ('1M+', 'Students (Target)'),
-    ('Secure', '& Reliable'),
-    ('Better', 'Tomorrow'),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(marketingContentProvider).list('hero.stats');
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -222,12 +216,12 @@ class _StatsRow extends StatelessWidget {
           final columns = constraints.maxWidth < MarketingBreakpoints.tablet ? 2 : 5;
           return Wrap(
             children: [
-              for (var i = 0; i < _stats.length; i++)
+              for (var i = 0; i < stats.length; i++)
                 SizedBox(
                   width: constraints.maxWidth / columns,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                    decoration: columns == 5 && i != _stats.length - 1
+                    decoration: columns == 5 && i != stats.length - 1
                         ? const BoxDecoration(
                             border: Border(right: BorderSide(color: MarketingColors.border)),
                           )
@@ -236,14 +230,17 @@ class _StatsRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _stats[i].$1,
+                          stats[i]['value'] ?? '',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: MarketingColors.text,
                           ),
                         ),
-                        Text(_stats[i].$2, style: const TextStyle(fontSize: 12, color: MarketingColors.subtle)),
+                        Text(
+                          stats[i]['label'] ?? '',
+                          style: const TextStyle(fontSize: 12, color: MarketingColors.subtle),
+                        ),
                       ],
                     ),
                   ),

@@ -15,6 +15,7 @@ class MarketingDraft {
     required this.published,
     required this.publishedAt,
     required this.hasUnpublishedChanges,
+    this.draftLists = const {},
   });
 
   factory MarketingDraft.fromJson(Map<String, dynamic> json) {
@@ -28,6 +29,7 @@ class MarketingDraft {
             if (section is Map<String, dynamic>) MarketingSection.fromJson(section),
       ],
       draft: _words(json['draft']),
+      draftLists: _lists(json['draft']),
       published: _words(json['published']),
       publishedAt: publishedAt is String ? DateTime.tryParse(publishedAt)?.toLocal() : null,
       hasUnpublishedChanges: json['has_unpublished_changes'] == true,
@@ -39,6 +41,10 @@ class MarketingDraft {
   /// What is being worked on - only the fields somebody changed.
   final Map<String, String> draft;
 
+  /// The repeating lists somebody changed. A list absent here is the one
+  /// the page ships with, so the editor starts from that.
+  final Map<String, List<Map<String, String>>> draftLists;
+
   /// What visitors are reading right now.
   final Map<String, String> published;
 
@@ -47,6 +53,39 @@ class MarketingDraft {
   final bool hasUnpublishedChanges;
 
   List<MarketingField> get fields => [for (final section in sections) ...section.fields];
+
+  List<MarketingListField> get listFields => [for (final section in sections) ...section.lists];
+
+  /// The items the editor should show for [key]: what somebody saved, or
+  /// the list the page ships with when they have not touched it.
+  List<Map<String, String>> itemsFor(String key) {
+    final saved = draftLists[key];
+
+    if (saved != null && saved.isNotEmpty) return saved;
+
+    return marketingListDefaults[key] ?? const [];
+  }
+
+  static Map<String, List<Map<String, String>>> _lists(Object? value) {
+    if (value is! Map) return const {};
+
+    final lists = <String, List<Map<String, String>>>{};
+
+    for (final entry in value.entries) {
+      if (entry.key is! String || entry.value is! List) continue;
+
+      lists[entry.key as String] = [
+        for (final item in entry.value as List)
+          if (item is Map)
+            {
+              for (final field in item.entries)
+                if (field.key is String && field.value is String) field.key as String: field.value as String,
+            },
+      ];
+    }
+
+    return lists;
+  }
 
   static Map<String, String> _words(Object? value) {
     if (value is! Map) return const {};
@@ -59,10 +98,17 @@ class MarketingDraft {
 }
 
 class MarketingSection {
-  const MarketingSection({required this.key, required this.label, required this.description, required this.fields});
+  const MarketingSection({
+    required this.key,
+    required this.label,
+    required this.description,
+    required this.fields,
+    this.lists = const [],
+  });
 
   factory MarketingSection.fromJson(Map<String, dynamic> json) {
     final fields = json['fields'];
+    final lists = json['lists'];
 
     return MarketingSection(
       key: json['key'] as String? ?? '',
@@ -73,6 +119,11 @@ class MarketingSection {
           for (final field in fields)
             if (field is Map<String, dynamic>) MarketingField.fromJson(field),
       ],
+      lists: [
+        if (lists is List)
+          for (final declared in lists)
+            if (declared is Map<String, dynamic>) MarketingListField.fromJson(declared),
+      ],
     );
   }
 
@@ -80,6 +131,109 @@ class MarketingSection {
   final String label;
   final String description;
   final List<MarketingField> fields;
+  final List<MarketingListField> lists;
+}
+
+/// One repeating list - the feature cards, the figures under the hero, the
+/// ticked list, a footer column.
+///
+/// [minItems] and [maxItems] are the layout rather than storage: the hero
+/// holds five figures across its width, the features grid three rows of
+/// five. The editor stops somebody adding a sixth figure rather than
+/// letting them publish a row that wraps badly.
+class MarketingListField {
+  const MarketingListField({
+    required this.key,
+    required this.label,
+    required this.itemLabel,
+    required this.help,
+    required this.fields,
+    required this.minItems,
+    required this.maxItems,
+  });
+
+  factory MarketingListField.fromJson(Map<String, dynamic> json) {
+    final fields = json['fields'];
+    final min = json['min_items'];
+    final max = json['max_items'];
+
+    return MarketingListField(
+      key: json['key'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      itemLabel: json['item_label'] as String? ?? 'Item',
+      help: json['help'] as String? ?? '',
+      fields: [
+        if (fields is List)
+          for (final field in fields)
+            if (field is Map<String, dynamic>) MarketingItemField.fromJson(field),
+      ],
+      minItems: min is int && min > 0 ? min : 1,
+      maxItems: max is int && max > 0 ? max : 10,
+    );
+  }
+
+  final String key;
+  final String label;
+  final String itemLabel;
+  final String help;
+  final List<MarketingItemField> fields;
+  final int minItems;
+  final int maxItems;
+
+  /// The list the page ships with - what the editor starts from when
+  /// nobody has changed it.
+  List<Map<String, String>> get shipped => marketingListDefaults[key] ?? const [];
+
+  Map<String, String> get blankItem => {for (final field in fields) field.key: field.firstChoice};
+}
+
+/// One box inside a repeating item. [choices] turns it into a picker.
+class MarketingItemField {
+  const MarketingItemField({
+    required this.key,
+    required this.label,
+    required this.maxLength,
+    required this.help,
+    required this.choices,
+  });
+
+  factory MarketingItemField.fromJson(Map<String, dynamic> json) {
+    final maxLength = json['max_length'];
+    final choices = json['choices'];
+
+    return MarketingItemField(
+      key: json['key'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      maxLength: maxLength is int && maxLength > 0 ? maxLength : 60,
+      help: json['help'] as String? ?? '',
+      choices: [
+        if (choices is List)
+          for (final choice in choices)
+            if (choice is Map<String, dynamic>) MarketingChoice.fromJson(choice),
+      ],
+    );
+  }
+
+  final String key;
+  final String label;
+  final int maxLength;
+  final String help;
+  final List<MarketingChoice> choices;
+
+  /// What a newly added item gets: the first thing on the picker, or an
+  /// empty box for somebody to fill in.
+  String get firstChoice => choices.isEmpty ? '' : choices.first.value;
+}
+
+class MarketingChoice {
+  const MarketingChoice({required this.value, required this.label});
+
+  factory MarketingChoice.fromJson(Map<String, dynamic> json) {
+    return MarketingChoice(value: json['value'] as String? ?? '', label: json['label'] as String? ?? '');
+  }
+
+  final String value;
+  final String label;
 }
 
 class MarketingField {

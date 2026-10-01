@@ -64,9 +64,11 @@ class _MarketingFooterState extends ConsumerState<MarketingFooter> {
                 final columns = constraints.maxWidth < MarketingBreakpoints.tablet ? 2 : 5;
                 final items = [
                   const _BrandColumn(),
-                  const _LinkColumn(title: 'Product', links: ['Features', 'Web Dashboard', 'Mobile App', 'Pricing']),
-                  const _LinkColumn(title: 'Company', links: ['About Us', 'Careers', 'Blog', 'Contact']),
-                  const _LinkColumn(title: 'Resources', links: ['Help Center', 'Privacy Policy', 'Terms', 'Security']),
+                  // Three columns, not a variable number: the row is the
+                  // brand, these, and the newsletter across five.
+                  _LinkColumn(title: words.text('footer.productTitle'), links: words.list('footer.productLinks')),
+                  _LinkColumn(title: words.text('footer.companyTitle'), links: words.list('footer.companyLinks')),
+                  _LinkColumn(title: words.text('footer.resourceTitle'), links: words.list('footer.resourceLinks')),
                   _NewsletterColumn(emailController: _emailController, onSubscribe: _subscribe),
                 ];
                 return Wrap(
@@ -161,7 +163,7 @@ class _LinkColumn extends StatelessWidget {
   const _LinkColumn({required this.title, required this.links});
 
   final String title;
-  final List<String> links;
+  final List<Map<String, String>> links;
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +178,7 @@ class _LinkColumn extends StatelessWidget {
         for (final link in links)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Text(link, style: const TextStyle(color: MarketingColors.subtle, fontSize: 13)),
+            child: Text(link['label'] ?? '', style: const TextStyle(color: MarketingColors.subtle, fontSize: 13)),
           ),
       ],
     );

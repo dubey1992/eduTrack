@@ -77,6 +77,77 @@ void main() {
     });
   });
 
+  group('the repeating lists', () {
+    test('an untouched page shows the lists it ships with', () {
+      const content = MarketingContent.asItShips();
+
+      expect(content.list('hero.stats'), marketingListDefaults['hero.stats']);
+      expect(content.list('features.items').length, 10);
+    });
+
+    test('a changed list replaces the one that ships', () {
+      const content = MarketingContent({}, {
+        'hero.stats': [
+          {'value': '12', 'label': 'Schools'},
+        ],
+      });
+
+      expect(content.list('hero.stats'), [
+        {'value': '12', 'label': 'Schools'},
+      ]);
+    });
+
+    test('a list nobody changed still comes from the defaults', () {
+      const content = MarketingContent({}, {
+        'hero.stats': [
+          {'value': '12', 'label': 'Schools'},
+        ],
+      });
+
+      expect(content.list('web.bullets'), marketingListDefaults['web.bullets']);
+    });
+
+    test('an emptied list falls back rather than leaving a hole in the page', () {
+      const content = MarketingContent({}, {'features.items': []});
+
+      expect(content.list('features.items'), marketingListDefaults['features.items']);
+    });
+
+    test('it takes the lists out of the envelope beside the words', () {
+      final content = MarketingContent.fromJson({
+        'document': {
+          'hero.headline': 'New',
+          'hero.stats': [
+            {'value': '12', 'label': 'Schools'},
+          ],
+        },
+      });
+
+      expect(content.text('hero.headline'), 'New');
+      expect(content.list('hero.stats').single['value'], '12');
+    });
+
+    test('a list that arrived mangled is the shipped one, not a grid with holes', () {
+      for (final document in <Map<String, dynamic>>[
+        {
+          'hero.stats': ['500+'],
+        },
+        {
+          'hero.stats': [
+            {'value': 12},
+          ],
+        },
+        {
+          'hero.stats': [<String, dynamic>{}],
+        },
+      ]) {
+        final content = MarketingContent.fromJson({'document': document});
+
+        expect(content.list('hero.stats'), marketingListDefaults['hero.stats'], reason: '$document');
+      }
+    });
+  });
+
   group('the defaults themselves', () {
     test('every section the page draws has its words', () {
       // A missing key is a blank on the public homepage, so the list is
@@ -118,8 +189,28 @@ void main() {
     });
 
     test('every key is section.field, so the editor can group them', () {
-      for (final key in marketingDefaults.keys) {
+      for (final key in {...marketingDefaults.keys, ...marketingListDefaults.keys}) {
         expect(key.split('.').length, 2, reason: '$key is not section.field');
+      }
+    });
+
+    test('every list ships at least one item', () {
+      // The editor starts from these, and the server refuses an empty list.
+      for (final entry in marketingListDefaults.entries) {
+        expect(entry.value, isNotEmpty, reason: entry.key);
+      }
+    });
+
+    test('every item in a list has the same boxes as its neighbours', () {
+      // One item short of a field is a card that draws a blank where the
+      // others draw a title.
+      for (final entry in marketingListDefaults.entries) {
+        final expected = entry.value.first.keys.toSet();
+
+        for (final item in entry.value) {
+          expect(item.keys.toSet(), expected, reason: entry.key);
+          expect(item.values.every((value) => value.trim().isNotEmpty), isTrue, reason: '$item');
+        }
       }
     });
   });

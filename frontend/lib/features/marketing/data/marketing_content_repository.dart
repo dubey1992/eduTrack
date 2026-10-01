@@ -57,6 +57,10 @@ class MarketingContentNotifier extends Notifier<MarketingContent> {
   Future<void> _load() async {
     final content = await ref.read(marketingContentRepositoryProvider).fetch();
 
-    if (content.changed.isNotEmpty) state = content;
+    // Nothing changed means the request failed, or nobody has edited the
+    // page - either way the shipped copy already on screen is the answer,
+    // and replacing it would repaint the hero for no reason. A document
+    // that changed only the lists counts as changed too.
+    if (content.changed.isNotEmpty || content.changedLists.isNotEmpty) state = content;
   }
 }

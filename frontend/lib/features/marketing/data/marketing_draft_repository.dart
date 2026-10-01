@@ -35,7 +35,10 @@ class MarketingDraftRepository {
 
   /// [document] is the whole form, not a patch: a key left out of it was
   /// cleared on purpose, and the page goes back to the copy it ships with.
-  Future<MarketingDraft> save(Map<String, String> document) {
+  ///
+  /// Values are words, or lists of items for the repeating parts - the two
+  /// live in one document because they are published as one.
+  Future<MarketingDraft> save(Map<String, Object> document) {
     return _call(() async {
       final response = await _dio.put('/marketing-content/draft', data: {'document': document});
       return MarketingDraft.fromJson(response.data as Map<String, dynamic>);

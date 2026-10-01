@@ -398,15 +398,79 @@ class TheDeclarationAndTheClient(TestCase):
         import re
 
         source = (pathlib.Path(__file__).resolve().parents[2] / self.DEFAULTS).read_text(encoding="utf-8")
+        # The words only - the repeating lists are keyed the same way
+        # and are checked separately.
+        source = source.split("const marketingListDefaults")[0]
 
         return set(re.findall(r"^\s*'([a-zA-Z]+\.[a-zA-Z]+)':", source, flags=re.MULTILINE))
+
+    def client_lists(self) -> dict[str, list[dict]]:
+        """The repeating lists the client ships, read out of its defaults.
+
+        Parsed rather than imported, which is the price of the defaults
+        living on the other side of the wire. A loose parse would make the
+        drift test pass by finding nothing, so a guard below checks it
+        found something.
+        """
+        import json
+        import pathlib
+        import re
+
+        source = (pathlib.Path(__file__).resolve().parents[2] / self.DEFAULTS).read_text(encoding="utf-8")
+        body = source.split("const marketingListDefaults")[1]
+        lists: dict[str, list[dict]] = {}
+
+        # Each list opens at its key and closes at a bracket on its own
+        # indented line, so the source is cut between the two rather than
+        # matched across newlines.
+        for opening in re.finditer(r"'([a-zA-Z]+[.][a-zA-Z]+)': \[", body):
+            block = body[opening.end():].split("  ],")[0]
+            lists[opening.group(1)] = [
+                json.loads("{" + re.sub(r"'([^']*)'", lambda m: json.dumps(m.group(1)), item) + "}")
+                for item in re.findall(r"[{]([^{}]*)[}]", block)
+            ]
+
+        return lists
 
     def test_the_editor_offers_every_word_the_page_draws(self):
         self.assertEqual(self.client_keys(), marketing.keys())
 
+    def test_the_editor_offers_every_list_the_page_draws(self):
+        self.assertEqual(set(self.client_lists()), marketing.list_keys())
+
+    def test_each_list_ships_the_fields_the_declaration_names(self):
+        """An item key only one side knows is a box that edits nothing, or
+        a word on the page nobody can reach."""
+        declared = marketing.lists()
+
+        for key, items in self.client_lists().items():
+            expected = {field.key for field in declared[key].fields}
+
+            for position, item in enumerate(items, start=1):
+                self.assertEqual(expected, set(item), f"{key}, item {position}")
+
+    def test_the_list_the_page_ships_fits_what_the_design_holds(self):
+        """The editor starts from the shipped list, so a limit below it
+        would open already over the line."""
+        declared = marketing.lists()
+
+        for key, items in self.client_lists().items():
+            self.assertGreaterEqual(len(items), declared[key].min_items, key)
+            self.assertLessEqual(len(items), declared[key].max_items, key)
+
+    def test_every_icon_the_page_ships_is_on_the_picker(self):
+        """Otherwise opening the editor and saving without touching
+        anything would be refused."""
+        offered = {choice.value for choice in marketing.FEATURE_ICONS}
+        shipped = {item["icon"] for item in self.client_lists()["features.items"]}
+
+        self.assertEqual(set(), shipped - offered)
+
     def test_the_declaration_found_the_client_file_at_all(self):
-        """Guards the test above: an empty set on both sides would pass."""
+        """Guards the tests above: empty on both sides would pass."""
         self.assertGreater(len(self.client_keys()), 20)
+        self.assertEqual(6, len(self.client_lists()))
+        self.assertEqual(10, len(self.client_lists()["features.items"]))
 
 
 class TheDraftDoesNotLeak(TestCase):

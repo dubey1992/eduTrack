@@ -1871,10 +1871,17 @@ class UpdateMarketingContentRequest(serializers.Serializer):
             raise serializers.ValidationError("The document field must be an object.")
 
         declared = marketing.fields()
+        declared_lists = marketing.lists()
         problems = []
         clean = {}
 
         for key, raw in value.items():
+            if key in declared_lists:
+                items = _marketing_list(declared_lists[key], raw, problems)
+                if items is not None:
+                    clean[key] = items
+                continue
+
             field = declared.get(key)
 
             if field is None:
@@ -1910,6 +1917,86 @@ class UpdateMarketingContentRequest(serializers.Serializer):
             raise serializers.ValidationError(problems)
 
         return clean
+
+
+
+def _marketing_list(declared, raw, problems: list) -> list | None:
+    """Checks one repeating list, adding to [problems] rather than raising.
+
+    A list left out of the document is the one the page ships with, the way
+    a cleared box is - so an empty list here is somebody having removed
+    every item, which the layout has no sensible answer for. It is refused
+    with the reason rather than silently turning into the shipped list.
+
+    Unlike a scalar, an item's fields may not be blank: a card with no
+    title is a hole in the grid, not a fallback to anything.
+    """
+    if not isinstance(raw, list):
+        problems.append(f"{declared.label} must be a list.")
+        return None
+
+    if len(raw) < declared.min_items:
+        problems.append(
+            f"{declared.label} needs at least {declared.min_items} "
+            f"{'entry' if declared.min_items == 1 else 'entries'}."
+        )
+        return None
+
+    if len(raw) > declared.max_items:
+        problems.append(
+            f"{declared.label} holds {declared.max_items} at most - there are {len(raw)}."
+        )
+        return None
+
+    items = []
+
+    for position, item in enumerate(raw, start=1):
+        where = f"{declared.label}, {declared.item_label.lower()} {position}"
+
+        if not isinstance(item, dict):
+            problems.append(f"{where} is not filled in.")
+            continue
+
+        unknown = sorted(set(item) - {field.key for field in declared.fields})
+
+        if unknown:
+            problems.append(f'{where}: "{unknown[0]}" is not something on the page.')
+            continue
+
+        clean_item = {}
+
+        for field in declared.fields:
+            text = item.get(field.key)
+
+            if not isinstance(text, str) or not text.strip():
+                problems.append(f"{where} needs a {field.label.lower()}.")
+                continue
+
+            text = text.strip()
+
+            if field.choices and text not in {choice.value for choice in field.choices}:
+                problems.append(f"{where}: that is not one of the {field.label.lower()}s to choose from.")
+                continue
+
+            if len(text) > field.max_length:
+                problems.append(
+                    f"{where}: {field.label.lower()} must be {field.max_length} "
+                    f"characters or fewer - it is {len(text)}."
+                )
+                continue
+
+            if "\n" in text:
+                problems.append(f"{where}: {field.label.lower()} is a single line.")
+                continue
+
+            clean_item[field.key] = text
+
+        if len(clean_item) == len(declared.fields):
+            items.append(clean_item)
+
+    # Any problem above aborts the whole save, so a short list here is
+    # never stored - the caller raises before it is looked at.
+    return items
 
 
 class UpdateMailSettingRequest(serializers.Serializer):

@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/marketing/data/marketing_content.dart';
 import 'package:edutrack_app/features/marketing/presentation/marketing_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,8 +6,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../support/marketing_scope.dart';
 
-Widget wrap() {
+Widget wrap({MarketingContent content = const MarketingContent.asItShips()}) {
   return marketingScope(
+    content: content,
     MaterialApp.router(
       routerConfig: GoRouter(
         routes: [
@@ -20,6 +22,23 @@ Widget wrap() {
     ),
   );
 }
+
+/// A page whose lists were all replaced - what a visitor sees after the
+/// Super Admin has edited them (docs/marketing-content.md, slice 3).
+const rewritten = MarketingContent({}, {
+  'hero.stats': [
+    {'value': '12', 'label': 'Schools signed up'},
+  ],
+  'features.items': [
+    {'icon': '✓', 'title': 'Only One Feature', 'body': 'And that is on purpose'},
+  ],
+  'web.bullets': [
+    {'text': 'The only thing it does'},
+  ],
+  'footer.productLinks': [
+    {'label': 'The only link'},
+  ],
+});
 
 void main() {
   testWidgets('shows the hero headline, feature grid and footer', (tester) async {
@@ -60,5 +79,43 @@ void main() {
     expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'School name'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Request access'), findsOneWidget);
+  });
+
+  group('the repeating lists', () {
+    testWidgets('it draws the lists the server sent, not the ones it ships with', (tester) async {
+      tester.view.physicalSize = const Size(1600, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(wrap(content: rewritten));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Schools signed up'), findsOneWidget);
+      expect(find.text('Only One Feature'), findsOneWidget);
+      expect(find.text('The only link'), findsOneWidget);
+      // The shipped ones are gone, not drawn underneath.
+      expect(find.text('Student Management'), findsNothing);
+      expect(find.text('Schools (Target)'), findsNothing);
+    });
+
+    testWidgets('more cards than there are colours does not crash the page', (tester) async {
+      // The colour list holds ten and the section takes fifteen, so it
+      // cycles rather than reaching past its end.
+      tester.view.physicalSize = const Size(1600, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final many = MarketingContent(const {}, {
+        'features.items': [
+          for (var i = 1; i <= 15; i++) {'icon': '✓', 'title': 'Card $i', 'body': 'Number $i'},
+        ],
+      });
+
+      await tester.pumpWidget(wrap(content: many));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Card 15'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

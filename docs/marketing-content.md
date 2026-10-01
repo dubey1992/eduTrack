@@ -1,6 +1,6 @@
 # The marketing page, managed from the Super Admin panel
 
-**Status (2026-10-01): slices 1 and 2 built; slices 3 and 4 planned.** The
+**Status (2026-10-01): slices 1-3 built; slice 4 planned.** The
 public homepage at `/` is a Flutter recreation of the marketing prototype
 with every word written into the widgets as a `const`. Changing the
 headline currently means a code change, a build and a deploy. This puts the
@@ -148,14 +148,60 @@ instead would be technically defensible and completely baffling.
 page" - with no row, both documents are empty and "the homepage matches
 this draft" is true and useless.
 
-### Slice 3 - The lists
+### Slice 3 - The lists *(built)*
 
-Features, hero stats, footer links and the web-app bullets: add, remove,
-reorder, edit. Icons for feature cards come from a fixed set rather than
-free text, so a card cannot be given a glyph the font has no room for.
+Six lists: the feature cards, the figures under the hero, the ticked list
+beside the dashboard mockup, and the footer's three columns. Add, remove,
+move up and down, edit, and put the shipped list back. They live in the
+same document as the words, because they are published as one.
 
-Edge cases: emptying a list entirely; one item; many more than the design
-expects; reordering then cancelling; a removed item that was published.
+**Decided with the user on 2026-10-01:**
+
+- **The icons stay the characters already on the page**, offered as a
+  picker rather than free text - so a card cannot be given a glyph the
+  font has no room for, which draws an empty box where an icon belongs.
+  Replacing them with Material icons was offered and declined: it would
+  change how the public page looks.
+- **The footer links stay wording only.** They are plain text that goes
+  nowhere today, and they still are. Giving each one an address was
+  offered and declined.
+
+**Three columns, not a variable number.** The footer row is the brand,
+these three, and the newsletter across five. So each column's heading is
+an ordinary field and its lines are a list; the count of columns is not
+editable because the layout assumes it.
+
+What the edge cases turned into:
+
+- **An empty list is refused**, with the reason. Leaving a list out of the
+  document is how somebody says "use the one that ships" - the editor's
+  "Use the ones that ship" button does exactly that. Sending an empty list
+  is somebody having removed every item, and the layout has no answer for
+  it. The editor stops at the last item rather than letting them get there.
+- **More than the design holds is refused**, at the form and again at the
+  server. Five figures sit across the width of the hero; a sixth wraps on
+  to a row of its own at a fifth of the width with the divider logic still
+  expecting it to be last.
+- **An item's fields may not be blank.** Unlike a page-level box, a blank
+  here is not a fallback to anything: a card with no title is a hole in
+  the grid. The message names the item by its position, because somebody
+  looking at nine cards needs to know which one.
+- **Reordering is just another save.** No separate endpoint and no order
+  column: the list is stored in the order it arrives.
+
+Two bugs the building found:
+
+**An eleventh feature card used to crash the page.** The colours are a
+list of ten indexed by position, and the section now takes fifteen. It
+cycles.
+
+**A document that changed only lists was never applied.** The content
+provider kept the shipped copy unless the words had changed, so editing
+only the feature cards published fine and changed nothing a visitor saw.
+
+One piece of dead logic removed: the list validator used to refuse a
+partly-good list, which could never happen - any problem aborts the whole
+save before the result is looked at.
 
 ### Slice 4 - The live figures
 
