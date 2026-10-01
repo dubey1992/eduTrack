@@ -135,6 +135,8 @@ class StudentPerformance:
         # rules see exactly what the screen shows, so a sentence can never
         # describe numbers the page does not carry (school/insights.py).
         payload["insights"] = insights.for_performance(payload)
+        # What to do about them, from the same figures and the same module.
+        payload["recommendations"] = insights.recommendations_for(payload)
 
         return payload
 

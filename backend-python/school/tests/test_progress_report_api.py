@@ -401,3 +401,46 @@ class TheTopicsOnThePage(ProgressReportTestCase):
         self.mark(self.published(), marks="18")
 
         self.assertNotIn("Inside each subject", self.page())
+
+
+class WhatToDoNextOnThePage(ProgressReportTestCase):
+    """The recommendations, printed (docs/insights.md, slice 2)."""
+
+    def setUp(self):
+        super().setUp()
+        ModuleSetting.objects.create(
+            school=self.school, module="assessments", settings={"weak_below_percentage": 50},
+            created_at=timezone.now(), updated_at=timezone.now(),
+        )
+        cache.clear()
+
+    def test_a_weak_subject_earns_a_printed_next_step(self):
+        self.mark(self.published(), marks="4")
+        self.mark(self.published(), marks="5")
+
+        page = self.page()
+
+        self.assertIn("What to do next", page)
+        self.assertIn("Set extra practice in Mathematics", page)
+
+    def test_it_names_the_chapters_where_the_tests_named_them(self):
+        trig = factories.SyllabusTopicFactory(
+            subject=self.maths, school=self.school, title="Trigonometry", sequence_number=1
+        )
+        for marks in ("4", "5"):
+            assessment = self.published()
+            assessment.syllabus_topic = trig
+            assessment.save()
+            self.mark(assessment, marks=marks)
+
+        page = self.page()
+
+        self.assertIn("Revise Trigonometry in Mathematics", page)
+        self.assertNotIn("Set extra practice", page, "naming the chapter is the better advice, and the only one")
+
+    def test_a_term_with_nothing_wrong_prints_no_heading_at_all(self):
+        self.mark(self.published(), marks="19")
+        self.mark(self.published(), marks="20")
+
+        self.assertNotIn("What to do next", self.page())
+

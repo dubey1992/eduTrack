@@ -99,6 +99,10 @@ class _StudentPerformanceDialogState extends ConsumerState<StudentPerformanceDia
                     const SizedBox(height: 20),
                     _Insights(insights: performance.insights),
                   ],
+                  if (performance.recommendations.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _Recommendations(recommendations: performance.recommendations),
+                  ],
                 ],
                 const SizedBox(height: 20),
                 _Attendance(performance: performance),
@@ -413,6 +417,43 @@ class _Insights extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(child: Text(insight.message)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// One next step per finding (docs/insights.md).
+///
+/// Separate from "What this looks like" because they answer different
+/// questions: that section says what the numbers are, this one says what
+/// somebody could do. Each carries the figures it came from, so a teacher
+/// can disagree with it on the evidence rather than on authority.
+class _Recommendations extends StatelessWidget {
+  const _Recommendations({required this.recommendations});
+
+  final List<PerformanceInsight> recommendations;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('What to do next', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        for (final step in recommendations)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.arrow_forward, size: 16, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(child: Text(step.message)),
               ],
             ),
           ),

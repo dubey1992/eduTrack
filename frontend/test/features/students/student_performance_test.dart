@@ -514,4 +514,54 @@ void main() {
       expect(missed.isWeak(40), isFalse, reason: 'nobody has measured it, so it cannot be weak');
     });
   });
+
+  group('what to do next', () {
+    const steps = [
+      PerformanceInsight(
+        code: 'revise_topics',
+        message: 'Revise Trigonometry in Mathematics before the next test.',
+        subjectId: 1,
+        subjectName: 'Mathematics',
+      ),
+      PerformanceInsight(code: 'arrange_resit', message: 'Offer a re-sit for the 2 tests missed, of 6 this term.'),
+    ];
+
+    testWidgets('each suggestion is shown under its own heading', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStudentRepository(performance: fakePerformance(recommendations: steps))));
+      await tester.pumpAndSettle();
+
+      expect(find.text('What to do next'), findsOneWidget);
+      expect(find.text('Revise Trigonometry in Mathematics before the next test.'), findsOneWidget);
+      expect(find.text('Offer a re-sit for the 2 tests missed, of 6 this term.'), findsOneWidget);
+    });
+
+    testWidgets('a term with nothing to suggest shows no heading at all', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeStudentRepository(performance: fakePerformance(recommendations: const []))));
+      await tester.pumpAndSettle();
+
+      expect(find.text('What to do next'), findsNothing);
+    });
+
+    testWidgets('it is kept apart from what the figures say', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(
+        wrap(
+          FakeStudentRepository(
+            performance: fakePerformance(
+              insights: const [PerformanceInsight(code: 'weak_subject', message: 'Mathematics is at 34%.')],
+              recommendations: steps,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // A guardian reading this should be able to tell what the school is
+      // saying from what it is suggesting.
+      expect(find.text('What this looks like'), findsOneWidget);
+      expect(find.text('What to do next'), findsOneWidget);
+    });
+  });
 }

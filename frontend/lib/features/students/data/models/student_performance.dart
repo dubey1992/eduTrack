@@ -252,6 +252,7 @@ class StudentPerformance {
     required this.overall,
     required this.attendance,
     required this.insights,
+    this.recommendations = const [],
     this.weakBelowPercentage,
   });
 
@@ -275,6 +276,10 @@ class StudentPerformance {
       ],
       overall: OverallPerformance.fromJson(json['overall'] as Map<String, dynamic>?),
       attendance: PerformanceAttendance.fromJson(json['attendance'] as Map<String, dynamic>?),
+      recommendations: [
+        for (final row in (json['recommendations'] as List<dynamic>? ?? const []))
+          PerformanceInsight.fromJson(row as Map<String, dynamic>),
+      ],
       insights: [
         for (final row in (json['insights'] as List<dynamic>? ?? const []))
           PerformanceInsight.fromJson(row as Map<String, dynamic>),
@@ -299,6 +304,12 @@ class StudentPerformance {
   /// What the rules made of the figures. Empty is the ordinary case for a
   /// student with one test or a steady term.
   final List<PerformanceInsight> insights;
+
+  /// One next step per finding, from the same rules and the same figures.
+  ///
+  /// A finding says what the numbers are; a recommendation says what
+  /// somebody could do about it (docs/insights.md).
+  final List<PerformanceInsight> recommendations;
 
   /// The subject average the school calls weak.
   final double? weakBelowPercentage;

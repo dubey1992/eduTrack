@@ -287,6 +287,7 @@ StudentPerformance fakePerformance({
   List<PerformanceTerm>? terms,
   PerformanceAttendance? attendance,
   List<PerformanceInsight>? insights,
+  List<PerformanceInsight>? recommendations,
   double? weakBelow = 40,
 
   /// Flags rather than null arguments: with `term ?? default` there is no
@@ -354,6 +355,7 @@ StudentPerformance fakePerformance({
           notMarked: 1,
           attendanceRate: 70,
         ),
+    recommendations: recommendations ?? const [],
     insights:
         insights ??
         const [

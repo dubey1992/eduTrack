@@ -1,6 +1,6 @@
 # Weak areas, recommendations, and one entry instead of two
 
-**Status (2026-10-01): planned.** Decided with the user on 2026-10-01. This
+**Status (2026-10-01): slices 1, 2 and 3 built; 4 and 5 planned.** Decided with the user on 2026-10-01. This
 continues [assessments.md](assessments.md) rather than replacing it: terms,
 grade scales, marks, publishing, the two performance reports and the
 progress report are all built and live. What follows is the part of
@@ -112,6 +112,14 @@ that floor already.
 
 Edge cases: nothing weak; everything weak; a weak subject with no topic
 data; a recommendation that would repeat an insight word for word.
+
+**Built, with one rule the plan got wrong.** The first draft only looked
+at chapters once the *subject* was weak, which hid the exact case slice 1
+exists for: a subject at 70% with a chapter at 30%. A live demo caught it.
+A weak chapter now counts on its own, as a finding (`weak_topic`) and as a
+next step, and the subject is only sent for practice when it is weak as a
+whole - naming the chapter is the better advice, and a page that said both
+would be telling somebody the same thing twice.
 
 ### Slice 3 - One entry: the report ticks the syllabus
 

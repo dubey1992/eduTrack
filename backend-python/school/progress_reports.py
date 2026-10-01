@@ -123,6 +123,8 @@ def document(payload: dict, *, school_name: str, generated_at: str) -> str:
 
     {says(payload["insights"])}
 
+    {next_steps(payload.get("recommendations") or [])}
+
     <div class="note muted">
         Only published results are counted. A test the student missed is left out of the average rather than
         counted as nought, and each subject weighs the same in the overall figure.
@@ -337,6 +339,21 @@ def says(insights: list) -> str:
     items = "".join(f'<li>{text(insight["message"])}</li>' for insight in insights)
 
     return f'<h1>What this looks like</h1><ul class="says">{items}</ul>'
+
+
+def next_steps(recommendations: list) -> str:
+    """What to do about the figures above (docs/insights.md).
+
+    Printed under its own heading rather than mixed into the findings: a
+    guardian reading this at a kitchen table should be able to tell what
+    the school is saying from what it is suggesting.
+    """
+    if not recommendations:
+        return ""
+
+    items = "".join(f'<li>{text(step["message"])}</li>' for step in recommendations)
+
+    return f'<h1>What to do next</h1><ul class="says">{items}</ul>'
 
 
 def facts(lines: list) -> str:
