@@ -1,6 +1,6 @@
 # The marketing page, managed from the Super Admin panel
 
-**Status (2026-10-01): slices 1-3 built; slice 4 planned.** The
+**Status (2026-10-01): built, all four slices.** The
 public homepage at `/` is a Flutter recreation of the marketing prototype
 with every word written into the widgets as a `const`. Changing the
 headline currently means a code change, a build and a deploy. This puts the
@@ -203,11 +203,55 @@ One piece of dead logic removed: the list validator used to refuse a
 partly-good list, which could never happen - any problem aborts the whole
 save before the result is looked at.
 
-### Slice 4 - The live figures
+### Slice 4 - The live figures *(built)*
 
-A hero stat may be a live platform figure instead of typed text. Counted
-cheaply and cached with the document.
+Each figure under the hero says where its number comes from: what the
+Super Admin typed, the count of schools using the product, or the count
+of students on the platform. Chosen per figure, so a platform with three
+schools can keep "500+ (Target)" on the board and swap one over when the
+real number is worth showing.
 
-Edge cases: a platform with no schools; counting only active schools and
-students; the figure while the cache is cold; a stat switched from live
-back to fixed.
+**The typed figure stays, and stays required.** It is what a live figure
+falls back to, which is how the awkward cases answer themselves.
+
+**A count of nothing falls back to the typed figure.** A front page saying
+"0 Schools" helps nobody, and the typed value is already sitting there
+saying "500+ (Target)".
+
+**The page is handed numbers, never told which are live.** The server
+resolves the counts before it caches the document, so a visitor's browser
+counts nothing and knows nothing about sources. The editor and the preview
+have their own copy of the same rule, because they have to show what a
+figure would say before it is published - and a test pins the rule on both
+sides.
+
+**What is stored is the choice, not the number.** Otherwise publishing
+would freeze the count into the document and the figure would stop being
+live.
+
+**Counting is two queries an hour, not two per visitor.** The counts are
+cached with the document that uses them, so a school signing up shows on
+the front page within the hour rather than at once. For a marketing figure
+that is the right trade, and it is pinned by a test so it stays a decision
+rather than a surprise.
+
+What counts:
+
+- **A branch counts as a school.** The word on the page is "schools", and
+  four buildings running the product are four schools by any ordinary
+  reading - whatever they are on an invoice.
+- **Switched-off schools do not count**, and their students are nobody's
+  students.
+- **Students who have left do not count.**
+
+Two things the building found:
+
+**The picker was showing its own keys.** The choice list draws the value
+beside its name, which is right for the icons - the glyph is the thing
+being chosen - and wrong for a source, where the value is a key nobody
+should see. A value short enough to be a symbol is shown beside its name;
+a word stands on its own.
+
+**Choosing a source did not refresh the line under it.** The line says what
+that source reads today, and it was still describing the source you had
+just moved away from.

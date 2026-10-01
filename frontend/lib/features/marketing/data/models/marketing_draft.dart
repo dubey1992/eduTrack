@@ -16,6 +16,7 @@ class MarketingDraft {
     required this.publishedAt,
     required this.hasUnpublishedChanges,
     this.draftLists = const {},
+    this.figures = const {},
   });
 
   factory MarketingDraft.fromJson(Map<String, dynamic> json) {
@@ -30,6 +31,7 @@ class MarketingDraft {
       ],
       draft: _words(json['draft']),
       draftLists: _lists(json['draft']),
+      figures: _figures(json['figures']),
       published: _words(json['published']),
       publishedAt: publishedAt is String ? DateTime.tryParse(publishedAt)?.toLocal() : null,
       hasUnpublishedChanges: json['has_unpublished_changes'] == true,
@@ -52,6 +54,12 @@ class MarketingDraft {
 
   final bool hasUnpublishedChanges;
 
+  /// What a live figure would say if it were published now - so the editor
+  /// can show the real number beside the choice, and the preview can draw
+  /// it. The public page is never told which figures are live; it is handed
+  /// numbers already resolved.
+  final Map<String, int> figures;
+
   List<MarketingField> get fields => [for (final section in sections) ...section.fields];
 
   List<MarketingListField> get listFields => [for (final section in sections) ...section.lists];
@@ -64,6 +72,15 @@ class MarketingDraft {
     if (saved != null && saved.isNotEmpty) return saved;
 
     return marketingListDefaults[key] ?? const [];
+  }
+
+  static Map<String, int> _figures(Object? value) {
+    if (value is! Map) return const {};
+
+    return {
+      for (final entry in value.entries)
+        if (entry.key is String && entry.value is int) entry.key as String: entry.value as int,
+    };
   }
 
   static Map<String, List<Map<String, String>>> _lists(Object? value) {

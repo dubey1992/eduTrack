@@ -8,6 +8,7 @@ import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../application/marketing_draft_notifier.dart';
+import '../data/live_figures.dart';
 import '../data/marketing_content.dart';
 import '../data/models/marketing_draft.dart';
 import 'marketing_preview_dialog.dart';
@@ -207,7 +208,15 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
     // The real homepage, drawn from the boxes as they are now - including
     // anything typed and not yet saved, which is what "preview" has to mean
     // for it to be worth pressing.
-    showMarketingPreview(context, MarketingContent(_typed, _lists));
+    //
+    // The live figures are put in here rather than on the page, because the
+    // page is only ever handed numbers the server already resolved.
+    final lists = {
+      ..._lists,
+      if (_lists[heroStatsKey] != null) heroStatsKey: resolveLiveFigures(_lists[heroStatsKey]!, widget.draft.figures),
+    };
+
+    showMarketingPreview(context, MarketingContent(_typed, lists));
   }
 
   @override
@@ -233,6 +242,7 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
                     lists: _lists,
                     fieldErrors: _fieldErrors,
                     onListChanged: (key, items) => _lists[key] = items,
+                    figures: widget.draft.figures,
                     enabled: !_busy,
                   ),
                 ],
@@ -330,6 +340,7 @@ class _SectionCard extends StatelessWidget {
     required this.lists,
     required this.fieldErrors,
     required this.onListChanged,
+    required this.figures,
     required this.enabled,
   });
 
@@ -338,6 +349,7 @@ class _SectionCard extends StatelessWidget {
   final Map<String, List<Map<String, String>>> lists;
   final Map<String, String> fieldErrors;
   final void Function(String key, List<Map<String, String>> items) onListChanged;
+  final Map<String, int> figures;
   final bool enabled;
 
   @override
@@ -372,6 +384,7 @@ class _SectionCard extends StatelessWidget {
                 initial: lists[declared.key] ?? declared.shipped,
                 onChanged: (items) => onListChanged(declared.key, items),
                 serverError: fieldErrors[declared.key],
+                figures: figures,
                 enabled: enabled,
               ),
             ],

@@ -11,6 +11,7 @@ class FakeMarketingDraftRepository implements MarketingDraftRepository {
     Map<String, String>? draft,
     Map<String, String>? published,
     this.publishedAt,
+    this.figures = const {},
     this.failGetWith,
     this.failSaveWith,
     this.failPublishWith,
@@ -21,6 +22,7 @@ class FakeMarketingDraftRepository implements MarketingDraftRepository {
   Map<String, List<Map<String, String>>> draftLists = {};
   Map<String, String> published;
   DateTime? publishedAt;
+  Map<String, int> figures;
 
   Failure? failGetWith;
   Failure? failSaveWith;
@@ -43,6 +45,7 @@ class FakeMarketingDraftRepository implements MarketingDraftRepository {
     draftLists: draftLists,
     published: published,
     publishedAt: publishedAt,
+    figures: figures,
     hasUnpublishedChanges: !_sameWords(draft, published),
   );
 
@@ -118,6 +121,16 @@ const marketingSections = [
         itemLabel: 'Figure',
         help: 'Five across the width of the hero.',
         fields: [
+          MarketingItemField(
+            key: 'source',
+            label: 'Where it comes from',
+            maxLength: 16,
+            help: '',
+            choices: [
+              MarketingChoice(value: 'typed', label: 'What I type below'),
+              MarketingChoice(value: 'schools', label: 'Schools using the product'),
+            ],
+          ),
           MarketingItemField(key: 'value', label: 'Figure', maxLength: 16, help: '', choices: []),
           MarketingItemField(key: 'label', label: 'What it is', maxLength: 24, help: '', choices: []),
         ],

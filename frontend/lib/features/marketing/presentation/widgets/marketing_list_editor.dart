@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../data/live_figures.dart';
 import '../../data/models/marketing_draft.dart';
 
 /// One repeating list on the homepage - the feature cards, the figures
@@ -23,6 +24,7 @@ class MarketingListEditor extends StatefulWidget {
     required this.onChanged,
     required this.enabled,
     this.serverError,
+    this.figures = const {},
   });
 
   final MarketingListField declared;
@@ -30,6 +32,9 @@ class MarketingListEditor extends StatefulWidget {
   final ValueChanged<List<Map<String, String>>> onChanged;
   final bool enabled;
   final String? serverError;
+
+  /// What a live figure would say today. Only the hero's figures use it.
+  final Map<String, int> figures;
 
   @override
   State<MarketingListEditor> createState() => _MarketingListEditorState();
@@ -119,6 +124,7 @@ class _MarketingListEditorState extends State<MarketingListEditor> {
             position: index,
             count: _rows.length,
             itemLabel: widget.declared.itemLabel,
+            figures: widget.figures,
             enabled: widget.enabled,
             canRemove: _rows.length > widget.declared.minItems,
             onChanged: _report,
@@ -149,13 +155,14 @@ class _MarketingListEditorState extends State<MarketingListEditor> {
   }
 }
 
-class _ItemCard extends StatelessWidget {
+class _ItemCard extends StatefulWidget {
   const _ItemCard({
     super.key,
     required this.row,
     required this.position,
     required this.count,
     required this.itemLabel,
+    required this.figures,
     required this.enabled,
     required this.canRemove,
     required this.onChanged,
@@ -168,12 +175,32 @@ class _ItemCard extends StatelessWidget {
   final int position;
   final int count;
   final String itemLabel;
+  final Map<String, int> figures;
   final bool enabled;
   final bool canRemove;
   final VoidCallback onChanged;
   final VoidCallback onRemove;
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
+
+  @override
+  State<_ItemCard> createState() => _ItemCardState();
+}
+
+/// Stateful only so that choosing a source redraws the line beneath it -
+/// the line says what that source reads today, and a picker whose caption
+/// does not follow the choice is worse than no caption.
+class _ItemCardState extends State<_ItemCard> {
+  _Row get row => widget.row;
+  String get itemLabel => widget.itemLabel;
+  Map<String, int> get figures => widget.figures;
+  bool get enabled => widget.enabled;
+  int get position => widget.position;
+  int get count => widget.count;
+  bool get canRemove => widget.canRemove;
+  VoidCallback get onRemove => widget.onRemove;
+  VoidCallback? get onMoveUp => widget.onMoveUp;
+  VoidCallback? get onMoveDown => widget.onMoveDown;
 
   @override
   Widget build(BuildContext context) {
@@ -233,23 +260,30 @@ class _ItemCard extends StatelessWidget {
                 ),
                 onChanged: (value) {
                   row.values[field.key] = value;
-                  onChanged();
+                  widget.onChanged();
                 },
                 validator: (value) => _problemWith(field, value ?? ''),
               )
             else
               DropdownButtonFormField<String>(
                 initialValue: _pick(field, row.values[field.key]),
-                decoration: InputDecoration(labelText: field.label, isDense: true),
+                decoration: InputDecoration(
+                  labelText: field.label,
+                  // What a live figure reads today, so somebody can see the
+                  // real number before putting it on the front page.
+                  helperText: _reading(field, row) ?? (field.help.isEmpty ? null : field.help),
+                  helperMaxLines: 2,
+                  isDense: true,
+                ),
                 items: [
                   for (final choice in field.choices)
-                    DropdownMenuItem(value: choice.value, child: Text('${choice.value}   ${choice.label}')),
+                    DropdownMenuItem(value: choice.value, child: Text(_choiceLabel(choice))),
                 ],
                 onChanged: enabled
                     ? (value) {
                         if (value == null) return;
-                        row.values[field.key] = value;
-                        onChanged();
+                        setState(() => row.values[field.key] = value);
+                        widget.onChanged();
                       }
                     : null,
               ),
@@ -257,6 +291,30 @@ class _ItemCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// A value short enough to be a symbol is shown beside its name, because
+  /// the symbol is the thing being chosen - that is how the icon picker
+  /// reads. A value that is a word is a key, which nobody should see.
+  String _choiceLabel(MarketingChoice choice) {
+    return choice.value.characters.length <= 2 ? '${choice.value}   ${choice.label}' : choice.label;
+  }
+
+  /// The line under a source picker: what it would say if published now,
+  /// or that there is nothing to count yet - which is the thing somebody
+  /// most needs to know before choosing it.
+  String? _reading(MarketingItemField field, _Row row) {
+    if (field.key != statSourceKey) return null;
+
+    final source = row.values[field.key];
+
+    if (source == null || source == typedSource) return null;
+
+    final reading = liveReading(source, figures);
+
+    return reading == null
+        ? 'Nothing to count yet - the figure below is what visitors will see.'
+        : 'Shows $reading right now.';
   }
 
   /// A value saved before the set changed is not on the picker any more;

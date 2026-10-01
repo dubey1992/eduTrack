@@ -523,7 +523,11 @@ void main() {
       await tester.pump();
       await tapButton(tester, 'Save Draft');
 
-      expect((fake.lastSave!['hero.stats']! as List).first, {'value': '12', 'label': 'Schools (Target)'});
+      expect((fake.lastSave!['hero.stats']! as List).first, {
+        'source': 'typed',
+        'value': '12',
+        'label': 'Schools (Target)',
+      });
     });
 
     testWidgets('a blank box in an item stops the save before it is sent', (tester) async {
@@ -550,6 +554,69 @@ void main() {
       await tapButton(tester, 'Preview');
 
       expect(find.text('Schools signed up'), findsWidgets);
+    });
+  });
+
+  group('figures that count something real', () {
+    testWidgets('the preview draws the count, not the typed fallback', (tester) async {
+      // The page is only ever handed numbers somebody else resolved, so
+      // the preview has to resolve them before handing them over.
+      useDesktop(tester);
+      final fake = FakeMarketingDraftRepository(figures: {'schools': 1248})
+        ..draftLists = {
+          'hero.stats': [
+            {'source': 'schools', 'value': '500+', 'label': 'Schools'},
+          ],
+        };
+
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await tapButton(tester, 'Preview');
+
+      // Scoped to the preview: the editor's own boxes are still behind it,
+      // and one of them holds the typed fallback.
+      Finder inPreview(String text) => find.descendant(of: find.byType(Dialog), matching: find.text(text));
+
+      expect(inPreview('1,248'), findsWidgets);
+      expect(inPreview('500+'), findsNothing);
+    });
+
+    testWidgets('a platform with nothing to count previews the typed figure', (tester) async {
+      useDesktop(tester);
+      final fake = FakeMarketingDraftRepository(figures: {'schools': 0})
+        ..draftLists = {
+          'hero.stats': [
+            {'source': 'schools', 'value': '500+', 'label': 'Schools'},
+          ],
+        };
+
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await tapButton(tester, 'Preview');
+
+      expect(find.descendant(of: find.byType(Dialog), matching: find.text('500+')), findsWidgets);
+    });
+
+    testWidgets('what gets saved is the choice, not the number', (tester) async {
+      // Otherwise publishing would freeze the count into the document and
+      // the figure would stop being live.
+      useDesktop(tester);
+      final fake = FakeMarketingDraftRepository(figures: {'schools': 1248})
+        ..draftLists = {
+          'hero.stats': [
+            {'source': 'schools', 'value': '500+', 'label': 'Schools'},
+          ],
+        };
+
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await tapButton(tester, 'Save Draft');
+
+      expect((fake.lastSave!['hero.stats']! as List).single, {
+        'source': 'schools',
+        'value': '500+',
+        'label': 'Schools',
+      });
     });
   });
 }

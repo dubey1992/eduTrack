@@ -76,11 +76,11 @@ const marketingDefaults = <String, String>{
 /// item read back from the server and one from here are the same shape.
 const marketingListDefaults = <String, List<Map<String, String>>>{
   'hero.stats': [
-    {'value': '500+', 'label': 'Schools (Target)'},
-    {'value': 'Global', 'label': 'Reach'},
-    {'value': '1M+', 'label': 'Students (Target)'},
-    {'value': 'Secure', 'label': '& Reliable'},
-    {'value': 'Better', 'label': 'Tomorrow'},
+    {'source': 'typed', 'value': '500+', 'label': 'Schools (Target)'},
+    {'source': 'typed', 'value': 'Global', 'label': 'Reach'},
+    {'source': 'typed', 'value': '1M+', 'label': 'Students (Target)'},
+    {'source': 'typed', 'value': 'Secure', 'label': '& Reliable'},
+    {'source': 'typed', 'value': 'Better', 'label': 'Tomorrow'},
   ],
   'features.items': [
     {'icon': '☺', 'title': 'Student Management', 'body': 'Complete student records and academic details'},

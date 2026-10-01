@@ -101,6 +101,22 @@ FEATURE_ICONS: tuple[Choice, ...] = (
 )
 
 
+# Where a hero figure's number comes from. TYPED is first because it is
+# what a newly added figure gets, and because a platform with three schools
+# would rather keep "500+ (Target)" on the board than say "3".
+TYPED = "typed"
+SCHOOLS = "schools"
+STUDENTS = "students"
+
+STAT_SOURCES: tuple[Choice, ...] = (
+    Choice(TYPED, "What I type below"),
+    Choice(SCHOOLS, "Schools using the product"),
+    Choice(STUDENTS, "Students on the platform"),
+)
+
+STATS = "hero.stats"
+
+
 SECTIONS: tuple[Section, ...] = (
     Section(
         "nav", "The bar across the top", "The first thing a visitor sees, on every screen size.",
@@ -131,6 +147,8 @@ SECTIONS: tuple[Section, ...] = (
                 "hero.stats", "The figures under the hero", "Figure",
                 "Five across the width of the hero; a sixth wraps onto a row of its own and looks wrong.",
                 (
+                    ItemField("source", "Where it comes from", max_length=16, choices=STAT_SOURCES,
+                              help="A live count replaces the figure below once there is one to show."),
                     ItemField("value", "Figure", max_length=16),
                     ItemField("label", "What it is", max_length=24),
                 ),
@@ -293,3 +311,34 @@ def resource() -> list[dict]:
         }
         for section in SECTIONS
     ]
+
+
+def resolve(document: dict, figures: dict[str, int]) -> dict:
+    """Puts today's counts into the hero figures that asked for them.
+
+    The page is never told which figures are live: it is handed numbers
+    and draws them. Keeping the substitution here means the public page,
+    the preview and the editor's hint all follow one rule, and a visitor's
+    browser never counts anything.
+
+    **A count of nothing falls back to the typed figure.** A platform with
+    no schools yet saying "0 Schools" on its own front page helps nobody,
+    and the typed value is already there, usually saying something like
+    "500+ (Target)".
+    """
+    stats = document.get(STATS)
+
+    if not isinstance(stats, list):
+        return document
+
+    resolved = []
+
+    for item in stats:
+        if not isinstance(item, dict):
+            resolved.append(item)
+            continue
+
+        count = figures.get(item.get("source", TYPED), 0)
+        resolved.append({**item, "value": f"{count:,}"} if count > 0 else item)
+
+    return {**document, STATS: resolved}

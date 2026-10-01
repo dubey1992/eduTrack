@@ -18,6 +18,29 @@ const stats = MarketingListField(
   maxItems: 3,
 );
 
+const sourced = MarketingListField(
+  key: 'hero.stats',
+  label: 'The figures under the hero',
+  itemLabel: 'Figure',
+  help: '',
+  fields: [
+    MarketingItemField(
+      key: 'source',
+      label: 'Where it comes from',
+      maxLength: 16,
+      help: '',
+      choices: [
+        MarketingChoice(value: 'typed', label: 'What I type below'),
+        MarketingChoice(value: 'schools', label: 'Schools using the product'),
+      ],
+    ),
+    MarketingItemField(key: 'value', label: 'Figure', maxLength: 16, help: '', choices: []),
+    MarketingItemField(key: 'label', label: 'What it is', maxLength: 24, help: '', choices: []),
+  ],
+  minItems: 1,
+  maxItems: 5,
+);
+
 const cards = MarketingListField(
   key: 'features.items',
   label: 'The feature cards',
@@ -49,6 +72,7 @@ Widget wrap(
   List<Map<String, String>> initial, {
   bool enabled = true,
   String? serverError,
+  Map<String, int> figures = const {},
 }) {
   reported = initial;
 
@@ -63,6 +87,7 @@ Widget wrap(
             onChanged: (items) => reported = items,
             enabled: enabled,
             serverError: serverError,
+            figures: figures,
           ),
         ),
       ),
@@ -305,7 +330,11 @@ void main() {
       await tester.tap(find.text('Use the ones that ship'));
       await tester.pumpAndSettle();
 
-      expect(reported, marketingListDefaults['hero.stats']);
+      // This test's declaration names fewer boxes than the real one, so
+      // the revert carries only the boxes it knows about.
+      expect(reported.map((item) => item['value']).toList(), [
+        for (final shipped in marketingListDefaults['hero.stats']!) shipped['value'],
+      ]);
     });
   });
 
@@ -371,6 +400,146 @@ void main() {
       );
 
       expect(await validate(tester), isTrue);
+    });
+  });
+
+  group('a figure that counts something real', () {
+    testWidgets('it says what the figure reads today', (tester) async {
+      // So the Super Admin can see the real number before putting it on
+      // the front page.
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(
+          sourced,
+          [
+            {'source': 'schools', 'value': '500+', 'label': 'Schools'},
+          ],
+          figures: {'schools': 1248},
+        ),
+      );
+
+      expect(find.text('Shows 1,248 right now.'), findsOneWidget);
+    });
+
+    testWidgets('a platform with nothing to count says so', (tester) async {
+      // The thing somebody most needs to know before choosing it.
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(
+          sourced,
+          [
+            {'source': 'schools', 'value': '500+', 'label': 'Schools'},
+          ],
+          figures: {'schools': 0},
+        ),
+      );
+
+      expect(find.text('Nothing to count yet - the figure below is what visitors will see.'), findsOneWidget);
+    });
+
+    testWidgets('a typed figure says nothing about counts', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(
+          sourced,
+          [
+            {'source': 'typed', 'value': '500+', 'label': 'Schools'},
+          ],
+          figures: {'schools': 1248},
+        ),
+      );
+
+      expect(find.textContaining('right now'), findsNothing);
+      expect(find.textContaining('Nothing to count'), findsNothing);
+    });
+
+    testWidgets('the typed figure stays editable, because it is the fallback', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(
+          sourced,
+          [
+            {'source': 'schools', 'value': '500+', 'label': 'Schools'},
+          ],
+          figures: {'schools': 1248},
+        ),
+      );
+
+      await tester.enterText(find.widgetWithText(TextFormField, '500+'), '600+');
+      await tester.pump();
+
+      expect(reported.single['value'], '600+');
+    });
+
+    testWidgets('choosing a source updates the line under it', (tester) async {
+      // A picker whose caption does not follow the choice is worse than no
+      // caption - it tells you about the source you just moved away from.
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(
+          sourced,
+          [
+            {'source': 'typed', 'value': '500+', 'label': 'Schools'},
+          ],
+          figures: {'schools': 44},
+        ),
+      );
+      expect(find.textContaining('right now'), findsNothing);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Schools using the product').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Shows 44 right now.'), findsOneWidget);
+      expect(reported.single['source'], 'schools');
+    });
+
+    testWidgets('a new figure starts as one somebody types', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(sourced, [
+          {'source': 'schools', 'value': '500+', 'label': 'Schools'},
+        ]),
+      );
+
+      await tester.tap(find.text('Add figure'));
+      await tester.pumpAndSettle();
+
+      expect(reported.last['source'], 'typed');
+    });
+  });
+
+  group('what a picker reads', () {
+    testWidgets('a symbol is shown beside its name, because the symbol is the choice', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(cards, [
+          {'icon': '☺', 'title': 'Attendance'},
+        ]),
+      );
+
+      expect(find.text('☺   Face'), findsOneWidget);
+    });
+
+    testWidgets('a word stands on its own, because the value is a key nobody should see', (tester) async {
+      useDesktop(tester);
+
+      await tester.pumpWidget(
+        wrap(sourced, [
+          {'source': 'typed', 'value': '500+', 'label': 'Schools'},
+        ]),
+      );
+
+      expect(find.text('What I type below'), findsOneWidget);
+      expect(find.textContaining('typed   '), findsNothing);
     });
   });
 }

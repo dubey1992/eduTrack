@@ -21,8 +21,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .. import audit, marketing
-from ..enums import UserRole
-from ..models import MarketingContent
+from ..enums import SchoolStatus, StudentStatus, UserRole
+from ..models import MarketingContent, School, Student
 from ..policies import authorize
 from ..requests import UpdateMarketingContentRequest
 from ..throttling import MarketingContentThrottle
@@ -53,11 +53,36 @@ def published() -> dict:
         return cached
 
     row = MarketingContent.objects.order_by("id").first()
-    document = (row.document if row else None) or {}
+    document = marketing.resolve((row.document if row else None) or {}, figures())
 
     cache.set(CACHE_KEY, document, CACHE_SECONDS)
 
     return document
+
+
+def figures() -> dict[str, int]:
+    """What the platform can say about itself today.
+
+    Two counts, both cheap, both cached with the document that uses them -
+    so a busy homepage asks nothing of the database, and a school signing
+    up shows on the front page within the hour rather than at once. For a
+    marketing figure that is close enough, and it is the difference
+    between two queries an hour and two per visitor.
+
+    A branch counts as a school. The word on the page is "schools", and
+    four buildings running the product are four schools by any ordinary
+    reading - whatever they are on an invoice.
+
+    Students of a school that has been switched off are nobody's students.
+    """
+    active_schools = School.objects.filter(status=SchoolStatus.ACTIVE)
+
+    return {
+        marketing.SCHOOLS: active_schools.count(),
+        marketing.STUDENTS: Student.objects.filter(
+            status=StudentStatus.ACTIVE, school__in=active_schools
+        ).count(),
+    }
 
 
 def forget() -> None:
@@ -88,6 +113,10 @@ def draft(request) -> Response:
     return Response(
         {
             "sections": marketing.resource(),
+            # What a live figure would say if it were published now, so the
+            # editor can show it and the preview can draw it. The page
+            # itself is never told which figures are live.
+            "figures": figures(),
             "draft": draft_of(row),
             "published": (row.document if row else None) or {},
             "published_at": None if row is None or row.published_at is None else row.published_at.isoformat(),

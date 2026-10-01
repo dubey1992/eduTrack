@@ -22,7 +22,7 @@ DRAFT = "/api/v1/marketing-content/draft"
 PUBLISH = "/api/v1/marketing-content/publish"
 PUBLIC = "/api/v1/marketing-content"
 
-STAT = {"value": "500+", "label": "Schools"}
+STAT = {"source": marketing.TYPED, "value": "500+", "label": "Schools"}
 CARD = {"icon": marketing.FEATURE_ICONS[0].value, "title": "Attendance", "body": "Who came in today"}
 
 
@@ -89,16 +89,16 @@ class SavingAList(TestCase):
         return [str(problem) for problem in response.data["details"]["errors"]["document"]]
 
     def test_it_keeps_the_items_in_the_order_they_were_given(self):
-        first = {"value": "1", "label": "One"}
-        second = {"value": "2", "label": "Two"}
+        first = {**STAT, "value": "1", "label": "One"}
+        second = {**STAT, "value": "2", "label": "Two"}
 
         self.save({"hero.stats": [first, second]})
 
         self.assertEqual([first, second], self.client.get(DRAFT).data["draft"]["hero.stats"])
 
     def test_reordering_is_just_another_save(self):
-        first = {"value": "1", "label": "One"}
-        second = {"value": "2", "label": "Two"}
+        first = {**STAT, "value": "1", "label": "One"}
+        second = {**STAT, "value": "2", "label": "Two"}
         self.save({"hero.stats": [first, second]})
 
         self.save({"hero.stats": [second, first]})
@@ -122,11 +122,9 @@ class SavingAList(TestCase):
         self.assertNotIn("hero.stats", self.client.get(DRAFT).data["draft"])
 
     def test_surrounding_space_is_trimmed(self):
-        self.save({"hero.stats": [{"value": "  500+  ", "label": " Schools "}]})
+        self.save({"hero.stats": [{**STAT, "value": "  500+  ", "label": " Schools "}]})
 
-        self.assertEqual(
-            [{"value": "500+", "label": "Schools"}], self.client.get(DRAFT).data["draft"]["hero.stats"]
-        )
+        self.assertEqual([STAT], self.client.get(DRAFT).data["draft"]["hero.stats"])
 
     def test_a_published_list_reaches_the_public_page(self):
         self.save({"features.items": [CARD]})
@@ -173,13 +171,13 @@ class WhatAListMayHold(TestCase):
         self.assertIn("The figures under the hero needs at least 1 entry.", self.problems(response))
 
     def test_a_blank_field_in_an_item_is_refused(self):
-        response = self.save({"hero.stats": [{"value": "500+", "label": "   "}]})
+        response = self.save({"hero.stats": [{**STAT, "label": "   "}]})
 
         self.assertEqual(422, response.status_code)
         self.assertIn("The figures under the hero, figure 1 needs a what it is.", self.problems(response))
 
     def test_a_missing_field_in_an_item_is_refused(self):
-        response = self.save({"hero.stats": [{"value": "500+"}]})
+        response = self.save({"hero.stats": [{"source": marketing.TYPED, "value": "500+"}]})
 
         self.assertEqual(422, response.status_code)
         self.assertIn("The figures under the hero, figure 1 needs a what it is.", self.problems(response))
@@ -206,7 +204,7 @@ class WhatAListMayHold(TestCase):
         self.assertIn("The figures under the hero, figure 1 is not filled in.", self.problems(response))
 
     def test_a_value_too_long_for_its_slot_is_refused(self):
-        response = self.save({"hero.stats": [{"value": "x" * 17, "label": "Schools"}]})
+        response = self.save({"hero.stats": [{**STAT, "value": "x" * 17}]})
 
         self.assertEqual(422, response.status_code)
         self.assertIn(
@@ -215,7 +213,7 @@ class WhatAListMayHold(TestCase):
         )
 
     def test_a_line_break_inside_an_item_is_refused(self):
-        response = self.save({"hero.stats": [{"value": "500+", "label": "Two\nlines"}]})
+        response = self.save({"hero.stats": [{**STAT, "label": "Two\nlines"}]})
 
         self.assertEqual(422, response.status_code)
         self.assertIn("The figures under the hero, figure 1: what it is is a single line.", self.problems(response))
@@ -227,7 +225,7 @@ class WhatAListMayHold(TestCase):
         self.assertIn("The figures under the hero must be a list.", self.problems(response))
 
     def test_nothing_is_saved_when_one_item_is_wrong(self):
-        self.save({"hero.stats": [STAT, {"value": "", "label": ""}]})
+        self.save({"hero.stats": [STAT, {**STAT, "value": "", "label": ""}]})
 
         self.assertEqual({}, self.client.get(DRAFT).data["draft"])
 
