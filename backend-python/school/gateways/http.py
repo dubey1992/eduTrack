@@ -1,4 +1,4 @@
-"""One HTTP POST, the way every provider adapter needs it.
+"""One HTTP request, the way every provider adapter needs it.
 
 The standard library's urllib rather than a client package: two adapters
 making one call each is not a reason to add a dependency to shared hosting.
@@ -24,14 +24,36 @@ class ProviderError(Exception):
     is safe to show an administrator and never contains a credential."""
 
 
-def post(url: str, *, form: dict | None = None, body: dict | None = None, basic=None, bearer=None) -> dict:
+def get(url: str, *, params: dict | None = None, headers: dict | None = None) -> dict:
+    """GETs and returns the decoded JSON answer.
+
+    Google's Place Details and Geocoding are GETs; the messaging providers
+    are not, which is why this arrived later than [post].
+    """
+    if params:
+        url = f"{url}?{urllib.parse.urlencode(params)}"
+
+    request = urllib.request.Request(url, headers={"Accept": "application/json", **(headers or {})})
+
+    return _answer(request)
+
+
+def post(
+    url: str,
+    *,
+    form: dict | None = None,
+    body: dict | None = None,
+    basic=None,
+    bearer=None,
+    headers: dict | None = None,
+) -> dict:
     """POSTs a form or a JSON body and returns the decoded JSON answer.
 
     A 4xx or 5xx is still an answer - Twilio and Meta both explain a refusal
     in the body - so it is decoded and returned with `_status` set, and the
     adapter reads the explanation. Only a connection failure raises.
     """
-    headers = {"Accept": "application/json"}
+    headers = {"Accept": "application/json", **(headers or {})}
 
     if basic is not None:
         pair = f"{basic[0]}:{basic[1]}".encode()
@@ -49,6 +71,10 @@ def post(url: str, *, form: dict | None = None, body: dict | None = None, basic=
 
     request = urllib.request.Request(url, data=data, headers=headers, method="POST")
 
+    return _answer(request)
+
+
+def _answer(request) -> dict:
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
             return decoded(response.read(), response.status)

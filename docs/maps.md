@@ -1,11 +1,20 @@
 # Maps: schools, routes, stops and live trips (plan)
 
-**Status (2026-09-19):** the parts that need no map provider are built -
-the Bus Attendant (role, sign-in, route assignment, My Trip, Call Parent),
-offline trip marks, stop coordinates, and the bus position endpoints. The
-map screens themselves (M1, M2's route map and road paths, M3's trip map)
-wait for the Google Cloud keys. Decisions taken with the user on 2026-09-19
-are marked *decided*.
+**Status (2026-10-19):** the user has the Google Cloud keys, and the work
+has restarted. M1's backend is built - `maps/config`, address search, place
+details and reverse geocoding, all through the server key. The screens
+themselves (M1's pickers and maps, M2, M3) are next. Everything below that
+needs no provider was built on 2026-09-19: the Bus Attendant (role,
+sign-in, route assignment, My Trip, Call Parent), offline trip marks, stop
+coordinates, and the bus position endpoints. Decisions taken with the user
+on 2026-09-19 are marked *decided*.
+
+**Changed from the plan (2026-10-19):** the browser key is handed to
+signed-in users by `GET maps/config` rather than baked into the build with
+`--dart-define`. It is public either way - the referrer and package
+restrictions are what protect it - but this way it can be rotated without
+a rebuild, and development and production can use different keys from one
+build. The server key still never leaves the server.
 
 ### Built so far
 

@@ -37,6 +37,7 @@ from school.views import (
     inbox,
     leave,
     mail_settings,
+    maps,
     marketing_content,
     permissions,
     profile,
@@ -261,6 +262,12 @@ urlpatterns = [
     path("api/v1/staff/<int:profile_id>/attendant/setup-code", attendants.setup_code),
     path("api/v1/staff/<int:profile_id>/attendant/devices/<int:device_id>", attendants.device),
     # -- early access ------------------------------------------------------
+    # Asking Google a question, with the server key (docs/maps.md). The
+    # browser draws maps with its own key, handed out by maps/config.
+    path("api/v1/maps/config", maps.config),
+    path("api/v1/maps/places/autocomplete", maps.autocomplete),
+    path("api/v1/maps/places/<str:place_id>", maps.place),
+    path("api/v1/maps/geocode/reverse", maps.reverse_geocode),
     # The public homepage's words (docs/marketing-content.md). Public:
     # the page is served to anybody, so its words are readable by anybody.
     path("api/v1/marketing-content", marketing_content.content),

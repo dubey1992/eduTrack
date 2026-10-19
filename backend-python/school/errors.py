@@ -83,6 +83,24 @@ class Unauthenticated(ApiError):
     error_code = "UNAUTHENTICATED"
 
 
+class MapsUnavailable(ApiError):
+    """Google could not be asked (docs/maps.md).
+
+    503 rather than 500: nothing here is broken. Either no key is set up or
+    Google is unreachable, and the app's answer to both is the same - fall
+    back to the list screen, and let somebody type the coordinates in by
+    hand if they have them.
+    """
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    error_code = "MAPS_UNAVAILABLE"
+
+
+class InvalidCoordinate(ApiError):
+    status_code = 422
+    error_code = "VALIDATION_ERROR"
+
+
 class HolidayOverlap(ApiError):
     """Two holidays covering the same day.
 

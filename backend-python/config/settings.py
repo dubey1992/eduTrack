@@ -49,6 +49,20 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").sp
 # and the test suite derive one from the throwaway SECRET_KEY; a deployment
 # that forgets it fails at start-up, like a missing SECRET_KEY does.
 ENCRYPTION_KEY = os.environ.get("DJANGO_ENCRYPTION_KEY", "")
+
+# Google Maps (docs/maps.md). Two keys, never one: the server key does the
+# asking - address search, place details, reverse geocoding, road paths -
+# and never leaves this process. The browser key only draws maps, is handed
+# to signed-in administrators by `GET maps/config`, and is protected by the
+# referrer and package restrictions set on it in Google Cloud rather than by
+# being secret. With neither set, every map degrades to the list screen it
+# sits beside and nothing else breaks.
+GOOGLE_MAPS_SERVER_KEY = os.environ.get("GOOGLE_MAPS_SERVER_KEY", "")
+GOOGLE_MAPS_BROWSER_KEY = os.environ.get("GOOGLE_MAPS_BROWSER_KEY", "")
+
+# Biases address search towards the country the platform is sold in. An
+# ISO 3166-1 alpha-2 code, or empty for no bias.
+GOOGLE_MAPS_REGION = os.environ.get("GOOGLE_MAPS_REGION", "IN")
 if not ENCRYPTION_KEY and not (DEBUG or TESTING):
     raise ImproperlyConfigured("Set DJANGO_ENCRYPTION_KEY (see school/crypto.py for how to generate one).")
 

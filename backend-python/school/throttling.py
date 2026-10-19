@@ -122,3 +122,19 @@ class AttendantAddressThrottle(SimpleRateThrottle):
 
     def get_cache_key(self, request, view) -> str:
         return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
+
+
+class MapsLookupThrottle(SimpleRateThrottle):
+    """Every call here costs money (docs/maps.md).
+
+    Per user rather than per address, because the thing being limited is a
+    search box somebody is holding a key down in, not an attacker. Generous
+    enough that placing a dozen stops in a sitting never hits it: the cache
+    means only a query nobody has typed today reaches Google at all.
+    """
+
+    scope = "maps-lookup"
+    rate = "60/min"
+
+    def get_cache_key(self, request, view) -> str:
+        return self.cache_format % {"scope": self.scope, "ident": request.user.pk or self.get_ident(request)}
