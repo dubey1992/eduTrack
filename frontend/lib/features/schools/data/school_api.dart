@@ -25,6 +25,14 @@ class SchoolApi {
     return data.map((item) => TimezoneOption.fromJson(item as Map<String, dynamic>)).toList();
   }
 
+  /// One school, by id. The map holds every school the actor may see;
+  /// the list holds a page of twenty, so opening a pin from page four has
+  /// nothing in hand to open.
+  Future<School> find(int schoolId) async {
+    final response = await _dio.get('/schools/$schoolId');
+    return School.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<School> create(Map<String, dynamic> payload) async {
     final response = await _dio.post('/schools', data: payload);
     return School.fromJson(response.data as Map<String, dynamic>);

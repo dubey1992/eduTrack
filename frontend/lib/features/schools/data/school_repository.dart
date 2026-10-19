@@ -41,6 +41,16 @@ class SchoolRepository {
     }
   }
 
+  /// One school, by id - what the map needs to open a pin that is not on
+  /// the page the list happens to be showing.
+  Future<School> find(int schoolId) async {
+    try {
+      return await _api.find(schoolId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<School> create({
     required String name,
     int? parentSchoolId,

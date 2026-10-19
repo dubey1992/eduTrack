@@ -17,7 +17,13 @@ void main() {
     // and the public homepage's words - which are the same for every
     // visitor, signed in or not, and would only be refetched for nothing
     // (docs/marketing-content.md).
-    const exempt = {'authNotifierProvider', 'timezoneListProvider', 'marketingContentProvider'};
+    // Exempt because they hold nothing about the person signed in:
+    //   authNotifierProvider        is the session itself
+    //   timezoneListProvider        the same list of zones for everybody
+    //   marketingContentProvider    the public homepage's words
+    //   mapPinIconsProvider         three drawn pins, identical for all,
+    //                               and expensive to raster again
+    const exempt = {'authNotifierProvider', 'timezoneListProvider', 'marketingContentProvider', 'mapPinIconsProvider'};
 
     final missing = <String>[];
     for (final file in Directory('lib/features').listSync(recursive: true).whereType<File>()) {

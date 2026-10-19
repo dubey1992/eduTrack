@@ -2,6 +2,10 @@ import 'package:edutrack_app/features/maps/data/maps_config.dart';
 import 'package:edutrack_app/features/maps/presentation/app_map.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+
+import 'dart:typed_data';
+
+import 'package:edutrack_app/features/maps/presentation/map_pin_icons.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 /// A map for widget tests (docs/maps.md, M1).
@@ -53,4 +57,19 @@ List<Override> mapIsAvailable(FakeMapRenderer renderer) {
 /// and the state it falls back to when Google cannot be reached.
 List<Override> mapIsUnavailable() {
   return [mapsConfigProvider.overrideWith((ref) async => const MapsConfig.none())];
+}
+
+/// Pins that are already drawn.
+///
+/// The real ones are rasterised - a canvas, then a PNG - which is work a
+/// widget test should not wait on and a platform it should not depend on.
+/// These are distinct per colour, which is all any test needs to know.
+List<Override> mapPinsAreReady() {
+  return [
+    mapPinIconsProvider.overrideWith(
+      (ref) async => {
+        for (final colour in MapPinColour.values) colour: BytesMapBitmap(Uint8List.fromList([colour.index, 1, 2, 3])),
+      },
+    ),
+  ];
 }

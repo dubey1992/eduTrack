@@ -395,22 +395,30 @@ class EarlyAccessService:
 
 class SchoolService:
     @staticmethod
-    def visible_to(actor: User):
-        """The schools this actor may see.
+    def scoped(actor: User):
+        """*Which* schools this actor may see, with nothing added for any
+        particular screen.
 
         Scoped on the table's own `id`, not a `school_id` column - a school
         *is* the tenant. A Group Admin sees their group; a Super Admin sees
         every school there is.
+
+        Split out from [visible_to] so the map reaches the same schools by
+        the same rule without the list's branch counts and parent join: one
+        definition of who sees what, two shapes of answer. Ordered by name
+        with id as a tiebreaker - see StudentService.visible_to for why the
+        second column is not optional.
         """
-        schools = School.objects.select_related("parent_school")
+        return SchoolScope.for_actor(actor).apply_to(School.objects.all(), column="id").order_by("name", "id")
 
-        schools = SchoolScope.for_actor(actor).apply_to(schools, column="id")
+    @staticmethod
+    def visible_to(actor: User):
+        """Those schools as the list screen needs them.
 
-        # Counted in the query rather than per row, so a list of branches does
-        # not fire a query each (CLAUDE.md rule 22). Ordered by name with id
-        # as a tiebreaker - see StudentService.visible_to for why the second
-        # column is not optional.
-        return schools.annotate(branch_count=Count("school")).order_by("name", "id")
+        The branch count is in the query rather than per row, so a list of
+        branches does not fire a query each (CLAUDE.md rule 22).
+        """
+        return SchoolService.scoped(actor).select_related("parent_school").annotate(branch_count=Count("school"))
 
     @staticmethod
     def create(data: dict) -> School:

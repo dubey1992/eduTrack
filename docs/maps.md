@@ -1,11 +1,11 @@
 # Maps: schools, routes, stops and live trips (plan)
 
-**Status (2026-10-19):** the keys are in, and M1 is built as far as the
-school location picker - `maps/config`, address search, place details and
+**Status (2026-10-19):** M1 is built. The keys are in, the location picker
+places a school, and the Schools map draws them - `maps/config`, address search, place details and
 reverse geocoding through the server key; the `AppMap` widget; and the
-picker in Add/Edit School, shown working against the real Google with a
-pin, an address and the coordinates filled in. The Schools map (M1d), M2
-and M3 are next.
+picker in Add/Edit School; and the Schools map, scoped the way the list is,
+with the schools that have no coordinates listed beside it. M2 and M3 are
+next.
 
 **Three keys, not two** (corrected 2026-10-19): an API key carries one
 *Application restriction*, so the plan's single "browser/app key" is really
@@ -363,3 +363,39 @@ that will not say how wide it would like to be.
 **An empty `gestureRecognizers` set is the default, not a claim.** The map
 has to claim the drag with an `EagerGestureRecognizer`, or the scroll view
 wins it and the map cannot be panned at all.
+
+**A fifth thing, from M1d:** `BitmapDescriptor.defaultMarkerWithHue` does
+nothing on the web. `google_maps_flutter_web` converts only bitmap
+descriptors, so a default marker with a hue falls through its switch and
+every pin comes out the standard red - while the same code on Android is
+correctly coloured. A map coloured that way looks right on a phone and is
+flat on the platform the product ships first. The pins are drawn into
+bitmaps instead (`map_pin_icons.dart`), which both platforms understand.
+
+Two things this is worth knowing for: the route path in M2 and the bus in
+M3 both wanted coloured markers, and any test that compares
+`BitmapDescriptor`s is asserting nothing - two built the same way are not
+equal, which is how three colour tests here passed against a rule that had
+been deleted.
+
+## The Schools map (M1d)
+
+`GET schools/locations` answers with every school the actor may see, as
+pins, rather than a page of the list - a pin missing because it was on page
+four is a school that looks like it does not exist. It uses the list's own
+scoping, so the map can never show a school the list would not.
+
+Three decisions worth keeping:
+
+- **The schools with no coordinates come back too**, and are listed beside
+  the map. They are the work the map exists to prompt, and leaving them out
+  would hide exactly what somebody opened it to find. On the dev database
+  that is all 150 of them, which is the honest answer.
+- **A cap of 500, said out loud.** A platform larger than one map of itself
+  is told so rather than quietly shown the first few hundred. One row past
+  the cap is read to know there are more, and that row is dropped before
+  anything is built from it.
+- **Half a coordinate is not a pin.** The columns are nullable separately,
+  so a half-filled row is reachable however much the form refuses it; it
+  counts as unplaced rather than being drawn at (0, 0), off the coast of
+  Africa, where it would look every bit as deliberate as a real school.

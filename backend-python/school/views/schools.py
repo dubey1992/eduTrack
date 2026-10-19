@@ -25,6 +25,11 @@ from ..requests import StoreSchoolRequest, UpdateSchoolRequest
 from ..resources import school_resource
 from ..services import EarlyAccessService, SchoolService
 
+# As many pins as a map is worth drawing. A platform with more schools than
+# this has outgrown one map of all of them, and the list screen is still
+# there; saying so beats quietly dropping the tail.
+MAP_LIMIT = 500
+
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
@@ -46,6 +51,56 @@ def index(request) -> Response:
     return paginator.get_paginated_response(
         [school_resource(school, branch_count=school.branch_count) for school in page]
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def locations(request) -> Response:
+    """Every school this actor may see, as pins (docs/maps.md, M1d).
+
+    Separate from the list because a map is not a page of twenty: a pin
+    missing because it was on page four is a school that looks like it does
+    not exist. So this answers in one go, with only what a pin needs.
+
+    **Schools with no coordinates come back too.** They are the ones
+    somebody has to go and place, and a map that silently omitted them
+    would hide exactly the work it exists to prompt.
+    """
+    authorize(SchoolPolicy.view_any(request.user))
+
+    # One row more than the cap, so "there are more" is known without
+    # counting the table a second time. The probe row is dropped before
+    # anything is built from it.
+    # `scoped` rather than `visible_to`: the same schools by the same rule,
+    # without the branch count and parent join a pin never reads.
+    found = list(
+        SchoolService.scoped(request.user)
+        .only("id", "name", "parent_school_id", "status", "city", "latitude", "longitude")[: MAP_LIMIT + 1]
+    )
+    more = len(found) > MAP_LIMIT
+    placed, unplaced = [], []
+
+    for school in found[:MAP_LIMIT]:
+        if school.latitude is None or school.longitude is None:
+            unplaced.append({"id": school.id, "name": school.name})
+            continue
+
+        placed.append(
+            {
+                "id": school.id,
+                "name": school.name,
+                "parent_school_id": school.parent_school_id,
+                "is_branch": school.parent_school_id is not None,
+                "status": school.status,
+                "city": school.city,
+                # Strings, like every other coordinate in this API: a
+                # decimal(10,7) through a float loses the seventh place.
+                "latitude": str(school.latitude),
+                "longitude": str(school.longitude),
+            }
+        )
+
+    return Response({"placed": placed, "unplaced": unplaced, "more_than_shown": more})
 
 
 def store(request) -> Response:

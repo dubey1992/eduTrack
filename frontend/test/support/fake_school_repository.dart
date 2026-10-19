@@ -48,6 +48,21 @@ class FakeSchoolRepository implements SchoolRepository {
     return paginateFake(_schools, page: page, perPage: perPage);
   }
 
+  /// What the map calls to open a pin that is not on the list's page.
+  int finds = 0;
+  int? lastFound;
+  Failure? failFindWith;
+
+  @override
+  Future<School> find(int schoolId) async {
+    finds++;
+    lastFound = schoolId;
+
+    if (failFindWith != null) throw failFindWith!;
+
+    return _schools.firstWhere((school) => school.id == schoolId);
+  }
+
   @override
   Future<School> create({
     required String name,

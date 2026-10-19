@@ -133,6 +133,12 @@ urlpatterns = [
     # No DELETE, and not by omission: erasing a school's records is not
     # something a school management system should offer.
     path("api/v1/schools", schools.collection),
+    # Every school this actor may see, as pins (docs/maps.md, M1d). Not a
+    # page of the list: a pin missing because it was on page four is a
+    # school that looks like it does not exist. Declared before the
+    # <int:school_id> route, which would otherwise never match "locations"
+    # but would shadow any later text segment added beside it.
+    path("api/v1/schools/locations", schools.locations),
     path("api/v1/schools/<int:school_id>", schools.detail),
     path("api/v1/schools/<int:school_id>/activate", schools.activate),
     path("api/v1/schools/<int:school_id>/deactivate", schools.deactivate),

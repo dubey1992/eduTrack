@@ -11,14 +11,27 @@ import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../application/school_list_notifier.dart';
 import '../data/models/school.dart';
+import '../data/school_locations_repository.dart';
+import '../data/school_repository.dart';
 import 'add_school_dialog.dart';
 import 'edit_school_dialog.dart';
+import 'schools_map_view.dart';
 
-class SchoolListScreen extends ConsumerWidget {
+class SchoolListScreen extends ConsumerStatefulWidget {
   const SchoolListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SchoolListScreen> createState() => _SchoolListScreenState();
+}
+
+class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
+  /// The list is the default. The map answers "where are they", which is a
+  /// question somebody asks occasionally; the list answers "which one",
+  /// which is what this screen is opened for.
+  bool _onTheMap = false;
+
+  @override
+  Widget build(BuildContext context) {
     final schoolsState = ref.watch(schoolPageNotifierProvider);
 
     return Column(
@@ -27,6 +40,14 @@ class SchoolListScreen extends ConsumerWidget {
         SectionHeader(
           title: 'Schools',
           actions: [
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, icon: Icon(Icons.list, size: 18), label: Text('List')),
+                ButtonSegment(value: true, icon: Icon(Icons.map_outlined, size: 18), label: Text('Map')),
+              ],
+              selected: {_onTheMap},
+              onSelectionChanged: (choice) => setState(() => _onTheMap = choice.first),
+            ),
             FilledButton.icon(
               onPressed: () => showDialog(context: context, builder: (_) => const AddSchoolDialog()),
               icon: const Icon(Icons.add, size: 18),
@@ -34,37 +55,81 @@ class SchoolListScreen extends ConsumerWidget {
             ),
           ],
         ),
-        Expanded(
-          child: AsyncValueView<PagedList<School>>(
-            value: schoolsState,
-            onRetry: () => ref.read(schoolPageNotifierProvider.notifier).refresh(),
-            isEmpty: (page) => page.items.isEmpty,
-            emptyBuilder: (context) => const Center(child: Text('No schools yet.')),
-            data: (context, page) {
-              return Column(
-                children: [
-                  Expanded(
-                    child: ResponsiveBuilder(
-                      mobile: (context) => _SchoolListMobile(schools: page.items),
-                      desktop: (context) => _SchoolListDesktop(schools: page.items),
+        if (_onTheMap)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: SchoolsMapView(onOpen: _open),
+            ),
+          )
+        else
+          Expanded(
+            child: AsyncValueView<PagedList<School>>(
+              value: schoolsState,
+              onRetry: () => ref.read(schoolPageNotifierProvider.notifier).refresh(),
+              isEmpty: (page) => page.items.isEmpty,
+              emptyBuilder: (context) => const Center(child: Text('No schools yet.')),
+              data: (context, page) {
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ResponsiveBuilder(
+                        mobile: (context) => _SchoolListMobile(schools: page.items),
+                        desktop: (context) => _SchoolListDesktop(schools: page.items),
+                      ),
                     ),
-                  ),
-                  PaginationControls(
-                    currentPage: page.currentPage,
-                    lastPage: page.lastPage,
-                    total: page.total,
-                    perPage: page.perPage,
-                    onPageChanged: (p) => ref.read(schoolPageNotifierProvider.notifier).goToPage(p),
-                    onPerPageChanged: (p) => ref.read(schoolPageNotifierProvider.notifier).setPerPage(p),
-                  ),
-                ],
-              );
-            },
+                    PaginationControls(
+                      currentPage: page.currentPage,
+                      lastPage: page.lastPage,
+                      total: page.total,
+                      perPage: page.perPage,
+                      onPageChanged: (p) => ref.read(schoolPageNotifierProvider.notifier).goToPage(p),
+                      onPerPageChanged: (p) => ref.read(schoolPageNotifierProvider.notifier).setPerPage(p),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }
+
+  /// Opening a school from the map. The same dialog the list opens, so a
+  /// school placed from here is placed the way it is placed anywhere.
+  Future<void> _open(int schoolId) async {
+    final page = ref.read(schoolPageNotifierProvider).value;
+    final onThisPage = page?.items.where((row) => row.id == schoolId).firstOrNull;
+
+    // The map holds every school; the list holds a page of twenty. A school
+    // on another page has nothing in hand to open, so it is fetched.
+    final School found;
+
+    try {
+      found = onThisPage ?? await ref.read(schoolRepositoryProvider).find(schoolId);
+    } catch (error) {
+      // A pin that will not open must say so. Doing nothing at all reads as
+      // a broken button.
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(SnackBar(content: Text(_messageFor(error))));
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (_) => EditSchoolDialog(school: found),
+    );
+
+    // Placing a school is the one thing that changes the map.
+    ref.invalidate(schoolLocationsProvider);
+  }
+
+  String _messageFor(Object error) => error is Failure ? error.message : 'That school could not be opened. Try again.';
 }
 
 class _SchoolListMobile extends StatelessWidget {
