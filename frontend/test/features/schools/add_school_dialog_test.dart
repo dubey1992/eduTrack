@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_map.dart';
 import '../../support/fake_school_repository.dart';
 
 // Opened via a real showDialog route (rather than placed directly as the
@@ -15,7 +16,10 @@ import '../../support/fake_school_repository.dart';
 // SnackBar it was about to show - before the test can observe either.
 Widget wrap(FakeSchoolRepository fake) {
   return ProviderScope(
-    overrides: [schoolRepositoryProvider.overrideWithValue(fake)],
+    // The form now holds a map. Pinned to "no key" so the dialog's own
+    // tests never reach the network to find out, and so what they see is
+    // the state the product is in before a key is configured.
+    overrides: [schoolRepositoryProvider.overrideWithValue(fake), ...mapIsUnavailable()],
     child: MaterialApp(
       theme: AppTheme.light(),
       home: Scaffold(

@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_map.dart';
 import '../../support/fake_school_repository.dart';
 import '../../support/session_users.dart';
 import '../../support/paginated_table.dart';
@@ -352,6 +353,9 @@ void main() {
           overrides: [
             schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository()),
             authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _superAdmin)),
+            // The school form holds a map now; pinned to "no key" so this
+            // file keeps testing onboarding and never reaches the network.
+            ...mapIsUnavailable(),
           ],
           child: MaterialApp(
             theme: AppTheme.light(),
@@ -381,8 +385,17 @@ void main() {
           overrides: [
             schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository()),
             authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _superAdmin)),
+            // The school form holds a map now; pinned to "no key" so this
+            // file keeps testing onboarding and never reaches the network.
+            ...mapIsUnavailable(),
           ],
-          child: const MaterialApp(home: Scaffold(body: AddSchoolDialog())),
+          // The app's own theme, like every other test here: the widgets
+          // read their semantic colours from a theme extension, which a
+          // bare MaterialApp does not carry.
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            home: const Scaffold(body: AddSchoolDialog()),
+          ),
         ),
       );
       await tester.pumpAndSettle();

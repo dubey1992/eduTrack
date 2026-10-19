@@ -1,9 +1,16 @@
 # Maps: schools, routes, stops and live trips (plan)
 
-**Status (2026-10-19):** the user has the Google Cloud keys, and the work
-has restarted. M1's backend is built - `maps/config`, address search, place
-details and reverse geocoding, all through the server key. The screens
-themselves (M1's pickers and maps, M2, M3) are next. Everything below that
+**Status (2026-10-19):** the keys are in, and M1 is built as far as the
+school location picker - `maps/config`, address search, place details and
+reverse geocoding through the server key; the `AppMap` widget; and the
+picker in Add/Edit School, shown working against the real Google with a
+pin, an address and the coordinates filled in. The Schools map (M1d), M2
+and M3 are next.
+
+**Three keys, not two** (corrected 2026-10-19): an API key carries one
+*Application restriction*, so the plan's single "browser/app key" is really
+two - web (HTTP referrers) and Android (package + SHA-1) - beside the
+server key (IP). Only the first two are needed until the APK is built. Everything below that
 needs no provider was built on 2026-09-19: the Bus Attendant (role,
 sign-in, route assignment, My Trip, Call Parent), offline trip marks, stop
 coordinates, and the bus position endpoints. Decisions taken with the user
@@ -167,7 +174,8 @@ keeps working without it.
 
 | Key | Used by | APIs | Restrict to |
 |---|---|---|---|
-| **Browser/app key** | the Flutter web app and the Android app, to draw maps | Maps JavaScript API, Maps SDK for Android | HTTP referrers (the production domain, `localhost`) and the Android package + signing SHA-1 |
+| **Web key** | the Flutter web app, to draw maps | Maps JavaScript API | HTTP referrers: the production domain, and `localhost:5000` / `127.0.0.1:5000` for development |
+| **Android key** | the Android app, to draw maps | Maps SDK for Android | the Android package name + signing SHA-1 |
 | **Server key** | the Python backend only | Places API (New), Routes API, Geocoding API | the server's IP address |
 
 The browser key is visible to anyone who opens the web app, which is how
@@ -329,3 +337,29 @@ live-tracking refresh.
 
 Each is committed and shown working before the next. M2 needs M1's map
 widget; M3 needs M2's stops and path and the attendant's phone.
+
+## What building M1 turned up
+
+Four things that cost time and are worth not rediscovering.
+
+**A stale plugin registrant.** Adding `google_maps_flutter` and rebuilding
+the web app is not enough: Flutter's generated `web_plugin_registrant.dart`
+is cached per build directory, and the cached one had no
+`GoogleMapsPlugin.registerWith`. The map then reports
+`TargetPlatform.windows is not yet supported by the maps plugin` - which
+reads like an unsupported platform and is really a stale file.
+`flutter clean` fixes it.
+
+**`loading=async` finishes before the API is usable.** The script tag's
+`onload` fires when the bootstrap arrives; `google.maps` may not exist yet,
+and the libraries certainly do not. Creating a map in that gap gives a grey
+rectangle and *no error at all*. The loader waits for
+`google.maps.importLibrary` to appear and then awaits the libraries by name.
+
+**A platform view needs both dimensions bounded.** A dialog that measures
+its content's intrinsic width gets "RenderBox was not laid out" from a map
+that will not say how wide it would like to be.
+
+**An empty `gestureRecognizers` set is the default, not a claim.** The map
+has to claim the drag with an `EagerGestureRecognizer`, or the scroll view
+wins it and the map cannot be panned at all.

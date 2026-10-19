@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -54,9 +56,10 @@ class GoogleMapRenderer implements MapRenderer {
       polylines: view.polylines,
       onTap: view.onTap,
       onMapCreated: view.onMapCreated,
-      // A map inside a scrolling page: without this, dragging the map
-      // scrolls the page instead and the map cannot be panned at all.
-      gestureRecognizers: const {},
+      // A map inside a scrolling page. Without claiming the drag, the
+      // scroll view wins it and the map cannot be panned at all; an empty
+      // set is the default and does nothing, which is a trap.
+      gestureRecognizers: {Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new)},
       myLocationButtonEnabled: false,
       mapToolbarEnabled: false,
       zoomControlsEnabled: true,
@@ -85,8 +88,13 @@ class AppMap extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(mapsConfigProvider);
 
+    // Both dimensions bounded. The map is a platform view with no size of
+    // its own, and a dialog that measures its content's intrinsic width
+    // gets "RenderBox was not laid out" from one that will not say how wide
+    // it would like to be.
     return SizedBox(
       height: height,
+      width: double.infinity,
       child: config.when(
         loading: () => const _MapBox(child: Center(child: CircularProgressIndicator())),
         error: (_, _) => const MapUnavailable(),
@@ -123,7 +131,9 @@ class _ReadyMapState extends ConsumerState<_ReadyMap> {
           return const _MapBox(child: Center(child: CircularProgressIndicator()));
         }
 
-        if (snapshot.hasError) return const MapUnavailable();
+        if (snapshot.hasError) {
+          return MapUnavailable(reason: 'Map unavailable - ${snapshot.error}');
+        }
 
         return ref.watch(mapRendererProvider).build(context, widget.view);
       },
@@ -138,9 +148,16 @@ class _ReadyMapState extends ConsumerState<_ReadyMap> {
 /// about it - and because every screen that holds a map also holds the list
 /// the map was illustrating.
 class MapUnavailable extends StatelessWidget {
-  const MapUnavailable({super.key});
+  const MapUnavailable({super.key, this.reason});
 
   static const message = 'Map unavailable - no Google Maps key is configured.';
+
+  /// Why, when the reason is something other than a missing key - the script
+  /// was blocked, or Google never answered. Said out loud because the person
+  /// reading it is usually an administrator who can act on it, and because
+  /// "unavailable" with no reason sends them looking for a setting that is
+  /// already correct.
+  final String? reason;
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +173,7 @@ class MapUnavailable extends StatelessWidget {
               Icon(Icons.map_outlined, color: colors.muted),
               const SizedBox(height: 8),
               Text(
-                message,
+                reason ?? message,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.muted),
               ),

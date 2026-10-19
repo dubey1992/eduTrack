@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/currency.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../maps/presentation/location_picker.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
 import 'widgets/coordinates_fields.dart';
@@ -207,7 +208,13 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
                   onChanged: (value) => setState(() => _parentSchoolId = value),
                 ),
                 const SizedBox(height: 10),
-                CoordinatesFields(latitude: _latitudeController, longitude: _longitudeController),
+                // The map fills the boxes in; the boxes are still what the
+                // form sends, and still work with no map at all.
+                LocationPicker(
+                  latitude: _latitudeController,
+                  longitude: _longitudeController,
+                  child: CoordinatesFields(latitude: _latitudeController, longitude: _longitudeController),
+                ),
               ],
             ),
           ),

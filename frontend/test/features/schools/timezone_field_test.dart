@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_map.dart';
 import '../../support/fake_school_repository.dart';
 
 const _school = School(
@@ -45,7 +46,9 @@ const _zones = [
 
 Widget wrap(FakeSchoolRepository fake, {School school = _school}) {
   return ProviderScope(
-    overrides: [schoolRepositoryProvider.overrideWithValue(fake)],
+    // The school form now holds a map; pinned to "no key" so this file
+    // keeps testing the timezone field and never reaches the network.
+    overrides: [schoolRepositoryProvider.overrideWithValue(fake), ...mapIsUnavailable()],
     child: MaterialApp(
       theme: AppTheme.light(),
       home: Scaffold(

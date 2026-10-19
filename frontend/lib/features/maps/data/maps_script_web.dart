@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:web/web.dart' as web;
 
@@ -20,12 +21,49 @@ const _elementId = 'google-maps-js-api';
 Future<void>? _loading;
 
 Future<void> ensureMapsReady(String browserKey) {
-  return _loading ??= _load(browserKey);
+  // A failed attempt must not poison every later one: an ad blocker
+  // switched off, or a network that came back, should be able to try again.
+  return _loading ??= _load(browserKey).onError((error, stack) {
+    _loading = null;
+    throw error!;
+  });
 }
 
 Future<void> _load(String browserKey) async {
-  if (_alreadyThere()) return;
+  // Something else may already have loaded it - a second copy would replace
+  // the API object underneath a map that is using it.
+  if (_ready()) return;
 
+  if (!_alreadyThere()) await _inject(browserKey);
+
+  // `loading=async` means the script tag finishes before the API is usable:
+  // the bootstrap arrives, the libraries follow, and `google.maps` may not
+  // exist at all in that gap. Creating a map there gives a grey box and no
+  // error, which is a miserable thing to diagnose.
+  await _waitForBootstrap();
+  await _library('maps');
+  await _library('marker');
+}
+
+/// Up to ten seconds for `google.maps.importLibrary` to appear. A slow
+/// connection on a school's broadband is not a failure.
+Future<void> _waitForBootstrap() async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (_ready()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+
+  throw StateError('The Google Maps script loaded but the API never became usable.');
+}
+
+bool _ready() {
+  final google = web.window.getProperty('google'.toJS) as JSObject?;
+  final maps = google?.getProperty('maps'.toJS) as JSObject?;
+
+  return maps != null && maps.has('importLibrary');
+}
+
+Future<void> _inject(String browserKey) async {
   final done = Completer<void>();
   final script = web.document.createElement('script') as web.HTMLScriptElement
     ..id = _elementId
@@ -53,7 +91,21 @@ Future<void> _load(String browserKey) async {
 
   web.document.head!.appendChild(script);
 
-  return done.future;
+  await done.future;
 }
+
+/// `google.maps.importLibrary(name)`, which is how the asynchronous
+/// bootstrap says a part of the API is ready to use.
+Future<void> _library(String name) async {
+  final google = web.window.getProperty('google'.toJS) as JSObject?;
+  final maps = google?.getProperty('maps'.toJS) as JSObject?;
+
+  if (maps == null) throw StateError('The Google Maps API did not load.');
+
+  await (maps.callMethod('importLibrary'.toJS, name.toJS) as JSPromise).toDart;
+}
+
+/// Was a `_load` started by something other than this - the plugin's own
+/// loader, or a script tag in the page?
 
 bool _alreadyThere() => web.document.getElementById(_elementId) != null;
