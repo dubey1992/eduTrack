@@ -25,17 +25,34 @@ from school import factories, tokens
 from school.enums import AttendanceAlertMode, AttendanceStatus, MessageEvent, UserRole
 from school.models import Attendance, CommunicationSetting, Message, QueuedJob
 
-# A Wednesday, comfortably in the past. Fixed rather than derived from today,
-# so the suite does not start failing on a Saturday.
-A_SCHOOL_DAY = dt.date(2026, 9, 9)
-A_SATURDAY = dt.date(2026, 9, 12)
+# A Wednesday in the week just gone, and the Saturday before it.
+#
+# Derived rather than pinned, and derived as a *weekday* rather than as
+# "yesterday", because two rules have to hold at once: a register may only
+# be taken for a day the school ran, so a weekend fails, and only for the
+# last 30 days, so a fixed date passes for a month and then fails for ever.
+# These were pinned to satisfy the first and started failing on the second.
+def _last_wednesday_for(today: dt.date) -> dt.date:
+    return today - dt.timedelta(days=(today.weekday() - 2) % 7 or 7)
+
+
+A_SCHOOL_DAY = _last_wednesday_for(dt.date.today())
+A_SATURDAY = A_SCHOOL_DAY - dt.timedelta(days=4)
 
 
 class AttendanceTest(TestCase):
     def setUp(self):
         cache.clear()
         self.school = factories.SchoolFactory(timezone="Asia/Kolkata")
-        self.year = factories.AcademicYearFactory(school=self.school, is_current=True)
+        self.year = factories.AcademicYearFactory(
+            school=self.school,
+            is_current=True,
+            # Spanning the days this file marks. Without it the tests lean on
+            # the factory's own pinned year, which stops containing "recently"
+            # the moment the calendar leaves it.
+            start_date=A_SATURDAY - dt.timedelta(days=365),
+            end_date=A_SCHOOL_DAY + dt.timedelta(days=365),
+        )
         self.school_class = factories.SchoolClassFactory(
             academic_year=self.year, school=self.school, name="Grade 8"
         )
@@ -479,3 +496,48 @@ def factories_holiday(school, date, name):
         created_at=now(),
         updated_at=now(),
     )
+
+
+class TheDaysThisFileMarks(TestCase):
+    """The dates themselves, because getting them wrong fails the whole
+    file a month later and looks like a product bug.
+
+    They were pinned once, to stop the suite failing on a Saturday, and
+    that is exactly how they came to fail every day from 2026-10-09: the
+    server also refuses a register more than 30 days old.
+    """
+
+    def every_day_of_a_fortnight(self):
+        start = dt.date.today() - dt.timedelta(days=7)
+
+        return [start + dt.timedelta(days=offset) for offset in range(14)]
+
+    def test_the_school_day_is_always_a_weekday(self):
+        """A weekend register is refused - no percentage in the product
+        counts one."""
+        for today in self.every_day_of_a_fortnight():
+            self.assertLess(_last_wednesday_for(today).weekday(), 5, today)
+
+    def test_the_saturday_is_always_a_saturday(self):
+        for today in self.every_day_of_a_fortnight():
+            self.assertEqual(5, (_last_wednesday_for(today) - dt.timedelta(days=4)).weekday(), today)
+
+    def test_both_days_are_in_the_past(self):
+        """A register for tomorrow is refused too."""
+        for today in self.every_day_of_a_fortnight():
+            school_day = _last_wednesday_for(today)
+
+            self.assertLess(school_day, today, today)
+            self.assertLess(school_day - dt.timedelta(days=4), today, today)
+
+    def test_both_days_are_inside_the_thirty_the_server_allows(self):
+        for today in self.every_day_of_a_fortnight():
+            oldest = _last_wednesday_for(today) - dt.timedelta(days=4)
+
+            self.assertLessEqual((today - oldest).days, 30, today)
+
+    def test_todays_pair_is_the_pair_the_rest_of_the_file_uses(self):
+        """Guards the four above: they would all pass against a helper
+        nothing else called."""
+        self.assertEqual(A_SCHOOL_DAY, _last_wednesday_for(dt.date.today()))
+        self.assertEqual(A_SATURDAY, A_SCHOOL_DAY - dt.timedelta(days=4))

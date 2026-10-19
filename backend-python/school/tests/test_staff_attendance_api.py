@@ -23,8 +23,21 @@ from school import factories, tokens
 from school.enums import StaffAttendanceStatus, UserRole
 from school.models import Holiday, Message, StaffAttendance
 
-A_SCHOOL_DAY = dt.date(2026, 9, 9)
-A_SATURDAY = dt.date(2026, 9, 12)
+# A Wednesday in the week just gone, and the Saturday before it.
+#
+# Derived rather than pinned, and derived as a *weekday* rather than as
+# "yesterday", because two rules have to hold at once: a register may only
+# be taken for a day the school ran, so a weekend fails, and only for the
+# last 30 days, so a fixed date passes for a month and then fails for ever.
+# These were pinned to satisfy the first and started failing on the second.
+def _last_wednesday() -> dt.date:
+    today = dt.date.today()
+
+    return today - dt.timedelta(days=(today.weekday() - 2) % 7 or 7)
+
+
+A_SCHOOL_DAY = _last_wednesday()
+A_SATURDAY = A_SCHOOL_DAY - dt.timedelta(days=4)
 
 
 class StaffAttendanceTest(TestCase):
