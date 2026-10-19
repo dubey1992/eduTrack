@@ -55,6 +55,14 @@ dependencies:
   # established plugin for both (the web build uses the browser's
   # Geolocation API through package:web instead - see location_source.dart).
   geolocator: ^14.0.3
+  # Schools, routes, stops and running trips on a map (docs/maps.md).
+  # Google's own plugin, and the only one that draws the same map in the
+  # Android app and the web build from one widget - CLAUDE.md's rule on
+  # dependencies is met because nothing in the tree draws a map at all.
+  # The web build needs the Maps JavaScript API loaded before a map is
+  # created; app_map.dart does that at runtime with the key the server
+  # hands out, so no key is ever written into the build.
+  google_maps_flutter: ^2.9.0
 
 dev_dependencies:
   flutter_test:
