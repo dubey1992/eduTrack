@@ -23,6 +23,7 @@ from .enums import EarlyAccessStatus, AnnouncementChannels, AttendanceAlertMode,
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
 from .scope import SchoolScope
+from .week import WorkingWeek
 
 
 def timestamp(value) -> str | None:
@@ -1294,6 +1295,11 @@ def school_resource(school: School, branch_count: int | None = None) -> dict:
         "longitude": None if school.longitude is None else str(school.longitude),
         "currency_code": school.currency_code,
         "timezone": school.timezone,
+        # Both forms: the stored one for a form that edits it, and the day
+        # names for a screen that has to lay out a week without knowing how
+        # the column is written.
+        "working_days": WorkingWeek(school.working_days).stored,
+        "working_day_names": WorkingWeek(school.working_days).names,
         "logo_url": school.logo_url,
         "status": school.status,
         "created_at": timestamp(school.created_at),

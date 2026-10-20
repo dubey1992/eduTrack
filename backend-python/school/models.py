@@ -35,6 +35,8 @@ a commit of its own, not as a side effect of something else.
 
 from django.db import models
 
+from . import week
+
 from .enums import StudentStatus, UserStatus
 from .fields import LaravelJSONField, UtcDateTimeField
 
@@ -843,6 +845,10 @@ class School(models.Model):
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
     timezone = models.CharField(max_length=64)
+    # Seven characters of '1' and '0', Monday first - the order of
+    # date.weekday(). See WorkingWeek in school/week.py, which is the only
+    # thing that should read it.
+    working_days = models.CharField(max_length=7, default=week.DEFAULT)
     latitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
     parent_school = models.ForeignKey('self', models.DO_NOTHING, blank=True, null=True)

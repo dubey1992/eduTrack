@@ -22,7 +22,7 @@ from .. import dates, money
 from ..receipts import STYLESHEET, e
 from . import comparison
 
-DEFAULT_NOTE = "Every rate is out of the days the school actually ran: weekends and the school's holidays are not counted."
+DEFAULT_NOTE = "Every rate is out of the days the school actually ran: its days off and its holidays are not counted."
 
 REPORT_STYLES = """
 @page {

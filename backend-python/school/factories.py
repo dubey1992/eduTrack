@@ -21,7 +21,7 @@ import factory
 from django.utils.timezone import now
 from factory.django import DjangoModelFactory
 
-from . import hashing, models
+from . import hashing, models, week
 
 # Anything this suite writes is throwaway, and the password is only ever set on
 # a row that a test created. It is not a credential for anything.
@@ -48,6 +48,9 @@ class SchoolFactory(DjangoModelFactory):
     postal_code = "000000"
     currency_code = "INR"
     timezone = "Asia/Kolkata"
+    # Monday to Friday, which is what almost every test means by a
+    # week. A test about a different one passes working_days itself.
+    working_days = week.DEFAULT
     status = "active"
 
     # Null for a standalone school, which is most of them. A branch is made by

@@ -40,6 +40,7 @@ from . import (
 from .gateways import Template
 from .clock import TIME, SchoolClock
 from .fields import as_utc
+from .week import WorkingWeek
 from .enums import (
     AssessmentStatus,
     AssessmentType,
@@ -613,7 +614,7 @@ class AttendanceService:
 
         if not HolidayService.is_working_day(school_id, date):
             raise NonWorkingDay(
-                "Attendance cannot be marked on a weekend - the school is closed."
+                "The school does not run on that day, so attendance cannot be marked."
             )
 
     @staticmethod
@@ -1097,7 +1098,7 @@ class StaffLeaveService:
     def assert_covers_a_working_day(school_id: int, start, end) -> None:
         if not HolidayService.working_dates(school_id, start, end):
             raise LeaveOnNonWorkingDays(
-                "The selected dates fall entirely on weekends or holidays - "
+                "The selected dates fall entirely on days the school does not run - "
                 "there is no working day to take leave from."
             )
 
@@ -1306,7 +1307,7 @@ class DailyTeachingReportService:
         # The timetable runs Monday to Friday, so a weekend period is not a
         # period that existed to be taught.
         if not HolidayService.is_working_day(entry.school_id, data["report_date"]):
-            raise NonWorkingDay("No periods are taught at the weekend - the school is closed.")
+            raise NonWorkingDay("No periods are taught on a day the school does not run.")
 
         already = DailyTeachingReport.objects.filter(
             timetable_entry_id=entry.id, report_date=data["report_date"]
@@ -3729,10 +3730,15 @@ class HolidayService:
 
     # -- the working-day questions every date-driven module asks ----------
     #
-    # A working day is a Monday-to-Friday date not covered by a holiday.
-    # Weekends are fixed, matching the Monday-to-Friday timetable, and both
-    # halves matter: every working-day figure in the product excludes both, so
-    # a Saturday register that no percentage counts is worse than none.
+    # A working day is a day the school runs that no holiday covers. Both
+    # halves matter: every working-day figure in the product excludes both,
+    # so a register nobody's percentage counts is worse than none.
+    #
+    # **The week belongs to the school** (docs/holidays.md). It was Monday to
+    # Friday everywhere until this column existed, which was wrong for every
+    # school that runs Sunday to Thursday or six days - attendance refused on
+    # their own working days and every rate computed against a week they do
+    # not keep.
 
     @staticmethod
     def holiday_on(school_id: int, date):
@@ -3744,8 +3750,8 @@ class HolidayService:
     def is_working_day(cls, school_id: int, date) -> bool:
         return bool(cls.working_dates(school_id, date, date))
 
-    @staticmethod
-    def working_dates(school_id: int, start, end) -> list:
+    @classmethod
+    def working_dates(cls, school_id: int, start, end) -> list:
         """Every working date from `start` to `end` inclusive, in order.
 
         Empty when `start` is after `end`, rather than an error: a report for
@@ -3762,20 +3768,30 @@ class HolidayService:
                 school_id=school_id, start_date__lte=end, end_date__gte=start
             ).values_list("start_date", "end_date")
         )
+        week = cls.week_of(school_id)
 
         dates = []
         day = start
 
         while day <= end:
-            # Monday is 0, Saturday 5, Sunday 6.
-            if day.weekday() < 5 and not any(
-                first <= day <= last for first, last in holidays
-            ):
+            if week.runs_on(day) and not any(first <= day <= last for first, last in holidays):
                 dates.append(day)
 
             day += dt.timedelta(days=1)
 
         return dates
+
+    @staticmethod
+    def week_of(school_id: int) -> WorkingWeek:
+        """The days this school runs.
+
+        A school nobody can find gets the default week rather than an error:
+        this is asked from inside report loops and attendance marks, and the
+        caller has already established the school exists.
+        """
+        stored = School.objects.filter(pk=school_id).values_list("working_days", flat=True).first()
+
+        return WorkingWeek(stored)
 
     @staticmethod
     def _assert_no_overlap(school_id, start, end, ignoring=None) -> None:

@@ -51,6 +51,7 @@ from .enums import (
     StudentStatus,
     UserRole,
 )
+from . import week
 from .models import (
     AttendantCredential,
     AcademicTerm,
@@ -358,6 +359,7 @@ class SchoolForm(serializers.Serializer):
     longitude = CoordinateField("longitude", -180, 180)
     currency_code = LaravelCharField("currency_code", max_length=3)
     timezone = TimezoneField("timezone", max_length=64)
+    working_days = LaravelCharField("working_days", max_length=7, required=False)
     logo_url = UrlField("logo_url", max_length=2048, required=False, allow_null=True)
     parent_school_id = LaravelIntegerField(
         "parent_school_id", required=False, allow_null=True
@@ -384,6 +386,16 @@ class SchoolForm(serializers.Serializer):
         # guessing here would put a guess in a ledger (CLAUDE.md rule 5).
         if not CURRENCY_PATTERN.match(value):
             raise serializers.ValidationError(bad_format("currency_code"))
+
+        return value
+
+    def validate_working_days(self, value: str) -> str:
+        # Seven characters of 0 and 1, Monday first, at least one day. A
+        # school that runs no days would refuse every mark on every date
+        # with a message about being closed, which reads exactly like the
+        # product being broken.
+        if not week.is_valid(value):
+            raise serializers.ValidationError(bad_format("working_days"))
 
         return value
 

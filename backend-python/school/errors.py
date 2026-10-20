@@ -561,7 +561,7 @@ class TripRule(ApiError):
 
     @classmethod
     def non_working_day(cls):
-        return cls("TRIP_ON_NON_WORKING_DAY", "Trips do not run on weekends or holidays.")
+        return cls("TRIP_ON_NON_WORKING_DAY", "Trips do not run on a day the school is closed.")
 
     @classmethod
     def already_in_progress(cls, route_name: str):

@@ -158,17 +158,27 @@ class StartTest(TripTestCase):
         self.assertEqual("TRIP_ON_NON_WORKING_DAY", self.start().data["code"])
 
 
-class WeekendTest(TripTestCase):
+class DayOffTest(TripTestCase):
+    """A Saturday, for a school keeping the Monday-to-Friday week."""
+
     def setUp(self):
         cache.clear()
         self.freeze(dt.datetime(2026, 9, 12, 7, 30, tzinfo=dt.timezone.utc))
         self.f = self.ready_route()
 
-    def test_trips_do_not_run_at_the_weekend(self):
+    def test_trips_do_not_run_on_a_day_the_school_is_closed(self):
         response = self.start()
 
-        self.assertEqual(("TRIP_ON_NON_WORKING_DAY", "Trips do not run on weekends or holidays."),
+        self.assertEqual(("TRIP_ON_NON_WORKING_DAY", "Trips do not run on a day the school is closed."),
                          (response.data["code"], response.data["message"]))
+
+    def test_a_school_that_runs_saturdays_runs_its_buses(self):
+        """The same date, the same route, a different week."""
+        school = self.f["school"]
+        school.working_days = "1111110"
+        school.save()
+
+        self.assertEqual(201, self.start().status_code)
 
 
 class OncePerDayTest(TripTestCase):
