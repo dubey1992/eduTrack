@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_map.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_repository.dart';
 import '../../support/fake_transport_repository.dart';
@@ -34,6 +35,9 @@ Widget wrap(Widget screen, FakeTransportRepository fake, {AuthenticatedUser acto
       transportRepositoryProvider.overrideWithValue(fake),
       schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository()),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: actor)),
+      // The stops dialog holds a map now; pinned to "no key" so this file
+      // keeps testing the route screens and never reaches the network.
+      ...mapIsUnavailable(),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),

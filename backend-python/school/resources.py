@@ -589,6 +589,11 @@ def transport_route_resource(route, stops=None) -> dict:
 
     if stops is not None:
         body["stops"] = [transport_stop_resource(stop, stop.students_count) for stop in stops]
+        # Where the route's school is, because the road ends there and the
+        # map draws it. Null for a school nobody has placed yet, which the
+        # map says rather than guessing.
+        body["school_latitude"] = None if route.school.latitude is None else str(route.school.latitude)
+        body["school_longitude"] = None if route.school.longitude is None else str(route.school.longitude)
         # The road, on the detail view only: the list draws no map, and a
         # polyline per row would be the largest thing in the answer.
         body["path"] = {

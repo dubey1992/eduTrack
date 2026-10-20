@@ -1107,7 +1107,13 @@ class TransportRoute(models.Model):
     path_duration_s = models.PositiveIntegerField(blank=True, null=True)
     # Each leg in order, which is what M3's "how far to the next stop" reads
     # instead of asking Google again.
-    path_legs = models.JSONField(blank=True, null=True)
+    #
+    # Text that the application encodes and decodes, not a JSONField: that
+    # one assumes PostgreSQL's `jsonb`, and every json column in this schema
+    # was built by Laravel as `json`. `json` has no equality operator, so a
+    # route list counting with distinct fails outright. See the migration
+    # 2026_10_20_100100 for the whole of it.
+    path_legs = models.TextField(blank=True, null=True)
     path_status = models.CharField(max_length=20, default="none")
     path_failure_reason = models.CharField(max_length=255, blank=True, null=True)
     path_computed_at = UtcDateTimeField(blank=True, null=True)

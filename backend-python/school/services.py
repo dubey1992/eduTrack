@@ -2786,7 +2786,22 @@ class DriverService(FleetService):
 class TransportRouteService:
     @staticmethod
     def with_counts(routes):
-        return routes.select_related("school", "vehicle", "driver", "attendant_user").annotate(
+        # `path_legs` is left out on purpose, and not only to save sending
+        # it: counting with `distinct=True` groups by every selected column,
+        # and PostgreSQL's `json` type has no equality operator, so a route
+        # list carrying it fails outright with "could not identify an
+        # equality operator for type json".
+        #
+        # No test can catch that, because the test database is built from
+        # the models - where Django's JSONField is `jsonb`, which does have
+        # one - while the real schema is built by Laravel, where it is
+        # `json`. See docs/python-migration.md on what that gap costs.
+        #
+        # Nothing reads the legs from here anyway: the path job and M3's
+        # arrival estimate load the route on its own.
+        return routes.defer("path_legs").select_related(
+            "school", "vehicle", "driver", "attendant_user"
+        ).annotate(
             stops_count=Count("transportstop", distinct=True),
             students_count=Count("studenttransportassignment", distinct=True),
         )

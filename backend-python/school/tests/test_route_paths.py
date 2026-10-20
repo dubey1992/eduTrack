@@ -252,7 +252,7 @@ class WorkingOutTheRoad(RouteTest):
 
         self.assertEqual(
             [{"distance_m": 5200, "duration_s": 600}, {"distance_m": 7200, "duration_s": 900}],
-            self.reloaded().path_legs,
+            route_paths.legs_of(self.reloaded()),
         )
 
     def test_it_asks_google_once_however_many_stops(self):
@@ -436,3 +436,69 @@ class WhatTheRouteScreenIsTold(RouteTest):
         body = self.client.get("/api/v1/transport/routes").data
 
         self.assertNotIn("path", body["data"][0])
+
+
+class TheQueryThatListsRoutes(RouteTest):
+    """A regression no test database can reproduce.
+
+    Counting with `distinct=True` groups by every selected column, and
+    PostgreSQL's `json` type has no equality operator - so a route list
+    carrying `path_legs` fails with "could not identify an equality
+    operator for type json". It passed every test and failed the moment it
+    was driven, because the test database is built from the models, where
+    Django's JSONField is `jsonb` and does have one.
+
+    Asserted on the SQL rather than by running it, since the only database
+    that reproduces the fault is the one tests never use.
+    """
+
+    def test_the_legs_are_not_in_the_list_query(self):
+        from school.services import TransportRouteService
+
+        sql = str(TransportRouteService.with_counts(TransportRoute.objects.all()).query)
+
+        self.assertNotIn("path_legs", sql)
+
+    def test_the_legs_are_still_readable_on_their_own(self):
+        """Deferred, not dropped: the path job and the arrival estimate
+        load the route by itself and need them."""
+        from school.services import TransportRouteService
+
+        route = TransportRouteService.with_counts(TransportRoute.objects.filter(pk=self.route.pk)).get()
+
+        self.assertEqual([], route_paths.legs_of(route))
+
+    def test_a_route_can_still_be_listed_and_read(self):
+        self.stop(1)
+
+        self.assertEqual(200, self.client.get("/api/v1/transport/routes").status_code)
+        self.assertEqual(200, self.client.get(f"/api/v1/transport/routes/{self.route.pk}").status_code)
+
+
+class ReadingTheStoredLegs(RouteTest):
+    """Decoded by the application, because the column is text - see the
+    model for why it is not a JSONField."""
+
+    def legs(self, stored):
+        TransportRoute.objects.filter(pk=self.route.pk).update(path_legs=stored)
+
+        return route_paths.legs_of(self.reloaded())
+
+    def test_a_list_comes_back_as_a_list(self):
+        self.assertEqual([{"distance_m": 1, "duration_s": 2}], self.legs('[{"distance_m": 1, "duration_s": 2}]'))
+
+    def test_nothing_stored_is_no_legs(self):
+        self.assertEqual([], self.legs(None))
+        self.assertEqual([], self.legs(""))
+
+    def test_something_that_is_not_json_is_no_legs(self):
+        """An arrival estimate built on half a list would be confidently
+        wrong, which is worse than saying nothing."""
+        self.assertEqual([], self.legs("not json at all"))
+
+    def test_json_that_is_not_a_list_is_no_legs(self):
+        self.assertEqual([], self.legs('{"distance_m": 1}'))
+        self.assertEqual([], self.legs("42"))
+
+    def test_entries_that_are_not_legs_are_dropped(self):
+        self.assertEqual([{"distance_m": 1}], self.legs('[{"distance_m": 1}, 42, "nonsense", null]'))

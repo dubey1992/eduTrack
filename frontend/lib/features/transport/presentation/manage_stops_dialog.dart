@@ -1,12 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../maps/presentation/location_picker.dart';
 import '../../schools/presentation/widgets/coordinates_fields.dart';
 import '../application/route_detail_notifier.dart';
 import '../data/models/transport_route.dart';
+import 'widgets/route_map.dart';
 import 'widgets/submit_button.dart';
 import 'widgets/transport_list_scaffold.dart';
 
@@ -26,25 +31,17 @@ class ManageStopsDialog extends ConsumerWidget {
     return AlertDialog(
       title: Text(routeState.value == null ? 'Stops' : 'Stops · ${routeState.value!.label}'),
       content: ConstrainedBox(
-        // Bounded so the loading spinner doesn't stretch the dialog to the
-        // full viewport height before the stops arrive.
-        constraints: const BoxConstraints(minWidth: 460, maxWidth: 460, maxHeight: 420),
+        // Wide enough for the map beside the list. Bounded in both
+        // directions so the loading spinner does not stretch the dialog to
+        // the viewport before the stops arrive.
+        constraints: const BoxConstraints(minWidth: 460, maxWidth: 940, maxHeight: 520),
         child: AsyncValueView<TransportRoute>(
           value: routeState,
           onRetry: () => ref.read(routeDetailProvider(routeId).notifier).refresh(),
-          isEmpty: (route) => route.stops.isEmpty,
-          emptyBuilder: (context) =>
-              const Padding(padding: EdgeInsets.all(16), child: Text('No stops on this route yet.')),
-          data: (context, route) {
-            return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final stop in route.stops) _StopRow(routeId: routeId, stop: stop, canManage: canManage),
-                ],
-              ),
-            );
-          },
+          // Deliberately not empty when there are no stops: the map and the
+          // invitation to add one are the whole point of opening this on a
+          // route that has none.
+          data: (context, route) => _StopsAndMap(routeId: routeId, route: route, canManage: canManage),
         ),
       ),
       actions: [
@@ -67,12 +64,100 @@ class ManageStopsDialog extends ConsumerWidget {
   }
 }
 
+/// The stops down one side and the route on a map down the other.
+///
+/// Side by side where there is room, stacked where there is not - a phone
+/// shows the map first, because the thing somebody opens this for on a
+/// phone is usually to look at where the route goes.
+class _StopsAndMap extends StatefulWidget {
+  const _StopsAndMap({required this.routeId, required this.route, required this.canManage});
+
+  final int routeId;
+  final TransportRoute route;
+  final bool canManage;
+
+  @override
+  State<_StopsAndMap> createState() => _StopsAndMapState();
+}
+
+class _StopsAndMapState extends State<_StopsAndMap> {
+  int? _selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final map = RouteMap(
+      route: widget.route,
+      selectedStopId: _selected,
+      onSelectStop: (stop) => setState(() => _selected = stop.id),
+    );
+
+    final list = widget.route.stops.isEmpty
+        ? const Padding(padding: EdgeInsets.all(16), child: Text('No stops on this route yet.'))
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final stop in widget.route.stops)
+                _StopRow(
+                  routeId: widget.routeId,
+                  stop: stop,
+                  canManage: widget.canManage,
+                  isSelected: stop.id == _selected,
+                  onTap: () => setState(() => _selected = stop.id),
+                ),
+            ],
+          );
+
+    // Measured from the viewport, not a LayoutBuilder. An AlertDialog asks
+    // its content how wide it would like to be, and a LayoutBuilder cannot
+    // answer an intrinsic question - it would have to run its callback
+    // speculatively against a tree it is not allowed to touch.
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+
+    if (!wide) {
+      return SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [map, const SizedBox(height: 12), list]),
+      );
+    }
+
+    // A width, because an AlertDialog sizes itself to what its content says
+    // it would like to be and a map says nothing at all - it fills whatever
+    // room it is given. Left to the stop list alone the dialog came out
+    // around 700 wide and the map got a sliver of it. The 112 is the
+    // dialog's own padding and insets, so it never asks for more room than
+    // the window has.
+    final width = math.min(940.0, MediaQuery.sizeOf(context).width - 112);
+
+    return SizedBox(
+      width: width,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: SingleChildScrollView(child: list)),
+          const SizedBox(width: 16),
+          Expanded(child: SingleChildScrollView(child: map)),
+        ],
+      ),
+    );
+  }
+}
+
 class _StopRow extends ConsumerWidget {
-  const _StopRow({required this.routeId, required this.stop, required this.canManage});
+  const _StopRow({
+    required this.routeId,
+    required this.stop,
+    required this.canManage,
+    this.isSelected = false,
+    this.onTap,
+  });
 
   final int routeId;
   final TransportStop stop;
   final bool canManage;
+
+  /// Highlighted because its pin was tapped on the map, so the two halves
+  /// of the dialog agree about which stop is being looked at.
+  final bool isSelected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -84,6 +169,8 @@ class _StopRow extends ConsumerWidget {
 
     return ListTile(
       dense: true,
+      selected: isSelected,
+      onTap: onTap,
       leading: CircleAvatar(radius: 14, child: Text('${stop.sequenceNumber}', style: const TextStyle(fontSize: 12))),
       title: Text(stop.name),
       subtitle: Column(
@@ -150,6 +237,18 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
   Map<String, List<String>> _fieldErrors = const {};
 
   bool get _isEdit => widget.stop != null;
+
+  /// Where to look first, and what to bias address search towards. Null for
+  /// a school nobody has placed, which simply means no bias.
+  LatLng? _nearTheSchool(WidgetRef ref) {
+    final route = ref.read(routeDetailProvider(widget.routeId)).value;
+    final latitude = double.tryParse(route?.schoolLatitude ?? '');
+    final longitude = double.tryParse(route?.schoolLongitude ?? '');
+
+    if (latitude == null || longitude == null) return null;
+
+    return LatLng(latitude, longitude);
+  }
 
   static TimeOfDay? _parse(String? value) {
     if (value == null) return null;
@@ -278,11 +377,18 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
                   onClear: () => setState(() => _dropTime = null),
                 ),
                 const SizedBox(height: 10),
-                CoordinatesFields(
+                LocationPicker(
                   latitude: _latitudeController,
                   longitude: _longitudeController,
-                  latitudeError: _fieldErrors['latitude']?.first,
-                  longitudeError: _fieldErrors['longitude']?.first,
+                  // Biased towards the school, because "Station Road"
+                  // means a different road in every city.
+                  near: _nearTheSchool(ref),
+                  child: CoordinatesFields(
+                    latitude: _latitudeController,
+                    longitude: _longitudeController,
+                    latitudeError: _fieldErrors['latitude']?.first,
+                    longitudeError: _fieldErrors['longitude']?.first,
+                  ),
                 ),
               ],
             ),

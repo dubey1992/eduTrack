@@ -19,6 +19,8 @@ is asked for a line that is drawn the same way.
 
 from __future__ import annotations
 
+import json
+
 from django.utils import timezone
 
 from .gateways import google_maps
@@ -116,7 +118,7 @@ def compute_route_path(route_id: int) -> None:
         path_polyline=found.polyline,
         path_distance_m=found.distance_m,
         path_duration_s=found.duration_s,
-        path_legs=[{"distance_m": leg.distance_m, "duration_s": leg.duration_s} for leg in found.legs],
+        path_legs=json.dumps([{"distance_m": leg.distance_m, "duration_s": leg.duration_s} for leg in found.legs]),
         path_status=OK,
         path_failure_reason=None,
         path_computed_at=timezone.now(),
@@ -140,3 +142,25 @@ def _store(route_id: int, *, status: str, reason: str | None) -> None:
         path_computed_at=timezone.now(),
         updated_at=timezone.now(),
     )
+
+
+def legs_of(route: TransportRoute) -> list[dict]:
+    """The stored legs, in order.
+
+    Decoded here rather than by the field, because the column is text - see
+    the model for why. Anything unreadable is no legs at all: an arrival
+    estimate built on half a list would be confidently wrong, which is
+    worse than saying nothing.
+    """
+    if not route.path_legs:
+        return []
+
+    try:
+        legs = json.loads(route.path_legs)
+    except ValueError:
+        return []
+
+    if not isinstance(legs, list):
+        return []
+
+    return [leg for leg in legs if isinstance(leg, dict)]

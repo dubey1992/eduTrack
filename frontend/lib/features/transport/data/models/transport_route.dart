@@ -67,6 +67,9 @@ class TransportRoute {
     this.attendantUserId,
     this.attendantName,
     this.stops = const [],
+    this.schoolLatitude,
+    this.schoolLongitude,
+    this.path = const RoutePath.notComputed(),
   });
 
   factory TransportRoute.fromJson(Map<String, dynamic> json) {
@@ -89,8 +92,20 @@ class TransportRoute {
       attendantUserId: json['attendant_user_id'] as int?,
       attendantName: json['attendant_name'] as String?,
       stops: ((json['stops'] as List?) ?? const []).cast<Map<String, dynamic>>().map(TransportStop.fromJson).toList(),
+      schoolLatitude: json['school_latitude'] as String?,
+      schoolLongitude: json['school_longitude'] as String?,
+      path: RoutePath.fromJson(json['path']),
     );
   }
+
+  /// Where the route's school is, because the road ends there and the map
+  /// draws it. Null for a school nobody has placed yet. Only on the detail
+  /// view, like the stops.
+  final String? schoolLatitude;
+  final String? schoolLongitude;
+
+  /// The road through the stops, as the server last worked it out.
+  final RoutePath path;
 
   final int id;
   final int schoolId;
@@ -160,4 +175,87 @@ class RouteStudent {
   final int stopId;
   final String stopName;
   final int stopSequenceNumber;
+}
+
+/// The road a route follows, as the server last worked it out
+/// (docs/maps.md, M2).
+///
+/// Four states rather than a line or nothing, because what the map should
+/// draw differs in each: nothing to draw yet, the road, straight lines
+/// while the road is being worked out, and straight lines with a reason and
+/// a way to try again.
+enum RoutePathStatus {
+  /// Nothing has been computed - usually because the stops or the school
+  /// have no coordinates yet.
+  none,
+
+  /// The stored line is the road through the stops as they stand.
+  ok,
+
+  /// The stops changed and the job has not run. The line, if there is one,
+  /// is of where the stops used to be.
+  stale,
+
+  /// Google refused or could not be reached.
+  failed;
+
+  static RoutePathStatus fromApiValue(Object? value) {
+    return switch (value) {
+      'ok' => RoutePathStatus.ok,
+      'stale' => RoutePathStatus.stale,
+      'failed' => RoutePathStatus.failed,
+      // Anything this build does not recognise is "no road", which draws
+      // straight lines - the safe reading of a word from a newer server.
+      _ => RoutePathStatus.none,
+    };
+  }
+}
+
+class RoutePath {
+  const RoutePath({
+    required this.status,
+    required this.polyline,
+    required this.distanceM,
+    required this.durationS,
+    required this.failureReason,
+  });
+
+  const RoutePath.notComputed()
+    : status = RoutePathStatus.none,
+      polyline = null,
+      distanceM = null,
+      durationS = null,
+      failureReason = null;
+
+  factory RoutePath.fromJson(Object? json) {
+    if (json is! Map<String, dynamic>) return const RoutePath.notComputed();
+
+    final polyline = json['polyline'];
+
+    return RoutePath(
+      status: RoutePathStatus.fromApiValue(json['status']),
+      polyline: polyline is String && polyline.isNotEmpty ? polyline : null,
+      distanceM: json['distance_m'] as int?,
+      durationS: json['duration_s'] as int?,
+      failureReason: json['failure_reason'] as String?,
+    );
+  }
+
+  final RoutePathStatus status;
+
+  /// Google's encoded polyline. Null whenever there is no line to draw -
+  /// including when the status is `ok` but the server sent nothing, which
+  /// should not happen and must not draw a broken line if it does.
+  final String? polyline;
+
+  final int? distanceM;
+  final int? durationS;
+  final String? failureReason;
+
+  /// Whether the drawn line is of where the stops are *now*.
+  bool get isCurrent => status == RoutePathStatus.ok && polyline != null;
+
+  /// Whether to say something about it. A road that is simply current needs
+  /// no explanation.
+  bool get needsExplaining => status != RoutePathStatus.ok;
 }

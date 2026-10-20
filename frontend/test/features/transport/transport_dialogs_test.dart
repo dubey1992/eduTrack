@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_map.dart';
 import '../../support/attendant_fixtures.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_staff_repository.dart';
@@ -30,6 +31,10 @@ Widget wrap(FakeTransportRepository fake, Widget Function() dialog, {FakeStaffRe
       // Bus Attendants are staff: the route form's picker reads them there.
       staffRepositoryProvider.overrideWithValue(staff ?? FakeStaffRepository()),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _schoolAdmin)),
+      // The stops dialog and the stop form both hold a map now. Pinned to
+      // "no key" so this file keeps testing the stops and never reaches the
+      // network to find out whether one is configured.
+      ...mapIsUnavailable(),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),
@@ -246,6 +251,7 @@ void main() {
       expect(find.byType(StopFormDialog), findsNothing);
       expect(find.text('Sector 12'), findsOneWidget);
 
+      await tester.ensureVisible(find.byTooltip('Delete stop').first);
       await tester.tap(find.byTooltip('Delete stop').first);
       await tester.pumpAndSettle();
       expect(find.text('Remove stop?'), findsOneWidget);
@@ -253,6 +259,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(fake.lastDeletedStopId, isNull);
 
+      await tester.ensureVisible(find.byTooltip('Delete stop').first);
       await tester.tap(find.byTooltip('Delete stop').first);
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
@@ -271,6 +278,7 @@ void main() {
         code: 'HAS_DEPENDENT_RECORDS',
         message: 'Students are still assigned to this stop.',
       );
+      await tester.ensureVisible(find.byTooltip('Delete stop').first);
       await tester.tap(find.byTooltip('Delete stop').first);
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
@@ -428,6 +436,7 @@ void main() {
       await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
       await _open(tester);
 
+      await tester.ensureVisible(find.byTooltip('Edit stop').first);
       await tester.tap(find.byTooltip('Edit stop').first);
       await tester.pumpAndSettle();
       expect(find.text('18.520400'), findsOneWidget);

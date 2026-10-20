@@ -399,3 +399,70 @@ Three decisions worth keeping:
   so a half-filled row is reachable however much the form refuses it; it
   counts as unplaced rather than being drawn at (0, 0), off the coast of
   Africa, where it would look every bit as deliberate as a real school.
+## What building M2 turned up
+
+The route map works: three real stops on a Pune route, the school at the
+end of it, and Google's road between them - 13.1 km, 39 minutes, three
+legs. Four things had to be settled first, and three of them are worth
+keeping.
+
+### `~` does not mean the same thing on the web
+
+`decodePolyline` refused every road it was given in the browser while
+passing twelve tests on the Dart VM, and the map silently drew nothing.
+Google's format stores negative steps as odd numbers and undoes them with
+`~(result >> 1)`, which is what its own documentation says. But to a
+bitwise operator on the web an `int` is 32 bits *unsigned*: `~0` is
+4294967295, not -1. Every southward or westward step of the road decoded
+as a point thousands of degrees off the earth, the decoder correctly
+refused the whole line, and the map fell back to a stand-in that was never
+drawn because the note above it said the road was fine.
+
+Two things came out of it:
+
+- The decoder uses `-((result + 1) >> 1)`, which is the same number on
+  both platforms, and the accumulator is now bounded at 30 bits - six
+  chunks, more than any coordinate on earth needs - so the shift can never
+  cross 32 bits on the web either.
+- **No test run on the VM can catch this.** `flutter test --platform
+  chrome` does not start in this environment (it fails to load even a
+  trivial suite), so the guard is a test that reads
+  `lib/features/maps/data/polyline.dart` and fails if a `~` appears in it.
+  That file holds the only bitwise arithmetic in the whole Flutter app, so
+  one reading of one file covers it. If Chrome test runs ever work here,
+  that test should be replaced with the real thing.
+
+### Django's `JSONField` assumes `jsonb`, and this schema has `json`
+
+The legs were stored in a `json` column, which Laravel creates and Django's
+`JSONField` does not expect. Two separate failures: PostgreSQL's `json` has
+no equality operator, so the route list's `Count(distinct=True)` fell over
+the moment the column was selected; and Django's own lookups generate
+`= 'null'::jsonb`, which `json` refuses.
+
+The legs are now a `text` column the application encodes and decodes, which
+behaves the same on MySQL and PostgreSQL. **The mismatch is wider than this
+column** - `audit_logs`, `messages`, `module_settings`, `marketing_content`
+and `queued_jobs` all have `json` columns reached through `JSONField`, and
+they work today only because nothing has yet asked them for equality.
+That is its own piece of work and has not been done.
+
+### A dialog sizes itself to its content, and a map has no opinion
+
+`AlertDialog` asks its content how wide it would like to be. The stop list
+answered; the map, which fills whatever room it is given, said nothing. The
+dialog came out around 700 wide with the map in a sliver of it. The wide
+layout now states a width - the lesser of 940 and the window less its
+insets - rather than hoping the content asks for one.
+
+### One error that is not ours
+
+`Bad state: RenderBox was not laid out` appears once in the console at
+startup, before login and before any map. The debug build names it: it is
+thrown entirely inside Flutter's own focus traversal
+(`didChangeViewFocus` -> `findFirstFocus` -> `_sortAllDescendants`), which
+asks an unlaid-out `RenderStack` for its rect when the browser view takes
+focus before the first layout. There are no application frames in the
+stack, it is the first error in the console rather than the wreckage of an
+earlier one, and the widgets library catches it. Flutter 3.47.0. Left
+alone.
