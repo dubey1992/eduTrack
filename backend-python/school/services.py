@@ -31,6 +31,7 @@ from . import (
     notifications,
     permissions,
     queue,
+    route_paths,
     sms,
     tokens,
     whatsapp,
@@ -2864,6 +2865,7 @@ class TransportRouteService:
             **data, route_id=route.pk, school_id=route.school_id, created_at=now, updated_at=now
         )
         audit.created("transport", stop)
+        route_paths.mark_stale(route.pk)
 
         return cls.stops_of(route.pk).get(pk=stop.pk)
 
@@ -2880,6 +2882,11 @@ class TransportRouteService:
             stop.updated_at = timezone.now()
             stop.save(update_fields=[*changed, "updated_at"])
             audit.updated("transport", stop, before)
+
+            # Only when something that decides the road changed. Renaming a
+            # stop or changing its pickup time moves nothing.
+            if {"latitude", "longitude", "sequence_number"} & set(changed):
+                route_paths.mark_stale(stop.route_id)
 
         return cls.stops_of(stop.route_id).get(pk=stop.pk)
 
@@ -2905,7 +2912,10 @@ class TransportRouteService:
             TransportTripRider.objects.filter(stop_id=stop.pk).update(stop=None)
             TransportTripEvent.objects.filter(stop_id=stop.pk).update(stop=None)
             audit.deleted("transport", stop)
+            route_id = stop.route_id
             stop.delete()
+
+        route_paths.mark_stale(route_id)
 
 
 class StudentTransportService:

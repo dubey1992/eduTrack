@@ -1099,6 +1099,18 @@ class TransportRoute(models.Model):
         'User', models.DO_NOTHING, blank=True, null=True, related_name='attended_routes'
     )
     status = models.CharField(max_length=20)
+    # The road the route follows, asked of Google once when the stops change
+    # (docs/maps.md, M2). A column rather than a request because a map that
+    # computed its own line would bill a call per administrator who opened it.
+    path_polyline = models.TextField(blank=True, null=True)
+    path_distance_m = models.PositiveIntegerField(blank=True, null=True)
+    path_duration_s = models.PositiveIntegerField(blank=True, null=True)
+    # Each leg in order, which is what M3's "how far to the next stop" reads
+    # instead of asking Google again.
+    path_legs = models.JSONField(blank=True, null=True)
+    path_status = models.CharField(max_length=20, default="none")
+    path_failure_reason = models.CharField(max_length=255, blank=True, null=True)
+    path_computed_at = UtcDateTimeField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 

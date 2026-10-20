@@ -589,6 +589,16 @@ def transport_route_resource(route, stops=None) -> dict:
 
     if stops is not None:
         body["stops"] = [transport_stop_resource(stop, stop.students_count) for stop in stops]
+        # The road, on the detail view only: the list draws no map, and a
+        # polyline per row would be the largest thing in the answer.
+        body["path"] = {
+            "status": route.path_status,
+            "polyline": route.path_polyline,
+            "distance_m": route.path_distance_m,
+            "duration_s": route.path_duration_s,
+            "failure_reason": route.path_failure_reason,
+            "computed_at": timestamp(route.path_computed_at),
+        }
 
     body["created_at"] = timestamp(route.created_at)
 

@@ -14,6 +14,11 @@ import logging
 from django.utils import timezone
 
 from . import mailer, notifications, progress_reports, receipts, sms, whatsapp
+
+# Imported for its side effect: registering compute_route_path. The worker
+# finds handlers by importing this module, so one that lives elsewhere has
+# to be reached from here or the queue grows rows nothing can run.
+from . import route_paths  # noqa: F401
 from .enums import MessageChannel, MessageStatus, UserRole, UserStatus
 from .gateways import Result, Template
 from .clock import DATE_TIME, SchoolClock

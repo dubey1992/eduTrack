@@ -248,6 +248,9 @@ urlpatterns = [
     path("api/v1/transport/routes/<int:route_id>", transport.route),
     path("api/v1/transport/routes/<int:route_id>/students", transport.route_students),
     path("api/v1/transport/routes/<int:route_id>/stops", transport.add_stop),
+    # Google was unreachable and the map is drawing straight lines; the
+    # only useful thing to offer is another go (docs/maps.md, M2).
+    path("api/v1/transport/routes/<int:route_id>/path", transport.recompute_path),
     path("api/v1/transport/stops/<int:stop_id>", transport.stop),
     path("api/v1/students/<int:student_id>/transport", transport.student_transport),
     # -- transport trips ---------------------------------------------------

@@ -43,6 +43,7 @@ from ..resources import (
     transport_stop_resource,
     vehicle_resource,
 )
+from .. import route_paths
 from ..services import DriverService, StudentTransportService, TransportRouteService, VehicleService
 from .students import reload
 
@@ -193,6 +194,24 @@ def route_students(request, route_id: int) -> Response:
     page = paginator.paginate_queryset(StudentTransportService.students_on(found), request)
 
     return paginator.get_paginated_response([route_student_resource(row) for row in page])
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def recompute_path(request, route_id: int) -> Response:
+    """Try the road again (docs/maps.md, M2).
+
+    Google was unreachable, or refused, and the map is drawing straight
+    lines. Nothing about the route has changed, so there is nothing to
+    correct - the only useful thing to offer is another go.
+    """
+    found = get_object_or_404(TransportRoute.objects.select_related("school"), pk=route_id)
+
+    authorize(TransportRoutePolicy.manage(request.user, found))
+
+    route_paths.mark_stale(found.pk)
+
+    return route_detail_response(found.pk)
 
 
 # -- stops ------------------------------------------------------------------

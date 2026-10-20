@@ -25,9 +25,22 @@ from .http import ProviderError, get, post
 AUTOCOMPLETE_URL = "https://places.googleapis.com/v1/places:autocomplete"
 PLACE_URL = "https://places.googleapis.com/v1/places/{place_id}"
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 
 # What the location picker draws, and nothing else.
 PLACE_FIELDS = "id,displayName,formattedAddress,location"
+
+# The drawn line, the totals, and each leg - which is all a route map and an
+# arrival estimate need. Asking for the turn-by-turn steps as well would
+# multiply the size of every answer for text nobody reads.
+ROUTE_FIELDS = (
+    "routes.polyline.encodedPolyline,routes.distanceMeters,routes.duration,"
+    "routes.legs.distanceMeters,routes.legs.duration"
+)
+
+# Google refuses more than this many intermediate points in one call. A
+# route with more stops is computed in pieces and joined.
+MAX_WAYPOINTS = 25
 
 
 @dataclass(frozen=True)
@@ -154,3 +167,178 @@ def reverse_geocode(latitude: float, longitude: float) -> str:
     results = answer.get("results") or []
 
     return (results[0].get("formatted_address") or "") if results else ""
+
+
+@dataclass(frozen=True)
+class Leg:
+    distance_m: int
+    duration_s: int
+
+
+@dataclass(frozen=True)
+class Route:
+    """A road path through a list of points, in the order given."""
+
+    polyline: str
+    distance_m: int
+    duration_s: int
+    legs: tuple[Leg, ...]
+
+
+def route(points: list[tuple[float, float]]) -> Route:
+    """The road through [points], in order.
+
+    Driving, and with no departure time: a route's stop times are the
+    school's own, and a live-traffic estimate would be a different number
+    every time anybody looked at the map, for a line that does not move.
+
+    More points than Google takes in one call are computed in pieces and
+    joined. The pieces overlap at a point - each one ends where the next
+    begins - so the legs line up end to end and nothing is counted twice.
+    """
+    if len(points) < 2:
+        raise MapsUnavailable("A route needs at least two places to join up.")
+
+    polylines, distance, duration, legs = [], 0, 0, []
+
+    for piece in _pieces(points):
+        answer = _call(lambda piece=piece: post(ROUTES_URL, body=_body(piece), headers=_headers(ROUTE_FIELDS)))
+        found = (answer.get("routes") or [None])[0]
+
+        if not found:
+            raise MapsUnavailable("Google Maps could not find a road between those places.")
+
+        polylines.append((found.get("polyline") or {}).get("encodedPolyline") or "")
+        distance += int(found.get("distanceMeters") or 0)
+        duration += _seconds(found.get("duration"))
+        legs.extend(
+            Leg(distance_m=int(leg.get("distanceMeters") or 0), duration_s=_seconds(leg.get("duration")))
+            for leg in found.get("legs") or []
+        )
+
+    return Route(
+        polyline=_joined(polylines),
+        distance_m=distance,
+        duration_s=duration,
+        legs=tuple(legs),
+    )
+
+
+def _pieces(points: list[tuple[float, float]]):
+    """Splits a long route into calls Google will accept.
+
+    Each piece starts where the last one ended, so the joined line has no
+    gap in it and the legs are the legs of the whole route.
+    """
+    step = MAX_WAYPOINTS + 1
+
+    for start in range(0, len(points) - 1, step):
+        yield points[start : start + step + 1]
+
+
+def _body(points: list[tuple[float, float]]) -> dict:
+    return {
+        "origin": _waypoint(points[0]),
+        "destination": _waypoint(points[-1]),
+        "intermediates": [_waypoint(point) for point in points[1:-1]],
+        "travelMode": "DRIVE",
+        "polylineQuality": "OVERVIEW",
+    }
+
+
+def _waypoint(point: tuple[float, float]) -> dict:
+    return {"location": {"latLng": {"latitude": point[0], "longitude": point[1]}}}
+
+
+def _seconds(duration) -> int:
+    """Google sends a duration as a string of seconds with an `s` on it."""
+    if not isinstance(duration, str):
+        return 0
+
+    try:
+        return int(float(duration.rstrip("s")))
+    except ValueError:
+        return 0
+
+
+def _joined(polylines: list[str]) -> str:
+    """Several encoded polylines as one.
+
+    Decoded and re-encoded rather than concatenated: an encoded polyline is
+    a chain of *differences* from the point before, so the first point of
+    the second piece would be read as an offset from the last point of the
+    first and the line would fly off the map. The pieces overlap by a
+    point, which is dropped where they join.
+    """
+    if len(polylines) == 1:
+        return polylines[0]
+
+    points: list[tuple[float, float]] = []
+
+    for polyline in polylines:
+        decoded = decode_polyline(polyline)
+
+        if points and decoded and decoded[0] == points[-1]:
+            decoded = decoded[1:]
+
+        points.extend(decoded)
+
+    return encode_polyline(points)
+
+
+def decode_polyline(encoded: str) -> list[tuple[float, float]]:
+    """Google's encoded polyline format, back into points."""
+    points: list[tuple[float, float]] = []
+    index = lat = lng = 0
+
+    while index < len(encoded):
+        for is_latitude in (True, False):
+            result = shift = 0
+
+            while index < len(encoded):
+                byte = ord(encoded[index]) - 63
+                index += 1
+                result |= (byte & 0x1F) << shift
+                shift += 5
+
+                if byte < 0x20:
+                    break
+
+            delta = ~(result >> 1) if result & 1 else result >> 1
+
+            if is_latitude:
+                lat += delta
+            else:
+                lng += delta
+
+        points.append((lat / 1e5, lng / 1e5))
+
+    return points
+
+
+def encode_polyline(points: list[tuple[float, float]]) -> str:
+    """Points back into Google's encoded polyline format."""
+    out: list[str] = []
+    previous_lat = previous_lng = 0
+
+    for latitude, longitude in points:
+        lat = round(latitude * 1e5)
+        lng = round(longitude * 1e5)
+        out.append(_chunk(lat - previous_lat))
+        out.append(_chunk(lng - previous_lng))
+        previous_lat, previous_lng = lat, lng
+
+    return "".join(out)
+
+
+def _chunk(value: int) -> str:
+    value = ~(value << 1) if value < 0 else value << 1
+    out = []
+
+    while value >= 0x20:
+        out.append(chr((0x20 | (value & 0x1F)) + 63))
+        value >>= 5
+
+    out.append(chr(value + 63))
+
+    return "".join(out)
