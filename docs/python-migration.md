@@ -411,12 +411,13 @@ then PostgreSQL in one command, using `phpunit.pgsql.xml` from M1. Verified:
 **868 passed plus 3 skipped on MySQL, 871 on PostgreSQL.** The three skips are
 the PostgreSQL storage guards, which have nothing to describe on MySQL.
 
-**"On every commit" is not done, and cannot be finished here.** This repository
-has no CI at all — no workflows, no pipeline. Adding one is a new capability for
-the project rather than a step in this migration: it runs on somebody's
-account, it needs MySQL and PostgreSQL service containers, and it will take a
-few passes to go green. That is a decision to be taken deliberately, not
-slipped in under a database migration.
+**"On every commit" was not done here, and has been since.**
+`.github/workflows/tests.yml` now runs three jobs on every push: the Laravel
+suite against MySQL and PostgreSQL in a matrix, the Python suite plus
+`check_models` against a schema built by Laravel's own migrations, and the
+Flutter analyze, format and test checks. The paragraph this replaces said the
+repository had no CI at all, which stopped being true and then sat here saying
+it for a while - the hazard of writing down what is missing.
 
 Until it is taken, `composer test:both` before pushing is the whole of the
 guarantee, and it depends on somebody remembering — which is exactly the

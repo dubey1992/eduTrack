@@ -38,11 +38,32 @@ A_FERNET_KEY = Fernet.generate_key().decode()
 
 
 class TheEnvFile(TestCase):
-    def test_it_is_the_one_laravel_reads(self):
-        # Not a copy. A second file is a second thing to keep in step, and
-        # the first time they drift the two stacks are pointed at different
-        # databases.
-        self.assertEqual(REPO / "backend" / ".env", settings.ENV_FILE)
+    def test_it_defaults_to_the_one_laravel_reads(self):
+        """Not a copy. A second file is a second thing to keep in step, and
+        the first time they drift the two stacks are pointed at different
+        databases.
+
+        Asked of a process with nothing set rather than of `settings` here,
+        because this run may have been pointed somewhere else - CI, or a
+        test of the override itself - and an assertion that passes only
+        because of how the runner was invoked is not an assertion.
+        """
+        clean = {key: value for key, value in os.environ.items() if key != "EDUTRACK_ENV_FILE"}
+        asked = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import django; django.setup();"
+                "from django.conf import settings; print(settings.ENV_FILE)",
+            ],
+            env=clean | {"DJANGO_SETTINGS_MODULE": "config.settings", "DJANGO_DEBUG": "true"},
+            cwd=str(BACKEND),
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(0, asked.returncode, asked.stderr)
+        self.assertEqual(REPO / "backend" / ".env", Path(asked.stdout.strip()))
 
     def test_a_named_file_wins_over_the_default(self):
         """So a deploy can put it somewhere else without patching settings."""

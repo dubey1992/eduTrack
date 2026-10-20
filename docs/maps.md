@@ -470,8 +470,8 @@ alone.
 ## The trip map (M3a)
 
 The first of M3's three slices: **the route a trip takes, and how far along
-it is.** The bus sharing its position on the map (M3b) and the ETA from the
-stored legs (M3c) are still to come.
+it is.** The bus on the map (M3b) and the ETA from the stored legs (M3c)
+follow in the section after this one.
 
 `GET transport/trips/{id}` carries `school_latitude`, `school_longitude`
 and the same `path` block the route detail carries - through one
