@@ -1,0 +1,183 @@
+# Biometric attendance — PLAN, not built
+
+A customer requirement, decided 2026-10-20. Staff punch in and out on a
+fingerprint device; those punches become the check-in and check-out times on
+the staff register.
+
+## The three decisions
+
+**Staff only.** `staff_attendances` already has `check_in`, `check_out` and a
+half-day status — the columns a device would fill are the ones that exist.
+Students are deliberately out: a class register is submitted by a teacher and
+the guardian alerts go out from it, so a device that also marked students
+would need a rule for what wins when the two disagree, and that rule is a
+product decision nobody has needed yet.
+
+**Devices push; a CSV upload is the fallback.** Shared hosting has no
+persistent process and the devices sit behind the school's NAT with no public
+address, so the server can never pull from them — that option is not slow, it
+is impossible here. Devices POST to us on their own schedule, and any school
+whose devices cannot reach the internet exports a CSV from the device software
+and uploads it. The import machinery already exists
+(`school/imports/reader.py`), so the fallback is cheap and it is what keeps
+this working at a school with a locked-down network.
+
+**A punch records a time, never a status.** The device fills `check_in` and
+`check_out`; present, absent, half day and leave stay a person's call. A flat
+battery, a device offline for a morning, or somebody who forgot to punch out
+must never silently mark a colleague absent, because an absence reaches
+payroll. The screen shows the device's times beside the status so a mismatch
+is visible rather than resolved by guessing.
+
+## What a punch actually is
+
+A device reports a user id it knows and a wall-clock time in the school's own
+day, and nothing else of use. Three consequences:
+
+- **The user id is the device's, not ours.** It has to be mapped to a staff
+  profile, and an unmapped id is a punch nobody can attribute - which must be
+  visible, not dropped, or the first anybody knows is a missing register.
+- **The time has no zone.** It is wall-clock at the school, so the school's
+  own timezone turns it into an instant (`SchoolClock`, docs/timezones.md). A
+  server that assumed its own zone would move every punch for any school far
+  enough east or west.
+- **Devices resend.** A device that did not get a clean answer sends the same
+  batch again, so the same punch arrives twice and must land once.
+
+## Schema
+
+- **`biometric_devices`** — `school_id`, `serial_number` (unique across the
+  platform, because the serial is how an unauthenticated device says who it
+  is), `name`, `location`, `status`, `last_seen_at`. A serial maps to exactly
+  one school; that mapping is the whole of the device's identity, which is why
+  the next section is about its limits.
+- **`staff_profiles.biometric_user_id`** — nullable, unique per school. One
+  column rather than a table: a member of staff enrolled on four devices has
+  the same id on all four, which is how the devices are set up.
+- **`biometric_punches`** — `school_id`, `device_id` (null for an upload),
+  `biometric_user_id`, `staff_profile_id` (null when nobody has mapped it),
+  `punched_at` (UTC), `local_date`, `source`, and the raw line. Unique on
+  (`source`, `device_id`, `biometric_user_id`, `punched_at`) so a resend lands
+  once.
+
+Raw punches are kept rather than folded straight into the register: an admin
+asking why check-in says 09:02 needs to see the punch, an unmapped id needs
+somewhere to sit until somebody fixes it, and idempotency needs a record of
+what has already been seen.
+
+## How the times reach the register
+
+The earliest punch of a local day is the check-in and the latest is the
+check-out. Where a `staff_attendances` row already exists for that day, its
+times are filled in; where none does, **no row is created** - creating one
+would mean choosing a status, which is exactly what these punches do not do.
+The marking screen pre-fills the times from the punches instead, so the person
+setting the status sees what the device saw.
+
+A punch arriving after the register was saved updates the check-out. Times are
+the device's business and the status is the human's, in both directions.
+
+## What the device's identity is worth
+
+A serial number is not a credential. It is sent in the clear by a box on a
+school's LAN, and anybody who learns it can post punches for that school.
+What limits the damage:
+
+- **A punch can only ever write a time**, never a status, never a day's
+  presence, and never anything payroll reads directly.
+- **Devices are registered before they are trusted.** An unknown serial is
+  recorded and refused, not silently accepted.
+- A shared secret in the query string where the firmware allows one, rate
+  limiting per serial, and every batch logged with what was accepted and what
+  was refused.
+
+This is stated plainly because the alternative - pretending the serial
+authenticates anybody - is how this kind of endpoint becomes the weak point of
+an otherwise careful system.
+
+## The slices
+
+**B1 - devices and who is on them.** The `biometric_devices` table, the
+enrolment column on staff profiles, and the admin screens for both. Nothing
+reads a punch yet. Useful on its own: a school can record what hardware it has
+and which id belongs to whom, which is the part that takes the longest in
+practice.
+
+**B2 - the punch log, by upload.** `biometric_punches`, the CSV upload through
+the existing import machinery, and a screen showing what arrived - matched to
+a person, or sitting unmatched with the id that nobody has mapped. Still
+changes no register.
+
+**B3 - punches reach the register.** Earliest and latest of a local day fill
+check-in and check-out; the marking screen pre-fills from them; the status
+stays a human's. After this slice the feature is genuinely useful with no
+device integration at all.
+
+**B4 - the live push endpoint.** The device protocol, idempotency, rate
+limiting, `last_seen_at`, and the operational notes. Last because it is the
+riskiest part and everything before it works without it.
+
+### Why B4 is last, and what it risks
+
+- **The URL is not ours to choose.** This firmware appends its own path
+  (`/iclock/cdata`), so the endpoint has to live at the domain root rather
+  than under `/api/v1/`. That is a routing exception and should be a
+  deliberate one.
+- **Older devices cannot do TLS.** A box that will only POST over plain HTTP
+  cannot talk to an HTTPS-only host, and weakening the host for it is not on
+  the table. The CSV fallback is the answer for those schools, which is why it
+  is built first rather than last.
+- **The device's clock drifts** and nobody notices until a month of punches is
+  an hour out. `last_seen_at` and the raw line are what make that diagnosable.
+
+## Out of scope, deliberately
+
+- **Students.** See the first decision.
+- **Deriving a status from hours.** See the third.
+- **Pushing commands back to devices** (enrol a finger, set the clock
+  remotely). The protocol allows it; nobody has asked for it, and it turns a
+  read-only integration into one that can break a school's hardware.
+
+---
+
+# The schools page — PLAN, not built
+
+Two smaller requirements from the same conversation, written here because
+neither warrants a document of its own.
+
+## Search, filter, and what comes first
+
+The schools list has no search and no filter today: it pages everything,
+ordered by name. On a platform with 150 schools that is a list somebody
+scrolls rather than a list somebody uses.
+
+**Search** is server-side, like every other list in the product (CLAUDE.md
+§12), across name, registration number, email and city — the four things
+somebody actually knows about a school they are looking for. **Filter** is by
+status.
+
+**The order changes, and that is worth saying out loud.** Today it is name
+A–Z; the requirement is active and latest first, so it becomes status (active
+before inactive) then newest first. Anybody who knew where a school sat in the
+list will find it somewhere else. Inactive schools are sorted below rather
+than hidden — a list that silently omits them is how somebody concludes a
+school was deleted.
+
+One thing to keep honest: `GET schools/locations`, which draws the map, shares
+the same scoping. If the list is filtered and the map is not, the two disagree
+about what exists. The filters apply to both.
+
+## A school of its own page
+
+"View" on a school opens `/schools/:id` rather than a dialog: its details, its
+branches, and a map centred on it.
+
+The map is the read-only one, not the picker — this is a page for looking at a
+school, and moving the pin belongs on the edit form where the change is saved.
+A school nobody has placed shows the "not placed" state with a way to go and
+place it, rather than an empty frame or a pin at (0, 0) off the coast of
+Africa.
+
+Who may open it is who may already see the school: the same `SchoolScope` the
+list uses, checked server-side, so changing the id in the URL reaches nothing
+new.
