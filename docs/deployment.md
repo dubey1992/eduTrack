@@ -65,18 +65,42 @@ already stored.
 
 ## 4. Migrate and create the first Super Admin
 
+**The schema is always Laravel's.** Migrations are the only way this schema
+changes, whichever backend serves the requests — see
+[python-migration.md](python-migration.md).
+
 ```bash
 php artisan migrate --force
-php artisan db:seed --force
 ```
 
-The seeder creates exactly one account — the Super Admin from `.env` — and
-nothing else. It is safe to run again: if the account already exists it is
-left untouched, so a password the owner has since changed is never reset.
+Then the one account that can onboard the first school. Both backends do the
+same job the same way; run the one you are actually deploying.
+
+```bash
+php artisan db:seed --force          # Laravel
+python manage.py create_super_admin  # Django
+```
+
+Each creates exactly one account — the Super Admin from the environment — and
+nothing else. Each is safe to run again: if the account already exists it is
+left untouched, so a password the owner has since changed is never reset back
+to whatever the environment happens to say. Neither will invent a password,
+and the Django one also holds it to the policy the app enforces on everybody
+else: the first account on the platform is the one with the most to lose, and
+the one no screen ever validates.
 
 **Then sign in and change the password**, and clear `SUPER_ADMIN_PASSWORD`
-out of `.env`. It has done its job and there is no reason to leave a live
-credential sitting in a file.
+out of the environment. It has done its job and there is no reason to leave a
+live credential sitting in a file.
+
+> **This runbook still describes the Laravel deployment** — MySQL, Composer,
+> `backend/public` as the document root. M12 of the migration plan deploys the
+> **Python backend on PostgreSQL** instead, and that rewrite is waiting on the
+> host question (does the cPanel account offer Python and PostgreSQL at all).
+> Until that is answered, the steps below are right for Laravel and the shape
+> of them — database, files, configuration, migrate, seed, queue by cron, web
+> app, then **Before you let anyone in** — is what the Python runbook will
+> follow too.
 
 ## 5. The queue
 
