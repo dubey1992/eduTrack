@@ -13,7 +13,7 @@ import secrets
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
-from django.db.models import Count, F, Min, Q, Sum
+from django.db.models import Case, Count, F, IntegerField, Min, Q, Sum, Value, When
 from django.utils import timezone
 
 from . import (
@@ -399,7 +399,7 @@ class EarlyAccessService:
 
 class SchoolService:
     @staticmethod
-    def scoped(actor: User):
+    def scoped(actor: User, filters: dict | None = None):
         """*Which* schools this actor may see, with nothing added for any
         particular screen.
 
@@ -409,20 +409,61 @@ class SchoolService:
 
         Split out from [visible_to] so the map reaches the same schools by
         the same rule without the list's branch counts and parent join: one
-        definition of who sees what, two shapes of answer. Ordered by name
+        definition of who sees what, two shapes of answer. **The filters
+        live here rather than on the list**, so a filtered list and the map
+        beside it never disagree about which schools exist. Ordered by name
         with id as a tiebreaker - see StudentService.visible_to for why the
         second column is not optional.
         """
-        return SchoolScope.for_actor(actor).apply_to(School.objects.all(), column="id").order_by("name", "id")
+        schools = SchoolScope.for_actor(actor).apply_to(School.objects.all(), column="id")
+        filters = filters or {}
+
+        if filters.get("status"):
+            schools = schools.filter(status=filters["status"])
+
+        if filters.get("q"):
+            # The four things somebody actually knows about a school they
+            # are looking for. Case-insensitive, and the term's own % and _
+            # are left alone - see the ILike lookup in school/fields.py.
+            like = f"%{filters['q']}%"
+            schools = schools.filter(
+                Q(name__ilike=like)
+                | Q(registration_number__ilike=like)
+                | Q(email__ilike=like)
+                | Q(city__ilike=like)
+            )
+
+        return schools.order_by("name", "id")
 
     @staticmethod
-    def visible_to(actor: User):
+    def visible_to(actor: User, filters: dict | None = None):
         """Those schools as the list screen needs them.
+
+        **Active first, then newest.** A platform of a hundred and fifty
+        schools is a list somebody searches, not one they scroll, and the
+        two things worth having at the top are the ones still running and
+        the one onboarded this morning. Inactive schools sort below rather
+        than disappearing: a list that silently omits them is how somebody
+        concludes a school was deleted.
 
         The branch count is in the query rather than per row, so a list of
         branches does not fire a query each (CLAUDE.md rule 22).
         """
-        return SchoolService.scoped(actor).select_related("parent_school").annotate(branch_count=Count("school"))
+        return (
+            SchoolService.scoped(actor, filters)
+            .select_related("parent_school")
+            .annotate(
+                branch_count=Count("school"),
+                # A column rather than a raw ordering, so the rule is one
+                # readable thing and MySQL and PostgreSQL agree about it.
+                is_active=Case(
+                    When(status=SchoolStatus.ACTIVE, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+            )
+            .order_by("-is_active", "-created_at", "-id")
+        )
 
     @staticmethod
     def create(data: dict) -> School:

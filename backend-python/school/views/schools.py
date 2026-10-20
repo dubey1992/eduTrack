@@ -40,10 +40,15 @@ def collection(request) -> Response:
     return index(request)
 
 
+def _filters(request) -> dict:
+    """What the list and the map are both narrowed by."""
+    return {key: (request.query_params.get(key) or "").strip() for key in ("q", "status")}
+
+
 def index(request) -> Response:
     authorize(SchoolPolicy.view_any(request.user))
 
-    schools = SchoolService.visible_to(request.user)
+    schools = SchoolService.visible_to(request.user, _filters(request))
 
     paginator = LaravelPagination()
     page = paginator.paginate_queryset(schools, request)
@@ -65,6 +70,9 @@ def locations(request) -> Response:
     **Schools with no coordinates come back too.** They are the ones
     somebody has to go and place, and a map that silently omitted them
     would hide exactly the work it exists to prompt.
+
+    It takes the list's own search and status filter, because a filtered
+    list beside an unfiltered map is two answers to the same question.
     """
     authorize(SchoolPolicy.view_any(request.user))
 
@@ -74,7 +82,7 @@ def locations(request) -> Response:
     # `scoped` rather than `visible_to`: the same schools by the same rule,
     # without the branch count and parent join a pin never reads.
     found = list(
-        SchoolService.scoped(request.user)
+        SchoolService.scoped(request.user, _filters(request))
         .only("id", "name", "parent_school_id", "status", "city", "latitude", "longitude")[: MAP_LIMIT + 1]
     )
     more = len(found) > MAP_LIMIT
