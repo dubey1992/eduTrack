@@ -1,5 +1,6 @@
 import 'package:edutrack_app/features/schools/application/school_list_notifier.dart';
 import 'package:edutrack_app/features/schools/data/models/school.dart';
+import 'package:edutrack_app/features/schools/data/models/working_week.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,6 +74,7 @@ void main() {
           postalCode: '100001',
           currencyCode: 'NGN',
           timezone: 'UTC',
+          workingDays: const WorkingWeek.mondayToFriday(),
         );
 
     final state = container.read(schoolPageNotifierProvider).value;
@@ -136,6 +138,7 @@ void main() {
           postalCode: '100001',
           currencyCode: 'NGN',
           timezone: 'UTC',
+          workingDays: const WorkingWeek.mondayToFriday(),
         );
 
     final pickerState = await container.read(schoolListNotifierProvider.future);

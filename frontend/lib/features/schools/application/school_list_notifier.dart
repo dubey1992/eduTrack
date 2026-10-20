@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/paged_list.dart';
 import '../data/models/school.dart';
+import '../data/models/working_week.dart';
 import '../data/school_repository.dart';
 
 /// The unpaginated "every school" list - used as a picker source across the
@@ -74,6 +75,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
     required String postalCode,
     required String currencyCode,
     required String timezone,
+    required WorkingWeek workingDays,
     String? latitude,
     String? longitude,
   }) async {
@@ -93,6 +95,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
           postalCode: postalCode,
           currencyCode: currencyCode,
           timezone: timezone,
+          workingDays: workingDays,
           latitude: latitude,
           longitude: longitude,
         );
@@ -116,6 +119,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
     String? postalCode,
     String? currencyCode,
     String? timezone,
+    WorkingWeek? workingDays,
     String? latitude,
     String? longitude,
     bool changeParent = false,
@@ -138,6 +142,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
           postalCode: postalCode,
           currencyCode: currencyCode,
           timezone: timezone,
+          workingDays: workingDays,
           latitude: latitude,
           longitude: longitude,
         );

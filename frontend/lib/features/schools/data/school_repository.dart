@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/school.dart';
+import 'models/working_week.dart';
 import 'models/timezone_option.dart';
 import 'school_api.dart';
 
@@ -65,6 +66,7 @@ class SchoolRepository {
     required String postalCode,
     required String currencyCode,
     required String timezone,
+    required WorkingWeek workingDays,
     String? latitude,
     String? longitude,
   }) async {
@@ -83,6 +85,7 @@ class SchoolRepository {
         'postal_code': postalCode,
         'currency_code': currencyCode,
         'timezone': timezone,
+        'working_days': workingDays.apiValue,
         'latitude': latitude,
         'longitude': longitude,
       });
@@ -104,6 +107,7 @@ class SchoolRepository {
     String? postalCode,
     String? currencyCode,
     String? timezone,
+    WorkingWeek? workingDays,
     String? latitude,
     String? longitude,
     // Sent only when the caller means to change it: a plain edit must not
@@ -125,6 +129,7 @@ class SchoolRepository {
         'postal_code': ?postalCode,
         'currency_code': ?currencyCode,
         'timezone': ?timezone,
+        'working_days': ?workingDays?.apiValue,
         // Sent even when empty, so clearing a coordinate actually clears it.
         'latitude': latitude,
         'longitude': longitude,

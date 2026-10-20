@@ -1359,6 +1359,12 @@ def user_resource(user: User, viewer: User | None = None) -> dict:
         # timezone. A Super Admin belongs to no school and gets the platform's
         # zone.
         "current_time": clock.now_iso8601(),
+        # And the shape of their school's week, for the same reason: a
+        # timetable grid or a date picker that assumed Monday to Friday would
+        # offer a teacher in the Gulf a column the server refuses to write
+        # to. A Super Admin belongs to no school and gets the default; the
+        # screens that let them act on another school read that school's own.
+        "working_days": WorkingWeek(user.school.working_days if user.school_id else None).stored,
         # What the app may show this account (docs/settings.md): each module's
         # level from the permissions matrix, and whether the module is on for
         # their school. Both are read on every sign-in and /me, so an edit

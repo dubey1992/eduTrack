@@ -1,6 +1,7 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/schools/data/models/school.dart';
+import 'package:edutrack_app/features/schools/data/models/working_week.dart';
 import 'package:edutrack_app/features/schools/data/models/timezone_option.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 
@@ -78,6 +79,7 @@ class FakeSchoolRepository implements SchoolRepository {
     required String postalCode,
     required String currencyCode,
     required String timezone,
+    required WorkingWeek workingDays,
     String? latitude,
     String? longitude,
   }) async {
@@ -119,6 +121,7 @@ class FakeSchoolRepository implements SchoolRepository {
     String? postalCode,
     String? currencyCode,
     String? timezone,
+    WorkingWeek? workingDays,
     String? latitude,
     String? longitude,
     bool changeParent = false,

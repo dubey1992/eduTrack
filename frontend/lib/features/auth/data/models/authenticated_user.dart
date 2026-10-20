@@ -1,6 +1,7 @@
 import '../../../../core/models/module_access.dart';
 import '../../../../core/models/permission_level.dart';
 import '../../../../core/models/user_role.dart';
+import '../../../schools/data/models/working_week.dart';
 import '../../../../core/utils/school_clock.dart';
 
 class AuthenticatedUser {
@@ -14,12 +15,15 @@ class AuthenticatedUser {
     this.managesBranches = false,
     this.access = const ModuleAccess.unspecified(),
     this.photoUrl,
+    WorkingWeek? workingDays,
     SchoolClock? clock,
-    // The field is private and the parameter is not. An initializing formal
-    // would make callers write `_clock:`, leaking the underscore into the
-    // public API - so the lint's fix is worse than the lint.
+    // The fields are private and the parameters are not. An initializing
+    // formal would make callers write `_clock:`, leaking the underscore into
+    // the public API - so the lint's fix is worse than the lint.
     // ignore: prefer_initializing_formals
-  }) : _clock = clock;
+  }) : _workingDays = workingDays,
+       // ignore: prefer_initializing_formals
+       _clock = clock;
 
   factory AuthenticatedUser.fromJson(Map<String, dynamic> json) {
     return AuthenticatedUser(
@@ -38,6 +42,7 @@ class AuthenticatedUser {
       managesBranches: json['manages_branches'] as bool? ?? false,
       access: ModuleAccess.fromJson(json),
       photoUrl: json['photo_url'] as String?,
+      workingDays: WorkingWeek.fromApiValue(json['working_days']),
     );
   }
 
@@ -52,6 +57,12 @@ class AuthenticatedUser {
   final String? photoUrl;
 
   final SchoolClock? _clock;
+  final WorkingWeek? _workingDays;
+
+  /// The days this user's school runs. A Super Admin belongs to no
+  /// school and carries the default week; the screens that let them act
+  /// on another school read that school's own.
+  WorkingWeek get workingDays => _workingDays ?? WorkingWeek.mondayToFriday();
 
   /// What day it is at this user's school. A Super Admin belongs to no
   /// school and carries the platform's zone instead.

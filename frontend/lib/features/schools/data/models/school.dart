@@ -1,3 +1,5 @@
+import 'working_week.dart';
+
 enum SchoolStatus {
   active('active'),
   inactive('inactive');
@@ -28,6 +30,7 @@ class School {
     this.longitude,
     required this.currencyCode,
     required this.timezone,
+    this.workingDays = const WorkingWeek.mondayToFriday(),
     required this.logoUrl,
     required this.status,
   });
@@ -51,6 +54,7 @@ class School {
       longitude: json['longitude'] as String?,
       currencyCode: json['currency_code'] as String,
       timezone: json['timezone'] as String? ?? 'UTC',
+      workingDays: WorkingWeek.fromApiValue(json['working_days']),
       logoUrl: json['logo_url'] as String?,
       status: SchoolStatus.fromApiValue(json['status'] as String),
     );
@@ -89,6 +93,11 @@ class School {
   /// The IANA zone this school's dates and times are read in, e.g.
   /// `Asia/Kolkata`. Decides what "today" means for everything it records.
   final String timezone;
+
+  /// The days this school runs. Monday to Friday unless somebody has
+  /// said otherwise - which is what the product assumed everywhere
+  /// until schools outside that week arrived.
+  final WorkingWeek workingDays;
   final String? logoUrl;
   final SchoolStatus status;
 
@@ -108,6 +117,7 @@ class School {
       longitude: longitude,
       currencyCode: currencyCode,
       timezone: timezone,
+      workingDays: workingDays,
       logoUrl: logoUrl,
       status: status ?? this.status,
     );

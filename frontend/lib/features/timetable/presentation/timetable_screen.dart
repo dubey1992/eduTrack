@@ -14,6 +14,8 @@ import '../data/models/timetable_entry.dart';
 import 'widgets/edit_entry_dialog.dart';
 import 'widgets/manage_periods_dialog.dart';
 import '../../../core/widgets/school_picker.dart';
+import '../../schools/data/models/working_week.dart';
+import '../../schools/application/school_list_notifier.dart';
 
 /// Phase 10 - a class section's weekly (Mon-Fri x period) subject/teacher
 /// grid, matching the prototype's "Timetable & Period Management" screen.
@@ -173,6 +175,7 @@ class _ClassSectionGrid extends ConsumerWidget {
           onRetry: () => ref.invalidate(timetableGridProvider(params)),
           data: (context, entries) {
             return _TimetableGrid(
+              days: _daysFor(ref, schoolId),
               periods: periods,
               cellLabel: (entry) => '${entry.subjectName ?? ''}\n${entry.teacherName ?? ''}',
               entryFor: (periodId, day) => entries
@@ -227,6 +230,7 @@ class _MyScheduleGrid extends ConsumerWidget {
               ..sort((a, b) => a.periodNumber.compareTo(b.periodNumber));
 
         return _TimetableGrid(
+          days: _daysFor(ref, null),
           periods: syntheticPeriods,
           cellLabel: (entry) => '${entry.subjectName ?? ''}\n${entry.classSectionName ?? ''}',
           entryFor: (periodId, day) =>
@@ -243,6 +247,7 @@ class _MyScheduleGrid extends ConsumerWidget {
 /// null means read-only.
 class _TimetableGrid extends StatelessWidget {
   const _TimetableGrid({
+    required this.days,
     required this.periods,
     required this.cellLabel,
     required this.entryFor,
@@ -253,6 +258,11 @@ class _TimetableGrid extends StatelessWidget {
   final String Function(TimetableEntry entry) cellLabel;
   final TimetableEntry? Function(int periodId, DayOfWeek day) entryFor;
   final void Function(Period period, DayOfWeek day, TimetableEntry? existing)? onCellTap;
+
+  /// The days this school runs, in week order. Not every day there is:
+  /// a column nobody can ever mark is furniture, and the server refuses
+  /// a period on a day the school is closed (docs/holidays.md).
+  final List<DayOfWeek> days;
 
   @override
   Widget build(BuildContext context) {
@@ -268,7 +278,7 @@ class _TimetableGrid extends StatelessWidget {
           children: [
             TableRow(
               decoration: BoxDecoration(color: colors.infoContainer),
-              children: [const _HeaderCell('Period'), for (final day in DayOfWeek.values) _HeaderCell(day.label)],
+              children: [const _HeaderCell('Period'), for (final day in days) _HeaderCell(day.label)],
             ),
             for (final period in periods)
               TableRow(
@@ -278,7 +288,7 @@ class _TimetableGrid extends StatelessWidget {
                         ? 'P${period.periodNumber}'
                         : 'P${period.periodNumber}\n${period.startTime}',
                   ),
-                  for (final day in DayOfWeek.values) _buildCell(context, period, day),
+                  for (final day in days) _buildCell(context, period, day),
                 ],
               ),
           ],
@@ -321,4 +331,27 @@ class _HeaderCell extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The days to lay the grid out in.
+///
+/// A school user's own school, from the session. A Super Admin belongs to no
+/// school and picks one, so their grid follows the school they picked -
+/// otherwise they would be shown Monday to Friday columns for a school that
+/// keeps Sunday to Thursday, and the server would refuse every cell they
+/// tried to fill on a Sunday.
+List<DayOfWeek> _daysFor(WidgetRef ref, int? pickedSchoolId) {
+  final session = ref.watch(authNotifierProvider).value;
+
+  if (pickedSchoolId != null) {
+    final picked = ref
+        .watch(schoolListNotifierProvider)
+        .value
+        ?.where((school) => school.id == pickedSchoolId)
+        .firstOrNull;
+
+    if (picked != null) return DayOfWeek.of(picked.workingDays);
+  }
+
+  return DayOfWeek.of(session?.workingDays ?? WorkingWeek.mondayToFriday());
 }

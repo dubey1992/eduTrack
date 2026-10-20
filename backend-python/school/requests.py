@@ -943,8 +943,17 @@ class UpsertTimetableEntryRequest(ScopedSerializer):
         if not Period.objects.filter(pk=attrs["period_id"], school_id=school_id).exists():
             errors["period_id"] = [selected_is_invalid("period_id")]
 
+        # A real day, and one this school actually runs. The enum carries all
+        # seven because the week belongs to the school (school/week.py); the
+        # second half is what stops a Saturday period at a school that keeps
+        # Monday to Friday - a cell nobody can ever teach, and a teaching
+        # report that can never be filed against it.
         if attrs["day_of_week"] not in DayOfWeek.values:
             errors["day_of_week"] = [selected_is_invalid("day_of_week")]
+        elif attrs["day_of_week"] not in week.WorkingWeek(
+            School.objects.filter(pk=school_id).values_list("working_days", flat=True).first()
+        ).names:
+            errors["day_of_week"] = ["The school does not run on that day."]
 
         if not Subject.objects.filter(
             pk=attrs["subject_id"], school_id=school_id

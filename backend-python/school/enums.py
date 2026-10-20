@@ -415,16 +415,21 @@ class LeaveType(models.TextChoices):
 
 
 class DayOfWeek(models.TextChoices):
-    """The school week. Five days, because Saturday and Sunday are not
-    working days anywhere in the product - the holiday calendar already
-    refuses attendance on them, and a grid column nobody can mark is
-    furniture."""
+    """A day a timetable can have a period on.
+
+    All seven, because the week a school keeps is the school's own
+    (school/week.py, docs/holidays.md). Which of these any particular school
+    may use is decided by its `working_days`, not by this list - a timetable
+    entry on a day the school does not run is refused, and a grid column
+    nobody can mark is still furniture."""
 
     MONDAY = "monday"
     TUESDAY = "tuesday"
     WEDNESDAY = "wednesday"
     THURSDAY = "thursday"
     FRIDAY = "friday"
+    SATURDAY = "saturday"
+    SUNDAY = "sunday"
 
 
 class AnnouncementAudience(models.TextChoices):

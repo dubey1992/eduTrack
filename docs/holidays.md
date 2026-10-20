@@ -39,9 +39,56 @@ taken - and then counted by nothing, because every working-day figure already
 excluded weekends. Both halves are now enforced, which is what lets a report's
 denominator agree with the screen that refuses the mark.
 
-The week is Monday to Friday, matching the Phase 10 timetable. A school that
-runs a different week (Sunday to Thursday in the Gulf, or a six-day week) needs
-a per-school working-days setting; that is not built.
+## The week belongs to the school
+
+Built 2026-10-20. It was Monday to Friday everywhere until then, in one line
+of application code - which was wrong for every school that does not keep that
+week. A school in the Gulf running Sunday to Thursday had attendance refused
+on its own working days, allowed on its days off, and every rate in every
+report computed against a week it does not keep.
+
+`schools.working_days` is seven characters of '1' and '0', **Monday first** -
+`date.weekday()` order, so the index is the weekday and there is no arithmetic
+to get wrong. A Sunday-to-Thursday week is therefore `1111001`, which looks
+odd written down and is the only ordering with that property. A string rather
+than a bitmask because two languages and the occasional human read the column:
+`1111100` is a week anybody can check at a glance, and 124 is not.
+
+`school/week.py` is the only thing that parses it. Everything else asks a
+`WorkingWeek`, and every date-driven module in the product already went
+through `HolidayService.working_dates`, so the week became the school's by
+changing where that one line reads from.
+
+Four things worth keeping:
+
+- **Anything unreadable is the default week**, not an error. This is asked on
+  every attendance mark and every report row; a column somebody edited by hand
+  into nonsense should degrade to the week the product assumed for its first
+  year, not take the school offline. A school that runs no days would refuse
+  every mark on every date with a message about being closed, which reads
+  exactly like the product being broken - so a client may not send one, and a
+  stored one is ignored.
+- **The timetable carries all seven days now**, and refuses a period on a day
+  the school does not run. Without that second half, opening the enum would
+  let anybody put a Saturday period on a Monday-to-Friday school's grid: a
+  cell nobody can ever teach, and a teaching report that can never be filed
+  against it.
+- **The messages had to change with it.** "Attendance cannot be marked on a
+  weekend" is not true for a school whose Friday is its day off, and for a
+  six-day school the day off is Sunday alone. Five of them now say what is
+  actually the case.
+- **Changing it never rewrites history.** It changes what every figure counts
+  from that moment, and it is audited, because it moves every working-day
+  denominator the school has.
+
+The grid a teacher sees follows their own school's week, from the session. A
+Super Admin belongs to no school and picks one, so their grid follows the
+school they picked - otherwise they would be shown Monday-to-Friday columns
+for a school that keeps Sunday to Thursday, and the server would refuse every
+cell they tried to fill.
+
+**Still Monday to Friday in one place:** a school that runs a half-day - a
+Saturday morning - has no way to say so. Every day is on or off.
 
 ## Declaring a holiday after the fact
 

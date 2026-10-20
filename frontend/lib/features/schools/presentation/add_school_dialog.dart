@@ -7,10 +7,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../maps/presentation/location_picker.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
+import '../data/models/working_week.dart';
 import 'widgets/coordinates_fields.dart';
 import '../../early_access/data/models/early_access_request.dart';
 import 'widgets/parent_school_field.dart';
 import 'widgets/timezone_field.dart';
+import 'widgets/working_days_field.dart';
 
 class AddSchoolDialog extends ConsumerStatefulWidget {
   const AddSchoolDialog({super.key, this.fromEarlyAccess});
@@ -43,6 +45,9 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
   // UTC until the Super Admin picks one, which matches what the column
   // defaults to for a school created any other way.
   String _timezone = 'UTC';
+  // The week the product assumed everywhere until schools outside it
+  // arrived; a new school keeps it unless somebody says otherwise.
+  WorkingWeek _workingDays = WorkingWeek.mondayToFriday();
   int? _parentSchoolId;
 
   bool _isSubmitting = false;
@@ -91,6 +96,7 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
             postalCode: _postalCodeController.text.trim(),
             currencyCode: _currencyCode,
             timezone: _timezone,
+            workingDays: _workingDays,
             latitude: _latitudeController.text.trim().isEmpty ? null : _latitudeController.text.trim(),
             longitude: _longitudeController.text.trim().isEmpty ? null : _longitudeController.text.trim(),
           );
@@ -202,6 +208,8 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
                 ),
                 const SizedBox(height: 10),
                 TimezoneField(value: _timezone, onChanged: (value) => setState(() => _timezone = value)),
+                const SizedBox(height: 16),
+                WorkingDaysField(value: _workingDays, onChanged: (value) => setState(() => _workingDays = value)),
                 const SizedBox(height: 12),
                 ParentSchoolField(
                   value: _parentSchoolId,

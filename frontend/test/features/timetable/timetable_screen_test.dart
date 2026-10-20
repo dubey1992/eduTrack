@@ -6,6 +6,7 @@ import 'package:edutrack_app/features/classes/data/models/school_class.dart';
 import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:edutrack_app/features/subjects/data/subject_repository.dart';
+import 'package:edutrack_app/features/schools/data/models/working_week.dart';
 import 'package:edutrack_app/features/timetable/data/models/period.dart';
 import 'package:edutrack_app/features/timetable/data/period_repository.dart';
 import 'package:edutrack_app/features/timetable/data/timetable_repository.dart';
@@ -123,4 +124,76 @@ void main() {
     expect(find.byType(ManagePeriodsDialog), findsOneWidget);
     expect(find.widgetWithText(AlertDialog, 'Manage Periods'), findsOneWidget);
   });
+
+  group('the columns follow the week the school keeps', () {
+    // docs/holidays.md: a grid that assumed Monday to Friday would offer a
+    // teacher in the Gulf a column the server refuses to write to, and hide
+    // the Sunday they actually teach on.
+    testWidgets('a Monday to Friday school gets five weekday columns', (tester) async {
+      await tester.pumpWidget(gridFor(_schoolAdmin));
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      expect(find.text('Monday'), findsOneWidget);
+      expect(find.text('Friday'), findsOneWidget);
+      expect(find.text('Saturday'), findsNothing);
+      expect(find.text('Sunday'), findsNothing);
+    });
+
+    testWidgets('a Sunday to Thursday school gets Sunday and not Friday', (tester) async {
+      await tester.pumpWidget(
+        gridFor(
+          const AuthenticatedUser(
+            id: 9,
+            name: 'Admin',
+            email: 'admin@example.com',
+            role: UserRole.schoolAdmin,
+            workingDays: WorkingWeek([true, true, true, true, false, false, true]),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      expect(find.text('Sunday'), findsOneWidget);
+      expect(find.text('Friday'), findsNothing);
+      expect(find.text('Saturday'), findsNothing);
+    });
+
+    testWidgets('a six day school gets Saturday', (tester) async {
+      await tester.pumpWidget(
+        gridFor(
+          const AuthenticatedUser(
+            id: 9,
+            name: 'Admin',
+            email: 'admin@example.com',
+            role: UserRole.schoolAdmin,
+            workingDays: WorkingWeek([true, true, true, true, true, true, false]),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      expect(find.text('Saturday'), findsOneWidget);
+      expect(find.text('Sunday'), findsNothing);
+    });
+  });
+}
+
+/// The screen with enough behind it to draw a grid, for the column tests.
+Widget gridFor(AuthenticatedUser actor) {
+  return wrap(
+    actor,
+    schoolClasses: FakeSchoolClassRepository(classes: [_schoolClass]),
+    periods: FakePeriodRepository(periods: [_period]),
+    timetable: FakeTimetableRepository(),
+  );
+}
+
+Future<void> pickTheSection(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Class'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Grade 8 A').last);
+  await tester.pumpAndSettle();
 }

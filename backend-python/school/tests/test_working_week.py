@@ -307,3 +307,98 @@ class MarkingAttendanceOnTheSchoolsOwnWeek(TestCase):
 
         self.assertEqual(201, self.mark(self.friday).status_code)
         self.assertEqual(409, self.mark(self.sunday).status_code)
+
+
+class WhatTheSessionCarries(TestCase):
+    """The screens need the week before they can lay anything out.
+
+    A timetable grid that assumed Monday to Friday would offer a teacher in
+    the Gulf a column the server refuses to write to.
+    """
+
+    def session_for(self, user) -> dict:
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Bearer " + tokens.issue(user))
+
+        return client.get("/api/v1/me").data
+
+    def test_a_school_user_gets_their_schools_week(self):
+        school = factories.SchoolFactory(working_days=GULF)
+        teacher = factories.UserFactory(school=school, role=UserRole.TEACHER)
+
+        self.assertEqual(GULF, self.session_for(teacher)["working_days"])
+
+    def test_a_super_admin_belongs_to_no_school_and_gets_the_default(self):
+        root = factories.UserFactory(school=None, role=UserRole.SUPER_ADMIN)
+
+        self.assertEqual(MON_FRI, self.session_for(root)["working_days"])
+
+    def test_it_follows_the_school_being_changed(self):
+        school = factories.SchoolFactory()
+        teacher = factories.UserFactory(school=school, role=UserRole.TEACHER)
+
+        self.assertEqual(MON_FRI, self.session_for(teacher)["working_days"])
+
+        school.working_days = SIX_DAY
+        school.save()
+
+        self.assertEqual(SIX_DAY, self.session_for(teacher)["working_days"])
+
+
+class TheTimetableFollowsTheWeekToo(TestCase):
+    """A period can only exist on a day the school runs.
+
+    The enum carries all seven days now, because the week belongs to the
+    school. Without this check that would let anybody put a Saturday period
+    on a Monday-to-Friday school's grid: a cell nobody can ever teach, and a
+    teaching report that can never be filed against it.
+    """
+
+    def setUp(self):
+        self.school = factories.SchoolFactory(working_days=GULF)
+        self.year = factories.AcademicYearFactory(school=self.school, is_current=True)
+        self.section = factories.ClassSectionFactory(
+            school_class=factories.SchoolClassFactory(school=self.school, academic_year=self.year)
+        )
+        self.period = factories.PeriodFactory(school=self.school)
+        self.subject = factories.SubjectFactory(school=self.school)
+        self.teacher = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+        self.admin = factories.UserFactory(school=self.school, role=UserRole.SCHOOL_ADMIN)
+
+    def put(self, day: str):
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Bearer " + tokens.issue(self.admin))
+
+        return client.post(
+            "/api/v1/timetable",
+            {
+                "class_section_id": self.section.id,
+                "period_id": self.period.id,
+                "day_of_week": day,
+                "subject_id": self.subject.id,
+                "teacher_id": self.teacher.id,
+            },
+            format="json",
+        )
+
+    def test_a_period_on_sunday_is_allowed_for_a_school_that_runs_sundays(self):
+        self.assertIn(self.put("sunday").status_code, (200, 201))
+
+    def test_a_period_on_friday_is_refused_for_a_school_that_does_not(self):
+        response = self.put("friday")
+
+        self.assertEqual(422, response.status_code, response.data)
+        self.assertEqual(
+            ["The school does not run on that day."],
+            response.data["details"]["errors"]["day_of_week"],
+        )
+
+    def test_a_day_that_is_not_a_day_is_still_refused(self):
+        self.assertEqual(422, self.put("caturday").status_code)
+
+    def test_the_default_school_still_refuses_saturday(self):
+        self.school.working_days = MON_FRI
+        self.school.save()
+
+        self.assertEqual(422, self.put("saturday").status_code)
+        self.assertIn(self.put("friday").status_code, (200, 201))
