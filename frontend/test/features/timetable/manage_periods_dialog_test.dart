@@ -1,5 +1,7 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/features/schools/application/school_week_provider.dart';
+import 'package:edutrack_app/features/schools/data/models/working_week.dart';
 import 'package:edutrack_app/features/timetable/data/models/period.dart';
 import 'package:edutrack_app/features/timetable/data/period_repository.dart';
 import 'package:edutrack_app/features/timetable/presentation/widgets/manage_periods_dialog.dart';
@@ -15,9 +17,14 @@ const _period = Period(id: 1, schoolId: 1, periodNumber: 1, startTime: '08:30', 
 // Scaffold body) so its nested Add/Edit Period sub-dialog behaves under a
 // real Navigator, matching every other AlertDialog-based dialog test in this
 // app (see add_school_dialog_test.dart etc.).
-Widget wrap(FakePeriodRepository fake, {int? schoolId}) {
+Widget wrap(FakePeriodRepository fake, {int? schoolId, String week = '1111100'}) {
   return ProviderScope(
-    overrides: [periodRepositoryProvider.overrideWithValue(fake)],
+    overrides: [
+      periodRepositoryProvider.overrideWithValue(fake),
+      // The school's own week, which decides whether there is a half day to
+      // put periods on at all.
+      schoolWeekProvider(schoolId).overrideWithValue(WorkingWeek.fromApiValue(week)),
+    ],
     child: MaterialApp(
       theme: AppTheme.light(),
       home: Scaffold(
@@ -131,5 +138,81 @@ void main() {
     expect(find.widgetWithText(TextFormField, 'Period number'), findsNothing);
     expect(find.text('Period 2'), findsOneWidget);
     expect(find.text('Period 1'), findsNothing);
+  });
+
+  group('choosing which bells', () {
+    Future<void> openAddPeriod(WidgetTester tester) async {
+      await _openManagePeriods(tester);
+      await _openAddPeriod(tester);
+    }
+
+    testWidgets('a school with no half day is never asked', (tester) async {
+      // The test that this cost nobody anything: the form is the one they
+      // had before.
+      await tester.pumpWidget(wrap(FakePeriodRepository()));
+      await openAddPeriod(tester);
+
+      expect(find.byType(SegmentedButton<String>), findsNothing);
+    });
+
+    testWidgets('a school with one is asked, and starts on the full day', (tester) async {
+      await tester.pumpWidget(wrap(FakePeriodRepository(), week: '1111120'));
+      await openAddPeriod(tester);
+
+      expect(find.byType(SegmentedButton<String>), findsOneWidget);
+      expect(find.text('The usual bells, for every full day.'), findsOneWidget);
+    });
+
+    testWidgets('picking the half day says what that means', (tester) async {
+      await tester.pumpWidget(wrap(FakePeriodRepository(), week: '1111120'));
+      await openAddPeriod(tester);
+
+      await tester.tap(find.text('Half day'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The shorter bells, for the days marked as half days.'), findsOneWidget);
+    });
+
+    testWidgets('the shape reaches the period that gets created', (tester) async {
+      final fake = FakePeriodRepository();
+      await tester.pumpWidget(wrap(fake, week: '1111120'));
+      await openAddPeriod(tester);
+
+      await tester.tap(find.text('Half day'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Period number'), '1');
+      await tester.tap(find.widgetWithText(InputDecorator, 'Start time'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(InputDecorator, 'End time'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.periods.last.dayShape, WorkingWeek.halfDay);
+    });
+
+    testWidgets('a school with no half day still creates full day periods', (tester) async {
+      final fake = FakePeriodRepository();
+      await tester.pumpWidget(wrap(fake));
+      await openAddPeriod(tester);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Period number'), '1');
+      await tester.tap(find.widgetWithText(InputDecorator, 'Start time'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(InputDecorator, 'End time'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.periods.last.dayShape, WorkingWeek.fullDay);
+    });
   });
 }

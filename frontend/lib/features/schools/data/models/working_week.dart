@@ -82,6 +82,10 @@ class WorkingWeek {
 
   bool isHalfDay(int weekdayIndex) => _days[weekdayIndex] == half;
 
+  /// Whether this school has any half day at all. What decides whether
+  /// a screen needs to mention the distinction.
+  bool get hasHalfDay => _days.contains(half);
+
   /// A date's own weekday. `DateTime.monday` is 1, so it is shifted to match
   /// the stored order rather than the other way round.
   bool runsOnDate(DateTime date) => runsOn(date.weekday - 1);

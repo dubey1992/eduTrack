@@ -14,8 +14,7 @@ import '../data/models/timetable_entry.dart';
 import 'widgets/edit_entry_dialog.dart';
 import 'widgets/manage_periods_dialog.dart';
 import '../../../core/widgets/school_picker.dart';
-import '../../schools/data/models/working_week.dart';
-import '../../schools/application/school_list_notifier.dart';
+import '../../schools/application/school_week_provider.dart';
 
 /// Phase 10 - a class section's weekly (Mon-Fri x period) subject/teacher
 /// grid, matching the prototype's "Timetable & Period Management" screen.
@@ -333,25 +332,5 @@ class _HeaderCell extends StatelessWidget {
   }
 }
 
-/// The days to lay the grid out in.
-///
-/// A school user's own school, from the session. A Super Admin belongs to no
-/// school and picks one, so their grid follows the school they picked -
-/// otherwise they would be shown Monday to Friday columns for a school that
-/// keeps Sunday to Thursday, and the server would refuse every cell they
-/// tried to fill on a Sunday.
-List<DayOfWeek> _daysFor(WidgetRef ref, int? pickedSchoolId) {
-  final session = ref.watch(authNotifierProvider).value;
-
-  if (pickedSchoolId != null) {
-    final picked = ref
-        .watch(schoolListNotifierProvider)
-        .value
-        ?.where((school) => school.id == pickedSchoolId)
-        .firstOrNull;
-
-    if (picked != null) return DayOfWeek.of(picked.workingDays);
-  }
-
-  return DayOfWeek.of(session?.workingDays ?? WorkingWeek.mondayToFriday());
-}
+/// The days to lay the grid out in, in week order.
+List<DayOfWeek> _daysFor(WidgetRef ref, int? schoolId) => DayOfWeek.of(ref.watch(schoolWeekProvider(schoolId)));

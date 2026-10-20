@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../application/period_list_notifier.dart';
+import '../../../schools/application/school_week_provider.dart';
+import '../../../schools/data/models/working_week.dart';
 import '../../data/models/period.dart';
 
 /// CRUD for a school's period timings - the "Period Management" half of
@@ -113,6 +115,12 @@ class _EditPeriodDialogState extends ConsumerState<_EditPeriodDialog> {
   TimeOfDay? _startTime = _parse(null);
   TimeOfDay? _endTime = _parse(null);
 
+  /// Which shape of day these bells belong to. Chosen when the period is
+  /// created and fixed after: moving one between a full day and a half day
+  /// would move it to a different hour on a different set of days, which is
+  /// a new period rather than an edit to this one.
+  late String _dayShape = widget.period?.dayShape ?? WorkingWeek.fullDay;
+
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -159,6 +167,7 @@ class _EditPeriodDialogState extends ConsumerState<_EditPeriodDialog> {
       if (widget.period == null) {
         await notifier.create(
           periodNumber: int.parse(_numberController.text),
+          dayShape: _dayShape,
           startTime: _format(_startTime!),
           endTime: _format(_endTime!),
         );
@@ -181,6 +190,10 @@ class _EditPeriodDialogState extends ConsumerState<_EditPeriodDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // The chooser is only worth showing to a school that has a half day
+    // to put periods on. Everybody else sees the form they saw before.
+    final hasHalfDays = ref.watch(schoolWeekProvider(widget.schoolId)).hasHalfDay;
+
     return AlertDialog(
       title: Text(widget.period == null ? 'Add Period' : 'Edit Period'),
       content: SizedBox(
@@ -192,6 +205,27 @@ class _EditPeriodDialogState extends ConsumerState<_EditPeriodDialog> {
             children: [
               if (_errorMessage != null) ...[
                 Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 12),
+              ],
+              if (widget.period == null && hasHalfDays) ...[
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: WorkingWeek.fullDay, label: Text('Full day')),
+                    ButtonSegment(value: WorkingWeek.halfDay, label: Text('Half day')),
+                  ],
+                  selected: {_dayShape},
+                  onSelectionChanged: (chosen) => setState(() => _dayShape = chosen.first),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  // Period numbers run separately in each, so this is not a
+                  // cosmetic choice: it decides which set the number below
+                  // belongs to, and which days the period exists on.
+                  _dayShape == WorkingWeek.halfDay
+                      ? 'The shorter bells, for the days marked as half days.'
+                      : 'The usual bells, for every full day.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 const SizedBox(height: 12),
               ],
               TextFormField(

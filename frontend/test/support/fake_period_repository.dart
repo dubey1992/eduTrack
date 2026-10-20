@@ -28,6 +28,7 @@ class FakePeriodRepository implements PeriodRepository {
   Future<Period> create({
     int? schoolId,
     required int periodNumber,
+    required String dayShape,
     required String startTime,
     required String endTime,
   }) async {
@@ -37,6 +38,7 @@ class FakePeriodRepository implements PeriodRepository {
       id: periods.length + 1,
       schoolId: schoolId ?? 1,
       periodNumber: periodNumber,
+      dayShape: dayShape,
       startTime: startTime,
       endTime: endTime,
     );

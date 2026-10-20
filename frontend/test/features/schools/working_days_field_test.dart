@@ -9,6 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// It decides more than it looks like it decides: attendance is refused on a
 /// day the school does not run, no period is taught, no bus goes, and every
 /// rate in every report is out of the days that are left.
+Finder chipIn(String row, String label) =>
+    find.descendant(of: find.byKey(Key(row)), matching: find.widgetWithText(FilterChip, label));
+
 void main() {
   late WorkingWeek current;
 
@@ -30,14 +33,14 @@ void main() {
     await tester.pumpWidget(wrap(const WorkingWeek.mondayToFriday()));
 
     for (final label in WorkingWeek.shortLabels) {
-      expect(find.widgetWithText(FilterChip, label), findsOneWidget, reason: label);
+      expect(chipIn('working-days', label), findsOneWidget, reason: label);
     }
   });
 
   testWidgets('the days the school runs are the ones selected', (tester) async {
     await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1111001')));
 
-    FilterChip chipFor(String label) => tester.widget<FilterChip>(find.widgetWithText(FilterChip, label));
+    FilterChip chipFor(String label) => tester.widget<FilterChip>(chipIn('working-days', label));
 
     expect(chipFor('Su').selected, isTrue);
     expect(chipFor('Fr').selected, isFalse);
@@ -48,7 +51,7 @@ void main() {
 
     expect(find.textContaining('Monday to Friday'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilterChip, 'Sa'));
+    await tester.tap(chipIn('working-days', 'Sa'));
     await tester.pumpAndSettle();
 
     expect(current.apiValue, '1111110');
@@ -72,7 +75,7 @@ void main() {
   testWidgets('a week with no days in it asks for one', (tester) async {
     await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1000000')));
 
-    await tester.tap(find.widgetWithText(FilterChip, 'Mo'));
+    await tester.tap(chipIn('working-days', 'Mo'));
     await tester.pumpAndSettle();
 
     expect(current.isEmpty, isTrue);
@@ -86,8 +89,8 @@ void main() {
     // again quietly makes it full.
     await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1111120')));
 
-    expect(find.widgetWithText(FilterChip, 'Sa ½'), findsOneWidget);
-    expect(find.widgetWithText(FilterChip, 'Mo'), findsOneWidget);
+    expect(chipIn('working-days', 'Sa ½'), findsOneWidget);
+    expect(chipIn('working-days', 'Mo'), findsOneWidget);
     expect(find.text('Saturday is a half day.'), findsOneWidget);
   });
 
@@ -95,18 +98,79 @@ void main() {
     await tester.pumpWidget(wrap(const WorkingWeek.mondayToFriday()));
 
     expect(find.textContaining('half day'), findsNothing);
-    expect(find.widgetWithText(FilterChip, 'Sa'), findsOneWidget);
+    expect(chipIn('working-days', 'Sa'), findsOneWidget);
   });
 
   testWidgets('turning a half day off and on again shows it became full', (tester) async {
     await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1111120')));
 
-    await tester.tap(find.widgetWithText(FilterChip, 'Sa ½'));
+    await tester.tap(chipIn('working-days', 'Sa ½'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilterChip, 'Sa'));
+    await tester.tap(chipIn('working-days', 'Sa'));
     await tester.pumpAndSettle();
 
     expect(current.apiValue, '1111110');
     expect(find.textContaining('half day'), findsNothing);
+  });
+
+  group('the half days row', () {
+    testWidgets('it offers only the days the school actually runs', (tester) async {
+      // A day cannot be short and closed at once - the model cannot hold
+      // that, and neither can the screen.
+      await tester.pumpWidget(wrap(const WorkingWeek.mondayToFriday()));
+
+      expect(chipIn('half-days', 'Mo'), findsOneWidget);
+      expect(chipIn('half-days', 'Sa'), findsNothing);
+      expect(chipIn('half-days', 'Su'), findsNothing);
+    });
+
+    testWidgets('marking a day short does not turn it off', (tester) async {
+      await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1111110')));
+
+      await tester.tap(chipIn('half-days', 'Sa'));
+      await tester.pumpAndSettle();
+
+      expect(current.apiValue, '1111120');
+      expect(current.runsOn(5), isTrue);
+      expect(current.length, 6);
+      expect(find.text('Saturday is a half day.'), findsOneWidget);
+    });
+
+    testWidgets('unmarking it leaves a full day behind, not a closed one', (tester) async {
+      await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1111120')));
+
+      await tester.tap(chipIn('half-days', 'Sa'));
+      await tester.pumpAndSettle();
+
+      expect(current.apiValue, '1111110');
+      expect(current.runsOn(5), isTrue);
+    });
+
+    testWidgets('turning a day off takes it out of the half days row', (tester) async {
+      await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1111120')));
+
+      await tester.tap(chipIn('working-days', 'Sa ½'));
+      await tester.pumpAndSettle();
+
+      expect(current.apiValue, '1111100');
+      expect(chipIn('half-days', 'Sa'), findsNothing);
+    });
+
+    testWidgets('a week with no days has nothing to mark short', (tester) async {
+      await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1000000')));
+
+      await tester.tap(chipIn('working-days', 'Mo'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('half-days')), findsNothing);
+    });
+
+    testWidgets('it says a half day is still a full working day', (tester) async {
+      // The decision everything else rests on, where somebody setting it
+      // will read it.
+      await tester.pumpWidget(wrap(const WorkingWeek.mondayToFriday()));
+
+      expect(find.textContaining('count as full working days'), findsOneWidget);
+    });
   });
 }

@@ -23,11 +23,18 @@ class PeriodRepository {
   Future<Period> create({
     int? schoolId,
     required int periodNumber,
+    required String dayShape,
     required String startTime,
     required String endTime,
   }) async {
     try {
-      return await _api.create(schoolId: schoolId, periodNumber: periodNumber, startTime: startTime, endTime: endTime);
+      return await _api.create(
+        schoolId: schoolId,
+        periodNumber: periodNumber,
+        dayShape: dayShape,
+        startTime: startTime,
+        endTime: endTime,
+      );
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

@@ -160,9 +160,24 @@ Two things H1 had to include that the plan read as UI:
 
 Choosing a half day is still H2; nothing in the app can set one yet.
 
-**H2 - saying so.** Manage Periods gains the full/half choice. The week picker
-gains a third state per day - closed, full, half - which the seven chips
-cannot carry, so that control has to change shape with it.
+**H2 - saying so. Built 2026-10-20.** The week picker gained a second row
+rather than a third state on the first: "which days do you run" and "which of
+those are short" are two plain questions, and one chip cycling through three
+answers is a guessing game while three buttons on each of seven days is
+twenty-one targets for a setting most schools never touch. Only the days a
+school runs appear in the second row, so a day cannot be marked short and
+closed at once - the model cannot hold that and neither can the screen.
+
+Manage Periods gained a Full day / Half day choice, **shown only to a school
+that has a half day to put periods on**. Everybody else sees the form they had
+before, which is the test that this cost nobody anything. The choice is made
+when a period is created and fixed after: moving one between shapes would move
+it to a different hour on a different set of days, which is a new period rather
+than an edit to this one.
+
+Both screens read `schoolWeekProvider`, which resolves a school user's own week
+from the session and a Super Admin's picked school from the list - the same
+resolution the grid uses, in one place now instead of two.
 
 **H3 - the grid.** Two tables rather than one ragged one: full days with their
 periods, half days with theirs. A school with no half days sees exactly what

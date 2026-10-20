@@ -14,6 +14,11 @@ import '../../data/models/working_week.dart';
 /// day the school does not run, no period is taught, no bus goes, and every
 /// rate in every report is out of the days that are left — so the field says
 /// so rather than sitting there as an unexplained row of chips.
+///
+/// Two rows, not one tri-state control. "Which days do you run" and "which
+/// of those are short" are two plain questions; a chip that cycles through
+/// three answers is a guessing game, and three buttons on each of seven days
+/// is twenty-one targets for a setting most schools never touch.
 class WorkingDaysField extends StatelessWidget {
   const WorkingDaysField({super.key, required this.value, required this.onChanged});
 
@@ -33,6 +38,7 @@ class WorkingDaysField extends StatelessWidget {
         Text('Working days', style: theme.textTheme.labelLarge),
         const SizedBox(height: 6),
         Wrap(
+          key: const Key('working-days'),
           spacing: 6,
           runSpacing: 6,
           children: [
@@ -62,6 +68,41 @@ class WorkingDaysField extends StatelessWidget {
         // true and still hides the part somebody most needs to check.
         if (value.halfDayNote case final note?)
           Text(note, style: theme.textTheme.bodySmall?.copyWith(color: colors.muted)),
+        // A second row of two-state chips rather than a three-state control
+        // on the first. "Which days do you run" and "which of those are
+        // short" are two plain questions; one chip that cycles through three
+        // answers is a guessing game, and three buttons on each of seven
+        // days is twenty-one targets for a setting most schools never touch.
+        //
+        // Only the days the school runs appear here, so a day cannot be
+        // marked short and closed at once - the model cannot hold that and
+        // neither can the screen.
+        if (!value.isEmpty) ...[
+          const SizedBox(height: 14),
+          Text('Half days', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 2),
+          Text(
+            'Shorter days - a Saturday morning, or a single PT session. They '
+            'count as full working days; what changes is which periods they have.',
+            style: theme.textTheme.bodySmall?.copyWith(color: colors.muted),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            key: const Key('half-days'),
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final index in value.dayIndexes)
+                FilterChip(
+                  label: Text(WorkingWeek.shortLabels[index]),
+                  tooltip: WorkingWeek.labels[index],
+                  selected: value.isHalfDay(index),
+                  onSelected: (half) =>
+                      onChanged(value.withShape(index, half ? WorkingWeek.halfDay : WorkingWeek.fullDay)),
+                ),
+            ],
+          ),
+        ],
       ],
     );
   }

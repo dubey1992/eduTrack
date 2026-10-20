@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/schools/data/models/working_week.dart';
 import 'package:edutrack_app/features/timetable/application/period_list_notifier.dart';
 import 'package:edutrack_app/features/timetable/data/models/period.dart';
 import 'package:edutrack_app/features/timetable/data/period_repository.dart';
@@ -32,7 +33,7 @@ void main() {
 
     await container
         .read(periodListNotifierProvider(1).notifier)
-        .create(periodNumber: 1, startTime: '08:30', endTime: '09:15');
+        .create(periodNumber: 1, dayShape: WorkingWeek.fullDay, startTime: '08:30', endTime: '09:15');
 
     final state = container.read(periodListNotifierProvider(1)).value!;
     expect(state, hasLength(1));

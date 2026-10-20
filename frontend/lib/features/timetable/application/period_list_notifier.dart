@@ -27,10 +27,21 @@ class PeriodListNotifier extends AsyncNotifier<List<Period>> {
     state = await AsyncValue.guard(() => ref.read(periodRepositoryProvider).list(schoolId: schoolId));
   }
 
-  Future<void> create({required int periodNumber, required String startTime, required String endTime}) async {
+  Future<void> create({
+    required int periodNumber,
+    required String dayShape,
+    required String startTime,
+    required String endTime,
+  }) async {
     await ref
         .read(periodRepositoryProvider)
-        .create(schoolId: schoolId, periodNumber: periodNumber, startTime: startTime, endTime: endTime);
+        .create(
+          schoolId: schoolId,
+          periodNumber: periodNumber,
+          dayShape: dayShape,
+          startTime: startTime,
+          endTime: endTime,
+        );
     await refresh();
   }
 
