@@ -80,4 +80,33 @@ void main() {
     // And nothing claiming the school runs on no days in particular.
     expect(find.textContaining('Attendance, periods, buses'), findsNothing);
   });
+
+  testWidgets('a half day is marked on the chip, not only underneath', (tester) async {
+    // It looks exactly like a full day otherwise, and turning one off and on
+    // again quietly makes it full.
+    await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1111120')));
+
+    expect(find.widgetWithText(FilterChip, 'Sa ½'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'Mo'), findsOneWidget);
+    expect(find.text('Saturday is a half day.'), findsOneWidget);
+  });
+
+  testWidgets('a week with no half days says nothing about them', (tester) async {
+    await tester.pumpWidget(wrap(const WorkingWeek.mondayToFriday()));
+
+    expect(find.textContaining('half day'), findsNothing);
+    expect(find.widgetWithText(FilterChip, 'Sa'), findsOneWidget);
+  });
+
+  testWidgets('turning a half day off and on again shows it became full', (tester) async {
+    await tester.pumpWidget(wrap(WorkingWeek.fromApiValue('1111120')));
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Sa ½'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilterChip, 'Sa'));
+    await tester.pumpAndSettle();
+
+    expect(current.apiValue, '1111110');
+    expect(find.textContaining('half day'), findsNothing);
+  });
 }

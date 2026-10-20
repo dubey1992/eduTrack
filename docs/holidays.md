@@ -139,10 +139,26 @@ full-day period, so a school that never uses this is untouched.
 
 ### The slices
 
-**H1 - the shape.** The migration, `WorkingWeek` learning a third state, the
-periods API taking a shape, and a timetable entry refused when its period's
-shape does not match the day's. No UI; the default is unchanged, so nothing
-moves until somebody says so.
+**H1 - the shape. Built 2026-10-20.** `working_days` holds a third state
+('2'), `periods` carries `day_shape`, and a timetable entry is refused when
+its period's shape does not match the day's - a full day's period 7 on a
+Saturday ending at noon is an hour that does not exist, and a teaching report
+that can never be filed against it. Period numbers are unique per shape, so a
+full day's period 1 and a half day's period 1 are different bells at different
+times and neither is a duplicate.
+
+Two things H1 had to include that the plan read as UI:
+
+- **The app has to be able to read a half day**, or the edit form silently
+  destroys one. `WorkingWeek.fromApiValue` falls back to Monday-to-Friday on
+  anything it cannot parse; a client that did not know about '2' would read
+  `1111120` as the default week and write that back on the next save. A test
+  pins the round trip.
+- **A half day is marked on its chip** ("Sa ½"), not only in the line
+  underneath. It looks exactly like a full day otherwise, and turning one off
+  and on again quietly makes it full - which is still true, and now visible.
+
+Choosing a half day is still H2; nothing in the app can set one yet.
 
 **H2 - saying so.** Manage Periods gains the full/half choice. The week picker
 gains a third state per day - closed, full, half - which the seven chips

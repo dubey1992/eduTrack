@@ -950,10 +950,18 @@ class UpsertTimetableEntryRequest(ScopedSerializer):
         # report that can never be filed against it.
         if attrs["day_of_week"] not in DayOfWeek.values:
             errors["day_of_week"] = [selected_is_invalid("day_of_week")]
-        elif attrs["day_of_week"] not in week.WorkingWeek(
-            School.objects.filter(pk=school_id).values_list("working_days", flat=True).first()
-        ).names:
-            errors["day_of_week"] = ["The school does not run on that day."]
+        else:
+            shape = week.WorkingWeek(
+                School.objects.filter(pk=school_id).values_list("working_days", flat=True).first()
+            ).shape_of(attrs["day_of_week"])
+
+            if shape is None:
+                errors["day_of_week"] = ["The school does not run on that day."]
+            elif not Period.objects.filter(pk=attrs["period_id"], school_id=school_id, day_shape=shape).exists():
+                # A full day's period on a half day, or the other way round.
+                # The bells are different and at different times, so the cell
+                # would be an hour that does not exist on that day.
+                errors["period_id"] = ["That period is not one this day runs."]
 
         if not Subject.objects.filter(
             pk=attrs["subject_id"], school_id=school_id
@@ -2990,6 +2998,9 @@ class UpdatePaymentRequest(PaymentForm):
 
 class PeriodForm(ScopedSerializer):
     period_number = LaravelIntegerField("period_number", min_value=1, max_value=20)
+    # Which shape of day this period belongs to. Optional, and `full` when
+    # nobody says - which is every period that existed before half days did.
+    day_shape = LaravelCharField("day_shape", max_length=8, required=False)
     # "H:i" and nothing else. A period is a clock time in the school's own day,
     # not an instant, so it carries no date and no zone.
     start_time = serializers.TimeField(
@@ -3003,12 +3014,23 @@ class PeriodForm(ScopedSerializer):
         error_messages={"invalid": "The end time field must match the format H:i."},
     )
 
+    def validate_day_shape(self, value: str) -> str:
+        if value not in week.SHAPES:
+            raise serializers.ValidationError(selected_is_invalid("day_shape"))
+
+        return value
+
     def check(self, attrs, school_id, ignoring=None) -> dict:
         errors = {}
 
         if "period_number" in attrs:
+            # Per shape, not per school: a full day's period 1 and a half
+            # day's period 1 are different bells at different times, and
+            # neither is a duplicate of the other.
             taken = Period.objects.filter(
-                school_id=school_id, period_number=attrs["period_number"]
+                school_id=school_id,
+                day_shape=attrs.get("day_shape", week.FULL_DAY),
+                period_number=attrs["period_number"],
             )
 
             if ignoring is not None:
@@ -3054,6 +3076,9 @@ class UpdatePeriodRequest(PeriodForm):
         # of them cannot invert the period.
         attrs.setdefault("start_time", self.period.start_time)
         attrs.setdefault("end_time", self.period.end_time)
+        # And the shape, so renumbering a half day's period is checked
+        # against the half day's periods rather than the full day's.
+        attrs.setdefault("day_shape", self.period.day_shape)
 
         errors = self.check(attrs, self.period.school_id, ignoring=self.period.pk)
 

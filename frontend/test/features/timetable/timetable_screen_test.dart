@@ -143,12 +143,12 @@ void main() {
     testWidgets('a Sunday to Thursday school gets Sunday and not Friday', (tester) async {
       await tester.pumpWidget(
         gridFor(
-          const AuthenticatedUser(
+          AuthenticatedUser(
             id: 9,
             name: 'Admin',
             email: 'admin@example.com',
             role: UserRole.schoolAdmin,
-            workingDays: WorkingWeek([true, true, true, true, false, false, true]),
+            workingDays: WorkingWeek.fromApiValue('1111001'),
           ),
         ),
       );
@@ -163,12 +163,12 @@ void main() {
     testWidgets('a six day school gets Saturday', (tester) async {
       await tester.pumpWidget(
         gridFor(
-          const AuthenticatedUser(
+          AuthenticatedUser(
             id: 9,
             name: 'Admin',
             email: 'admin@example.com',
             role: UserRole.schoolAdmin,
-            workingDays: WorkingWeek([true, true, true, true, true, true, false]),
+            workingDays: WorkingWeek.fromApiValue('1111110'),
           ),
         ),
       );

@@ -40,6 +40,7 @@ from . import (
 from .gateways import Template
 from .clock import TIME, SchoolClock
 from .fields import as_utc
+from . import week
 from .week import WorkingWeek
 from .enums import (
     AssessmentStatus,
@@ -3599,6 +3600,9 @@ class PeriodService:
         period = Period.objects.create(
             school_id=school_id,
             period_number=data["period_number"],
+            # `full` when nobody says, which is every period that existed
+            # before half days did (school/week.py).
+            day_shape=data.get("day_shape") or week.FULL_DAY,
             start_time=data["start_time"],
             end_time=data["end_time"],
             created_at=now,

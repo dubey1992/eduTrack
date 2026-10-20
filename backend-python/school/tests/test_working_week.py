@@ -23,7 +23,7 @@ from rest_framework.test import APIClient
 
 from school import factories, tokens, week
 from school.enums import UserRole
-from school.models import Holiday
+from school.models import Holiday, Period
 from school.services import HolidayService
 from school.week import WorkingWeek
 
@@ -35,6 +35,7 @@ WEEK = [MONDAY + dt.timedelta(days=offset) for offset in range(7)]
 
 GULF = "1111001"      # Sunday to Thursday
 SIX_DAY = "1111110"   # Monday to Saturday
+HALF_SATURDAY = "1111120"  # the same six days, Saturday a half day
 MON_FRI = week.DEFAULT
 
 
@@ -81,17 +82,17 @@ class AWeekItCannotRead(TestCase):
     """
 
     def test_nothing_is_the_default_week(self):
-        for bad in (None, "", "garbage", "11111", "11111111", "1111102", 7):
+        for bad in (None, "", "garbage", "11111", "11111111", "1111103", 7):
             self.assertEqual(MON_FRI, WorkingWeek(bad).stored, repr(bad))
 
     def test_a_week_with_no_days_in_it_is_the_default_week(self):
         self.assertEqual(MON_FRI, WorkingWeek("0000000").stored)
 
     def test_but_a_client_may_not_send_any_of_those(self):
-        for bad in (None, "", "garbage", "11111", "11111111", "1111102", "0000000", 7):
+        for bad in (None, "", "garbage", "11111", "11111111", "1111103", "0000000", 7):
             self.assertFalse(week.is_valid(bad), repr(bad))
 
-        for good in (MON_FRI, GULF, SIX_DAY, "1111111", "0000001"):
+        for good in (MON_FRI, GULF, SIX_DAY, "1111111", "0000001", HALF_SATURDAY, "2222200"):
             self.assertTrue(week.is_valid(good), good)
 
 
@@ -201,7 +202,7 @@ class OverTheApi(TestCase):
         self.assertEqual(SIX_DAY, school.working_days)
 
     def test_a_week_nobody_could_keep_is_refused(self):
-        for bad in ("0000000", "11111", "garbage", "1111102"):
+        for bad in ("0000000", "11111", "garbage", "1111103"):
             response = self.client_as(self.root).post(
                 SCHOOLS, self.body(email=f"x{bad}@example.invalid", working_days=bad), format="json"
             )
@@ -402,3 +403,176 @@ class TheTimetableFollowsTheWeekToo(TestCase):
 
         self.assertEqual(422, self.put("saturday").status_code)
         self.assertIn(self.put("friday").status_code, (200, 201))
+
+
+class TheShapeOfADay(TestCase):
+    """A full day's periods and a half day's (docs/holidays.md, H1).
+
+    **A half day is a full working day.** It is a shorter day, not a fraction
+    of one: the school ran, and a teacher who was there all morning worked a
+    full Saturday. What the shape decides is which periods the day has, and
+    nothing that counts working days cares.
+    """
+
+    def test_a_half_day_counts_as_a_day(self):
+        school = factories.SchoolFactory(working_days=HALF_SATURDAY)
+
+        self.assertEqual(6, len(HolidayService.week_of(school.id)))
+        self.assertEqual(
+            ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+            [day.strftime("%a") for day in HolidayService.working_dates(school.id, WEEK[0], WEEK[-1])],
+        )
+
+    def test_the_shape_is_readable_per_day(self):
+        week_of = WorkingWeek(HALF_SATURDAY)
+
+        self.assertEqual("full", week_of.shape_on(WEEK[0]))     # Monday
+        self.assertEqual("half", week_of.shape_on(WEEK[5]))     # Saturday
+        self.assertIsNone(week_of.shape_on(WEEK[6]))            # Sunday, closed
+        self.assertEqual("half", week_of.shape_of("saturday"))
+        self.assertIsNone(week_of.shape_of("sunday"))
+
+    def test_a_day_nobody_marked_half_is_a_full_day(self):
+        self.assertEqual({name: "full" for name in WorkingWeek(MON_FRI).names}, WorkingWeek(MON_FRI).shapes)
+
+
+class PeriodsBelongToAShape(TestCase):
+    def setUp(self):
+        self.school = factories.SchoolFactory(working_days=HALF_SATURDAY)
+        self.admin = factories.UserFactory(school=self.school, role=UserRole.SCHOOL_ADMIN)
+
+    def client_as(self, user) -> APIClient:
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Bearer " + tokens.issue(user))
+
+        return client
+
+    def create(self, **overrides):
+        body = {"period_number": 1, "start_time": "09:00", "end_time": "09:55"}
+        body.update(overrides)
+
+        return self.client_as(self.admin).post("/api/v1/periods", body, format="json")
+
+    def test_a_period_is_a_full_days_unless_somebody_says_otherwise(self):
+        response = self.create()
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual("full", response.data["day_shape"])
+
+    def test_a_half_days_period_can_be_created(self):
+        response = self.create(day_shape="half", start_time="09:00", end_time="09:40")
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual("half", response.data["day_shape"])
+
+    def test_the_same_number_in_each_shape_is_not_a_duplicate(self):
+        """A full day's period 1 and a half day's period 1 are different
+        bells at different times, and neither is a duplicate of the other."""
+        self.assertEqual(201, self.create().status_code)
+        self.assertEqual(201, self.create(day_shape="half", end_time="09:40").status_code)
+
+        self.assertEqual(2, Period.objects.filter(school=self.school, period_number=1).count())
+
+    def test_the_same_number_in_the_same_shape_still_is(self):
+        self.assertEqual(201, self.create().status_code)
+
+        response = self.create(start_time="10:00", end_time="10:55")
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("period_number", response.data["details"]["errors"])
+
+    def test_a_shape_that_is_not_one_is_refused(self):
+        response = self.create(day_shape="quarter")
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("day_shape", response.data["details"]["errors"])
+
+    def test_renumbering_a_half_days_period_is_checked_against_half_days(self):
+        self.create(period_number=2)
+        half = self.create(day_shape="half", period_number=1, end_time="09:40").data
+
+        # Period 2 is taken on the full day, and free on the half day.
+        response = self.client_as(self.admin).patch(
+            f"/api/v1/periods/{half['id']}", {"period_number": 2}, format="json"
+        )
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual(("half", 2), (response.data["day_shape"], response.data["period_number"]))
+
+
+class ThePeriodMustSuitTheDay(TestCase):
+    """A full day's bells do not ring on a half day.
+
+    Without this, a cell on Saturday could point at period 7 of a full day -
+    an hour that does not exist on a day ending at noon, and a teaching
+    report that can never be filed against it.
+    """
+
+    def setUp(self):
+        self.school = factories.SchoolFactory(working_days=HALF_SATURDAY)
+        self.year = factories.AcademicYearFactory(school=self.school, is_current=True)
+        self.section = factories.ClassSectionFactory(
+            school_class=factories.SchoolClassFactory(school=self.school, academic_year=self.year)
+        )
+        self.full = factories.PeriodFactory(school=self.school, period_number=1, day_shape="full")
+        self.half = factories.PeriodFactory(
+            school=self.school, period_number=1, day_shape="half",
+            start_time=dt.time(9, 0), end_time=dt.time(9, 40),
+        )
+        self.subject = factories.SubjectFactory(school=self.school)
+        self.teacher = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+        self.admin = factories.UserFactory(school=self.school, role=UserRole.SCHOOL_ADMIN)
+
+    def put(self, period, day: str):
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Bearer " + tokens.issue(self.admin))
+
+        return client.post(
+            "/api/v1/timetable",
+            {
+                "class_section_id": self.section.id,
+                "period_id": period.id,
+                "day_of_week": day,
+                "subject_id": self.subject.id,
+                "teacher_id": self.teacher.id,
+            },
+            format="json",
+        )
+
+    def test_a_full_days_period_on_a_full_day(self):
+        self.assertIn(self.put(self.full, "monday").status_code, (200, 201))
+
+    def test_a_half_days_period_on_the_half_day(self):
+        self.assertIn(self.put(self.half, "saturday").status_code, (200, 201))
+
+    def test_a_full_days_period_on_the_half_day_is_refused(self):
+        response = self.put(self.full, "saturday")
+
+        self.assertEqual(422, response.status_code, response.data)
+        self.assertEqual(
+            ["That period is not one this day runs."],
+            response.data["details"]["errors"]["period_id"],
+        )
+
+    def test_a_half_days_period_on_a_full_day_is_refused(self):
+        response = self.put(self.half, "monday")
+
+        self.assertEqual(422, response.status_code, response.data)
+        self.assertIn("period_id", response.data["details"]["errors"])
+
+    def test_a_day_the_school_does_not_run_is_still_refused_first(self):
+        """The day is the earlier question: there is no shape to check."""
+        response = self.put(self.full, "sunday")
+
+        self.assertEqual(422, response.status_code)
+        self.assertEqual(
+            ["The school does not run on that day."],
+            response.data["details"]["errors"]["day_of_week"],
+        )
+
+    def test_a_school_with_no_half_days_is_untouched(self):
+        """The test that this cost nobody anything."""
+        self.school.working_days = MON_FRI
+        self.school.save()
+
+        self.assertIn(self.put(self.full, "monday").status_code, (200, 201))

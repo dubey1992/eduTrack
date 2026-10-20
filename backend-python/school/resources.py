@@ -906,6 +906,7 @@ def period_resource(period) -> dict:
         "id": period.id,
         "school_id": period.school_id,
         "period_number": period.period_number,
+        "day_shape": period.day_shape,
         # "09:00", not "09:00:00" - a clock time in the school's own day,
         # rendered the way the timetable shows it.
         "start_time": period.start_time.strftime("%H:%M"),

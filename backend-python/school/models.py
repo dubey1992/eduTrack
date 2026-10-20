@@ -728,6 +728,10 @@ class Period(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
     period_number = models.SmallIntegerField()
+    # Which shape of day this period belongs to - `full` or `half`. A school
+    # that runs a Saturday morning rings shorter bells on it and fewer of
+    # them (school/week.py, docs/holidays.md).
+    day_shape = models.CharField(max_length=8, default=week.FULL_DAY)
     start_time = models.TimeField()
     end_time = models.TimeField()
     created_at = UtcDateTimeField(blank=True, null=True)
@@ -736,7 +740,7 @@ class Period(models.Model):
     class Meta:
         managed = False
         db_table = 'periods'
-        unique_together = (('school', 'period_number'),)
+        unique_together = (('school', 'day_shape', 'period_number'),)
 
 class PersonalAccessToken(models.Model):
     """The one framework table this backend describes.

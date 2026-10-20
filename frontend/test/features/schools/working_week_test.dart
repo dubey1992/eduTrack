@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 const monFri = '1111100';
 const gulf = '1111001';
 const sixDay = '1111110';
+const halfSaturday = '1111120'; // the same six days, Saturday a half day
 
 void main() {
   group('reading what the server sent', () {
@@ -49,7 +50,7 @@ void main() {
 
   group('a week it cannot read', () {
     test('is the week the product assumed, never an empty screen', () {
-      for (final bad in <Object?>[null, '', 'garbage', '11111', '11111111', '1111102', '0000000', 7]) {
+      for (final bad in <Object?>[null, '', 'garbage', '11111', '11111111', '1111103', '0000000', 7]) {
         expect(WorkingWeek.fromApiValue(bad).apiValue, monFri, reason: '$bad');
       }
     });
@@ -106,6 +107,69 @@ void main() {
       // somebody passes through while unticking days.
       expect(week.isEmpty, isTrue);
       expect(week.summary, 'No days');
+    });
+  });
+
+  group('a day that is a half day', () {
+    test('it is still a working day', () {
+      // A shorter day, not a fraction of one. Nothing that counts working
+      // days cares which shape they were.
+      final week = WorkingWeek.fromApiValue(halfSaturday);
+
+      expect(week.length, 6);
+      expect(week.runsOn(5), isTrue);
+      expect(week.dayNames, contains('saturday'));
+    });
+
+    test('its shape is readable', () {
+      final week = WorkingWeek.fromApiValue(halfSaturday);
+
+      expect(week.shapeOf(0), WorkingWeek.fullDay);
+      expect(week.shapeOf(5), WorkingWeek.halfDay);
+      expect(week.shapeOf(6), isNull);
+      expect(week.isHalfDay(5), isTrue);
+      expect(week.isHalfDay(0), isFalse);
+    });
+
+    test('it round trips, so an edit cannot quietly lose it', () {
+      // The bug this exists to stop: a week the app cannot read falls back
+      // to Monday to Friday, and saving the form writes that back.
+      expect(WorkingWeek.fromApiValue(halfSaturday).apiValue, halfSaturday);
+      expect(WorkingWeek.fromApiValue('2222222').apiValue, '2222222');
+    });
+
+    test('a date resolves to its shape', () {
+      // 24 October 2026 is a Saturday.
+      final week = WorkingWeek.fromApiValue(halfSaturday);
+
+      expect(week.shapeOnDate(DateTime(2026, 10, 24)), WorkingWeek.halfDay);
+      expect(week.shapeOnDate(DateTime(2026, 10, 19)), WorkingWeek.fullDay);
+      expect(week.shapeOnDate(DateTime(2026, 10, 25)), isNull);
+    });
+
+    test('it is named on its own, because a range hides it', () {
+      expect(WorkingWeek.fromApiValue(halfSaturday).summary, 'Monday to Saturday');
+      expect(WorkingWeek.fromApiValue(halfSaturday).halfDayNote, 'Saturday is a half day.');
+      expect(WorkingWeek.fromApiValue('1111122').halfDayNote, 'Saturday, Sunday are half days.');
+      expect(WorkingWeek.fromApiValue(monFri).halfDayNote, isNull);
+    });
+
+    test('a character that is not a day state is still unreadable', () {
+      expect(WorkingWeek.fromApiValue('1111103').apiValue, monFri);
+    });
+
+    test('turning it off and on again makes it full, which the field shows', () {
+      final week = WorkingWeek.fromApiValue(halfSaturday);
+
+      expect(week.toggled(5).runsOn(5), isFalse);
+      expect(week.toggled(5).toggled(5).isHalfDay(5), isFalse);
+    });
+
+    test('a shape can be set without disturbing the rest', () {
+      final week = WorkingWeek.fromApiValue(sixDay).withShape(5, WorkingWeek.halfDay);
+
+      expect(week.apiValue, halfSaturday);
+      expect(week.withShape(5, WorkingWeek.fullDay).apiValue, sixDay);
     });
   });
 }

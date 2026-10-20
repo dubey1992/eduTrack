@@ -38,8 +38,13 @@ class WorkingDaysField extends StatelessWidget {
           children: [
             for (var index = 0; index < WorkingWeek.names.length; index++)
               FilterChip(
-                label: Text(WorkingWeek.shortLabels[index]),
-                tooltip: WorkingWeek.labels[index],
+                // A half day is marked on the chip, not only in the line
+                // underneath: it looks exactly like a full day otherwise,
+                // and turning one off and on again quietly makes it full.
+                label: Text(
+                  value.isHalfDay(index) ? '${WorkingWeek.shortLabels[index]} ½' : WorkingWeek.shortLabels[index],
+                ),
+                tooltip: value.isHalfDay(index) ? '${WorkingWeek.labels[index]} - half day' : WorkingWeek.labels[index],
                 selected: value.runsOn(index),
                 onSelected: (_) => onChanged(value.toggled(index)),
               ),
@@ -53,6 +58,10 @@ class WorkingDaysField extends StatelessWidget {
           value.isEmpty ? 'Pick at least one day.' : '${value.summary}. $helperText',
           style: theme.textTheme.bodySmall?.copyWith(color: value.isEmpty ? colors.danger : colors.muted),
         ),
+        // Said on its own line because a range like "Monday to Saturday" is
+        // true and still hides the part somebody most needs to check.
+        if (value.halfDayNote case final note?)
+          Text(note, style: theme.textTheme.bodySmall?.copyWith(color: colors.muted)),
       ],
     );
   }
