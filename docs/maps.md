@@ -507,3 +507,62 @@ level, which is worse than the guess.
 Writing it turned up one piece of dead logic, found by sabotage: a
 `points.length < 2` guard that never fired, because one point is already
 "everything in the same place". Removed.
+
+## The bus on the map, and when it arrives (M3b, M3c)
+
+The rest of M3. Nothing new was collected: the positions, the endpoints and
+the attendant's "Share my location" switch were all built with the Bus
+Attendant. What was missing was drawing it and saying something useful
+about it.
+
+### The bus
+
+`TripMapCard` watches the same fifteen-second poll the Bus location card
+uses - one provider, so the screen asks once however many things on it want
+the answer - and passes the position down to `TripMap`, which takes a plain
+`BusPosition` and can therefore be tested without a repository behind it. A
+trip that is not running is never polled: there is nowhere for its bus to
+have moved to, and the stop marks already say where it went.
+
+Two things the browser taught us:
+
+- **Shape, not colour.** The bus started as a near-black pin and its stale
+  form as a pale grey one. On a route where the bus has just left a stop,
+  that pale grey pin sits directly on the grey pin of the stop it reached,
+  and the two are indistinguishable. The bus is now drawn as a **disc** -
+  centred on where it is rather than pointing at it from above, which is
+  what a position actually is, and unmistakable whatever the colours do.
+- **The map does not repeat the card.** The legend first carried a "last
+  seen N min ago" line, which put the same sentence on the screen twice -
+  the widget tests caught it as two matching widgets. The legend now names
+  the bus by its vehicle, and adds the last-seen words only when the pin is
+  greyed, because "greyed" means nothing to somebody who has never seen it
+  ungreyed.
+
+### The arrival
+
+`GET transport/trips/{id}/live` gains `next_stop.eta_seconds` and
+`finishes_in_seconds`, both worked out from the leg durations stored when
+the road was computed. **No Google call per refresh**: a trip watched by
+five people for an hour would otherwise be twelve hundred calls for a
+number that barely moves.
+
+The leg is the road between the stop before this one and this one. How much
+of it is left comes from the straight-line distance still to cover, which is
+the only thing a position can tell us, capped at the whole leg - a bus that
+has overshot and is coming back is further away than the leg is long, and
+"longer than the drive itself" helps nobody.
+
+**Null rather than a guess**, and this is most of the rule:
+
+- nobody has shared a position, so there is no "how far left";
+- the next stop, or the one before it, is not on the map;
+- the route has no road worked out, or its legs cannot be read;
+- **the next stop is the first of the run.** A pickup starts wherever the
+  bus happened to be; a drop starts at the school, and the stored path runs
+  the stops in order and then the school, so the school-to-first-stop road
+  is one Google was never asked about. For the same reason a drop's finish
+  never counts the last leg back to the school - it does not drive it.
+
+The card says the time where there is one and falls back to the straight
+line where there is not, and the next stop's own pin carries it too.

@@ -2,12 +2,17 @@ import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/maps/presentation/map_pin_icons.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_route.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_trip.dart';
+import 'package:edutrack_app/features/transport/data/models/trip_live_location.dart';
 import 'package:edutrack_app/features/transport/presentation/widgets/trip_map.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/features/transport/data/transport_repository.dart';
+
 import '../../support/fake_map.dart';
+import '../../support/fake_transport_repository.dart';
 
 /// Google's own documented sample, which decodes to three points.
 const aRoad = '_p~iF~ps|U_ulLnnqC_mqNvxq`@';
@@ -67,9 +72,27 @@ TransportTrip trip({
   );
 }
 
+BusPosition bus({
+  String latitude = '18.5200000',
+  String longitude = '73.8300000',
+  int ageSeconds = 20,
+  bool isStale = false,
+}) {
+  return BusPosition(
+    latitude: latitude,
+    longitude: longitude,
+    accuracyM: 12,
+    speedMps: 8,
+    heading: 90,
+    recordedAt: '2026-09-09T07:35:00Z',
+    ageSeconds: ageSeconds,
+    isStale: isStale,
+  );
+}
+
 late FakeMapRenderer renderer;
 
-Widget wrap(TransportTrip given) {
+Widget wrap(TransportTrip given, {BusPosition? at, int? eta}) {
   renderer = FakeMapRenderer();
 
   return ProviderScope(
@@ -77,7 +100,9 @@ Widget wrap(TransportTrip given) {
     child: MaterialApp(
       theme: AppTheme.light(),
       home: Scaffold(
-        body: SingleChildScrollView(child: TripMap(trip: given)),
+        body: SingleChildScrollView(
+          child: TripMap(trip: given, bus: at, etaSeconds: eta),
+        ),
       ),
     ),
   );
@@ -353,6 +378,177 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(renderer.polylines.single.polylineId.value, 'straight');
+    });
+  });
+
+  group('the bus on it', () {
+    testWidgets('a shared position is a pin of its own, above the stops', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(trip(stops: [stop(id: 1)]), at: bus()));
+      await tester.pumpAndSettle();
+
+      final pin = renderer.markersById['bus'];
+
+      expect(pin, isNotNull);
+      expect(pin!.position.latitude, closeTo(18.52, 0.00001));
+      // The bus often sits right on a stop, and it is the thing somebody
+      // opened this for.
+      expect(pin.zIndexInt, greaterThan(0));
+    });
+
+    testWidgets('no position shared is no bus pin, and the map still draws', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(trip(stops: [stop(id: 1), stop(id: 2, sequence: 2)])));
+      await tester.pumpAndSettle();
+
+      expect(renderer.markersById.containsKey('bus'), isFalse);
+      expect(renderer.markersById.containsKey('stop-1'), isTrue);
+    });
+
+    testWidgets('half a position is not a place', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(
+        wrap(
+          trip(stops: [stop(id: 1)]),
+          at: bus(longitude: 'not a number'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(renderer.markersById.containsKey('bus'), isFalse);
+    });
+
+    testWidgets('a position off the earth is not a place', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(
+        wrap(
+          trip(stops: [stop(id: 1)]),
+          at: bus(latitude: '91.0'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(renderer.markersById.containsKey('bus'), isFalse);
+    });
+
+    testWidgets('a fresh bus is named, and nothing more', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(trip(stops: [stop(id: 1)]), at: bus(ageSeconds: 40)));
+      await tester.pumpAndSettle();
+
+      // The Bus location card above says when it was last seen, in full.
+      // Saying it again under the map would be the same sentence twice.
+      expect(find.text('Bus 04'), findsOneWidget);
+      expect(find.textContaining('last seen'), findsNothing);
+    });
+
+    testWidgets('a greyed bus explains itself, because grey says nothing on its own', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(trip(stops: [stop(id: 1)]), at: bus(ageSeconds: 400, isStale: true)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bus 04 - last seen 6 min ago'), findsOneWidget);
+    });
+
+    testWidgets('the pin itself says when it was last seen', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(trip(stops: [stop(id: 1)]), at: bus(ageSeconds: 140)));
+      await tester.pumpAndSettle();
+
+      expect(renderer.markersById['bus']!.infoWindow.snippet, 'Last seen 2 min ago');
+    });
+
+    testWidgets('the next stop pin carries the arrival when there is one', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(
+        wrap(trip(stops: [stop(id: 1, reached: true), stop(id: 2, sequence: 2)]), at: bus(), eta: 300),
+      );
+      await tester.pumpAndSettle();
+
+      expect(renderer.markersById['stop-2']!.infoWindow.snippet, 'Next stop - about 5 min away');
+      // The reached stop says nothing about arriving; the bus has been.
+      expect(renderer.markersById['stop-1']!.infoWindow.snippet, 'Reached');
+    });
+
+    testWidgets('no arrival worked out leaves the pin saying what it knows', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(trip(stops: [stop(id: 1, reached: true), stop(id: 2, sequence: 2)]), at: bus()));
+      await tester.pumpAndSettle();
+
+      expect(renderer.markersById['stop-2']!.infoWindow.snippet, 'Next stop');
+    });
+
+    testWidgets('the legend names the bus by its vehicle', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(trip(stops: [stop(id: 1)]), at: bus()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bus 04'), findsOneWidget);
+    });
+
+    test('a fresh position is the bus; an old one is where it was', () {
+      // Read from the server's own answer rather than worked out again
+      // here: it knows when the position was recorded, and this only knows
+      // what it was told.
+      expect(busPinColour(bus(isStale: false)), MapPinColour.bus);
+      expect(busPinColour(bus(isStale: true, ageSeconds: 400)), MapPinColour.busStale);
+    });
+  });
+
+  group('keeping the bus up to date', () {
+    Widget wrapCard(TransportTrip given, FakeTransportRepository fake) {
+      renderer = FakeMapRenderer();
+
+      return ProviderScope(
+        overrides: [
+          ...mapIsAvailable(renderer),
+          ...mapPinsAreReady(),
+          transportRepositoryProvider.overrideWithValue(fake),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: SingleChildScrollView(child: TripMapCard(trip: given)),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('a running trip is asked where its bus is', (tester) async {
+      useDesktop(tester);
+      final fake = FakeTransportRepository()
+        ..liveAnswers = [TripLiveLocation(tripId: 7, status: 'in_progress', position: bus(), nextStop: null)];
+
+      await tester.pumpWidget(wrapCard(trip(stops: [stop(id: 1)]), fake));
+      await tester.pumpAndSettle();
+
+      expect(fake.liveCalls, greaterThan(0));
+      expect(renderer.markersById.containsKey('bus'), isTrue);
+    });
+
+    testWidgets('a finished trip is never asked - its bus is not going anywhere', (tester) async {
+      useDesktop(tester);
+      final fake = FakeTransportRepository();
+
+      await tester.pumpWidget(wrapCard(trip(status: TripStatus.completed, stops: [stop(id: 1, reached: true)]), fake));
+      await tester.pumpAndSettle();
+
+      expect(fake.liveCalls, 0);
+      expect(renderer.markersById.containsKey('stop-1'), isTrue);
+    });
+
+    testWidgets('a failing poll leaves the map standing, without a bus on it', (tester) async {
+      useDesktop(tester);
+      final fake = FakeTransportRepository()..failLiveWith = Failure.network();
+
+      await tester.pumpWidget(wrapCard(trip(stops: [stop(id: 1), stop(id: 2, sequence: 2)]), fake));
+      await tester.pumpAndSettle();
+
+      // The Bus location card above it is where a failure is reported; a
+      // map that vanished on every dropped poll would be worse than one
+      // with no bus on it.
+      expect(renderer.markersById.containsKey('stop-1'), isTrue);
+      expect(renderer.markersById.containsKey('bus'), isFalse);
     });
   });
 

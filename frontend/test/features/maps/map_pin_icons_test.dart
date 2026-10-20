@@ -53,6 +53,20 @@ void main() {
     }
   });
 
+  testWidgets('the bus is a disc, and every place is a pin', (tester) async {
+    // Shape, not colour: a bus that has gone quiet is pale grey and a stop
+    // already reached is grey, and on a route where the bus has just left a
+    // stop those two sit on top of each other.
+    final disc = await tester.runAsync(() => drawDisc(MapPinColour.bus.colour));
+    final pin = await tester.runAsync(() => drawPin(MapPinColour.bus.colour));
+
+    expect((disc! as BytesMapBitmap).byteData, isNot((pin! as BytesMapBitmap).byteData));
+  });
+
+  test('the bus colours are the ones drawn as discs, and nothing else is', () {
+    expect(MapPinColour.values.where((colour) => colour.isTheBus).toSet(), {MapPinColour.bus, MapPinColour.busStale});
+  });
+
   test('no two of them are the same colour', () {
     expect({for (final colour in MapPinColour.values) colour.colour}.length, MapPinColour.values.length);
   });

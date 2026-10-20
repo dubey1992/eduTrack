@@ -14,8 +14,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 /// product ships first.
 ///
 /// So the pins are drawn into a bitmap, which both platforms understand.
-/// Four of them, built once and held: a marker rebuilt per frame would
-/// redraw and re-encode a PNG for every pin on every pan.
+/// Six of them, built once and held: a marker rebuilt per frame would
+/// redraw and re-encode a PNG for every pin on every pan - and the bus's
+/// pin is rebuilt every fifteen seconds.
 ///
 /// The colours are named by what they do on a map rather than by what they
 /// stand for, because three maps now use them for three different things -
@@ -36,17 +37,36 @@ enum MapPinColour {
   /// Behind it rather than ahead of it: a stop the trip has already
   /// reached. Still drawn, because where the bus has been is part of
   /// reading where it is.
-  done(Color(0xFF64748B));
+  done(Color(0xFF64748B)),
+
+  /// The bus. Near-black so it is never read as one of the places - it is
+  /// the only thing on the map that moves.
+  bus(Color(0xFF111827)),
+
+  /// The bus, where it was a while ago. A position nobody has updated for
+  /// a couple of minutes is still worth showing - the alternative is an
+  /// empty map - but it must not look like where the bus is now.
+  busStale(Color(0xFF9CA3AF));
 
   const MapPinColour(this.colour);
 
   final Color colour;
+
+  /// The bus is drawn as a disc rather than a pin. **Colour alone is not
+  /// enough**: a bus that has gone quiet is pale grey and a stop already
+  /// reached is grey, and on a route where the bus has just left a stop
+  /// those two sit on top of each other. A pin marks a place; a disc marks
+  /// the one thing on the map that is moving.
+  bool get isTheBus => this == MapPinColour.bus || this == MapPinColour.busStale;
 }
 
-/// The drawn pins, one per colour. Null while they are still being drawn -
-/// the map shows Google's own markers until then rather than no pins.
+/// The drawn markers, one per colour. Null while they are still being drawn
+/// - the map shows Google's own markers until then rather than no markers.
 final mapPinIconsProvider = FutureProvider<Map<MapPinColour, BitmapDescriptor>>((ref) async {
-  return {for (final colour in MapPinColour.values) colour: await drawPin(colour.colour)};
+  return {
+    for (final colour in MapPinColour.values)
+      colour: colour.isTheBus ? await drawDisc(colour.colour) : await drawPin(colour.colour),
+  };
 });
 
 /// The classic map pin: a circle with a tail, a white ring around it so it
@@ -88,5 +108,35 @@ Future<BitmapDescriptor> drawPin(Color colour, {double size = 96}) async {
   // `width` tells Google how big to draw it whatever the device pixel
   // ratio; without it a 96px bitmap is a 96 *logical* pixel pin, which is
   // enormous.
+  return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: size / 2);
+}
+
+/// The bus: a disc, not a pin.
+///
+/// Centred on where it is rather than pointing at it from above, because
+/// that is what a position is - and because the shape is what tells it
+/// apart from the places around it when the colours are close.
+Future<BitmapDescriptor> drawDisc(Color colour, {double size = 96}) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, size, size));
+
+  final centre = Offset(size / 2, size / 2);
+  final radius = size * 0.34;
+
+  canvas
+    ..drawCircle(centre, radius + size * 0.06, Paint()..color = Colors.white)
+    ..drawCircle(
+      centre,
+      radius,
+      Paint()
+        ..color = colour
+        ..isAntiAlias = true,
+    )
+    ..drawCircle(centre, radius * 0.30, Paint()..color = Colors.white);
+
+  final image = await recorder.endRecording().toImage(size.round(), size.round());
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+
   return BitmapDescriptor.bytes(bytes!.buffer.asUint8List(), width: size / 2);
 }

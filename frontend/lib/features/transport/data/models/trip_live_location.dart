@@ -1,7 +1,13 @@
 /// Where a running trip's bus was last seen, and the next stop it has not
 /// reached yet - the answer of `GET /transport/trips/{id}/live`.
 class TripLiveLocation {
-  const TripLiveLocation({required this.tripId, required this.status, required this.position, required this.nextStop});
+  const TripLiveLocation({
+    required this.tripId,
+    required this.status,
+    required this.position,
+    required this.nextStop,
+    this.finishesInSeconds,
+  });
 
   factory TripLiveLocation.fromJson(Map<String, dynamic> json) {
     final position = json['position'] as Map<String, dynamic>?;
@@ -12,6 +18,7 @@ class TripLiveLocation {
       status: json['status'] as String,
       position: position == null ? null : BusPosition.fromJson(position),
       nextStop: nextStop == null ? null : NextStop.fromJson(nextStop),
+      finishesInSeconds: (json['finishes_in_seconds'] as num?)?.round(),
     );
   }
 
@@ -25,6 +32,10 @@ class TripLiveLocation {
 
   /// Null when every stop has been reached.
   final NextStop? nextStop;
+
+  /// How long until the run is over - the drive still to do on this leg
+  /// plus the legs after it. Null on the same terms as [NextStop.etaSeconds].
+  final int? finishesInSeconds;
 
   bool get isInProgress => status == 'in_progress';
 }
@@ -78,6 +89,7 @@ class NextStop {
     required this.latitude,
     required this.longitude,
     required this.straightLineDistanceM,
+    this.etaSeconds,
   });
 
   factory NextStop.fromJson(Map<String, dynamic> json) {
@@ -88,6 +100,7 @@ class NextStop {
       latitude: json['latitude'] as String?,
       longitude: json['longitude'] as String?,
       straightLineDistanceM: (json['straight_line_distance_m'] as num?)?.toDouble(),
+      etaSeconds: (json['eta_seconds'] as num?)?.round(),
     );
   }
 
@@ -99,4 +112,11 @@ class NextStop {
 
   /// As the crow flies from the bus - null when either end has no location.
   final double? straightLineDistanceM;
+
+  /// How long the drive to this stop should take, from the leg durations
+  /// stored when the road was worked out. Null wherever those legs do not
+  /// describe where the bus is - no position shared, a stop nobody has
+  /// placed, or the first stop of the run, which the bus reached by a road
+  /// nobody asked Google about.
+  final int? etaSeconds;
 }

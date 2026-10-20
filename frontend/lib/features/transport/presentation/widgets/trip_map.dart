@@ -8,7 +8,10 @@ import '../../../maps/presentation/app_map.dart';
 import '../../../maps/presentation/fit_bounds.dart';
 import '../../../maps/presentation/map_pin_icons.dart';
 import '../../data/models/transport_route.dart';
+import '../../application/trip_live_location_notifier.dart';
 import '../../data/models/transport_trip.dart';
+import '../../data/models/trip_live_location.dart';
+import 'trip_live_location_card.dart';
 
 /// Where a trip goes, and how far along it is (docs/maps.md, M3).
 ///
@@ -18,9 +21,21 @@ import '../../data/models/transport_trip.dart';
 /// position** - it is drawn from the stop marks the trip already records,
 /// so a trip that finished last week reads the same way as one running now.
 class TripMap extends ConsumerWidget {
-  const TripMap({super.key, required this.trip, this.height = 320});
+  const TripMap({super.key, required this.trip, this.bus, this.etaSeconds, this.height = 320});
 
   final TransportTrip trip;
+
+  /// Where the bus was when the server last answered, or null - nobody has
+  /// shared a position, the trip is not running, or the request is still in
+  /// flight. The map is drawn either way; the bus is the one thing on it
+  /// that is allowed to be missing.
+  final BusPosition? bus;
+
+  /// How long until the bus reaches the next stop, when the server could
+  /// work it out. Shown on the next stop's own pin rather than beside the
+  /// bus: it is a fact about the stop somebody is waiting at.
+  final int? etaSeconds;
+
   final double height;
 
   @override
@@ -32,6 +47,7 @@ class TripMap extends ConsumerWidget {
     ];
     final school = _schoolPoint();
     final next = nextStop(trip);
+    final busAt = _busPoint();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,6 +65,16 @@ class TripMap extends ConsumerWidget {
                   icon: icons?[MapPinColour.primary] ?? BitmapDescriptor.defaultMarker,
                   infoWindow: const InfoWindow(title: 'School'),
                 ),
+              if (busAt != null)
+                Marker(
+                  markerId: const MarkerId('bus'),
+                  position: busAt,
+                  icon: icons?[busPinColour(bus!)] ?? BitmapDescriptor.defaultMarker,
+                  // Above the stops: the bus often sits right on one, and
+                  // the thing somebody opened this for is the bus.
+                  zIndexInt: 2,
+                  infoWindow: InfoWindow(title: trip.vehicleName, snippet: lastSeenLabel(bus!.ageSeconds)),
+                ),
               for (final stop in placed)
                 Marker(
                   markerId: MarkerId('stop-${stop.id}'),
@@ -56,18 +82,20 @@ class TripMap extends ConsumerWidget {
                   icon: icons?[stopPinColour(stop, next)] ?? BitmapDescriptor.defaultMarker,
                   infoWindow: InfoWindow(
                     title: '${stop.sequenceNumber}. ${stop.name}',
-                    snippet: stopStateLabel(stop, next),
+                    snippet: stop.id == next?.id && etaSeconds != null
+                        ? '${stopStateLabel(stop, next)} - ${minutesLabel(etaSeconds!)} away'
+                        : stopStateLabel(stop, next),
                   ),
                 ),
             },
             polylines: _lines(placed, school),
             // Opened on the whole trip rather than on the first stop at a
             // guessed zoom, which leaves a long route running off the edge.
-            onMapCreated: (controller) => fitCamera(controller, _framed(placed, school)),
+            onMapCreated: (controller) => fitCamera(controller, [..._framed(placed, school), ?busAt]),
           ),
         ),
         const SizedBox(height: 6),
-        _Legend(trip: trip, placed: placed.length, next: next),
+        _Legend(trip: trip, placed: placed.length, next: next, bus: bus),
       ],
     );
   }
@@ -110,6 +138,8 @@ class TripMap extends ConsumerWidget {
   LatLng? _pointOf(TripStop stop) => _point(stop.latitude, stop.longitude);
 
   LatLng? _schoolPoint() => _point(trip.schoolLatitude, trip.schoolLongitude);
+
+  LatLng? _busPoint() => bus == null ? null : _point(bus!.latitude, bus!.longitude);
 
   /// Null unless both halves are there and both are on the earth. A stop
   /// with half a coordinate points nowhere; drawn at (0, 0) it would sit
@@ -158,6 +188,13 @@ MapPinColour stopPinColour(TripStop stop, TripStop? next) {
   return MapPinColour.secondary;
 }
 
+/// Where the bus is, or where it was a while ago.
+///
+/// The server decides what counts as a while - it knows when the position
+/// was recorded and the app only knows what it was told - so this reads
+/// [BusPosition.isStale] rather than doing the arithmetic again.
+MapPinColour busPinColour(BusPosition bus) => bus.isStale ? MapPinColour.busStale : MapPinColour.bus;
+
 /// The same three states in words, for the pin's info window.
 String stopStateLabel(TripStop stop, TripStop? next) {
   if (stop.reached) return 'Reached';
@@ -168,11 +205,12 @@ String stopStateLabel(TripStop stop, TripStop? next) {
 
 /// What the colours mean, and anything the map could not draw.
 class _Legend extends StatelessWidget {
-  const _Legend({required this.trip, required this.placed, required this.next});
+  const _Legend({required this.trip, required this.placed, required this.next, required this.bus});
 
   final TransportTrip trip;
   final int placed;
   final TripStop? next;
+  final BusPosition? bus;
 
   @override
   Widget build(BuildContext context) {
@@ -187,11 +225,25 @@ class _Legend extends StatelessWidget {
           spacing: 12,
           runSpacing: 4,
           children: [
-            for (final entry in const [
-              (MapPinColour.done, 'Reached'),
-              (MapPinColour.muted, 'Next stop'),
-              (MapPinColour.secondary, 'Still to come'),
-              (MapPinColour.primary, 'School'),
+            for (final entry in [
+              // Named by its vehicle, and told apart from the stops by
+              // being the only thing on the map that moves. The last-seen
+              // words are added only when the pin is greyed, because
+              // "greyed" means nothing to somebody who has never seen it
+              // ungreyed - the Bus location card above says it in full
+              // either way, and repeating that under every map would be
+              // the same sentence twice.
+              if (bus != null)
+                (
+                  busPinColour(bus!),
+                  bus!.isStale
+                      ? '${trip.vehicleName} - ${lastSeenLabel(bus!.ageSeconds).toLowerCase()}'
+                      : trip.vehicleName,
+                ),
+              const (MapPinColour.done, 'Reached'),
+              const (MapPinColour.muted, 'Next stop'),
+              const (MapPinColour.secondary, 'Still to come'),
+              const (MapPinColour.primary, 'School'),
             ])
               // "Next stop" is left out when there is not one, rather than
               // naming a colour nothing on the map is drawn in.
@@ -233,5 +285,35 @@ class _Legend extends StatelessWidget {
       RoutePathStatus.failed => 'The road could not be worked out, so the dashed line is the order of the stops.',
       _ => 'The road has not been worked out yet; the dashed line is the order of the stops.',
     };
+  }
+}
+
+/// The trip map with the bus on it, kept up to date.
+///
+/// Split from [TripMap] so the map itself takes a plain position and can be
+/// tested without a repository behind it. This is the half that knows where
+/// the position comes from: the same fifteen-second poll the Bus location
+/// card uses, shared through the provider rather than asked for twice.
+///
+/// A trip that is not running is not polled at all - there is nowhere for
+/// its bus to have moved to, and the stop marks already say where it went.
+class TripMapCard extends ConsumerWidget {
+  const TripMapCard({super.key, required this.trip});
+
+  final TransportTrip trip;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final live = trip.isInProgress ? ref.watch(tripLiveLocationProvider(trip.id)).value : null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        // Loading and failure are not the map's business: the Bus location
+        // card above it already says both, and a map that disappeared every
+        // time a poll failed would be worse than one without a bus on it.
+        child: TripMap(trip: trip, bus: live?.position, etaSeconds: live?.nextStop?.etaSeconds),
+      ),
+    );
   }
 }

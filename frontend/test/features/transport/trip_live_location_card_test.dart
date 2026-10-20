@@ -328,12 +328,78 @@ void main() {
     expect(empty.nextStop, isNull);
   });
 
+  group('what the card says about arriving', () {
+    NextStop next({int? eta, double? metres = 1200.0}) {
+      return NextStop(
+        id: 2,
+        name: 'Central Park',
+        sequenceNumber: 2,
+        latitude: '18.54',
+        longitude: '73.85',
+        straightLineDistanceM: metres,
+        etaSeconds: eta,
+      );
+    }
+
+    testWidgets('a worked-out arrival is given in minutes, not in metres', (tester) async {
+      final fake = FakeTransportRepository()
+        ..liveAnswers = [
+          TripLiveLocation(
+            tripId: 1,
+            status: 'in_progress',
+            position: _position(),
+            nextStop: next(eta: 300),
+            finishesInSeconds: 900,
+          ),
+        ];
+
+      await tester.pumpWidget(wrap(fake, greenParkTrip));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Next stop: Central Park - about 5 min away'), findsOneWidget);
+      expect(find.text('The run should be over in about 15 min.'), findsOneWidget);
+    });
+
+    testWidgets('with no arrival to give, the straight line is still said', (tester) async {
+      final fake = FakeTransportRepository()
+        ..liveAnswers = [TripLiveLocation(tripId: 1, status: 'in_progress', position: _position(), nextStop: next())];
+
+      await tester.pumpWidget(wrap(fake, greenParkTrip));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Next stop: Central Park - about 1.2 km away (straight line)'), findsOneWidget);
+      expect(find.textContaining('The run should be over'), findsNothing);
+    });
+
+    testWidgets('neither one is just the name, never a blank or a zero', (tester) async {
+      final fake = FakeTransportRepository()
+        ..liveAnswers = [
+          TripLiveLocation(tripId: 1, status: 'in_progress', position: _position(), nextStop: next(metres: null)),
+        ];
+
+      await tester.pumpWidget(wrap(fake, greenParkTrip));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Next stop: Central Park'), findsOneWidget);
+    });
+  });
+
   test('the labels read naturally', () {
     expect(lastSeenLabel(0), 'Last seen less than a minute ago');
     expect(lastSeenLabel(59), 'Last seen less than a minute ago');
     expect(lastSeenLabel(60), 'Last seen 1 min ago');
     expect(lastSeenLabel(3600), 'Last seen 1 h ago');
     expect(lastSeenLabel(3900), 'Last seen 1 h 5 min ago');
+
+    expect(minutesLabel(0), 'under a minute');
+    expect(minutesLabel(59), 'under a minute');
+    expect(minutesLabel(60), 'about 1 min');
+    // Rounded, not truncated: an arrival worked out from a straight-line
+    // share of a leg is not accurate to the second.
+    expect(minutesLabel(89), 'about 1 min');
+    expect(minutesLabel(91), 'about 2 min');
+    expect(minutesLabel(3600), 'about 1 h');
+    expect(minutesLabel(3900), 'about 1 h 5 min');
 
     expect(distanceLabel(348), 'about 350 m');
     expect(distanceLabel(999), 'about 1.0 km');

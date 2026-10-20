@@ -48,6 +48,7 @@ from .enums import (
     NoticeKind,
     NoticeRecipients,
     EarlyAccessStatus,
+    TripDirection,
     TripEventType,
     TripRiderStatus,
     TripStatus,
@@ -5718,9 +5719,9 @@ class TripLocationService:
 
     @classmethod
     def live(cls, trip) -> dict:
-        """The latest position, how old it is, and the next stop with how far
-        away it is in a straight line. Road distances and times need the map
-        provider's route data, which comes with the maps work."""
+        """The latest position, how old it is, the next stop with how far
+        away it is in a straight line, and when the bus should reach it and
+        finish the run - see `_eta` for where those two come from."""
         from . import geo
 
         latest = TransportTripLocation.objects.filter(trip_id=trip.pk).order_by("-recorded_at", "-id").first()
@@ -5764,7 +5765,102 @@ class TripLocationService:
                 "straight_line_distance_m": distance,
             }
 
-        return {"trip_id": trip.pk, "status": trip.status, "position": position, "next_stop": stop}
+        if stop is not None:
+            to_next, to_finish = cls._eta(trip, next_stop, latest)
+            stop["eta_seconds"] = to_next
+        else:
+            to_finish = None
+
+        return {
+            "trip_id": trip.pk,
+            "status": trip.status,
+            "position": position,
+            "next_stop": stop,
+            "finishes_in_seconds": to_finish,
+        }
+
+    @classmethod
+    def _eta(cls, trip, next_stop, latest) -> tuple[int | None, int | None]:
+        """How long to the next stop, and to the end of the run.
+
+        From the leg durations Google gave when the road was worked out, not
+        from a call per refresh: a trip watched by five people for an hour
+        would otherwise be twelve hundred calls for a number that barely
+        moves. The leg is the road between the stop before this one and this
+        one; how much of it is left is taken from the straight-line distance
+        still to cover, which is the only thing a position can tell us.
+
+        **Null rather than a guess**, in every case where the stored legs do
+        not describe where the bus actually is:
+
+        - nobody has shared a position, so there is no "how far left";
+        - the next stop, or the one before it, is not on the map;
+        - the next stop is the first of the run. A pickup starts wherever
+          the bus happened to be, and a drop starts at the school, which is
+          a road Google was never asked about - the stored path runs the
+          stops in order and then the school.
+
+        The straight-line share is an approximation, and deliberately a
+        conservative one: it is the fraction of the leg still to cover as
+        the crow flies, applied to the time the road actually took.
+        """
+        from . import geo, route_paths
+
+        if latest is None or next_stop is None or next_stop.latitude is None:
+            return (None, None)
+
+        route = TransportRoute.objects.select_related("school").filter(pk=trip.route_id).first()
+
+        if route is None:
+            return (None, None)
+
+        legs = route_paths.legs_of(route)
+        placed = list(
+            TransportStop.objects.filter(route_id=trip.route_id, latitude__isnull=False, longitude__isnull=False)
+            .order_by("sequence_number", "id")
+        )
+        ids = [each.pk for each in placed]
+
+        if next_stop.pk not in ids:
+            return (None, None)
+
+        # The leg into this stop is the one before it: leg i joins placed
+        # point i to point i + 1, in the order route_paths.points_for builds.
+        index = ids.index(next_stop.pk) - 1
+
+        if index < 0 or index >= len(legs):
+            return (None, None)
+
+        duration = legs[index].get("duration_s")
+
+        if not isinstance(duration, (int, float)) or isinstance(duration, bool) or duration < 0:
+            return (None, None)
+
+        previous = placed[index]
+        whole = geo.distance_m(previous.latitude, previous.longitude, next_stop.latitude, next_stop.longitude)
+
+        if whole <= 0:
+            return (None, None)
+
+        left = geo.distance_m(latest.latitude, latest.longitude, next_stop.latitude, next_stop.longitude)
+        # Capped at the whole leg: a bus that has overshot the stop and is
+        # coming back is further away than the leg is long, and "longer than
+        # the drive itself" is not a useful thing to tell anybody. Never
+        # capped below - a distance has no sign.
+        share = min(1.0, left / whole)
+        to_next = round(duration * share)
+
+        # What is still to travel after this leg. A pickup ends at the
+        # school, which is the last stored leg; a drop ends at the last
+        # stop, so the leg from there to the school is one it never drives.
+        journey = legs if trip.direction == TripDirection.PICKUP else legs[: max(len(placed) - 1, 0)]
+        after = sum(
+            leg["duration_s"]
+            for leg in journey[index + 1:]
+            if isinstance(leg.get("duration_s"), (int, float)) and not isinstance(leg["duration_s"], bool)
+        )
+
+        return (to_next, to_next + round(after))
 
     @classmethod
     def purge(cls, days: int | None = None) -> int:

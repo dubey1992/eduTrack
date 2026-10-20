@@ -27,6 +27,21 @@ Uri mapsLink(String latitude, String longitude) {
   return Uri.https('www.google.com', '/maps/search/', {'api': '1', 'query': '$latitude,$longitude'});
 }
 
+/// "about 12 min" / "under a minute".
+///
+/// Rounded to the minute, because an arrival worked out from a straight-line
+/// share of a leg is not accurate to the second and should not pretend to be.
+String minutesLabel(int seconds) {
+  if (seconds < 60) return 'under a minute';
+
+  final minutes = (seconds / 60).round();
+  if (minutes < 60) return 'about $minutes min';
+
+  final hours = minutes ~/ 60;
+  final rest = minutes % 60;
+  return rest == 0 ? 'about $hours h' : 'about $hours h $rest min';
+}
+
 /// "about 1.2 km" / "about 350 m".
 String distanceLabel(double metres) {
   final nearestTen = (metres / 10).round() * 10;
@@ -124,6 +139,7 @@ class _LiveDetails extends StatelessWidget {
         ],
         const SizedBox(height: 6),
         Text(_nextStopLine(nextStop)),
+        if (_finishLine(live) case final line?) ...[const SizedBox(height: 2), Text(line, style: muted)],
       ],
     );
   }
@@ -144,10 +160,23 @@ class _LiveDetails extends StatelessWidget {
   static String _nextStopLine(NextStop? stop) {
     if (stop == null) return 'Every stop has been reached.';
 
-    final distance = stop.straightLineDistanceM;
-    if (distance == null) return 'Next stop: ${stop.name}';
+    // Time first where there is one: it is what somebody waiting at the
+    // stop actually wants, and the straight-line distance is only the
+    // best available when no road time can be worked out.
+    final parts = [
+      if (stop.etaSeconds != null) '${minutesLabel(stop.etaSeconds!)} away',
+      if (stop.straightLineDistanceM != null) '${distanceLabel(stop.straightLineDistanceM!)} away (straight line)',
+    ];
 
-    return 'Next stop: ${stop.name} - ${distanceLabel(distance)} away (straight line)';
+    if (parts.isEmpty) return 'Next stop: ${stop.name}';
+
+    return 'Next stop: ${stop.name} - ${parts.first}';
+  }
+
+  static String? _finishLine(TripLiveLocation live) {
+    final finish = live.finishesInSeconds;
+
+    return finish == null ? null : 'The run should be over in ${minutesLabel(finish)}.';
   }
 }
 

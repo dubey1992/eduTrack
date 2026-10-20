@@ -685,3 +685,163 @@ class StopPositions(AttendantTest):
 
     def test_an_attendant_cannot_move_stops(self):
         self.assertEqual(403, self.as_user(self.attendant).patch(self.url, {"latitude": "18.53", "longitude": "73.85"}, format="json").status_code)
+
+
+class Eta(Positions):
+    """When the bus should reach the next stop, and finish (docs/maps.md, M3).
+
+    From the leg durations Google gave when the road was worked out, never a
+    call per refresh. **Null rather than a guess** wherever the stored legs
+    do not describe where the bus actually is - which includes the first stop
+    of every run, because a pickup starts wherever the bus happened to be and
+    a drop starts at the school, a road the stored path never covers.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.central_park = self.f["stops"][1]
+        self.central_park.latitude, self.central_park.longitude = "18.5400000", "73.8500000"
+        self.central_park.save()
+
+        school = self.f["school"]
+        school.latitude, school.longitude = "18.5500000", "73.8500000"
+        school.save()
+
+        # Lake View -> Central Park, Central Park -> school. Six hundred
+        # seconds a leg makes the arithmetic plain.
+        route = self.f["route"]
+        route.path_status = "ok"
+        route.path_polyline = "_p~iF~ps|U"
+        route.path_distance_m = 4000
+        route.path_duration_s = 1200
+        route.path_legs = '[{"distance_m": 2000, "duration_s": 600}, {"distance_m": 2000, "duration_s": 600}]'
+        route.save()
+
+    def live(self):
+        return self.as_user(self.f["teacher"]).get(f"{TRIPS}/{self.trip_id}/live").data
+
+    def reach(self, stop):
+        return self.as_user(self.attendant).post(f"{TRIPS}/{self.trip_id}/stops/{stop.id}/reached", {}, format="json")
+
+    def test_halfway_along_the_leg_is_half_the_legs_time(self):
+        self.reach(self.lake_view)
+        # Lake View is at 18.53, Central Park at 18.54; the bus at 18.535.
+        self.send([self.point(0, lat="18.5350000")])
+
+        body = self.live()
+
+        self.assertEqual("Central Park", body["next_stop"]["name"])
+        self.assertAlmostEqual(300, body["next_stop"]["eta_seconds"], delta=10)
+
+    def test_the_finish_adds_the_legs_still_to_drive(self):
+        self.reach(self.lake_view)
+        self.send([self.point(0, lat="18.5350000")])
+
+        body = self.live()
+
+        # Half of the leg into Central Park, then the whole leg to the school.
+        self.assertAlmostEqual(900, body["finishes_in_seconds"], delta=10)
+
+    def test_sitting_at_the_stop_before_is_the_whole_leg(self):
+        self.reach(self.lake_view)
+        self.send([self.point(0, lat="18.5300000")])
+
+        self.assertAlmostEqual(600, self.live()["next_stop"]["eta_seconds"], delta=10)
+
+    def test_overshooting_the_stop_is_never_longer_than_the_leg_itself(self):
+        self.reach(self.lake_view)
+        # Beyond Central Park, which happens: the bus overshoots and comes
+        # back. Twice as far away as the leg is long, which uncapped would
+        # read as twenty minutes to drive a ten-minute leg.
+        self.send([self.point(0, lat="18.5600000")])
+
+        eta = self.live()["next_stop"]["eta_seconds"]
+
+        self.assertGreaterEqual(eta, 0)
+        self.assertEqual(600, eta)
+
+    def test_the_first_stop_of_the_run_has_no_estimate(self):
+        # Nothing reached yet, so the next stop is the first one - and
+        # nobody knows what road the bus took to get where it is.
+        self.send([self.point(0)])
+
+        body = self.live()
+
+        self.assertEqual("Lake View", body["next_stop"]["name"])
+        self.assertIsNone(body["next_stop"]["eta_seconds"])
+        self.assertIsNone(body["finishes_in_seconds"])
+
+    def test_no_position_shared_is_no_estimate(self):
+        self.reach(self.lake_view)
+
+        body = self.live()
+
+        self.assertIsNone(body["position"])
+        self.assertIsNone(body["next_stop"]["eta_seconds"])
+
+    def test_a_route_with_no_road_worked_out_has_no_estimate(self):
+        route = self.f["route"]
+        route.path_status = "none"
+        route.path_legs = None
+        route.save()
+        self.reach(self.lake_view)
+        self.send([self.point(0, lat="18.5350000")])
+
+        self.assertIsNone(self.live()["next_stop"]["eta_seconds"])
+
+    def test_legs_that_cannot_be_read_are_no_legs(self):
+        route = self.f["route"]
+        route.path_legs = "not json at all"
+        route.save()
+        self.reach(self.lake_view)
+        self.send([self.point(0, lat="18.5350000")])
+
+        self.assertIsNone(self.live()["next_stop"]["eta_seconds"])
+
+    def test_an_unplaced_stop_before_this_one_has_no_estimate(self):
+        # The legs are built from the placed stops only, so an unplaced one
+        # shifts nothing - but the stop before Central Park is then Lake
+        # View's absence, and there is no leg into it.
+        self.lake_view.latitude = None
+        self.lake_view.longitude = None
+        self.lake_view.save()
+        self.reach(self.lake_view)
+        self.send([self.point(0, lat="18.5350000")])
+
+        body = self.live()
+
+        self.assertEqual("Central Park", body["next_stop"]["name"])
+        self.assertIsNone(body["next_stop"]["eta_seconds"])
+
+    def test_a_drop_run_never_counts_the_leg_back_to_the_school(self):
+        # setUp leaves a pickup running on this route, and a route runs one
+        # trip at a time.
+        self.as_user(self.attendant).post(f"{TRIPS}/{self.trip_id}/cancel", {}, format="json")
+
+        drop = self.as_user(self.attendant).post(
+            TRIPS, {"route_id": self.f["route"].id, "direction": "drop"}, format="json"
+        )
+        self.assertEqual(201, drop.status_code, drop.data)
+        self.trip_id = drop.data["id"]
+        TransportTrip.objects.filter(pk=self.trip_id).update(started_at=WEDNESDAY - dt.timedelta(hours=1))
+
+        self.reach(self.lake_view)
+        self.send([self.point(0, lat="18.5350000")])
+
+        body = self.live()
+
+        # A drop ends at the last stop, so the finish is the half leg into
+        # Central Park and nothing after it.
+        self.assertAlmostEqual(300, body["next_stop"]["eta_seconds"], delta=10)
+        self.assertAlmostEqual(300, body["finishes_in_seconds"], delta=10)
+
+    def test_a_finished_trip_has_no_next_stop_and_no_estimate(self):
+        self.reach(self.lake_view)
+        self.send([self.point(0, lat="18.5350000")])
+        self.reach(self.central_park)
+        self.as_user(self.attendant).post(f"{TRIPS}/{self.trip_id}/end", {}, format="json")
+
+        body = self.live()
+
+        self.assertIsNone(body["next_stop"])
+        self.assertIsNone(body["finishes_in_seconds"])
