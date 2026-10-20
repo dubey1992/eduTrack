@@ -15,6 +15,7 @@ import 'widgets/edit_entry_dialog.dart';
 import 'widgets/manage_periods_dialog.dart';
 import '../../../core/widgets/school_picker.dart';
 import '../../schools/application/school_week_provider.dart';
+import '../../schools/data/models/working_week.dart';
 
 /// Phase 10 - a class section's weekly (Mon-Fri x period) subject/teacher
 /// grid, matching the prototype's "Timetable & Period Management" screen.
@@ -173,8 +174,8 @@ class _ClassSectionGrid extends ConsumerWidget {
           value: entriesState,
           onRetry: () => ref.invalidate(timetableGridProvider(params)),
           data: (context, entries) {
-            return _TimetableGrid(
-              days: _daysFor(ref, schoolId),
+            return _TimetableGrids(
+              schoolId: schoolId,
               periods: periods,
               cellLabel: (entry) => '${entry.subjectName ?? ''}\n${entry.teacherName ?? ''}',
               entryFor: (periodId, day) => entries
@@ -221,15 +222,28 @@ class _MyScheduleGrid extends ConsumerWidget {
         ),
       ),
       data: (context, entries) {
-        final periods = {for (final e in entries) e.periodId: e.periodNumber ?? 0};
+        // Built from the entries, because this view never loads the
+        // school's periods - and carrying each one's shape with it, or a
+        // half day's period would be laid out among the full day's and land
+        // under a column that is not there.
+        final seen = {for (final e in entries) e.periodId: e};
         final syntheticPeriods =
-            periods.entries
-                .map((e) => Period(id: e.key, schoolId: 0, periodNumber: e.value, startTime: '', endTime: ''))
+            seen.entries
+                .map(
+                  (e) => Period(
+                    id: e.key,
+                    schoolId: 0,
+                    periodNumber: e.value.periodNumber ?? 0,
+                    dayShape: e.value.periodDayShape,
+                    startTime: '',
+                    endTime: '',
+                  ),
+                )
                 .toList()
               ..sort((a, b) => a.periodNumber.compareTo(b.periodNumber));
 
-        return _TimetableGrid(
-          days: _daysFor(ref, null),
+        return _TimetableGrids(
+          schoolId: null,
           periods: syntheticPeriods,
           cellLabel: (entry) => '${entry.subjectName ?? ''}\n${entry.classSectionName ?? ''}',
           entryFor: (periodId, day) =>
@@ -243,6 +257,127 @@ class _MyScheduleGrid extends ConsumerWidget {
 
 /// Mon-Fri x period grid, generic enough to serve both the editable
 /// class-section view and the read-only "My Schedule" view - [onCellTap]
+/// The week's grid, one table per shape of day (docs/holidays.md, H3).
+///
+/// A full day and a half day ring different bells at different times, so they
+/// cannot share rows: a single table over both would put a period 1 that
+/// starts at 09:00 and a period 1 that starts at 09:00 for forty minutes on
+/// the same line, and leave every full-day row blank under the Saturday
+/// column. Two tables, each with its own periods and its own days.
+///
+/// **A school with no half day gets exactly one table**, with no heading
+/// above it - which is the screen it had before any of this.
+class _TimetableGrids extends ConsumerWidget {
+  const _TimetableGrids({
+    required this.schoolId,
+    required this.periods,
+    required this.cellLabel,
+    required this.entryFor,
+    required this.onCellTap,
+  });
+
+  final int? schoolId;
+  final List<Period> periods;
+  final String Function(TimetableEntry entry) cellLabel;
+  final TimetableEntry? Function(int periodId, DayOfWeek day) entryFor;
+  final void Function(Period period, DayOfWeek day, TimetableEntry? existing)? onCellTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final week = ref.watch(schoolWeekProvider(schoolId));
+
+    if (!week.hasHalfDay) {
+      final orphaned = periods.where((period) => period.isHalfDay).length;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _TimetableGrid(
+            days: DayOfWeek.of(week),
+            periods: periods.where((period) => !period.isHalfDay).toList(),
+            cellLabel: cellLabel,
+            entryFor: entryFor,
+            onCellTap: onCellTap,
+          ),
+          // Periods set up for a half day that no day is marked as. Said
+          // rather than silently dropped: somebody built those bells, and a
+          // grid that simply does not show them looks like they were lost.
+          if (orphaned > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              orphaned == 1
+                  ? '1 period is set up for half days, but no day is marked as one.'
+                  : '$orphaned periods are set up for half days, but no day is marked as one.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.appColors.warning),
+            ),
+          ],
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final shape in const [WorkingWeek.fullDay, WorkingWeek.halfDay]) ...[
+          _ShapeHeading(shape: shape, week: week),
+          const SizedBox(height: 6),
+          _forShape(context, week, shape),
+          const SizedBox(height: 20),
+        ],
+      ],
+    );
+  }
+
+  Widget _forShape(BuildContext context, WorkingWeek week, String shape) {
+    final days = [
+      for (final index in week.dayIndexes)
+        if (week.shapeOf(index) == shape) DayOfWeek.values[index],
+    ];
+    final forShape = periods.where((period) => period.dayShape == shape).toList();
+
+    if (forShape.isEmpty) {
+      // Columns and no rows is a table of nothing. Say what is missing.
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            shape == WorkingWeek.halfDay
+                ? 'No periods for half days yet. Add them in Manage Periods.'
+                : 'No periods yet. Add them in Manage Periods.',
+          ),
+        ),
+      );
+    }
+
+    return _TimetableGrid(
+      days: days,
+      periods: forShape,
+      cellLabel: cellLabel,
+      entryFor: entryFor,
+      onCellTap: onCellTap,
+    );
+  }
+}
+
+/// "Full days · Monday to Friday".
+class _ShapeHeading extends StatelessWidget {
+  const _ShapeHeading({required this.shape, required this.week});
+
+  final String shape;
+  final WorkingWeek week;
+
+  @override
+  Widget build(BuildContext context) {
+    final named = [
+      for (final index in week.dayIndexes)
+        if (week.shapeOf(index) == shape) WorkingWeek.labels[index],
+    ];
+    final title = shape == WorkingWeek.halfDay ? 'Half days' : 'Full days';
+
+    return Text(named.isEmpty ? title : '$title · ${named.join(', ')}', style: Theme.of(context).textTheme.titleSmall);
+  }
+}
+
 /// null means read-only.
 class _TimetableGrid extends StatelessWidget {
   const _TimetableGrid({
@@ -331,6 +466,3 @@ class _HeaderCell extends StatelessWidget {
     );
   }
 }
-
-/// The days to lay the grid out in, in week order.
-List<DayOfWeek> _daysFor(WidgetRef ref, int? schoolId) => DayOfWeek.of(ref.watch(schoolWeekProvider(schoolId)));

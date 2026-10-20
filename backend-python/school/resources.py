@@ -154,6 +154,11 @@ def timetable_entry_resource(entry) -> dict:
         ),
         "period_id": entry.period_id,
         "period_number": entry.period.period_number if entry.period_id else None,
+        # Which shape of day these bells belong to. The teacher's own
+        # schedule is drawn from entries alone - it never loads the school's
+        # periods - so without this a half day's period would be laid out
+        # among the full day's and land under a column that is not there.
+        "period_day_shape": entry.period.day_shape if entry.period_id else None,
         "day_of_week": entry.day_of_week,
         "subject_id": entry.subject_id,
         "subject_name": entry.subject.name if entry.subject_id else None,

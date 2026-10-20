@@ -333,8 +333,8 @@ class TimetableTest(TestCase):
         self.assertEqual(
             {
                 "id", "school_id", "class_section_id", "class_section_name",
-                "period_id", "period_number", "day_of_week", "subject_id",
-                "subject_name", "teacher_id", "teacher_name",
+                "period_id", "period_number", "period_day_shape", "day_of_week",
+                "subject_id", "subject_name", "teacher_id", "teacher_name",
             },
             set(created.data),
         )

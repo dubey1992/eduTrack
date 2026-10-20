@@ -43,6 +43,14 @@ final _schoolClass = SchoolClass(
 );
 
 const _period = Period(id: 1, schoolId: 1, periodNumber: 1, startTime: '08:30', endTime: '09:15');
+const _halfPeriod = Period(
+  id: 2,
+  schoolId: 1,
+  periodNumber: 1,
+  dayShape: WorkingWeek.halfDay,
+  startTime: '09:00',
+  endTime: '09:40',
+);
 
 Widget wrap(
   AuthenticatedUser actor, {
@@ -177,6 +185,73 @@ void main() {
 
       expect(find.text('Saturday'), findsOneWidget);
       expect(find.text('Sunday'), findsNothing);
+    });
+  });
+
+  group('a full day and a half day are two grids', () {
+    Widget gridWeek(String week, {List<Period> periods = const [_period]}) {
+      return wrap(
+        AuthenticatedUser(
+          id: 9,
+          name: 'Admin',
+          email: 'admin@example.com',
+          role: UserRole.schoolAdmin,
+          workingDays: WorkingWeek.fromApiValue(week),
+        ),
+        schoolClasses: FakeSchoolClassRepository(classes: [_schoolClass]),
+        periods: FakePeriodRepository(periods: periods),
+        timetable: FakeTimetableRepository(),
+      );
+    }
+
+    testWidgets('a school with no half day gets one grid and no headings', (tester) async {
+      // The screen it had before any of this.
+      await tester.pumpWidget(gridWeek('1111100'));
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      expect(find.textContaining('Full days'), findsNothing);
+      expect(find.textContaining('Half days'), findsNothing);
+      expect(find.text('Monday'), findsOneWidget);
+    });
+
+    testWidgets('a school with one gets both, each naming its days', (tester) async {
+      await tester.pumpWidget(gridWeek('1111120', periods: [_period, _halfPeriod]));
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      expect(find.text('Full days · Monday, Tuesday, Wednesday, Thursday, Friday'), findsOneWidget);
+      expect(find.text('Half days · Saturday'), findsOneWidget);
+      // Saturday is a column of the half grid, not of the full one.
+      expect(find.text('Saturday'), findsOneWidget);
+    });
+
+    testWidgets('a half day with no periods says so rather than drawing nothing', (tester) async {
+      await tester.pumpWidget(gridWeek('1111120'));
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      expect(find.text('No periods for half days yet. Add them in Manage Periods.'), findsOneWidget);
+      // And the full grid is still there.
+      expect(find.text('Monday'), findsOneWidget);
+    });
+
+    testWidgets('periods left over from a half day nobody keeps are named, not dropped', (tester) async {
+      // Somebody built those bells and then unmarked the day. A grid that
+      // simply does not show them looks like they were lost.
+      await tester.pumpWidget(gridWeek('1111100', periods: [_period, _halfPeriod]));
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      expect(find.text('1 period is set up for half days, but no day is marked as one.'), findsOneWidget);
+    });
+
+    testWidgets('a school with no half day and no stray periods says nothing', (tester) async {
+      await tester.pumpWidget(gridWeek('1111100'));
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      expect(find.textContaining('set up for half days'), findsNothing);
     });
   });
 }

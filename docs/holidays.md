@@ -87,9 +87,9 @@ school they picked - otherwise they would be shown Monday-to-Friday columns
 for a school that keeps Sunday to Thursday, and the server would refuse every
 cell they tried to fill.
 
-## Half days - PLAN, not built
+## Half days
 
-Decided 2026-10-20, awaiting the build. A school that runs a Saturday morning,
+Decided and built 2026-10-20, in three slices. A school that runs a Saturday morning,
 or a Saturday that is only a PT session, has no way to say so: every day is on
 or off, and every day rings the same bells.
 
@@ -179,9 +179,28 @@ Both screens read `schoolWeekProvider`, which resolves a school user's own week
 from the session and a Super Admin's picked school from the list - the same
 resolution the grid uses, in one place now instead of two.
 
-**H3 - the grid.** Two tables rather than one ragged one: full days with their
-periods, half days with theirs. A school with no half days sees exactly what
-it sees now, which is the test that this did not cost anybody anything.
+**H3 - the grid. Built 2026-10-20.** Two tables rather than one ragged one:
+full days with their periods, half days with theirs, each heading naming its
+own days. A single table over both would put a period 1 that starts at 09:00
+and a period 1 that starts at 09:00 for forty minutes on the same line, and
+leave every full-day row blank under the Saturday column.
+
+**A school with no half day gets exactly one table and no heading at all** -
+the screen it had before any of this, and the test that this cost nobody
+anything.
+
+Three cases that only exist because of the split, each said rather than drawn
+as nothing:
+
+- **A half day with no periods yet** gets a card saying so, not a table of
+  columns with no rows.
+- **Periods left over from a half day nobody keeps any more** are counted and
+  named under the grid. Somebody built those bells and then unmarked the day;
+  a grid that simply stops showing them looks like they were lost.
+- **The teacher's own schedule carries each period's shape on the entry**
+  (`period_day_shape`). That view is drawn from entries alone and never loads
+  the school's periods, so without it a half day's period would be laid out
+  among the full day's and land under a column that is not there.
 
 ### What this deliberately does not do
 
