@@ -108,6 +108,7 @@ from .errors import (
 from .models import (
     AttendantCredential,
     AttendantDevice,
+    BiometricDevice,
     MailSetting,
     TransportTripLocation,
     ModuleSetting,
@@ -3438,6 +3439,7 @@ class StaffProfileService:
                 # above - never re-derived from client input here.
                 school_id=user.school_id,
                 employee_id=profile_data["employee_id"],
+                biometric_user_id=profile_data.get("biometric_user_id"),
                 department_id=profile_data.get("department_id"),
                 designation=profile_data.get("designation"),
                 joining_date=profile_data["joining_date"],
@@ -3677,6 +3679,72 @@ class PeriodService:
 
         audit.deleted("timetable", period)
         period.delete()
+
+
+class BiometricDeviceService:
+    """The fingerprint readers a school has (docs/biometric.md, B1)."""
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict | None = None):
+        devices = SchoolScope.for_actor(actor).apply_to(
+            BiometricDevice.objects.select_related("school")
+        )
+        filters = filters or {}
+
+        if filters.get("school_id"):
+            devices = devices.filter(school_id=filters["school_id"])
+
+        if filters.get("status"):
+            devices = devices.filter(status=filters["status"])
+
+        if filters.get("q"):
+            like = f"%{filters['q']}%"
+            devices = devices.filter(
+                Q(name__ilike=like) | Q(serial_number__ilike=like) | Q(location__ilike=like)
+            )
+
+        # The ones that have never spoken first: a device registered and
+        # never heard from is the one somebody has to go and look at.
+        return devices.order_by(F("last_seen_at").asc(nulls_first=True), "name", "id")
+
+    @staticmethod
+    def create(data: dict, actor: User) -> BiometricDevice:
+        data = dict(data)
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+        now = timezone.now()
+
+        device = BiometricDevice.objects.create(
+            school_id=school_id,
+            status=TransportStatus.ACTIVE,
+            created_at=now,
+            updated_at=now,
+            **data,
+        )
+
+        audit.created("staff_attendance", device)
+
+        return device
+
+    @staticmethod
+    def update(device: BiometricDevice, data: dict) -> BiometricDevice:
+        before = audit.fields_of(device)
+
+        for field, value in data.items():
+            setattr(device, field, value)
+
+        device.updated_at = timezone.now()
+        device.save()
+        audit.updated("staff_attendance", device, before)
+
+        return device
+
+    @staticmethod
+    def delete(device: BiometricDevice) -> None:
+        """Removing a device it never heard from is tidying up; removing one
+        that has spoken would orphan its punches, which B2 has to settle
+        before this becomes more than a registry."""
+        audit.deleted("staff_attendance", device)
+        device.delete()
 
 
 class HolidayService:

@@ -53,6 +53,7 @@ from .enums import (
 )
 from . import week
 from .models import (
+    BiometricDevice,
     AttendantCredential,
     AcademicTerm,
     AcademicYear,
@@ -2724,6 +2725,11 @@ class StoreStaffRequest(ScopedSerializer):
     password = PasswordField("password", required=False, allow_null=True)
     role = LaravelCharField("role")
     employee_id = LaravelCharField("employee_id", max_length=30)
+    # The id on the fingerprint devices (docs/biometric.md). Optional, and
+    # blank for the many who are not enrolled on one.
+    biometric_user_id = LaravelCharField(
+        "biometric_user_id", max_length=32, required=False, allow_null=True, allow_blank=True
+    )
     department_id = LaravelIntegerField("department_id", required=False, allow_null=True)
     designation = optional_text("designation", 100)
     joining_date = LaravelDateField("joining_date")
@@ -2781,6 +2787,17 @@ class StoreStaffRequest(ScopedSerializer):
         ).exists():
             errors["employee_id"] = [already_taken("employee_id")]
 
+        # Per school, not per platform: two schools number their own staff
+        # from 1 and neither is wrong. A blank is not a clash, which is why
+        # it is normalised to null rather than compared.
+        enrolled = (attrs.get("biometric_user_id") or "").strip()
+        attrs["biometric_user_id"] = enrolled or None
+
+        if enrolled and StaffProfile.objects.filter(
+            school_id=school_id, biometric_user_id=enrolled
+        ).exists():
+            errors["biometric_user_id"] = [already_taken("biometric_user_id")]
+
         department_id = attrs.get("department_id")
 
         if department_id is not None and not Department.objects.filter(
@@ -2821,7 +2838,14 @@ class StoreStaffRequest(ScopedSerializer):
         """The half that becomes the employment record."""
         return {
             field: self.validated_data.get(field)
-            for field in ("employee_id", "department_id", "designation", "joining_date", "address")
+            for field in (
+                "employee_id",
+                "biometric_user_id",
+                "department_id",
+                "designation",
+                "joining_date",
+                "address",
+            )
         }
 
 
@@ -3046,6 +3070,71 @@ class PeriodForm(ScopedSerializer):
             errors["end_time"] = [must_be_after("end_time", "start_time")]
 
         return errors
+
+
+class BiometricDeviceForm(ScopedSerializer):
+    """A fingerprint reader being registered or renamed."""
+
+    name = LaravelCharField("name", max_length=100)
+    serial_number = LaravelCharField("serial_number", max_length=64)
+    location = LaravelCharField("location", max_length=100, required=False, allow_null=True, allow_blank=True)
+
+    def validate_serial_number(self, value: str) -> str:
+        # Upper case, because a serial read off a sticker and typed in is
+        # the same serial whichever way somebody types it - and the device
+        # itself will send exactly one of them.
+        return value.strip().upper()
+
+    def check(self, attrs, ignoring=None) -> dict:
+        serial = attrs.get("serial_number")
+
+        if serial is None:
+            return {}
+
+        taken = BiometricDevice.objects.filter(serial_number=serial)
+
+        if ignoring is not None:
+            taken = taken.exclude(pk=ignoring)
+
+        # Across the platform, not within the school: the serial is how an
+        # unauthenticated device says who it is, and two schools claiming
+        # one would make that unanswerable. The message does not say which
+        # school has it - that would tell one customer about another.
+        if taken.exists():
+            return {"serial_number": [already_taken("serial_number")]}
+
+        return {}
+
+
+class StoreBiometricDeviceRequest(BiometricDeviceForm):
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        errors = self.check(attrs)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = self.resolved_school_id()
+
+        return attrs
+
+
+class UpdateBiometricDeviceRequest(BiometricDeviceForm):
+    def __init__(self, *args, device=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.device = device
+
+        for field in self.fields.values():
+            field.required = False
+
+    def validate(self, attrs):
+        errors = self.check(attrs, ignoring=self.device.pk)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
 
 class StorePeriodRequest(PeriodForm):

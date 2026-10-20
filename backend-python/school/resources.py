@@ -847,6 +847,9 @@ def staff_profile_resource(profile, class_teacher_of=None) -> dict:
         "id": profile.id,
         "user_id": profile.user_id,
         "employee_id": profile.employee_id,
+        # The id this person has on the school's fingerprint devices, or
+        # null for the many who are not enrolled on one.
+        "biometric_user_id": profile.biometric_user_id,
         "first_name": user.first_name,
         "last_name": user.last_name,
         "name": user.name,
@@ -916,6 +919,24 @@ def period_resource(period) -> dict:
         # rendered the way the timetable shows it.
         "start_time": period.start_time.strftime("%H:%M"),
         "end_time": period.end_time.strftime("%H:%M"),
+    }
+
+
+def biometric_device_resource(device) -> dict:
+    """One fingerprint reader (docs/biometric.md, B1)."""
+    return {
+        "id": device.id,
+        "school_id": device.school_id,
+        "school_name": device.school.name,
+        "serial_number": device.serial_number,
+        "name": device.name,
+        "location": device.location,
+        "status": device.status,
+        # Null until the device has actually spoken. The client says "never
+        # heard from" rather than showing a blank, because the two mean
+        # different things.
+        "last_seen_at": timestamp(device.last_seen_at),
+        "created_at": timestamp(device.created_at),
     }
 
 

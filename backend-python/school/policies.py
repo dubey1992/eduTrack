@@ -187,6 +187,25 @@ class StaffAttendancePolicy:
         return permitted(actor, "staff_attendance", write=True, school_id=school_id) and in_scope(actor, school_id)
 
 
+class BiometricDevicePolicy:
+    """Who manages the fingerprint readers (docs/biometric.md, B1).
+
+    Under `staff_attendance` rather than a module of its own: a device is
+    hardware that fills that register's times, so a school with the register
+    has this and a school without it has neither. An HOD marks the register
+    but does not buy the hardware, which is why this is write-gated on the
+    same module and scoped to the school either way.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return permitted(actor, "staff_attendance")
+
+    @staticmethod
+    def manage(actor: User, school_id) -> bool:
+        return permitted(actor, "staff_attendance", write=True, school_id=school_id) and in_scope(actor, school_id)
+
+
 class StaffLeavePolicy:
     """Applying and reviewing, deliberately two abilities.
 

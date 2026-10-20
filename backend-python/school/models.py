@@ -915,11 +915,40 @@ class StaffLeave(models.Model):
         managed = False
         db_table = 'staff_leaves'
 
+class BiometricDevice(models.Model):
+    """A fingerprint reader at a school (docs/biometric.md, B1).
+
+    The serial number is unique across the platform rather than per school:
+    it is how an unauthenticated device says who it is, so two schools
+    claiming one would make that question unanswerable.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey(School, models.DO_NOTHING)
+    serial_number = models.CharField(max_length=64, unique=True)
+    name = models.CharField(max_length=100)
+    location = models.CharField(max_length=100, blank=True, null=True)
+    status = models.CharField(max_length=255)
+    # Null until a device actually speaks (B4). One registered this morning
+    # and never heard from is a different thing from one that stopped
+    # talking on Tuesday, and only this column tells them apart.
+    last_seen_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'biometric_devices'
+
+
 class StaffProfile(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField('User', models.DO_NOTHING)
     school = models.ForeignKey(School, models.DO_NOTHING)
     employee_id = models.CharField(max_length=30)
+    # The id this person has on the school's fingerprint devices, or null
+    # for the many who are not enrolled on one (docs/biometric.md).
+    biometric_user_id = models.CharField(max_length=32, blank=True, null=True)
     department = models.ForeignKey(Department, models.DO_NOTHING, blank=True, null=True)
     designation = models.CharField(max_length=100, blank=True, null=True)
     joining_date = models.DateField()
@@ -930,7 +959,7 @@ class StaffProfile(models.Model):
     class Meta:
         managed = False
         db_table = 'staff_profiles'
-        unique_together = (('school', 'employee_id'),)
+        unique_together = (('school', 'employee_id'), ('school', 'biometric_user_id'))
 
 class Student(models.Model):
     id = models.BigAutoField(primary_key=True)

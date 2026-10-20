@@ -21,6 +21,7 @@ from school.views import (
     academic_terms,
     academic_years,
     assessments,
+    biometric,
     promotions,
     grade_scales,
     announcements,
@@ -94,6 +95,10 @@ urlpatterns = [
     path("api/v1/classes/<int:class_id>", classes.school_class),
     path("api/v1/classes/<int:class_id>/sections", classes.add_section),
     path("api/v1/sections/<int:section_id>", classes.section),
+    # -- biometric devices (docs/biometric.md) ----------------------------
+    path("api/v1/biometric/devices", biometric.collection),
+    path("api/v1/biometric/devices/<int:device_id>", biometric.detail),
+
     path("api/v1/periods", classes.periods),
     path("api/v1/periods/<int:period_id>", classes.period),
     path("api/v1/holidays", classes.holidays),
