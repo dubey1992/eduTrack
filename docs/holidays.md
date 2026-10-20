@@ -87,8 +87,79 @@ school they picked - otherwise they would be shown Monday-to-Friday columns
 for a school that keeps Sunday to Thursday, and the server would refuse every
 cell they tried to fill.
 
-**Still Monday to Friday in one place:** a school that runs a half-day - a
-Saturday morning - has no way to say so. Every day is on or off.
+## Half days - PLAN, not built
+
+Decided 2026-10-20, awaiting the build. A school that runs a Saturday morning,
+or a Saturday that is only a PT session, has no way to say so: every day is on
+or off, and every day rings the same bells.
+
+### What is already true
+
+Worth knowing before anything is built, because it is most of the problem:
+
+- **Nothing assumes a fixed number of periods per day.** "Periods today",
+  "Reports filed" and the teaching coverage report all count the timetable
+  entries that exist. A PT-only Saturday already reads correctly end to end -
+  one entry, one period today, 0/1 reports filed, one period scheduled.
+- **A half day already exists, and means something else.**
+  `StaffAttendanceStatus.HALF_DAY` and `LeaveType.HALF_DAY` are properties of
+  a *person* on a day, each worth 0.5. What is missing is a property of the
+  *day*. Conflating the two is the main risk here.
+- **Period times are school-wide.** `periods` is unique on
+  (school, period_number) with no day in it. A Saturday whose periods are
+  forty minutes rather than fifty-five cannot be expressed. **This is the only
+  real schema gap.**
+
+### The two decisions
+
+**A school half-day counts as a full working day.** The school ran; a teacher
+who was there all morning worked a full Saturday. Counting it as 0.5 would
+score a teacher who never misses a day at about 92%, which reads as a bug -
+and it would give HALF_DAY two meanings, so half-day leave on a half-day
+Saturday would be a quarter of something.
+
+This decision is what keeps the work small: **attendance, leave, payroll,
+every report denominator and all of transport need no change whatsoever.**
+
+**Two shapes, not arbitrary per-day periods.** A school defines a full day and
+a half day - each with its own periods, at its own times - and says which days
+use which. It is how schools describe it, and the freedom to give every
+weekday its own bells is freedom nobody asked for and a ragged grid to draw.
+
+### Schema
+
+`schools.working_days` widens rather than gaining a companion: `'0'` closed,
+`'1'` a full day, `'2'` a half day. Every value stored today is already valid,
+and one column cannot contradict itself the way a second mask could - a day
+marked "half" but not "working" is a state that simply cannot be written.
+
+`periods` gains `day_shape` (`full` / `half`, default `full`), and its
+uniqueness becomes (school, day_shape, period_number). Every existing row is a
+full-day period, so a school that never uses this is untouched.
+
+### The slices
+
+**H1 - the shape.** The migration, `WorkingWeek` learning a third state, the
+periods API taking a shape, and a timetable entry refused when its period's
+shape does not match the day's. No UI; the default is unchanged, so nothing
+moves until somebody says so.
+
+**H2 - saying so.** Manage Periods gains the full/half choice. The week picker
+gains a third state per day - closed, full, half - which the seven chips
+cannot carry, so that control has to change shape with it.
+
+**H3 - the grid.** Two tables rather than one ragged one: full days with their
+periods, half days with theirs. A school with no half days sees exactly what
+it sees now, which is the test that this did not cost anybody anything.
+
+### What this deliberately does not do
+
+- **No fractional days anywhere.** See the first decision.
+- **No per-day transport times.** A half day's drop trip leaves earlier, but
+  trip times are not modelled per day today and this does not start.
+- **No third shape.** A school needing "Saturday is PT only" uses the half-day
+  shape with one period in it. If a school ever needs a genuinely different
+  third day, that is when to reconsider - not before.
 
 ## Declaring a holiday after the fact
 
