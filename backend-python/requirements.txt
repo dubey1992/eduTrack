@@ -39,3 +39,15 @@ cryptography==50.0.1
 # (school/photos.py), which is what strips EXIF and anything smuggled after
 # the image data. Already here through xhtml2pdf; pinned now it is used.
 Pillow==12.3.0
+
+# One .env serves both stacks: the schema stays Laravel's, so PHP and Python sit
+# on the same host and read the same file. Laravel's format has quoting and
+# ${VAR} interpolation in it, and a hand-rolled reader that got a quoted secret
+# key subtly wrong would misconfigure production silently. Pure Python, no
+# build step, which matters on shared hosting.
+python-dotenv==1.0.1
+
+# Makes a --parallel failure readable. Without it the worker that failed
+# reports "tracebacks cannot be pickled" and nothing else, which turns a
+# one-line test failure into an afternoon of bisecting.
+tblib==3.0.0

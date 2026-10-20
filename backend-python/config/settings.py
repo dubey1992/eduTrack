@@ -23,17 +23,61 @@ from pathlib import Path
 import os
 
 from django.core.exceptions import ImproperlyConfigured
+from dotenv import dotenv_values, load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Off unless a developer turns it on (Phase 21). DEBUG on a public server hands
-# a stack trace, with settings, to anybody who can trigger a 500 - so the safe
-# value is the one you get by forgetting to set it.
-DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
-
 # `manage.py test`: the suite runs without DEBUG, as production does, but
 # keeps some conveniences below that a live server must not have.
-TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+#
+# Recorded in the environment as well as read from argv, because
+# `--parallel` spawns worker processes whose argv is the multiprocessing
+# bootstrap, not this command. A worker that did not know it was testing
+# would configure itself differently from the run it belongs to, which is a
+# very confusing way to lose an afternoon.
+TESTING = (len(sys.argv) > 1 and sys.argv[1] == "test") or os.environ.get("EDUTRACK_TESTING") == "1"
+
+if TESTING:
+    os.environ["EDUTRACK_TESTING"] = "1"
+
+# One .env, read by both stacks (docs/deployment.md).
+#
+# The schema stays Laravel's - migrations are the only way it changes - so
+# PHP and Python sit on the same host and must not disagree about the
+# database they are pointed at, the encryption key, or the first admin's
+# address. They read the same file.
+#
+# Loaded here rather than in manage.py or passenger_wsgi.py, because settings
+# is the one place configuration is read and neither of those can forget it.
+# **A real environment variable always wins** (override=False): that is what
+# keeps CI, the test runner and a one-off `DJANGO_DEBUG=true` in a shell
+# working whatever the file happens to say.
+ENV_FILE = Path(os.environ.get("EDUTRACK_ENV_FILE") or BASE_DIR.parent / "backend" / ".env")
+
+if ENV_FILE.is_file():
+    if TESTING:
+        # **The suite does not take configuration from a developer's file.**
+        # It once did, for about an hour, and a `.env` with MAIL_PASSWORD in
+        # it made a test asserting "nothing is configured" report that
+        # something was. A test that answers differently on two machines is
+        # worse than no test, and CI has no .env at all - so what passes here
+        # has to be what passes there.
+        #
+        # The database is the exception, and only the database: it is what a
+        # local run needs to connect at all, CI sets the same keys itself,
+        # and no PG_* value can change what any test asserts.
+        for key, value in dotenv_values(ENV_FILE).items():
+            if key.startswith("PG_") and value is not None and key not in os.environ:
+                os.environ[key] = value
+    else:
+        load_dotenv(ENV_FILE, override=False)
+
+# Off unless a developer turns it on (Phase 21). DEBUG on a public server hands
+# a stack trace, with settings, to anybody who can trigger a 500 - so the safe
+# value is the one you get by forgetting to set it. Read after the file, so a
+# development .env can turn it on.
+DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
+
 
 # The real one comes from the environment. Outside development and the test
 # suite there is no default at all: a deployment that forgets it fails at
