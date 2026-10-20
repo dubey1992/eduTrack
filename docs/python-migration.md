@@ -162,6 +162,13 @@ into the second by accident is not.
 
 **Done when:** all four have written answers.
 
+**Answered.** Django + DRF (reasoned below); feature work continued on Python
+only after M11; and on **2026-10-20 the host confirmed it offers both
+PostgreSQL and a Python application**, which was the last of the four and the
+one that gated everything. The VPS question does not arise. What the host
+makes possible is written up as a runbook in
+[deployment.md](deployment.md) — M12 below.
+
 ## M1 · PostgreSQL running locally, schema parity
 
 **Work**
@@ -1423,6 +1430,15 @@ only that the library agrees with itself.
 
 **Work:** maintenance page, final data sync, document root or DNS switched,
 sequences reset and asserted, smoke test as a real user.
+
+**Ready, not done.** Everything that can be prepared without the host has
+been: `passenger_wsgi.py` is the entry point cPanel's Python app loads,
+configuration comes from the one `.env` PHP already reads, `.env.example`
+names every `DJANGO_*` setting a deployment needs, `manage.py
+create_super_admin` makes the first account, and
+[deployment.md](deployment.md) is a runbook for this stack rather than the
+Laravel one. Nothing has been uploaded and nothing has been pointed at a
+domain.
 
 **Rollback:** the PHP app stays deployed and the old database stays readable for
 a fortnight. Reverting is a document-root switch.
