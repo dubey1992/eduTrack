@@ -133,7 +133,9 @@ class ChannelsWhenRecording(MessagingTest):
 
         self.assertEqual(MessageStatus.SKIPPED, copy.status)
         self.assertEqual("No WhatsApp template is mapped for this message.", copy.failure_reason)
-        self.assertFalse(QueuedJob.objects.filter(payload={"message_id": copy.id}).exists())
+        # Compared in Python, not in SQL: `payload` is a `json` column and
+        # `json` has no equality operator.
+        self.assertNotIn({"message_id": copy.id}, [job.payload for job in QueuedJob.objects.all()])
 
     def test_a_guardian_with_no_email_is_skipped_on_the_email_channel_only(self):
         self.settings(email_enabled=True)

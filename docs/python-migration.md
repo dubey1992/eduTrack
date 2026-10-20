@@ -897,6 +897,36 @@ The pattern is now named where it will be needed again: **any time Django's
 default column type differs from Laravel's, the test suite is blind to it and
 `check_models` is not.**
 
+### Closing that blindness at the root (2026-10-20)
+
+Reading was only half of it. `json` has **no equality operator**, so two
+ordinary ORM operations fail against it and cannot fail in a test database
+built with `jsonb`:
+
+- `WHERE payload = '{...}'` - Django renders the parameter as `jsonb`, and
+  PostgreSQL has no `json = jsonb`;
+- `Count(relation, distinct=True)` while a `json` column is selected, because
+  a distinct count groups by every selected column.
+
+The second one did reach production, in the route list, and was settled by
+moving that one column to `text` (docs/maps.md, M2). Nothing stopped the next
+one - so `LaravelJSONField` now declares its own `db_type` of `json`, and the
+test database is built the way Laravel builds the real one.
+
+That immediately turned up **two tests that had been passing for months
+against a column type production does not have**, both filtering a queue row
+by its payload. They compare the decoded payload in Python now. Three tests
+in `test_instants.py` hold the line: the field's declared type, the column
+the database actually has, and that `json` really still has no equality
+operator - so if a future PostgreSQL grows one, the careful avoidance
+elsewhere can be reconsidered rather than carried forever as folklore.
+
+The remaining `json` columns - `audit_logs.old_values` and `new_values`,
+`marketing_content.document` and `draft`, `messages.template_parameters`,
+`module_settings.settings`, `queued_jobs.payload` - stay `json`. They read
+correctly, they now test honestly, and changing them would make MySQL and
+PostgreSQL disagree about a type.
+
 It is also the module where the two-rows-or-neither rule lives. The Add
 Employee screen is one form and creates a login *and* an employment profile in
 one transaction, because half an employee is not a state the product has a

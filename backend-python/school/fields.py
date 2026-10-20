@@ -82,7 +82,25 @@ class LaravelJSONField(models.JSONField):
     column type, but it would make PostgreSQL and MySQL disagree about a
     type, and `schema:diff` proving those two identical is load-bearing for
     the whole migration.
+
+    **The column type is declared here too**, so the test database is built
+    the way Laravel builds the real one. Reading was only half the problem:
+    `json` has no equality operator, so a query that counts with
+    `distinct=True` over a selected `json` column fails outright, and
+    Django's own lookups against one generate `= 'null'::jsonb`, which
+    `json` refuses. Left to Django's default of `jsonb`, every test would
+    pass on a column type production does not have, and the first anybody
+    would know of it is a 500 from a screen. There is one such query in the
+    codebase today - the route list, which counts two relations - and the
+    only reason it is not on this list is that its column was moved to
+    text. Nothing stops the next one.
     """
+
+    def db_type(self, connection):
+        # Laravel's $table->json() builds `json` on PostgreSQL and `json` on
+        # MySQL. Django would build `jsonb` on PostgreSQL, which is a better
+        # column and the wrong one to test against.
+        return "json"
 
     def from_db_value(self, value, expression, connection):
         # Already a Python value - psycopg decoded a `json` column for us.

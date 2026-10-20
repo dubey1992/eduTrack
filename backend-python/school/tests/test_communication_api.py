@@ -234,7 +234,13 @@ class OneMessageTest(CommunicationTestCase):
         self.assertEqual(200, response.status_code)
         self.assertEqual(("queued", None), (response.data["status"], response.data["failure_reason"]))
         self.assertEqual(failed.body, response.data["body"])
-        self.assertTrue(QueuedJob.objects.filter(name="send_message", payload={"message_id": failed.id}).exists())
+        # Read back and compared here rather than filtered on in SQL: the
+        # payload is a `json` column (Laravel's $table->json), and `json`
+        # has no equality operator - a WHERE on it is a query production
+        # cannot run.
+        queued = [job.payload for job in QueuedJob.objects.filter(name="send_message")]
+
+        self.assertIn({"message_id": failed.id}, queued)
 
     def test_anything_but_a_failed_message_is_not_retried(self):
         for status in ("sent", "queued", "skipped"):

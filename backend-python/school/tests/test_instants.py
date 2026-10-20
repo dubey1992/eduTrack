@@ -19,10 +19,19 @@ which is the case the test database never will.
 It has happened twice now - once with timestamps, once with JSON - so the
 pattern is worth naming: **any time Django's default column type differs from
 Laravel's, the test suite is blind to it and `manage.py check_models` is not.**
+
+The JSON half of that blindness is now closed at the root rather than
+tested around: `LaravelJSONField` declares its own `db_type`, so the test
+database builds `json` exactly as Laravel does. That immediately turned up
+two tests filtering a queue row by its payload - a query PostgreSQL will
+not run against a `json` column, because `json` has no equality operator -
+which had been passing for months against a column type production does
+not have.
 """
 
 import datetime as dt
 
+from django.db import ProgrammingError, connection, transaction
 from django.test import TestCase
 from django.utils import timezone
 
@@ -163,3 +172,45 @@ class AJsonColumnMayAlreadyBeDecoded(TestCase):
 @queue_handler("test_roundtrip")
 def _a_job(**kwargs):
     """Registered so push() accepts the name above; never run."""
+
+
+class TheJsonColumnTheTestDatabaseBuilds(TestCase):
+    """The test database must have the column type Laravel builds.
+
+    Not a test of behaviour but of the schema the whole suite runs on. With
+    Django's default of `jsonb`, every query in every other test runs
+    against a column production does not have: `json` has no equality
+    operator, so `WHERE payload = ...` and `Count(..., distinct=True)` over
+    a selected `json` column both fail outright - and nothing here would
+    have said so.
+    """
+
+    def test_the_field_declares_the_column_laravel_builds(self):
+        self.assertEqual("json", LaravelJSONField().db_type(connection))
+
+    def test_the_database_really_has_it(self):
+        from school.models import QueuedJob
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select data_type from information_schema.columns "
+                "where table_name = %s and column_name = %s",
+                [QueuedJob._meta.db_table, "payload"],
+            )
+            found = cursor.fetchone()
+
+        self.assertEqual(("json",), found)
+
+    def test_json_really_has_no_equality_operator(self):
+        """The reason for all of the above, asserted rather than asserted-about.
+
+        If a future PostgreSQL grows one, this test fails and the careful
+        avoidance elsewhere can be reconsidered - rather than being carried
+        forever as folklore.
+        """
+        from school.models import QueuedJob
+
+        with self.assertRaises(ProgrammingError):
+            # Wrapped because the failed statement poisons the transaction.
+            with transaction.atomic():
+                QueuedJob.objects.filter(payload={"anything": 1}).exists()
