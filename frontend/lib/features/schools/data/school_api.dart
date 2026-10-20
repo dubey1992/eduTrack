@@ -13,8 +13,11 @@ class SchoolApi {
 
   final Dio _dio;
 
-  Future<PaginatedResponse<School>> list({int? page, int? perPage}) async {
-    final response = await _dio.get('/schools', queryParameters: {'page': ?page, 'per_page': ?perPage});
+  Future<PaginatedResponse<School>> list({int? page, int? perPage, String? q, String? status}) async {
+    final response = await _dio.get(
+      '/schools',
+      queryParameters: {'page': ?page, 'per_page': ?perPage, 'q': ?q, 'status': ?status},
+    );
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, School.fromJson);
   }
 

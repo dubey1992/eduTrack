@@ -34,6 +34,7 @@ import '../../features/payroll/presentation/my_payslips_screen.dart';
 import '../../features/payroll/presentation/payroll_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
+import '../../features/schools/presentation/school_detail_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
 import '../../features/staff/presentation/staff_list_screen.dart';
 import '../../features/staff_attendance/presentation/staff_attendance_screen.dart';
@@ -75,6 +76,19 @@ String landingPathFor(AuthenticatedUser user) => user.role == UserRole.busAttend
 /// A route added below and forgotten here would quietly 404, so
 /// app_router_test.dart walks the router's own configuration and fails if
 /// the two ever disagree.
+/// Routes with an id in them, which [appRoutePaths] cannot hold because it
+/// matches exactly. Kept beside it so the two are read together: a route
+/// missing from both is treated as a mistyped address, and a *private* route
+/// missing from both sends a signed-out visitor to a 404 instead of the
+/// login screen they came for.
+final _appRoutePatterns = [RegExp(r'^/schools/\d+$')];
+
+/// Whether this address is a route of this app at all - mistyped or not,
+/// signed in or not.
+bool isAppRoute(String location) {
+  return appRoutePaths.contains(location) || _appRoutePatterns.any((pattern) => pattern.hasMatch(location));
+}
+
 const appRoutePaths = {
   '/',
   '/splash',
@@ -162,6 +176,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen()),
           GoRoute(path: '/users', builder: (context, state) => const UserListScreen()),
           GoRoute(path: '/schools', builder: (context, state) => const SchoolListScreen()),
+          GoRoute(
+            path: '/schools/:id',
+            builder: (context, state) {
+              final id = int.tryParse(state.pathParameters['id'] ?? '');
+
+              // Not a number is not a school. Falls through to the same
+              // not-found page a mistyped address gets, rather than asking
+              // the server about it.
+              return id == null ? NotFoundScreen(location: state.uri.toString()) : SchoolDetailScreen(schoolId: id);
+            },
+          ),
           GoRoute(path: '/early-access', builder: (context, state) => const EarlyAccessScreen()),
           GoRoute(path: '/payments', builder: (context, state) => const PaymentListScreen()),
           GoRoute(path: '/academic-years', builder: (context, state) => const AcademicYearListScreen()),
@@ -248,7 +273,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         // bouncing it to /login would tell somebody who mistyped a path that
         // they need an account, which is both wrong and confusing. Let it
         // fall through to errorBuilder.
-        if (!appRoutePaths.contains(location)) return null;
+        if (!isAppRoute(location)) return null;
 
         return _publicPaths.contains(location) ? null : '/login';
       }

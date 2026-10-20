@@ -111,4 +111,115 @@ void main() {
 
     await expectLastRowScrollsAbovePagination(tester, find.text('School 20'));
   });
+
+  group('finding a school', () {
+    testWidgets('typing asks the server, rather than filtering rows in hand', (tester) async {
+      // The list holds a page of twenty. Filtering those would hide every
+      // match on page four - see CLAUDE.md on server-side search.
+      final fake = FakeSchoolRepository(schools: [_aSchool(1, 'Abbey Road'), _aSchool(2, 'Beacon Hill')]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Search schools'), 'beacon');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastQuery, 'beacon');
+      expect(find.text('Beacon Hill'), findsOneWidget);
+      expect(find.text('Abbey Road'), findsNothing);
+    });
+
+    testWidgets('it waits for somebody to stop typing', (tester) async {
+      final fake = FakeSchoolRepository(schools: [_aSchool(1, 'Abbey Road')]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Search schools'), 'a');
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.enterText(find.widgetWithText(TextField, 'Search schools'), 'ab');
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Nothing asked yet - a request per keystroke would be a request per
+      // keystroke, and the answer somebody wants is for what they finished.
+      expect(fake.lastQuery, isNull);
+
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastQuery, 'ab');
+    });
+
+    testWidgets('clearing it asks for everything again', (tester) async {
+      final fake = FakeSchoolRepository(schools: [_aSchool(1, 'Abbey Road'), _aSchool(2, 'Beacon Hill')]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Search schools'), 'beacon');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Clear'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastQuery, isNull);
+      expect(find.text('Abbey Road'), findsOneWidget);
+    });
+
+    testWidgets('the status filter narrows to one kind', (tester) async {
+      final fake = FakeSchoolRepository(
+        schools: [
+          _aSchool(1, 'Abbey Road'),
+          _aSchool(2, 'Closed Campus', status: SchoolStatus.inactive),
+        ],
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(DropdownButtonFormField<String?>, 'Status'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Inactive').last);
+      await tester.pumpAndSettle();
+
+      expect(fake.lastStatus, 'inactive');
+      expect(find.text('Closed Campus'), findsOneWidget);
+      expect(find.text('Abbey Road'), findsNothing);
+    });
+
+    testWidgets('All puts the filter back', (tester) async {
+      final fake = FakeSchoolRepository(schools: [_aSchool(1, 'Abbey Road')]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(DropdownButtonFormField<String?>, 'Status'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Active').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(DropdownButtonFormField<String?>, 'Status'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('All').last);
+      await tester.pumpAndSettle();
+
+      expect(fake.lastStatus, isNull);
+    });
+  });
+}
+
+School _aSchool(int id, String name, {SchoolStatus status = SchoolStatus.active}) {
+  return School(
+    id: id,
+    name: name,
+    registrationNumber: null,
+    email: 'school$id@example.invalid',
+    phone: '+91 9000000000',
+    address: '1 Road',
+    city: 'Pune',
+    state: 'MH',
+    country: 'India',
+    postalCode: '411001',
+    currencyCode: 'INR',
+    timezone: 'Asia/Kolkata',
+    logoUrl: null,
+    status: status,
+  );
 }

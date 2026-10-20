@@ -24,9 +24,14 @@ class SchoolRepository {
     }
   }
 
-  Future<PaginatedResponse<School>> listPage({required int page, required int perPage}) async {
+  Future<PaginatedResponse<School>> listPage({
+    required int page,
+    required int perPage,
+    String? q,
+    String? status,
+  }) async {
     try {
-      return await _api.list(page: page, perPage: perPage);
+      return await _api.list(page: page, perPage: perPage, q: q, status: status);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

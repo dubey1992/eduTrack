@@ -61,8 +61,26 @@ void main() {
 
       final configured = pathsOf(container.read(routerProvider).configuration.routes).toSet();
 
-      expect(configured.difference(appRoutePaths), isEmpty, reason: 'route(s) missing from appRoutePaths');
-      expect(appRoutePaths.difference(configured), isEmpty, reason: 'appRoutePaths names route(s) that do not exist');
+      // A route with an id in it cannot be in an exact-match set, so it is
+      // checked by asking isAppRoute about a real address of that shape -
+      // which is the question the redirect actually asks.
+      final withAnId = configured.where((path) => path.contains(':')).toSet();
+      final exact = configured.difference(withAnId);
+
+      expect(exact.difference(appRoutePaths), isEmpty, reason: 'route(s) missing from appRoutePaths');
+      expect(appRoutePaths.difference(exact), isEmpty, reason: 'appRoutePaths names route(s) that do not exist');
+
+      for (final path in withAnId) {
+        expect(isAppRoute(path.replaceAll(RegExp(r':\w+'), '42')), isTrue, reason: '$path is not matched');
+      }
+    });
+
+    test('an id that is not a number is not a route', () {
+      // It falls through to the same not-found page a mistyped address
+      // gets, rather than reaching the server.
+      expect(isAppRoute('/schools/42'), isTrue);
+      expect(isAppRoute('/schools/abc'), isFalse);
+      expect(isAppRoute('/schools/42/extra'), isFalse);
     });
   });
 

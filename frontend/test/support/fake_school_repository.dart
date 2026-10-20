@@ -43,10 +43,36 @@ class FakeSchoolRepository implements SchoolRepository {
     return List.unmodifiable(_schools);
   }
 
+  /// What the list was last narrowed by, so a test can check the screen
+  /// asked the server rather than filtering rows it already had.
+  String? lastQuery;
+  String? lastStatus;
+
   @override
-  Future<PaginatedResponse<School>> listPage({required int page, required int perPage}) async {
+  Future<PaginatedResponse<School>> listPage({
+    required int page,
+    required int perPage,
+    String? q,
+    String? status,
+  }) async {
     if (failListPageWith != null) throw failListPageWith!;
-    return paginateFake(_schools, page: page, perPage: perPage);
+
+    lastQuery = q;
+    lastStatus = status;
+
+    // Narrowed here only so a screen test can see fewer rows come back.
+    // The real one is a query; see SchoolService.scoped.
+    var rows = _schools;
+
+    if (q != null && q.isNotEmpty) {
+      rows = rows.where((school) => school.name.toLowerCase().contains(q.toLowerCase())).toList();
+    }
+
+    if (status != null) {
+      rows = rows.where((school) => school.status.apiValue == status).toList();
+    }
+
+    return paginateFake(rows, page: page, perPage: perPage);
   }
 
   /// What the map calls to open a pin that is not on the list's page.

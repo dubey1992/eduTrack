@@ -1,3 +1,7 @@
+import 'package:go_router/go_router.dart';
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,8 +15,6 @@ import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../application/school_list_notifier.dart';
 import '../data/models/school.dart';
-import '../data/school_locations_repository.dart';
-import '../data/school_repository.dart';
 import 'add_school_dialog.dart';
 import 'edit_school_dialog.dart';
 import 'schools_map_view.dart';
@@ -29,6 +31,27 @@ class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
   /// question somebody asks occasionally; the list answers "which one",
   /// which is what this screen is opened for.
   bool _onTheMap = false;
+
+  final _searchController = TextEditingController();
+  String? _status;
+  Timer? _typing;
+
+  @override
+  void dispose() {
+    _typing?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Debounced: a request per keystroke would be a request per keystroke,
+  /// and the answer somebody wants is the one for what they finished typing.
+  void _search(String term) {
+    setState(() {});
+    _typing?.cancel();
+    _typing = Timer(const Duration(milliseconds: 350), () {
+      ref.read(schoolPageNotifierProvider.notifier).setFilters(q: term);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +77,54 @@ class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
               label: const Text('Add School'),
             ),
           ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 320,
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    labelText: 'Search schools',
+                    hintText: 'Name, registration number, email or city',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    isDense: true,
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            tooltip: 'Clear',
+                            onPressed: () {
+                              _searchController.clear();
+                              _search('');
+                            },
+                          ),
+                  ),
+                  onChanged: _search,
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 180,
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _status,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Status', isDense: true),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('All')),
+                    DropdownMenuItem(value: 'active', child: Text('Active')),
+                    DropdownMenuItem(value: 'inactive', child: Text('Inactive')),
+                  ],
+                  onChanged: (chosen) {
+                    setState(() => _status = chosen);
+                    ref.read(schoolPageNotifierProvider.notifier).setFilters(status: chosen, changeStatus: true);
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
         if (_onTheMap)
           Expanded(
@@ -97,39 +168,10 @@ class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
 
   /// Opening a school from the map. The same dialog the list opens, so a
   /// school placed from here is placed the way it is placed anywhere.
-  Future<void> _open(int schoolId) async {
-    final page = ref.read(schoolPageNotifierProvider).value;
-    final onThisPage = page?.items.where((row) => row.id == schoolId).firstOrNull;
-
-    // The map holds every school; the list holds a page of twenty. A school
-    // on another page has nothing in hand to open, so it is fetched.
-    final School found;
-
-    try {
-      found = onThisPage ?? await ref.read(schoolRepositoryProvider).find(schoolId);
-    } catch (error) {
-      // A pin that will not open must say so. Doing nothing at all reads as
-      // a broken button.
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..clearSnackBars()
-          ..showSnackBar(SnackBar(content: Text(_messageFor(error))));
-      }
-      return;
-    }
-
-    if (!mounted) return;
-
-    await showDialog(
-      context: context,
-      builder: (_) => EditSchoolDialog(school: found),
-    );
-
-    // Placing a school is the one thing that changes the map.
-    ref.invalidate(schoolLocationsProvider);
-  }
-
-  String _messageFor(Object error) => error is Failure ? error.message : 'That school could not be opened. Try again.';
+  /// A pin on the map opens the school's own page rather than the edit
+  /// form. Somebody clicking a map is looking, not editing - and the page
+  /// has an Edit button on it for when they are.
+  void _open(int schoolId) => context.go('/schools/$schoolId');
 }
 
 class _SchoolListMobile extends StatelessWidget {
@@ -237,6 +279,11 @@ class _SchoolActions extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        IconButton(
+          icon: const Icon(Icons.open_in_new, size: 20),
+          tooltip: 'View',
+          onPressed: () => context.go('/schools/${school.id}'),
+        ),
         IconButton(
           icon: const Icon(Icons.edit_outlined, size: 20),
           tooltip: 'Edit',

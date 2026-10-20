@@ -29,12 +29,21 @@ final schoolPageNotifierProvider = AsyncNotifierProvider<SchoolPageNotifier, Pag
 class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
   int _page = 1;
   int _perPage = 20;
+  String _q = '';
+  String? _status;
+
+  /// What the list is currently narrowed by, so the screen can show it
+  /// back and the map beside it can be narrowed the same way.
+  String get search => _q;
+  String? get status => _status;
 
   @override
   Future<PagedList<School>> build() => _fetch();
 
   Future<PagedList<School>> _fetch() async {
-    final response = await ref.read(schoolRepositoryProvider).listPage(page: _page, perPage: _perPage);
+    final response = await ref
+        .read(schoolRepositoryProvider)
+        .listPage(page: _page, perPage: _perPage, q: _q.isEmpty ? null : _q, status: _status);
 
     return PagedList(
       items: response.items,
@@ -57,6 +66,15 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
 
   Future<void> setPerPage(int perPage) async {
     _perPage = perPage;
+    _page = 1;
+    await refresh();
+  }
+
+  /// Back to page one, always: narrowing the list while sitting on page
+  /// four asks for a page that may no longer exist.
+  Future<void> setFilters({String? q, String? status, bool changeStatus = false}) async {
+    if (q != null) _q = q.trim();
+    if (changeStatus) _status = status;
     _page = 1;
     await refresh();
   }
