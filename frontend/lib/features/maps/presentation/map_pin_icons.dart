@@ -14,17 +14,29 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 /// product ships first.
 ///
 /// So the pins are drawn into a bitmap, which both platforms understand.
-/// Three of them, built once and held: a marker rebuilt per frame would
+/// Four of them, built once and held: a marker rebuilt per frame would
 /// redraw and re-encode a PNG for every pin on every pan.
+///
+/// The colours are named by what they do on a map rather than by what they
+/// stand for, because three maps now use them for three different things -
+/// a school, a stop on a route, a stop on a trip - and the screen that
+/// draws the pins is where the meaning belongs.
 enum MapPinColour {
-  /// A school in its own right.
+  /// The one thing on the map everything else is arranged around: a school
+  /// in its own right, or the school a route runs to.
   primary(Color(0xFFDC2626)),
 
-  /// A branch of one.
+  /// An ordinary member of the set: a branch, or a stop still to come.
   secondary(Color(0xFF0EA5E9)),
 
-  /// Something switched off - the thing most worth noticing.
-  muted(Color(0xFFF59E0B));
+  /// The thing most worth noticing - a school switched off, or the stop the
+  /// bus is heading for next.
+  muted(Color(0xFFF59E0B)),
+
+  /// Behind it rather than ahead of it: a stop the trip has already
+  /// reached. Still drawn, because where the bus has been is part of
+  /// reading where it is.
+  done(Color(0xFF64748B));
 
   const MapPinColour(this.colour);
 

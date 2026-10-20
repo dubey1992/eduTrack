@@ -561,6 +561,23 @@ def transport_stop_resource(stop, students_count: int) -> dict:
     }
 
 
+def route_path_resource(route) -> dict:
+    """The road a route follows, as the maps read it (docs/maps.md, M2).
+
+    Shared by the route detail and the trip detail, which draw the same road
+    on the same kind of map and must never disagree about what state it is
+    in. Detail views only - a polyline per row would be the largest thing in
+    a list."""
+    return {
+        "status": route.path_status,
+        "polyline": route.path_polyline,
+        "distance_m": route.path_distance_m,
+        "duration_s": route.path_duration_s,
+        "failure_reason": route.path_failure_reason,
+        "computed_at": timestamp(route.path_computed_at),
+    }
+
+
 def transport_route_resource(route, stops=None) -> dict:
     """A route. `stops` is given for the detail view only: the list leaves the
     key out entirely rather than sending an empty array, as Laravel does."""
@@ -596,14 +613,7 @@ def transport_route_resource(route, stops=None) -> dict:
         body["school_longitude"] = None if route.school.longitude is None else str(route.school.longitude)
         # The road, on the detail view only: the list draws no map, and a
         # polyline per row would be the largest thing in the answer.
-        body["path"] = {
-            "status": route.path_status,
-            "polyline": route.path_polyline,
-            "distance_m": route.path_distance_m,
-            "duration_s": route.path_duration_s,
-            "failure_reason": route.path_failure_reason,
-            "computed_at": timestamp(route.path_computed_at),
-        }
+        body["path"] = route_path_resource(route)
 
     body["created_at"] = timestamp(route.created_at)
 
@@ -693,6 +703,12 @@ def transport_trip_resource(trip, riders_count=None, riders=None, events=None, s
         }
         for stop in stops
     ]
+
+    # What the trip map draws around the stops: the road the route follows
+    # and the school at the end of it. Detail only, like the route's own.
+    body["school_latitude"] = None if trip.school.latitude is None else str(trip.school.latitude)
+    body["school_longitude"] = None if trip.school.longitude is None else str(trip.school.longitude)
+    body["path"] = route_path_resource(trip.route)
 
     return body
 

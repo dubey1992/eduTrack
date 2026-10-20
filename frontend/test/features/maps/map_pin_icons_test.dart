@@ -53,7 +53,7 @@ void main() {
     }
   });
 
-  test('the three colours are three different colours', () {
+  test('no two of them are the same colour', () {
     expect({for (final colour in MapPinColour.values) colour.colour}.length, MapPinColour.values.length);
   });
 }

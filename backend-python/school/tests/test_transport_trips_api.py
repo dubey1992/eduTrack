@@ -384,3 +384,86 @@ class HistoryTest(TripTestCase):
 
         StudentTransportAssignment.objects.all().delete()
         self.assertEqual(409, admin.delete(f"/api/v1/transport/routes/{route.id}").status_code)
+
+
+class TripMapTest(TripTestCase):
+    """What the trip detail carries for the map (docs/maps.md, M3).
+
+    The same road and the same school the route detail draws, so a trip and
+    its route can never show two different roads. The list carries none of
+    it: a polyline per row would be the largest thing in the answer.
+    """
+
+    def setUp(self):
+        super().setUp()
+        route = self.f["route"]
+        route.path_status = "ok"
+        route.path_polyline = "_p~iF~ps|U_ulLnnqC_mqNvxq`@"
+        route.path_distance_m = 13116
+        route.path_duration_s = 2313
+        route.save()
+
+        school = self.f["school"]
+        school.latitude = "18.5255022"
+        school.longitude = "73.8416335"
+        school.save()
+
+        self.trip_id = self.start().json()["id"]
+
+    def detail(self):
+        return self.as_user(self.f["manager"]).get(f"{TRIPS}/{self.trip_id}").json()
+
+    def test_the_detail_carries_the_road(self):
+        path = self.detail()["path"]
+
+        self.assertEqual(path["status"], "ok")
+        self.assertEqual(path["polyline"], "_p~iF~ps|U_ulLnnqC_mqNvxq`@")
+        self.assertEqual(path["distance_m"], 13116)
+        self.assertEqual(path["duration_s"], 2313)
+
+    def test_the_detail_carries_the_school(self):
+        body = self.detail()
+
+        self.assertEqual(body["school_latitude"], "18.5255022")
+        self.assertEqual(body["school_longitude"], "73.8416335")
+
+    def test_a_school_nobody_has_placed_is_null_rather_than_absent(self):
+        school = self.f["school"]
+        school.latitude = None
+        school.longitude = None
+        school.save()
+
+        body = self.detail()
+
+        self.assertIn("school_latitude", body)
+        self.assertIsNone(body["school_latitude"])
+        self.assertIsNone(body["school_longitude"])
+
+    def test_a_road_nobody_has_worked_out_says_so_rather_than_lying(self):
+        route = self.f["route"]
+        route.path_status = "failed"
+        route.path_polyline = None
+        route.path_failure_reason = "Google could not be reached."
+        route.save()
+
+        path = self.detail()["path"]
+
+        self.assertEqual(path["status"], "failed")
+        self.assertIsNone(path["polyline"])
+        self.assertEqual(path["failure_reason"], "Google could not be reached.")
+
+    def test_the_list_carries_no_road_and_no_school_position(self):
+        rows = self.as_user(self.f["manager"]).get(TRIPS).json()["data"]
+
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertNotIn("path", row)
+            self.assertNotIn("school_latitude", row)
+
+    def test_the_road_the_trip_draws_is_the_road_the_route_draws(self):
+        trip = self.detail()["path"]
+        route = self.as_user(self.f["manager"]).get(
+            f"/api/v1/transport/routes/{self.f['route'].id}"
+        ).json()["path"]
+
+        self.assertEqual(trip, route)

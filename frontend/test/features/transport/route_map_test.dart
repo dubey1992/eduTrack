@@ -500,4 +500,16 @@ void main() {
       expect(RoutePath.fromJson({'status': 'ok', 'polyline': ''}).isCurrent, isFalse);
     });
   });
+
+  testWidgets('the map is opened on what it has to show, not a guessed zoom', (tester) async {
+    useDesktop(tester);
+    await tester.pumpWidget(wrap(route(stops: [stop(id: 1), stop(id: 2, sequence: 2)])));
+    await tester.pumpAndSettle();
+
+    // The framing itself is MapBounds.of, tested on its own. What this
+    // pins is that the screen asks for it at all: without this the camera
+    // keeps the centre and zoom the widget guessed, and a long route runs
+    // off the edge.
+    expect(renderer.lastView!.onMapCreated, isNotNull);
+  });
 }

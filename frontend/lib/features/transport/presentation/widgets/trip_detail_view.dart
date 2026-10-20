@@ -8,6 +8,7 @@ import '../../../../core/widgets/status_badge.dart';
 import '../../data/models/transport_trip.dart';
 import '../../../../core/utils/date_format.dart';
 import 'trip_live_location_card.dart';
+import 'trip_map.dart';
 
 /// The prototype's live-tracking panel: trip header, KPIs, where the bus is
 /// (a running trip only), the stop strip, "Students on Bus" and the
@@ -119,6 +120,20 @@ class TripDetailView extends StatelessWidget {
               ],
             ),
           ),
+        // The same stops on a map, under the list rather than above it:
+        // whoever is running the trip reaches for "Reached" and "Board",
+        // and a map between them and those buttons is 320 pixels in the
+        // way on every phone. Drawn for a finished trip as much as a
+        // running one - it comes from the stop marks, not from the bus.
+        if (trip.stops.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: TripMap(trip: trip),
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         Text('Students on Bus', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),

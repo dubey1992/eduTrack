@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_map.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_repository.dart';
 import '../../support/fake_transport_repository.dart';
@@ -25,6 +26,10 @@ Widget wrap(FakeTransportRepository fake, {AuthenticatedUser actor = _manager}) 
       transportRepositoryProvider.overrideWithValue(fake),
       schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository()),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: actor)),
+      // The trip detail now holds a map, which asks the server for a maps
+      // key. These tests are about running a trip, so the map stands itself
+      // down rather than leaving a request outstanding forever.
+      ...mapIsUnavailable(),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),
@@ -34,7 +39,10 @@ Widget wrap(FakeTransportRepository fake, {AuthenticatedUser actor = _manager}) 
 }
 
 void useDesktop(WidgetTester tester) {
-  tester.view.physicalSize = const Size(1400, 1000);
+  // Tall enough for the whole trip panel at once: the header, the stops,
+  // the map under them and the rider table under that. A shorter view only
+  // means taps land on nothing.
+  tester.view.physicalSize = const Size(1400, 1800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

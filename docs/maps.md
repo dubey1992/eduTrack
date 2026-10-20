@@ -466,3 +466,44 @@ focus before the first layout. There are no application frames in the
 stack, it is the first error in the console rather than the wreckage of an
 earlier one, and the widgets library catches it. Flutter 3.47.0. Left
 alone.
+
+## The trip map (M3a)
+
+The first of M3's three slices: **the route a trip takes, and how far along
+it is.** The bus sharing its position on the map (M3b) and the ETA from the
+stored legs (M3c) are still to come.
+
+`GET transport/trips/{id}` carries `school_latitude`, `school_longitude`
+and the same `path` block the route detail carries - through one
+`route_path_resource`, so a trip and its route can never draw two different
+roads for the same route. Detail only; the list carries neither, and a test
+says so.
+
+Three decisions worth keeping:
+
+- **It is drawn from the stop marks, never from the bus.** A trip that
+  finished last week reads exactly like one running now, and a trip whose
+  attendant never shared a position still shows where it went. The stop
+  marks are already recorded for the timeline; the map just reads them.
+- **A finished trip has no next stop**, even when it ended with stops
+  unreached - which happens. Colouring one of them as "next" would say the
+  bus is still on its way there.
+- **The map sits under the stop list, not above it.** Whoever is running
+  the trip reaches for "Reached" and "Board", and a map between them and
+  those buttons is 320 pixels in the way on every phone.
+
+### Both maps now open on what they have to show
+
+A centre and a zoom is a guess, and it is wrong as soon as a route is
+longer than the guess allowed for: the far stops sit off the screen, and
+somebody who does not think to pan reads it as a route that stops halfway.
+`MapBounds.of` takes the smallest box holding every point - the road's
+points where there is a road, because a road can swing well outside the box
+its stops sit in - and the camera is moved onto it once, when the map is
+created. Nothing to frame, or everything in one place, leaves the camera
+where the screen put it: a box with no width makes Google pick street
+level, which is worse than the guess.
+
+Writing it turned up one piece of dead logic, found by sabotage: a
+`points.length < 2` guard that never fired, because one point is already
+"everything in the same place". Removed.

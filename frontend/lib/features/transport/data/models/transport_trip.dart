@@ -1,3 +1,5 @@
+import 'transport_route.dart';
+
 enum TripDirection {
   pickup('pickup', 'Pickup'),
   drop('drop', 'Drop');
@@ -66,6 +68,8 @@ class TripStop {
     required this.pickupTime,
     required this.dropTime,
     required this.reached,
+    this.latitude,
+    this.longitude,
   });
 
   factory TripStop.fromJson(Map<String, dynamic> json) {
@@ -76,6 +80,8 @@ class TripStop {
       pickupTime: json['pickup_time'] as String?,
       dropTime: json['drop_time'] as String?,
       reached: json['reached'] as bool,
+      latitude: json['latitude'] as String?,
+      longitude: json['longitude'] as String?,
     );
   }
 
@@ -85,6 +91,11 @@ class TripStop {
   final String? pickupTime;
   final String? dropTime;
   final bool reached;
+
+  /// Null until somebody places the stop. Each half is nullable on its own,
+  /// so half a coordinate is possible and is not a place.
+  final String? latitude;
+  final String? longitude;
 }
 
 class TripRider {
@@ -257,6 +268,9 @@ class TransportTrip {
     this.stops = const [],
     this.riders = const [],
     this.events = const [],
+    this.schoolLatitude,
+    this.schoolLongitude,
+    this.path = const RoutePath.notComputed(),
   });
 
   factory TransportTrip.fromJson(Map<String, dynamic> json) {
@@ -291,6 +305,9 @@ class TransportTrip {
       stops: ((json['stops'] as List?) ?? const []).cast<Map<String, dynamic>>().map(TripStop.fromJson).toList(),
       riders: ((json['riders'] as List?) ?? const []).cast<Map<String, dynamic>>().map(TripRider.fromJson).toList(),
       events: ((json['events'] as List?) ?? const []).cast<Map<String, dynamic>>().map(TripEvent.fromJson).toList(),
+      schoolLatitude: json['school_latitude'] as String?,
+      schoolLongitude: json['school_longitude'] as String?,
+      path: RoutePath.fromJson(json['path']),
     );
   }
 
@@ -328,6 +345,15 @@ class TransportTrip {
   final List<TripStop> stops;
   final List<TripRider> riders;
   final List<TripEvent> events;
+
+  /// Where the school is, because the road ends there and the map draws it.
+  /// Null on the list, which carries no map.
+  final String? schoolLatitude;
+  final String? schoolLongitude;
+
+  /// The road the route follows - the same block the route detail carries,
+  /// so a trip and its route can never draw two different roads.
+  final RoutePath path;
 
   bool get isInProgress => status == TripStatus.inProgress;
 
@@ -377,6 +403,9 @@ class TransportTrip {
       stops: stops ?? this.stops,
       riders: riders ?? this.riders,
       events: events ?? this.events,
+      schoolLatitude: schoolLatitude,
+      schoolLongitude: schoolLongitude,
+      path: path,
     );
   }
 }

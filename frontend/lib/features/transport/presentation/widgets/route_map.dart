@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../maps/data/polyline.dart';
 import '../../../maps/presentation/app_map.dart';
+import '../../../maps/presentation/fit_bounds.dart';
 import '../../../maps/presentation/map_pin_icons.dart';
 import '../../data/models/transport_route.dart';
 
@@ -62,6 +63,9 @@ class RouteMap extends ConsumerWidget {
                 ),
             },
             polylines: _lines(placed, school),
+            // Opened on the whole route rather than on the first stop at a
+            // guessed zoom, which leaves a long route running off the edge.
+            onMapCreated: (controller) => fitCamera(controller, _framed(placed, school)),
           ),
         ),
         const SizedBox(height: 6),
@@ -93,6 +97,17 @@ class RouteMap extends ConsumerWidget {
         patterns: [PatternItem.dash(20), PatternItem.gap(12)],
       ),
     };
+  }
+
+  /// Everything the map has to hold: the road where there is one, and the
+  /// places otherwise. The road, not the stops, because a road can swing
+  /// well outside the box its stops sit in.
+  List<LatLng> _framed(List<TransportStop> placed, LatLng? school) {
+    final road = route.path.isCurrent ? decodePolyline(route.path.polyline) : const <LatLng>[];
+
+    if (road.length > 1) return road;
+
+    return [for (final stop in placed) _pointOf(stop)!, ?school];
   }
 
   LatLng? _pointOf(TransportStop stop) => _point(stop.latitude, stop.longitude);

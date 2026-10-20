@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_map.dart';
 import '../../support/fake_transport_repository.dart';
 import '../../support/transport_fixtures.dart';
 
@@ -76,6 +77,10 @@ Widget wrap(FakeTransportRepository fake, TransportTrip trip) {
     overrides: [
       transportRepositoryProvider.overrideWithValue(fake),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _admin)),
+      // The detail now holds a trip map, which asks the server for a maps
+      // key. This test is about the live card, so the map stands itself
+      // down rather than leaving a request outstanding forever.
+      ...mapIsUnavailable(),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),
