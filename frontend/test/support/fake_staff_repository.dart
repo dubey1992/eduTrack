@@ -71,6 +71,7 @@ class FakeStaffRepository implements StaffRepository {
     required UserRole role,
     int? schoolId,
     required String employeeId,
+    String? biometricUserId,
     int? departmentId,
     String? designation,
     required DateTime joiningDate,
@@ -83,6 +84,8 @@ class FakeStaffRepository implements StaffRepository {
       id: _staff.length + 1,
       userId: _staff.length + 1,
       employeeId: employeeId,
+      // Blank is nobody, the way the server normalises it.
+      biometricUserId: (biometricUserId ?? '').isEmpty ? null : biometricUserId,
       firstName: firstName,
       lastName: lastName,
       name: '$firstName $lastName',

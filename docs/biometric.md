@@ -97,11 +97,24 @@ an otherwise careful system.
 
 ## The slices
 
-**B1 - devices and who is on them.** The `biometric_devices` table, the
-enrolment column on staff profiles, and the admin screens for both. Nothing
-reads a punch yet. Useful on its own: a school can record what hardware it has
-and which id belongs to whom, which is the part that takes the longest in
-practice.
+**B1 - devices and who is on them. Built 2026-10-20.** The
+`biometric_devices` table, `staff_profiles.biometric_user_id`, a Biometric
+Devices screen under Staff Attendance, and a Biometric ID field on the
+employee form. Nothing reads a punch yet.
+
+Three things worth keeping:
+
+- **"Never heard from" is said, not left blank.** A device registered this
+  morning and silent is somebody's next job; one that spoke and then stopped
+  is a fault. A blank in that column would read as neither, so the screen
+  names the first case in its own words.
+- **Removing a device says what it does not do.** It leaves the register of
+  devices; the device itself is untouched and simply stops being recognised.
+  Somebody about to press that button should know which of those they are
+  doing.
+- **The device list is cleared on sign-out.** `auth_notifier_reset_test`
+  caught it: without that, one school's hardware stays on screen for whoever
+  signs in next on the same browser.
 
 **B2 - the punch log, by upload.** `biometric_punches`, the CSV upload through
 the existing import machinery, and a screen showing what arrived - matched to

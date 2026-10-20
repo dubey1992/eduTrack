@@ -246,4 +246,38 @@ void main() {
     expect(find.text('Could not add the employee.'), findsOneWidget);
     expect(find.byType(AddStaffDialog), findsOneWidget);
   });
+
+  group('enrolling somebody on the fingerprint devices', () {
+    testWidgets('the id is optional, and most staff never have one', (tester) async {
+      // Blank is nobody rather than a clash - the server normalises it to
+      // null for exactly that reason (docs/biometric.md, B1).
+      final fake = FakeStaffRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _openDialog(tester);
+      await _fillRequiredFields(tester);
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect((await fake.list()).single.biometricUserId, isNull);
+    });
+
+    testWidgets('an id given is sent with the employee', (tester) async {
+      final fake = FakeStaffRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _openDialog(tester);
+      await _fillRequiredFields(tester);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Biometric ID'), '17');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect((await fake.list()).single.biometricUserId, '17');
+    });
+
+    testWidgets('it says what the field is for', (tester) async {
+      await tester.pumpWidget(wrap(FakeStaffRepository()));
+      await _openDialog(tester);
+
+      expect(find.text('Optional. Their id on the fingerprint devices.'), findsOneWidget);
+    });
+  });
 }

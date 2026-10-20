@@ -37,6 +37,7 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _employeeIdController = TextEditingController();
+  final _biometricIdController = TextEditingController();
   final _emailController = TextEditingController();
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -70,6 +71,7 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _employeeIdController.dispose();
+    _biometricIdController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
     _passwordController.dispose();
@@ -111,6 +113,7 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
             role: _role,
             schoolId: _schoolId,
             employeeId: _employeeIdController.text.trim(),
+            biometricUserId: _biometricIdController.text.trim(),
             departmentId: _departmentId,
             designation: _designationController.text.trim().isEmpty ? null : _designationController.text.trim(),
             joiningDate: _joiningDate,
@@ -192,6 +195,23 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
                       ),
                     ),
                     const SizedBox(width: 10),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _biometricIdController,
+                        decoration: const InputDecoration(
+                          labelText: 'Biometric ID',
+                          // Optional, and most staff never have one. The
+                          // number comes off the device, not from here -
+                          // enrolling a finger happens on the device itself.
+                          helperText: 'Optional. Their id on the fingerprint devices.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
                     Expanded(
                       child: DropdownButtonFormField<UserRole>(
                         initialValue: _role,

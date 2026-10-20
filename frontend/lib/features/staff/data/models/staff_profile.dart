@@ -6,6 +6,7 @@ class StaffProfile {
     required this.id,
     required this.userId,
     required this.employeeId,
+    this.biometricUserId,
     required this.firstName,
     required this.lastName,
     required this.name,
@@ -31,6 +32,7 @@ class StaffProfile {
       id: json['id'] as int,
       userId: json['user_id'] as int,
       employeeId: json['employee_id'] as String,
+      biometricUserId: json['biometric_user_id'] as String?,
       firstName: json['first_name'] as String,
       lastName: json['last_name'] as String,
       name: json['name'] as String,
@@ -55,6 +57,10 @@ class StaffProfile {
   final int id;
   final int userId;
   final String employeeId;
+
+  /// Their id on the school's fingerprint devices, or null for the
+  /// many who are not enrolled on one (docs/biometric.md).
+  final String? biometricUserId;
   final String firstName;
   final String lastName;
   final String name;

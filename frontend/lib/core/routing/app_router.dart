@@ -34,6 +34,7 @@ import '../../features/payroll/presentation/my_payslips_screen.dart';
 import '../../features/payroll/presentation/payroll_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
+import '../../features/biometric/presentation/device_list_screen.dart';
 import '../../features/schools/presentation/school_detail_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
 import '../../features/staff/presentation/staff_list_screen.dart';
@@ -116,6 +117,7 @@ const appRoutePaths = {
   '/students',
   '/attendance',
   '/staff-attendance',
+  '/biometric-devices',
   '/leaves',
   '/teaching-reports',
   '/syllabus',
@@ -202,6 +204,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/students', builder: (context, state) => const StudentListScreen()),
           GoRoute(path: '/attendance', builder: (context, state) => const AttendanceScreen()),
           GoRoute(path: '/staff-attendance', builder: (context, state) => const StaffAttendanceScreen()),
+          GoRoute(path: '/biometric-devices', builder: (context, state) => const DeviceListScreen()),
           GoRoute(path: '/leaves', builder: (context, state) => const StaffLeaveScreen()),
           GoRoute(path: '/teaching-reports', builder: (context, state) => const TeachingReportScreen()),
           GoRoute(path: '/syllabus', builder: (context, state) => const SyllabusScreen()),

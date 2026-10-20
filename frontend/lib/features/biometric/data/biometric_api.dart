@@ -1,0 +1,45 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/network/dio_client.dart';
+import '../../../core/network/paginated_response.dart';
+import 'models/biometric_device.dart';
+
+final biometricApiProvider = Provider<BiometricApi>((ref) => BiometricApi(ref.watch(dioClientProvider)));
+
+class BiometricApi {
+  BiometricApi(this._dio);
+
+  final Dio _dio;
+
+  Future<PaginatedResponse<BiometricDevice>> listDevices({
+    int? schoolId,
+    int? page,
+    int? perPage,
+    String? q,
+    String? status,
+  }) async {
+    final response = await _dio.get(
+      '/biometric/devices',
+      queryParameters: {'school_id': ?schoolId, 'page': ?page, 'per_page': ?perPage, 'q': ?q, 'status': ?status},
+    );
+
+    return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, BiometricDevice.fromJson);
+  }
+
+  Future<BiometricDevice> createDevice(Map<String, dynamic> body) async {
+    final response = await _dio.post('/biometric/devices', data: body);
+
+    return BiometricDevice.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<BiometricDevice> updateDevice(int deviceId, Map<String, dynamic> body) async {
+    final response = await _dio.patch('/biometric/devices/$deviceId', data: body);
+
+    return BiometricDevice.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteDevice(int deviceId) async {
+    await _dio.delete('/biometric/devices/$deviceId');
+  }
+}

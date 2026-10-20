@@ -343,6 +343,18 @@ class AppNav {
         pageSubtitle: 'Daily teacher and staff attendance register',
       ),
       NavItem(
+        path: '/biometric-devices',
+        module: AppModules.staffAttendance,
+        label: 'Biometric Devices',
+        icon: Icons.fingerprint,
+        // The hardware that fills the staff register's times, so it sits
+        // under the same module and with the same people who manage it -
+        // an HOD marks the register but does not buy the readers.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Biometric Devices',
+        pageSubtitle: 'Fingerprint readers, and which staff are enrolled on them',
+      ),
+      NavItem(
         path: '/leaves',
         module: AppModules.leave,
         label: 'Staff Leave',
