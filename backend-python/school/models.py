@@ -941,6 +941,40 @@ class BiometricDevice(models.Model):
         db_table = 'biometric_devices'
 
 
+class BiometricPunch(models.Model):
+    """One punch a device recorded (docs/biometric.md, B2).
+
+    Kept raw rather than folded straight into the staff register: an admin
+    asking why check-in says 09:02 needs to see the punch, an unmapped id
+    needs somewhere to sit until somebody fixes the enrolment, and knowing
+    what has already been seen is what makes a re-upload safe.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey(School, models.DO_NOTHING)
+    # Null for an uploaded file: the export names the person and the time,
+    # not which reader they used.
+    device = models.ForeignKey('BiometricDevice', models.DO_NOTHING, blank=True, null=True)
+    biometric_user_id = models.CharField(max_length=32)
+    # Null when nobody has mapped that id to a person - and that is the
+    # point. Dropping the punch would mean the first anybody knew of a
+    # missing enrolment was a register with nothing in it.
+    staff_profile = models.ForeignKey('StaffProfile', models.DO_NOTHING, blank=True, null=True)
+    punched_at = UtcDateTimeField()
+    # The school's own day, worked out with its timezone. The register is
+    # kept per local day; the instant above orders punches within it.
+    local_date = models.DateField()
+    source = models.CharField(max_length=255)
+    raw = models.CharField(max_length=255, blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'biometric_punches'
+        unique_together = (('school', 'biometric_user_id', 'punched_at'),)
+
+
 class StaffProfile(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField('User', models.DO_NOTHING)

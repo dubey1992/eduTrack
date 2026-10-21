@@ -1,8 +1,9 @@
 """Fingerprint readers, and who is enrolled on them (docs/biometric.md, B1).
 
-A registry and nothing more: no punch is read until B2. What it exists to
-settle first is the part that takes the longest in practice - recording what
-hardware a school has, and which device id belongs to which member of staff.
+The registry of hardware (B1), and the punches it recorded (B2). Nothing
+here touches the staff register - filling check-in and check-out is B3, and
+keeping that separate is what lets a school load months of history without
+rewriting months of attendance.
 
 Under the staff attendance module rather than one of its own, because a
 device is hardware that fills that register's times.
@@ -16,12 +17,15 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .. import punches
 from ..models import BiometricDevice
+from ..errors import envelope
 from ..pagination import LaravelPagination
 from ..policies import BiometricDevicePolicy, authorize
 from ..requests import StoreBiometricDeviceRequest, UpdateBiometricDeviceRequest
-from ..resources import biometric_device_resource
-from ..services import BiometricDeviceService
+from ..resources import biometric_device_resource, biometric_punch_resource
+from ..scope import SchoolScope
+from ..services import BiometricDeviceService, BiometricPunchService
 
 
 @api_view(["GET", "POST"])
@@ -78,3 +82,80 @@ def detail(request, device_id: int) -> Response:
 
 def _reload(device_id: int) -> BiometricDevice:
     return BiometricDevice.objects.select_related("school").get(pk=device_id)
+
+
+# -- the punches ------------------------------------------------------------
+
+
+def _punch_filters(request) -> dict:
+    return {
+        key: (request.query_params.get(key) or "").strip()
+        for key in ("q", "school_id", "date", "from", "to", "unmatched")
+    }
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def punch_collection(request) -> Response:
+    """What the devices have recorded.
+
+    The count of unattributed punches travels with the page, because "none on
+    this page" and "none at all" are different answers and twenty rows cannot
+    tell them apart - and the unattributed ones are the only reason somebody
+    opens this screen rather than the register.
+    """
+    authorize(BiometricDevicePolicy.view_any(request.user))
+
+    filters = _punch_filters(request)
+    found = BiometricPunchService.visible_to(request.user, filters)
+
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(found, request)
+    answer = paginator.get_paginated_response([biometric_punch_resource(punch) for punch in page])
+    answer.data["unmatched_total"] = BiometricPunchService.unmatched_count(request.user, filters)
+
+    return answer
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def punch_upload(request) -> Response:
+    """A CSV exported from the device software.
+
+    The fallback for a school whose devices cannot reach the internet, and
+    the thing that makes this feature work before any device integration
+    exists at all (docs/biometric.md).
+
+    **A bad line does not throw away the file.** Unlike the bulk importer,
+    whose all-or-nothing rule exists so a half-finished import never has to
+    be reconciled, a punch file is history: the rows that are readable are
+    worth having, and the ones that are not are listed so somebody can fix
+    them and upload again. Re-uploading is safe - a punch already seen lands
+    once.
+    """
+    school_id = SchoolScope.for_actor(request.user).writable_school_id(
+        request.data.get("school_id") or None
+    )
+
+    authorize(BiometricDevicePolicy.manage(request.user, school_id))
+
+    upload = request.FILES.get("file")
+
+    if upload is None:
+        return envelope(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "VALIDATION_ERROR",
+            "No file was uploaded.",
+            {"errors": {"file": ["A file is required."]}},
+        )
+
+    rows, problems = punches.parse_csv(upload)
+    outcome = punches.record(school_id, rows)
+
+    answer = outcome.as_dict()
+    # The file's own problems and the batch's refusals are one list to the
+    # person reading it: both are lines that did not become a punch.
+    answer["refused"] = problems + answer["refused"]
+    answer["read"] = len(rows)
+
+    return Response(answer)

@@ -98,6 +98,8 @@ urlpatterns = [
     # -- biometric devices (docs/biometric.md) ----------------------------
     path("api/v1/biometric/devices", biometric.collection),
     path("api/v1/biometric/devices/<int:device_id>", biometric.detail),
+    path("api/v1/biometric/punches", biometric.punch_collection),
+    path("api/v1/biometric/punches/upload", biometric.punch_upload),
 
     path("api/v1/periods", classes.periods),
     path("api/v1/periods/<int:period_id>", classes.period),

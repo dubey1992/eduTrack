@@ -940,6 +940,32 @@ def biometric_device_resource(device) -> dict:
     }
 
 
+def biometric_punch_resource(punch, clock=None) -> dict:
+    """One punch, as the device log shows it."""
+    clock = clock or SchoolClock.for_school(punch.school_id)
+    profile = punch.staff_profile if punch.staff_profile_id else None
+
+    return {
+        "id": punch.id,
+        "school_id": punch.school_id,
+        "biometric_user_id": punch.biometric_user_id,
+        # Null when nobody has mapped that id yet. The screen says so rather
+        # than leaving a blank, because an unattributed punch is work for
+        # somebody rather than an absence of information.
+        "staff_profile_id": punch.staff_profile_id,
+        "staff_name": profile.user.name if profile else None,
+        "employee_id": profile.employee_id if profile else None,
+        "device_id": punch.device_id,
+        "device_name": punch.device.name if punch.device_id else None,
+        "source": punch.source,
+        "punched_at": timestamp(punch.punched_at),
+        # The school's own clock, because a punch at 09:02 in Muscat is not
+        # 09:02 anywhere else and the person reading this is at the school.
+        "punched_at_label": clock.format(punch.punched_at, DATE_TIME),
+        "local_date": punch.local_date.isoformat(),
+    }
+
+
 def holiday_resource(holiday, affected_records=None) -> dict:
     body = {
         "id": holiday.id,

@@ -40,7 +40,7 @@ from . import (
 from .gateways import Template
 from .clock import TIME, SchoolClock
 from .fields import as_utc
-from . import week
+from . import punches, week
 from .week import WorkingWeek
 from .enums import (
     AssessmentStatus,
@@ -109,6 +109,7 @@ from .models import (
     AttendantCredential,
     AttendantDevice,
     BiometricDevice,
+    BiometricPunch,
     MailSetting,
     TransportTripLocation,
     ModuleSetting,
@@ -3448,6 +3449,7 @@ class StaffProfileService:
                 updated_at=now,
             )
 
+            punches.attach_waiting(profile)
             audit.created("staff", profile)
 
             return profile
@@ -3455,6 +3457,7 @@ class StaffProfileService:
     @staticmethod
     def update(profile: StaffProfile, data: dict) -> StaffProfile:
         before = audit.fields_of(profile)
+        was_enrolled_as = profile.biometric_user_id
 
         for field, value in data.items():
             setattr(profile, field, value)
@@ -3462,6 +3465,15 @@ class StaffProfileService:
         profile.updated_at = timezone.now()
         profile.save()
         audit.updated("staff", profile, before)
+
+        # Enrolling somebody has to reach backwards. Punches that arrived
+        # while the id was unmapped would otherwise stay unattached for ever,
+        # and those days' registers could only be fixed by re-uploading the
+        # file (school/punches.py). An id corrected lets go of the punches it
+        # wrongly claimed, by the same argument.
+        if profile.biometric_user_id != was_enrolled_as:
+            punches.detach(profile, was_enrolled_as)
+            punches.attach_waiting(profile)
 
         return profile
 
@@ -3745,6 +3757,61 @@ class BiometricDeviceService:
         before this becomes more than a registry."""
         audit.deleted("staff_attendance", device)
         device.delete()
+
+
+class BiometricPunchService:
+    """The device log (docs/biometric.md, B2). Reading it; writing is
+    school/punches.py, which the upload and the device endpoint share."""
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict | None = None):
+        found = SchoolScope.for_actor(actor).apply_to(
+            BiometricPunch.objects.select_related("device", "staff_profile__user")
+        )
+        filters = filters or {}
+
+        if filters.get("school_id"):
+            found = found.filter(school_id=filters["school_id"])
+
+        if filters.get("date"):
+            found = found.filter(local_date=filters["date"])
+
+        if filters.get("from"):
+            found = found.filter(local_date__gte=filters["from"])
+
+        if filters.get("to"):
+            found = found.filter(local_date__lte=filters["to"])
+
+        # The ones nobody can attribute, which is the only reason this screen
+        # needs a filter at all: they are the work it exists to surface.
+        if filters.get("unmatched") in ("1", "true", True):
+            found = found.filter(staff_profile__isnull=True)
+
+        if filters.get("q"):
+            like = f"%{filters['q']}%"
+            found = found.filter(
+                Q(biometric_user_id__ilike=like)
+                | Q(staff_profile__user__first_name__ilike=like)
+                | Q(staff_profile__user__last_name__ilike=like)
+                | Q(staff_profile__employee_id__ilike=like)
+            )
+
+        # Newest first: somebody opening this has just uploaded something, or
+        # is looking at today.
+        return found.order_by("-punched_at", "-id")
+
+    @staticmethod
+    def unmatched_count(actor: User, filters: dict | None = None) -> int:
+        """How many punches nobody can attribute, under the same filters.
+
+        Beside the list rather than inside it, because "none on this page"
+        and "none at all" are different answers and a page of twenty cannot
+        tell them apart.
+        """
+        narrowed = dict(filters or {})
+        narrowed["unmatched"] = True
+
+        return BiometricPunchService.visible_to(actor, narrowed).count()
 
 
 class HolidayService:
