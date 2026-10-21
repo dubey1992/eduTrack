@@ -773,6 +773,15 @@ class StaffAttendanceService:
 
         holiday = HolidayService.holiday_on(school_id, date)
 
+        # What the devices saw, for the people nobody has marked yet. A saved
+        # row already carries these times - punches fill it when they arrive
+        # (school/punches.py) - so this only speaks where the register is
+        # still blank, and the screen says the times came from a device so
+        # that whoever sets the status knows they did not type them.
+        from_device = punches.register_times(
+            school_id, date, [profile.id for profile in staff if profile.id not in existing]
+        )
+
         return {
             "school_id": school_id,
             "attendance_date": str(date),
@@ -787,12 +796,21 @@ class StaffAttendanceService:
                         profile.department.name if profile.department_id else None
                     ),
                     "status": mark(existing, profile, "status"),
-                    "check_in": working_hours.clock(mark(existing, profile, "check_in")),
-                    "check_out": working_hours.clock(mark(existing, profile, "check_out")),
-                    "working_hours": working_hours.format_span(
-                        working_hours.clock(mark(existing, profile, "check_in")),
-                        working_hours.clock(mark(existing, profile, "check_out")),
+                    "check_in": working_hours.clock(
+                        mark(existing, profile, "check_in") or _device_time(from_device, profile, "check_in")
                     ),
+                    "check_out": working_hours.clock(
+                        mark(existing, profile, "check_out") or _device_time(from_device, profile, "check_out")
+                    ),
+                    "working_hours": working_hours.format_span(
+                        working_hours.clock(
+                            mark(existing, profile, "check_in") or _device_time(from_device, profile, "check_in")
+                        ),
+                        working_hours.clock(
+                            mark(existing, profile, "check_out") or _device_time(from_device, profile, "check_out")
+                        ),
+                    ),
+                    "times_from_device": profile.id in from_device,
                     "remarks": mark(existing, profile, "remarks"),
                 }
                 for profile in staff
@@ -911,6 +929,11 @@ def mark(existing: dict, profile, field: str):
     row = existing.get(profile.id)
 
     return None if row is None else getattr(row, field)
+
+
+def _device_time(from_device: dict, profile, field: str):
+    """What the fingerprint reader has for this person, if anything."""
+    return (from_device.get(profile.id) or {}).get(field)
 
 
 class StaffLeaveService:

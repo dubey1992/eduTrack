@@ -362,6 +362,45 @@ void main() {
       expect(find.textContaining('40 already in'), findsOneWidget);
     });
 
+    testWidgets('it says how much of it reached the register', (tester) async {
+      useDesktop(tester);
+      final fake = FakeBiometricRepository()
+        ..uploadResult = const PunchUploadResult(read: 4, accepted: 4, duplicate: 0, refused: [], registerFilled: 2);
+      await upload(tester, fake);
+
+      expect(find.textContaining('2 days on the staff register now have their times'), findsOneWidget);
+    });
+
+    testWidgets('one day is said in the singular', (tester) async {
+      useDesktop(tester);
+      final fake = FakeBiometricRepository()
+        ..uploadResult = const PunchUploadResult(read: 2, accepted: 2, duplicate: 0, refused: [], registerFilled: 1);
+      await upload(tester, fake);
+
+      expect(find.textContaining('1 day on the staff register now has its times'), findsOneWidget);
+    });
+
+    testWidgets('punches that reached no register say why that might be', (tester) async {
+      // The usual cause is that nobody is enrolled on those device IDs, and
+      // somebody who uploaded a month of history deserves to know that now
+      // rather than from an empty register later.
+      useDesktop(tester);
+      final fake = FakeBiometricRepository()
+        ..uploadResult = const PunchUploadResult(read: 4, accepted: 4, duplicate: 0, refused: []);
+      await upload(tester, fake);
+
+      expect(find.textContaining('Nothing reached the staff register'), findsOneWidget);
+    });
+
+    testWidgets('a file that was all repeats says nothing about the register', (tester) async {
+      useDesktop(tester);
+      final fake = FakeBiometricRepository()
+        ..uploadResult = const PunchUploadResult(read: 4, accepted: 0, duplicate: 4, refused: []);
+      await upload(tester, fake);
+
+      expect(find.textContaining('staff register'), findsNothing);
+    });
+
     testWidgets('every unreadable line is listed, not just the first', (tester) async {
       useDesktop(tester);
       final fake = FakeBiometricRepository()

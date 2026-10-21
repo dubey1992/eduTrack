@@ -375,6 +375,22 @@ class _StaffRosterRowState extends State<_StaffRosterRow> {
                 label: Text(entry.checkOut ?? 'Check Out'),
               ),
               if (entry.workingHours != null) Text('Worked: ${entry.workingHours}'),
+              // Said, not left to be guessed: whoever sets the status should
+              // know these times came off a reader rather than being typed,
+              // because they are about to save them as the register's own
+              // (docs/biometric.md, B3).
+              if (entry.timesFromDevice)
+                Tooltip(
+                  message: 'First and last punch on the fingerprint reader. Change them if they are wrong.',
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.fingerprint, size: 16, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 4),
+                      Text('From the device', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                    ],
+                  ),
+                ),
               SizedBox(
                 width: 220,
                 child: TextField(

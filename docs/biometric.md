@@ -1,4 +1,4 @@
-# Biometric attendance — PLAN, not built
+# Biometric attendance — B1-B3 built, B4 still a plan
 
 A customer requirement, decided 2026-10-20. Staff punch in and out on a
 fingerprint device; those punches become the check-in and check-out times on
@@ -156,10 +156,40 @@ uses, prefilled from whatever the screen is filtered to, and the Upload
 button stays disabled until it is answered. An admin of a single school is
 never asked: the server files it under theirs whatever the request says.
 
-**B3 - punches reach the register.** Earliest and latest of a local day fill
-check-in and check-out; the marking screen pre-fills from them; the status
-stays a human's. After this slice the feature is genuinely useful with no
-device integration at all.
+**B3 - punches reach the register. Built 2026-10-21.** Earliest and latest of
+a local day fill check-in and check-out; the marking screen pre-fills from
+them; the status stays a human's. After this slice the feature is genuinely
+useful with no device integration at all.
+
+Four rules do the work, and each exists because the one sentence above would
+otherwise let a device do something it must not:
+
+- **A punch never creates a row.** Creating one means choosing a status, and
+  a fingerprint reader cannot know whether somebody was late, on duty
+  elsewhere, or simply there. A day nobody has marked stays unmarked - the
+  times wait on the marking screen instead.
+- **A punch never clears a time.** A day with no punches is left exactly as
+  it was, typed times included. The cost is that a corrected enrolment
+  leaves somebody else's times behind for a human to fix; the alternative -
+  silently blanking a time somebody entered - is worse.
+- **One punch is an arrival, not a day.** It fills the check-in and leaves
+  the check-out alone, because a check-out equal to the check-in reads as a
+  day of no work at all.
+- **The clock is the school's.** The register is read at the school; a punch
+  stored as an instant is converted back through the school's timezone
+  (docs/timezones.md), which is what a half-hour offset catches.
+
+The screen says `From the device` beside times it did not get from the
+register, so whoever sets the status knows they did not type them - and can
+change them, because the times are a starting point and the status is the
+decision. Once the day is saved the times are the register's own and the
+marker goes away. The upload dialog says how many days reached the register,
+including when the answer is none: that almost always means nobody is
+enrolled on those device IDs yet, which is better learned at the upload than
+from an empty register a week later.
+
+Filling is audited as `staff_attendance.times_from_device`, one entry per
+day rather than per row: a month's upload is one action by one person.
 
 **B4 - the live push endpoint.** The device protocol, idempotency, rate
 limiting, `last_seen_at`, and the operational notes. Last because it is the

@@ -48,6 +48,39 @@ const _register = StaffAttendanceRegister(
   ],
 );
 
+/// A day nobody has marked, where the fingerprint reader already has times
+/// for one of the two (docs/biometric.md, B3).
+const _registerFromDevice = StaffAttendanceRegister(
+  schoolId: 1,
+  attendanceDate: '2026-09-08',
+  submitted: false,
+  staff: [
+    StaffRosterEntry(
+      staffProfileId: 1,
+      employeeId: 'EMP-001',
+      name: 'Priya Sharma',
+      departmentName: 'Mathematics',
+      status: null,
+      checkIn: '09:02',
+      checkOut: '17:31',
+      workingHours: '8h 29m',
+      remarks: null,
+      timesFromDevice: true,
+    ),
+    StaffRosterEntry(
+      staffProfileId: 2,
+      employeeId: 'EMP-002',
+      name: 'Rahul Verma',
+      departmentName: 'Science',
+      status: null,
+      checkIn: null,
+      checkOut: null,
+      workingHours: null,
+      remarks: null,
+    ),
+  ],
+);
+
 /// Already submitted, with every staff member already marked - the "correct
 /// a past day" flow, as opposed to the still-blank register above.
 const _submittedRegister = StaffAttendanceRegister(
@@ -97,6 +130,33 @@ Widget wrap({FakeStaffAttendanceRepository? staffAttendance}) {
 }
 
 void main() {
+  group('times a fingerprint reader filled in', () {
+    testWidgets('they are shown, and said to have come from a device', (tester) async {
+      // Whoever sets the status is about to save these as the register's
+      // own, so they should know they did not type them.
+      await tester.pumpWidget(wrap(staffAttendance: FakeStaffAttendanceRepository(register: _registerFromDevice)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('09:02'), findsOneWidget);
+      expect(find.text('17:31'), findsOneWidget);
+      expect(find.text('From the device'), findsOneWidget);
+    });
+
+    testWidgets('a day with no punches says nothing of the sort', (tester) async {
+      await tester.pumpWidget(wrap());
+      await tester.pumpAndSettle();
+
+      expect(find.text('From the device'), findsNothing);
+    });
+
+    testWidgets('they can still be changed, because the status is a human decision', (tester) async {
+      await tester.pumpWidget(wrap(staffAttendance: FakeStaffAttendanceRepository(register: _registerFromDevice)));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '09:02')).onPressed, isNotNull);
+    });
+  });
+
   testWidgets('shows the roster immediately for a school admin, no school picker needed', (tester) async {
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();

@@ -184,6 +184,22 @@ class _Outcome extends StatelessWidget {
             '${result.duplicate} already in - devices resend, and exports overlap.',
             style: TextStyle(color: colors.muted),
           ),
+        // What reached the register, which is the point of the file. Said
+        // either way: "none" after a successful upload almost always means
+        // nobody has been enrolled on the device yet (docs/biometric.md, B3).
+        const SizedBox(height: 8),
+        if (result.registerFilled > 0)
+          Text(
+            result.registerFilled == 1
+                ? '1 day on the staff register now has its times.'
+                : '${result.registerFilled} days on the staff register now have their times.',
+          )
+        else if (result.accepted > 0)
+          Text(
+            'Nothing reached the staff register. Those days have not been marked yet - '
+            'the times are waiting on the marking screen - or nobody is enrolled on these device IDs.',
+            style: TextStyle(color: colors.muted),
+          ),
         if (result.hasProblems) ...[
           const SizedBox(height: 12),
           Text('${result.refused.length} line(s) could not be read:', style: TextStyle(color: colors.warning)),

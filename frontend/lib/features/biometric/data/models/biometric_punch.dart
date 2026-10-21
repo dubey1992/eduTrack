@@ -56,7 +56,13 @@ class BiometricPunch {
 
 /// What became of an uploaded file.
 class PunchUploadResult {
-  const PunchUploadResult({required this.read, required this.accepted, required this.duplicate, required this.refused});
+  const PunchUploadResult({
+    required this.read,
+    required this.accepted,
+    required this.duplicate,
+    required this.refused,
+    this.registerFilled = 0,
+  });
 
   factory PunchUploadResult.fromJson(Map<String, dynamic> json) {
     return PunchUploadResult(
@@ -64,6 +70,7 @@ class PunchUploadResult {
       accepted: json['accepted'] as int? ?? 0,
       duplicate: json['duplicate'] as int? ?? 0,
       refused: ((json['refused'] as List?) ?? const []).map((line) => '$line').toList(),
+      registerFilled: json['register_filled'] as int? ?? 0,
     );
   }
 
@@ -77,6 +84,11 @@ class PunchUploadResult {
 
   /// Lines that did not become a punch, each saying which line and why.
   final List<String> refused;
+
+  /// Register rows whose check-in and check-out these punches filled in
+  /// (docs/biometric.md, B3). Zero with punches accepted usually means
+  /// nobody has been enrolled on the device yet, which is worth saying.
+  final int registerFilled;
 
   bool get hasProblems => refused.isNotEmpty;
 }

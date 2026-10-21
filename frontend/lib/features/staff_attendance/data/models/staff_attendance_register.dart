@@ -14,6 +14,7 @@ class StaffRosterEntry {
     required this.checkOut,
     required this.workingHours,
     required this.remarks,
+    this.timesFromDevice = false,
   });
 
   factory StaffRosterEntry.fromJson(Map<String, dynamic> json) {
@@ -27,6 +28,7 @@ class StaffRosterEntry {
       checkOut: json['check_out'] as String?,
       workingHours: json['working_hours'] as String?,
       remarks: json['remarks'] as String?,
+      timesFromDevice: json['times_from_device'] as bool? ?? false,
     );
   }
 
@@ -39,6 +41,11 @@ class StaffRosterEntry {
   final String? checkOut;
   final String? workingHours;
   final String? remarks;
+
+  /// The times came off a fingerprint reader rather than being typed
+  /// (docs/biometric.md, B3). Only ever true for a day nobody has marked
+  /// yet - once it is saved the times are the register's own.
+  final bool timesFromDevice;
 
   StaffRosterEntry copyWith({
     StaffAttendanceStatus? status,
@@ -58,6 +65,7 @@ class StaffRosterEntry {
       checkOut: clearCheckOut ? null : (checkOut ?? this.checkOut),
       workingHours: workingHours,
       remarks: remarks ?? this.remarks,
+      timesFromDevice: timesFromDevice,
     );
   }
 }

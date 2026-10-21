@@ -14,9 +14,9 @@ nothing else of use. Three consequences shape everything here:
   export usually overlaps days already pushed. A repeat is a repeat, not an
   error, and it lands once.
 
-Nothing here touches the staff register. Filling check-in and check-out is B3,
-and keeping that a separate step is what lets a school load months of history
-without rewriting months of attendance.
+Filling the register is a separate step on purpose - see `fill_register` at
+the bottom of this module. A punch only ever writes a time, never a status,
+and never a row that was not already there.
 """
 
 from __future__ import annotations
@@ -24,12 +24,13 @@ from __future__ import annotations
 import datetime as dt
 import zoneinfo
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
-from . import dates
+from . import audit, dates
 from .clock import SchoolClock
-from .models import BiometricPunch, StaffProfile
+from .fields import as_utc
+from .models import BiometricPunch, StaffAttendance, StaffProfile
 
 DEVICE = "device"
 UPLOAD = "upload"
@@ -48,8 +49,19 @@ class Outcome:
         self.duplicate = 0
         self.refused: list[str] = []
 
+        # Register rows whose times these punches filled in. Worth saying
+        # out loud: "40 new" and "nothing reached the register" is a
+        # sentence somebody needs to see, because it usually means nobody
+        # has been enrolled on the device yet.
+        self.register_filled = 0
+
     def as_dict(self) -> dict:
-        return {"accepted": self.accepted, "duplicate": self.duplicate, "refused": self.refused}
+        return {
+            "accepted": self.accepted,
+            "duplicate": self.duplicate,
+            "refused": self.refused,
+            "register_filled": self.register_filled,
+        }
 
 
 def record(school_id: int, rows: list[dict], *, source: str = UPLOAD, device=None) -> Outcome:
@@ -64,6 +76,7 @@ def record(school_id: int, rows: list[dict], *, source: str = UPLOAD, device=Non
     zone = zoneinfo.ZoneInfo(clock.timezone())
     enrolled = _enrolment(school_id)
     now = timezone.now()
+    landed: list[tuple[int | None, dt.date]] = []
 
     for row in rows:
         local = row["punched_at"]
@@ -97,6 +110,9 @@ def record(school_id: int, rows: list[dict], *, source: str = UPLOAD, device=Non
             continue
 
         outcome.accepted += 1
+        landed.append((punch.staff_profile_id, punch.local_date))
+
+    outcome.register_filled = fill_register(school_id, landed)
 
     return outcome
 
@@ -110,6 +126,108 @@ def _enrolment(school_id: int) -> dict[str, int]:
             school_id=school_id, biometric_user_id__isnull=False
         ).values_list("id", "biometric_user_id")
     }
+
+
+# -- the register ------------------------------------------------------------
+#
+# The earliest punch of a local day is the check-in and the latest is the
+# check-out (docs/biometric.md). Three rules make that safe to run over
+# months of uploaded history:
+#
+# - **No row is created.** Creating one would mean choosing a status, which
+#   is the one thing these punches cannot know. A day nobody has marked
+#   stays unmarked; the marking screen pre-fills the times from the punches
+#   instead, so whoever sets the status sees what the device saw.
+# - **Times are set, never cleared.** A day with no punches is left exactly
+#   as it is. That also means a corrected enrolment leaves the old times
+#   behind for a human to fix, which is the lesser of the two wrongs:
+#   silently blanking a time somebody typed is worse.
+# - **One punch fills the check-in only.** Somebody who touched the reader
+#   once arrived; nothing says when they left, and a check-out equal to the
+#   check-in would read as a day of no work at all.
+
+
+def register_times(school_id: int, date, profile_ids) -> dict[int, dict]:
+    """First and last punch of one local day, per person, on the school's
+    own clock - which is the clock the register is read in."""
+    profile_ids = [pk for pk in profile_ids if pk]
+
+    if not profile_ids:
+        return {}
+
+    zone = zoneinfo.ZoneInfo(SchoolClock.for_school(school_id).timezone())
+    found = (
+        BiometricPunch.objects.filter(school_id=school_id, local_date=date, staff_profile_id__in=profile_ids)
+        .values("staff_profile_id")
+        .annotate(first=models.Min("punched_at"), last=models.Max("punched_at"))
+    )
+
+    times = {}
+
+    for row in found:
+        first = as_utc(row["first"]).astimezone(zone).time().replace(second=0, microsecond=0)
+        last = as_utc(row["last"]).astimezone(zone).time().replace(second=0, microsecond=0)
+
+        times[row["staff_profile_id"]] = {"check_in": first, "check_out": last if last != first else None}
+
+    return times
+
+
+def fill_register(school_id: int, landed) -> int:
+    """Puts the day's first and last punch on the register rows that exist.
+
+    `landed` is (staff_profile_id, local_date) pairs - whatever just arrived,
+    or just became attributed to somebody. Returns how many rows changed, so
+    an upload can say whether any of it reached the register at all.
+    """
+    wanted: dict[dt.date, set[int]] = {}
+
+    for profile_id, date in landed:
+        if profile_id:
+            wanted.setdefault(date, set()).add(profile_id)
+
+    filled = 0
+
+    for date, profile_ids in wanted.items():
+        times = register_times(school_id, date, profile_ids)
+        touched = []
+
+        for row in StaffAttendance.objects.filter(
+            school_id=school_id, attendance_date=date, staff_profile_id__in=profile_ids
+        ):
+            want = times.get(row.staff_profile_id)
+
+            if want is None:
+                continue
+
+            check_in = want["check_in"]
+            check_out = want["check_out"] or row.check_out
+
+            if row.check_in == check_in and row.check_out == check_out:
+                continue
+
+            row.check_in = check_in
+            row.check_out = check_out
+            row.updated_at = timezone.now()
+            row.save(update_fields=["check_in", "check_out", "updated_at"])
+            touched.append(row.staff_profile_id)
+
+        if touched:
+            # Attendance changes are audited (CLAUDE.md 13). One entry per
+            # day rather than per row: a month's upload is one action by one
+            # person, and a hundred near-identical rows would bury it.
+            audit.record(
+                action="staff_attendance.times_from_device",
+                module="staff_attendance",
+                entity_type="school",
+                entity_id=school_id,
+                school_id=school_id,
+                new={"attendance_date": str(date), "staff_profile_ids": sorted(touched)},
+            )
+
+        filled += len(touched)
+
+    return filled
 
 
 def attach_waiting(profile: StaffProfile) -> int:
@@ -126,11 +244,23 @@ def attach_waiting(profile: StaffProfile) -> int:
     if not profile.biometric_user_id:
         return 0
 
-    return BiometricPunch.objects.filter(
+    waiting = BiometricPunch.objects.filter(
         school_id=profile.school_id,
         biometric_user_id=profile.biometric_user_id,
         staff_profile__isnull=True,
-    ).update(staff_profile_id=profile.pk, updated_at=timezone.now())
+    )
+    # Read the days before the update, while the rows are still findable by
+    # the id nobody was mapped to.
+    days = list(waiting.values_list("local_date", flat=True).distinct())
+    attached = waiting.update(staff_profile_id=profile.pk, updated_at=timezone.now())
+
+    if attached:
+        # The register too, not just the log: a day that was already marked
+        # while this person was unenrolled should now show the times the
+        # device had for them all along.
+        fill_register(profile.school_id, [(profile.pk, day) for day in days])
+
+    return attached
 
 
 def detach(profile: StaffProfile, previous: str | None) -> int:
