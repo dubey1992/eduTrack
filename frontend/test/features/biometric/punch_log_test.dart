@@ -12,8 +12,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:edutrack_app/features/schools/data/models/school.dart';
+import 'package:edutrack_app/features/schools/data/school_repository.dart';
+
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_biometric_repository.dart';
+import '../../support/fake_school_repository.dart';
 
 /// What the devices recorded (docs/biometric.md, B2).
 ///
@@ -33,6 +37,40 @@ Widget wrap(FakeBiometricRepository fake, {AuthenticatedUser actor = _admin}) {
     child: MaterialApp(
       theme: AppTheme.light(),
       home: const Scaffold(body: DeviceListScreen()),
+    ),
+  );
+}
+
+const _branchSchool = School(
+  id: 7,
+  name: 'Map Demo Delhi Branch',
+  registrationNumber: null,
+  email: 'delhi@example.com',
+  phone: '+91 98765 43210',
+  address: '12 School Road',
+  city: 'New Delhi',
+  state: 'Delhi',
+  country: 'India',
+  postalCode: '110001',
+  currencyCode: 'INR',
+  timezone: 'UTC',
+  logoUrl: null,
+  status: SchoolStatus.active,
+);
+
+/// The upload dialog on its own, worn by whichever actor the test needs.
+Widget wrapDialog(FakeBiometricRepository fake, {AuthenticatedUser actor = _admin, int? schoolId}) {
+  return ProviderScope(
+    overrides: [
+      biometricRepositoryProvider.overrideWithValue(fake),
+      authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: actor)),
+      schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository(schools: const [_branchSchool])),
+    ],
+    child: MaterialApp(
+      theme: AppTheme.light(),
+      home: Scaffold(
+        body: PunchUploadDialog(pick: fakePicker, schoolId: schoolId),
+      ),
     ),
   );
 }
@@ -204,32 +242,73 @@ void main() {
 
     testWidgets('the dialog says the shape of the file and that a repeat is safe', (tester) async {
       useDesktop(tester);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [biometricRepositoryProvider.overrideWithValue(FakeBiometricRepository())],
-          child: MaterialApp(
-            theme: AppTheme.light(),
-            home: const Scaffold(body: PunchUploadDialog()),
-          ),
-        ),
-      );
+      await tester.pumpWidget(wrapDialog(FakeBiometricRepository()));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('biometric_user_id,punched_at'), findsOneWidget);
       expect(find.textContaining('Uploading the same file twice is safe'), findsOneWidget);
     });
 
+    group('when the file could belong to more than one school', () {
+      // A file of punches has no school in it. A Super Admin, or an admin
+      // over a group of branches, has to say which - the server will not
+      // guess, and before this it answered a guess with "not authorized".
+      const overGroup = AuthenticatedUser(
+        id: 3,
+        name: 'Group Admin',
+        email: 'group@example.com',
+        role: UserRole.schoolAdmin,
+        managesBranches: true,
+      );
+
+      testWidgets('it asks, and will not upload until it is answered', (tester) async {
+        useDesktop(tester);
+        await tester.pumpWidget(wrapDialog(FakeBiometricRepository(), actor: overGroup));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Branch'), findsOneWidget);
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Choose file'));
+        await tester.pumpAndSettle();
+
+        expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Upload')).onPressed, isNull);
+      });
+
+      testWidgets('the branch the screen is filtered to is the answer already', (tester) async {
+        useDesktop(tester);
+        final fake = FakeBiometricRepository();
+        await tester.pumpWidget(wrapDialog(fake, actor: overGroup, schoolId: 7));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Choose file'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(FilledButton, 'Upload'));
+        await tester.pumpAndSettle();
+
+        expect(fake.uploaded.single['school_id'], 7);
+      });
+
+      testWidgets('an admin of one school is not asked', (tester) async {
+        useDesktop(tester);
+        final fake = FakeBiometricRepository();
+        await tester.pumpWidget(wrapDialog(fake));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Branch'), findsNothing);
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Choose file'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(FilledButton, 'Upload'));
+        await tester.pumpAndSettle();
+
+        // The server files it under their own school (CLAUDE.md rule 10).
+        expect(fake.uploaded.single['school_id'], isNull);
+      });
+    });
+
     testWidgets('upload is disabled until a file is chosen', (tester) async {
       useDesktop(tester);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [biometricRepositoryProvider.overrideWithValue(FakeBiometricRepository())],
-          child: MaterialApp(
-            theme: AppTheme.light(),
-            home: const Scaffold(body: PunchUploadDialog()),
-          ),
-        ),
-      );
+      await tester.pumpWidget(wrapDialog(FakeBiometricRepository()));
       await tester.pumpAndSettle();
 
       final button = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Upload'));
@@ -240,15 +319,7 @@ void main() {
 
   group('what the outcome of a file says', () {
     Future<void> upload(WidgetTester tester, FakeBiometricRepository fake) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [biometricRepositoryProvider.overrideWithValue(fake)],
-          child: MaterialApp(
-            theme: AppTheme.light(),
-            home: Scaffold(body: PunchUploadDialog(pick: fakePicker)),
-          ),
-        ),
-      );
+      await tester.pumpWidget(wrapDialog(fake));
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(OutlinedButton, 'Choose file'));
@@ -261,15 +332,7 @@ void main() {
       useDesktop(tester);
       final fake = FakeBiometricRepository();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [biometricRepositoryProvider.overrideWithValue(fake)],
-          child: MaterialApp(
-            theme: AppTheme.light(),
-            home: Scaffold(body: PunchUploadDialog(pick: fakePicker)),
-          ),
-        ),
-      );
+      await tester.pumpWidget(wrapDialog(fake));
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(OutlinedButton, 'Choose file'));

@@ -147,6 +147,15 @@ Four things worth keeping:
 The punch log is cleared on sign-out for the same reason the device list is:
 one school's staff movements, with names on them.
 
+**The upload asks which school when the answer is ambiguous.** A file of
+punches has no school in it. An admin over a group of branches, or a Super
+Admin, has to say which one - the server will not guess, and before this it
+answered a guess with "You are not authorized to perform this action", which
+is both wrong and useless. It is the same `SchoolPicker` the device form
+uses, prefilled from whatever the screen is filtered to, and the Upload
+button stays disabled until it is answered. An admin of a single school is
+never asked: the server files it under theirs whatever the request says.
+
 **B3 - punches reach the register.** Earliest and latest of a local day fill
 check-in and check-out; the marking screen pre-fills from them; the status
 stays a human's. After this slice the feature is genuinely useful with no

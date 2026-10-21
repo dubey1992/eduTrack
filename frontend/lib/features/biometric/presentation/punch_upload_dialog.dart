@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/file_picker.dart';
+import '../../../core/widgets/school_picker.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../../transport/presentation/widgets/submit_button.dart';
 import '../application/punch_page_notifier.dart';
 import '../data/biometric_repository.dart';
@@ -32,10 +34,23 @@ class PunchUploadDialog extends ConsumerStatefulWidget {
 }
 
 class _PunchUploadDialogState extends ConsumerState<PunchUploadDialog> {
+  /// Which school the file belongs to. Starts at whatever the screen behind
+  /// is filtered to, and is only asked for when the answer is genuinely
+  /// ambiguous - a Super Admin, or an admin over a group of branches. A file
+  /// of punches has no school in it, so nobody but the person uploading it
+  /// knows which one it came from.
+  int? _schoolId;
+
   PickedFile? _file;
   bool _isSubmitting = false;
   String? _errorMessage;
   PunchUploadResult? _result;
+
+  @override
+  void initState() {
+    super.initState();
+    _schoolId = widget.schoolId;
+  }
 
   Future<void> _choose() async {
     final picked = await widget.pick(accept: '.csv,text/csv');
@@ -62,7 +77,7 @@ class _PunchUploadDialogState extends ConsumerState<PunchUploadDialog> {
     try {
       final result = await ref
           .read(biometricRepositoryProvider)
-          .uploadPunches(fileName: file.name, bytes: file.bytes, schoolId: widget.schoolId);
+          .uploadPunches(fileName: file.name, bytes: file.bytes, schoolId: _schoolId);
 
       await ref.read(punchPageNotifierProvider.notifier).refresh();
 
@@ -79,6 +94,7 @@ class _PunchUploadDialogState extends ConsumerState<PunchUploadDialog> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final result = _result;
+    final picksSchool = ref.watch(authNotifierProvider).value?.picksSchool ?? false;
 
     return AlertDialog(
       title: const Text('Upload punches'),
@@ -94,6 +110,10 @@ class _PunchUploadDialogState extends ConsumerState<PunchUploadDialog> {
                 const SizedBox(height: 12),
               ],
               if (result == null) ...[
+                if (picksSchool) ...[
+                  SchoolPicker(selected: _schoolId, onChanged: (value) => setState(() => _schoolId = value)),
+                  const SizedBox(height: 12),
+                ],
                 const Text('A CSV exported from the device software, with two columns:'),
                 const SizedBox(height: 6),
                 SelectableText(
@@ -130,7 +150,11 @@ class _PunchUploadDialogState extends ConsumerState<PunchUploadDialog> {
       actions: result == null
           ? [
               TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-              SubmitButton(isSubmitting: _isSubmitting, onPressed: _file == null ? null : _submit, label: 'Upload'),
+              SubmitButton(
+                isSubmitting: _isSubmitting,
+                onPressed: _file == null || (picksSchool && _schoolId == null) ? null : _submit,
+                label: 'Upload',
+              ),
             ]
           : [FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done'))],
     );
