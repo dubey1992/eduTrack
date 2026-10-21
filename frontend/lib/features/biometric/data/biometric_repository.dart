@@ -5,6 +5,7 @@ import '../../../core/network/paginated_response.dart';
 import '../../../core/network/dio_client.dart';
 import 'biometric_api.dart';
 import 'models/biometric_device.dart';
+import 'models/biometric_punch.dart';
 
 final biometricRepositoryProvider = Provider<BiometricRepository>(
   (ref) => BiometricRepository(ref.watch(biometricApiProvider)),
@@ -63,6 +64,36 @@ class BiometricRepository {
   Future<void> deleteDevice(int deviceId) async {
     try {
       await _api.deleteDevice(deviceId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<PunchPage> listPunches({
+    int? schoolId,
+    required int page,
+    required int perPage,
+    String? q,
+    String? date,
+    bool unmatchedOnly = false,
+  }) async {
+    try {
+      return await _api.listPunches(
+        schoolId: schoolId,
+        page: page,
+        perPage: perPage,
+        q: q,
+        date: date,
+        unmatchedOnly: unmatchedOnly,
+      );
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<PunchUploadResult> uploadPunches({required String fileName, required List<int> bytes, int? schoolId}) async {
+    try {
+      return await _api.uploadPunches(fileName: fileName, bytes: bytes, schoolId: schoolId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

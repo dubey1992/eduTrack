@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 /// The dialogs' primary button: disabled with a spinner while a request is
 /// in flight (duplicate-submission guard), the label otherwise.
+///
+/// A null [onPressed] disables it for the dialog's own reason - nothing
+/// chosen yet, say - the way every Material button works.
 class SubmitButton extends StatelessWidget {
   const SubmitButton({super.key, required this.isSubmitting, required this.onPressed, required this.label});
 
   final bool isSubmitting;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final String label;
 
   @override

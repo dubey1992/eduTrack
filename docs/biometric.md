@@ -116,10 +116,36 @@ Three things worth keeping:
   caught it: without that, one school's hardware stays on screen for whoever
   signs in next on the same browser.
 
-**B2 - the punch log, by upload.** `biometric_punches`, the CSV upload through
-the existing import machinery, and a screen showing what arrived - matched to
-a person, or sitting unmatched with the id that nobody has mapped. Still
-changes no register.
+**B2 - the punch log, by upload. Built 2026-10-21.** `biometric_punches`, a
+CSV upload, and a screen showing what arrived - matched to a person, or
+sitting unmatched with the id nobody has mapped. Still changes no register.
+
+The log is the other half of the Biometric Devices screen rather than a nav
+entry of its own: a log of punches with no sight of the readers that made
+them is not a screen anybody opens, and a Devices | Punch log toggle matches
+the List | Map pattern the schools page already uses.
+
+Four things worth keeping:
+
+- **An unattributed punch says so on the row.** "Nobody mapped to 88", not a
+  blank. A blank reads as an absence of information; this is information,
+  and it is somebody's next job.
+- **The count comes from the server, not the page.** Twenty rows cannot tell
+  "none on this page" from "none at all", so the list endpoint sends
+  `unmatched_total` under the same filters and the screen says it above the
+  table.
+- **The upload dialog promises that a repeat is safe before anybody
+  presses it.** That is the question somebody asks themselves while
+  hesitating over a file they may already have sent, and the answer is three
+  numbers afterwards: new, already in, and the lines that could not be read -
+  every one of them, so the file can be fixed once.
+- **One bad line does not refuse the file.** A month of attendance is worth
+  having without the row somebody fat-fingered. This is deliberately unlike
+  the bulk importer, which is all-or-nothing because a half-imported student
+  roll is worse than none.
+
+The punch log is cleared on sign-out for the same reason the device list is:
+one school's staff movements, with names on them.
 
 **B3 - punches reach the register.** Earliest and latest of a local day fill
 check-in and check-out; the marking screen pre-fills from them; the status

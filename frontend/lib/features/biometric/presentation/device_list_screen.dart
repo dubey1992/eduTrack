@@ -18,6 +18,10 @@ import '../../auth/application/auth_notifier.dart';
 import '../application/device_page_notifier.dart';
 import '../data/models/biometric_device.dart';
 import 'device_form_dialog.dart';
+import 'punch_upload_dialog.dart';
+import 'punch_log_view.dart';
+import '../application/punch_page_notifier.dart';
+import '../../../core/utils/file_picker.dart';
 
 /// The fingerprint readers a school has (docs/biometric.md, B1).
 ///
@@ -33,6 +37,11 @@ class DeviceListScreen extends ConsumerStatefulWidget {
 
 class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
   int? _schoolFilter;
+
+  /// Two views of the same subject: the hardware, and what it recorded.
+  /// One nav entry, because a log without the devices behind it is not a
+  /// screen anybody opens on its own.
+  bool _onTheLog = false;
   final _searchController = TextEditingController();
   Timer? _typing;
 
@@ -62,7 +71,24 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
         SectionHeader(
           title: 'Biometric Devices',
           actions: [
-            if (canManage)
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, icon: Icon(Icons.fingerprint, size: 18), label: Text('Devices')),
+                ButtonSegment(value: true, icon: Icon(Icons.list_alt, size: 18), label: Text('Punch log')),
+              ],
+              selected: {_onTheLog},
+              onSelectionChanged: (choice) => setState(() => _onTheLog = choice.first),
+            ),
+            if (canManage && _onTheLog && canPickFile)
+              OutlinedButton.icon(
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (_) => PunchUploadDialog(schoolId: _schoolFilter),
+                ),
+                icon: const Icon(Icons.upload_file, size: 18),
+                label: const Text('Upload punches'),
+              ),
+            if (canManage && !_onTheLog)
               FilledButton.icon(
                 onPressed: () => showDialog(context: context, builder: (_) => const DeviceFormDialog()),
                 icon: const Icon(Icons.add, size: 18),
@@ -73,54 +99,59 @@ class _DeviceListScreenState extends ConsumerState<DeviceListScreen> {
               onChanged: (schoolId) {
                 setState(() => _schoolFilter = schoolId);
                 ref.read(devicePageNotifierProvider.notifier).setSchoolFilter(schoolId);
+                ref.read(punchPageNotifierProvider.notifier).setSchoolFilter(schoolId);
               },
             ),
           ],
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: SizedBox(
-            width: 340,
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search devices',
-                hintText: 'Name, serial number or location',
-                prefixIcon: Icon(Icons.search, size: 20),
-                isDense: true,
+        if (_onTheLog)
+          const Expanded(child: PunchLogView())
+        else ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: SizedBox(
+              width: 340,
+              child: TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  labelText: 'Search devices',
+                  hintText: 'Name, serial number or location',
+                  prefixIcon: Icon(Icons.search, size: 20),
+                  isDense: true,
+                ),
+                onChanged: _search,
               ),
-              onChanged: _search,
             ),
           ),
-        ),
-        Expanded(
-          child: AsyncValueView<PagedList<BiometricDevice>>(
-            value: devicesState,
-            onRetry: () => ref.read(devicePageNotifierProvider.notifier).refresh(),
-            isEmpty: (page) => page.items.isEmpty,
-            emptyBuilder: (context) => const Center(child: Text('No devices registered yet.')),
-            data: (context, page) {
-              return Column(
-                children: [
-                  Expanded(
-                    child: ResponsiveBuilder(
-                      mobile: (context) => _DeviceCards(devices: page.items, canManage: canManage),
-                      desktop: (context) => _DeviceTable(devices: page.items, canManage: canManage),
+          Expanded(
+            child: AsyncValueView<PagedList<BiometricDevice>>(
+              value: devicesState,
+              onRetry: () => ref.read(devicePageNotifierProvider.notifier).refresh(),
+              isEmpty: (page) => page.items.isEmpty,
+              emptyBuilder: (context) => const Center(child: Text('No devices registered yet.')),
+              data: (context, page) {
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ResponsiveBuilder(
+                        mobile: (context) => _DeviceCards(devices: page.items, canManage: canManage),
+                        desktop: (context) => _DeviceTable(devices: page.items, canManage: canManage),
+                      ),
                     ),
-                  ),
-                  PaginationControls(
-                    currentPage: page.currentPage,
-                    lastPage: page.lastPage,
-                    total: page.total,
-                    perPage: page.perPage,
-                    onPageChanged: (p) => ref.read(devicePageNotifierProvider.notifier).goToPage(p),
-                    onPerPageChanged: (p) => ref.read(devicePageNotifierProvider.notifier).setPerPage(p),
-                  ),
-                ],
-              );
-            },
+                    PaginationControls(
+                      currentPage: page.currentPage,
+                      lastPage: page.lastPage,
+                      total: page.total,
+                      perPage: page.perPage,
+                      onPageChanged: (p) => ref.read(devicePageNotifierProvider.notifier).goToPage(p),
+                      onPerPageChanged: (p) => ref.read(devicePageNotifierProvider.notifier).setPerPage(p),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

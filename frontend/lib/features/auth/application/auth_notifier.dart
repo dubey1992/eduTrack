@@ -25,6 +25,7 @@ import '../../payments/application/payment_summary_notifier.dart';
 import '../../permissions/application/permissions_notifier.dart';
 import '../../profile/application/profile_notifier.dart';
 import '../../biometric/application/device_page_notifier.dart';
+import '../../biometric/application/punch_page_notifier.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../staff/application/staff_list_notifier.dart';
 import '../../staff_leave/application/staff_leave_list_notifier.dart';
@@ -132,6 +133,9 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     // The fingerprint readers one school has, which the next person to sign
     // in on this browser must not be shown (docs/biometric.md, B1).
     ref.invalidate(devicePageNotifierProvider);
+    // And what those readers recorded: one school's staff movements, with
+    // names on them (docs/biometric.md, B2).
+    ref.invalidate(punchPageNotifierProvider);
     ref.invalidate(paymentListNotifierProvider);
     ref.invalidate(paymentSummaryNotifierProvider);
     // Added in Phase 21, when a sweep found these still holding the previous
