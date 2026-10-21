@@ -62,6 +62,15 @@ def in_scope(actor: User, school_id) -> bool:
     return actor.role == UserRole.SUPER_ADMIN or SchoolScope.for_actor(actor).allows(school_id)
 
 
+def rides_the_bus(actor: User) -> bool:
+    """A Bus Attendant, whose "manage transport" is for running the trip
+    they are on - boarding, dropping, ending - and never for redrawing the
+    route underneath them. The parent policy keeps them off the fleet
+    entirely; routes and stops have to say it too, now that the Transport
+    Manager has been let in on the same permission."""
+    return actor.role == UserRole.BUS_ATTENDANT
+
+
 def administers(actor: User) -> bool:
     return actor.role == UserRole.SUPER_ADMIN or UserRole.administers_school(actor.role)
 
@@ -601,6 +610,31 @@ class TransportMasterPolicy:
 
 
 class TransportRoutePolicy(TransportMasterPolicy):
+    """Routes and their stops, which the Transport Manager owns.
+
+    The one place this parts company with vehicles and drivers: a route is
+    the shape of the service, and the person who runs the service is the
+    person who knows where the bus should stop. Buying a bus or hiring a
+    driver stays the school's own act, so those keep the parent's
+    administers() check and this does not.
+
+    Stops come through here too - changing a stop is changing its route -
+    so the two move together by construction rather than by two lists
+    somebody has to keep in step.
+    """
+
+    @staticmethod
+    def create(actor: User) -> bool:
+        return not rides_the_bus(actor) and permitted(actor, "transport", write=True)
+
+    @staticmethod
+    def manage(actor: User, record) -> bool:
+        return (
+            not rides_the_bus(actor)
+            and permitted(actor, "transport", write=True, school_id=record.school_id)
+            and in_scope(actor, record.school_id)
+        )
+
     @staticmethod
     def view_students(actor: User, route) -> bool:
         """Who rides a route - guardians' numbers included - is for those who

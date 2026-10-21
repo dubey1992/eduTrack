@@ -27,6 +27,9 @@ const _transportManager = AuthenticatedUser(
   name: 'Mohan',
   email: 'mohan@example.com',
   role: UserRole.transportManager,
+  // Everybody but a Super Admin belongs to a school, and the route screen
+  // needs to know whose map "Draw on the map" should open.
+  schoolId: 1,
 );
 
 Widget wrap(Widget screen, FakeTransportRepository fake, {AuthenticatedUser actor = _schoolAdmin}) {
@@ -284,7 +287,9 @@ void main() {
       expect(find.text('Add Stop'), findsNothing);
     });
 
-    testWidgets('a transport manager sees Students but no management actions', (tester) async {
+    testWidgets('a transport manager manages the routes they run', (tester) async {
+      // They run the service, so its shape is theirs: routes and their
+      // stops. Vehicles and drivers are not (see the driver screen above).
       useDesktop(tester);
       await tester.pumpWidget(
         wrap(const RouteListScreen(), FakeTransportRepository(routes: [greenPark]), actor: _transportManager),
@@ -292,8 +297,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(TextButton, 'Students'), findsOneWidget);
-      expect(find.text('Add Route'), findsNothing);
-      expect(find.text('Deactivate'), findsNothing);
+      expect(find.text('Add Route'), findsOneWidget);
+      expect(find.text('Draw on the map'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Stops'), findsOneWidget);
     });
 
     testWidgets('an empty students list says so', (tester) async {
@@ -304,6 +310,25 @@ void main() {
       await tester.tap(find.widgetWithText(TextButton, 'Students'));
       await tester.pumpAndSettle();
       expect(find.text('No students are assigned to this route yet.'), findsOneWidget);
+    });
+  });
+
+  group('whose map to draw on', () {
+    testWidgets('a super admin looking across the platform is not offered one', (tester) async {
+      // A route belongs to one school and the map has to be that school's.
+      // Nothing has been picked here, so there is nothing honest to open.
+      useDesktop(tester);
+      await tester.pumpWidget(
+        wrap(
+          const RouteListScreen(),
+          FakeTransportRepository(routes: [greenPark]),
+          actor: const AuthenticatedUser(id: 1, name: 'Root', email: 'root@example.com', role: UserRole.superAdmin),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add Route'), findsOneWidget);
+      expect(find.text('Draw on the map'), findsNothing);
     });
   });
 }

@@ -48,14 +48,33 @@ stop rather than its position, because the error envelope flattens nested
 errors (school/errors.py) and a sentence that reads on its own is worth
 more than an index nobody sees.
 
-**Both roles reach it without a permissions change.** `/schools/:id` has no
-nav entry, so the router never gated it, and `SchoolPolicy.view` already
-allows any school inside the actor's own scope - which includes a Transport
-Manager's own school. So Transport > Routes carries a **Draw on the map**
-button that goes there, and the Schools sidebar entry stays the Super
-Admin's. What a Transport Manager does *not* get on that page is the school
-record itself: the Edit button and the "Place it" link are the platform's,
-and are hidden rather than offered and refused.
+**Both roles reach the page without a permissions change.** `/schools/:id`
+has no nav entry, so the router never gated it, and `SchoolPolicy.view`
+already allows any school inside the actor's own scope - which includes a
+Transport Manager's own school. So Transport > Routes carries a **Draw on
+the map** button that goes there, and the Schools sidebar entry stays the
+Super Admin's. What a Transport Manager does *not* get on that page is the
+school record itself: the Edit button and the "Place it" link are the
+platform's, and are hidden rather than offered and refused.
+
+**Routes and stops did need one** (2026-10-21, confirmed by the user).
+`TransportMasterPolicy` requires `administers()` - the school's own admins -
+and that covered vehicles, drivers and routes alike. A Transport Manager
+could run a route and not define one, which makes the builder useless to
+the person it is for. `TransportRoutePolicy` now overrides `create` and
+`manage` without that check; stops come through the same `manage()` -
+changing a stop is changing its route - so the two move together by
+construction rather than by two lists somebody has to keep in step.
+
+The line this stops at: **vehicles and drivers keep the narrower rule.**
+Buying a bus and hiring a driver are the school's own acts; defining where
+the bus stops is the job of whoever runs it.
+
+And one trap worth naming, because the full suite caught it rather than
+the new tests: the permissions matrix grants a **Bus Attendant** `manage`
+on transport, so they can run the trip they are on. Dropping
+`administers()` let that become permission to redraw the route underneath
+them. `rides_the_bus()` keeps them out explicitly.
 
 **Three keys, not two** (corrected 2026-10-19): an API key carries one
 *Application restriction*, so the plan's single "browser/app key" is really

@@ -333,9 +333,49 @@ class RouteTest(TransportTestCase):
     def test_a_junk_driver_id_is_only_that(self):
         self.assertEqual(["The driver id field must be an integer."], self.errors(self.create(self.admin, driver_id="abc"))["driver_id"])
 
-    def test_non_admins_do_not_create_routes(self):
-        for user in (self.teacher, self.manager, self.clerk):
+    def test_the_transport_manager_creates_routes(self):
+        """The runs are theirs: they run the service, so they define its
+        shape. Vehicles and drivers are still the school's own (below)."""
+        self.assertEqual(201, self.create(self.manager).status_code)
+
+    def test_nobody_else_creates_routes(self):
+        attendant = self.user(UserRole.BUS_ATTENDANT)
+
+        # The attendant is the sharp one: the matrix grants them "manage
+        # transport" so they can run their own trip, and that must not
+        # become permission to redraw the route underneath them.
+        for user in (self.teacher, self.clerk, attendant):
             self.assertEqual(403, self.create(user).status_code)
+
+    def test_the_manager_still_does_not_buy_buses_or_hire_drivers(self):
+        """The line this change deliberately stops at."""
+        client = self.as_user(self.manager)
+
+        self.assertEqual(
+            403,
+            client.post(
+                "/api/v1/transport/vehicles",
+                {"name": "Bus 9", "registration_number": "MH-12-AA-0001", "capacity": 30},
+                format="json",
+            ).status_code,
+        )
+        self.assertEqual(
+            403,
+            client.post(
+                "/api/v1/transport/drivers",
+                {"name": "Ramesh", "mobile": "+91 9000000009", "licence_number": "DL-1"},
+                format="json",
+            ).status_code,
+        )
+
+    def test_the_manager_still_cannot_reach_another_school(self):
+        theirs = factories.TransportRouteFactory(school=self.elsewhere, name="Theirs")
+
+        response = self.as_user(self.manager).patch(
+            f"{self.URL}/{theirs.id}", {"name": "Mine now"}, format="json"
+        )
+
+        self.assertEqual(403, response.status_code)
 
     def test_a_route_keeps_its_own_deactivated_vehicle_and_can_swap_it(self):
         own = factories.VehicleFactory(school=self.school, status="inactive")
@@ -472,13 +512,25 @@ class StopTest(TransportTestCase):
 
         self.assertEqual("Students are still assigned to this stop. Move them to another stop first.", response.data["message"])
 
-    def test_the_transport_manager_does_not_manage_stops(self):
+    def test_the_transport_manager_manages_stops(self):
+        """Changing a stop is changing its route, so stops follow routes -
+        the person who knows where the bus should stop is the person who
+        runs it."""
         stop = factories.TransportStopFactory(route=self.route)
         client = self.as_user(self.manager)
 
-        self.assertEqual(403, self.add(self.manager, name="").status_code)
+        self.assertEqual(201, self.add(self.manager, name="Market Square", sequence_number=9).status_code)
+        self.assertEqual(
+            200, client.patch(f"/api/v1/transport/stops/{stop.id}", {"name": "Renamed"}, format="json").status_code
+        )
+        self.assertEqual(204, client.delete(f"/api/v1/transport/stops/{stop.id}").status_code)
+
+    def test_a_teacher_still_does_not_manage_stops(self):
+        stop = factories.TransportStopFactory(route=self.route)
+        client = self.as_user(self.teacher)
+
+        self.assertEqual(403, self.add(self.teacher, name="Market Square").status_code)
         self.assertEqual(403, client.patch(f"/api/v1/transport/stops/{stop.id}", {}, format="json").status_code)
-        self.assertEqual(403, client.delete(f"/api/v1/transport/stops/{stop.id}").status_code)
 
     def test_admins_and_the_manager_see_riders_in_stop_order_and_a_teacher_does_not(self):
         second = factories.TransportStopFactory(route=self.route, sequence_number=2, name="Market")
@@ -723,10 +775,13 @@ class BuildingARouteOnTheMap(TransportTestCase):
         self.assertEqual(0, TransportRoute.objects.filter(name="Route C").count())
         self.assertEqual(0, TransportStop.objects.filter(name="Fine").count())
 
-    def test_a_transport_manager_may_not_build_one(self):
-        """Routes are the school's admins' to create - the manager runs
-        them. Unchanged by this endpoint taking stops as well."""
-        self.assertEqual(403, self.build(self.manager).status_code)
+    def test_a_transport_manager_builds_one(self):
+        """The whole point of putting this on a map: the person who runs
+        the service draws the service."""
+        response = self.build(self.manager)
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(1, response.data["stops_count"])
 
     def test_nobody_builds_a_route_into_another_school(self):
         response = self.build(self.stranger, school_id=self.school.id)

@@ -26,7 +26,11 @@ import 'widgets/transport_list_scaffold.dart';
 
 /// The fleet stays with administrators: a Transport Manager's manage on the
 /// module runs trips, not this list (docs/settings.md).
-const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin};
+/// Routes and their stops are the Transport Manager's as well as the
+/// admins': they run the service, so they define its shape. Vehicles and
+/// drivers are not - buying a bus is the school's own act, and those
+/// screens keep the narrower set (docs/maps.md).
+const _manageRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.transportManager};
 
 /// Who may open the "Students on Bus" list - the prototype's "Transport
 /// Students" access (admins + the Transport Manager).
