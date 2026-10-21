@@ -511,6 +511,18 @@ class AppNav {
         pageSubtitle: 'Bus drivers and their licences',
       ),
       NavItem(
+        path: '/transport/bus-stops',
+        module: AppModules.transport,
+        deniedRoles: _notAttendants,
+        label: 'Bus Stops',
+        icon: Icons.location_on_outlined,
+        allowedRoles: _transportViewerRoles,
+        pageTitle: 'Bus Stops',
+        // The places, as opposed to one route calling at one of them -
+        // which is what Routes & Stops below is about (docs/maps.md).
+        pageSubtitle: 'The places the buses stop at',
+      ),
+      NavItem(
         path: '/transport/routes',
         module: AppModules.transport,
         deniedRoles: _notAttendants,

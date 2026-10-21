@@ -14,6 +14,72 @@ and its stops drawn on the school's own map. See below.
 What is left is not a milestone: a real road-path key quota to watch, and
 whatever the first school's routes turn up.
 
+## The school's list of bus stops
+
+Asked for 2026-10-22: *"User should have option to add the stops by picking
+on the maps... users can list down all the bus stops. Then those stops
+should be used in creating routes."*
+
+**A place, not a call.** A row in `transport_stops` is a route stopping
+somewhere fourth at 07:15. A row in the new `bus_stops` is the corner by
+the post office. Before the list existed, two routes passing the same
+corner were two unrelated rows that happened to share coordinates - so a
+pin dropped in the wrong street had to be fixed once per route, and nobody
+could answer "what stops do we serve?".
+
+The list sits beside `transport_stops` rather than replacing it, because
+four things already point at a route's stop: student assignments, a trip's
+current stop, its riders and its timeline events. None of them moved.
+`transport_stops.bus_stop_id` is the link, nullable, and **every row that
+exists today is null** - stops made one route at a time before there was a
+list to pick from are still correct, and the product works with a mix.
+
+Three decisions, taken with the user:
+
+- **Routes will follow the library.** Fix a wrong pin once and every route
+  using it is right. Safe because a trip keeps its own record of where it
+  went: `transport_trip_events.stop_name` and `transport_trip_riders.
+  stop_name` are snapshots, so renaming a stop can never rewrite what a
+  trip recorded. (Built in S3.)
+- **Library only.** Once routes are built from it, tapping the map while
+  drawing a route will add the place to the list and put it on the route in
+  one action - so the list stays complete because there is no other way to
+  make a stop. (Built in S2.)
+- **Its own screen**, Transport -> Bus Stops: a map of every stop beside
+  the list, because the list answers "what do we serve?" and the map
+  answers "where is it?", and neither alone catches the pin in the wrong
+  street.
+
+**A position is required**, unlike a route's stop. These are picked on a
+map; a stop nobody can point to is not a stop. The same wrong-way-round
+guard applies - coordinates typed in the wrong order land in the sea.
+
+**The name is unique per school**, which is how people refer to a stop and
+also what keeps routes honest: `transport_stops` is unique on (route,
+name), so two library stops can never collide on one route.
+
+**A stop a route calls at is not deleted.** The refusal names the routes,
+because "cannot delete" without saying why is what sends somebody through
+every route one at a time. Retire it instead; the row says how many routes
+use it before anybody presses anything.
+
+**The page carries where the school is.** The map has to centre before
+there is a single stop to frame, and the people who keep this list cannot
+read `/schools` at all - a Transport Manager answers for their own school
+without being able to list schools. So `GET /transport/bus-stops` sends
+`school_latitude`/`school_longitude` beside the page, both null for a Super
+Admin who has not picked a school, which is honestly "no single school"
+rather than a guess.
+
+### Still to come
+
+- **S2** - routes are built from the list: `bus_stop_id` on a route's stop,
+  the map builder adding to the list as it draws, Manage Stops picking from
+  it.
+- **S3** - edits follow: renaming or moving a place updates every route
+  stop that came from it, in one transaction, marking each affected road
+  path stale, and refusing a rename that would collide on a route.
+
 ## Building a route on the school's map
 
 Asked for in these words: *"Create route section should be inside the View

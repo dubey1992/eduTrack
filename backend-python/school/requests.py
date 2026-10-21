@@ -53,6 +53,7 @@ from .enums import (
 )
 from . import week
 from .models import (
+    BusStop,
     BiometricDevice,
     AttendantCredential,
     AcademicTerm,
@@ -2505,6 +2506,95 @@ class UpdateTransportRouteRequest(RouteFields, PartialForm):
 # A stop further than this from its school is almost always a latitude and
 # longitude typed the wrong way round.
 MAX_STOP_DISTANCE_KM = 100
+
+
+class BusStopFields(serializers.Serializer):
+    """A place in the school's list of bus stops (docs/maps.md).
+
+    The position is **required**, unlike a route's stop: these are picked on
+    a map, and a stop nobody can point to is not a stop. The same
+    wrong-way-round guard applies, because that is the mistake people make
+    when they type coordinates instead of tapping.
+    """
+
+    name = LaravelCharField("name", max_length=100)
+    # Required here, unlike a route's stop: these are picked on a map.
+    # CoordinateField is optional by default, so both halves say so.
+    latitude = CoordinateField("latitude", -90, 90, required=True, allow_null=False)
+    longitude = CoordinateField("longitude", -180, 180, required=True, allow_null=False)
+    landmark = LaravelCharField("landmark", max_length=100, required=False, allow_null=True, allow_blank=True)
+
+    def stop_school(self):
+        raise NotImplementedError
+
+    def ignoring(self):
+        """The row being edited, which is not its own clash."""
+        return None
+
+    def validate_name(self, value):
+        taken(
+            BusStop.objects.filter(school_id=self.stop_school(), name=value).exclude(pk=self.ignoring())
+            if self.ignoring() is not None
+            else BusStop.objects.filter(school_id=self.stop_school(), name=value),
+            "name",
+        )
+
+        return value
+
+    def validate(self, attrs):
+        """Near its school, by the same measure a route's stop uses."""
+        if attrs.get("latitude") is None or attrs.get("longitude") is None:
+            return attrs
+
+        school = School.objects.filter(pk=self.stop_school()).values("latitude", "longitude").first()
+
+        if school and school["latitude"] is not None and school["longitude"] is not None:
+            from .geo import distance_m
+
+            away = distance_m(attrs["latitude"], attrs["longitude"], school["latitude"], school["longitude"]) / 1000
+
+            if away > MAX_STOP_DISTANCE_KM:
+                raise serializers.ValidationError(
+                    {
+                        "latitude": [
+                            f"This stop is {away:,.0f} km from the school. Check the latitude and longitude "
+                            "are not the wrong way round."
+                        ]
+                    }
+                )
+
+        return attrs
+
+
+class StoreBusStopRequest(BusStopFields, ScopedSerializer):
+    def stop_school(self):
+        return self.resolved_school_id()
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+        attrs = super().validate(attrs)
+        attrs["school_id"] = self.resolved_school_id()
+
+        return attrs
+
+
+class UpdateBusStopRequest(BusStopFields, PartialForm):
+    status = LaravelCharField("status", max_length=255)
+
+    def __init__(self, *args, stop=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.stop = stop
+
+    def stop_school(self):
+        return self.stop.school_id
+
+    def ignoring(self):
+        return self.stop.pk
+
+    def current(self, field: str):
+        return getattr(self.stop, field)
+
+    validate_status = staticmethod(enum_choice("status", TransportStatus.values))
 
 
 class StopFields(serializers.Serializer):

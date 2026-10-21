@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
+import 'models/bus_stop.dart';
 import 'models/driver.dart';
 import 'models/transport_route.dart';
 import 'models/transport_status.dart';
@@ -20,6 +21,59 @@ class TransportApi {
   final Dio _dio;
 
   // ── vehicles ────────────────────────────────────────────────────────
+
+  // -- the school's list of bus stops (docs/maps.md) -------------------------
+  //
+  // The places, as opposed to one route calling at one of them, which is
+  // what the stop endpoints under /routes/{id}/stops are about.
+
+  Future<BusStopPage> listBusStops({int? schoolId, String? status, String? q, int? page, int? perPage}) async {
+    final response = await _dio.get(
+      '/transport/bus-stops',
+      queryParameters: {'school_id': ?schoolId, 'status': ?status, 'q': ?q, 'page': ?page, 'per_page': ?perPage},
+    );
+    return BusStopPage.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<BusStop> createBusStop({
+    int? schoolId,
+    required String name,
+    required String latitude,
+    required String longitude,
+    String? landmark,
+  }) async {
+    final response = await _dio.post(
+      '/transport/bus-stops',
+      data: {'school_id': schoolId, 'name': name, 'latitude': latitude, 'longitude': longitude, 'landmark': landmark},
+    );
+    return BusStop.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<BusStop> updateBusStop(
+    int stopId, {
+    String? name,
+    String? latitude,
+    String? longitude,
+    String? landmark,
+    String? status,
+  }) async {
+    final response = await _dio.patch(
+      '/transport/bus-stops/$stopId',
+      data: {
+        'name': ?name,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
+        // Sent even when empty, so clearing a landmark actually clears it.
+        if (landmark != null) 'landmark': landmark.isEmpty ? null : landmark,
+        'status': ?status,
+      },
+    );
+    return BusStop.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteBusStop(int stopId) async {
+    await _dio.delete('/transport/bus-stops/$stopId');
+  }
 
   Future<PaginatedResponse<Vehicle>> listVehicles({
     int? schoolId,

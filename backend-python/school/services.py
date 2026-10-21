@@ -106,6 +106,7 @@ from .errors import (
     Unauthenticated,
 )
 from .models import (
+    BusStop,
     AttendantCredential,
     AttendantDevice,
     BiometricDevice,
@@ -2879,6 +2880,93 @@ class DriverService(FleetService):
     foreign_key = "driver_id"
     in_use = "This driver is still assigned to a route. Remove them from the route first."
     has_history = "This driver has trip history and cannot be deleted. Deactivate them instead."
+
+
+class BusStopService:
+    """The school's list of bus stops (docs/maps.md).
+
+    The places, not the calls: `TransportRouteService` below owns a route
+    stopping somewhere fourth at 07:15. A stop here is the corner itself,
+    which several routes may call at and which somebody fixes the position
+    of once.
+    """
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict | None = None):
+        stops = SchoolScope.for_actor(actor).apply_to(BusStop.objects.select_related("school"))
+        filters = filters or {}
+
+        if filters.get("school_id"):
+            stops = stops.filter(school_id=filters["school_id"])
+
+        if filters.get("status"):
+            stops = stops.filter(status=filters["status"])
+
+        if filters.get("q"):
+            like = f"%{filters['q']}%"
+            stops = stops.filter(Q(name__ilike=like) | Q(landmark__ilike=like))
+
+        return stops.annotate(routes_count=Count("transportstop", distinct=True)).order_by("name", "id")
+
+    @staticmethod
+    def create(data: dict, actor: User) -> BusStop:
+        data = dict(data)
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+        now = timezone.now()
+
+        stop = BusStop.objects.create(
+            school_id=school_id, status=TransportStatus.ACTIVE, created_at=now, updated_at=now, **data
+        )
+        audit.created("transport", stop)
+
+        return BusStopService.visible_to(actor).get(pk=stop.pk)
+
+    @staticmethod
+    def update(stop: BusStop, data: dict, actor: User) -> BusStop:
+        before = audit.fields_of(stop)
+
+        for field, value in data.items():
+            setattr(stop, field, value)
+
+        stop.updated_at = timezone.now()
+        stop.save()
+        audit.updated("transport", stop, before)
+
+        return BusStopService.visible_to(actor).get(pk=stop.pk)
+
+    @staticmethod
+    def routes_using(stop: BusStop) -> list[str]:
+        """The routes that call at this stop, by name. Used to refuse a
+        delete, and to say what a change is about to reach."""
+        return list(
+            TransportRoute.objects.filter(transportstop__bus_stop_id=stop.pk)
+            .order_by("name")
+            .values_list("name", flat=True)
+            .distinct()
+        )
+
+    @classmethod
+    def delete(cls, stop: BusStop) -> None:
+        """A stop a route calls at stays. Deactivate it instead - the same
+        rule the rest of transport follows, because a stop trips have called
+        at is history somebody may need to read."""
+        routes = cls.routes_using(stop)
+
+        if routes:
+            raise HasDependentRecords(
+                f"{stop.name} is on {_named(routes)}. Take it off there first, or deactivate it instead."
+            )
+
+        audit.deleted("transport", stop)
+        stop.delete()
+
+
+def _named(names: list[str]) -> str:
+    """"Route A", "Route A and Route B", "Route A, Route B and Route C"."""
+    if len(names) == 1:
+        return names[0]
+
+    return ", ".join(names[:-1]) + " and " + names[-1]
 
 
 class TransportRouteService:

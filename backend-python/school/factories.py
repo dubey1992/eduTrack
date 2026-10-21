@@ -404,6 +404,9 @@ class TransportStopFactory(DjangoModelFactory):
 
     route = factory.SubFactory(TransportRouteFactory)
     school = factory.LazyAttribute(lambda o: o.route.school)
+    # Null unless a test is about the list: the stops that exist today were
+    # made one route at a time, before there was a list to pick from.
+    bus_stop = None
     name = factory.Sequence(lambda n: f"Stop {n}")
     sequence_number = factory.Sequence(lambda n: n + 1)
     pickup_time = None
@@ -523,6 +526,23 @@ class ModuleSettingFactory(DjangoModelFactory):
     platform_enabled = True
     school_enabled = True
     settings = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)
+
+
+class BusStopFactory(DjangoModelFactory):
+    """A place in the school's list of bus stops (docs/maps.md)."""
+
+    class Meta:
+        model = models.BusStop
+
+    school = factory.SubFactory(SchoolFactory)
+    name = factory.Sequence(lambda n: f"Stop {n}")
+    latitude = "28.6200000"
+    longitude = "77.2100000"
+    landmark = None
+    status = "active"
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)

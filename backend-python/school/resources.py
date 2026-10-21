@@ -926,6 +926,24 @@ def period_resource(period) -> dict:
     }
 
 
+def bus_stop_resource(stop) -> dict:
+    """One place in the school's list (docs/maps.md)."""
+    return {
+        "id": stop.id,
+        "school_id": stop.school_id,
+        "school_name": stop.school.name,
+        "name": stop.name,
+        "latitude": str(stop.latitude),
+        "longitude": str(stop.longitude),
+        "landmark": stop.landmark,
+        "status": stop.status,
+        # How many routes call here. The screen uses it to say what a delete
+        # would break before anybody presses it.
+        "routes_count": getattr(stop, "routes_count", 0),
+        "created_at": timestamp(stop.created_at),
+    }
+
+
 def biometric_device_resource(device) -> dict:
     """One fingerprint reader (docs/biometric.md, B1)."""
     return {

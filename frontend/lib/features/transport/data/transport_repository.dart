@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
+import 'models/bus_stop.dart';
 import 'models/driver.dart';
 import 'models/transport_route.dart';
 import 'models/transport_status.dart';
@@ -139,6 +140,45 @@ class TransportRepository {
   });
 
   Future<TransportRoute> getRoute(int routeId) => _guard(() => _api.getRoute(routeId));
+
+  Future<BusStopPage> listBusStops({int? schoolId, String? status, String? q, int? page, int? perPage}) =>
+      _guard(() => _api.listBusStops(schoolId: schoolId, status: status, q: q, page: page, perPage: perPage));
+
+  Future<BusStop> createBusStop({
+    int? schoolId,
+    required String name,
+    required String latitude,
+    required String longitude,
+    String? landmark,
+  }) => _guard(
+    () => _api.createBusStop(
+      schoolId: schoolId,
+      name: name,
+      latitude: latitude,
+      longitude: longitude,
+      landmark: landmark,
+    ),
+  );
+
+  Future<BusStop> updateBusStop(
+    int stopId, {
+    String? name,
+    String? latitude,
+    String? longitude,
+    String? landmark,
+    String? status,
+  }) => _guard(
+    () => _api.updateBusStop(
+      stopId,
+      name: name,
+      latitude: latitude,
+      longitude: longitude,
+      landmark: landmark,
+      status: status,
+    ),
+  );
+
+  Future<void> deleteBusStop(int stopId) => _guard(() => _api.deleteBusStop(stopId));
 
   Future<TransportRoute> createRoute({
     int? schoolId,

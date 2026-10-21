@@ -644,6 +644,17 @@ class TransportRoutePolicy(TransportMasterPolicy):
         )
 
 
+class BusStopPolicy(TransportRoutePolicy):
+    """The school's list of bus stops (docs/maps.md).
+
+    Exactly the route policy's shape, and deliberately inherited rather than
+    copied: a stop in the list is what a route is built from, so the people
+    who may define a route are the people who may define the places it calls
+    at. A Bus Attendant is kept out by the same rule - their "manage" is for
+    running the trip they are on.
+    """
+
+
 class TransportTripPolicy:
     """Everybody in transport reads the day's trips; whoever manages
     transport runs them - start, stop by stop, board, drop, end."""

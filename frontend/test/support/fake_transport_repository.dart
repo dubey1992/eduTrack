@@ -1,5 +1,7 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
+import 'package:edutrack_app/features/transport/data/models/bus_stop.dart';
 import 'package:edutrack_app/features/transport/data/models/driver.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_route.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_status.dart';
@@ -20,13 +22,25 @@ class FakeTransportRepository implements TransportRepository {
     List<TransportRoute>? routes,
     List<RouteStudent>? routeStudents,
     List<TransportTrip>? trips,
+    List<BusStop>? busStops,
     this.ridersForNewTrip = const [],
     this.failWith,
-  }) : _vehicles = vehicles ?? [],
+  }) : _busStops = busStops ?? [],
+       _vehicles = vehicles ?? [],
        _drivers = drivers ?? [],
        _routes = routes ?? [],
        _routeStudents = routeStudents ?? [],
        _trips = trips ?? [];
+
+  /// The school's list of bus stops - the places, as opposed to one route
+  /// calling at one of them (docs/maps.md).
+  List<BusStop> _busStops;
+  String? lastBusStopQuery;
+
+  /// Where the school is, as the real endpoint reports it beside the page.
+  /// Null stands for "no single school", which is what a Super Admin who
+  /// has not picked one gets.
+  LatLng? schoolAt = const LatLng(28.6139, 77.2090);
 
   final List<Vehicle> _vehicles;
   final List<Driver> _drivers;
@@ -299,6 +313,92 @@ class FakeTransportRepository implements TransportRepository {
   Future<TransportRoute> getRoute(int routeId) async {
     _check();
     return _routes.firstWhere((r) => r.id == routeId);
+  }
+
+  @override
+  Future<BusStopPage> listBusStops({int? schoolId, String? status, String? q, int? page, int? perPage}) async {
+    _check();
+    lastBusStopQuery = q;
+
+    var rows = _busStops;
+
+    if (status != null) rows = rows.where((stop) => stop.status == status).toList();
+
+    if (q != null && q.isNotEmpty) {
+      rows = rows
+          .where((stop) => '${stop.name} ${stop.landmark ?? ''}'.toLowerCase().contains(q.toLowerCase()))
+          .toList();
+    }
+
+    return BusStopPage(
+      page: paginateFake(rows, page: page ?? 1, perPage: perPage ?? 20),
+      schoolLatitude: schoolAt?.latitude.toStringAsFixed(7),
+      schoolLongitude: schoolAt?.longitude.toStringAsFixed(7),
+    );
+  }
+
+  @override
+  Future<BusStop> createBusStop({
+    int? schoolId,
+    required String name,
+    required String latitude,
+    required String longitude,
+    String? landmark,
+  }) async {
+    _check();
+    lastCall = {
+      'op': 'createBusStop',
+      'school_id': schoolId,
+      'name': name,
+      'latitude': latitude,
+      'longitude': longitude,
+      'landmark': landmark,
+    };
+
+    final made = BusStop(
+      id: _busStops.length + 1,
+      schoolId: schoolId ?? 1,
+      schoolName: 'Abbey Road School',
+      name: name,
+      latitude: latitude,
+      longitude: longitude,
+      landmark: landmark,
+      status: 'active',
+      routesCount: 0,
+    );
+    _busStops = [..._busStops, made];
+
+    return made;
+  }
+
+  @override
+  Future<BusStop> updateBusStop(
+    int stopId, {
+    String? name,
+    String? latitude,
+    String? longitude,
+    String? landmark,
+    String? status,
+  }) async {
+    _check();
+    lastCall = {
+      'op': 'updateBusStop',
+      'id': stopId,
+      'name': name,
+      'latitude': latitude,
+      'longitude': longitude,
+      'landmark': landmark,
+      'status': status,
+    };
+
+    return _busStops.firstWhere((stop) => stop.id == stopId);
+  }
+
+  @override
+  Future<void> deleteBusStop(int stopId) async {
+    _check();
+    lastCall = {'op': 'deleteBusStop', 'id': stopId};
+    _busStops = _busStops.where((stop) => stop.id != stopId).toList();
   }
 
   @override

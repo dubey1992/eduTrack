@@ -1202,10 +1202,40 @@ class TransportRoute(models.Model):
         db_table = 'transport_routes'
         unique_together = (('school', 'name'),)
 
+class BusStop(models.Model):
+    """One place a bus stops at, in the school's own list (docs/maps.md).
+
+    The place, not the call. `TransportStop` below is a route stopping here
+    fourth at 07:15; this is the corner by the post office, which several
+    routes may call at and which somebody can fix the position of once.
+
+    A position is required - these are picked on a map, and a stop nobody
+    can point to is not a stop.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey(School, models.DO_NOTHING)
+    name = models.CharField(max_length=100)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7)
+    landmark = models.CharField(max_length=100, blank=True, null=True)
+    status = models.CharField(max_length=255)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'bus_stops'
+        unique_together = (('school', 'name'),)
+
+
 class TransportStop(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey(School, models.DO_NOTHING)
     route = models.ForeignKey(TransportRoute, models.DO_NOTHING)
+    # Which place in the school's list this is a call at (docs/maps.md).
+    # Null for the one-offs made before there was a list to pick from.
+    bus_stop = models.ForeignKey(BusStop, models.DO_NOTHING, blank=True, null=True)
     name = models.CharField(max_length=100)
     sequence_number = models.SmallIntegerField()
     pickup_time = models.TimeField(blank=True, null=True)

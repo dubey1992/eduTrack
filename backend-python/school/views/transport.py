@@ -21,10 +21,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..models import Driver, Student, TransportRoute, TransportStop, Vehicle
+from ..models import BusStop, Driver, School, Student, TransportRoute, TransportStop, Vehicle
 from ..pagination import LaravelPagination
-from ..policies import StudentPolicy, TransportMasterPolicy, TransportRoutePolicy, authorize
+from ..scope import SchoolScope
+from ..policies import BusStopPolicy, StudentPolicy, TransportMasterPolicy, TransportRoutePolicy, authorize
 from ..requests import (
+    StoreBusStopRequest,
+    UpdateBusStopRequest,
     AssignStudentTransportRequest,
     StoreDriverRequest,
     StoreTransportRouteRequest,
@@ -36,6 +39,7 @@ from ..requests import (
     UpdateVehicleRequest,
 )
 from ..resources import (
+    bus_stop_resource,
     driver_resource,
     route_student_resource,
     student_resource,
@@ -44,7 +48,13 @@ from ..resources import (
     vehicle_resource,
 )
 from .. import route_paths
-from ..services import DriverService, StudentTransportService, TransportRouteService, VehicleService
+from ..services import (
+    BusStopService,
+    DriverService,
+    StudentTransportService,
+    TransportRouteService,
+    VehicleService,
+)
 from .students import reload
 
 FLEET = {
@@ -76,6 +86,88 @@ def fleet_collection(request, kind: str) -> Response:
     routes = service.routes_of(page)
 
     return paginator.get_paginated_response([resource(row, routes.get(row.pk)) for row in page])
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def bus_stops(request) -> Response:
+    """The school's list of bus stops (docs/maps.md).
+
+    The places a bus calls at, kept once and used by every route that
+    passes them - as opposed to `/routes/{id}/stops`, which is one route
+    calling at one of them.
+    """
+    if request.method == "POST":
+        authorize(BusStopPolicy.create(request.user))
+
+        form = StoreBusStopRequest(data=request.data, actor=request.user)
+        form.is_valid(raise_exception=True)
+
+        made = BusStopService.create(form.validated_data, request.user)
+
+        return Response(bus_stop_resource(made), status=status.HTTP_201_CREATED)
+
+    authorize(BusStopPolicy.view_any(request.user))
+
+    found = BusStopService.visible_to(request.user, {
+        "school_id": request.query_params.get("school_id"),
+        "status": request.query_params.get("status"),
+        "q": request.query_params.get("q"),
+    })
+
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(found, request)
+    answer = paginator.get_paginated_response([bus_stop_resource(stop) for stop in page])
+
+    # Where the school is, travelling with the page. The screen draws a map
+    # and has to centre it before there are any stops to frame - and the
+    # people who keep this list cannot read /schools: a Transport Manager
+    # answers for their own school without being able to list schools.
+    answer.data["school_latitude"], answer.data["school_longitude"] = _where_the_school_is(request)
+
+    return answer
+
+
+def _where_the_school_is(request) -> tuple[str | None, str | None]:
+    """The school being looked at: the one asked for, or the actor's own.
+    Both None for a Super Admin who has not picked one, which is honestly
+    "no single school" rather than a guess at the first."""
+    asked = request.query_params.get("school_id")
+    school_id = SchoolScope.for_actor(request.user).writable_school_id(asked or None)
+
+    if school_id is None:
+        return None, None
+
+    found = School.objects.filter(pk=school_id).values("latitude", "longitude").first() or {}
+
+    return (
+        None if found.get("latitude") is None else str(found["latitude"]),
+        None if found.get("longitude") is None else str(found["longitude"]),
+    )
+
+
+@api_view(["GET", "PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
+def bus_stop(request, stop_id: int) -> Response:
+    found = get_object_or_404(BusStop.objects.select_related("school"), pk=stop_id)
+
+    if request.method == "DELETE":
+        authorize(BusStopPolicy.manage(request.user, found))
+        BusStopService.delete(found)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    if request.method == "PATCH":
+        authorize(BusStopPolicy.manage(request.user, found))
+
+        form = UpdateBusStopRequest(data=request.data, stop=found)
+        form.is_valid(raise_exception=True)
+        found = BusStopService.update(found, form.validated_data, request.user)
+    else:
+        authorize(BusStopPolicy.view(request.user, found))
+        found = BusStopService.visible_to(request.user).get(pk=found.pk)
+
+    return Response(bus_stop_resource(found))
 
 
 def fleet_detail(request, kind: str, record_id: int) -> Response:

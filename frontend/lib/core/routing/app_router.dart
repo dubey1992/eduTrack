@@ -47,6 +47,7 @@ import '../../features/syllabus/presentation/syllabus_screen.dart';
 import '../../features/teaching_reports/presentation/teaching_report_screen.dart';
 import '../../features/timetable/presentation/timetable_screen.dart';
 import '../../features/transport/presentation/driver_list_screen.dart';
+import '../../features/transport/presentation/bus_stop_list_screen.dart';
 import '../../features/transport/presentation/route_list_screen.dart';
 import '../../features/transport/presentation/trip_screen.dart';
 import '../../features/transport/presentation/vehicle_list_screen.dart';
@@ -124,6 +125,7 @@ const appRoutePaths = {
   '/hod-reports',
   '/transport/vehicles',
   '/transport/drivers',
+  '/transport/bus-stops',
   '/transport/routes',
   '/transport/trips',
   '/my-trip',
@@ -211,6 +213,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/hod-reports', builder: (context, state) => const HodReportScreen()),
           GoRoute(path: '/transport/vehicles', builder: (context, state) => const VehicleListScreen()),
           GoRoute(path: '/transport/drivers', builder: (context, state) => const DriverListScreen()),
+          GoRoute(path: '/transport/bus-stops', builder: (context, state) => const BusStopListScreen()),
           GoRoute(path: '/transport/routes', builder: (context, state) => const RouteListScreen()),
           GoRoute(path: '/transport/trips', builder: (context, state) => const TripScreen()),
           GoRoute(path: '/my-trip', builder: (context, state) => const MyTripScreen()),

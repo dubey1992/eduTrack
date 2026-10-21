@@ -24,6 +24,7 @@ import '../../payments/application/payment_list_notifier.dart';
 import '../../payments/application/payment_summary_notifier.dart';
 import '../../permissions/application/permissions_notifier.dart';
 import '../../profile/application/profile_notifier.dart';
+import '../../transport/application/bus_stop_page_notifier.dart';
 import '../../biometric/application/device_page_notifier.dart';
 import '../../biometric/application/punch_page_notifier.dart';
 import '../../schools/application/school_list_notifier.dart';
@@ -132,6 +133,9 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(promotionHistoryProvider);
     // The fingerprint readers one school has, which the next person to sign
     // in on this browser must not be shown (docs/biometric.md, B1).
+    // The places one school's buses stop at, which are its own
+    // (docs/maps.md).
+    ref.invalidate(busStopPageNotifierProvider);
     ref.invalidate(devicePageNotifierProvider);
     // And what those readers recorded: one school's staff movements, with
     // names on them (docs/biometric.md, B2).
