@@ -4,6 +4,7 @@ import 'package:edutrack_app/features/transport/application/route_detail_notifie
 import 'package:edutrack_app/features/transport/application/route_page_notifier.dart';
 import 'package:edutrack_app/features/transport/application/route_students_notifier.dart';
 import 'package:edutrack_app/features/transport/application/vehicle_page_notifier.dart';
+import 'package:edutrack_app/features/transport/data/models/bus_stop.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_status.dart';
 import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -126,7 +127,20 @@ void main() {
 
   group('RouteDetailNotifier', () {
     test('adds, edits and deletes stops and keeps them in sequence order', () async {
-      final fake = FakeTransportRepository(routes: [greenPark]);
+      // A call names a place in the school's list, so the list has to have
+      // one in it (docs/maps.md).
+      const depot = BusStop(
+        id: 9,
+        schoolId: 1,
+        schoolName: 'Abbey Road School',
+        name: 'Depot',
+        latitude: '28.6200000',
+        longitude: '77.2100000',
+        landmark: null,
+        status: 'active',
+        routesCount: 0,
+      );
+      final fake = FakeTransportRepository(routes: [greenPark], busStops: [depot]);
       final container = makeContainer(fake);
       container.listen(routeDetailProvider(1), (_, _) {});
       final notifier = container.read(routeDetailProvider(1).notifier);
@@ -135,7 +149,7 @@ void main() {
         'Central Park',
       ]);
 
-      await notifier.addStop(name: 'Depot', sequenceNumber: 0, pickupTime: '07:00', dropTime: null);
+      await notifier.addStop(busStopId: depot.id, sequenceNumber: 0, pickupTime: '07:00', dropTime: null);
       expect(container.read(routeDetailProvider(1)).value!.stops.map((s) => s.name), [
         'Depot',
         'Lake View',

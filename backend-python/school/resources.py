@@ -561,6 +561,10 @@ def transport_stop_resource(stop, students_count: int) -> dict:
     return {
         "id": stop.id,
         "route_id": stop.route_id,
+        # Which place in the school's list this is a call at, or null for a
+        # one-off made before there was a list (docs/maps.md). The screen
+        # uses it to know whether the name is the route's to change.
+        "bus_stop_id": stop.bus_stop_id,
         "name": stop.name,
         "sequence_number": stop.sequence_number,
         "pickup_time": stop.pickup_time.strftime("%H:%M") if stop.pickup_time else None,

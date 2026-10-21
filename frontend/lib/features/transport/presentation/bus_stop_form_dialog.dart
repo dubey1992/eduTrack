@@ -7,7 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/school_picker.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../maps/presentation/location_picker.dart';
-import '../../schools/application/school_list_notifier.dart';
 import '../application/bus_stop_page_notifier.dart';
 import '../data/models/bus_stop.dart';
 import 'widgets/submit_button.dart';
@@ -19,7 +18,7 @@ import 'widgets/submit_button.dart';
 /// it out: either somebody tapped the map to get here, or they pick on the
 /// picker below. A stop nobody can point to is not a stop.
 class BusStopFormDialog extends ConsumerStatefulWidget {
-  const BusStopFormDialog({super.key, this.stop, this.schoolId, this.at});
+  const BusStopFormDialog({super.key, this.stop, this.schoolId, this.at, this.returnsTheStop = false});
 
   /// The stop being changed, or null to add one.
   final BusStop? stop;
@@ -30,6 +29,11 @@ class BusStopFormDialog extends ConsumerStatefulWidget {
   /// Where somebody tapped on the map, for a new stop. The picker opens
   /// there with the boxes already filled.
   final LatLng? at;
+
+  /// Pop the stop that was made rather than nothing. The route builder
+  /// needs it: it has just created a place and is about to put it on the
+  /// route in the same action (docs/maps.md).
+  final bool returnsTheStop;
 
   @override
   ConsumerState<BusStopFormDialog> createState() => _BusStopFormDialogState();
@@ -68,22 +72,14 @@ class _BusStopFormDialogState extends ConsumerState<BusStopFormDialog> {
     super.dispose();
   }
 
-  /// Where to look first, and what to bias address search towards: the
-  /// school whose stop this is.
-  LatLng? _nearTheSchool() {
-    final wanted = widget.stop?.schoolId ?? _schoolId ?? ref.read(authNotifierProvider).value?.schoolId;
+  /// What to call the school in the distance line, and where it is.
+  ///
+  /// Both read off the page the list came on rather than from the schools
+  /// list: a Transport Manager answers for their own school without being
+  /// able to read /schools at all.
+  String? _schoolName() => ref.read(busStopPageNotifierProvider.notifier).schoolName;
 
-    for (final school in ref.read(schoolListNotifierProvider).value ?? const []) {
-      if (school.id == wanted) {
-        final latitude = double.tryParse(school.latitude ?? '');
-        final longitude = double.tryParse(school.longitude ?? '');
-
-        if (latitude != null && longitude != null) return LatLng(latitude, longitude);
-      }
-    }
-
-    return null;
-  }
+  LatLng? _nearTheSchool() => ref.read(busStopPageNotifierProvider.notifier).schoolAt;
 
   Future<void> _submit() async {
     if (_isSubmitting || !_formKey.currentState!.validate()) return;
@@ -101,10 +97,12 @@ class _BusStopFormDialogState extends ConsumerState<BusStopFormDialog> {
       final latitude = _latitudeController.text.trim();
       final longitude = _longitudeController.text.trim();
 
+      BusStop? made;
+
       if (_isEdit) {
         await notifier.editStop(widget.stop!, name: name, latitude: latitude, longitude: longitude, landmark: landmark);
       } else {
-        await notifier.addStop(
+        made = await notifier.addStop(
           schoolId: _schoolId,
           name: name,
           latitude: latitude,
@@ -115,7 +113,9 @@ class _BusStopFormDialogState extends ConsumerState<BusStopFormDialog> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isEdit ? '$name saved.' : '$name added.')));
-        Navigator.of(context).pop();
+        // The route builder asked for what was made: it is putting this
+        // place on the route in the same action (docs/maps.md).
+        Navigator.of(context).pop(widget.returnsTheStop ? made : null);
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
@@ -184,6 +184,11 @@ class _BusStopFormDialogState extends ConsumerState<BusStopFormDialog> {
                   latitude: _latitudeController,
                   longitude: _longitudeController,
                   near: _nearTheSchool(),
+                  // The school, pinned in its own colour and measured
+                  // against: a stop is only ever placed relative to it,
+                  // and the wrong city is what this catches.
+                  origin: _nearTheSchool(),
+                  originLabel: _schoolName(),
                   child: Row(
                     children: [
                       Expanded(

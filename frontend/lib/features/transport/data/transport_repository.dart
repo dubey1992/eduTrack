@@ -225,21 +225,17 @@ class TransportRepository {
 
   Future<TransportStop> createStop(
     int routeId, {
-    required String name,
+    required int busStopId,
     required int sequenceNumber,
     String? pickupTime,
     String? dropTime,
-    String? latitude,
-    String? longitude,
   }) => _guard(
     () => _api.createStop(
       routeId,
-      name: name,
+      busStopId: busStopId,
       sequenceNumber: sequenceNumber,
       pickupTime: pickupTime,
       dropTime: dropTime,
-      latitude: latitude,
-      longitude: longitude,
     ),
   );
 

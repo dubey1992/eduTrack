@@ -7,13 +7,19 @@ import '../../../../core/network/paginated_response.dart';
 /// at all: a Transport Manager answers for their own school without being
 /// able to list schools. So the page carries where the school is.
 class BusStopPage {
-  const BusStopPage({required this.page, required this.schoolLatitude, required this.schoolLongitude});
+  const BusStopPage({
+    required this.page,
+    required this.schoolLatitude,
+    required this.schoolLongitude,
+    required this.schoolName,
+  });
 
   factory BusStopPage.fromJson(Map<String, dynamic> json) {
     return BusStopPage(
       page: PaginatedResponse.fromJson(json, BusStop.fromJson),
       schoolLatitude: json['school_latitude'] as String?,
       schoolLongitude: json['school_longitude'] as String?,
+      schoolName: json['school_name'] as String?,
     );
   }
 
@@ -23,6 +29,10 @@ class BusStopPage {
   /// has not picked one - or when nobody has placed it yet.
   final String? schoolLatitude;
   final String? schoolLongitude;
+
+  /// What to call it when saying how far a stop is from it. The people who
+  /// keep this list cannot read /schools to look the name up.
+  final String? schoolName;
 }
 
 /// One place in the school's list of bus stops (docs/maps.md).

@@ -123,27 +123,35 @@ def bus_stops(request) -> Response:
     # and has to centre it before there are any stops to frame - and the
     # people who keep this list cannot read /schools: a Transport Manager
     # answers for their own school without being able to list schools.
-    answer.data["school_latitude"], answer.data["school_longitude"] = _where_the_school_is(request)
+    where = _where_the_school_is(request)
+    answer.data["school_latitude"] = where["latitude"]
+    answer.data["school_longitude"] = where["longitude"]
+    answer.data["school_name"] = where["name"]
 
     return answer
 
 
-def _where_the_school_is(request) -> tuple[str | None, str | None]:
+def _where_the_school_is(request) -> dict:
     """The school being looked at: the one asked for, or the actor's own.
-    Both None for a Super Admin who has not picked one, which is honestly
-    "no single school" rather than a guess at the first."""
+
+    All None for a Super Admin who has not picked one, which is honestly
+    "no single school" rather than a guess at the first. The name travels
+    with it so the stop form can say what a distance is measured from -
+    the people who keep this list cannot read /schools to look it up.
+    """
     asked = request.query_params.get("school_id")
     school_id = SchoolScope.for_actor(request.user).writable_school_id(asked or None)
 
     if school_id is None:
-        return None, None
+        return {"latitude": None, "longitude": None, "name": None}
 
-    found = School.objects.filter(pk=school_id).values("latitude", "longitude").first() or {}
+    found = School.objects.filter(pk=school_id).values("latitude", "longitude", "name").first() or {}
 
-    return (
-        None if found.get("latitude") is None else str(found["latitude"]),
-        None if found.get("longitude") is None else str(found["longitude"]),
-    )
+    return {
+        "latitude": None if found.get("latitude") is None else str(found["latitude"]),
+        "longitude": None if found.get("longitude") is None else str(found["longitude"]),
+        "name": found.get("name"),
+    }
 
 
 @api_view(["GET", "PATCH", "DELETE"])
@@ -319,7 +327,7 @@ def add_stop(request, route_id: int) -> Response:
     form = StoreTransportStopRequest(data=request.data, route=found)
     form.is_valid(raise_exception=True)
 
-    stop = TransportRouteService.add_stop(found, form.validated_data)
+    stop = TransportRouteService.add_stop(found, form.validated_data, place=form.place)
 
     return Response(transport_stop_resource(stop, stop.students_count), status=status.HTTP_201_CREATED)
 

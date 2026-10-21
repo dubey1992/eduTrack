@@ -127,10 +127,15 @@ class WhichPlacesTheRoadJoins(RouteTest):
 class WhenTheRoadIsWorkedOutAgain(RouteTest):
     def test_adding_a_stop_queues_it(self):
         self.stop(1)
+        # A call at a place in the school's list, which is the only way a
+        # route gains a stop now (docs/maps.md).
+        place = factories.BusStopFactory(
+            school=self.route.school, name="Second", latitude="18.6000000", longitude="73.9000000"
+        )
 
         self.client.post(
             f"/api/v1/transport/routes/{self.route.pk}/stops",
-            {"name": "Second", "sequence_number": 2, "latitude": "18.60", "longitude": "73.90"},
+            {"bus_stop_id": place.id, "sequence_number": 2},
             format="json",
         )
 

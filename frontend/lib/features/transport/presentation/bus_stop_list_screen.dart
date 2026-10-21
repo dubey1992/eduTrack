@@ -65,15 +65,7 @@ class _BusStopListScreenState extends ConsumerState<BusStopListScreen> {
   /// Read off the page rather than the schools list: the people who keep
   /// this list cannot read /schools at all - a Transport Manager answers
   /// for their own school without being able to list schools.
-  LatLng? _school() {
-    final notifier = ref.read(busStopPageNotifierProvider.notifier);
-    final latitude = double.tryParse(notifier.schoolLatitude ?? '');
-    final longitude = double.tryParse(notifier.schoolLongitude ?? '');
-
-    if (latitude == null || longitude == null) return null;
-
-    return LatLng(latitude, longitude);
-  }
+  LatLng? _school() => ref.read(busStopPageNotifierProvider.notifier).schoolAt;
 
   Future<void> _add({LatLng? at}) async {
     await showDialog(

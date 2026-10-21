@@ -4,6 +4,7 @@ import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/staff/data/staff_repository.dart';
+import 'package:edutrack_app/features/transport/data/models/bus_stop.dart';
 import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 import 'package:edutrack_app/features/transport/presentation/driver_form_dialog.dart';
 import 'package:edutrack_app/features/transport/presentation/manage_stops_dialog.dart';
@@ -230,7 +231,18 @@ void main() {
     });
 
     testWidgets('an admin can add a stop with the next order pre-filled, and delete one', (tester) async {
-      final fake = FakeTransportRepository(routes: [greenPark]);
+      const sector12 = BusStop(
+        id: 9,
+        schoolId: 1,
+        schoolName: 'Abbey Road School',
+        name: 'Sector 12',
+        latitude: '18.5204000',
+        longitude: '73.8567000',
+        landmark: null,
+        status: 'active',
+        routesCount: 0,
+      );
+      final fake = FakeTransportRepository(routes: [greenPark], busStops: [sector12]);
       await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
       await _open(tester);
 
@@ -241,9 +253,12 @@ void main() {
 
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      expect(find.text('Name is required'), findsOneWidget);
+      expect(find.text('Pick a bus stop'), findsOneWidget);
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Stop name'), 'Sector 12');
+      await tester.tap(find.byKey(const Key('bus-stop-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sector 12').last);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
@@ -383,7 +398,25 @@ void main() {
     });
   });
 
-  group('StopFormDialog - position', () {
+  group('StopFormDialog - a call at one of the school\'s bus stops', () {
+    // A route stop names a place in the school's list. The name and the
+    // position belong there, so this form stopped asking for them
+    // (docs/maps.md); what it asks for is which place, where in the run,
+    // and when the bus is there.
+    BusStop place({int id = 9, String name = 'Sector 12'}) {
+      return BusStop(
+        id: id,
+        schoolId: 1,
+        schoolName: 'Abbey Road School',
+        name: name,
+        latitude: '18.5204000',
+        longitude: '73.8567000',
+        landmark: null,
+        status: 'active',
+        routesCount: 0,
+      );
+    }
+
     testWidgets('each stop says whether it has a location', (tester) async {
       await tester.pumpWidget(
         wrap(
@@ -397,42 +430,58 @@ void main() {
       expect(find.text('No location'), findsOneWidget); // Central Park
     });
 
-    testWidgets('half a position is refused before it is sent', (tester) async {
-      final fake = FakeTransportRepository(routes: [greenPark]);
+    testWidgets('adding one offers the school\'s bus stops and sends the place', (tester) async {
+      final fake = FakeTransportRepository(routes: [greenPark], busStops: [place()]);
       await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
       await _open(tester);
 
       await tester.tap(find.text('Add Stop'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextFormField, 'Stop name'), 'Sector 12');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Latitude (optional)'), '18.5204');
+
+      expect(find.byKey(const Key('bus-stop-field')), findsOneWidget);
+      // No name and no position: they are the list's.
+      expect(find.widgetWithText(TextFormField, 'Stop name'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('bus-stop-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sector 12').last);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Enter a longitude too, or clear the other box.'), findsOneWidget);
+      expect(fake.lastCall!['op'], 'createStop');
+      expect(fake.lastCall!['bus_stop_id'], 9);
+    });
+
+    testWidgets('without picking one it is refused before the server sees it', (tester) async {
+      final fake = FakeTransportRepository(routes: [greenPark], busStops: [place()]);
+      await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
+      await _open(tester);
+
+      await tester.tap(find.text('Add Stop'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pick a bus stop'), findsOneWidget);
       expect(fake.lastCall, isNull);
     });
 
-    testWidgets('a stop is added with its position, and shows as placed', (tester) async {
-      final fake = FakeTransportRepository(routes: [greenPark]);
-      await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
+    testWidgets('a school with no bus stops yet is told where they come from', (tester) async {
+      await tester.pumpWidget(
+        wrap(FakeTransportRepository(routes: [greenPark]), () => const ManageStopsDialog(routeId: 1, canManage: true)),
+      );
       await _open(tester);
 
       await tester.tap(find.text('Add Stop'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextFormField, 'Stop name'), 'Sector 12');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Latitude (optional)'), '18.5204');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Longitude (optional)'), '73.8567');
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
 
-      expect(fake.lastCall!['latitude'], '18.5204');
-      expect(fake.lastCall!['longitude'], '73.8567');
-      expect(find.byType(StopFormDialog), findsNothing);
-      expect(find.text('Location set'), findsOneWidget);
+      expect(find.textContaining('Transport > Bus Stops'), findsOneWidget);
     });
 
-    testWidgets('editing pre-fills the position, and clearing both boxes clears it', (tester) async {
+    testWidgets('a one-off made before the list existed is still edited here', (tester) async {
+      // Every stop that existed before this is a one-off, and they are
+      // still correct - a route still stops there.
       final fake = FakeTransportRepository(routes: [greenParkWithAttendant]);
       await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
       await _open(tester);
@@ -440,70 +489,9 @@ void main() {
       await tester.ensureVisible(find.byTooltip('Edit stop').first);
       await tester.tap(find.byTooltip('Edit stop').first);
       await tester.pumpAndSettle();
-      expect(find.text('18.520400'), findsOneWidget);
-      expect(find.text('73.856700'), findsOneWidget);
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Latitude (optional)'), '');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Longitude (optional)'), '');
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
-
-      expect(fake.lastCall!['op'], 'updateStop');
-      expect(fake.lastCall!['latitude'], isNull);
-      expect(fake.lastCall!['longitude'], isNull);
-      expect(find.text('Location set'), findsNothing);
-    });
-
-    testWidgets('a stop far from the school: the server\'s message is shown under the latitude', (tester) async {
-      const message =
-          'This stop is 1,170 km from the school. Check the latitude and longitude are not the wrong way round.';
-      final fake = FakeTransportRepository(routes: [greenPark]);
-      await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
-      await _open(tester);
-
-      await tester.tap(find.text('Add Stop'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextFormField, 'Stop name'), 'Sector 12');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Latitude (optional)'), '73.8567');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Longitude (optional)'), '18.5204');
-      fake.failWith = const Failure(
-        code: 'VALIDATION_ERROR',
-        message: message,
-        details: {
-          'errors': {
-            'latitude': [message],
-          },
-        },
-      );
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
-
-      expect(find.text(message), findsOneWidget);
-      expect(find.byType(StopFormDialog), findsOneWidget);
-    });
-
-    testWidgets('the server\'s pair message lands under the box it names', (tester) async {
-      const message = 'Enter a longitude as well, or clear the latitude.';
-      final fake = FakeTransportRepository(routes: [greenPark]);
-      await tester.pumpWidget(wrap(fake, () => const ManageStopsDialog(routeId: 1, canManage: true)));
-      await _open(tester);
-
-      await tester.tap(find.text('Add Stop'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextFormField, 'Stop name'), 'Sector 12');
-      fake.failWith = const Failure(
-        code: 'VALIDATION_ERROR',
-        message: message,
-        details: {
-          'errors': {
-            'longitude': [message],
-          },
-        },
-      );
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
-
-      expect(find.text(message), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Stop name'), findsOneWidget);
+      expect(find.textContaining('A one-off'), findsOneWidget);
     });
   });
 }

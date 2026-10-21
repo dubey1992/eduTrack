@@ -334,6 +334,7 @@ class FakeTransportRepository implements TransportRepository {
       page: paginateFake(rows, page: page ?? 1, perPage: perPage ?? 20),
       schoolLatitude: schoolAt?.latitude.toStringAsFixed(7),
       schoolLongitude: schoolAt?.longitude.toStringAsFixed(7),
+      schoolName: schoolAt == null ? null : 'Abbey Road School',
     );
   }
 
@@ -546,35 +547,35 @@ class FakeTransportRepository implements TransportRepository {
   @override
   Future<TransportStop> createStop(
     int routeId, {
-    required String name,
+    required int busStopId,
     required int sequenceNumber,
     String? pickupTime,
     String? dropTime,
-    String? latitude,
-    String? longitude,
   }) async {
     _check();
     lastCall = {
       'op': 'createStop',
       'route_id': routeId,
-      'name': name,
+      'bus_stop_id': busStopId,
       'sequence_number': sequenceNumber,
       'pickup_time': pickupTime,
       'drop_time': dropTime,
-      'latitude': latitude,
-      'longitude': longitude,
     };
     final route = _routes.firstWhere((r) => r.id == routeId);
+    // The name and the position come from the school's list, exactly as
+    // the server copies them (docs/maps.md).
+    final place = _busStops.firstWhere((stop) => stop.id == busStopId);
     final stop = TransportStop(
       id: 100 + route.stops.length + 1,
       routeId: routeId,
-      name: name,
+      busStopId: busStopId,
+      name: place.name,
       sequenceNumber: sequenceNumber,
       pickupTime: pickupTime,
       dropTime: dropTime,
       studentsCount: 0,
-      latitude: latitude,
-      longitude: longitude,
+      latitude: place.latitude,
+      longitude: place.longitude,
     );
     _replaceStops(routeId, [...route.stops, stop]);
     return stop;

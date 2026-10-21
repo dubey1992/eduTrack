@@ -71,11 +71,38 @@ without being able to list schools. So `GET /transport/bus-stops` sends
 Admin who has not picked a school, which is honestly "no single school"
 rather than a guess.
 
+### S2 - routes are built from the list (2026-10-22)
+
+A route's stop is now a **call at a place**: it names a `bus_stop_id` and
+nothing about the place itself. The name and the position are copied from
+the list when the call is made, because `transport_stops` is unique on
+(route, name), trips snapshot the name, and every screen that draws a route
+reads those columns - keeping them in step with the list is S3's job.
+
+- **Two ways to add one, both ending in the list.** "Add an existing stop"
+  offers the school's stops minus the ones this route already calls at -
+  offering those would be offering a refusal. Tapping the map opens the Add
+  Bus Stop form with that position already in it, and on save the place
+  joins the list *and* the route in one action. So the list stays complete:
+  there is no other way to make a stop.
+- **The name and the position cannot be edited on the route.** The refusal
+  says where they live: "Change it there and every route using it follows."
+  A one-off made before the list existed still owns its own, and still says
+  so on the form.
+- **Deleting a place a route calls at is refused by name** - "Market Square
+  is on Library Loop" - and every row in the list says how many routes use
+  it before anybody presses anything.
+
+**The origin is pinned while a stop is placed** (asked for with S2). The
+school is drawn in the primary colour and the stop being placed in the
+secondary one, and the line under the map reads "2.0 km from Map Demo Head
+Office, in a straight line". Measured with the same haversine the server
+refuses by (school/geo.py, `frontend/.../maps/presentation/distance.dart`),
+so the sentence under the map and the refusal that comes back cannot
+disagree about whether a stop is 90 km away or 110.
+
 ### Still to come
 
-- **S2** - routes are built from the list: `bus_stop_id` on a route's stop,
-  the map builder adding to the list as it draws, Manage Stops picking from
-  it.
 - **S3** - edits follow: renaming or moving a place updates every route
   stop that came from it, in one transaction, marking each affected road
   path stale, and refusing a rename that would collide on a route.

@@ -386,4 +386,42 @@ void main() {
       expect(find.textContaining('Place the school on the map first'), findsOneWidget);
     });
   });
+
+  group('the school on the stop form', () {
+    // A stop is only ever placed relative to its school, so the school is
+    // pinned in its own colour and the distance is said in words.
+    testWidgets('it is pinned beside the stop being placed', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()])));
+      await tester.pumpAndSettle();
+
+      renderer.tapAt(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+
+      // The picker's own map is the one drawn last.
+      expect(renderer.markersById.keys, containsAll(['origin', 'picked']));
+    });
+
+    testWidgets('and how far the two are apart, named', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()])));
+      await tester.pumpAndSettle();
+
+      renderer.tapAt(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('from Abbey Road School, in a straight line'), findsOneWidget);
+    });
+
+    testWidgets('a school nobody has placed gets no origin and no distance', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()])..schoolAt = null));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('add-bus-stop')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('in a straight line'), findsNothing);
+    });
+  });
 }

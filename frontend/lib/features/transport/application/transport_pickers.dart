@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../staff/data/models/staff_profile.dart';
 import '../../staff/data/staff_repository.dart';
+import '../data/models/bus_stop.dart';
 import '../data/models/driver.dart';
 import '../data/models/transport_route.dart';
 import '../data/models/vehicle.dart';
@@ -24,6 +25,16 @@ final routePickerProvider = FutureProvider.autoDispose.family<List<TransportRout
 });
 
 /// A route's ordered stops, for the student form's stop picker.
+/// The school's bus stops, for a route to be built from (docs/maps.md).
+/// Active ones only: a retired stop is one the buses no longer call at.
+final busStopPickerProvider = FutureProvider.autoDispose.family<List<BusStop>, int?>((ref, schoolId) async {
+  final page = await ref
+      .watch(transportRepositoryProvider)
+      .listBusStops(schoolId: schoolId, status: 'active', perPage: 200);
+
+  return page.page.items;
+});
+
 final routeStopsProvider = FutureProvider.autoDispose.family<List<TransportStop>, int>((ref, routeId) async {
   final route = await ref.watch(transportRepositoryProvider).getRoute(routeId);
   return route.stops;

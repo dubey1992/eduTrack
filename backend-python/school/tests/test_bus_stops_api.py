@@ -312,6 +312,11 @@ class WhereTheSchoolIs(BusStopTest):
 
         self.assertEqual(("28.6139000", "77.2090000"), (listed["school_latitude"], listed["school_longitude"]))
 
+    def test_the_name_comes_with_it(self):
+        """The stop form says what a distance is measured from, and cannot
+        read /schools to look the name up."""
+        self.assertEqual(self.school.name, self.as_user(self.manager).get(URL).data["school_name"])
+
     def test_a_transport_manager_gets_it_too(self):
         """They answer for their own school without being able to list
         schools, so this is the only way they learn where it is."""

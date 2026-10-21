@@ -5,6 +5,7 @@ class TransportStop {
     required this.id,
     required this.routeId,
     required this.name,
+    this.busStopId,
     required this.sequenceNumber,
     required this.pickupTime,
     required this.dropTime,
@@ -18,6 +19,7 @@ class TransportStop {
       id: json['id'] as int,
       routeId: json['route_id'] as int,
       name: json['name'] as String,
+      busStopId: json['bus_stop_id'] as int?,
       sequenceNumber: json['sequence_number'] as int,
       pickupTime: json['pickup_time'] as String?,
       dropTime: json['drop_time'] as String?,
@@ -29,6 +31,12 @@ class TransportStop {
 
   final int id;
   final int routeId;
+
+  /// Which place in the school's list this is a call at (docs/maps.md).
+  /// Null for a one-off made before there was a list to pick from - those
+  /// rows still own their own name and position, and this one does not.
+  final int? busStopId;
+
   final String name;
   final int sequenceNumber;
 
@@ -43,6 +51,11 @@ class TransportStop {
   final String? longitude;
 
   bool get hasLocation => latitude != null && longitude != null;
+
+  /// The name and position belong to the school's list, so this route may
+  /// not change them - it may change when the bus is there and where in
+  /// the run it comes.
+  bool get isFromTheList => busStopId != null;
 }
 
 /// A route with its current vehicle/driver and, when fetched individually,

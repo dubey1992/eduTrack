@@ -10,6 +10,7 @@ import '../../../core/widgets/async_value_view.dart';
 import '../../maps/presentation/location_picker.dart';
 import '../../schools/presentation/widgets/coordinates_fields.dart';
 import '../application/route_detail_notifier.dart';
+import '../application/transport_pickers.dart';
 import '../data/models/transport_route.dart';
 import 'widgets/route_map.dart';
 import 'widgets/submit_button.dart';
@@ -232,11 +233,19 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
   late final _latitudeController = TextEditingController(text: widget.stop?.latitude ?? '');
   late final _longitudeController = TextEditingController(text: widget.stop?.longitude ?? '');
 
+  /// Which place in the school's list this call is at. Chosen when
+  /// adding; fixed once the call exists, because moving a call to another
+  /// place is removing one and adding another (docs/maps.md).
+  int? _busStopId;
+
   bool _isSubmitting = false;
   String? _errorMessage;
   Map<String, List<String>> _fieldErrors = const {};
 
   bool get _isEdit => widget.stop != null;
+
+  /// A call that came from the list does not own its name or its position.
+  bool get _fromTheList => widget.stop?.isFromTheList ?? true;
 
   /// Where to look first, and what to bias address search towards. Null for
   /// a school nobody has placed, which simply means no bias.
@@ -290,28 +299,26 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
 
     try {
       final notifier = ref.read(routeDetailProvider(widget.routeId).notifier);
-      final name = _nameController.text.trim();
       final sequence = int.parse(_sequenceController.text.trim());
-      final latitude = _latitudeController.text.trim().isEmpty ? null : _latitudeController.text.trim();
-      final longitude = _longitudeController.text.trim().isEmpty ? null : _longitudeController.text.trim();
+
       if (_isEdit) {
         await notifier.editStop(
           widget.stop!,
-          name: name,
+          // The name and the position are the list's once the call came
+          // from it; only a one-off still owns its own.
+          name: _fromTheList ? null : _nameController.text.trim(),
           sequenceNumber: sequence,
           pickupTime: _format(_pickupTime),
           dropTime: _format(_dropTime),
-          latitude: latitude,
-          longitude: longitude,
+          latitude: _fromTheList ? null : _latitudeController.text.trim(),
+          longitude: _fromTheList ? null : _longitudeController.text.trim(),
         );
       } else {
         await notifier.addStop(
-          name: name,
+          busStopId: _busStopId!,
           sequenceNumber: sequence,
           pickupTime: _format(_pickupTime),
           dropTime: _format(_dropTime),
-          latitude: latitude,
-          longitude: longitude,
         );
       }
       if (mounted) Navigator.of(context).pop();
@@ -346,13 +353,43 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
                   Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                   const SizedBox(height: 12),
                 ],
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Stop name'),
-                  maxLength: 100,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
-                ),
-                const SizedBox(height: 10),
+                // Which place in the school's list, when adding. A call
+                // names a place; the name and the position belong there
+                // (docs/maps.md).
+                if (!_isEdit) ...[
+                  _BusStopField(
+                    routeId: widget.routeId,
+                    selected: _busStopId,
+                    error: _fieldErrors['bus_stop_id']?.first,
+                    onChanged: (id) => setState(() => _busStopId = id),
+                  ),
+                  const SizedBox(height: 10),
+                ] else if (_fromTheList) ...[
+                  // Said rather than shown as an editable box: changing it
+                  // here would fight the list, and the message says where
+                  // the name actually lives.
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Stop',
+                      helperText: 'From the school\'s bus stops. Rename it there and every route follows.',
+                      helperMaxLines: 2,
+                    ),
+                    child: Text(widget.stop!.name),
+                  ),
+                  const SizedBox(height: 10),
+                ] else ...[
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Stop name',
+                      helperText: 'A one-off, made before this school kept a list of stops.',
+                      helperMaxLines: 2,
+                    ),
+                    maxLength: 100,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 TextFormField(
                   controller: _sequenceController,
                   keyboardType: TextInputType.number,
@@ -377,19 +414,23 @@ class _StopFormDialogState extends ConsumerState<StopFormDialog> {
                   onClear: () => setState(() => _dropTime = null),
                 ),
                 const SizedBox(height: 10),
-                LocationPicker(
-                  latitude: _latitudeController,
-                  longitude: _longitudeController,
-                  // Biased towards the school, because "Station Road"
-                  // means a different road in every city.
-                  near: _nearTheSchool(ref),
-                  child: CoordinatesFields(
+                // Only a one-off still owns its own position. A call that
+                // came from the list is moved by moving the bus stop.
+                if (_isEdit && !_fromTheList)
+                  LocationPicker(
                     latitude: _latitudeController,
                     longitude: _longitudeController,
-                    latitudeError: _fieldErrors['latitude']?.first,
-                    longitudeError: _fieldErrors['longitude']?.first,
+                    // Biased towards the school, because "Station Road"
+                    // means a different road in every city.
+                    near: _nearTheSchool(ref),
+                    origin: _nearTheSchool(ref),
+                    child: CoordinatesFields(
+                      latitude: _latitudeController,
+                      longitude: _longitudeController,
+                      latitudeError: _fieldErrors['latitude']?.first,
+                      longitudeError: _fieldErrors['longitude']?.first,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -446,6 +487,65 @@ class _LocationIndicator extends StatelessWidget {
         const SizedBox(width: 4),
         Text(stop.hasLocation ? 'Location set' : 'No location', style: TextStyle(fontSize: 12, color: color)),
       ],
+    );
+  }
+}
+
+/// Which of the school's bus stops this call is at (docs/maps.md).
+///
+/// Only the ones this route does not already call at: a route passing one
+/// corner twice is a mistake, and the server refuses it - offering it here
+/// would be offering a refusal.
+class _BusStopField extends ConsumerWidget {
+  const _BusStopField({required this.routeId, required this.selected, required this.error, required this.onChanged});
+
+  final int routeId;
+  final int? selected;
+  final String? error;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final route = ref.watch(routeDetailProvider(routeId)).value;
+    final already = {for (final stop in route?.stops ?? const <TransportStop>[]) stop.busStopId};
+    final places = ref.watch(busStopPickerProvider(route?.schoolId));
+
+    return places.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (_, _) => Text('Could not load the bus stops.', style: TextStyle(color: context.appColors.danger)),
+      data: (all) {
+        final offered = all.where((place) => !already.contains(place.id)).toList();
+
+        if (offered.isEmpty) {
+          return Text(
+            all.isEmpty
+                ? 'This school has no bus stops yet. Add them under Transport > Bus Stops, then build the route from them.'
+                : 'This route already calls at every bus stop the school has.',
+            style: TextStyle(color: context.appColors.muted),
+          );
+        }
+
+        return DropdownButtonFormField<int>(
+          key: const Key('bus-stop-field'),
+          initialValue: selected,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'Bus stop',
+            errorText: error,
+            helperText: 'From the school\'s list. Add a new one under Transport > Bus Stops.',
+            helperMaxLines: 2,
+          ),
+          items: [
+            for (final place in offered)
+              DropdownMenuItem(
+                value: place.id,
+                child: Text(place.name, overflow: TextOverflow.ellipsis, maxLines: 1),
+              ),
+          ],
+          onChanged: onChanged,
+          validator: (value) => value == null ? 'Pick a bus stop' : null,
+        );
+      },
     );
   }
 }

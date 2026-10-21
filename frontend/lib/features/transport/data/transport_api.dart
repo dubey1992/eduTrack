@@ -266,24 +266,22 @@ class TransportApi {
   // ── stops ───────────────────────────────────────────────────────────
 
   /// [latitude]/[longitude] go together - both or neither.
+  /// A call at one of the school's bus stops (docs/maps.md). The name
+  /// and the position belong to the list, so they are not sent.
   Future<TransportStop> createStop(
     int routeId, {
-    required String name,
+    required int busStopId,
     required int sequenceNumber,
     String? pickupTime,
     String? dropTime,
-    String? latitude,
-    String? longitude,
   }) async {
     final response = await _dio.post(
       '/transport/routes/$routeId/stops',
       data: {
-        'name': name,
+        'bus_stop_id': busStopId,
         'sequence_number': sequenceNumber,
         'pickup_time': pickupTime,
         'drop_time': dropTime,
-        'latitude': latitude,
-        'longitude': longitude,
       },
     );
     return TransportStop.fromJson(response.data as Map<String, dynamic>);

@@ -461,12 +461,25 @@ class RouteTest(TransportTestCase):
 
 
 class StopTest(TransportTestCase):
+    """A route calling at one of the school's bus stops (docs/maps.md).
+
+    The call names the place; the name and the position belong to the
+    list. What is the route's own is where in the run it comes and what
+    time the bus is there.
+    """
+
     def setUp(self):
         super().setUp()
         self.route = factories.TransportRouteFactory(school=self.school, name="Route A")
+        self.gate = factories.BusStopFactory(school=self.school, name="Gate")
 
-    def add(self, user, route=None, **overrides):
-        body = {"name": "Gate", "sequence_number": 1, "pickup_time": "07:30", "drop_time": "15:10"}
+    def add(self, user, route=None, place=None, **overrides):
+        body = {
+            "bus_stop_id": (place or self.gate).id,
+            "sequence_number": 1,
+            "pickup_time": "07:30",
+            "drop_time": "15:10",
+        }
         body.update(overrides)
 
         return self.as_user(user).post(f"/api/v1/transport/routes/{(route or self.route).id}/stops", body, format="json")
@@ -476,21 +489,74 @@ class StopTest(TransportTestCase):
         stop_id = added.data["id"]
         client = self.as_user(self.admin)
 
-        changed = client.patch(f"/api/v1/transport/stops/{stop_id}", {"name": "Main gate", "pickup_time": None}, format="json")
+        changed = client.patch(f"/api/v1/transport/stops/{stop_id}", {"pickup_time": None}, format="json")
         removed = client.delete(f"/api/v1/transport/stops/{stop_id}")
 
         self.assertEqual((201, "07:30", "15:10", 0), (added.status_code, added.data["pickup_time"], added.data["drop_time"], added.data["students_count"]))
-        self.assertEqual(("Main gate", None, "15:10"), (changed.data["name"], changed.data["pickup_time"], changed.data["drop_time"]))
+        self.assertEqual((None, "15:10"), (changed.data["pickup_time"], changed.data["drop_time"]))
         self.assertEqual(204, removed.status_code)
 
-    def test_names_and_numbers_are_unique_within_a_route_only(self):
+    def test_the_name_and_the_place_come_from_the_list(self):
+        """Not from the request: copying them from what somebody typed is
+        how the two drift."""
+        added = self.add(self.admin)
+
+        self.assertEqual("Gate", added.data["name"])
+        self.assertEqual(str(self.gate.latitude), added.data["latitude"])
+
+    def test_a_route_cannot_call_at_one_place_twice(self):
+        self.add(self.admin)
+
+        clash = self.add(self.admin, sequence_number=2)
+
+        self.assertEqual(422, clash.status_code)
+        self.assertIn("already on this route", self.errors(clash)["bus_stop_id"][0])
+
+    def test_two_stops_cannot_share_a_place_in_the_run(self):
+        self.add(self.admin)
+
+        clash = self.add(self.admin, place=factories.BusStopFactory(school=self.school, name="Market"))
+
+        self.assertEqual(422, clash.status_code)
+        self.assertIn("sequence_number", self.errors(clash))
+
+    def test_another_route_may_call_at_the_same_place(self):
+        """The whole point of a list: two routes pass the same corner."""
         self.add(self.admin)
         other = factories.TransportRouteFactory(school=self.school)
 
-        clash = self.add(self.admin)
-
-        self.assertEqual({"name", "sequence_number"}, set(self.errors(clash)))
         self.assertEqual(201, self.add(self.admin, route=other).status_code)
+
+    def test_another_schools_bus_stop_is_refused(self):
+        theirs = factories.BusStopFactory(school=self.elsewhere, name="Theirs")
+
+        response = self.add(self.admin, place=theirs)
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("not one of this school's bus stops", self.errors(response)["bus_stop_id"][0])
+
+    def test_the_name_and_position_cannot_be_edited_on_the_route(self):
+        """They belong to the list. The message says where to change them,
+        because "not allowed" without a destination is a dead end."""
+        added = self.add(self.admin)
+
+        response = self.as_user(self.admin).patch(
+            f"/api/v1/transport/stops/{added.data['id']}", {"name": "Main gate"}, format="json"
+        )
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("Change it there", self.errors(response)["name"][0])
+
+    def test_but_a_one_off_made_before_the_list_existed_can_still_be_edited(self):
+        """Every stop that existed before this is a one-off, and they are
+        still correct - a route still stops there."""
+        one_off = factories.TransportStopFactory(route=self.route, name="Old Corner", sequence_number=7)
+
+        response = self.as_user(self.admin).patch(
+            f"/api/v1/transport/stops/{one_off.id}", {"name": "Old Corner, renamed"}, format="json"
+        )
+
+        self.assertEqual(200, response.status_code, response.data)
 
     def test_times_are_hh_mm_and_the_sequence_starts_at_one(self):
         response = self.add(self.admin, pickup_time="7:30", drop_time="24:00", sequence_number=0)
@@ -519,9 +585,10 @@ class StopTest(TransportTestCase):
         stop = factories.TransportStopFactory(route=self.route)
         client = self.as_user(self.manager)
 
-        self.assertEqual(201, self.add(self.manager, name="Market Square", sequence_number=9).status_code)
+        self.assertEqual(201, self.add(self.manager, sequence_number=9).status_code)
         self.assertEqual(
-            200, client.patch(f"/api/v1/transport/stops/{stop.id}", {"name": "Renamed"}, format="json").status_code
+            200,
+            client.patch(f"/api/v1/transport/stops/{stop.id}", {"pickup_time": "08:00"}, format="json").status_code,
         )
         self.assertEqual(204, client.delete(f"/api/v1/transport/stops/{stop.id}").status_code)
 
@@ -529,7 +596,7 @@ class StopTest(TransportTestCase):
         stop = factories.TransportStopFactory(route=self.route)
         client = self.as_user(self.teacher)
 
-        self.assertEqual(403, self.add(self.teacher, name="Market Square").status_code)
+        self.assertEqual(403, self.add(self.teacher).status_code)
         self.assertEqual(403, client.patch(f"/api/v1/transport/stops/{stop.id}", {}, format="json").status_code)
 
     def test_admins_and_the_manager_see_riders_in_stop_order_and_a_teacher_does_not(self):
@@ -638,16 +705,16 @@ class AssignmentTest(TransportTestCase):
 
 
 class BuildingARouteOnTheMap(TransportTestCase):
-    """A route and its stops in one request (docs/maps.md).
+    """A route and its calls in one request (docs/maps.md).
 
-    Somebody drawing a route on a map has the whole thing in front of them
-    before any of it exists, so sending it as a route and then N stops would
-    mean a half-built route whenever one of those N failed - and the person
-    would have to work out which stops made it before trying again.
+    Somebody drawing a route has the whole thing in front of them before
+    any of it exists, so sending a route and then N stops would mean a
+    half-built route whenever one of those N failed - and the person would
+    have to work out which stops made it before trying again.
 
-    The field rules are the single-stop form's; what is new is the pair only
-    a batch can break: two stops claiming the same name or the same place in
-    the order.
+    Each stop names a place in the school's list. The name and the
+    position come from there, never from the request: copying what
+    somebody typed is how the two drift.
     """
 
     URL = "/api/v1/transport/routes"
@@ -658,32 +725,47 @@ class BuildingARouteOnTheMap(TransportTestCase):
         self.school.longitude = "77.2090"
         self.school.save(update_fields=["latitude", "longitude"])
 
-    def a_stop(self, **overrides):
-        stop = {"name": "Market Square", "sequence_number": 1, "latitude": "28.6200", "longitude": "77.2100"}
-        stop.update(overrides)
+        self.market = factories.BusStopFactory(
+            school=self.school, name="Market Square", latitude="28.6200000", longitude="77.2100000"
+        )
+        self.temple = factories.BusStopFactory(
+            school=self.school, name="Temple Road", latitude="28.6250000", longitude="77.2150000"
+        )
 
-        return stop
+    def a_call(self, place=None, **overrides):
+        call = {"bus_stop_id": (place or self.market).id, "sequence_number": 1}
+        call.update(overrides)
+
+        return call
 
     def build(self, user=None, stops=None, **overrides):
-        body = {"name": "Route A", "stops": stops if stops is not None else [self.a_stop()]}
+        body = {"name": "Route A", "stops": stops if stops is not None else [self.a_call()]}
         body.update(overrides)
 
         return self.as_user(user or self.admin).post(self.URL, body, format="json")
 
     def test_a_route_arrives_with_its_stops(self):
         response = self.build(
-            stops=[
-                self.a_stop(name="Market Square", sequence_number=1),
-                self.a_stop(name="Temple Road", sequence_number=2, latitude="28.6250", longitude="77.2150"),
-            ]
+            stops=[self.a_call(), self.a_call(place=self.temple, sequence_number=2)]
         )
 
         self.assertEqual(201, response.status_code, response.data)
         self.assertEqual(2, response.data["stops_count"])
         self.assertEqual(["Market Square", "Temple Road"], [stop["name"] for stop in response.data["stops"]])
 
+    def test_the_names_and_positions_come_from_the_list(self):
+        response = self.build()
+
+        stop = response.data["stops"][0]
+        self.assertEqual(("Market Square", "28.6200000"), (stop["name"], stop["latitude"]))
+
+    def test_each_call_remembers_which_place_it_is(self):
+        """The link that lets a fix to the list reach the routes using it."""
+        self.build()
+
+        self.assertEqual(self.market.id, TransportStop.objects.get().bus_stop_id)
+
     def test_the_stops_are_the_schools_own(self):
-        """Never the client's word for it: they inherit the route's school."""
         route = TransportRoute.objects.get(pk=self.build().data["id"])
 
         self.assertEqual(self.school.id, TransportStop.objects.get(route_id=route.pk).school_id)
@@ -691,18 +773,20 @@ class BuildingARouteOnTheMap(TransportTestCase):
     def test_they_come_back_in_their_numbered_order_whatever_order_they_were_sent(self):
         response = self.build(
             stops=[
-                self.a_stop(name="Last", sequence_number=3),
-                self.a_stop(name="First", sequence_number=1),
-                self.a_stop(name="Middle", sequence_number=2),
+                self.a_call(place=self.temple, sequence_number=2),
+                self.a_call(sequence_number=1),
             ]
         )
 
-        self.assertEqual(["First", "Middle", "Last"], [stop["name"] for stop in response.data["stops"]])
+        self.assertEqual(["Market Square", "Temple Road"], [stop["name"] for stop in response.data["stops"]])
 
     def test_the_times_come_with_them(self):
-        response = self.build(stops=[self.a_stop(pickup_time="07:30", drop_time="15:10")])
+        response = self.build(stops=[self.a_call(pickup_time="07:30", drop_time="15:10")])
 
-        self.assertEqual(("07:30", "15:10"), (response.data["stops"][0]["pickup_time"], response.data["stops"][0]["drop_time"]))
+        self.assertEqual(
+            ("07:30", "15:10"),
+            (response.data["stops"][0]["pickup_time"], response.data["stops"][0]["drop_time"]),
+        )
 
     def test_a_route_can_still_be_made_with_no_stops_at_all(self):
         """The form that has always posted a bare route still does."""
@@ -711,40 +795,31 @@ class BuildingARouteOnTheMap(TransportTestCase):
         self.assertEqual(201, response.status_code, response.data)
         self.assertEqual(0, response.data["stops_count"])
 
-    def test_two_stops_cannot_share_a_name(self):
-        response = self.build(
-            stops=[self.a_stop(name="Market Square"), self.a_stop(name="Market Square", sequence_number=2)]
-        )
+    def test_one_place_cannot_be_on_a_route_twice(self):
+        response = self.build(stops=[self.a_call(), self.a_call(sequence_number=2)])
 
         self.assertEqual(422, response.status_code)
-        self.assertEqual(["Two stops are called Market Square."], self.errors(response)["stops"])
+        self.assertEqual(["Market Square is on this route twice."], self.errors(response)["stops"])
 
     def test_two_stops_cannot_share_a_place_in_the_order(self):
-        response = self.build(
-            stops=[self.a_stop(name="One", sequence_number=1), self.a_stop(name="Two", sequence_number=1)]
-        )
+        response = self.build(stops=[self.a_call(), self.a_call(place=self.temple)])
 
         self.assertEqual(422, response.status_code)
         self.assertEqual(["Two stops are number 1."], self.errors(response)["stops"])
 
-    def test_a_stop_the_wrong_side_of_the_world_is_refused(self):
-        """The same guard the single-stop form has: coordinates entered the
-        wrong way round land in the sea, hundreds of kilometres away."""
-        response = self.build(stops=[self.a_stop(latitude="77.2100", longitude="28.6200")])
+    def test_another_schools_bus_stop_is_refused(self):
+        """Scoped by the same question that stops a route being built into
+        somebody else's school."""
+        theirs = factories.BusStopFactory(school=self.elsewhere, name="Theirs")
+
+        response = self.build(stops=[self.a_call(place=theirs)])
 
         self.assertEqual(422, response.status_code)
-        self.assertIn("the wrong way round", self.errors(response)["stops"][0])
-
-    def test_the_message_names_the_stop_it_is_about(self):
-        """The envelope flattens nested errors, so a message that reads on
-        its own is worth more than a position nobody sees."""
-        response = self.build(stops=[self.a_stop(name="Temple Road", latitude="77.2100", longitude="28.6200")])
-
-        self.assertIn("Temple Road is", self.errors(response)["stops"][0])
+        self.assertIn("not one of this school's bus stops", self.errors(response)["stops"][0])
 
     def test_a_refused_batch_saves_nothing(self):
         """Caught by the form, before anything is written."""
-        self.build(stops=[self.a_stop(name="One"), self.a_stop(name="One", sequence_number=2)])
+        self.build(stops=[self.a_call(), self.a_call(sequence_number=2)])
 
         self.assertEqual(0, TransportRoute.objects.filter(name="Route A").count())
         self.assertEqual(0, TransportStop.objects.count())
@@ -753,10 +828,9 @@ class BuildingARouteOnTheMap(TransportTestCase):
         """The reason this is one transaction rather than one request.
 
         The form cannot catch everything - a column limit, a constraint, a
-        connection that drops - and half a route saved is worse than none:
-        somebody would have to work out which stops made it before trying
-        again. Driven through the service, because the point is what
-        happens *after* validation has passed.
+        connection that drops - and half a route saved is worse than none.
+        Driven through the service, because the point is what happens
+        *after* validation has passed.
         """
         from school.services import TransportRouteService
 
@@ -784,8 +858,9 @@ class BuildingARouteOnTheMap(TransportTestCase):
         self.assertEqual(1, response.data["stops_count"])
 
     def test_nobody_builds_a_route_into_another_school(self):
-        response = self.build(self.stranger, school_id=self.school.id)
+        theirs = factories.BusStopFactory(school=self.elsewhere, name="Theirs")
 
+        response = self.build(self.stranger, school_id=self.school.id, stops=[self.a_call(place=theirs)])
+
+        self.assertEqual(201, response.status_code, response.data)
         self.assertEqual(0, TransportRoute.objects.filter(school_id=self.school.id).count())
-        self.assertNotEqual(self.school.id, TransportRoute.objects.filter(name="Route A").first().school_id)
-        self.assertEqual(201, response.status_code)

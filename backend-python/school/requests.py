@@ -2383,21 +2383,20 @@ class RouteFields(serializers.Serializer):
 
 
 class NewRouteStop(serializers.Serializer):
-    """A stop drawn on the map while a route is being built, before either
-    exists (docs/maps.md).
+    """A call at a place in the school's list, while a route is being built
+    (docs/maps.md).
 
-    Deliberately not StopFields: that form checks a new stop against the
-    siblings already in the database, and these have no siblings yet - they
-    are checked against each other instead, by the route form that holds
-    them. The field rules themselves are the same ones, spelled once here.
+    It names a `bus_stop_id` and nothing about the place itself: the name
+    and the position belong to the list, and copying them from a request
+    would let the two drift the first time somebody typed a different name
+    here. What *is* the route's own is where in the run it comes and what
+    time the bus is there.
     """
 
-    name = LaravelCharField("name", max_length=100)
+    bus_stop_id = LaravelIntegerField("bus_stop_id")
     sequence_number = LaravelIntegerField("sequence_number", min_value=1, max_value=200)
     pickup_time = LaravelCharField("pickup_time", max_length=255, required=False, allow_null=True)
     drop_time = LaravelCharField("drop_time", max_length=255, required=False, allow_null=True)
-    latitude = CoordinateField("latitude", -90, 90)
-    longitude = CoordinateField("longitude", -180, 180)
 
     validate_pickup_time = staticmethod(clock_time("pickup_time"))
     validate_drop_time = staticmethod(clock_time("drop_time"))
@@ -2421,17 +2420,21 @@ class StoreTransportRouteRequest(RouteFields, ScopedSerializer):
         self.validate_school_id_field()
         attrs["school_id"] = self.resolved_school_id()
 
-        errors = self.check_the_stops(attrs.get("stops") or [], attrs["school_id"])
+        stops = attrs.get("stops") or []
+        errors = self.check_the_stops(stops, attrs["school_id"])
 
         if errors:
             raise serializers.ValidationError({"stops": errors})
 
+        # The places themselves, so the service copies their names and
+        # positions rather than looking them up a second time.
+        if stops:
+            attrs["places"] = self.places_for(stops, attrs["school_id"])
+
         return attrs
 
     def check_the_stops(self, stops: list, school_id) -> list:
-        """What the single-stop form checks against the database, checked
-        against the batch instead - plus the two rules only a batch can
-        break: stops sharing a name, or sharing a place in the order.
+        """Everything a batch can get wrong that one stop cannot.
 
         A flat list of sentences, each naming the stop it is about. The
         envelope flattens nested errors anyway (school/errors.py), so a
@@ -2439,42 +2442,46 @@ class StoreTransportRouteRequest(RouteFields, ScopedSerializer):
         sees.
         """
         problems: list[str] = []
-        names: set[str] = set()
         sequences: set[int] = set()
-        school = School.objects.filter(pk=school_id).values("latitude", "longitude").first() or {}
+        wanted = [stop["bus_stop_id"] for stop in stops]
+
+        # One query for the batch, and it answers both questions: does the
+        # place exist, and is it this school's?
+        places = {
+            place.pk: place
+            for place in BusStop.objects.filter(pk__in=wanted, school_id=school_id)
+        }
+
+        seen: set[int] = set()
 
         for stop in stops:
-            if stop["name"] in names:
-                problems.append(f"Two stops are called {stop['name']}.")
+            place = places.get(stop["bus_stop_id"])
 
-            names.add(stop["name"])
+            if place is None:
+                problems.append(f"Stop {stop['bus_stop_id']} is not one of this school's bus stops.")
+                continue
+
+            if place.pk in seen:
+                problems.append(f"{place.name} is on this route twice.")
+
+            seen.add(place.pk)
 
             if stop["sequence_number"] in sequences:
                 problems.append(f"Two stops are number {stop['sequence_number']}.")
 
             sequences.add(stop["sequence_number"])
 
-            far = self.how_far_from_school(stop, school)
-
-            if far is not None:
-                problems.append(
-                    f"{stop['name']} is {far:,.0f} km from the school. Check the latitude and "
-                    "longitude are not the wrong way round."
-                )
-
         return problems
 
     @staticmethod
-    def how_far_from_school(stop: dict, school: dict) -> float | None:
-        """Kilometres, or None when there is nothing to measure against."""
-        if stop.get("latitude") is None or school.get("latitude") is None:
-            return None
-
-        from .geo import distance_m
-
-        away = distance_m(stop["latitude"], stop["longitude"], school["latitude"], school["longitude"]) / 1000
-
-        return away if away > MAX_STOP_DISTANCE_KM else None
+    def places_for(stops: list, school_id) -> dict:
+        """The library rows these calls name, by id."""
+        return {
+            place.pk: place
+            for place in BusStop.objects.filter(
+                pk__in=[stop["bus_stop_id"] for stop in stops], school_id=school_id
+            )
+        }
 
 
 class UpdateTransportRouteRequest(RouteFields, PartialForm):
@@ -2656,7 +2663,24 @@ class StopFields(serializers.Serializer):
         return value
 
 
-class StoreTransportStopRequest(StopFields):
+class StoreTransportStopRequest(serializers.Serializer):
+    """Adding a call at one of the school's bus stops to a route that
+    already exists (docs/maps.md).
+
+    Like NewRouteStop, it names the place rather than describing it. What
+    it has to check that the batch form does not: this route may not
+    already call at that place, and may not already have a stop in that
+    position.
+    """
+
+    bus_stop_id = LaravelIntegerField("bus_stop_id")
+    sequence_number = LaravelIntegerField("sequence_number", min_value=1, max_value=200)
+    pickup_time = LaravelCharField("pickup_time", max_length=255, required=False, allow_null=True)
+    drop_time = LaravelCharField("drop_time", max_length=255, required=False, allow_null=True)
+
+    validate_pickup_time = staticmethod(clock_time("pickup_time"))
+    validate_drop_time = staticmethod(clock_time("drop_time"))
+
     def __init__(self, *args, route=None, **kwargs) -> None:
         if "data" in kwargs:
             kwargs["data"] = normalise(kwargs["data"])
@@ -2664,14 +2688,37 @@ class StoreTransportStopRequest(StopFields):
         super().__init__(*args, **kwargs)
         self.route = route
 
-    def siblings(self):
-        return TransportStop.objects.filter(route_id=self.route.pk)
+    def validate_bus_stop_id(self, value):
+        place = BusStop.objects.filter(pk=value, school_id=self.route.school_id).first()
 
-    def stop_school(self):
-        return self.route.school_id
+        if place is None:
+            raise serializers.ValidationError(["That is not one of this school's bus stops."])
+
+        if TransportStop.objects.filter(route_id=self.route.pk, bus_stop_id=value).exists():
+            raise serializers.ValidationError([f"{place.name} is already on this route."])
+
+        self.place = place
+
+        return value
+
+    def validate_sequence_number(self, value):
+        taken(TransportStop.objects.filter(route_id=self.route.pk, sequence_number=value), "sequence_number")
+
+        return value
 
 
 class UpdateTransportStopRequest(StopFields, PartialForm):
+    """Changing a route's call at a stop.
+
+    The times and the place in the run are the route's own and may always
+    change. The name and the position are **the bus stop's** once the call
+    came from the list, and are refused here with a sentence saying where
+    to change them - otherwise the two drift and nobody can tell which is
+    right (docs/maps.md).
+    """
+
+    OWNED_BY_THE_LIST = ("name", "latitude", "longitude")
+
     def __init__(self, *args, stop=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.stop = stop
@@ -2681,6 +2728,22 @@ class UpdateTransportStopRequest(StopFields, PartialForm):
 
     def stop_school(self):
         return self.stop.school_id
+
+    def validate(self, attrs):
+        if self.stop.bus_stop_id is not None:
+            sent = [field for field in self.OWNED_BY_THE_LIST if field in attrs]
+
+            if sent:
+                raise serializers.ValidationError(
+                    {
+                        sent[0]: [
+                            "This stop comes from the school's bus stops. Change it there and every "
+                            "route using it follows."
+                        ]
+                    }
+                )
+
+        return super().validate(attrs)
 
 
 class AssignStudentTransportRequest(serializers.Serializer):

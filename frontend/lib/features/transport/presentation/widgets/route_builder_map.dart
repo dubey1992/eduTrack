@@ -7,6 +7,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../maps/presentation/app_map.dart';
 import '../../../maps/presentation/map_pin_icons.dart';
 import '../../application/route_page_notifier.dart';
+import '../bus_stop_form_dialog.dart';
+import '../../data/models/bus_stop.dart';
+import '../../application/transport_pickers.dart';
 import 'submit_button.dart';
 
 /// Drawing a route on the school's own map (docs/maps.md).
@@ -51,21 +54,25 @@ class RouteBuilderMap extends ConsumerStatefulWidget {
   ConsumerState<RouteBuilderMap> createState() => _RouteBuilderMapState();
 }
 
-/// One stop on the way to being saved. Not the API's TransportStop: that
-/// one has an id and a route, and neither exists yet.
+/// One call on the way to being saved.
+///
+/// It holds a place from the school's list - the name and the position are
+/// that place's - plus what belongs to this route: where in the run it
+/// comes and when the bus is there (docs/maps.md).
 class DraftStop {
-  DraftStop({required this.name, required this.at, this.pickupTime, this.dropTime});
+  DraftStop({required this.place, this.pickupTime, this.dropTime});
 
-  String name;
-  LatLng at;
+  BusStop place;
   String? pickupTime;
   String? dropTime;
 
+  String get name => place.name;
+
+  LatLng get at => LatLng(double.parse(place.latitude), double.parse(place.longitude));
+
   Map<String, dynamic> toJson(int sequenceNumber) => {
-    'name': name,
+    'bus_stop_id': place.id,
     'sequence_number': sequenceNumber,
-    'latitude': at.latitude.toStringAsFixed(7),
-    'longitude': at.longitude.toStringAsFixed(7),
     'pickup_time': pickupTime,
     'drop_time': dropTime,
   };
@@ -105,13 +112,37 @@ class _RouteBuilderMapState extends ConsumerState<RouteBuilderMap> {
     });
   }
 
-  /// A tap on the map while drawing. Named for where it sits in the run,
-  /// because "Stop 3" is a better starting point than an empty box - and
-  /// renaming it is one tap away.
-  void _addStop(LatLng at) {
+  /// A tap on the map while drawing.
+  ///
+  /// It adds the place to the school's list **and** puts it on the route,
+  /// because the list is the only way a stop exists now - and a place
+  /// deserves a real name rather than "Stop 3", so the form opens straight
+  /// away with the tapped position already in it.
+  Future<void> _addStop(LatLng at) async {
     if (!_drawing) return;
 
-    setState(() => _stops.add(DraftStop(name: 'Stop ${_stops.length + 1}', at: at)));
+    final made = await showDialog<BusStop>(
+      context: context,
+      builder: (_) => BusStopFormDialog(schoolId: widget.schoolId, at: at, returnsTheStop: true),
+    );
+
+    if (made == null || !mounted) return;
+
+    setState(() => _stops.add(DraftStop(place: made)));
+  }
+
+  /// Or one the school already has, which is the common case once the list
+  /// has anything in it.
+  Future<void> _addExisting() async {
+    final route = _stops.map((stop) => stop.place.id).toSet();
+    final picked = await showDialog<BusStop>(
+      context: context,
+      builder: (_) => _PickABusStop(schoolId: widget.schoolId, already: route),
+    );
+
+    if (picked == null || !mounted) return;
+
+    setState(() => _stops.add(DraftStop(place: picked)));
   }
 
   void _move(int from, int to) {
@@ -123,7 +154,9 @@ class _RouteBuilderMapState extends ConsumerState<RouteBuilderMap> {
     });
   }
 
-  Future<void> _rename(int index) async {
+  /// The times this route calls at it. The name and the position are the
+  /// bus stop's, and are changed under Transport > Bus Stops.
+  Future<void> _times(int index) async {
     final edited = await showDialog<DraftStop>(
       context: context,
       builder: (_) => _StopDetailsDialog(stop: _stops[index]),
@@ -253,9 +286,10 @@ class _RouteBuilderMapState extends ConsumerState<RouteBuilderMap> {
       errorMessage: _errorMessage,
       stopProblems: _stopProblems,
       onStart: _start,
+      onAddExisting: _addExisting,
       onCancel: _stop,
       onSave: _save,
-      onRename: _rename,
+      onRename: _times,
       onMove: _move,
       onRemove: (index) => setState(() => _stops.removeAt(index)),
     );
@@ -288,6 +322,7 @@ class _Panel extends StatelessWidget {
     required this.errorMessage,
     required this.stopProblems,
     required this.onStart,
+    required this.onAddExisting,
     required this.onCancel,
     required this.onSave,
     required this.onRename,
@@ -302,6 +337,7 @@ class _Panel extends StatelessWidget {
   final String? errorMessage;
   final List<String> stopProblems;
   final VoidCallback onStart;
+  final VoidCallback onAddExisting;
   final VoidCallback onCancel;
   final VoidCallback onSave;
   final void Function(int index) onRename;
@@ -354,7 +390,10 @@ class _Panel extends StatelessWidget {
         if (stops.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text('Tap the map to drop the first stop.', style: TextStyle(color: colors.muted)),
+            child: Text(
+              'Tap the map to add a new stop, or pick one the school already has.',
+              style: TextStyle(color: colors.muted),
+            ),
           )
         else
           ConstrainedBox(
@@ -372,6 +411,13 @@ class _Panel extends StatelessWidget {
               ),
             ),
           ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          key: const Key('add-an-existing-stop'),
+          onPressed: isSubmitting ? null : onAddExisting,
+          icon: const Icon(Icons.playlist_add, size: 18),
+          label: const Text('Add an existing stop'),
+        ),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -425,7 +471,11 @@ class _StopRow extends StatelessWidget {
   }
 }
 
-/// A stop's name and its times, before it exists.
+/// When this route calls at a stop.
+///
+/// Not its name and not its position - those are the bus stop's, and are
+/// changed under Transport > Bus Stops so every route using it follows
+/// (docs/maps.md).
 class _StopDetailsDialog extends StatefulWidget {
   const _StopDetailsDialog({required this.stop});
 
@@ -436,15 +486,8 @@ class _StopDetailsDialog extends StatefulWidget {
 }
 
 class _StopDetailsDialogState extends State<_StopDetailsDialog> {
-  late final _nameController = TextEditingController(text: widget.stop.name);
   late String? _pickupTime = widget.stop.pickupTime;
   late String? _dropTime = widget.stop.dropTime;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
 
   Future<void> _pick({required bool isPickup}) async {
     final picked = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 7, minute: 30));
@@ -459,17 +502,19 @@ class _StopDetailsDialogState extends State<_StopDetailsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Stop'),
+      title: Text(widget.stop.name),
       content: SizedBox(
         width: 360,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
-              maxLength: 100,
+            Text(
+              'When the bus is here. The name and the place are the bus stop\'s - '
+              'change them under Transport > Bus Stops.',
+              style: TextStyle(color: context.appColors.muted),
             ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -495,17 +540,65 @@ class _StopDetailsDialogState extends State<_StopDetailsDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
         FilledButton(
-          onPressed: () {
-            final name = _nameController.text.trim();
-
-            if (name.isEmpty) return;
-
-            Navigator.of(context)
-                .pop(DraftStop(name: name, at: widget.stop.at, pickupTime: _pickupTime, dropTime: _dropTime));
-          },
+          onPressed: () =>
+              Navigator.of(context)
+                  .pop(DraftStop(place: widget.stop.place, pickupTime: _pickupTime, dropTime: _dropTime)),
           child: const Text('Done'),
         ),
       ],
+    );
+  }
+}
+
+/// One of the school's bus stops this route does not already call at.
+class _PickABusStop extends ConsumerWidget {
+  const _PickABusStop({required this.schoolId, required this.already});
+
+  final int? schoolId;
+  final Set<int> already;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final places = ref.watch(busStopPickerProvider(schoolId));
+
+    return AlertDialog(
+      title: const Text('Add a stop'),
+      content: SizedBox(
+        width: 420,
+        child: places.when(
+          loading: () => const Center(
+            child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()),
+          ),
+          error: (_, _) => Text('Could not load the bus stops.', style: TextStyle(color: context.appColors.danger)),
+          data: (all) {
+            final offered = all.where((place) => !already.contains(place.id)).toList();
+
+            if (offered.isEmpty) {
+              return Text(
+                all.isEmpty
+                    ? 'This school has no bus stops yet. Tap the map to add the first one.'
+                    : 'Every bus stop the school has is already on this route.',
+                style: TextStyle(color: context.appColors.muted),
+              );
+            }
+
+            return ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: offered.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) => ListTile(
+                  title: Text(offered[index].name),
+                  subtitle: offered[index].landmark == null ? null : Text(offered[index].landmark!),
+                  onTap: () => Navigator.of(context).pop(offered[index]),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel'))],
     );
   }
 }

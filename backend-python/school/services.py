@@ -2961,6 +2961,28 @@ class BusStopService:
         stop.delete()
 
 
+def _a_call_at(stop: dict, places: dict) -> dict:
+    """One route stop's columns, with the place's name and position copied
+    from the school's list (docs/maps.md).
+
+    Copied rather than read through: `transport_stops` is unique on
+    (route, name), trips snapshot the name, and every screen that draws a
+    route reads these columns. Keeping them in step with the list is S3's
+    job; getting them right when the call is made is this one's.
+    """
+    stop = dict(stop)
+    place = places.get(stop.get("bus_stop_id"))
+
+    if place is None:
+        return stop
+
+    stop["name"] = place.name
+    stop["latitude"] = place.latitude
+    stop["longitude"] = place.longitude
+
+    return stop
+
+
 def _named(names: list[str]) -> str:
     """"Route A", "Route A and Route B", "Route A, Route B and Route C"."""
     if len(names) == 1:
@@ -3027,6 +3049,7 @@ class TransportRouteService:
         """
         data = dict(data)
         stops = data.pop("stops", None) or []
+        places = data.pop("places", None) or {}
         now = timezone.now()
 
         with transaction.atomic():
@@ -3040,7 +3063,11 @@ class TransportRouteService:
             # which is the kind that rots.
             for stop in stops:
                 made = TransportStop.objects.create(
-                    **stop, route_id=route.pk, school_id=route.school_id, created_at=now, updated_at=now
+                    **_a_call_at(stop, places),
+                    route_id=route.pk,
+                    school_id=route.school_id,
+                    created_at=now,
+                    updated_at=now,
                 )
                 audit.created("transport", made)
 
@@ -3084,10 +3111,14 @@ class TransportRouteService:
             route.delete()
 
     @classmethod
-    def add_stop(cls, route, data: dict):
+    def add_stop(cls, route, data: dict, place=None):
         now = timezone.now()
         stop = TransportStop.objects.create(
-            **data, route_id=route.pk, school_id=route.school_id, created_at=now, updated_at=now
+            **_a_call_at(data, {} if place is None else {place.pk: place}),
+            route_id=route.pk,
+            school_id=route.school_id,
+            created_at=now,
+            updated_at=now,
         )
         audit.created("transport", stop)
         route_paths.mark_stale(route.pk)

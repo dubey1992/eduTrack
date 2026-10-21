@@ -7,6 +7,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/places_repository.dart';
 import 'app_map.dart';
+import 'map_pin_icons.dart';
+import 'distance.dart';
 
 /// Putting something on the map: a school, and later a bus stop
 /// (docs/maps.md, M1).
@@ -28,6 +30,8 @@ class LocationPicker extends ConsumerStatefulWidget {
     required this.longitude,
     required this.child,
     this.near,
+    this.origin,
+    this.originLabel,
     this.height = 260,
   });
 
@@ -43,6 +47,18 @@ class LocationPicker extends ConsumerStatefulWidget {
   /// Where to look first when there is nothing to show yet, and what to bias
   /// address search towards - the school, when placing one of its stops.
   final LatLng? near;
+
+  /// The place everything here is arranged around - the school, when
+  /// placing one of its stops. Pinned in its own colour and measured
+  /// against, so "is this the right street?" can be answered without
+  /// leaving the dialog.
+  ///
+  /// Null when the thing being placed *is* the origin: the school form
+  /// would otherwise draw two pins for one school.
+  final LatLng? origin;
+
+  /// What to call it in the distance line. "the school" when unset.
+  final String? originLabel;
 
   final double height;
 
@@ -187,6 +203,8 @@ class _LocationPickerState extends ConsumerState<LocationPicker> {
     final colors = context.appColors;
     final pinned = _pinned;
 
+    final icons = ref.watch(mapPinIconsProvider).value;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -204,14 +222,53 @@ class _LocationPickerState extends ConsumerState<LocationPicker> {
             centre: pinned ?? widget.near ?? _theCountry,
             zoom: pinned == null ? 4 : _closeUp,
             markers: {
+              // The origin first, so the pin being placed draws over it
+              // when the two are close.
+              if (widget.origin != null)
+                Marker(
+                  markerId: const MarkerId('origin'),
+                  position: widget.origin!,
+                  icon: icons?[MapPinColour.primary] ?? BitmapDescriptor.defaultMarker,
+                  infoWindow: InfoWindow(title: widget.originLabel ?? 'School'),
+                ),
               if (pinned != null)
-                Marker(markerId: const MarkerId('picked'), position: pinned, draggable: true, onDragEnd: _droppedAt),
+                Marker(
+                  markerId: const MarkerId('picked'),
+                  position: pinned,
+                  // Blue against the origin's red: which pin is the thing
+                  // being placed should not need a second look.
+                  icon: icons?[MapPinColour.secondary] ?? BitmapDescriptor.defaultMarker,
+                  draggable: true,
+                  onDragEnd: _droppedAt,
+                ),
             },
             onTap: _droppedAt,
             onMapCreated: (controller) => _map = controller,
           ),
         ),
         const SizedBox(height: 6),
+        // How far it is from the origin, where there is one. A number
+        // rather than two pins to judge by eye: the difference between the
+        // right street and the wrong city is what this catches, and the
+        // server refuses anything beyond 100 km anyway.
+        if (widget.origin != null && pinned != null) ...[
+          Row(
+            children: [
+              Icon(Icons.straighten, size: 14, color: colors.muted),
+              const SizedBox(width: 6),
+              // Expanded, because a school with a long name is the common
+              // case and an overflowing row is a yellow-and-black bar.
+              Expanded(
+                child: Text(
+                  '${formatDistance(distanceM(widget.origin!, pinned))} from '
+                  '${widget.originLabel ?? 'the school'}, in a straight line',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.muted),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+        ],
         Row(
           children: [
             Expanded(

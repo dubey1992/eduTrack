@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/network/paged_list.dart';
 import '../data/models/bus_stop.dart';
@@ -22,6 +23,18 @@ class BusStopPageNotifier extends AsyncNotifier<PagedList<BusStop>> {
   /// no single school to speak of, or nobody has placed it.
   String? schoolLatitude;
   String? schoolLongitude;
+  String? schoolName;
+
+  /// Where the school is, for a map to centre on and a stop to be measured
+  /// against. Null when there is no single school, or nobody has placed it.
+  LatLng? get schoolAt {
+    final latitude = double.tryParse(schoolLatitude ?? '');
+    final longitude = double.tryParse(schoolLongitude ?? '');
+
+    if (latitude == null || longitude == null) return null;
+
+    return LatLng(latitude, longitude);
+  }
 
   int? get schoolId => _schoolId;
 
@@ -35,6 +48,7 @@ class BusStopPageNotifier extends AsyncNotifier<PagedList<BusStop>> {
 
     schoolLatitude = answer.schoolLatitude;
     schoolLongitude = answer.schoolLongitude;
+    schoolName = answer.schoolName;
 
     final response = answer.page;
 
@@ -81,14 +95,16 @@ class BusStopPageNotifier extends AsyncNotifier<PagedList<BusStop>> {
     await refresh();
   }
 
-  Future<void> addStop({
+  /// Returns what was made, because the route builder adds a place and
+  /// puts it on the route in one action (docs/maps.md).
+  Future<BusStop> addStop({
     int? schoolId,
     required String name,
     required String latitude,
     required String longitude,
     String? landmark,
   }) async {
-    await ref
+    final made = await ref
         .read(transportRepositoryProvider)
         .createBusStop(
           schoolId: schoolId ?? _schoolId,
@@ -99,6 +115,8 @@ class BusStopPageNotifier extends AsyncNotifier<PagedList<BusStop>> {
         );
     _page = 1;
     await refresh();
+
+    return made;
   }
 
   /// Named editStop(), not update() - AsyncNotifier already declares one.
