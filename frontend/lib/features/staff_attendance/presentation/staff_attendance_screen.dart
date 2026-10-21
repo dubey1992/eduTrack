@@ -375,20 +375,29 @@ class _StaffRosterRowState extends State<_StaffRosterRow> {
                 label: Text(entry.checkOut ?? 'Check Out'),
               ),
               if (entry.workingHours != null) Text('Worked: ${entry.workingHours}'),
-              // Said, not left to be guessed: whoever sets the status should
-              // know these times came off a reader rather than being typed,
-              // because they are about to save them as the register's own
-              // (docs/biometric.md, B3).
-              if (entry.timesFromDevice)
+              // Said, not left to be guessed: a day a reader marked, or times
+              // that came off one, is not the same as a day somebody decided
+              // (docs/biometric.md, B3 and B5). Whoever opens this should
+              // know which they are looking at before they leave it alone.
+              if (entry.markedByDevice)
+                _DeviceNote(
+                  label: 'Marked from the device',
+                  tooltip: 'Marked Present by a punch on the fingerprint reader. Change it if it is wrong.',
+                )
+              else if (entry.timesFromDevice)
+                _DeviceNote(
+                  label: 'From the device',
+                  tooltip: 'First and last punch on the fingerprint reader. Change them if they are wrong.',
+                ),
+              if (entry.late)
                 Tooltip(
-                  message: 'First and last punch on the fingerprint reader. Change them if they are wrong.',
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.fingerprint, size: 16, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 4),
-                      Text('From the device', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
-                    ],
+                  message: 'Checked in after the first period of the day.',
+                  child: Chip(
+                    label: const Text('Late'),
+                    labelStyle: TextStyle(fontSize: 12, color: context.appColors.warning),
+                    visualDensity: VisualDensity.compact,
+                    side: BorderSide(color: context.appColors.warning),
+                    backgroundColor: Colors.transparent,
                   ),
                 ),
               SizedBox(
@@ -402,6 +411,31 @@ class _StaffRosterRowState extends State<_StaffRosterRow> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "This came off a reader, not from a person."
+class _DeviceNote extends StatelessWidget {
+  const _DeviceNote({required this.label, required this.tooltip});
+
+  final String label;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final colour = Theme.of(context).colorScheme.primary;
+
+    return Tooltip(
+      message: tooltip,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.fingerprint, size: 16, color: colour),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: colour)),
         ],
       ),
     );

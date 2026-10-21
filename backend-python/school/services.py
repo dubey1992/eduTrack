@@ -782,6 +782,13 @@ class StaffAttendanceService:
             school_id, date, [profile.id for profile in staff if profile.id not in existing]
         )
 
+        # Lateness is the first period of the day, the same rule the staff
+        # report counts by (StaffReportService) - one rule, so the screen and
+        # the report can never disagree. Deliberately not a status: four
+        # places count `status == PRESENT`, one of them the day credit
+        # payroll reads, and somebody who arrived at 09:05 was present.
+        late_after = Period.objects.filter(school_id=school_id).aggregate(first=Min("start_time"))["first"]
+
         return {
             "school_id": school_id,
             "attendance_date": str(date),
@@ -811,6 +818,13 @@ class StaffAttendanceService:
                         ),
                     ),
                     "times_from_device": profile.id in from_device,
+                    # Marked by a punch rather than by a person: the row
+                    # exists and nobody's name is on it (school/punches.py).
+                    "marked_by_device": profile.id in existing and existing[profile.id].marked_by_id is None,
+                    "late": _is_late(
+                        mark(existing, profile, "check_in") or _device_time(from_device, profile, "check_in"),
+                        late_after,
+                    ),
                     "remarks": mark(existing, profile, "remarks"),
                 }
                 for profile in staff
@@ -934,6 +948,15 @@ def mark(existing: dict, profile, field: str):
 def _device_time(from_device: dict, profile, field: str):
     """What the fingerprint reader has for this person, if anything."""
     return (from_device.get(profile.id) or {}).get(field)
+
+
+def _is_late(check_in, late_after) -> bool:
+    """After the first period of the school's day.
+
+    False when the school has no timetable to be late against, which is the
+    same answer the staff report gives rather than a guess at a start time.
+    """
+    return bool(check_in and late_after and check_in > late_after)
 
 
 class StaffLeaveService:

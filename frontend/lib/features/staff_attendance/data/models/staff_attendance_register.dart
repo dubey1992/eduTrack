@@ -15,6 +15,8 @@ class StaffRosterEntry {
     required this.workingHours,
     required this.remarks,
     this.timesFromDevice = false,
+    this.markedByDevice = false,
+    this.late = false,
   });
 
   factory StaffRosterEntry.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,8 @@ class StaffRosterEntry {
       workingHours: json['working_hours'] as String?,
       remarks: json['remarks'] as String?,
       timesFromDevice: json['times_from_device'] as bool? ?? false,
+      markedByDevice: json['marked_by_device'] as bool? ?? false,
+      late: json['late'] as bool? ?? false,
     );
   }
 
@@ -46,6 +50,16 @@ class StaffRosterEntry {
   /// (docs/biometric.md, B3). Only ever true for a day nobody has marked
   /// yet - once it is saved the times are the register's own.
   final bool timesFromDevice;
+
+  /// A punch marked this day, not a person (docs/biometric.md, B5). The row
+  /// exists and nobody's name is on it, which is what the screen says rather
+  /// than implying somebody decided it.
+  final bool markedByDevice;
+
+  /// Checked in after the first period of the school's day. Derived by the
+  /// server from the timetable - the same rule the staff report counts by -
+  /// and never a status: somebody who arrived at 09:05 was present.
+  final bool late;
 
   StaffRosterEntry copyWith({
     StaffAttendanceStatus? status,
@@ -66,6 +80,8 @@ class StaffRosterEntry {
       workingHours: workingHours,
       remarks: remarks ?? this.remarks,
       timesFromDevice: timesFromDevice,
+      markedByDevice: markedByDevice,
+      late: late,
     );
   }
 }

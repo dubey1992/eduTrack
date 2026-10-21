@@ -1,4 +1,4 @@
-# Biometric attendance — B1-B3 built, B4 still a plan
+# Biometric attendance — B1-B3 and B5 built, B4 still a plan
 
 A customer requirement, decided 2026-10-20. Staff punch in and out on a
 fingerprint device; those punches become the check-in and check-out times on
@@ -190,6 +190,43 @@ from an empty register a week later.
 
 Filling is audited as `staff_attendance.times_from_device`, one entry per
 day rather than per row: a month's upload is one action by one person.
+
+**B5 - the punch marks the day. Built 2026-10-21.** Asked for after B3 went
+in ("if a user puts his finger on the device, what should the action be?"),
+and built before B4 because it needs no device integration at all: a file
+uploaded this morning marks this morning's register.
+
+A punch on a working day marks the person **Present**, with their times, on
+a day nobody has marked. The decisions that shape it:
+
+- **A punch is evidence of presence; no punch is evidence of nothing.** The
+  absence of a punch is equally consistent with a broken reader, a failed
+  scan and a file nobody uploaded, so nothing is ever marked Absent. A dead
+  reader must not mark a school absent.
+- **A status a human set is never changed**, in either direction. Once
+  somebody has decided a day, the devices only keep the times current.
+- **Only a working day, and only inside the school's own marking window.**
+  A holiday, a weekend or a closed day keeps the punch and nothing else, and
+  an upload of old history cannot rewrite months that humans are no longer
+  allowed to touch either (`max_backdate_days`, docs/settings.md).
+- **Nobody's name goes on it.** `marked_by` is left empty, and the screen
+  says "Marked from the device" rather than implying somebody decided it.
+  The audit entry (`staff_attendance.marked_by_device`) carries who uploaded.
+
+**Lateness is derived, never a status.** It is `check_in` against the first
+period of the school's timetable - the rule StaffReportService already counts
+by, reused rather than reinvented, so the screen and the report can never
+disagree. It is deliberately not a status value: four places count
+`status == PRESENT`, one of them the day credit payroll reads, so adding
+`LATE` to the enum would quietly stop a teacher who arrived at 09:05 from
+counting as present. A school with no timetable has nobody late, which is
+the same answer the report gives rather than a guess at a start time.
+
+The consequence worth knowing: after this, the staff register fills itself
+for everyone who punched, and the people who need a human are the ones who
+did not. A day nobody reviews now reads as marked rather than as blank -
+which is the point, but it is why the empty `marked_by` and the label on the
+screen matter.
 
 **B4 - the live push endpoint.** The device protocol, idempotency, rate
 limiting, `last_seen_at`, and the operational notes. Last because it is the

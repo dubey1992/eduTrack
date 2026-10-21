@@ -27,8 +27,9 @@ import zoneinfo
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
-from . import audit, dates
+from . import audit, dates, modules
 from .clock import SchoolClock
+from .enums import StaffAttendanceStatus
 from .fields import as_utc
 from .models import BiometricPunch, StaffAttendance, StaffProfile
 
@@ -49,11 +50,13 @@ class Outcome:
         self.duplicate = 0
         self.refused: list[str] = []
 
-        # Register rows whose times these punches filled in. Worth saying
-        # out loud: "40 new" and "nothing reached the register" is a
-        # sentence somebody needs to see, because it usually means nobody
-        # has been enrolled on the device yet.
+        # Register rows whose times these punches filled in, and days these
+        # punches marked that nobody had marked. Worth saying out loud:
+        # "40 new" and "nothing reached the register" is a sentence somebody
+        # needs to see, because it usually means nobody has been enrolled on
+        # the device yet.
         self.register_filled = 0
+        self.register_marked = 0
 
     def as_dict(self) -> dict:
         return {
@@ -61,6 +64,7 @@ class Outcome:
             "duplicate": self.duplicate,
             "refused": self.refused,
             "register_filled": self.register_filled,
+            "register_marked": self.register_marked,
         }
 
 
@@ -112,7 +116,7 @@ def record(school_id: int, rows: list[dict], *, source: str = UPLOAD, device=Non
         outcome.accepted += 1
         landed.append((punch.staff_profile_id, punch.local_date))
 
-    outcome.register_filled = fill_register(school_id, landed)
+    outcome.register_filled, outcome.register_marked = fill_register(school_id, landed)
 
     return outcome
 
@@ -134,10 +138,18 @@ def _enrolment(school_id: int) -> dict[str, int]:
 # check-out (docs/biometric.md). Three rules make that safe to run over
 # months of uploaded history:
 #
-# - **No row is created.** Creating one would mean choosing a status, which
-#   is the one thing these punches cannot know. A day nobody has marked
-#   stays unmarked; the marking screen pre-fills the times from the punches
-#   instead, so whoever sets the status sees what the device saw.
+# - **A punch marks the day Present, where nobody has marked it** (B5). The
+#   person was there; that is the one thing a punch is good evidence of.
+#   **The absence of a punch is never Absent** - it is equally consistent
+#   with a broken reader, a failed scan, or a file nobody uploaded, and a
+#   dead reader must not mark a school absent.
+# - **A status a human set is never changed.** Only the times are, in both
+#   directions. Once somebody has decided a day, the devices stop having an
+#   opinion about it.
+# - **Only on a working day, and only inside the school's own window for
+#   marking late.** A holiday, a weekend or a closed day gets the punch and
+#   nothing else, and an upload of old history cannot rewrite months of
+#   attendance that humans are no longer allowed to touch either.
 # - **Times are set, never cleared.** A day with no punches is left exactly
 #   as it is. That also means a corrected enrolment leaves the old times
 #   behind for a human to fix, which is the lesser of the two wrongs:
@@ -145,6 +157,12 @@ def _enrolment(school_id: int) -> dict[str, int]:
 # - **One punch fills the check-in only.** Somebody who touched the reader
 #   once arrived; nothing says when they left, and a check-out equal to the
 #   check-in would read as a day of no work at all.
+#
+# Nothing here decides *lateness*. That is `check_in` against the first
+# period of the school's timetable, computed where it is read
+# (StaffReportService), and deliberately not a status: four places count
+# `status == PRESENT`, one of them the day-credit payroll reads, and a
+# teacher who arrived at 09:05 must not stop counting as present.
 
 
 def register_times(school_id: int, date, profile_ids) -> dict[int, dict]:
@@ -173,12 +191,14 @@ def register_times(school_id: int, date, profile_ids) -> dict[int, dict]:
     return times
 
 
-def fill_register(school_id: int, landed) -> int:
-    """Puts the day's first and last punch on the register rows that exist.
+def fill_register(school_id: int, landed) -> tuple[int, int]:
+    """Marks the days these punches are evidence of, and fills the times.
 
     `landed` is (staff_profile_id, local_date) pairs - whatever just arrived,
-    or just became attributed to somebody. Returns how many rows changed, so
-    an upload can say whether any of it reached the register at all.
+    or just became attributed to somebody. Returns (filled, marked): rows
+    whose times changed, and days nobody had marked that these punches now
+    mark Present. An upload says both, because "40 new punches and nothing
+    reached the register" is a sentence somebody needs to see.
     """
     wanted: dict[dt.date, set[int]] = {}
 
@@ -187,17 +207,33 @@ def fill_register(school_id: int, landed) -> int:
             wanted.setdefault(date, set()).add(profile_id)
 
     filled = 0
+    marked = 0
 
     for date, profile_ids in wanted.items():
         times = register_times(school_id, date, profile_ids)
+
+        if not times:
+            continue
+
+        existing = {
+            row.staff_profile_id: row
+            for row in StaffAttendance.objects.filter(
+                school_id=school_id, attendance_date=date, staff_profile_id__in=profile_ids
+            )
+        }
+        # Asked once for the day, not once per person.
+        may_mark = _may_mark(school_id, date)
         touched = []
+        made = []
 
-        for row in StaffAttendance.objects.filter(
-            school_id=school_id, attendance_date=date, staff_profile_id__in=profile_ids
-        ):
-            want = times.get(row.staff_profile_id)
+        for profile_id in sorted(times):
+            want = times[profile_id]
+            row = existing.get(profile_id)
 
-            if want is None:
+            if row is None:
+                if may_mark and _mark_present(school_id, date, profile_id, want):
+                    made.append(profile_id)
+
                 continue
 
             check_in = want["check_in"]
@@ -210,24 +246,73 @@ def fill_register(school_id: int, landed) -> int:
             row.check_out = check_out
             row.updated_at = timezone.now()
             row.save(update_fields=["check_in", "check_out", "updated_at"])
-            touched.append(row.staff_profile_id)
+            touched.append(profile_id)
 
-        if touched:
-            # Attendance changes are audited (CLAUDE.md 13). One entry per
-            # day rather than per row: a month's upload is one action by one
-            # person, and a hundred near-identical rows would bury it.
-            audit.record(
-                action="staff_attendance.times_from_device",
-                module="staff_attendance",
-                entity_type="school",
-                entity_id=school_id,
-                school_id=school_id,
-                new={"attendance_date": str(date), "staff_profile_ids": sorted(touched)},
-            )
+        # Attendance changes are audited (CLAUDE.md 13). One entry per day
+        # rather than per row: a month's upload is one action by one person,
+        # and a hundred near-identical rows would bury it. Marking and
+        # re-timing are separate actions because they are different things
+        # to find later.
+        for action, who in (("staff_attendance.marked_by_device", made), ("staff_attendance.times_from_device", touched)):
+            if who:
+                audit.record(
+                    action=action,
+                    module="staff_attendance",
+                    entity_type="school",
+                    entity_id=school_id,
+                    school_id=school_id,
+                    new={"attendance_date": str(date), "staff_profile_ids": who},
+                )
 
         filled += len(touched)
+        marked += len(made)
 
-    return filled
+    return filled, marked
+
+
+def _may_mark(school_id: int, date) -> bool:
+    """Whether a punch is allowed to mark this day at all.
+
+    The same two limits a person marking the register has: the school has to
+    have run that day, and the day has to be inside the window the school
+    allows marking in (docs/settings.md). Checked rather than asserted - a
+    punch on a holiday is a fact worth keeping, just not an attendance mark,
+    so it is skipped quietly rather than failing the upload.
+    """
+    from .services import HolidayService
+
+    if not HolidayService.is_working_day(school_id, date):
+        return False
+
+    limit = modules.setting(school_id, "staff_attendance", "max_backdate_days")
+    today = SchoolClock.for_school(school_id).now().date()
+
+    return date >= today - dt.timedelta(days=limit)
+
+
+def _mark_present(school_id: int, date, profile_id: int, times: dict) -> bool:
+    """Marks one person Present for a day nobody had marked.
+
+    `marked_by` is left empty on purpose: nobody marked this, a device did,
+    and the register says so rather than putting somebody's name to a
+    decision they did not make. The audit entry carries who uploaded it.
+    """
+    now = timezone.now()
+    _, made = StaffAttendance.objects.get_or_create(
+        staff_profile_id=profile_id,
+        attendance_date=date,
+        defaults={
+            "school_id": school_id,
+            "status": StaffAttendanceStatus.PRESENT,
+            "check_in": times["check_in"],
+            "check_out": times["check_out"],
+            "marked_by_id": None,
+            "created_at": now,
+            "updated_at": now,
+        },
+    )
+
+    return made
 
 
 def attach_waiting(profile: StaffProfile) -> int:

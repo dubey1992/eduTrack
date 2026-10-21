@@ -81,6 +81,40 @@ const _registerFromDevice = StaffAttendanceRegister(
   ],
 );
 
+/// A day a punch marked, with nobody's name on it, where the check-in is
+/// after the first period (docs/biometric.md, B5).
+const _registerMarkedByDevice = StaffAttendanceRegister(
+  schoolId: 1,
+  attendanceDate: '2026-09-08',
+  submitted: true,
+  staff: [
+    StaffRosterEntry(
+      staffProfileId: 1,
+      employeeId: 'EMP-001',
+      name: 'Priya Sharma',
+      departmentName: 'Mathematics',
+      status: StaffAttendanceStatus.present,
+      checkIn: '09:47',
+      checkOut: '17:31',
+      workingHours: '7h 44m',
+      remarks: null,
+      markedByDevice: true,
+      late: true,
+    ),
+    StaffRosterEntry(
+      staffProfileId: 2,
+      employeeId: 'EMP-002',
+      name: 'Rahul Verma',
+      departmentName: 'Science',
+      status: StaffAttendanceStatus.present,
+      checkIn: '08:55',
+      checkOut: '17:02',
+      workingHours: '8h 7m',
+      remarks: null,
+    ),
+  ],
+);
+
 /// Already submitted, with every staff member already marked - the "correct
 /// a past day" flow, as opposed to the still-blank register above.
 const _submittedRegister = StaffAttendanceRegister(
@@ -130,6 +164,37 @@ Widget wrap({FakeStaffAttendanceRepository? staffAttendance}) {
 }
 
 void main() {
+  group('a day a punch marked', () {
+    testWidgets('it says the device marked it, not a person', (tester) async {
+      // A row with nobody's name on it is not the same as a day somebody
+      // decided, and whoever opens this should know which it is before
+      // leaving it alone.
+      await tester.pumpWidget(wrap(staffAttendance: FakeStaffAttendanceRepository(register: _registerMarkedByDevice)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Marked from the device'), findsOneWidget);
+      expect(find.text('From the device'), findsNothing);
+    });
+
+    testWidgets('a late arrival is badged, and is still Present', (tester) async {
+      await tester.pumpWidget(wrap(staffAttendance: FakeStaffAttendanceRepository(register: _registerMarkedByDevice)));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(Chip, 'Late'), findsOneWidget);
+      // One badge, on the one who was late - not on their colleague.
+      expect(find.text('09:47'), findsOneWidget);
+      expect(find.text('08:55'), findsOneWidget);
+    });
+
+    testWidgets('a day somebody marked by hand says nothing about a device', (tester) async {
+      await tester.pumpWidget(wrap(staffAttendance: FakeStaffAttendanceRepository(register: _submittedRegister)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Marked from the device'), findsNothing);
+      expect(find.widgetWithText(Chip, 'Late'), findsNothing);
+    });
+  });
+
   group('times a fingerprint reader filled in', () {
     testWidgets('they are shown, and said to have come from a device', (tester) async {
       // Whoever sets the status is about to save these as the register's

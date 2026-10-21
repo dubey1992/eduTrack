@@ -362,34 +362,50 @@ void main() {
       expect(find.textContaining('40 already in'), findsOneWidget);
     });
 
-    testWidgets('it says how much of it reached the register', (tester) async {
+    testWidgets('it says what it marked, and what it only re-timed', (tester) async {
       useDesktop(tester);
       final fake = FakeBiometricRepository()
-        ..uploadResult = const PunchUploadResult(read: 4, accepted: 4, duplicate: 0, refused: [], registerFilled: 2);
+        ..uploadResult = const PunchUploadResult(
+          read: 8,
+          accepted: 8,
+          duplicate: 0,
+          refused: [],
+          registerFilled: 2,
+          registerMarked: 3,
+        );
       await upload(tester, fake);
 
-      expect(find.textContaining('2 days on the staff register now have their times'), findsOneWidget);
+      expect(find.textContaining('3 days marked Present'), findsOneWidget);
+      expect(find.textContaining('2 days already marked now have their times'), findsOneWidget);
     });
 
-    testWidgets('one day is said in the singular', (tester) async {
+    testWidgets('one of each is said in the singular', (tester) async {
       useDesktop(tester);
       final fake = FakeBiometricRepository()
-        ..uploadResult = const PunchUploadResult(read: 2, accepted: 2, duplicate: 0, refused: [], registerFilled: 1);
+        ..uploadResult = const PunchUploadResult(
+          read: 4,
+          accepted: 4,
+          duplicate: 0,
+          refused: [],
+          registerFilled: 1,
+          registerMarked: 1,
+        );
       await upload(tester, fake);
 
-      expect(find.textContaining('1 day on the staff register now has its times'), findsOneWidget);
+      expect(find.textContaining('1 day marked Present'), findsOneWidget);
+      expect(find.textContaining('1 day already marked now has its times'), findsOneWidget);
     });
 
     testWidgets('punches that reached no register say why that might be', (tester) async {
-      // The usual cause is that nobody is enrolled on those device IDs, and
-      // somebody who uploaded a month of history deserves to know that now
-      // rather than from an empty register later.
+      // The usual causes - nobody enrolled, or a holiday - are both worth
+      // learning at the upload rather than from an empty register later.
       useDesktop(tester);
       final fake = FakeBiometricRepository()
         ..uploadResult = const PunchUploadResult(read: 4, accepted: 4, duplicate: 0, refused: []);
       await upload(tester, fake);
 
       expect(find.textContaining('Nothing reached the staff register'), findsOneWidget);
+      expect(find.textContaining('holidays, weekends'), findsOneWidget);
     });
 
     testWidgets('a file that was all repeats says nothing about the register', (tester) async {

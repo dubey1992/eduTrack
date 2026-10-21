@@ -62,6 +62,7 @@ class PunchUploadResult {
     required this.duplicate,
     required this.refused,
     this.registerFilled = 0,
+    this.registerMarked = 0,
   });
 
   factory PunchUploadResult.fromJson(Map<String, dynamic> json) {
@@ -71,6 +72,7 @@ class PunchUploadResult {
       duplicate: json['duplicate'] as int? ?? 0,
       refused: ((json['refused'] as List?) ?? const []).map((line) => '$line').toList(),
       registerFilled: json['register_filled'] as int? ?? 0,
+      registerMarked: json['register_marked'] as int? ?? 0,
     );
   }
 
@@ -89,6 +91,10 @@ class PunchUploadResult {
   /// (docs/biometric.md, B3). Zero with punches accepted usually means
   /// nobody has been enrolled on the device yet, which is worth saying.
   final int registerFilled;
+
+  /// Days nobody had marked that these punches marked Present
+  /// (docs/biometric.md, B5).
+  final int registerMarked;
 
   bool get hasProblems => refused.isNotEmpty;
 }

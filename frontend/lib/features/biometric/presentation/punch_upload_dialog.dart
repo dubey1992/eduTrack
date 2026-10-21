@@ -186,18 +186,24 @@ class _Outcome extends StatelessWidget {
           ),
         // What reached the register, which is the point of the file. Said
         // either way: "none" after a successful upload almost always means
-        // nobody has been enrolled on the device yet (docs/biometric.md, B3).
+        // nobody has been enrolled on the device yet (docs/biometric.md).
         const SizedBox(height: 8),
+        if (result.registerMarked > 0)
+          Text(
+            result.registerMarked == 1
+                ? '1 day marked Present on the staff register.'
+                : '${result.registerMarked} days marked Present on the staff register.',
+          ),
         if (result.registerFilled > 0)
           Text(
             result.registerFilled == 1
-                ? '1 day on the staff register now has its times.'
-                : '${result.registerFilled} days on the staff register now have their times.',
-          )
-        else if (result.accepted > 0)
+                ? '1 day already marked now has its times.'
+                : '${result.registerFilled} days already marked now have their times.',
+          ),
+        if (result.registerMarked == 0 && result.registerFilled == 0 && result.accepted > 0)
           Text(
-            'Nothing reached the staff register. Those days have not been marked yet - '
-            'the times are waiting on the marking screen - or nobody is enrolled on these device IDs.',
+            'Nothing reached the staff register. Nobody is enrolled on these device IDs, or those '
+            'days are holidays, weekends, or older than this school allows a register to be marked.',
             style: TextStyle(color: colors.muted),
           ),
         if (result.hasProblems) ...[
