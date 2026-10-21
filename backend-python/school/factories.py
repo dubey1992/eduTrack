@@ -486,3 +486,22 @@ class AssessmentMarkFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+class BiometricDeviceFactory(DjangoModelFactory):
+    """A fingerprint reader (docs/biometric.md). The serial is unique across
+    the platform, so it is sequenced rather than fixed."""
+
+    class Meta:
+        model = models.BiometricDevice
+
+    school = factory.SubFactory(SchoolFactory)
+    serial_number = factory.Sequence(lambda n: f"ZK-{n:04d}")
+    push_key = None
+    name = "Front gate"
+    location = "Reception"
+    status = "active"
+    last_seen_at = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

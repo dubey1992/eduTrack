@@ -18,6 +18,7 @@ class FakeBiometricRepository implements BiometricRepository {
   int? lastSchoolFilter;
   Failure? failListWith;
   final List<Map<String, Object?>> created = [];
+  final List<Map<String, Object?>> edited = [];
   final List<int> removed = [];
 
   // -- the punch log --
@@ -58,8 +59,15 @@ class FakeBiometricRepository implements BiometricRepository {
     required String name,
     required String serialNumber,
     String? location,
+    String? pushKey,
   }) async {
-    created.add({'school_id': schoolId, 'name': name, 'serial_number': serialNumber, 'location': location});
+    created.add({
+      'school_id': schoolId,
+      'name': name,
+      'serial_number': serialNumber,
+      'location': location,
+      'push_key': pushKey,
+    });
 
     final made = BiometricDevice(
       id: _devices.length + 1,
@@ -77,7 +85,21 @@ class FakeBiometricRepository implements BiometricRepository {
   }
 
   @override
-  Future<BiometricDevice> updateDevice(int deviceId, {String? name, String? serialNumber, String? location}) async {
+  Future<BiometricDevice> updateDevice(
+    int deviceId, {
+    String? name,
+    String? serialNumber,
+    String? location,
+    String? pushKey,
+  }) async {
+    edited.add({
+      'id': deviceId,
+      'name': name,
+      'serial_number': serialNumber,
+      'location': location,
+      'push_key': pushKey,
+    });
+
     return _devices.firstWhere((d) => d.id == deviceId);
   }
 
@@ -134,6 +156,7 @@ BiometricDevice fakeDevice({
   String serial = 'ZK-0001',
   String? location = 'Reception',
   String? lastSeenAt,
+  bool hasPushKey = false,
 }) {
   return BiometricDevice(
     id: id,
@@ -144,6 +167,7 @@ BiometricDevice fakeDevice({
     location: location,
     status: 'active',
     lastSeenAt: lastSeenAt,
+    hasPushKey: hasPushKey,
   );
 }
 

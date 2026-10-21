@@ -1,4 +1,4 @@
-# Biometric attendance — B1-B3 and B5 built, B4 still a plan
+# Biometric attendance — built, B4 pending a real device
 
 A customer requirement, decided 2026-10-20. Staff punch in and out on a
 fingerprint device; those punches become the check-in and check-out times on
@@ -228,11 +228,61 @@ did not. A day nobody reviews now reads as marked rather than as blank -
 which is the point, but it is why the empty `marked_by` and the label on the
 screen matter.
 
-**B4 - the live push endpoint.** The device protocol, idempotency, rate
-limiting, `last_seen_at`, and the operational notes. Last because it is the
-riskiest part and everything before it works without it.
+**B4 - the live push endpoint. Built 2026-10-21, against an assumed
+dialect.** The device posts its own punches, so the CSV upload stops being
+the only way in. Three URLs at the domain root - `/iclock/cdata`,
+`/iclock/getrequest`, `/iclock/devicecmd` - answering plain text.
 
-### Why B4 is last, and what it risks
+**The dialect is an assumption until a real device is in front of us.** It
+is written against the common ZKTeco push protocol, which is what the boxes
+schools buy tend to speak, and written liberally: tabs or commas, seconds
+optional, unknown tables acknowledged and dropped, an unreadable line
+skipped rather than failing the batch. Every punch keeps its raw line, so
+if the real firmware differs the evidence for fixing it is already in the
+database. **Confirm the make, the model, and whether the box can do HTTPS
+before pointing a school at this.**
+
+Two exceptions to house rules, both deliberate:
+
+- **The URL is not ours.** The firmware appends its own path to whatever
+  address somebody types into the box, so these sit outside `/api/v1/`.
+- **The response is not the envelope.** Plain text, because that is what
+  the firmware reads; a JSON error would be answered with a parse failure
+  and a retry loop by a box nobody can see the screen of.
+
+**A serial number is not a credential**, and the code says so where it is
+used. It is printed on the box and sent in the clear. What limits the
+damage, in order of how much work each does:
+
+- **A punch can only ever write a time.** Never a status, never a day's
+  presence, never anything payroll reads directly. Even a successful
+  forgery moves somebody's check-in - which is why B5's "a human's status
+  is never overruled" is a security property and not only a usability one.
+- **An unknown serial is refused and audited.** A device somebody installed
+  and forgot to register looks exactly like somebody guessing serials, and
+  both are worth seeing.
+- **A shared secret where the firmware can send one** (`push_key`, set on
+  the device form). Write-only: never read back through the API and never
+  in the audit trail, because the people who may *look* at this register
+  are a wider set than the people who should be able to post into it. Null
+  means none required, which is the only workable answer for older boxes.
+- **A rate limit per serial**, not per address: a school's devices sit
+  behind one address, and a per-address limit tight enough to matter would
+  throttle the school rather than the problem.
+
+A refusal never says which of "no such device" and "wrong key" it was.
+
+**This product never sends a device a command.** `/iclock/getrequest`
+always answers `OK` and nothing else. It does not enrol fingers, set the
+clock or open a door, and every one of those would be a way for a
+compromised server to reach into a school. The endpoint exists only because
+the firmware treats a 404 as a fault.
+
+**The device's clock drifts** and nobody notices until a month of punches
+is an hour out. `last_seen_at` - updated on every contact, not just a
+punch - and the raw line are what make that diagnosable.
+
+### What B4 still risks
 
 - **The URL is not ours to choose.** This firmware appends its own path
   (`/iclock/cdata`), so the endpoint has to live at the domain root rather

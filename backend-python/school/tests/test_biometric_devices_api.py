@@ -254,3 +254,55 @@ class Enrolment(DeviceTest):
         )
 
         self.assertEqual(201, response.status_code, response.data)
+
+
+class TheSharedSecret(DeviceTest):
+    """What a device sends with its punches, where the firmware can send
+    one (docs/biometric.md, B4). Write-only on purpose: anybody who could
+    read it could post punches for that school, and the set of people who
+    may look at this register is wider than that."""
+
+    def test_it_can_be_set_when_a_device_is_registered(self):
+        response = self.add(push_key="s3cret")
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertTrue(response.data["has_push_key"])
+        self.assertEqual("s3cret", BiometricDevice.objects.get(serial_number="ZK-0001").push_key)
+
+    def test_it_is_never_read_back(self):
+        self.add(push_key="s3cret")
+
+        listed = self.client_as(self.admin).get(DEVICES).data["data"][0]
+        self.assertNotIn("push_key", listed)
+        self.assertTrue(listed["has_push_key"])
+
+    def test_a_device_without_one_says_so(self):
+        response = self.add()
+
+        self.assertFalse(response.data["has_push_key"])
+
+    def test_an_empty_one_is_no_key_rather_than_an_empty_string(self):
+        """"" would answer "yes, a key is set" at the push endpoint and
+        refuse every device that cannot send one."""
+        response = self.add(push_key="")
+
+        self.assertFalse(response.data["has_push_key"])
+        self.assertIsNone(BiometricDevice.objects.get(serial_number="ZK-0001").push_key)
+
+    def test_it_can_be_cleared_later(self):
+        device = self.add(push_key="s3cret").data
+
+        response = self.client_as(self.admin).patch(
+            f"{DEVICES}/{device['id']}", {"push_key": ""}, format="json"
+        )
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertFalse(response.data["has_push_key"])
+
+    def test_it_never_reaches_the_audit_trail(self):
+        """The trail should not be the one place a secret can be found."""
+        self.add(push_key="s3cret")
+
+        for entry in AuditLog.objects.filter(module="staff_attendance"):
+            self.assertNotIn("s3cret", str(entry.new_values))
+            self.assertNotIn("push_key", (entry.new_values or {}))

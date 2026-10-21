@@ -34,6 +34,7 @@ from school.views import (
     dashboard,
     early_access,
     hod,
+    iclock,
     imports,
     inbox,
     leave,
@@ -304,6 +305,15 @@ urlpatterns = [
     path("api/v1/imports/<str:kind>/preview", imports.preview),
     path("api/v1/imports/<str:kind>", imports.store),
     path("api/v1/imports/<str:kind>/template", imports.template),
+    # -- the fingerprint readers -------------------------------------------
+    # The one exception to the /api/v1/ prefix above, and not a style choice
+    # either: this firmware appends its own path to whatever server address
+    # somebody types into the box, so the URL is the device's to choose
+    # (docs/biometric.md, B4). Plain text in and out, no account behind it,
+    # and nothing it sends can write more than a time.
+    path("iclock/cdata", iclock.cdata),
+    path("iclock/getrequest", iclock.getrequest),
+    path("iclock/devicecmd", iclock.devicecmd),
 ]
 
 # A URL matching no route above never reaches DRF, so it would answer Django's

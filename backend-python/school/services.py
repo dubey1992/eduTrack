@@ -3768,6 +3768,12 @@ class BiometricDeviceService:
     @staticmethod
     def create(data: dict, actor: User) -> BiometricDevice:
         data = dict(data)
+        # An empty key is no key, not an empty string: the push endpoint
+        # asks "is one set?", and "" would answer yes and refuse every
+        # device that cannot send one.
+        if "push_key" in data:
+            data["push_key"] = (data["push_key"] or "").strip() or None
+
         school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
         now = timezone.now()
 
@@ -3786,6 +3792,10 @@ class BiometricDeviceService:
     @staticmethod
     def update(device: BiometricDevice, data: dict) -> BiometricDevice:
         before = audit.fields_of(device)
+        data = dict(data)
+
+        if "push_key" in data:
+            data["push_key"] = (data["push_key"] or "").strip() or None
 
         for field, value in data.items():
             setattr(device, field, value)

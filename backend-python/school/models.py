@@ -926,6 +926,10 @@ class BiometricDevice(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey(School, models.DO_NOTHING)
     serial_number = models.CharField(max_length=64, unique=True)
+    # A shared secret the device sends with its punches, where the firmware
+    # can send one (B4). Null means none is required - older boxes cannot,
+    # and refusing them would leave a school worse off than the CSV upload.
+    push_key = models.CharField(max_length=64, blank=True, null=True)
     name = models.CharField(max_length=100)
     location = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(max_length=255)

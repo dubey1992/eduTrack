@@ -3078,6 +3078,11 @@ class BiometricDeviceForm(ScopedSerializer):
     name = LaravelCharField("name", max_length=100)
     serial_number = LaravelCharField("serial_number", max_length=64)
     location = LaravelCharField("location", max_length=100, required=False, allow_null=True, allow_blank=True)
+    # The shared secret the device sends with its punches (B4). Write-only:
+    # it is never read back, because the people who may *see* this register
+    # are a wider set than the people who should be able to post punches
+    # into it. Empty clears it, which is how a school turns it off.
+    push_key = LaravelCharField("push_key", max_length=64, required=False, allow_null=True, allow_blank=True)
 
     def validate_serial_number(self, value: str) -> str:
         # Upper case, because a serial read off a sticker and typed in is

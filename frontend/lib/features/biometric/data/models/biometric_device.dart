@@ -13,6 +13,7 @@ class BiometricDevice {
     required this.location,
     required this.status,
     required this.lastSeenAt,
+    this.hasPushKey = false,
   });
 
   factory BiometricDevice.fromJson(Map<String, dynamic> json) {
@@ -25,6 +26,7 @@ class BiometricDevice {
       location: json['location'] as String?,
       status: json['status'] as String,
       lastSeenAt: json['last_seen_at'] as String?,
+      hasPushKey: json['has_push_key'] as bool? ?? false,
     );
   }
 
@@ -44,6 +46,11 @@ class BiometricDevice {
   /// and never heard from is a different thing from one that stopped talking
   /// on Tuesday, so the screen says which.
   final String? lastSeenAt;
+
+  /// Whether a shared secret is set, never what it is (docs/biometric.md,
+  /// B4). The server does not send the key back: anybody who could read it
+  /// could post punches for that school.
+  final bool hasPushKey;
 
   bool get hasNeverSpoken => lastSeenAt == null;
 }

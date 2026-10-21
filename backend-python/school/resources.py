@@ -931,6 +931,10 @@ def biometric_device_resource(device) -> dict:
         "serial_number": device.serial_number,
         "name": device.name,
         "location": device.location,
+        # Whether one is set, never what it is. Anybody who could read it
+        # could post punches for that school, and the set of people who may
+        # look at this register is wider than that (docs/biometric.md, B4).
+        "has_push_key": bool(device.push_key),
         "status": device.status,
         # Null until the device has actually spoken. The client says "never
         # heard from" rather than showing a blank, because the two mean

@@ -138,3 +138,30 @@ class MapsLookupThrottle(SimpleRateThrottle):
 
     def get_cache_key(self, request, view) -> str:
         return self.cache_format % {"scope": self.scope, "ident": request.user.pk or self.get_ident(request)}
+
+
+class DevicePushThrottle(SimpleRateThrottle):
+    """The fingerprint readers' own endpoint (docs/biometric.md, B4).
+
+    Per serial rather than per address: a school's devices sit behind one
+    NAT address, and a limit tight enough to matter per address would throttle
+    the school rather than the problem. A serial is the only thing a device
+    says about itself, so it is also the only thing worth counting.
+
+    Sixty a minute is far more than the firmware's own polling interval and
+    far less than a leaked serial is worth to anybody. A device with no
+    serial at all is not counted here - it is refused before it gets this
+    far, and counting it would let one bad request spend a real device's
+    allowance.
+    """
+
+    scope = "device-push"
+    rate = "60/min"
+
+    def get_cache_key(self, request, view) -> str | None:
+        serial = (request.GET.get("SN") or request.GET.get("sn") or "").strip()
+
+        if not serial:
+            return None
+
+        return self.cache_format % {"scope": self.scope, "ident": serial[:64]}

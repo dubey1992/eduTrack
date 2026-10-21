@@ -50,6 +50,10 @@ SECRET_KEYS = {
     # Provider accounts and the SMTP password: encrypted in their columns and
     # never in the trail, even as ciphertext.
     "credentials", "auth_token", "access_token",
+    # The fingerprint readers' shared secret (docs/biometric.md, B4). Never
+    # read back through the API either, so the trail should not be the one
+    # place it can be found.
+    "push_key",
 }
 
 # The request being served and whoever it was authenticated as. Context

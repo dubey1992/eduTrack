@@ -35,6 +35,7 @@ class BiometricRepository {
     required String name,
     required String serialNumber,
     String? location,
+    String? pushKey,
   }) async {
     try {
       return await _api.createDevice({
@@ -42,19 +43,30 @@ class BiometricRepository {
         'name': name,
         'serial_number': serialNumber,
         'location': location,
+        'push_key': pushKey,
       });
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }
   }
 
-  Future<BiometricDevice> updateDevice(int deviceId, {String? name, String? serialNumber, String? location}) async {
+  Future<BiometricDevice> updateDevice(
+    int deviceId, {
+    String? name,
+    String? serialNumber,
+    String? location,
+    String? pushKey,
+  }) async {
     try {
       return await _api.updateDevice(deviceId, {
         'name': ?name,
         'serial_number': ?serialNumber,
         // Sent even when empty, so clearing a location actually clears it.
         'location': location,
+        // Left out entirely when untouched: the server never sends the key
+        // back, so an empty string here would mean "clear it" rather than
+        // "leave it alone" (docs/biometric.md, B4).
+        'push_key': ?pushKey,
       });
     } on DioException catch (e) {
       throw failureFromDioException(e);

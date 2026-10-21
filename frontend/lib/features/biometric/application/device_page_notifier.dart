@@ -69,18 +69,25 @@ class DevicePageNotifier extends AsyncNotifier<PagedList<BiometricDevice>> {
     required String name,
     required String serialNumber,
     String? location,
+    String? pushKey,
   }) async {
     await ref
         .read(biometricRepositoryProvider)
-        .createDevice(schoolId: schoolId, name: name, serialNumber: serialNumber, location: location);
+        .createDevice(schoolId: schoolId, name: name, serialNumber: serialNumber, location: location, pushKey: pushKey);
     await refresh();
   }
 
   // Named editDevice(), not update() - AsyncNotifier already declares one.
-  Future<void> editDevice(BiometricDevice device, {String? name, String? serialNumber, String? location}) async {
+  Future<void> editDevice(
+    BiometricDevice device, {
+    String? name,
+    String? serialNumber,
+    String? location,
+    String? pushKey,
+  }) async {
     await ref
         .read(biometricRepositoryProvider)
-        .updateDevice(device.id, name: name, serialNumber: serialNumber, location: location);
+        .updateDevice(device.id, name: name, serialNumber: serialNumber, location: location, pushKey: pushKey);
     await refresh();
   }
 

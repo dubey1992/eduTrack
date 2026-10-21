@@ -29,7 +29,13 @@ class _DeviceFormDialogState extends ConsumerState<DeviceFormDialog> {
   late final _serialController = TextEditingController(text: widget.device?.serialNumber ?? '');
   late final _locationController = TextEditingController(text: widget.device?.location ?? '');
 
+  /// Always starts empty, even when a key is already set: the server never
+  /// sends it back, so there is nothing to prefill with and a dot-filled
+  /// box would be a lie about what pressing Save does.
+  final _pushKeyController = TextEditingController();
+
   int? _schoolId;
+  bool _pushKeyTouched = false;
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -40,6 +46,7 @@ class _DeviceFormDialogState extends ConsumerState<DeviceFormDialog> {
     _nameController.dispose();
     _serialController.dispose();
     _locationController.dispose();
+    _pushKeyController.dispose();
     super.dispose();
   }
 
@@ -56,11 +63,26 @@ class _DeviceFormDialogState extends ConsumerState<DeviceFormDialog> {
       final name = _nameController.text.trim();
       final serial = _serialController.text.trim();
       final location = _locationController.text.trim();
+      // Untouched means "leave it as it is"; the server is only told about
+      // the key when somebody typed in that box.
+      final pushKey = _pushKeyTouched ? _pushKeyController.text.trim() : null;
 
       if (_isEdit) {
-        await notifier.editDevice(widget.device!, name: name, serialNumber: serial, location: location);
+        await notifier.editDevice(
+          widget.device!,
+          name: name,
+          serialNumber: serial,
+          location: location,
+          pushKey: pushKey,
+        );
       } else {
-        await notifier.createDevice(schoolId: _schoolId, name: name, serialNumber: serial, location: location);
+        await notifier.createDevice(
+          schoolId: _schoolId,
+          name: name,
+          serialNumber: serial,
+          location: location,
+          pushKey: pushKey,
+        );
       }
 
       if (mounted) {
@@ -124,6 +146,21 @@ class _DeviceFormDialogState extends ConsumerState<DeviceFormDialog> {
                     helperText: 'Optional. Where in the school it is, so somebody can go and find it.',
                   ),
                   maxLength: 100,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _pushKeyController,
+                  decoration: InputDecoration(
+                    labelText: 'Push key',
+                    helperText: widget.device?.hasPushKey ?? false
+                        ? 'A key is set. Type a new one to replace it, or empty this box to remove it. '
+                              'Leave it alone to keep the one it has.'
+                        : 'Optional. A secret the device sends with its punches, where it can. '
+                              'Set the same value on the device.',
+                    helperMaxLines: 3,
+                  ),
+                  maxLength: 64,
+                  onChanged: (_) => _pushKeyTouched = true,
                 ),
               ],
             ),
