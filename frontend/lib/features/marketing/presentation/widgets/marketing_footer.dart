@@ -20,14 +20,30 @@ class MarketingFooter extends ConsumerStatefulWidget {
 class _MarketingFooterState extends ConsumerState<MarketingFooter> {
   final _emailController = TextEditingController();
 
+  /// What is wrong with the address typed in, shown under the box.
+  String? _emailProblem;
+
   @override
   void dispose() {
     _emailController.dispose();
     super.dispose();
   }
 
+  /// An empty box used to do nothing at all when the arrow was pressed,
+  /// which reads as the page being broken rather than as a question.
+  static String? _problemWith(String address) {
+    if (address.isEmpty) return 'Enter your email address.';
+
+    return address.contains('@') ? null : 'Enter a valid email address.';
+  }
+
   Future<void> _subscribe() async {
-    if (_emailController.text.trim().isEmpty) return;
+    final address = _emailController.text.trim();
+    final problem = _problemWith(address);
+
+    setState(() => _emailProblem = problem);
+
+    if (problem != null) return;
 
     await showDialog<void>(
       context: context,
@@ -47,6 +63,10 @@ class _MarketingFooterState extends ConsumerState<MarketingFooter> {
       ),
     );
     _emailController.clear();
+  }
+
+  void _clearTheProblem() {
+    if (_emailProblem != null) setState(() => _emailProblem = null);
   }
 
   @override
@@ -70,7 +90,12 @@ class _MarketingFooterState extends ConsumerState<MarketingFooter> {
                   _LinkColumn(title: words.text('footer.productTitle'), links: words.list('footer.productLinks')),
                   _LinkColumn(title: words.text('footer.companyTitle'), links: words.list('footer.companyLinks')),
                   _LinkColumn(title: words.text('footer.resourceTitle'), links: words.list('footer.resourceLinks')),
-                  _NewsletterColumn(emailController: _emailController, onSubscribe: _subscribe),
+                  _NewsletterColumn(
+                    emailController: _emailController,
+                    onSubscribe: _subscribe,
+                    problem: _emailProblem,
+                    onTyping: _clearTheProblem,
+                  ),
                 ];
                 return Wrap(
                   spacing: 28,
@@ -188,37 +213,42 @@ class _LinkColumn extends StatelessWidget {
 
 /// One line in a footer column.
 ///
-/// With an address it behaves like a link - a pointer, an underline under
-/// the cursor, and a tap that goes somewhere. Without one it is the plain
-/// text the whole column used to be, which is what every line ships as.
-class _FooterLink extends StatefulWidget {
+/// With an address it behaves like a link - the hand cursor over it, and a
+/// tap that goes somewhere. Every line ships with one. Without one it is
+/// the plain text the whole column used to be, which is what a line the
+/// Super Admin cleared the address of falls back to.
+///
+/// **The hand is the whole signal, and the wording does not move.** An
+/// underline under the cursor was tried and taken out again: the lines sit
+/// in tight columns where a line appearing and disappearing under one word
+/// is a flicker, and the hand already says "this goes somewhere" without
+/// changing the page.
+class _FooterLink extends StatelessWidget {
   const _FooterLink({required this.label, required this.url});
 
   final String label;
   final String? url;
 
   @override
-  State<_FooterLink> createState() => _FooterLinkState();
-}
-
-class _FooterLinkState extends State<_FooterLink> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
     const style = TextStyle(color: MarketingColors.subtle, fontSize: 13);
 
-    if (linkKind(widget.url) == null) return Text(widget.label, style: style);
+    if (linkKind(url) == null) return Text(label, style: style);
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: () => followMarketingLink(context, widget.url),
-        child: Semantics(
-          link: true,
-          child: Text(widget.label, style: style.copyWith(decoration: _hovered ? TextDecoration.underline : null)),
+        onTap: () => followMarketingLink(context, url),
+        // The app wraps everything in a SelectionArea so text can be
+        // copied (main.dart), and inside one a Text wraps *itself* in a
+        // MouseRegion asking for the I-beam. That one sits deeper than
+        // the one above, so it wins, and the hand never appeared on the
+        // real page however the pointer got there. Naming the cursor here
+        // changes the one the Text asks for, which leaves the line
+        // selectable and still gives the hand.
+        child: DefaultSelectionStyle(
+          mouseCursor: SystemMouseCursors.click,
+          child: Semantics(link: true, child: Text(label, style: style)),
         ),
       ),
     );
@@ -226,10 +256,17 @@ class _FooterLinkState extends State<_FooterLink> {
 }
 
 class _NewsletterColumn extends ConsumerWidget {
-  const _NewsletterColumn({required this.emailController, required this.onSubscribe});
+  const _NewsletterColumn({
+    required this.emailController,
+    required this.onSubscribe,
+    required this.problem,
+    required this.onTyping,
+  });
 
   final TextEditingController emailController;
   final VoidCallback onSubscribe;
+  final String? problem;
+  final VoidCallback onTyping;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -277,6 +314,8 @@ class _NewsletterColumn extends ConsumerWidget {
                     data: Theme.of(context).copyWith(hoverColor: Colors.transparent, focusColor: Colors.transparent),
                     child: TextField(
                       controller: emailController,
+                      onChanged: (_) => onTyping(),
+                      onSubmitted: (_) => onSubscribe(),
                       // This page hardcodes its own light palette everywhere
                       // else (it never reads Theme.of(context) for color),
                       // but a bare TextField still falls back to the app's
@@ -323,6 +362,11 @@ class _NewsletterColumn extends ConsumerWidget {
             ),
           ),
         ),
+        if (problem != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(problem!, style: const TextStyle(color: MarketingColors.danger, fontSize: 12)),
+          ),
       ],
     );
   }

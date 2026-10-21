@@ -100,23 +100,28 @@ const marketingListDefaults = <String, List<Map<String, String>>>{
     {'text': 'Secure and scalable'},
     {'text': 'Access from anywhere'},
   ],
+  // Every line in the three footer columns is a link. Only Web Dashboard
+  // points at something that exists - the rest are placeholders on the
+  // product domain, standing in until those pages are written. A Super
+  // Admin replaces any of them from the editor without a release, which
+  // is the whole point of the Address box (docs/marketing-content.md).
   'footer.productLinks': [
-    {'label': 'Features'},
-    // The one line of the twelve with a real destination today.
+    {'label': 'Features', 'url': 'https://school365ai.com/features'},
+    // The one line of the twelve that goes somewhere real today.
     {'label': 'Web Dashboard', 'url': '/login'},
-    {'label': 'Mobile App'},
-    {'label': 'Pricing'},
+    {'label': 'Mobile App', 'url': 'https://school365ai.com/mobile-app'},
+    {'label': 'Pricing', 'url': 'https://school365ai.com/pricing'},
   ],
   'footer.companyLinks': [
-    {'label': 'About Us'},
-    {'label': 'Careers'},
-    {'label': 'Blog'},
-    {'label': 'Contact'},
+    {'label': 'About Us', 'url': 'https://school365ai.com/about'},
+    {'label': 'Careers', 'url': 'https://school365ai.com/careers'},
+    {'label': 'Blog', 'url': 'https://school365ai.com/blog'},
+    {'label': 'Contact', 'url': 'https://school365ai.com/contact'},
   ],
   'footer.resourceLinks': [
-    {'label': 'Help Center'},
-    {'label': 'Privacy Policy'},
-    {'label': 'Terms'},
-    {'label': 'Security'},
+    {'label': 'Help Center', 'url': 'https://school365ai.com/help'},
+    {'label': 'Privacy Policy', 'url': 'https://school365ai.com/privacy'},
+    {'label': 'Terms', 'url': 'https://school365ai.com/terms'},
+    {'label': 'Security', 'url': 'https://school365ai.com/security'},
   ],
 };

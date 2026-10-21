@@ -289,14 +289,37 @@ box.** Until now every box inside a repeating item had to be filled,
 because a card with no title is a hole in the grid. A footer line with no
 address is not a hole, it is the commonest case.
 
-One shipped line carries an address: **Web Dashboard goes to `/login`**,
-the only one of the twelve with a real destination today. The rest do not.
-Pricing, Careers, Blog, Help Center, Privacy Policy, Terms and Security
-are pages that do not exist, and inventing addresses for them would put
-broken links on the front page. Features, About Us and Contact are scroll
-targets in the top nav rather than routes, so pointing them at `/` would
-only reload the homepage.
+**All twelve shipped lines carry an address** *(changed 2026-10-21, asked
+for in these words: "these sections should be dynamic and clickable. Keep
+the dummy data and URL for now and make it clickable")*. One of them goes
+somewhere real - **Web Dashboard to `/login`**. The other eleven are
+placeholders on the product domain (`https://school365ai.com/pricing` and
+so on), standing in until those pages are written.
 
-That one line is also the proof the shipped defaults carry addresses at
-all: it works with nothing stored on the server, which is the state the
-page is in before anybody edits it and whenever the API is down.
+This reverses what was decided when the slice was built, which was that
+inventing addresses would put broken links on the front page. It still
+does, and that is the trade: until those pages exist, a visitor who
+clicks Careers gets a page that is not there rather than a word that does
+nothing. **Nothing here needs a release to fix** - a Super Admin points
+any line wherever it should go from the editor's Address box, which is
+what the box is for.
+
+They work with nothing stored on the server, which is the state the page
+is in before anybody edits it and whenever the API is down. A test walks
+all three columns and fails on a line that is still plain text, because a
+mistyped address silently goes back to being plain text and looks like
+nothing went wrong at all.
+
+**The hand cursor is the whole hover signal.** The line used to underline
+itself under the pointer as well; that was taken out, asked for in these
+words: *"you should add a hand icon on hover it instead of line"*. The
+lines sit in tight columns, where an underline appearing and disappearing
+under one word is a flicker, and the hand already says the line goes
+somewhere without the wording moving at all.
+
+**The newsletter box says what is wrong with what was typed.** An empty
+box used to do nothing when the arrow was pressed, which reads as a
+broken page rather than as a question. It now asks for an address, says
+when what was typed is not one, clears the complaint as soon as somebody
+types again, and thanks them in the page's own dialog rather than the
+browser's.

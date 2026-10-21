@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/marketing/data/marketing_defaults.dart';
 import 'package:edutrack_app/features/marketing/data/marketing_links.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -61,7 +62,8 @@ void main() {
     });
 
     test('no address at all is no link', () {
-      // What every line ships as, and what the whole column was before.
+      // Nothing ships this way any more, but a line the Super Admin
+      // cleared does, and the whole column was this before slice 5.
       expect(linkKind(null), isNull);
       expect(linkKind(''), isNull);
       expect(linkKind('   '), isNull);
@@ -69,6 +71,18 @@ void main() {
 
     test('surrounding space does not change what an address is', () {
       expect(linkKind('  https://example.com  '), MarketingLinkKind.web);
+    });
+  });
+
+  group('the addresses the page ships with', () {
+    test('every footer line carries one this page will follow', () {
+      // A line whose address is mistyped silently goes back to being
+      // plain text, which looks like nothing at all went wrong.
+      for (final key in ['footer.productLinks', 'footer.companyLinks', 'footer.resourceLinks']) {
+        for (final link in marketingListDefaults[key]!) {
+          expect(linkKind(link['url']), isNotNull, reason: '$key: ${link['label']}');
+        }
+      }
     });
   });
 }
