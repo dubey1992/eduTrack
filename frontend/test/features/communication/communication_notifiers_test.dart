@@ -79,17 +79,34 @@ void main() {
       expect(container.read(messagePageNotifierProvider).value!.items.single.status, MessageStatus.queued);
     });
 
-    test('the summary reports the delivery rate, and null when nothing was attempted', () async {
+    test('the summary reports the delivery rate out of everybody it meant to reach', () async {
       final withTraffic = makeContainer(FakeCommunicationRepository(messages: [absenceSms, boardingSms, failedSms]));
       final summary = await withTraffic.read(messageSummaryProvider(null).future);
       expect(summary.sentToday, 2);
       expect(summary.failedToday, 1);
       expect(summary.deliveryRate, closeTo(66.7, 0.1));
 
+      // A day whose only message was skipped reached nobody. It used to
+      // read as nothing attempted, because a skip counted neither way.
       final quiet = makeContainer(FakeCommunicationRepository(messages: [skippedSms]));
       final none = await quiet.read(messageSummaryProvider(null).future);
-      expect(none.deliveryRate, isNull);
+      expect(none.deliveryRate, 0);
       expect(none.skippedToday, 1);
+    });
+
+    test('and says why the ones it did not send were not sent', () async {
+      final container = makeContainer(FakeCommunicationRepository(messages: [absenceSms, skippedSms]));
+
+      final summary = await container.read(messageSummaryProvider(null).future);
+
+      expect(summary.skippedReasonsToday.single.count, 1);
+      expect(summary.skippedReasonsToday.single.reason, skippedSms.failureReason);
+    });
+
+    test('a day that reached everybody has nothing to explain', () async {
+      final container = makeContainer(FakeCommunicationRepository(messages: [absenceSms]));
+
+      expect((await container.read(messageSummaryProvider(null).future)).skippedReasonsToday, isEmpty);
     });
   });
 

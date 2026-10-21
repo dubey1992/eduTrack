@@ -195,7 +195,10 @@ class SummaryTest(CommunicationTestCase):
                 "queued_today": 1,
                 "failed_today": 1,
                 "skipped_today": 1,
-                "delivery_rate": 66.7,
+                "skipped_reasons_today": [{"reason": "No reason recorded.", "count": 1}],
+                # Two sent, one failed, one skipped: half the people today's
+                # messages were meant to reach heard anything.
+                "delivery_rate": 50,
                 "total": 6,
                 "provider_label": "Demo Gateway",
                 "provider_delivers": False,
@@ -213,6 +216,64 @@ class SummaryTest(CommunicationTestCase):
 
         self.assertIn(b'"delivery_rate":100,', everything.content)
         self.assertIsNone(nothing.data["delivery_rate"])
+
+    def test_a_skipped_message_counts_against_the_rate(self):
+        """It used to read 100% on a day when nobody was reached.
+
+        A skipped message is a parent the school meant to tell and did not,
+        nearly always for want of a phone number. Counting only what was
+        attempted made the tile a measure of the gateway rather than of
+        whether the school got through.
+        """
+        now = dt.datetime(2026, 9, 17, 6, 30, tzinfo=dt.timezone.utc)
+        self.message(status="sent", created_at=now)
+        for _ in range(3):
+            self.message(status="skipped", failure_reason="No mobile number on record.", created_at=now)
+
+        with self.at(now):
+            response = self.as_user(self.admin).get("/api/v1/communication/summary")
+
+        self.assertEqual(25, response.data["delivery_rate"])
+
+    def test_the_reasons_are_counted_commonest_first(self):
+        now = dt.datetime(2026, 9, 17, 6, 30, tzinfo=dt.timezone.utc)
+        for reason, many in (("No mobile number on record.", 3), ("No email address on record.", 1)):
+            for _ in range(many):
+                self.message(status="skipped", failure_reason=reason, created_at=now)
+
+        with self.at(now):
+            response = self.as_user(self.admin).get("/api/v1/communication/summary")
+
+        self.assertEqual(
+            [
+                {"reason": "No mobile number on record.", "count": 3},
+                {"reason": "No email address on record.", "count": 1},
+            ],
+            response.data["skipped_reasons_today"],
+        )
+
+    def test_a_day_that_reached_everybody_has_no_reasons_to_show(self):
+        now = dt.datetime(2026, 9, 17, 6, 30, tzinfo=dt.timezone.utc)
+        self.message(status="sent", created_at=now)
+
+        with self.at(now):
+            response = self.as_user(self.admin).get("/api/v1/communication/summary")
+
+        self.assertEqual([], response.data["skipped_reasons_today"])
+        self.assertEqual(100, response.data["delivery_rate"])
+
+    def test_another_schools_skips_are_not_counted_here(self):
+        now = dt.datetime(2026, 9, 17, 6, 30, tzinfo=dt.timezone.utc)
+        self.message(status="sent", created_at=now)
+        factories.MessageFactory(
+            school=self.elsewhere, status="skipped", failure_reason="No mobile number on record.", created_at=now
+        )
+
+        with self.at(now):
+            response = self.as_user(self.admin).get("/api/v1/communication/summary")
+
+        self.assertEqual([], response.data["skipped_reasons_today"])
+        self.assertEqual(100, response.data["delivery_rate"])
 
     def test_teachers_do_not_see_the_tiles(self):
         self.assertEqual(403, self.as_user(self.teacher).get("/api/v1/communication/summary").status_code)

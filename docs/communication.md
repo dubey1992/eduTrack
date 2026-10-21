@@ -26,6 +26,28 @@ caller's transaction commits. No user action ever waits on a gateway.
 | `failed` | The gateway rejected it, or the job died. An admin can send it again. |
 | `skipped` | The school wanted to send it but there was no mobile number on record. |
 
+### A skip counts against the delivery rate *(changed 2026-10-21)*
+
+The tiles above the log used to work out the rate as `sent / (sent +
+failed)`, which left skipped messages out of the arithmetic entirely, and
+nothing on the screen counted them at all. A school whose parents mostly
+have no phone number on record therefore read **100% delivery, 0 failed**
+on a day when it reached almost nobody - the one number on the screen that
+is supposed to answer "did we get through?" answering about the gateway
+instead.
+
+Now the rate is `sent / (sent + failed + skipped)`: of everybody today's
+messages were meant to reach, how many heard anything. A **Not sent** tile
+carries the count beside Failed, and one line under the tiles names the
+reasons, commonest first - "Not sent today: 257 - No mobile number on
+record." That reason is nearly always a thing somebody can go and fix, but
+only if they are told; reading it off the log meant opening the skipped
+rows one at a time.
+
+The demo-gateway warning above the tiles is a different statement and
+stays: that one is about messages marked `sent` that reached a log rather
+than a phone.
+
 An alert a school has **switched off** is not recorded at all. Recording one row
 per present student per day would bury the log, and the school never asked for
 those messages. Only a message the school wanted but could not deliver is worth

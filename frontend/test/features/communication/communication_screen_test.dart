@@ -7,6 +7,7 @@ import 'package:edutrack_app/features/communication/data/communication_repositor
 import 'package:edutrack_app/features/communication/presentation/communication_screen.dart';
 import 'package:edutrack_app/features/communication/presentation/inbox_screen.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
+import 'package:edutrack_app/core/widgets/kpi_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -57,6 +58,44 @@ void main() {
     expect(find.text('Raj Kumar'), findsOneWidget);
     expect(find.text('Arjun Kumar'), findsOneWidget);
     expect(find.text('Delivered'), findsNWidgets(2));
+  });
+
+  group('the people it did not reach', () {
+    testWidgets('are counted on a tile of their own', (tester) async {
+      // They used to be counted nowhere on this screen, which is how a day
+      // that reached three parents of two hundred and sixty read as a good
+      // one.
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeCommunicationRepository(messages: [absenceSms, skippedSms])));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Not sent'), findsOneWidget);
+      expect(find.descendant(of: find.widgetWithText(KpiCard, 'Not sent'), matching: find.text('1')), findsOneWidget);
+    });
+
+    testWidgets('and counted against the delivery rate', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeCommunicationRepository(messages: [absenceSms, skippedSms])));
+      await tester.pumpAndSettle();
+
+      expect(find.text('50.0%'), findsOneWidget);
+    });
+
+    testWidgets('and the reason is said under the tiles, not buried in the log', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeCommunicationRepository(messages: [absenceSms, skippedSms])));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 - No mobile number on record.'), findsOneWidget);
+    });
+
+    testWidgets('and a day that reached everybody explains nothing', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeCommunicationRepository(messages: [absenceSms])));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Not sent today:'), findsNothing);
+    });
   });
 
   testWidgets('an empty log explains itself instead of showing a blank table', (tester) async {

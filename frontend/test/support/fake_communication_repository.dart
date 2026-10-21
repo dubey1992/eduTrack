@@ -105,7 +105,16 @@ class FakeCommunicationRepository implements CommunicationRepository {
     final failed = _messages.where((m) => m.status == MessageStatus.failed).length;
     final queued = _messages.where((m) => m.status == MessageStatus.queued).length;
     final skipped = _messages.where((m) => m.status == MessageStatus.skipped).length;
-    final attempted = sent + failed;
+    // Everybody the messages were meant to reach, as the server counts it:
+    // a skipped one is somebody the school meant to tell and did not.
+    final intended = sent + failed + skipped;
+
+    final reasons = <String, int>{};
+    for (final message in _messages.where((m) => m.status == MessageStatus.skipped)) {
+      final reason = message.failureReason ?? 'No reason recorded.';
+      reasons[reason] = (reasons[reason] ?? 0) + 1;
+    }
+    final commonestFirst = reasons.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
     return MessageSummary(
       sentToday: sent,
@@ -113,7 +122,8 @@ class FakeCommunicationRepository implements CommunicationRepository {
       queuedToday: queued,
       failedToday: failed,
       skippedToday: skipped,
-      deliveryRate: attempted == 0 ? null : (sent / attempted * 100),
+      skippedReasonsToday: [for (final row in commonestFirst.take(3)) SkippedReason(reason: row.key, count: row.value)],
+      deliveryRate: intended == 0 ? null : (sent / intended * 100),
       total: _messages.length,
       providerLabel: providerLabel,
       providerDelivers: providerDelivers,

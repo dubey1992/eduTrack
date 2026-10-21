@@ -2091,7 +2091,12 @@ class MessageService:
 
         sent = today.filter(status=MessageStatus.SENT).count()
         failed = today.filter(status=MessageStatus.FAILED).count()
-        attempted = sent + failed
+        skipped = today.filter(status=MessageStatus.SKIPPED).count()
+        # Everybody today's messages were meant to reach. A skipped one is a
+        # person the school meant to tell and did not, so leaving it out
+        # read as 100% on a day when three people of two hundred and sixty
+        # heard anything.
+        intended = sent + failed + skipped
 
         return {
             "sent_today": sent,
@@ -2100,8 +2105,12 @@ class MessageService:
             "sms_sent_today": today.filter(status=MessageStatus.SENT, channel=MessageChannel.SMS).count(),
             "queued_today": today.filter(status=MessageStatus.QUEUED).count(),
             "failed_today": failed,
-            "skipped_today": today.filter(status=MessageStatus.SKIPPED).count(),
-            "delivery_rate": None if attempted == 0 else php_number(php_round_1(sent / attempted * 100)),
+            "skipped_today": skipped,
+            # Why they were not sent, commonest first - almost always a
+            # missing phone number, which is a thing somebody can go and fix.
+            # Reading it off the log meant opening them one at a time.
+            "skipped_reasons_today": cls.reasons_for_skipping(today),
+            "delivery_rate": None if intended == 0 else php_number(php_round_1(sent / intended * 100)),
             "total": cls.scoped(actor, filters).count(),
             # What actually carries these messages. Until a real provider is
             # set up it is a gateway that delivers nothing, and the screen has
@@ -2109,6 +2118,22 @@ class MessageService:
             "provider_label": sms.label(provider),
             "provider_delivers": sms.delivers(provider),
         }
+
+    # Enough to name the problem without turning the tile into a report.
+    REASONS_SHOWN = 3
+
+    @classmethod
+    def reasons_for_skipping(cls, today) -> list[dict]:
+        rows = (
+            today.filter(status=MessageStatus.SKIPPED)
+            .values("failure_reason")
+            .annotate(count=Count("id"))
+            .order_by("-count", "failure_reason")[: cls.REASONS_SHOWN]
+        )
+
+        return [
+            {"reason": row["failure_reason"] or "No reason recorded.", "count": row["count"]} for row in rows
+        ]
 
     @staticmethod
     def retry(message):

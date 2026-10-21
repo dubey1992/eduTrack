@@ -178,7 +178,19 @@ class Message {
   bool get isUnread => readAt == null;
 }
 
-/// The four KPI tiles above the log.
+/// Why some of today's messages were not sent, commonest first.
+class SkippedReason {
+  const SkippedReason({required this.reason, required this.count});
+
+  factory SkippedReason.fromJson(Map<String, dynamic> json) {
+    return SkippedReason(reason: json['reason'] as String? ?? 'No reason recorded.', count: json['count'] as int? ?? 0);
+  }
+
+  final String reason;
+  final int count;
+}
+
+/// The KPI tiles above the log.
 class MessageSummary {
   const MessageSummary({
     required this.sentToday,
@@ -188,6 +200,7 @@ class MessageSummary {
     required this.skippedToday,
     required this.deliveryRate,
     required this.total,
+    this.skippedReasonsToday = const [],
     this.providerLabel,
     this.providerDelivers = true,
   });
@@ -199,6 +212,10 @@ class MessageSummary {
       queuedToday: json['queued_today'] as int? ?? 0,
       failedToday: json['failed_today'] as int? ?? 0,
       skippedToday: json['skipped_today'] as int? ?? 0,
+      skippedReasonsToday: [
+        for (final row in (json['skipped_reasons_today'] as List? ?? const []))
+          SkippedReason.fromJson(row as Map<String, dynamic>),
+      ],
       deliveryRate: (json['delivery_rate'] as num?)?.toDouble(),
       total: json['total'] as int? ?? 0,
       providerLabel: json['provider_label'] as String?,
@@ -215,6 +232,10 @@ class MessageSummary {
   final int queuedToday;
   final int failedToday;
   final int skippedToday;
+
+  /// Why they were not sent, commonest first. Empty on a day that reached
+  /// everybody it meant to.
+  final List<SkippedReason> skippedReasonsToday;
 
   /// The gateway actually carrying these messages, e.g. "Demo Gateway".
   final String? providerLabel;

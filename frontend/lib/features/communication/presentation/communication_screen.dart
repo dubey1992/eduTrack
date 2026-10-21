@@ -205,17 +205,63 @@ class _SummaryTiles extends ConsumerWidget {
     return AsyncValueView<MessageSummary>(
       value: summaryState,
       onRetry: () => ref.invalidate(messageSummaryProvider(schoolId)),
-      data: (context, summary) => Wrap(
-        spacing: 12,
-        runSpacing: 12,
+      data: (context, summary) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          KpiCard(label: 'SMS Sent Today', value: '${summary.smsSentToday}'),
-          KpiCard(
-            label: 'Delivery Rate',
-            value: summary.deliveryRate == null ? '-' : '${summary.deliveryRate!.toStringAsFixed(1)}%',
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              KpiCard(label: 'SMS Sent Today', value: '${summary.smsSentToday}'),
+              KpiCard(
+                label: 'Delivery Rate',
+                value: summary.deliveryRate == null ? '-' : '${summary.deliveryRate!.toStringAsFixed(1)}%',
+              ),
+              KpiCard(label: 'Failed', value: '${summary.failedToday}'),
+              // People the school meant to tell and did not. They used to
+              // be counted nowhere on this screen, which is how a day that
+              // reached three parents of two hundred and sixty read as a
+              // good one.
+              KpiCard(label: 'Not sent', value: '${summary.skippedToday}'),
+              KpiCard(label: 'Queued', value: '${summary.queuedToday}'),
+            ],
           ),
-          KpiCard(label: 'Failed', value: '${summary.failedToday}'),
-          KpiCard(label: 'Queued', value: '${summary.queuedToday}'),
+          _WhyNotSent(reasons: summary.skippedReasonsToday),
+        ],
+      ),
+    );
+  }
+}
+
+/// What stopped today's messages, under the tiles.
+///
+/// Nearly always a missing phone number, which is a thing somebody can go
+/// and fix - but only if they are told. Reading it off the log meant
+/// opening the skipped rows one at a time.
+class _WhyNotSent extends StatelessWidget {
+  const _WhyNotSent({required this.reasons});
+
+  final List<SkippedReason> reasons;
+
+  @override
+  Widget build(BuildContext context) {
+    if (reasons.isEmpty) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 16, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Not sent today: ${reasons.map((row) => '${row.count} - ${row.reason}').join('  ')}',
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            ),
+          ),
         ],
       ),
     );
