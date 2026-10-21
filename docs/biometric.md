@@ -305,7 +305,7 @@ punch - and the raw line are what make that diagnosable.
 
 ---
 
-# The schools page — PLAN, not built
+# The schools page — built 2026-10-21
 
 Two smaller requirements from the same conversation, written here because
 neither warrants a document of its own.

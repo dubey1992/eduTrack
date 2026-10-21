@@ -1,11 +1,15 @@
-# Maps: schools, routes, stops and live trips (plan)
+# Maps: schools, routes, stops and live trips
 
-**Status (2026-10-19):** M1 is built. The keys are in, the location picker
-places a school, and the Schools map draws them - `maps/config`, address search, place details and
-reverse geocoding through the server key; the `AppMap` widget; and the
-picker in Add/Edit School; and the Schools map, scoped the way the list is,
-with the schools that have no coordinates listed beside it. M2 and M3 are
-next.
+**Status (2026-10-21): all of it is built.** M1 (the keys, `maps/config`,
+address search, place details and reverse geocoding through the server key,
+the `AppMap` widget, the picker in Add/Edit School, and the Schools map
+scoped the way the list is with the schools that have no coordinates listed
+beside it), M2 (stop coordinates, the route map, road paths computed on
+save), the Bus Attendant, the offline queue for trip marks, and M3 with the
+trip map, the bus, and the arrival estimate (M3b, M3c).
+
+What is left is not a milestone: a real road-path key quota to watch, and
+whatever the first school's routes turn up.
 
 **Three keys, not two** (corrected 2026-10-19): an API key carries one
 *Application restriction*, so the plan's single "browser/app key" is really
