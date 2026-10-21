@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../auth/data/models/authenticated_user.dart';
+
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/module_access.dart';
@@ -38,6 +42,11 @@ class RouteListScreen extends ConsumerStatefulWidget {
 class _RouteListScreenState extends ConsumerState<RouteListScreen> {
   int? _schoolFilter;
 
+  /// Whose map to draw on: the branch being filtered to, or the actor's own
+  /// school. Null for somebody looking across a group without picking one -
+  /// a route belongs to one school, and the map has to be that school's.
+  int? _mapSchool(AuthenticatedUser? actor) => _schoolFilter ?? actor?.schoolId;
+
   @override
   Widget build(BuildContext context) {
     final routesState = ref.watch(routePageNotifierProvider);
@@ -57,6 +66,16 @@ class _RouteListScreenState extends ConsumerState<RouteListScreen> {
                 onPressed: () => showDialog(context: context, builder: (_) => const RouteFormDialog()),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add Route'),
+              ),
+            // The same builder the school's own map carries, reached from
+            // where a transport manager actually works (docs/maps.md).
+            // One screen rather than two, because two would drift.
+            if (canManage && _mapSchool(actor) != null)
+              OutlinedButton.icon(
+                key: const Key('draw-on-the-map'),
+                onPressed: () => context.go('/schools/${_mapSchool(actor)}'),
+                icon: const Icon(Icons.map_outlined, size: 18),
+                label: const Text('Draw on the map'),
               ),
             SchoolFilterDropdown(
               selected: _schoolFilter,

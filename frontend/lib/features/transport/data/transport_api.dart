@@ -156,6 +156,7 @@ class TransportApi {
     int? vehicleId,
     int? driverId,
     int? attendantUserId,
+    List<Map<String, dynamic>>? stops,
   }) async {
     final response = await _dio.post(
       '/transport/routes',
@@ -165,6 +166,9 @@ class TransportApi {
         'vehicle_id': vehicleId,
         'driver_id': driverId,
         'attendant_user_id': attendantUserId,
+        // Left out entirely unless somebody drew some: the route form has
+        // always posted a bare route and still does (docs/maps.md).
+        'stops': ?stops,
       },
     );
     return TransportRoute.fromJson(response.data as Map<String, dynamic>);

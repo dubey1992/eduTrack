@@ -10,6 +10,7 @@ class AuthenticatedUser {
     required this.name,
     required this.email,
     required this.role,
+    this.schoolId,
     this.isSubAdmin = false,
     this.mustChangePassword = false,
     this.managesBranches = false,
@@ -37,6 +38,7 @@ class AuthenticatedUser {
         timezone: json['timezone'] as String? ?? 'UTC',
         currentTime: json['current_time'] as String? ?? '',
       ),
+      schoolId: json['school_id'] as int?,
       isSubAdmin: json['is_sub_admin'] as bool? ?? false,
       mustChangePassword: json['must_change_password'] as bool? ?? false,
       managesBranches: json['manages_branches'] as bool? ?? false,
@@ -47,6 +49,11 @@ class AuthenticatedUser {
   }
 
   final int id;
+
+  /// The school this account belongs to. Null for a Super Admin, who
+  /// belongs to the platform rather than to a school.
+  final int? schoolId;
+
   final String name;
   final String email;
   final UserRole role;

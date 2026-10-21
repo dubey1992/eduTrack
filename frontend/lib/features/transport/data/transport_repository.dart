@@ -146,6 +146,7 @@ class TransportRepository {
     int? vehicleId,
     int? driverId,
     int? attendantUserId,
+    List<Map<String, dynamic>>? stops,
   }) => _guard(
     () => _api.createRoute(
       schoolId: schoolId,
@@ -153,6 +154,7 @@ class TransportRepository {
       vehicleId: vehicleId,
       driverId: driverId,
       attendantUserId: attendantUserId,
+      stops: stops,
     ),
   );
 

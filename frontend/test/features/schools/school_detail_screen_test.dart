@@ -4,10 +4,16 @@ import 'package:edutrack_app/features/schools/data/models/school.dart';
 import 'package:edutrack_app/features/schools/data/models/working_week.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:edutrack_app/features/schools/presentation/school_detail_screen.dart';
+import 'package:edutrack_app/core/models/user_role.dart';
+import 'package:edutrack_app/features/auth/data/auth_repository.dart';
+import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
+import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_auth_repository.dart';
+import '../../support/fake_transport_repository.dart';
 import '../../support/fake_map.dart';
 import '../../support/fake_school_repository.dart';
 
@@ -44,12 +50,19 @@ School _school({
 
 late FakeMapRenderer renderer;
 
-Widget wrap(FakeSchoolRepository fake, {bool mapWorks = true}) {
+/// Whose page it is. The Schools section is the platform's, so a Super
+/// Admin is the default - but a transport manager reaches this same page by
+/// its own URL to draw a route, and sees a good deal less of it.
+const _root = AuthenticatedUser(id: 1, name: 'Root', email: 'root@example.com', role: UserRole.superAdmin);
+
+Widget wrap(FakeSchoolRepository fake, {bool mapWorks = true, AuthenticatedUser actor = _root}) {
   renderer = FakeMapRenderer();
 
   return ProviderScope(
     overrides: [
       schoolRepositoryProvider.overrideWithValue(fake),
+      authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: actor)),
+      transportRepositoryProvider.overrideWithValue(FakeTransportRepository()),
       ...(mapWorks ? [...mapIsAvailable(renderer), ...mapPinsAreReady()] : mapIsUnavailable()),
     ],
     child: MaterialApp(
@@ -145,5 +158,42 @@ void main() {
 
     expect(find.text('Could not load that school.'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
+  });
+
+  group('somebody who is not the platform', () {
+    // A transport manager reaches this page by its own URL to draw a route
+    // on the school's map (docs/maps.md). The school record itself is not
+    // theirs to change, so the buttons that would 403 are not offered.
+    const manager = AuthenticatedUser(
+      id: 9,
+      name: 'Manager',
+      email: 'manager@example.com',
+      role: UserRole.transportManager,
+      schoolId: 7,
+    );
+
+    testWidgets('is not offered the edit button', (tester) async {
+      await tester.pumpWidget(wrap(FakeSchoolRepository(schools: [_school()]), actor: manager));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(FilledButton, 'Edit'), findsNothing);
+    });
+
+    testWidgets('is told why a map is missing, not offered a button that refuses them', (tester) async {
+      await tester.pumpWidget(
+        wrap(FakeSchoolRepository(schools: [_school(latitude: null, longitude: null)]), actor: manager),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nobody has placed this school on the map yet.'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Place it'), findsNothing);
+    });
+
+    testWidgets('but does get the route builder, which is what they came for', (tester) async {
+      await tester.pumpWidget(wrap(FakeSchoolRepository(schools: [_school()]), actor: manager));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('new-route')), findsOneWidget);
+    });
   });
 }

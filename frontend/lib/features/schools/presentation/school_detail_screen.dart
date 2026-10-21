@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../core/models/module_access.dart';
+import '../../../core/models/user_role.dart';
+import '../../auth/application/auth_notifier.dart';
+import '../../transport/presentation/widgets/route_builder_map.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/section_header.dart';
@@ -47,14 +52,18 @@ class _Detail extends ConsumerWidget {
         SectionHeader(
           title: school.name,
           actions: [
-            FilledButton.icon(
-              onPressed: () => showDialog(
-                context: context,
-                builder: (_) => EditSchoolDialog(school: school),
+            // The school record itself is the platform's. Everybody else
+            // who reaches this page - a group admin picking a branch, a
+            // transport manager drawing a route - is here to read it.
+            if (ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin)
+              FilledButton.icon(
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (_) => EditSchoolDialog(school: school),
+                ),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Edit'),
               ),
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const Text('Edit'),
-            ),
           ],
         ),
         Padding(
@@ -64,7 +73,22 @@ class _Detail extends ConsumerWidget {
             children: [
               _Facts(school: school),
               const SizedBox(height: 16),
-              _Where(school: school),
+              // One map, not two of the same place stacked. Somebody who
+              // may make a route gets the one they can draw on; everybody
+              // else gets the one they can look at (docs/maps.md).
+              //
+              // A school nobody has placed gets neither: there is nothing
+              // to draw around, and the card below says so and offers the
+              // one person who can fix it the way to.
+              if (_Where.point(school.latitude, school.longitude) != null &&
+                  (ref.watch(authNotifierProvider).value?.canManage(AppModules.transport) ?? false))
+                RouteBuilderMap(
+                  schoolId: school.id,
+                  schoolAt: _Where.point(school.latitude, school.longitude),
+                  schoolName: school.name,
+                )
+              else
+                _Where(school: school),
             ],
           ),
         ),
@@ -148,7 +172,7 @@ class _Where extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final at = _point(school.latitude, school.longitude);
+    final at = point(school.latitude, school.longitude);
 
     if (at == null) {
       // Not an empty frame, and not a pin at (0, 0) off the coast of
@@ -161,13 +185,16 @@ class _Where extends ConsumerWidget {
               Icon(Icons.location_off_outlined, color: context.appColors.muted),
               const SizedBox(width: 10),
               const Expanded(child: Text('Nobody has placed this school on the map yet.')),
-              TextButton(
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (_) => EditSchoolDialog(school: school),
+              // Only the platform can place it; anybody else is being told
+              // why the map is missing, not offered a button that 403s.
+              if (ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin)
+                TextButton(
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (_) => EditSchoolDialog(school: school),
+                  ),
+                  child: const Text('Place it'),
                 ),
-                child: const Text('Place it'),
-              ),
             ],
           ),
         ),
@@ -201,7 +228,10 @@ class _Where extends ConsumerWidget {
   /// Null unless both halves are there and both are on the earth. Each is
   /// nullable on its own, so half a coordinate is reachable however much the
   /// form refuses it.
-  static LatLng? _point(String? latitude, String? longitude) {
+  ///
+  /// Shared with the route builder below it, so the two never disagree
+  /// about whether this school has been placed.
+  static LatLng? point(String? latitude, String? longitude) {
     final lat = double.tryParse(latitude ?? '');
     final lng = double.tryParse(longitude ?? '');
 

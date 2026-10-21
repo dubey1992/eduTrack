@@ -61,6 +61,7 @@ class RoutePageNotifier extends AsyncNotifier<PagedList<TransportRoute>> {
     int? vehicleId,
     int? driverId,
     int? attendantUserId,
+    List<Map<String, dynamic>>? stops,
   }) async {
     await ref
         .read(transportRepositoryProvider)
@@ -70,6 +71,7 @@ class RoutePageNotifier extends AsyncNotifier<PagedList<TransportRoute>> {
           vehicleId: vehicleId,
           driverId: driverId,
           attendantUserId: attendantUserId,
+          stops: stops,
         );
     _page = 1;
     await refresh();

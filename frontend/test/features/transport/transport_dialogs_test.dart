@@ -186,6 +186,7 @@ void main() {
         'vehicle_id': 2,
         'driver_id': 2,
         'attendant_user_id': null,
+        'stops': null,
       });
       expect(find.text('Route added.'), findsOneWidget);
     });

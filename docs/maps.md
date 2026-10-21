@@ -8,8 +8,54 @@ beside it), M2 (stop coordinates, the route map, road paths computed on
 save), the Bus Attendant, the offline queue for trip marks, and M3 with the
 trip map, the bus, and the arrival estimate (M3b, M3c).
 
+Plus the **route builder** (2026-10-21, at the customer's request): a route
+and its stops drawn on the school's own map. See below.
+
 What is left is not a milestone: a real road-path key quota to watch, and
 whatever the first school's routes turn up.
+
+## Building a route on the school's map
+
+Asked for in these words: *"Create route section should be inside the View
+Map of the school. School admin and Transport manager can create route with
+stops from the maps also. This feature should be tightly integrated."*
+
+A route is an **ordered** thing, and an ordered thing is far easier to get
+right by pointing at it than by typing twelve pairs of coordinates into
+twelve dialogs. So: tap where each stop is, in the order the bus takes
+them. Each tap drops a pin and joins the end of the run; the numbered list
+beside the map is the route, and can be renamed, reordered and pruned
+before any of it is saved.
+
+**One map, not two.** The school's View Map *is* the builder for somebody
+who may make a route; everybody else sees the same card without the
+controls. Two maps of the same place stacked on one page is the obvious way
+to build this and the wrong one.
+
+**Nothing exists until Save.** A route half-built on a screen is a sketch;
+a route half-built in the database is a mess somebody has to unpick -
+they would have to work out which stops made it before trying again. So
+`POST /transport/routes` takes an optional `stops[]` and writes the route
+and its stops in **one transaction**, and the road path is marked stale
+once rather than once per stop. The form that has always posted a bare
+route still does; `stops` is simply absent.
+
+**Two rules only a batch can break**, checked by the form that holds them:
+two stops sharing a name, and two claiming the same place in the order.
+Everything else is the single-stop form's own rules, including the guard
+against coordinates entered the wrong way round. The messages name the
+stop rather than its position, because the error envelope flattens nested
+errors (school/errors.py) and a sentence that reads on its own is worth
+more than an index nobody sees.
+
+**Both roles reach it without a permissions change.** `/schools/:id` has no
+nav entry, so the router never gated it, and `SchoolPolicy.view` already
+allows any school inside the actor's own scope - which includes a Transport
+Manager's own school. So Transport > Routes carries a **Draw on the map**
+button that goes there, and the Schools sidebar entry stays the Super
+Admin's. What a Transport Manager does *not* get on that page is the school
+record itself: the Edit button and the "Place it" link are the platform's,
+and are hidden rather than offered and refused.
 
 **Three keys, not two** (corrected 2026-10-19): an API key carries one
 *Application restriction*, so the plan's single "browser/app key" is really

@@ -583,3 +583,154 @@ class AssignmentTest(TransportTestCase):
 
         self.assertEqual(403, self.assign(self.admin, student=theirs).status_code)
         self.assertEqual(200, self.assign(self.root).status_code)
+
+
+class BuildingARouteOnTheMap(TransportTestCase):
+    """A route and its stops in one request (docs/maps.md).
+
+    Somebody drawing a route on a map has the whole thing in front of them
+    before any of it exists, so sending it as a route and then N stops would
+    mean a half-built route whenever one of those N failed - and the person
+    would have to work out which stops made it before trying again.
+
+    The field rules are the single-stop form's; what is new is the pair only
+    a batch can break: two stops claiming the same name or the same place in
+    the order.
+    """
+
+    URL = "/api/v1/transport/routes"
+
+    def setUp(self):
+        super().setUp()
+        self.school.latitude = "28.6139"
+        self.school.longitude = "77.2090"
+        self.school.save(update_fields=["latitude", "longitude"])
+
+    def a_stop(self, **overrides):
+        stop = {"name": "Market Square", "sequence_number": 1, "latitude": "28.6200", "longitude": "77.2100"}
+        stop.update(overrides)
+
+        return stop
+
+    def build(self, user=None, stops=None, **overrides):
+        body = {"name": "Route A", "stops": stops if stops is not None else [self.a_stop()]}
+        body.update(overrides)
+
+        return self.as_user(user or self.admin).post(self.URL, body, format="json")
+
+    def test_a_route_arrives_with_its_stops(self):
+        response = self.build(
+            stops=[
+                self.a_stop(name="Market Square", sequence_number=1),
+                self.a_stop(name="Temple Road", sequence_number=2, latitude="28.6250", longitude="77.2150"),
+            ]
+        )
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(2, response.data["stops_count"])
+        self.assertEqual(["Market Square", "Temple Road"], [stop["name"] for stop in response.data["stops"]])
+
+    def test_the_stops_are_the_schools_own(self):
+        """Never the client's word for it: they inherit the route's school."""
+        route = TransportRoute.objects.get(pk=self.build().data["id"])
+
+        self.assertEqual(self.school.id, TransportStop.objects.get(route_id=route.pk).school_id)
+
+    def test_they_come_back_in_their_numbered_order_whatever_order_they_were_sent(self):
+        response = self.build(
+            stops=[
+                self.a_stop(name="Last", sequence_number=3),
+                self.a_stop(name="First", sequence_number=1),
+                self.a_stop(name="Middle", sequence_number=2),
+            ]
+        )
+
+        self.assertEqual(["First", "Middle", "Last"], [stop["name"] for stop in response.data["stops"]])
+
+    def test_the_times_come_with_them(self):
+        response = self.build(stops=[self.a_stop(pickup_time="07:30", drop_time="15:10")])
+
+        self.assertEqual(("07:30", "15:10"), (response.data["stops"][0]["pickup_time"], response.data["stops"][0]["drop_time"]))
+
+    def test_a_route_can_still_be_made_with_no_stops_at_all(self):
+        """The form that has always posted a bare route still does."""
+        response = self.as_user(self.admin).post(self.URL, {"name": "Route B"}, format="json")
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(0, response.data["stops_count"])
+
+    def test_two_stops_cannot_share_a_name(self):
+        response = self.build(
+            stops=[self.a_stop(name="Market Square"), self.a_stop(name="Market Square", sequence_number=2)]
+        )
+
+        self.assertEqual(422, response.status_code)
+        self.assertEqual(["Two stops are called Market Square."], self.errors(response)["stops"])
+
+    def test_two_stops_cannot_share_a_place_in_the_order(self):
+        response = self.build(
+            stops=[self.a_stop(name="One", sequence_number=1), self.a_stop(name="Two", sequence_number=1)]
+        )
+
+        self.assertEqual(422, response.status_code)
+        self.assertEqual(["Two stops are number 1."], self.errors(response)["stops"])
+
+    def test_a_stop_the_wrong_side_of_the_world_is_refused(self):
+        """The same guard the single-stop form has: coordinates entered the
+        wrong way round land in the sea, hundreds of kilometres away."""
+        response = self.build(stops=[self.a_stop(latitude="77.2100", longitude="28.6200")])
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("the wrong way round", self.errors(response)["stops"][0])
+
+    def test_the_message_names_the_stop_it_is_about(self):
+        """The envelope flattens nested errors, so a message that reads on
+        its own is worth more than a position nobody sees."""
+        response = self.build(stops=[self.a_stop(name="Temple Road", latitude="77.2100", longitude="28.6200")])
+
+        self.assertIn("Temple Road is", self.errors(response)["stops"][0])
+
+    def test_a_refused_batch_saves_nothing(self):
+        """Caught by the form, before anything is written."""
+        self.build(stops=[self.a_stop(name="One"), self.a_stop(name="One", sequence_number=2)])
+
+        self.assertEqual(0, TransportRoute.objects.filter(name="Route A").count())
+        self.assertEqual(0, TransportStop.objects.count())
+
+    def test_a_stop_that_fails_at_the_database_takes_the_route_with_it(self):
+        """The reason this is one transaction rather than one request.
+
+        The form cannot catch everything - a column limit, a constraint, a
+        connection that drops - and half a route saved is worse than none:
+        somebody would have to work out which stops made it before trying
+        again. Driven through the service, because the point is what
+        happens *after* validation has passed.
+        """
+        from school.services import TransportRouteService
+
+        with self.assertRaises(Exception):
+            TransportRouteService.create(
+                {
+                    "school_id": self.school.id,
+                    "name": "Route C",
+                    "stops": [
+                        {"name": "Fine", "sequence_number": 1, "latitude": None, "longitude": None},
+                        {"name": "x" * 400, "sequence_number": 2, "latitude": None, "longitude": None},
+                    ],
+                }
+            )
+
+        self.assertEqual(0, TransportRoute.objects.filter(name="Route C").count())
+        self.assertEqual(0, TransportStop.objects.filter(name="Fine").count())
+
+    def test_a_transport_manager_may_not_build_one(self):
+        """Routes are the school's admins' to create - the manager runs
+        them. Unchanged by this endpoint taking stops as well."""
+        self.assertEqual(403, self.build(self.manager).status_code)
+
+    def test_nobody_builds_a_route_into_another_school(self):
+        response = self.build(self.stranger, school_id=self.school.id)
+
+        self.assertEqual(0, TransportRoute.objects.filter(school_id=self.school.id).count())
+        self.assertNotEqual(self.school.id, TransportRoute.objects.filter(name="Route A").first().school_id)
+        self.assertEqual(201, response.status_code)

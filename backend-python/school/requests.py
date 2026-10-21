@@ -2381,7 +2381,33 @@ class RouteFields(serializers.Serializer):
         return None if value is None else self.assignable(Driver, value, "driver_id", "driver", "assigned to")
 
 
+class NewRouteStop(serializers.Serializer):
+    """A stop drawn on the map while a route is being built, before either
+    exists (docs/maps.md).
+
+    Deliberately not StopFields: that form checks a new stop against the
+    siblings already in the database, and these have no siblings yet - they
+    are checked against each other instead, by the route form that holds
+    them. The field rules themselves are the same ones, spelled once here.
+    """
+
+    name = LaravelCharField("name", max_length=100)
+    sequence_number = LaravelIntegerField("sequence_number", min_value=1, max_value=200)
+    pickup_time = LaravelCharField("pickup_time", max_length=255, required=False, allow_null=True)
+    drop_time = LaravelCharField("drop_time", max_length=255, required=False, allow_null=True)
+    latitude = CoordinateField("latitude", -90, 90)
+    longitude = CoordinateField("longitude", -180, 180)
+
+    validate_pickup_time = staticmethod(clock_time("pickup_time"))
+    validate_drop_time = staticmethod(clock_time("drop_time"))
+
+
 class StoreTransportRouteRequest(RouteFields, ScopedSerializer):
+    # Optional, so the route form that has always posted a bare route still
+    # does. Sent by the map builder, which has the whole route in front of
+    # somebody before any of it exists (docs/maps.md).
+    stops = NewRouteStop(many=True, required=False)
+
     def route_school(self):
         return self.resolved_school_id()
 
@@ -2394,7 +2420,60 @@ class StoreTransportRouteRequest(RouteFields, ScopedSerializer):
         self.validate_school_id_field()
         attrs["school_id"] = self.resolved_school_id()
 
+        errors = self.check_the_stops(attrs.get("stops") or [], attrs["school_id"])
+
+        if errors:
+            raise serializers.ValidationError({"stops": errors})
+
         return attrs
+
+    def check_the_stops(self, stops: list, school_id) -> list:
+        """What the single-stop form checks against the database, checked
+        against the batch instead - plus the two rules only a batch can
+        break: stops sharing a name, or sharing a place in the order.
+
+        A flat list of sentences, each naming the stop it is about. The
+        envelope flattens nested errors anyway (school/errors.py), so a
+        message that reads on its own is worth more than a position nobody
+        sees.
+        """
+        problems: list[str] = []
+        names: set[str] = set()
+        sequences: set[int] = set()
+        school = School.objects.filter(pk=school_id).values("latitude", "longitude").first() or {}
+
+        for stop in stops:
+            if stop["name"] in names:
+                problems.append(f"Two stops are called {stop['name']}.")
+
+            names.add(stop["name"])
+
+            if stop["sequence_number"] in sequences:
+                problems.append(f"Two stops are number {stop['sequence_number']}.")
+
+            sequences.add(stop["sequence_number"])
+
+            far = self.how_far_from_school(stop, school)
+
+            if far is not None:
+                problems.append(
+                    f"{stop['name']} is {far:,.0f} km from the school. Check the latitude and "
+                    "longitude are not the wrong way round."
+                )
+
+        return problems
+
+    @staticmethod
+    def how_far_from_school(stop: dict, school: dict) -> float | None:
+        """Kilometres, or None when there is nothing to measure against."""
+        if stop.get("latitude") is None or school.get("latitude") is None:
+            return None
+
+        from .geo import distance_m
+
+        away = distance_m(stop["latitude"], stop["longitude"], school["latitude"], school["longitude"]) / 1000
+
+        return away if away > MAX_STOP_DISTANCE_KM else None
 
 
 class UpdateTransportRouteRequest(RouteFields, PartialForm):

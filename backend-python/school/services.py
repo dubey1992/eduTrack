@@ -2930,11 +2930,35 @@ class TransportRouteService:
 
     @staticmethod
     def create(data: dict):
+        """A route, and the stops drawn with it if there are any.
+
+        One transaction, because a route built on a map is one thing
+        somebody made: half of it saved would leave a route whose shape
+        nobody chose, and the person would have to work out which stops
+        made it before trying again (CLAUDE.md 9).
+        """
+        data = dict(data)
+        stops = data.pop("stops", None) or []
         now = timezone.now()
 
-        route = TransportRoute.objects.create(**data, status=TransportStatus.ACTIVE, created_at=now, updated_at=now)
+        with transaction.atomic():
+            route = TransportRoute.objects.create(
+                **data, status=TransportStatus.ACTIVE, created_at=now, updated_at=now
+            )
+            audit.created("transport", route)
 
-        audit.created("transport", route)
+            # Insertion order does not matter: stops_of() reads them back by
+            # sequence_number. Sorting here would be logic nothing can see,
+            # which is the kind that rots.
+            for stop in stops:
+                made = TransportStop.objects.create(
+                    **stop, route_id=route.pk, school_id=route.school_id, created_at=now, updated_at=now
+                )
+                audit.created("transport", made)
+
+        # Once, not once per stop: the road is computed from the whole run.
+        if stops:
+            route_paths.mark_stale(route.pk)
 
         return route
 

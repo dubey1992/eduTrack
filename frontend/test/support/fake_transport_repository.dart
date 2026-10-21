@@ -308,6 +308,7 @@ class FakeTransportRepository implements TransportRepository {
     int? vehicleId,
     int? driverId,
     int? attendantUserId,
+    List<Map<String, dynamic>>? stops,
   }) async {
     _check();
     lastCall = {
@@ -317,6 +318,7 @@ class FakeTransportRepository implements TransportRepository {
       'vehicle_id': vehicleId,
       'driver_id': driverId,
       'attendant_user_id': attendantUserId,
+      'stops': stops,
     };
     final vehicle = vehicleId == null ? null : _vehicles.firstWhere((v) => v.id == vehicleId);
     final driver = driverId == null ? null : _drivers.firstWhere((d) => d.id == driverId);
