@@ -424,4 +424,42 @@ void main() {
       expect(find.textContaining('in a straight line'), findsNothing);
     });
   });
+
+  group('changing one that routes use', () {
+    // Renaming or moving a place reaches every route that calls at it,
+    // which is the point of keeping a list and also a surprise if nobody
+    // mentions it first (docs/maps.md, S3).
+    testWidgets('the form says what the change will reach', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop(routesCount: 3)])));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('On 3 routes. Renaming it or moving the pin changes all of them'), findsOneWidget);
+    });
+
+    testWidgets('one route is said in the singular', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop(routesCount: 1)])));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('On 1 route. Renaming it or moving the pin changes that route too'), findsOneWidget);
+    });
+
+    testWidgets('a stop no route uses says nothing of the sort', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()])));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Renaming it or moving the pin'), findsNothing);
+    });
+  });
 }

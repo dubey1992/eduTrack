@@ -25,9 +25,15 @@ from rest_framework.test import APIClient
 
 from school import factories, tokens
 from school.enums import UserRole
-from school.models import BusStop
+import decimal
+
+from school.models import AuditLog, BusStop, TransportRoute, TransportStop
 
 URL = "/api/v1/transport/bus-stops"
+
+
+def dec(value: str) -> decimal.Decimal:
+    return decimal.Decimal(value)
 
 
 class BusStopTest(TestCase):
@@ -334,3 +340,148 @@ class WhereTheSchoolIs(BusStopTest):
         listed = self.as_user(self.root).get(f"{URL}?school_id={self.elsewhere.id}").data
 
         self.assertEqual("19.0760000", listed["school_latitude"])
+
+
+class WhenAPlaceChanges(BusStopTest):
+    """The point of keeping a list (docs/maps.md, S3).
+
+    Fix a wrong pin once and every route using it is right; rename a stop
+    once and every route says the new name. Before the list, the same
+    corner on three routes was three rows to fix one at a time.
+
+    Safe because a trip keeps its own record of where the bus went -
+    `transport_trip_events.stop_name` and the riders' are snapshots - so
+    none of this can rewrite what a trip recorded.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.place = self.a_stop()
+        self.north = factories.TransportRouteFactory(school=self.school, name="North Loop")
+        self.lake = factories.TransportRouteFactory(school=self.school, name="Lake Road")
+        self.calls = [
+            factories.TransportStopFactory(
+                route=route, school=self.school, bus_stop=self.place, name=self.place.name,
+                latitude=self.place.latitude, longitude=self.place.longitude, sequence_number=1,
+            )
+            for route in (self.north, self.lake)
+        ]
+
+    def change(self, **body):
+        return self.as_user(self.admin).patch(f"{URL}/{self.place.id}", body, format="json")
+
+    def calls_now(self):
+        return list(
+            TransportStop.objects.filter(bus_stop_id=self.place.id)
+            .order_by("route__name")
+            .values_list("name", "latitude", "longitude")
+        )
+
+    def test_a_rename_reaches_every_route(self):
+        self.change(name="Market Corner")
+
+        self.assertEqual(["Market Corner", "Market Corner"], [name for name, _, _ in self.calls_now()])
+
+    def test_a_move_reaches_every_route(self):
+        self.change(latitude="28.6300000", longitude="77.2200000")
+
+        self.assertEqual(
+            [(dec("28.6300000"), dec("77.2200000"))] * 2,
+            [(latitude, longitude) for _, latitude, longitude in self.calls_now()],
+        )
+
+    def test_a_landmark_is_the_lists_own_and_reaches_nothing(self):
+        """A route's stop has no landmark; changing one should not touch a
+        single route row."""
+        before = self.calls_now()
+
+        self.change(landmark="By the clock tower")
+
+        self.assertEqual(before, self.calls_now())
+
+    def test_a_move_queues_each_route_for_a_new_road(self):
+        """The road between the stops changed, so the drawn path is stale."""
+        self.change(latitude="28.6300000", longitude="77.2200000")
+
+        self.assertEqual(
+            {self.north.id, self.lake.id},
+            set(TransportRoute.objects.filter(path_status="stale").values_list("id", flat=True)),
+        )
+
+    def test_a_rename_queues_nothing(self):
+        """A rename moves no bus. Recomputing a path for it would spend a
+        key quota on nothing."""
+        TransportRoute.objects.update(path_status="ready")
+
+        self.change(name="Market Corner")
+
+        self.assertEqual(0, TransportRoute.objects.filter(path_status="stale").count())
+
+    def test_a_one_off_on_the_same_route_is_untouched(self):
+        """It owns its own name: it came from before the list existed."""
+        one_off = factories.TransportStopFactory(
+            route=self.north, school=self.school, name="Old Corner", sequence_number=2
+        )
+
+        self.change(name="Market Corner")
+
+        self.assertEqual("Old Corner", TransportStop.objects.get(pk=one_off.pk).name)
+
+    def test_another_schools_stop_of_the_same_name_is_untouched(self):
+        theirs = self.a_stop(school=self.elsewhere, name="Market Square")
+        route = factories.TransportRouteFactory(school=self.elsewhere, name="Theirs")
+        call = factories.TransportStopFactory(
+            route=route, school=self.elsewhere, bus_stop=theirs, name="Market Square", sequence_number=1
+        )
+
+        self.change(name="Market Corner")
+
+        self.assertEqual("Market Square", TransportStop.objects.get(pk=call.pk).name)
+
+    def test_it_is_audited_once_for_the_change(self):
+        """One act by one person, not a row per route."""
+        self.change(name="Market Corner")
+
+        entry = AuditLog.objects.get(action="transport.stops_followed_the_list")
+        self.assertEqual(["name"], entry.new_values["changed"])
+        self.assertEqual(sorted([self.north.id, self.lake.id]), entry.new_values["route_ids"])
+
+
+class ARenameThatWouldCollide(BusStopTest):
+    """Two library stops cannot share a name - that is unique per school -
+    so the only thing in the way is a one-off made before the list."""
+
+    def setUp(self):
+        super().setUp()
+        self.place = self.a_stop()
+        self.route = factories.TransportRouteFactory(school=self.school, name="North Loop")
+        factories.TransportStopFactory(
+            route=self.route, school=self.school, bus_stop=self.place, name=self.place.name, sequence_number=1
+        )
+        self.one_off = factories.TransportStopFactory(
+            route=self.route, school=self.school, name="Old Corner", sequence_number=2
+        )
+
+    def test_it_is_refused_rather_than_failing_at_the_database(self):
+        response = self.as_user(self.admin).patch(
+            f"{URL}/{self.place.id}", {"name": "Old Corner"}, format="json"
+        )
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("name", self.errors(response))
+
+    def test_and_the_message_names_the_route_in_the_way(self):
+        response = self.as_user(self.admin).patch(
+            f"{URL}/{self.place.id}", {"name": "Old Corner"}, format="json"
+        )
+
+        self.assertIn("North Loop already has a stop called Old Corner", self.errors(response)["name"][0])
+
+    def test_nothing_is_changed_when_it_is_refused(self):
+        self.as_user(self.admin).patch(f"{URL}/{self.place.id}", {"name": "Old Corner"}, format="json")
+
+        self.assertEqual("Market Square", BusStop.objects.get(pk=self.place.id).name)
+        self.assertEqual(
+            "Market Square",
+            TransportStop.objects.get(bus_stop_id=self.place.id).name,
+        )

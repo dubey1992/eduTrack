@@ -101,11 +101,44 @@ refuses by (school/geo.py, `frontend/.../maps/presentation/distance.dart`),
 so the sentence under the map and the refusal that comes back cannot
 disagree about whether a stop is 90 km away or 110.
 
-### Still to come
+### S3 - edits follow (2026-10-21)
 
-- **S3** - edits follow: renaming or moving a place updates every route
-  stop that came from it, in one transaction, marking each affected road
-  path stale, and refusing a rename that would collide on a route.
+**The point of keeping a list.** Fix a wrong pin once and every route
+using it is right; rename a stop once and every route says the new name.
+Before the list, the same corner on three routes was three rows to fix
+one at a time, and nobody could tell which of the three was right.
+
+- **Name and position carry; the landmark does not.** A route's stop
+  copies `name`, `latitude` and `longitude`, so those three follow the
+  place. The landmark is the list's own note - a route's stop has no
+  landmark - so changing it reaches nothing.
+- **One transaction.** The place and every call at it move together, or
+  neither does. A refused rename leaves both as they were.
+- **A move queues each affected route for a new road; a rename queues
+  none.** The road between stops only changes when a stop moves, and
+  recomputing a path for a rename would spend the Google quota on
+  nothing.
+- **Audited once, not once per route.** A rename is one act by one
+  person; a row per route would bury it. The entry
+  (`transport.stops_followed_the_list`) names what changed and which
+  routes it reached, alongside the ordinary update entry for the place.
+- **One-offs are untouched.** A stop made before the list owns its own
+  name and position, even on a route that also calls at the renamed
+  place.
+- **A rename that would collide is refused by name** - "North Loop
+  already has a stop called Old Corner. Rename that one first, or choose
+  another name." Two library stops cannot clash, the name being unique
+  per school, so the only thing ever in the way is a one-off. Refusing it
+  in the form is the difference between that sentence and a duplicate-key
+  error from the database.
+
+**None of this can rewrite what a trip recorded.** A trip keeps its own
+copy of where the bus went - `transport_trip_events.stop_name` and the
+riders' snapshots - so renaming a stop today never changes what last
+week's run says.
+
+The form says so before anybody types: a stop that routes use carries
+"On 3 routes. Renaming it or moving the pin changes all of them."
 
 ## Building a route on the school's map
 

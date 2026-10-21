@@ -154,6 +154,28 @@ class _BusStopFormDialogState extends ConsumerState<BusStopFormDialog> {
                   Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                   const SizedBox(height: 12),
                 ],
+                // Said before the change, not after: renaming or moving a
+                // place reaches every route that calls at it, which is the
+                // point of keeping a list and also a surprise if nobody
+                // mentioned it (docs/maps.md, S3).
+                if (_isEdit && widget.stop!.isOnARoute) ...[
+                  Row(
+                    children: [
+                      Icon(Icons.alt_route_outlined, size: 16, color: context.appColors.muted),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          widget.stop!.routesCount == 1
+                              ? 'On 1 route. Renaming it or moving the pin changes that route too.'
+                              : 'On ${widget.stop!.routesCount} routes. Renaming it or moving the pin '
+                                    'changes all of them.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.appColors.muted),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 if (picksSchool) ...[
                   SchoolPicker(selected: _schoolId, onChanged: (value) => setState(() => _schoolId = value)),
                   const SizedBox(height: 10),

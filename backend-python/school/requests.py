@@ -2601,6 +2601,34 @@ class UpdateBusStopRequest(BusStopFields, PartialForm):
     def current(self, field: str):
         return getattr(self.stop, field)
 
+    def validate_name(self, value):
+        value = super().validate_name(value)
+
+        # Renaming the place renames every call at it, and a route may not
+        # have two stops with one name. Two library stops cannot clash -
+        # the name is unique per school - so the only thing in the way is a
+        # one-off made before there was a list (docs/maps.md).
+        clashing = (
+            TransportStop.objects.filter(
+                route_id__in=TransportStop.objects.filter(bus_stop_id=self.stop.pk).values("route_id"),
+                name=value,
+            )
+            .exclude(bus_stop_id=self.stop.pk)
+            .values_list("route__name", flat=True)
+            .distinct()
+        )
+        routes = sorted(set(clashing))
+
+        if routes:
+            raise serializers.ValidationError(
+                [
+                    f"{routes[0]} already has a stop called {value}. Rename that one first, "
+                    "or choose another name."
+                ]
+            )
+
+        return value
+
     validate_status = staticmethod(enum_choice("status", TransportStatus.values))
 
 

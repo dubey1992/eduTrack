@@ -2921,18 +2921,72 @@ class BusStopService:
 
         return BusStopService.visible_to(actor).get(pk=stop.pk)
 
-    @staticmethod
-    def update(stop: BusStop, data: dict, actor: User) -> BusStop:
+    # What a route copies from the place it calls at. Renaming or moving a
+    # place has to carry these across, or the two drift and nobody can tell
+    # which is right (docs/maps.md, S3).
+    COPIED = ("name", "latitude", "longitude")
+
+    @classmethod
+    def update(cls, stop: BusStop, data: dict, actor: User) -> BusStop:
+        """Changes the place, and every route that calls at it.
+
+        **The point of keeping a list.** Fix a wrong pin once and every
+        route using it is right; rename a stop once and every route says
+        the new name. Trips keep their own record of where the bus went -
+        `transport_trip_events.stop_name` and the riders' are snapshots -
+        so this can never rewrite what a trip recorded.
+        """
         before = audit.fields_of(stop)
+        changed = [field for field in data if cls.stored(stop, field) != data[field]]
 
         for field, value in data.items():
             setattr(stop, field, value)
 
-        stop.updated_at = timezone.now()
-        stop.save()
-        audit.updated("transport", stop, before)
+        moved = bool({"latitude", "longitude"} & set(changed))
+        carried = {field: getattr(stop, field) for field in cls.COPIED if field in changed}
 
-        return BusStopService.visible_to(actor).get(pk=stop.pk)
+        with transaction.atomic():
+            stop.updated_at = timezone.now()
+            stop.save()
+            audit.updated("transport", stop, before)
+
+            if carried:
+                calls = list(
+                    TransportStop.objects.filter(bus_stop_id=stop.pk).values_list("id", "route_id")
+                )
+                TransportStop.objects.filter(bus_stop_id=stop.pk).update(
+                    **carried, updated_at=timezone.now()
+                )
+
+                if calls:
+                    # One entry for the lot: a rename is one act by one
+                    # person, and a row per route would bury it.
+                    audit.record(
+                        action="transport.stops_followed_the_list",
+                        module="transport",
+                        entity_type="bus_stop",
+                        entity_id=stop.pk,
+                        school_id=stop.school_id,
+                        new={"changed": sorted(carried), "route_ids": sorted({route for _, route in calls})},
+                    )
+
+        # Only a move changes the road. A rename moves nothing, and
+        # recomputing every path for it would spend a key quota on nothing.
+        if moved:
+            for route_id in {route for _, route in TransportStop.objects.filter(
+                bus_stop_id=stop.pk
+            ).values_list("id", "route_id")}:
+                route_paths.mark_stale(route_id)
+
+        return cls.visible_to(actor).get(pk=stop.pk)
+
+    @staticmethod
+    def stored(stop: BusStop, field: str):
+        """A stop's value as the form sends it, so "28.6200000" matches the
+        Decimal in the column rather than looking like a change."""
+        value = getattr(stop, field)
+
+        return value if field not in ("latitude", "longitude") or value is None else decimal.Decimal(str(value))
 
     @staticmethod
     def routes_using(stop: BusStop) -> list[str]:

@@ -252,6 +252,10 @@ urlpatterns = [
     path("api/v1/transport/vehicles/<int:record_id>", transport.vehicle),
     path("api/v1/transport/drivers", transport.drivers),
     path("api/v1/transport/drivers/<int:record_id>", transport.driver),
+    # The school's list of bus stops: the places, as opposed to one route
+    # calling at one of them (docs/maps.md).
+    path("api/v1/transport/bus-stops", transport.bus_stops),
+    path("api/v1/transport/bus-stops/<int:stop_id>", transport.bus_stop),
     path("api/v1/transport/routes", transport.routes),
     path("api/v1/transport/routes/<int:route_id>", transport.route),
     path("api/v1/transport/routes/<int:route_id>/students", transport.route_students),
