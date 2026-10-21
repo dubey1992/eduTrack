@@ -53,6 +53,9 @@ _DEFAULT_ROWS = {
     "assessments":      (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),
     "attendance":       (MANAGE, NONE,   MANAGE, NONE,   NONE,   NONE,   NONE),
     "staff_attendance": (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE,   NONE),
+    # An HOD marks the staff register but does not buy the readers, which is
+    # why this is not the same row as the one above it.
+    "biometric":        (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE,   NONE),
     "leave":            (MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE),
     "timetable":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW,   NONE),
     "teaching_reports": (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),

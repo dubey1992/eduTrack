@@ -344,12 +344,13 @@ class AppNav {
       ),
       NavItem(
         path: '/biometric-devices',
-        module: AppModules.staffAttendance,
+        module: AppModules.biometric,
         label: 'Biometric Devices',
         icon: Icons.fingerprint,
-        // The hardware that fills the staff register's times, so it sits
-        // under the same module and with the same people who manage it -
-        // an HOD marks the register but does not buy the readers.
+        // Its own module, switched off until a school asks for it: a school
+        // with no readers on the wall would find screens that can only ever
+        // be empty. An HOD marks the staff register but does not buy the
+        // hardware, which is why this is not the register's own row.
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
         pageTitle: 'Biometric Devices',
         pageSubtitle: 'Fingerprint readers, and which staff are enrolled on them',

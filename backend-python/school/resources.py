@@ -403,7 +403,11 @@ def mail_setting_resource(row) -> dict:
 def module_setting_resource(module, row, viewer) -> dict:
     """One module for one school: its switches, its settings and the schema
     the settings screen draws them from."""
-    platform_enabled = row.platform_enabled if row is not None else True
+    # With no row, the module's own default decides - which is True for
+    # everything except the one a school has to ask for (school/modules.py).
+    # Reading True here regardless is what made the settings screen show
+    # Biometric as on for a school that did not have it.
+    platform_enabled = row.platform_enabled if row is not None else module.granted_by_default
     school_enabled = row.school_enabled if row is not None else True
 
     return {

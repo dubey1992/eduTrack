@@ -278,4 +278,38 @@ void main() {
       expect(find.text('Dashboard'), findsWidgets);
     });
   });
+
+  group('biometric, the module a school asks for', () {
+    // Unlike every other module it arrives off, so the sidebar entry is
+    // absent until somebody switches it on (docs/biometric.md).
+    test('the entry is hidden while the module is off', () {
+      expect(
+        _item('/biometric-devices').allows(sessionUser(UserRole.schoolAdmin, modules: {AppModules.biometric: false})),
+        isFalse,
+      );
+    });
+
+    test('and shown once it is on', () {
+      expect(
+        _item('/biometric-devices').allows(sessionUser(UserRole.schoolAdmin, modules: {AppModules.biometric: true})),
+        isTrue,
+      );
+    });
+
+    test('switching it off leaves the staff register alone', () {
+      // The register is a school's own record; a module switch takes a
+      // screen away, it does not take attendance away.
+      final admin = sessionUser(UserRole.schoolAdmin, modules: {AppModules.biometric: false});
+
+      expect(_item('/staff-attendance').allows(admin), isTrue);
+    });
+
+    test('an HOD never gets it, even switched on', () {
+      // They mark the staff register; they do not buy the readers.
+      expect(
+        _item('/biometric-devices').allows(sessionUser(UserRole.hod, modules: {AppModules.biometric: true})),
+        isFalse,
+      );
+    });
+  });
 }

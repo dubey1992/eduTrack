@@ -30,11 +30,23 @@ changed.
 | Students, Teachers & Staff, Academic Set-up, Admin Users, Audit Log | no - the spine | - |
 | Student Attendance | yes | days a register may be marked late (default 30; 0 = today only) |
 | Staff Attendance | yes | days a register may be marked late (default 30) |
+| Biometric Attendance | yes, **and off until asked for** | - |
 | Staff Leave | yes | minimum notice in days (default 0) |
 | Timetable, Syllabus, HOD Reports, Transport, Announcements, Reports | yes | - |
 | Teaching Reports | yes | days allowed to file a report (default 0 = no limit) |
 | Communication | yes | - (Alert Settings hold the rest) |
 | Payroll | yes | email payslips when a run is finalized (default on) |
+
+**One module arrives off.** Every other module is on for a school that has
+never touched its settings, because a school should see the product it
+bought. Biometric Attendance is the exception: it needs fingerprint readers
+on the wall, and a school without them would find screens that can only ever
+be empty. A module declares this with `granted_by_default=False`, and the
+Super Admin grants it when a customer asks (docs/biometric.md). Switching it
+off again hides the screens and refuses the endpoints - including the
+devices' own push endpoint, which is the only way to tell a box on a wall to
+stop - but it never touches the staff register underneath: a school's
+attendance is its own record, and a module switch does not rewrite it.
 
 **Two switches.** The platform grants a module to a school (Super Admin,
 `platform_enabled`) and the school keeps it on (School Admin,
@@ -78,6 +90,7 @@ read it, so a School Admin can see what their staff may do.
 | Academic Set-up | manage | view | view | view | view | view |
 | Student Attendance | manage | none | manage | none | none | none |
 | Staff Attendance | manage | manage | none | none | none | none |
+| Biometric Attendance | manage | none | none | none | none | none |
 | Staff Leave | manage | manage | manage | manage | manage | manage |
 | Timetable | manage | view | view | view | view | view |
 | Teaching Reports | manage | manage | manage | none | none | none |

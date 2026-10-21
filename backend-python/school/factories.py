@@ -505,3 +505,24 @@ class BiometricDeviceFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+class ModuleSettingFactory(DjangoModelFactory):
+    """A school's switch for one module (school/modules.py).
+
+    Mostly used to turn *on* a module that arrives off - biometric needs
+    readers on the wall, so a school only gets it when it asks, and a test
+    about readers has to say that the school has them.
+    """
+
+    class Meta:
+        model = models.ModuleSetting
+
+    school = factory.SubFactory(SchoolFactory)
+    module = "biometric"
+    platform_enabled = True
+    school_enabled = True
+    settings = None
+
+    created_at = factory.LazyFunction(now)
+    updated_at = factory.LazyFunction(now)

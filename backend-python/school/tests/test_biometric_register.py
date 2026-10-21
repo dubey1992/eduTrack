@@ -59,6 +59,10 @@ class RegisterFromPunches(TestCase):
         self.teacher = self.employee("EMP-1", biometric_user_id="17")
         self.other = self.employee("EMP-2", biometric_user_id="88")
 
+        # Readers on the wall: biometric arrives switched off, so a test
+        # about it has to say the school asked for it (school/modules.py).
+        factories.ModuleSettingFactory(school=self.school, module="biometric")
+
     def as_user(self, user) -> APIClient:
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION="Bearer " + tokens.issue(user))
@@ -378,6 +382,7 @@ class AnotherSchool(RegisterFromPunches):
         """Same device id, different school. The id is only unique within
         one, so this is a real collision rather than a contrived one."""
         elsewhere = factories.SchoolFactory(name="Elsewhere High", timezone="Asia/Kolkata")
+        factories.ModuleSettingFactory(school=elsewhere, module="biometric")
         theirs = self.employee("EMP-X", biometric_user_id="17", school=elsewhere)
         super_admin = factories.UserFactory(school=None, role=UserRole.SUPER_ADMIN)
 

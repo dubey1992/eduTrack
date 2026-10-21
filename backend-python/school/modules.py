@@ -40,6 +40,11 @@ class Module:
     description: str
     # False for the product's spine: always on, never a switch on screen.
     switchable: bool = True
+    # False for a module a school only gets when it asks. Everything else
+    # arrives on, because a school with no row should see the product it
+    # bought - but a module that needs hardware on the wall is not something
+    # to switch on for a school that has none.
+    granted_by_default: bool = True
     settings: tuple[Setting, ...] = field(default_factory=tuple)
 
     def defaults(self) -> dict:
@@ -99,6 +104,14 @@ MODULES: tuple[Module, ...] = (
             ),
         ),
     ),
+    Module(
+        "biometric", "Biometric Attendance",
+        "Fingerprint readers, the punch log, and the times they put on the staff register.",
+        # Off until somebody asks for it: it needs readers on the wall, and a
+        # school without them would find a screen that can only ever be empty
+        # (docs/biometric.md).
+        granted_by_default=False,
+    ),
     Module("timetable", "Timetable", "Periods and the weekly grid."),
     Module(
         "teaching_reports", "Teaching Reports", "Daily reports on what was taught, and their review.",
@@ -153,7 +166,10 @@ def is_enabled(school_id, module: str, rows: dict | None = None) -> bool:
     else:
         row = rows.get(module)
 
-    return row is None or (row.platform_enabled and row.school_enabled)
+    if row is None:
+        return BY_KEY[module].granted_by_default
+
+    return row.platform_enabled and row.school_enabled
 
 
 def enabled_map(school_id) -> dict[str, bool]:

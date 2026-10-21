@@ -4,6 +4,29 @@ A customer requirement, decided 2026-10-20. Staff punch in and out on a
 fingerprint device; those punches become the check-in and check-out times on
 the staff register.
 
+## A module a school asks for
+
+Added 2026-10-21 at the customer's request: biometric is its own module
+(`biometric`), **off until somebody switches it on**, rather than a corner of
+Staff Attendance. It is the one part of the product that needs hardware on
+the wall, and a school without readers would find screens that can only ever
+be empty.
+
+- The Super Admin grants it per school on the module settings screen. A
+  School Admin cannot grant it to themselves - "on demand of the customer"
+  means somebody at the platform said yes (docs/settings.md).
+- Off means the sidebar entry is gone and every endpoint answers 403
+  `MODULE_DISABLED`, naming the module so the app can say which switch.
+- **The devices' own push endpoint is refused too.** A box on a wall has no
+  account to disable, so the module switch is the only thing that can tell
+  it to stop filing punches.
+- **The staff register is untouched.** Switching biometric off takes a
+  screen away; it does not undo a day somebody was marked present for, and
+  the register stops asking the devices for times rather than losing the
+  ones it already has.
+- An HOD never gets it, switched on or not: they mark the staff register,
+  they do not buy the readers.
+
 ## The three decisions
 
 **Staff only.** `staff_attendances` already has `check_in`, `check_out` and a

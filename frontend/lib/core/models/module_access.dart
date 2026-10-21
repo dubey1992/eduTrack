@@ -12,6 +12,12 @@ abstract final class AppModules {
   static const assessments = 'assessments';
   static const attendance = 'attendance';
   static const staffAttendance = 'staff_attendance';
+
+  /// The fingerprint readers and their punch log (docs/biometric.md). Its
+  /// own module because it is the one part of the product that needs
+  /// hardware on the wall, so a school only gets it when it asks - the
+  /// server has it off until then.
+  static const biometric = 'biometric';
   static const leave = 'leave';
   static const timetable = 'timetable';
   static const teachingReports = 'teaching_reports';
@@ -119,6 +125,8 @@ class ModuleAccess {
     AppModules.assessments: [_manage, _manage, _manage, _none, _none, _none, _none],
     AppModules.attendance: [_manage, _none, _manage, _none, _none, _none, _none],
     AppModules.staffAttendance: [_manage, _manage, _none, _none, _none, _none, _none],
+    // An HOD marks the staff register but does not buy the readers.
+    AppModules.biometric: [_manage, _none, _none, _none, _none, _none, _none],
     AppModules.leave: [_manage, _manage, _manage, _manage, _manage, _manage, _manage],
     AppModules.timetable: [_manage, _view, _view, _view, _view, _view, _none],
     AppModules.teachingReports: [_manage, _manage, _manage, _none, _none, _none, _none],

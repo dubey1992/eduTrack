@@ -53,6 +53,11 @@ class PunchTest(TestCase):
         self.other = factories.SchoolFactory(name="Elsewhere High")
         self.stranger = factories.UserFactory(school=self.other, role=UserRole.SCHOOL_ADMIN)
 
+        # Readers on the wall: biometric arrives switched off, so a test
+        # about it has to say the school asked for it (school/modules.py).
+        factories.ModuleSettingFactory(school=self.school, module="biometric")
+        factories.ModuleSettingFactory(school=self.other, module="biometric")
+
     def client_as(self, user) -> APIClient:
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION="Bearer " + tokens.issue(user))

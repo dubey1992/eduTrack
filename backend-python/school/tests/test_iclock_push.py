@@ -59,6 +59,10 @@ class PushTest(TestCase):
         )
         self.client = Client()
 
+        # Readers on the wall: biometric arrives switched off, so a test
+        # about it has to say the school asked for it (school/modules.py).
+        factories.ModuleSettingFactory(school=self.school, module="biometric")
+
     def attlog(self, lines, serial="ZK-0001", **params):
         query = "&".join(f"{key}={value}" for key, value in {"SN": serial, "table": "ATTLOG", **params}.items())
 

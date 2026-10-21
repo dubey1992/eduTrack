@@ -778,8 +778,14 @@ class StaffAttendanceService:
         # (school/punches.py) - so this only speaks where the register is
         # still blank, and the screen says the times came from a device so
         # that whoever sets the status knows they did not type them.
-        from_device = punches.register_times(
-            school_id, date, [profile.id for profile in staff if profile.id not in existing]
+        # Nothing to ask when the school has no readers: the module is off
+        # and there are no punches to find (school/modules.py).
+        from_device = (
+            punches.register_times(
+                school_id, date, [profile.id for profile in staff if profile.id not in existing]
+            )
+            if modules.is_enabled(school_id, "biometric")
+            else {}
         )
 
         # Lateness is the first period of the day, the same rule the staff
@@ -3785,7 +3791,7 @@ class BiometricDeviceService:
             **data,
         )
 
-        audit.created("staff_attendance", device)
+        audit.created("biometric", device)
 
         return device
 
@@ -3802,7 +3808,7 @@ class BiometricDeviceService:
 
         device.updated_at = timezone.now()
         device.save()
-        audit.updated("staff_attendance", device, before)
+        audit.updated("biometric", device, before)
 
         return device
 
@@ -3811,7 +3817,7 @@ class BiometricDeviceService:
         """Removing a device it never heard from is tidying up; removing one
         that has spoken would orphan its punches, which B2 has to settle
         before this becomes more than a registry."""
-        audit.deleted("staff_attendance", device)
+        audit.deleted("biometric", device)
         device.delete()
 
 

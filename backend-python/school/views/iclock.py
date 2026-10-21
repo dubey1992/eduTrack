@@ -38,7 +38,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 
-from .. import audit, punches
+from .. import audit, modules, punches
 from ..models import BiometricDevice
 from ..throttling import DevicePushThrottle
 
@@ -89,6 +89,11 @@ def _device(request) -> BiometricDevice | None:
         return None
 
     if device.push_key and device.push_key != (request.GET.get("key") or "").strip():
+        return None
+
+    # A school that has switched biometric off is not collecting punches,
+    # and a device still pointed at us must not keep filing them.
+    if not modules.is_enabled(device.school_id, "biometric"):
         return None
 
     return device
