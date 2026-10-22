@@ -77,7 +77,11 @@ class _RouteCardState extends ConsumerState<RouteCard> {
               ].join(' · '),
               style: TextStyle(color: muted),
             ),
-            Text('${route.stopsCount} stops · ${route.studentsCount} students', style: TextStyle(color: muted)),
+            Text(
+              '${route.stopsCount} ${route.stopsCount == 1 ? 'stop' : 'stops'} · '
+              '${route.studentsCount} ${route.studentsCount == 1 ? 'student' : 'students'}',
+              style: TextStyle(color: muted),
+            ),
             const SizedBox(height: 16),
             for (final direction in TripDirection.values) ...[
               _TripTile(

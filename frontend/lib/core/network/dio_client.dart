@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -76,5 +78,37 @@ Failure failureFromDioException(DioException e) {
     return failure;
   }
 
-  return Failure.unknown(e.message);
+  // Not the app's error envelope: a proxy's HTML page, a framework error
+  // page, a gateway timeout. `e.message` here is Dio's own explanation of
+  // itself - "This exception was thrown because the response has a status
+  // code of 400 and RequestOptions.validateStatus was configured to throw"
+  // - which a bus driver was shown on a phone, ending with "you have to
+  // fix the server code". Never that. What the status means to the person
+  // holding the phone, and the technical detail kept where a developer can
+  // still find it.
+  final status = e.response?.statusCode;
+
+  developer.log(
+    'Unrecognised error response',
+    name: 'api',
+    error: '${e.requestOptions.method} ${e.requestOptions.path} -> $status: ${e.message}',
+  );
+
+  return Failure(code: 'UNKNOWN_ERROR', message: _messageForStatus(status), details: {'status': ?status});
+}
+
+/// What a status code means to somebody who did not ask for one.
+String _messageForStatus(int? status) {
+  if (status == null) return 'Something went wrong. Please try again.';
+
+  if (status == 401) return 'Your session has ended. Sign in again.';
+  if (status == 403) return 'You do not have permission to do that.';
+  if (status == 404) return 'That is not there any more.';
+  if (status == 429) return 'Too many tries. Wait a minute and try again.';
+  // A 4xx that did not come back in the app's own shape is a request this
+  // build should not have made - there is nothing for the person to fix,
+  // so do not imply there is.
+  if (status < 500) return 'The server could not accept that. Please try again.';
+
+  return 'The server had a problem. Please try again in a moment.';
 }

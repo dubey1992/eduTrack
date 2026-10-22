@@ -87,6 +87,20 @@ void main() {
       expect(find.byKey(const Key('start-drop')), findsOneWidget);
     });
 
+    testWidgets('a route with one stop does not say "1 stops"', (tester) async {
+      // Seen on a phone. The count beside it was already written this way;
+      // this one was not.
+      final day = myRoutesJson();
+      (day['routes'] as List).first['stops_count'] = 1;
+      (day['routes'] as List).first['students_count'] = 1;
+      api.routes = day;
+
+      await pumpScreen(tester);
+
+      expect(find.textContaining('1 stop · 1 student'), findsOneWidget);
+      expect(find.textContaining('1 stops'), findsNothing);
+    });
+
     testWidgets('starting a trip opens it with its stops and children', (tester) async {
       await pumpScreen(tester);
 

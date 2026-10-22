@@ -117,6 +117,11 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surface,
+        // One line is Material's default, and it cuts a sentence off at
+        // the field's width: on a phone "Choose a passcode that is not a
+        // straight run of digits" became "...that is not a straight...",
+        // which tells somebody they are wrong without telling them how.
+        errorMaxLines: 3,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusControl),
           borderSide: BorderSide(color: border),
