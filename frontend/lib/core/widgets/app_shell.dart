@@ -39,7 +39,7 @@ class AppShell extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.logout),
               tooltip: 'Log out',
-              onPressed: () => _confirmLogout(context, ref),
+              onPressed: () => confirmLogout(context, ref),
             ),
           ],
         ),
@@ -111,7 +111,7 @@ class _Topbar extends ConsumerWidget {
             // should get back to it rather than be navigated away.
             onPressed: () => showDialog(context: context, builder: (_) => const ChangePasswordDialog()),
           ),
-          IconButton(icon: const Icon(Icons.logout), tooltip: 'Log out', onPressed: () => _confirmLogout(context, ref)),
+          IconButton(icon: const Icon(Icons.logout), tooltip: 'Log out', onPressed: () => confirmLogout(context, ref)),
         ],
       ),
     );
@@ -123,7 +123,7 @@ class _Topbar extends ConsumerWidget {
 ///
 /// A bus attendant may have trip marks on the phone that have not reached
 /// the server (no signal); signing out throws them away, so they are told.
-Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+Future<void> confirmLogout(BuildContext context, WidgetRef ref) async {
   final isAttendant = ref.read(authNotifierProvider).value?.role == UserRole.busAttendant;
   final unsent = isAttendant ? await ref.read(tripMarkQueueProvider.notifier).waitingCount() : 0;
   if (!context.mounted) return;

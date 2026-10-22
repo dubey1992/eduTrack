@@ -21,7 +21,15 @@ enum _Mode { loading, passcode, register }
 /// that is not asks them to register it: mobile, the 8-digit setup code the
 /// school office gave them, and a passcode of their choosing.
 class AttendantLoginScreen extends ConsumerStatefulWidget {
-  const AttendantLoginScreen({super.key});
+  const AttendantLoginScreen({super.key, this.offersEmailSignIn = true});
+
+  /// Whether to offer the school's ordinary email sign-in as a way out.
+  ///
+  /// True on the web, where a crew member on an office computer may have
+  /// come to the wrong screen. False in the driver app, which has no email
+  /// sign-in to send them to - the link would be a button that goes
+  /// nowhere (docs/driver-app.md).
+  final bool offersEmailSignIn;
 
   @override
   ConsumerState<AttendantLoginScreen> createState() => _AttendantLoginScreenState();
@@ -215,11 +223,12 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
               style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
               child: const Text('Have a new setup code? Register this phone again'),
             ),
-          TextButton(
-            onPressed: _isSubmitting ? null : () => context.go('/login'),
-            style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
-            child: const Text('Sign in with email instead'),
-          ),
+          if (widget.offersEmailSignIn)
+            TextButton(
+              onPressed: _isSubmitting ? null : () => context.go('/login'),
+              style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
+              child: const Text('Sign in with email instead'),
+            ),
         ],
       ),
     );

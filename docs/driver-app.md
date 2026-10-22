@@ -297,6 +297,24 @@ in Flutter, when that screen is built.
 - *Done when:* a route's map draws on a phone, and still degrades cleanly
   with the key removed.
 
+**D1.5 — Only the crew's screens** *(done 2026-10-22; should have been first)*
+- `lib/main_driver.dart` and `core/routing/driver_router.dart`: the Android
+  build's own entry point, carrying **four screens** — the crew sign-in,
+  the trip, the splash, and the maintenance wait — plus one for somebody
+  signed in who is not crew, which says so rather than showing them a blank
+  screen.
+- `CrewFrame` replaces `AppShell` on the phone: who is signed in, and the
+  way out. Not a sidebar of twenty modules. The sign-out confirmation is
+  the shared one, so it still counts the marks waiting on the phone before
+  throwing them away.
+- The crew sign-in loses its "sign in with email instead" link in this
+  build, because there is no email sign-in here for it to reach.
+- Built with `flutter build apk --target lib/main_driver.dart`. **Without
+  the `--target` the APK is the web app**, which is exactly the bug this
+  slice fixed, so D1.4's CI job has to pass it.
+- *Done when:* the installed app opens on "Register this phone" and there
+  is no way to reach a school screen from it. Seen on a device.
+
 **D1.4 — A build that works on more than this machine**
 - Decide the `android-37` problem: bump AGP when one supports 37, or hold
   `flutter_secure_storage` at 10.x. Until then, the junction is written down
@@ -463,9 +481,17 @@ read at a desk.
    job they do on the bus.
 3. **Both mark children.** Hence the first-mark-wins rule and the
    who-marked-it line above; this is the only place the decision adds work.
-4. **One codebase, one app.** No driver flavour, no second Play listing.
-   The person on the bus installs the app, signs in, and sees the trip
-   screen because of their role — the same way the attendant does today.
+4. **One codebase, two entry points.** `lib/main.dart` is the school's web
+   app; `lib/main_driver.dart` is what Android builds. They share the
+   theme, the network layer, the auth notifier and the trip screen itself —
+   everything but the router.
+
+   *This was first written as "one app, and the role decides what you see",
+   which was a misreading, and the build proved it: an app called School365ai
+   Driver App opened on the marketing homepage with a Join Early Access
+   button on it. Hiding the office behind a role is not the same as not
+   shipping it. The driver build does not contain the homepage, the
+   sidebar, or a single screen of the school.*
 5. **`com.school365ai.app`**, named **School365ai Driver App**. Permanent
    once it is uploaded.
 6. **The keystore is yours to keep.** Generated here, kept by you, never in
