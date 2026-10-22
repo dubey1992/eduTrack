@@ -1,7 +1,29 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// The Google Maps key for Android.
+//
+// The web app asks the server for its key, so it can be rotated without a
+// release (docs/maps.md). The Android SDK cannot work that way: it reads
+// the key from the manifest when the process starts, long before anything
+// has asked the server anything. So it is a build-time value, and it lives
+// in android/local.properties - which git ignores, so no key is ever
+// committed. A build without one still works; every map degrades to the
+// list screens, exactly as it does on the web with no key.
+val mapsApiKey: String = run {
+    val properties = Properties()
+    val file = rootProject.file("local.properties")
+
+    if (file.exists()) {
+        file.inputStream().use { properties.load(it) }
+    }
+
+    properties.getProperty("MAPS_API_KEY") ?: ""
 }
 
 android {
@@ -35,6 +57,9 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Read by the manifest's com.google.android.geo.API_KEY meta-data.
+        manifestPlaceholders["mapsApiKey"] = mapsApiKey
     }
 
     buildTypes {

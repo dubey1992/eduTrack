@@ -32,6 +32,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- The Maps SDK reads this when the process starts. The value
+             comes from MAPS_API_KEY in android/local.properties, which git
+             ignores; an empty one leaves every map degraded to its list
+             screen rather than crashing (docs/driver-app.md, D1.3). -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${mapsApiKey}" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
