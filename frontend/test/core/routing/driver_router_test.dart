@@ -4,6 +4,8 @@ import 'package:edutrack_app/core/routing/driver_router.dart';
 import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/presentation/attendant_login_screen.dart';
+import 'package:edutrack_app/features/auth/presentation/driver_landing_screen.dart';
+import 'package:edutrack_app/features/auth/presentation/driver_splash_screen.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
@@ -45,6 +47,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(driverApp(auth));
+    // Past the opening beat the splash is held for, so these tests see the
+    // screen the app settles on rather than the splash.
+    await tester.pump(openingBeat + const Duration(milliseconds: 100));
     await tester.pumpAndSettle();
   }
 
@@ -57,7 +62,10 @@ void main() {
       final container = ProviderContainer(overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository())]);
       addTearDown(container.dispose);
 
-      expect(pathsOf(container), containsAll(['/sign-in', '/my-trip', '/splash', '/maintenance', '/not-crew']));
+      expect(
+        pathsOf(container),
+        containsAll(['/start', '/sign-in', '/my-trip', '/splash', '/maintenance', '/not-crew']),
+      );
     });
 
     test('and not the homepage, the dashboard, or any screen of the school', () {
@@ -73,13 +81,49 @@ void main() {
   });
 
   group('where it opens', () {
-    testWidgets('signed out: on the crew sign-in, not a homepage', (tester) async {
+    testWidgets('on the splash first, long enough to be seen', (tester) async {
+      // Restoring a session off the phone takes milliseconds, so without a
+      // held beat the splash is skipped in a single frame and the crew goes
+      // from the Android launch icon straight to the landing. That is what
+      // the first build did (docs/driver-app.md).
+      await tester.pumpWidget(driverApp(FakeAuthRepository()));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(DriverSplashScreen), findsOneWidget);
+      expect(find.byType(DriverLandingScreen), findsNothing);
+
+      await tester.pump(openingBeat);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DriverLandingScreen), findsOneWidget);
+    });
+
+    testWidgets('signed out: on the landing, which says what the app is for', (tester) async {
+      // The sign-in screen is a mobile number and four digits with no room
+      // to explain itself, and the crew meets it in a yard rather than at a
+      // desk (docs/driver-app.md).
       await pump(tester, FakeAuthRepository());
 
-      expect(find.byType(AttendantLoginScreen), findsOneWidget);
+      expect(find.byType(DriverLandingScreen), findsOneWidget);
+      expect(find.text('Your trip sheet, on this phone.'), findsOneWidget);
       expect(find.text('Join Early Access →'), findsNothing);
-      // And no way out that goes nowhere: this build has no email sign-in.
+    });
+
+    testWidgets('and the landing leads to the sign-in, which has no dead ends', (tester) async {
+      await pump(tester, FakeAuthRepository());
+
+      await tester.tap(find.byKey(const Key('landing-continue')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AttendantLoginScreen), findsOneWidget);
+      // No way out that goes nowhere: this build has no email sign-in.
       expect(find.text('Sign in with email instead'), findsNothing);
+    });
+
+    testWidgets('a phone nobody has set up is offered the setting up', (tester) async {
+      await pump(tester, FakeAuthRepository());
+
+      expect(find.widgetWithText(FilledButton, 'Set up this phone'), findsOneWidget);
     });
 
     testWidgets('signed in as crew: on the trip, because there is one screen', (tester) async {
@@ -127,6 +171,7 @@ void main() {
         child: const DriverApp(),
       ),
     );
+    await tester.pump(openingBeat + const Duration(milliseconds: 100));
     await tester.pumpAndSettle();
 
     expect(find.byType(MyTripScreen), findsNothing);

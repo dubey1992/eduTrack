@@ -315,6 +315,31 @@ in Flutter, when that screen is built.
 - *Done when:* the installed app opens on "Register this phone" and there
   is no way to reach a school screen from it. Seen on a device.
 
+**D1.6 — An opening, and a screen that says what the app is** *(done 2026-10-22)*
+- **The splash** carries a drawn animation — a shuttle running its route,
+  children waiting at a stop, the stop emptying as they board
+  (`assets/driver/shuttle-run.gif`, generated rather than licensed, 187 KB,
+  the app's own palette). Under it, what the app is doing in words, and
+  **after six seconds a Try again button**: a phone in a yard on a bad
+  network cannot tell a slow morning from a broken app, and a spinner that
+  never stops is the worst thing to show somebody about to drive.
+- **The opening is held for 1.6 seconds** (`openingBeat`). Restoring a
+  session off the phone takes milliseconds, so the first build skipped the
+  splash in a single frame and went from the Android launch icon straight
+  to the landing — the animation was never seen by anybody. A test now
+  fails if that beat goes away. **It costs every launch 1.6 seconds**,
+  which is a product choice, not a technical one; say if you would rather
+  have the time back.
+- **The landing** is the signed-out home: what the app is for, the four
+  things it does, and the one thing the crew must fetch before they can
+  start — the 8-digit code from the office, good for 24 hours. Written for
+  the person on the bus, not the office: short lines and no product words.
+  Its button reads **Set up this phone** on a phone nobody has registered
+  and **Sign in** on one that has, because a driver who signs out at the
+  end of a shift should not be made to read an introduction every morning.
+- Sign-in stays reachable from the landing and stays reachable afterwards,
+  so reading it once is enough.
+
 **D1.4 — A build that works on more than this machine**
 - Decide the `android-37` problem: bump AGP when one supports 37, or hold
   `flutter_secure_storage` at 10.x. Until then, the junction is written down

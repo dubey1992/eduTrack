@@ -88,6 +88,13 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    # The driver app's opening animation - a shuttle running its route and
+    # the children at the stop boarding it (lib/features/auth/presentation/
+    # driver_splash_screen.dart). Drawn for this app, so it carries the
+    # app's own palette and costs nothing to license.
+    - assets/driver/shuttle-run.gif
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

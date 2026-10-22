@@ -4,12 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/attendant_login_screen.dart';
+import '../../features/auth/presentation/driver_landing_screen.dart';
+import '../../features/auth/presentation/driver_splash_screen.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
 import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
 import '../widgets/crew_frame.dart';
-import '../widgets/splash_screen.dart';
 
 /// The router the Android app runs on (docs/driver-app.md).
 ///
@@ -20,12 +21,25 @@ import '../widgets/splash_screen.dart';
 ///
 /// So the driver build does not merely *hide* the rest - it does not carry
 /// it. There is no '/' here, no shell, no dashboard. An address that is not
-/// one of these four is not a page of this app, and a build that opened on
+/// one of these is not a page of this app, and a build that opened on
 /// the marketing homepage was the bug that prompted this
 /// ([main_driver.dart]).
 ///
 /// What the crew can reach is still decided by the server, as it always
 /// was. This only decides what the phone has screens for.
+/// How long the opening screen is held, whatever the session does.
+///
+/// Restoring a session off the phone takes a few milliseconds, so without
+/// this the splash is skipped in a single frame and the crew goes from the
+/// Android launch icon straight to the landing - which is what happened the
+/// first time this was built. A beat is the difference between an app that
+/// opens and one that just appears.
+const openingBeat = Duration(milliseconds: 1600);
+
+/// Completes when that beat is over. Read by the redirect, so the router
+/// re-runs the moment it finishes.
+final openingBeatProvider = FutureProvider<void>((ref) => Future<void>.delayed(openingBeat));
+
 final driverRouterProvider = Provider<GoRouter>((ref) {
   final refresh = _AuthRefresh(ref);
   ref.onDispose(refresh.dispose);
@@ -34,7 +48,11 @@ final driverRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     refreshListenable: refresh,
     routes: [
-      GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
+      GoRoute(path: '/splash', builder: (context, state) => const DriverSplashScreen()),
+      // What the app is, before anybody signs in. The sign-in screen is a
+      // mobile number and four digits with no room to explain itself, and
+      // the crew meets it in a yard rather than at a desk.
+      GoRoute(path: '/start', builder: (context, state) => const DriverLandingScreen()),
       // Without the "sign in with email instead" way out: this build has
       // no email sign-in to offer, so the link would go nowhere.
       GoRoute(path: '/sign-in', builder: (context, state) => const AttendantLoginScreen(offersEmailSignIn: false)),
@@ -60,11 +78,19 @@ final driverRouterProvider = Provider<GoRouter>((ref) {
 
       final auth = ref.read(authNotifierProvider);
 
-      if (auth.isLoading) return location == '/splash' ? null : '/splash';
+      // Held for the session *and* the beat: whichever finishes last.
+      if (auth.isLoading || ref.read(openingBeatProvider).isLoading) {
+        return location == '/splash' ? null : '/splash';
+      }
 
       final user = auth.value;
 
-      if (user == null) return location == '/sign-in' ? null : '/sign-in';
+      // Signed out, the landing is home. Sign-in is reachable from it and
+      // stays reachable, so somebody who has read it once is not made to
+      // read it again on the way back.
+      if (user == null) {
+        return location == '/start' || location == '/sign-in' ? null : '/start';
+      }
 
       if (user.role != UserRole.busAttendant) {
         return location == '/not-crew' ? null : '/not-crew';
@@ -83,6 +109,7 @@ class _AuthRefresh extends ChangeNotifier {
     _subscriptions = [
       _ref.listen(authNotifierProvider, (_, _) => notifyListeners()),
       _ref.listen(maintenanceProvider, (_, _) => notifyListeners()),
+      _ref.listen(openingBeatProvider, (_, _) => notifyListeners()),
     ];
   }
 
