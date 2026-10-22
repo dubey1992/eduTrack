@@ -24,14 +24,29 @@ class NotSentMark {
 /// The server's answer for one mark in a sync batch.
 enum MarkResultStatus {
   applied('applied'),
+
+  /// The same mark arriving twice - one phone, bad signal.
   duplicate('duplicate'),
+
+  /// Somebody else had already marked this child this way: the driver and
+  /// the attendant both tapped Boarded. Not a failure, and nothing to send
+  /// again (docs/driver-app.md, D2).
+  alreadyMarked('already_marked'),
+
   rejected('rejected');
 
   const MarkResultStatus(this.apiValue);
 
   final String apiValue;
 
-  static MarkResultStatus fromApiValue(String value) => MarkResultStatus.values.firstWhere((s) => s.apiValue == value);
+  /// Anything this build does not recognise reads as rejected, which puts
+  /// the mark under "Not sent" with the server's own reason. An older app
+  /// meeting a newer server must not crash on a word it has not heard of -
+  /// it is a bus, mid-run, and the phone is the only record of the marks
+  /// still waiting on it.
+  static MarkResultStatus fromApiValue(String value) {
+    return MarkResultStatus.values.firstWhere((s) => s.apiValue == value, orElse: () => MarkResultStatus.rejected);
+  }
 }
 
 class MarkResult {

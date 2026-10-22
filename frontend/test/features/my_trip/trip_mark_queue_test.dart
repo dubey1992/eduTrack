@@ -189,4 +189,27 @@ void main() {
 
     container.dispose();
   });
+
+  testWidgets('a mark the other crew member already made is settled, not "Not sent"', (tester) async {
+    // A driver and an attendant both tapped Boarded. Nothing failed and
+    // nothing needs sending again, so it must not land in front of anybody
+    // as something to read (docs/driver-app.md, D2).
+    api.alreadyMarkedTypes = {'boarded': 'Anil Kumar marked them boarded at 7:42 AM.'};
+    final container = phone();
+    final queue = container.read(tripMarkQueueProvider.notifier);
+
+    await queue.enqueue(_mark(TripMarkType.boarded, studentId: 1, label: 'Aarav Sharma boarded'));
+    await tester.pump();
+
+    // It really did reach the server - otherwise an empty Not sent list
+    // would prove nothing at all.
+    expect(api.syncBatches, hasLength(1));
+
+    final state = container.read(tripMarkQueueProvider);
+    expect(state.notSent, isEmpty);
+    expect(state.pendingCount, 0);
+    expect(stored('my_trip.not_sent'), isEmpty);
+
+    container.dispose();
+  });
 }

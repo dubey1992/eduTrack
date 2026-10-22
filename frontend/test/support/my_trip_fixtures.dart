@@ -25,6 +25,8 @@ Map<String, dynamic> riderJson(
   required int stopId,
   String status = 'pending',
   String? guardianMobile = '+91 98765 43210',
+  String? markedByName,
+  String? markedAtLabel,
 }) => {
   'student_id': studentId,
   'name': name,
@@ -40,11 +42,18 @@ Map<String, dynamic> riderJson(
   'dropped_at': null,
   'boarded_at_label': null,
   'dropped_at_label': null,
+  'marked_by_name': markedByName,
+  'marked_at_label': markedAtLabel,
 };
 
 /// A running pickup trip on route 7 with two stops: Aarav and Diya wait at
 /// the first, Kabir at the second (with no guardian number on record).
-Map<String, dynamic> tripJson({int id = 55, String status = 'in_progress', String direction = 'pickup'}) => {
+Map<String, dynamic> tripJson({
+  int id = 55,
+  String status = 'in_progress',
+  String direction = 'pickup',
+  List<Map<String, dynamic>>? riders,
+}) => {
   'id': id,
   'school_id': 1,
   'route_id': 7,
@@ -68,11 +77,13 @@ Map<String, dynamic> tripJson({int id = 55, String status = 'in_progress', Strin
   'ended_at_label': null,
   'riders_count': 3,
   'stops': [stopJson(101, 'Main Gate', 1), stopJson(102, 'Lake Road', 2)],
-  'riders': [
-    riderJson(1, 'Aarav Sharma', stopId: 101),
-    riderJson(2, 'Diya Patel', stopId: 101),
-    riderJson(3, 'Kabir Rao', stopId: 102, guardianMobile: null),
-  ],
+  'riders':
+      riders ??
+      [
+        riderJson(1, 'Aarav Sharma', stopId: 101),
+        riderJson(2, 'Diya Patel', stopId: 101),
+        riderJson(3, 'Kabir Rao', stopId: 102, guardianMobile: null),
+      ],
   // The second is a kind no version of the app knows.
   'events': [
     {
@@ -157,6 +168,10 @@ class FakeMyTripApi implements MyTripApi {
   /// Mark type -> the reason the server turns it down with.
   Map<String, String> rejectTypes = {};
 
+  /// Mark type -> somebody else already marked it that way, and who.
+  /// What the server answers when a bus has two crew (docs/driver-app.md).
+  Map<String, String> alreadyMarkedTypes = {};
+
   /// Client ids the server has already recorded.
   final Set<String> alreadyRecorded = {};
 
@@ -217,8 +232,11 @@ class FakeMyTripApi implements MyTripApi {
     for (final op in ops) {
       final clientId = op['client_id'] as String;
       final reason = rejectTypes[op['type']];
+      final byOther = alreadyMarkedTypes[op['type']];
       if (alreadyRecorded.contains(clientId)) {
         results.add({'client_id': clientId, 'type': op['type'], 'status': 'duplicate'});
+      } else if (byOther != null) {
+        results.add({'client_id': clientId, 'type': op['type'], 'status': 'already_marked', 'reason': byOther});
       } else if (reason != null) {
         results.add({'client_id': clientId, 'type': op['type'], 'status': 'rejected', 'reason': reason});
       } else {

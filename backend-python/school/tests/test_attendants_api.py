@@ -547,14 +547,66 @@ class Syncing(AttendantTest):
 
         self.assertEqual("The trip had already ended, so this mark was not recorded.", response.data["results"][0]["reason"])
 
-    def test_what_the_office_already_marked_is_accepted_once_without_a_second_alert(self):
+    def test_what_somebody_else_already_marked_says_who_marked_it(self):
+        """A bus carries a driver and an attendant, and either may mark a
+        child. Both tapping Boarded is two people doing their job, not a
+        mistake - so the second one is told who got there first rather than
+        having the tap quietly do nothing (docs/driver-app.md, D2)."""
         self.rider(self.trip_id, self.arjun, "boarded", self.f["manager"])
         alerts = Message.objects.count()
 
         response = self.sync([self.op("mark-0001", "boarded", -1, student=self.arjun)])
 
-        self.assertEqual("applied", response.data["results"][0]["status"])
+        self.assertEqual("already_marked", response.data["results"][0]["status"])
+        self.assertIn("marked them boarded at", response.data["results"][0]["reason"])
+        self.assertIn(self.f["manager"].name, response.data["results"][0]["reason"])
+        # Still the point of the original test: the guardian is not told twice.
         self.assertEqual(alerts, Message.objects.count())
+
+    def test_and_records_nothing_a_second_time(self):
+        self.rider(self.trip_id, self.arjun, "boarded", self.f["manager"])
+        events = TransportTripEvent.objects.filter(trip_id=self.trip_id, student_id=self.arjun.pk).count()
+
+        self.sync([self.op("mark-0001", "boarded", -1, student=self.arjun)])
+
+        self.assertEqual(
+            events,
+            TransportTripEvent.objects.filter(trip_id=self.trip_id, student_id=self.arjun.pk).count(),
+        )
+
+    def test_a_mark_that_moves_a_child_on_is_still_applied(self):
+        """already_marked is only for the state they are already in. Boarded
+        to dropped is the next step of the run, not a clash."""
+        self.rider(self.trip_id, self.arjun, "boarded", self.f["manager"])
+
+        response = self.sync([self.op("mark-0001", "dropped", -1, student=self.arjun)])
+
+        self.assertEqual("applied", response.data["results"][0]["status"])
+
+    def test_a_resend_of_the_phones_own_mark_is_still_a_duplicate(self):
+        """Told apart by the id the phone made: the same mark arriving twice
+        is one person with bad signal, not two people."""
+        self.sync([self.op("mark-0001", "boarded", -2, student=self.arjun)])
+
+        again = self.sync([self.op("mark-0001", "boarded", -2, student=self.arjun)])
+
+        self.assertEqual("duplicate", again.data["results"][0]["status"])
+
+    def test_the_trip_that_comes_back_says_who_marked_each_child(self):
+        """So the other phone shows it without asking the server anything
+        else - the sync reply is how the two converge."""
+        response = self.sync([self.op("mark-0001", "boarded", -1, student=self.arjun)])
+
+        rider = next(r for r in response.data["trip"]["riders"] if r["student_id"] == self.arjun.pk)
+        self.assertEqual(self.attendant.name, rider["marked_by_name"])
+        self.assertIsNotNone(rider["marked_at_label"])
+
+    def test_a_child_nobody_has_marked_names_nobody(self):
+        response = self.sync([self.op("mark-0001", "boarded", -1, student=self.arjun)])
+
+        rider = next(r for r in response.data["trip"]["riders"] if r["student_id"] == self.aarav.pk)
+        self.assertIsNone(rider["marked_by_name"])
+        self.assertIsNone(rider["marked_at_label"])
 
     def test_ending_the_trip_from_the_phone(self):
         on_board = self.sync([self.op("mark-0001", "boarded", -3, student=self.arjun), self.op("mark-0002", "end", -2)])

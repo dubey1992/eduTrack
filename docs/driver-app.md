@@ -324,7 +324,7 @@ in Flutter, when that screen is built.
 
 ---
 
-### Phase D2 — Two crew on one trip
+### Phase D2 — Two crew on one trip *(done 2026-10-22)*
 
 *Server-side first, and before any driver has a login. The rules have to
 hold whoever is holding the phone.*
@@ -349,9 +349,33 @@ hold whoever is holding the phone.*
 - Tests: a phone that marked nothing learns what the other one did.
 
 **D2.4 — The screen says who**
-- Each rider row shows "Boarded · Anil, 7:42" where somebody already marked.
-- Widget tests: marked by me, marked by the other crew member, not yet
-  marked, and the offline case where it is queued but not acknowledged.
+- Each rider row reads "Boarded by Asha Admin, 9:34 PM" under the child's
+  name, where somebody has marked them.
+
+*What it came to.* Most of D2 was already there: the sync reply has always
+carried the whole trip back, and the rider state machine already refused a
+mark that would undo another. Three things were not:
+
+- **A child already in the state being asked for was recorded again.** The
+  state machine only guards *transitions*, so two crew both tapping Boarded
+  wrote a second event for a state the child was already in. That is now
+  `already_marked`, carrying who got there first and when, and nothing is
+  written. The guardian alert was never sent twice - the old test that
+  pinned that still passes - but the log gained a row that said nothing.
+- **The phone had no word for it.** `MarkResultStatus.fromApiValue` threw on
+  anything it did not recognise, so an older app meeting a newer server
+  would have crashed on the bus rather than shown a mark as unsent. It now
+  falls back to rejected, and `already_marked` is settled, not "Not sent".
+- **The rider row never said who.** It does now, from the trip's own events,
+  with no new column.
+
+Two things worth knowing about how it was checked. The line sits **under the
+child's name**, not beside the status: put beside it, between the badge and
+the call button, it had no width left and rendered as nothing on a real
+phone while passing its widget test. And the `already_marked` answer cannot
+be reached from one phone at all - the button is not offered for a state the
+child is already in - so it is covered by the API tests rather than by
+tapping.
 
 ---
 

@@ -168,6 +168,28 @@ void main() {
   });
 
   group('running a trip', () {
+    testWidgets('a child the other crew member marked says who, and when', (tester) async {
+      // Either of the two on the bus may have marked a child; the other
+      // should not have to ask (docs/driver-app.md, D2).
+      api.serverTrip = tripJson(
+        riders: [
+          riderJson(
+            1,
+            'Aarav Sharma',
+            stopId: 101,
+            status: 'boarded',
+            markedByName: 'Anil Kumar',
+            markedAtLabel: '7:42 AM',
+          ),
+          riderJson(2, 'Diya Patel', stopId: 101),
+        ],
+      );
+
+      await openRunningTrip(tester);
+
+      expect(find.text('Boarded by Anil Kumar, 7:42 AM'), findsOneWidget);
+    });
+
     testWidgets('only the next stop offers Reached, and reaching it moves on', (tester) async {
       await openRunningTrip(tester);
 

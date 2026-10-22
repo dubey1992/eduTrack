@@ -6074,6 +6074,17 @@ class TripSyncService:
             return {**answer, "status": "duplicate"}
 
         trip = TransportTrip.objects.select_related("route", "vehicle").get(pk=trip.pk)
+
+        # A bus usually carries a driver and an attendant, and either may
+        # mark a child. Both tapping Boarded is not a mistake and not a
+        # resend - it is two people doing their job - so the second one is
+        # told who got there first rather than quietly writing a second
+        # event for a state the child is already in (docs/driver-app.md).
+        settled = cls.already_marked(trip, op)
+
+        if settled:
+            return {**answer, "status": "already_marked", "reason": settled}
+
         problem = cls.problem_with(trip, op)
 
         if problem:
@@ -6086,6 +6097,38 @@ class TripSyncService:
             return {**answer, "status": "rejected", "reason": refused.message}
 
         return {**answer, "status": "applied"}
+
+    # What the phone sends against the state it would put a child in.
+    MARKS = {"boarded": TripRiderStatus.BOARDED, "dropped": TripRiderStatus.DROPPED,
+             "absent": TripRiderStatus.ABSENT}
+
+    @classmethod
+    def already_marked(cls, trip, op: dict) -> str | None:
+        """Who already put this child in the state this mark asks for, and
+        when - or None if nobody has."""
+        wanted = cls.MARKS.get(op["type"])
+
+        if wanted is None or op["student_id"] is None:
+            return None
+
+        rider = TransportTripRider.objects.filter(trip_id=trip.pk, student_id=op["student_id"]).first()
+
+        if rider is None or rider.status != wanted:
+            return None
+
+        event = (
+            TransportTripEvent.objects.filter(trip_id=trip.pk, student_id=op["student_id"], type=op["type"])
+            .select_related("recorded_by")
+            .order_by("-recorded_at", "-id")
+            .first()
+        )
+
+        if event is None:
+            return f"Already marked {wanted}."
+
+        at = SchoolClock.for_school(trip.school_id).format(event.recorded_at, TIME)
+
+        return f"{event.recorded_by.name} marked them {wanted} at {at}."
 
     @classmethod
     def problem_with(cls, trip, op: dict) -> str | None:

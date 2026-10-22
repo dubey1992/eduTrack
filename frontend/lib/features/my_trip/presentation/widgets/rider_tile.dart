@@ -52,6 +52,18 @@ class RiderTile extends StatelessWidget {
                       [if (rider.classSectionName != null) rider.classSectionName!, rider.admissionNumber].join(' · '),
                       style: TextStyle(color: muted),
                     ),
+                    // Who marked them, and when. On a bus with two crew
+                    // either of them may have, and the status alone leaves
+                    // the other wondering whether their tap registered.
+                    // Under the name rather than beside the badge: that row
+                    // has the badge and the call button in it already, and
+                    // a name put there had no width left to render in.
+                    if (rider.markedByName != null)
+                      Text(
+                        '${rider.status.label} by ${rider.markedByName}'
+                        '${rider.markedAtLabel == null ? '' : ', ${rider.markedAtLabel}'}',
+                        style: TextStyle(fontSize: 12, color: muted),
+                      ),
                   ],
                 ),
               ),

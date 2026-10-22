@@ -114,6 +114,8 @@ class TripRider {
     required this.droppedAt,
     this.boardedAtLabel,
     this.droppedAtLabel,
+    this.markedByName,
+    this.markedAtLabel,
   });
 
   factory TripRider.fromJson(Map<String, dynamic> json) {
@@ -132,6 +134,8 @@ class TripRider {
       droppedAt: json['dropped_at'] as String?,
       boardedAtLabel: json['boarded_at_label'] as String?,
       droppedAtLabel: json['dropped_at_label'] as String?,
+      markedByName: json['marked_by_name'] as String?,
+      markedAtLabel: json['marked_at_label'] as String?,
     );
   }
 
@@ -152,6 +156,12 @@ class TripRider {
   /// are UTC and must never be formatted in the browser's own zone.
   final String? boardedAtLabel;
   final String? droppedAtLabel;
+
+  /// Who put this child in the state they are in, and when. A bus carries
+  /// a driver and an attendant and either may have done it; the other
+  /// should not have to ask (docs/driver-app.md, D2).
+  final String? markedByName;
+  final String? markedAtLabel;
 
   TripRider copyWith({
     TripRiderStatus? status,
@@ -175,6 +185,11 @@ class TripRider {
       droppedAt: droppedAt ?? this.droppedAt,
       boardedAtLabel: boardedAtLabel ?? this.boardedAtLabel,
       droppedAtLabel: droppedAtLabel ?? this.droppedAtLabel,
+      // Not carried through a local mark: until the server answers, the
+      // only honest thing to say about who marked them is nothing. The
+      // tap already shows in the status.
+      markedByName: markedByName,
+      markedAtLabel: markedAtLabel,
     );
   }
 }

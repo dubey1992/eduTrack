@@ -702,7 +702,15 @@ def transport_trip_resource(trip, riders_count=None, riders=None, events=None, s
     ))
 
     body["stops_left"] = sum(1 for stop in stops if stop.id not in reached)
-    body["riders"] = [trip_rider_resource(rider, clock) for rider in riders]
+    # The last mark made about each child, whoever made it. Events arrive
+    # oldest first, so the last one written wins - which is the one that put
+    # the child in the state the rider row now shows.
+    marks = {}
+    for event in events:
+        if event.student_id is not None and event.type in RIDER_MARKS:
+            marks[event.student_id] = event
+
+    body["riders"] = [trip_rider_resource(rider, clock, marks.get(rider.student_id)) for rider in riders]
     body["events"] = [trip_event_resource(event, clock) for event in events]
     body["stops"] = [
         {
@@ -727,7 +735,11 @@ def transport_trip_resource(trip, riders_count=None, riders=None, events=None, s
     return body
 
 
-def trip_rider_resource(rider, clock) -> dict:
+def trip_rider_resource(rider, clock, mark=None) -> dict:
+    """One child on a trip. [mark] is the event that put them in their
+    current state, where there is one: a bus carries a driver and an
+    attendant, either of them may have marked a child, and the other should
+    not have to ask who did (docs/driver-app.md)."""
     student = rider.student
     section = student.class_section
 
@@ -746,7 +758,13 @@ def trip_rider_resource(rider, clock) -> dict:
         "dropped_at": timestamp(rider.dropped_at),
         "boarded_at_label": clock.format(rider.boarded_at, TIME),
         "dropped_at_label": clock.format(rider.dropped_at, TIME),
+        "marked_by_name": None if mark is None else mark.recorded_by.name,
+        "marked_at_label": None if mark is None else clock.format(mark.recorded_at, TIME),
     }
+
+
+# The event types that say something about a child rather than the bus.
+RIDER_MARKS = ("boarded", "dropped", "absent")
 
 
 def trip_event_resource(event, clock) -> dict:

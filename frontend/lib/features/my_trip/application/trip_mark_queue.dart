@@ -142,10 +142,14 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
       if (!ref.mounted) return;
 
       final results = {for (final r in outcome.results) r.clientId: r};
+      // Settled, one way or another: recorded now, recorded already, or
+      // recorded by the other crew member. None of them needs sending
+      // again, and none belongs under "Not sent".
+      const settled = {MarkResultStatus.applied, MarkResultStatus.duplicate, MarkResultStatus.alreadyMarked};
+
       final rejected = [
         for (final mark in batch)
-          if (results[mark.clientId]?.status != MarkResultStatus.applied &&
-              results[mark.clientId]?.status != MarkResultStatus.duplicate)
+          if (!settled.contains(results[mark.clientId]?.status))
             NotSentMark(
               clientId: mark.clientId,
               tripId: tripId,
