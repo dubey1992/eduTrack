@@ -92,6 +92,11 @@ void main() {
       expect(find.byType(DriverSplashScreen), findsOneWidget);
       expect(find.byType(DriverLandingScreen), findsNothing);
 
+      // Still there a full animation loop in, which is the point of the
+      // beat: the bus reaches the stop before the screen changes.
+      await tester.pump(const Duration(milliseconds: 2200));
+      expect(find.byType(DriverSplashScreen), findsOneWidget);
+
       await tester.pump(openingBeat);
       await tester.pumpAndSettle();
 

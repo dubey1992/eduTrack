@@ -323,13 +323,17 @@ in Flutter, when that screen is built.
   **after six seconds a Try again button**: a phone in a yard on a bad
   network cannot tell a slow morning from a broken app, and a spinner that
   never stops is the worst thing to show somebody about to drive.
-- **The opening is held for 1.6 seconds** (`openingBeat`). Restoring a
-  session off the phone takes milliseconds, so the first build skipped the
-  splash in a single frame and went from the Android launch icon straight
-  to the landing — the animation was never seen by anybody. A test now
-  fails if that beat goes away. **It costs every launch 1.6 seconds**,
-  which is a product choice, not a technical one; say if you would rather
-  have the time back.
+- **The opening is held for one full pass of the animation** —
+  `openingBeat`, 2.6s. Restoring a session off the phone takes
+  milliseconds, so the first build skipped the splash in a single frame
+  and went from the Android launch icon straight to the landing; the
+  animation was never seen by anybody. The length is the loop's own: 36
+  frames at 70ms is 2.52s, which is the bus arriving, the children
+  boarding and the bus pulling away. Held any shorter and the crew sees a
+  fragment — a bus that never reaches the stop — which reads as the app
+  stuttering rather than as a scene. Two tests hold this: one fails if the
+  beat goes away, one if it is cut below a loop. **It costs every launch
+  2.6 seconds**, a product choice rather than a technical one.
 - **The landing** is the signed-out home: what the app is for, the four
   things it does, and the one thing the crew must fetch before they can
   start — the 8-digit code from the office, good for 24 hours. Written for

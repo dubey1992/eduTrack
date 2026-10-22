@@ -34,7 +34,14 @@ import '../widgets/crew_frame.dart';
 /// Android launch icon straight to the landing - which is what happened the
 /// first time this was built. A beat is the difference between an app that
 /// opens and one that just appears.
-const openingBeat = Duration(milliseconds: 1600);
+///
+/// **One full pass of the animation**, not a round number: the shuttle
+/// loop is 36 frames at 70ms, so 2.52s is the bus arriving, the children
+/// boarding and the bus pulling away. Cut it shorter and the crew sees a
+/// fragment - a bus that never reaches the stop - which reads as the app
+/// stuttering rather than as a scene. The extra 80ms covers the first
+/// frame landing a moment after the route does.
+const openingBeat = Duration(milliseconds: 2600);
 
 /// Completes when that beat is over. Read by the redirect, so the router
 /// re-runs the moment it finishes.
