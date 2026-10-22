@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The window the app starts in, and the icon's backdrop.
+
+  The window colour is the web app's own background (AppTheme in
+  lib/core/theme/app_theme.dart) so the splash is the same colour the
+  first Flutter frame paints. Anything else shows as a flash of the
+  wrong colour on every cold start.
+
+  The icon's backdrop is the brand tile from core/widgets/status_page.dart
+  - the same blue square the app shows beside its name.
+-->
+<resources>
+    <color name="window_background">#FFFFFFFF</color>
+    <color name="ic_launcher_background">#FF2563EB</color>
+</resources>

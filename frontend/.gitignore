@@ -43,6 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+# Gradle's own output. The Flutter template redirects most of it to
+# /build, but Gradle still writes here on an Android build.
+/android/build/
+/android/.gradle/
 
 # Widget Preview related
 .widget_preview/

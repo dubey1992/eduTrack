@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12 replaced the old splash with its own, which takes its colour
+  from windowSplashScreenBackground and ignores windowBackground. Without
+  this the system picks its own near-black in dark mode, so a cold start
+  flashed #121212 before the app's own #0B0F1A - the exact flash the
+  launch theme was meant to remove (docs/driver-app.md, D1.1).
+-->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/window_background</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>

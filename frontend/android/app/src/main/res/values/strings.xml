@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The full name, as it is on Play. A launcher shows about eleven
+      characters under an icon, so this one is cut short on the home
+      screen; a shorter launcher label can be set here without touching
+      the listing (docs/driver-app.md, D1.1).
+    -->
+    <string name="app_name">School365ai Driver App</string>
+</resources>
