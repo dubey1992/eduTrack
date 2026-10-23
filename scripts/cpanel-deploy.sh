@@ -32,6 +32,32 @@ if ! mkdir "$LOCK" 2>/dev/null; then
 fi
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
+# Counted, because the first real deploy wrote "== done ==" after every
+# single step inside it had failed - migrations, Super Admin and all 59
+# tables - and the only way anybody found out was reading 2,000 lines of
+# log. A deploy that cannot say whether it worked is worse than one that
+# fails loudly.
+FAILURES=0
+
+# Runs a step, keeps its output in the log, and remembers if it failed.
+step() {
+  local name="$1"
+  shift
+  echo "--- $name ---" >> "$LOG"
+
+  "$@" >> "$LOG" 2>&1
+  # Captured immediately. After `if cmd; then ... fi` the $? that follows
+  # belongs to the if, not to cmd, and would have reported every failure
+  # as "exit 0" - which is the same lie this function exists to stop.
+  local status=$?
+
+  [ "$status" -eq 0 ] && return 0
+
+  echo "FAILED: $name (exit $status)" >> "$LOG"
+  FAILURES=$((FAILURES + 1))
+  return "$status"
+}
+
 # Appended, never truncated: a log that starts from nothing on every run
 # cannot show what the previous run did, which is the one thing it is for.
 date "+== deploy %Y-%m-%d %H:%M:%S ==" >> "$LOG"
@@ -184,18 +210,16 @@ if [ ! -f vendor/autoload.php ]; then
   exit 0
 fi
 
-echo "--- migrate (the schema is Laravel's) ---" >> "$LOG"
-"$PHP_CLI" artisan migrate --force >> "$LOG" 2>&1
+step "migrate (the schema is Laravel's)" "$PHP_CLI" artisan migrate --force
+
+cd "$REPO/backend-python" || exit 1
 
 # Safe to run again: an account that already exists is left untouched, so a
 # password its owner has since changed is never reset back.
-echo "--- super admin ---" >> "$LOG"
-cd "$REPO/backend-python" || exit 1
-"$VENV_BIN/python" manage.py create_super_admin >> "$LOG" 2>&1
+step "super admin" "$VENV_BIN/python" manage.py create_super_admin
 
 # The two backends must agree about the schema they are both looking at.
-echo "--- check_models ---" >> "$LOG"
-"$VENV_BIN/python" manage.py check_models >> "$LOG" 2>&1
+step "check_models" "$VENV_BIN/python" manage.py check_models
 
 # Passenger reloads when this is touched; without it the old code keeps
 # serving and a successful deploy looks like it did nothing.
@@ -207,12 +231,16 @@ touch "$REPO/backend-python/tmp/restart.txt"
 # leaves a dead site is the failure mode this whole file has been chasing,
 # and the web server's 404 cannot tell "app is broken" from "app is never
 # called". This calls the WSGI object directly, so the log says which.
-echo "--- self check ---" >> "$LOG"
 cd "$REPO" || exit 1
-"$VENV_BIN/python" scripts/check_wsgi.py >> "$LOG" 2>&1
+step "self check" "$VENV_BIN/python" scripts/check_wsgi.py
 
-echo "== done ==" >> "$LOG"
-
-# A marker that says the install finished, so a repeating cron can be
-# told to leave it alone without anybody reading the log.
-touch "$HOME_DIR/edutrack-deployed"
+if [ "$FAILURES" -eq 0 ]; then
+  echo "== done ==" >> "$LOG"
+  # A marker that says the install finished, so a repeating cron can be
+  # told to leave it alone without anybody reading the log.
+  touch "$HOME_DIR/edutrack-deployed"
+else
+  echo "== done, WITH $FAILURES FAILED STEP(S) - search the log for FAILED ==" >> "$LOG"
+  rm -f "$HOME_DIR/edutrack-deployed"
+  exit 1
+fi
