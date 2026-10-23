@@ -26,7 +26,7 @@ from ..clock import SchoolClock
 from ..enums import TripDirection, TripStatus
 from ..models import Student, TransportRoute, TransportStop, TransportTrip, TransportTripRider
 from ..pagination import LaravelPagination
-from ..policies import TransportTripPolicy, authorize
+from ..policies import TransportTripPolicy, authorize, crew_routes
 from ..requests import StartTripRequest, TripLocationsRequest, TripSyncRequest, UpdateTripRiderRequest
 from ..resources import timestamp, transport_route_resource, transport_trip_resource
 from ..services import TransportRouteService, TransportTripService, TripLocationService, TripSyncService
@@ -213,15 +213,16 @@ def my_routes(request) -> Response:
     authorize(TransportTripPolicy.my_routes(actor))
 
     today = SchoolClock.for_user(actor).now().date()
+    mine = crew_routes(actor)
     routes = (
-        TransportRouteService.with_counts(TransportRoute.objects.filter(attendant_user_id=actor.id))
+        TransportRouteService.with_counts(TransportRoute.objects.filter(mine))
         .order_by("name", "id")
     )
     trips = {
         (trip.route_id, trip.direction): trip
         for trip in TransportTrip.objects.select_related(*TransportTripService.LIST)
         .annotate(riders_count=Count("transporttriprider"))
-        .filter(route__attendant_user_id=actor.id, trip_date=today)
+        .filter(crew_routes(actor, "route__"), trip_date=today)
         .exclude(status=TripStatus.CANCELLED)
     }
 

@@ -897,3 +897,77 @@ class Eta(Positions):
 
         self.assertIsNone(body["next_stop"])
         self.assertIsNone(body["finishes_in_seconds"])
+
+
+class ADriverWhoIsAlsoStaff(AttendantTest):
+    """A driver signs in to the same app as the attendant and runs the same
+    trips - the route is reached by being its attendant *or* its driver
+    (docs/driver-app.md, D3).
+
+    Before this, a driver was a record with nobody behind it: name, mobile,
+    licence. Linking the record to a staff member is what makes "the person
+    holding the phone is the driver named on this trip" true rather than
+    assumed.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # A second crew member, who drives rather than attends.
+        self.driver_profile = self.make_attendant("+919845000111")
+        self.driver_user = self.driver_profile.user
+
+        self.driver = self.f["route"].driver
+        self.driver.staff_profile = self.driver_profile
+        self.driver.save(update_fields=["staff_profile"])
+
+    def test_the_driver_of_a_route_reaches_its_trips(self):
+        response = self.as_user(self.driver_user).get("/api/v1/transport/my-routes")
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual([self.f["route"].id], [row["id"] for row in response.data["routes"]])
+
+    def test_and_can_start_one(self):
+        response = self.as_user(self.driver_user).post("/api/v1/transport/trips", {
+            "route_id": self.f["route"].id, "direction": "pickup",
+        }, format="json")
+
+        self.assertEqual(201, response.status_code, response.data)
+
+    def test_the_attendant_still_reaches_the_same_route(self):
+        """Both of them, at once: the bus carries two people."""
+        response = self.as_user(self.attendant).get("/api/v1/transport/my-routes")
+
+        self.assertEqual([self.f["route"].id], [row["id"] for row in response.data["routes"]])
+
+    def test_a_driver_of_no_route_reaches_nothing(self):
+        spare = factories.DriverFactory(school=self.f["school"], staff_profile=self.make_attendant("+919845000222"))
+
+        response = self.as_user(spare.staff_profile.user).get("/api/v1/transport/my-routes")
+
+        self.assertEqual([], response.data["routes"])
+
+    def test_a_driver_record_with_no_staff_member_gives_nobody_a_route(self):
+        """Which is every driver until somebody links them, and the state
+        the whole fleet is in the day this ships."""
+        self.driver.staff_profile = None
+        self.driver.save(update_fields=["staff_profile"])
+
+        response = self.as_user(self.driver_user).get("/api/v1/transport/my-routes")
+
+        self.assertEqual([], response.data["routes"])
+
+    def test_another_schools_driver_reaches_nothing_here(self):
+        elsewhere = self.ready_route(factories.SchoolFactory(), name="Far Road", vehicle_name="Bus 11")
+        theirs = self.make_attendant("+919845000333", school=elsewhere)
+        driver = factories.DriverFactory(school=elsewhere["school"], staff_profile=theirs)
+
+        response = self.as_user(driver.staff_profile.user).get("/api/v1/transport/my-routes")
+
+        self.assertEqual([], response.data["routes"])
+
+    def test_the_driver_cannot_touch_a_route_they_do_not_run(self):
+        response = self.as_user(self.driver_user).post("/api/v1/transport/trips", {
+            "route_id": self.other["route"].id, "direction": "pickup",
+        }, format="json")
+
+        self.assertEqual(403, response.status_code)

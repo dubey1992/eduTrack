@@ -24,10 +24,12 @@ from __future__ import annotations
 
 from rest_framework.exceptions import PermissionDenied
 
+from django.db.models import Q
+
 from . import modules, permissions
 from .enums import PayrollRunStatus, UserRole
 from .errors import ModuleDisabled
-from .models import Department, Student, Subject, TimetableEntry, User
+from .models import Department, Student, Subject, TimetableEntry, TransportRoute, User
 from .scope import SchoolScope
 
 ADMIN_ROLES = (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN)
@@ -566,12 +568,31 @@ class AnnouncementPolicy:
         ).exists()
 
 
+def crew_routes(actor: User, prefix: str = "") -> Q:
+    """Which routes somebody on the bus runs.
+
+    Two ways, because a bus carries two people and either may be holding
+    the phone: the attendant assigned to the route, and the driver of it,
+    where that driver is this member of staff. Before drivers could sign in
+    there was only the first (docs/driver-app.md, D3).
+
+    One rule in one place: the trip list, the My Trip screen and the
+    authorization below all read it, and a fourth caller that invented its
+    own would be the way a driver quietly loses their route.
+
+    [prefix] reaches the route from somewhere else - "route__" from a trip.
+    """
+    return Q(**{f"{prefix}attendant_user_id": actor.id}) | Q(
+        **{f"{prefix}driver__staff_profile__user_id": actor.id}
+    )
+
+
 def runs_route(actor: User, route) -> bool:
     """A Bus Attendant reaches the routes they are assigned to and nothing
     else - the way a teacher reaches their own class. Every other role
     reaches its school's routes."""
     if actor.role == UserRole.BUS_ATTENDANT:
-        return route is not None and route.attendant_user_id == actor.id
+        return route is not None and TransportRoute.objects.filter(crew_routes(actor), pk=route.pk).exists()
 
     return True
 

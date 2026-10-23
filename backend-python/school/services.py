@@ -159,6 +159,7 @@ from .models import (
 )
 from .requests import php_int
 from .resources import timestamp
+from .policies import crew_routes
 from .scope import SchoolScope
 
 
@@ -3330,7 +3331,7 @@ class TransportTripService:
         )
 
         if actor.role == UserRole.BUS_ATTENDANT:
-            trips = trips.filter(route__attendant_user_id=actor.id)
+            trips = trips.filter(crew_routes(actor, "route__"))
 
         for field, column in (("route_id", "route_id"), ("date", "trip_date"), ("status", "status")):
             if filters.get(field):

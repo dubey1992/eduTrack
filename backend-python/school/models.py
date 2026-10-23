@@ -284,10 +284,17 @@ class Department(models.Model):
         unique_together = (('school', 'name'),)
 
 class Driver(models.Model):
+    """A driver, and their licence. Where [staff_profile] is set, the record
+    is also a person who can sign in to the app (docs/driver-app.md)."""
+
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
     name = models.CharField(max_length=150)
     mobile = models.CharField(max_length=20, blank=True, null=True)
+    # Nullable: a school records a driver long before that driver has a
+    # login, often before they have started. One each way - one person is
+    # one driver - so two records cannot claim the same employee.
+    staff_profile = models.OneToOneField('StaffProfile', models.DO_NOTHING, blank=True, null=True)
     licence_number = models.CharField(max_length=50)
     licence_expiry = models.DateField(blank=True, null=True)
     status = models.CharField(max_length=20)
