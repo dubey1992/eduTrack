@@ -361,6 +361,15 @@ That is the product default, not a gap, and the screens say so. Do not let a
 school rely on absence alerts before checking its own channel settings. See
 [communication.md](communication.md).
 
+**1b. Force HTTPS on the portal's domain.** cPanel → Domains → *Force
+HTTPS Redirect*, for the apex and `www`. Without it the portal is also served
+over plain HTTP, and a visitor who types the bare domain gets a page whose
+origin is `http://` — which the API, correctly, refuses: every call fails as
+a CORS error, and it looks exactly like a misconfigured server. The API
+subdomain redirects on its own; the portal's does not until this is on.
+Check from outside: `curl -sI http://<domain>/` must answer `301` with a
+`Location:` of `https://`.
+
 **2. Check `DJANGO_DEBUG` is not `true` on the live site.** Trigger a 404 and
 confirm you get the JSON error shape, not a stack trace. The backend refuses
 to start without `DJANGO_SECRET_KEY`, so a missing one fails loudly; a

@@ -244,6 +244,13 @@ if [ -f "$HOME_DIR/edutrack-install-cgi" ] && [ ! -f "$HOME_DIR/edutrack-cgi-ins
   step "install cgi fallback" /bin/bash "$REPO/scripts/install-cgi-fallback.sh"
 fi
 
+# Same shape as the CGI switch: a marker put there on purpose, consumed
+# here, and a script that checks its own work and rolls itself back.
+if [ -f "$HOME_DIR/edutrack-force-https" ] && [ ! -f "$HOME_DIR/edutrack-https-forced" ]; then
+  rm -f "$HOME_DIR/edutrack-force-https"
+  step "force https on the portal" /bin/bash "$REPO/scripts/force-https.sh"
+fi
+
 if [ "$FAILURES" -eq 0 ]; then
   echo "== done ==" >> "$LOG"
   # A marker that says the install finished, so a repeating cron can be
