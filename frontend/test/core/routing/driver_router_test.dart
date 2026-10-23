@@ -10,7 +10,9 @@ import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
+import 'package:edutrack_app/features/my_trip/presentation/battery_help_screen.dart';
 import 'package:edutrack_app/features/my_trip/presentation/my_trip_screen.dart';
+import 'package:edutrack_app/features/my_trip/presentation/navigate_screen.dart';
 import 'package:edutrack_app/features/profile/presentation/profile_screen.dart';
 import 'package:edutrack_app/main_driver.dart';
 import 'package:flutter/material.dart';
@@ -182,6 +184,37 @@ void main() {
       expect(find.byType(MyTripScreen), findsNothing);
 
       await tester.tap(find.byKey(const Key('crew-nav-trip')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MyTripScreen), findsOneWidget);
+    });
+
+    testWidgets('and a crew member really lands on the battery help when they ask for it', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.busAttendant)));
+
+      tester.element(find.byType(MyTripScreen)).go('/battery');
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BatteryHelpScreen), findsOneWidget);
+      expect(find.byType(MyTripScreen), findsNothing, reason: 'it bounced straight back before');
+    });
+
+    testWidgets('and on the navigate screen, with the stop it was given', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.busAttendant)));
+
+      tester
+          .element(find.byType(MyTripScreen))
+          .push('/navigate', extra: const NavigateTo(latitude: 12.9716, longitude: 77.5946, stopName: 'Main Gate'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NavigateScreen), findsOneWidget);
+      expect(find.text('Main Gate'), findsOneWidget);
+    });
+
+    testWidgets('and an address with no stop behind it lands on the trip rather than crashing', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.busAttendant)));
+
+      tester.element(find.byType(MyTripScreen)).go('/navigate');
       await tester.pumpAndSettle();
 
       expect(find.byType(MyTripScreen), findsOneWidget);

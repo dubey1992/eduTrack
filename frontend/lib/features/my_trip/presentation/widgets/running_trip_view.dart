@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/async_value_view.dart';
@@ -11,6 +12,8 @@ import '../../../transport/data/models/transport_trip.dart';
 import '../../application/trip_detail_notifier.dart';
 import '../../application/trip_mark_queue.dart';
 import '../../data/map_navigator.dart';
+import '../../data/navigation_session.dart';
+import '../navigate_screen.dart';
 import '../../data/models/not_sent_mark.dart';
 import 'location_sharing_tile.dart';
 import 'not_sent_card.dart';
@@ -62,12 +65,27 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     }
   }
 
-  /// Hands the stop to the maps app. Only ever offered for a stop that has
+  /// Takes the crew to the next stop. Only ever offered for a stop that has
   /// a position, so there is no "where?" to answer here.
+  ///
+  /// Guidance inside the app where the Navigation SDK will have it, and the
+  /// Google Maps hand-off where it will not - the screen decides, because
+  /// only it knows which way it went (docs/driver-app.md, D7).
   Future<void> _navigateTo(TripStop stop) async {
     final latitude = double.tryParse(stop.latitude ?? '');
     final longitude = double.tryParse(stop.longitude ?? '');
     if (latitude == null || longitude == null) return;
+
+    final inApp = await ref.read(navigationSessionProvider).isSupported();
+    if (!mounted) return;
+
+    if (inApp) {
+      await context.push(
+        '/navigate',
+        extra: NavigateTo(latitude: latitude, longitude: longitude, stopName: stop.name),
+      );
+      return;
+    }
 
     final opened = await ref.read(mapNavigatorProvider).navigateTo(latitude: latitude, longitude: longitude);
     if (!opened && mounted) {

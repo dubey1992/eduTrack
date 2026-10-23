@@ -5,6 +5,7 @@ import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/battery_guard.dart';
 import 'package:edutrack_app/features/my_trip/data/map_navigator.dart';
+import 'package:edutrack_app/features/my_trip/data/navigation_session.dart';
 import 'package:edutrack_app/features/my_trip/presentation/widgets/sos_button.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
@@ -52,6 +53,9 @@ void main() {
           phoneDialerProvider.overrideWithValue(dialer),
           mapNavigatorProvider.overrideWithValue(navigator),
           batteryGuardProvider.overrideWithValue(battery),
+          // Not supported, so these exercise the Google Maps hand-off.
+          // In-app guidance has its own screen and its own tests.
+          navigationSessionProvider.overrideWithValue(FakeNavigationSession()),
         ],
         child: MaterialApp(
           theme: AppTheme.light(),

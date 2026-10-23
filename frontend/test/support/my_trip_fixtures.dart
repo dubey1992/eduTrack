@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
+
 import 'package:dio/dio.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/models/location_point.dart';
 import 'package:edutrack_app/features/my_trip/data/models/trip_mark.dart';
 import 'package:edutrack_app/features/my_trip/data/battery_guard.dart';
 import 'package:edutrack_app/features/my_trip/data/map_navigator.dart';
+import 'package:edutrack_app/features/my_trip/data/navigation_session.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
@@ -367,6 +370,37 @@ class FakeBatteryGuard implements BatteryGuard {
     if (grantsWhenAsked) exempt = true;
     return exempt;
   }
+}
+
+/// Guidance without Google. Not supported by default, which is both the
+/// safe assumption and what every phone does until the school's key has
+/// the Navigation SDK enabled.
+class FakeNavigationSession implements NavigationSession {
+  FakeNavigationSession({this.supported = false, this.outcome = NavigationOutcome.guiding});
+
+  bool supported;
+  NavigationOutcome outcome;
+  int stops = 0;
+  final List<String> guidedTo = [];
+
+  @override
+  Future<bool> isSupported() async => supported;
+
+  @override
+  Future<NavigationOutcome> guideTo({
+    required double latitude,
+    required double longitude,
+    required String stopName,
+  }) async {
+    guidedTo.add('$stopName:$latitude,$longitude');
+    return outcome;
+  }
+
+  @override
+  Future<void> stop() async => stops++;
+
+  @override
+  Widget view() => const Placeholder(key: Key('nav-view'));
 }
 
 /// Records where it was asked to navigate instead of leaving the app.

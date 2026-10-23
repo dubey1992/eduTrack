@@ -9,6 +9,7 @@ import '../../features/auth/presentation/driver_splash_screen.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/my_trip/presentation/battery_help_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
+import '../../features/my_trip/presentation/navigate_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
@@ -43,6 +44,18 @@ import '../widgets/crew_frame.dart';
 /// fragment - a bus that never reaches the stop - which reads as the app
 /// stuttering rather than as a scene. The extra 80ms covers the first
 /// frame landing a moment after the route does.
+/// Every address a signed-in crew member may be at.
+///
+/// A list rather than two comparisons, because the two comparisons were a
+/// bug: the redirect sent *everything else* back to the trip, so Battery
+/// help and Navigate were pushed and bounced straight off again. Both had
+/// passing tests - of the screens, and of the buttons that open them -
+/// because neither test went through this router (docs/driver-app.md).
+///
+/// Anything added to the router below belongs here too, or it is
+/// unreachable on a phone however well it works on its own.
+const crewPaths = {'/my-trip', '/profile', '/battery', '/navigate'};
+
 const openingBeat = Duration(milliseconds: 2600);
 
 /// Completes when that beat is over. Read by the redirect, so the router
@@ -79,6 +92,21 @@ final driverRouterProvider = Provider<GoRouter>((ref) {
       // page rather than a dialog: it is a list of steps somebody follows
       // with the phone in the other hand (docs/driver-app.md, D4.4).
       GoRoute(path: '/battery', builder: (context, state) => const BatteryHelpScreen()),
+      // Guidance to one stop, carried in `extra` rather than the path: it
+      // is three numbers and a name, not a resource anybody deep-links to
+      // (docs/driver-app.md, D7).
+      GoRoute(
+        path: '/navigate',
+        builder: (context, state) {
+          final destination = state.extra;
+
+          // Nothing reaches this without a stop, but a crash on a bus is
+          // not the way to find out otherwise.
+          if (destination is! NavigateTo) return const CrewFrame(place: CrewPlace.trip, child: MyTripScreen());
+
+          return NavigateScreen(destination: destination);
+        },
+      ),
       GoRoute(path: '/maintenance', builder: (context, state) => const MaintenanceScreen()),
       // Somebody who is signed in but is not bus crew. Rare - this build
       // only offers the crew's sign-in - but a session restored from an
@@ -115,8 +143,9 @@ final driverRouterProvider = Provider<GoRouter>((ref) {
         return location == '/not-crew' ? null : '/not-crew';
       }
 
-      // Signed in, and crew: the trip, or their own profile.
-      return location == '/my-trip' || location == '/profile' ? null : '/my-trip';
+      // Signed in, and crew: the trip, their own profile, and the two
+      // screens reached from them.
+      return crewPaths.contains(location) ? null : '/my-trip';
     },
   );
 });

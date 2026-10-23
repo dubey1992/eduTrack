@@ -69,6 +69,7 @@ dependencies:
   # The web build needs the Maps JavaScript API loaded before a map is
   # created; app_map.dart does that at runtime with the key the server
   # hands out, so no key is ever written into the build.
+  google_navigation_flutter: 0.11.2
   google_maps_flutter: ^2.9.0
 
 dev_dependencies:

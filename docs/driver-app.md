@@ -622,6 +622,61 @@ looking at.*
 
 ---
 
+### Phase D7 — Guidance inside the app *(built 2026-10-23, blocked on a key)*
+
+*D5.1 handed the stop to Google Maps and said so was enough. Asked to do
+the other thing, here is what it actually took.*
+
+**D7.1 — The SDK in the build**
+- `google_navigation_flutter` 0.11.2, Google's own plugin. Four separate
+  toolchain fights, none of them about navigation:
+  - the Navigation SDK **contains** the Maps SDK, so a build with both it
+    and `google_maps_flutter` dies in several hundred "Duplicate class
+    com.google.android.gms.maps..." errors. The standalone Maps library is
+    excluded, and the navigation artifact provides those classes;
+  - it needs core-library desugaring, in the `_nio` flavour, because it uses
+    `java.nio.file` and this app's floor is Android 7;
+  - version 0.6.4 pulled three Cronet artifacts sharing one namespace, which
+    AGP 9 rejects outright. 0.11.2 does not;
+  - and it is compiled against android-35 while `flutter_plugin_android_lifecycle`
+    demands 36 of everything that depends on it. Neither is ours to fix, so
+    the compile-time check is switched off in `gradle.properties`. minSdk —
+    which decides which phones run the app — is untouched.
+- The web portal still builds: everything SDK-shaped is behind the same
+  conditional import the foreground service uses.
+
+**D7.2 — The screen, and its way out**
+- `/navigate` shows guidance for one stop. Every path through it assumes
+  the SDK can refuse, because it can: an unauthorised key, a driver who
+  declines Google's terms, no route. Each says so in one sentence and
+  offers **Open Google Maps** — the D5.1 hand-off, kept precisely so this
+  phase could not strand anybody.
+- **Deadlines on every SDK call.** Found on the device: with a key the
+  Navigation SDK is not enabled for, the SDK logs "Authorization failure"
+  and then never answers. Unbounded, that is a driver holding a spinner
+  with a run to start. Ten seconds for each call, thirty for Google's
+  consent dialog.
+
+**D7.3 — What it is waiting for** *(needs the school's Google Cloud project)*
+- Verified on the emulator: the SDK initialises, reaches Google and is
+  refused — `Google Navigation SDK: Authorization failure` — and the app
+  falls back to Google Maps exactly as designed.
+- To switch it on: enable **Navigation SDK for Android** on the project that
+  owns the Maps key, with billing; add the build's signing certificate
+  SHA-1 to that key's Android restrictions (the debug certificate too, for
+  testing); and know the cost — billed per destination in a route
+  calculation, first 1,000 a month free.
+
+**And a bug this phase found in the last one**
+- The driver router sent every address that was not the trip or the profile
+  straight back to the trip. **Battery help (D4.4) had therefore never
+  opened on a phone**, and nor would Navigate. Both had passing tests — of
+  the screens, and of the buttons that open them — because neither went
+  through the router. The reachable set is now one list beside the routes,
+  and two tests push through the real router to land on each.
+
+---
+
 ### Phase D6 — Release
 
 **D6.1 — A privacy policy that exists** *(drafted 2026-10-23 — needs your review)*

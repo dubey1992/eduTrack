@@ -57,6 +57,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // The Navigation SDK uses java.time, which Android 7 does not have.
+        // Required for any minSdk below 34 (docs/driver-app.md, D7).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -105,6 +108,21 @@ android {
             }
         }
     }
+}
+
+// The Navigation SDK *contains* the Maps SDK rather than depending on it,
+// so a build carrying both google_maps_flutter and the Navigation SDK fails
+// with several hundred "Duplicate class com.google.android.gms.maps..."
+// errors. Google's own answer is to drop the standalone Maps library and
+// let the navigation artifact provide those classes (docs/driver-app.md).
+configurations.all {
+    exclude(group = "com.google.android.gms", module = "play-services-maps")
+}
+
+dependencies {
+    // The _nio flavour, not the plain one: the Navigation SDK uses
+    // java.nio.file, and AGP refuses the build without it.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
 }
 
 kotlin {
