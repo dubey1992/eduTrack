@@ -234,6 +234,16 @@ touch "$REPO/backend-python/tmp/restart.txt"
 cd "$REPO" || exit 1
 step "self check" "$VENV_BIN/python" scripts/check_wsgi.py
 
+# Switching the API to CGI is asked for by a marker file, not by a flag in
+# this script: a marker is a thing somebody puts there on purpose, once,
+# through the file manager - and it is consumed here, so the rewrite of a
+# live .htaccess cannot happen twice by accident. The installer has its own
+# self-test and refuses to touch .htaccess until the CGI script answers 200.
+if [ -f "$HOME_DIR/edutrack-install-cgi" ] && [ ! -f "$HOME_DIR/edutrack-cgi-installed" ]; then
+  rm -f "$HOME_DIR/edutrack-install-cgi"
+  step "install cgi fallback" /bin/bash "$REPO/scripts/install-cgi-fallback.sh"
+fi
+
 if [ "$FAILURES" -eq 0 ]; then
   echo "== done ==" >> "$LOG"
   # A marker that says the install finished, so a repeating cron can be
