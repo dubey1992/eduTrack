@@ -117,7 +117,14 @@ Map<String, dynamic> tripJson({
 };
 
 /// GET /transport/my-routes with one route and today's trips as given.
-Map<String, dynamic> myRoutesJson({Map<String, dynamic>? pickup, Map<String, dynamic>? drop}) => {
+///
+/// [myLicenceExpiry] is `yyyy-MM-dd`, and only ever set for a driver reading
+/// their own - the server sends null to everybody else.
+Map<String, dynamic> myRoutesJson({
+  Map<String, dynamic>? pickup,
+  Map<String, dynamic>? drop,
+  String? myLicenceExpiry,
+}) => {
   'date': '2026-09-19',
   'routes': [
     {
@@ -132,6 +139,7 @@ Map<String, dynamic> myRoutesJson({Map<String, dynamic>? pickup, Map<String, dyn
       'attendant_name': 'Asha Attendant',
       'stops_count': 2,
       'students_count': 3,
+      'my_licence_expiry': myLicenceExpiry,
       'today': {'pickup': pickup, 'drop': drop},
     },
   ],

@@ -193,6 +193,50 @@ void main() {
     });
   });
 
+  group("the driver's own licence (docs/driver-app.md, D3.4)", () {
+    /// `yyyy-MM-dd`, [days] from today - the warning counts from now, so
+    /// the dates have to as well.
+    String inDays(int days) {
+      final date = DateTime.now().add(Duration(days: days));
+      return '${date.year.toString().padLeft(4, '0')}-'
+          '${date.month.toString().padLeft(2, '0')}-'
+          '${date.day.toString().padLeft(2, '0')}';
+    }
+
+    testWidgets('a licence running out soon is said on the duty screen', (tester) async {
+      api.routes = myRoutesJson(myLicenceExpiry: inDays(12));
+      await pumpScreen(tester);
+
+      expect(find.textContaining('expires in 12 days'), findsOneWidget);
+      expect(find.textContaining('Tell your school office'), findsOneWidget);
+    });
+
+    testWidgets('one that has already run out says so, and still lets the run start', (tester) async {
+      api.routes = myRoutesJson(myLicenceExpiry: inDays(-3));
+      await pumpScreen(tester);
+
+      expect(find.textContaining('expired on'), findsOneWidget);
+      expect(
+        tester.widget<ButtonStyleButton>(find.byKey(const Key('start-pickup'))).enabled,
+        isTrue,
+        reason: 'a lapsed licence is a conversation with the office, not children left at a stop',
+      );
+    });
+
+    testWidgets('one that is months away is not worth saying yet', (tester) async {
+      api.routes = myRoutesJson(myLicenceExpiry: inDays(90));
+      await pumpScreen(tester);
+
+      expect(find.textContaining('driving licence'), findsNothing);
+    });
+
+    testWidgets('and an attendant, who has no licence here, is told nothing', (tester) async {
+      await pumpScreen(tester);
+
+      expect(find.textContaining('driving licence'), findsNothing);
+    });
+  });
+
   group('running a trip', () {
     testWidgets('a child the other crew member marked says who, and when', (tester) async {
       // Either of the two on the bus may have marked a child; the other

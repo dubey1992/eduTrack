@@ -971,3 +971,30 @@ class ADriverWhoIsAlsoStaff(AttendantTest):
         }, format="json")
 
         self.assertEqual(403, response.status_code)
+
+    def test_the_driver_is_told_when_their_own_licence_runs_out(self):
+        """The one thing on the duty screen the crew must act on themselves:
+        a bus whose driver's licence has lapsed cannot legally run, and the
+        office finds out on the morning it matters (docs/driver-app.md)."""
+        self.driver.licence_expiry = dt.date(2026, 9, 20)
+        self.driver.save(update_fields=["licence_expiry"])
+
+        response = self.as_user(self.driver_user).get("/api/v1/transport/my-routes")
+
+        self.assertEqual("2026-09-20", response.data["routes"][0]["my_licence_expiry"])
+
+    def test_but_the_attendant_never_reads_a_colleagues_papers(self):
+        self.driver.licence_expiry = dt.date(2026, 9, 20)
+        self.driver.save(update_fields=["licence_expiry"])
+
+        response = self.as_user(self.attendant).get("/api/v1/transport/my-routes")
+
+        self.assertIsNone(response.data["routes"][0]["my_licence_expiry"])
+
+    def test_a_driver_with_no_expiry_on_record_is_warned_about_nothing(self):
+        self.driver.licence_expiry = None
+        self.driver.save(update_fields=["licence_expiry"])
+
+        response = self.as_user(self.driver_user).get("/api/v1/transport/my-routes")
+
+        self.assertIsNone(response.data["routes"][0]["my_licence_expiry"])

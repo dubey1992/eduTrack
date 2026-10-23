@@ -215,7 +215,10 @@ def my_routes(request) -> Response:
     today = SchoolClock.for_user(actor).now().date()
     mine = crew_routes(actor)
     routes = (
+        # driver__staff_profile: the licence warning below asks whether this
+        # route's driver is the person holding the phone, once per route.
         TransportRouteService.with_counts(TransportRoute.objects.filter(mine))
+        .select_related("driver__staff_profile")
         .order_by("name", "id")
     )
     trips = {
@@ -231,6 +234,16 @@ def my_routes(request) -> Response:
         "routes": [
             {
                 **transport_route_resource(route),
+                # Only ever their own, and only to the driver it belongs to:
+                # a licence that is about to run out is the one thing on this
+                # screen the crew must act on themselves, and an attendant
+                # has no business reading a colleague's papers
+                # (docs/driver-app.md, D3.4).
+                "my_licence_expiry": (
+                    route.driver.licence_expiry.isoformat()
+                    if _is_my_licence(actor, route) and route.driver.licence_expiry
+                    else None
+                ),
                 "today": {
                     direction: (
                         None if (route.pk, direction) not in trips
@@ -242,3 +255,10 @@ def my_routes(request) -> Response:
             for route in routes
         ],
     })
+
+
+def _is_my_licence(actor, route) -> bool:
+    """Whether this route's driver is the person holding the phone."""
+    driver = route.driver if route.driver_id else None
+
+    return driver is not None and driver.staff_profile_id is not None and driver.staff_profile.user_id == actor.id

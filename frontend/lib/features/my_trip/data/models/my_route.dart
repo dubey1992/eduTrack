@@ -29,6 +29,7 @@ class MyRoute {
     required this.vehicleName,
     required this.vehicleRegistrationNumber,
     required this.driverName,
+    required this.myLicenceExpiry,
     required this.stopsCount,
     required this.studentsCount,
     required this.pickup,
@@ -47,6 +48,7 @@ class MyRoute {
       vehicleName: json['vehicle_name'] as String?,
       vehicleRegistrationNumber: json['vehicle_registration_number'] as String?,
       driverName: json['driver_name'] as String?,
+      myLicenceExpiry: DateTime.tryParse(json['my_licence_expiry'] as String? ?? ''),
       stopsCount: json['stops_count'] as int? ?? 0,
       studentsCount: json['students_count'] as int? ?? 0,
       pickup: pickup is Map<String, dynamic> ? tripFromJson(pickup) : null,
@@ -60,6 +62,12 @@ class MyRoute {
   final String? vehicleName;
   final String? vehicleRegistrationNumber;
   final String? driverName;
+
+  /// When the licence of the person holding this phone runs out, if they are
+  /// this route's driver. Null for the attendant, and for a driver with no
+  /// expiry on record - the server sends a colleague's date to nobody.
+  final DateTime? myLicenceExpiry;
+
   final int stopsCount;
   final int studentsCount;
 

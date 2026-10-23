@@ -296,14 +296,18 @@ in Flutter, when that screen is built.
 > copy stops receiving updates. This is the single most unrecoverable file
 > in the project.
 
-**D1.3 — Maps on Android** *(needs your key)*
+**D1.3 — Maps on Android** *(settled 2026-10-23)*
 - `com.google.android.geo.API_KEY` meta-data in the manifest, read from
-  `local.properties`/Gradle so no key enters the repo.
+  `local.properties`/Gradle so no key enters the repo. Verified resolved in
+  a built APK's merged manifest — checked by length, never printed.
 - Key restricted to the package name + the upload certificate's SHA-1.
-- The existing "no key configured" degradation already covers a missing key;
-  confirm it on device rather than assume it.
-- *Done when:* a route's map draws on a phone, and still degrades cleanly
-  with the key removed.
+- *And then the slice turned out to be smaller than it looked:* **no crew
+  screen draws a map.** The duty screen is a list, the trip screen is a
+  roster, and D5.1 hands navigation to Google Maps by intent rather than
+  drawing a route in-app — which is the decision that makes the Navigation
+  SDK and its licence unnecessary. So there is no map to confirm on a
+  phone; the key is wired for the day one appears, and the portal that does
+  draw maps is unaffected.
 
 **D1.5 — Only the crew's screens** *(done 2026-10-22; should have been first)*
 - `lib/main_driver.dart` and `core/routing/driver_router.dart`: the Android
@@ -449,12 +453,22 @@ tapping.
 - Tests, the important ones: a driver reaches their own route's trips and
   **not** another route's; an unlinked driver reaches nothing.
 
-**D3.4 — Today's duty**
+**D3.4 — Today's duty** *(done 2026-10-23)*
 - `GET transport/my-routes` answers for a driver, with vehicle, stop times
-  and rider counts.
-- The duty screen: today's trips, one Start button, the stop list, and the
-  licence-expiry warning when it is within 30 days.
-- Widget tests: nothing today, one trip, both trips, a trip already running.
+  and rider counts — shipped with D3.3, since the route reaching its driver
+  and the driver seeing it are the same sentence.
+- The duty screen: today's trips, one Start button, the stop list.
+- **The licence warning, and who may read it.** A driver is told when their
+  own licence runs out, from 30 days before, and told plainly once it has.
+  The date is sent *only* to the driver it belongs to — an attendant gets
+  null, because a colleague's papers are not theirs to read, and the office
+  already has them on the Drivers screen.
+- It never blocks a trip. A lapsed licence is a conversation with the
+  school, not a reason to strand children at a stop; the warning says who
+  to tell.
+- Tests: nothing today, one trip, both trips, a trip already running, no
+  route, no signal — and, new here, expiring / expired / months-away /
+  not-my-licence, with ALLOW and DENY on the server.
 
 ---
 

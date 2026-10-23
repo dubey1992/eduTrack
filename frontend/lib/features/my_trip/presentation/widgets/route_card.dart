@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/date_format.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../transport/data/models/transport_trip.dart';
 import '../../application/my_routes_notifier.dart';
@@ -82,6 +83,10 @@ class _RouteCardState extends ConsumerState<RouteCard> {
               '${route.studentsCount} ${route.studentsCount == 1 ? 'student' : 'students'}',
               style: TextStyle(color: muted),
             ),
+            if (route.myLicenceExpiry != null) ...[
+              const SizedBox(height: 12),
+              _LicenceWarning(expiry: route.myLicenceExpiry!),
+            ],
             const SizedBox(height: 16),
             for (final direction in TripDirection.values) ...[
               _TripTile(
@@ -100,6 +105,69 @@ class _RouteCardState extends ConsumerState<RouteCard> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The driver's own licence, when it is close enough to matter.
+///
+/// Shown on the duty screen rather than left to the office, because the
+/// driver is the only person who can renew it and the office finds out on
+/// the morning the bus cannot legally run (docs/driver-app.md, D3.4). It
+/// never blocks a trip: a lapsed licence is a conversation with the school,
+/// not a reason to strand children at a stop.
+class _LicenceWarning extends StatelessWidget {
+  const _LicenceWarning({required this.expiry});
+
+  /// How long before it runs out the driver starts being told.
+  static const notice = Duration(days: 30);
+
+  final DateTime expiry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final today = DateTime.now();
+    final days = DateTime(
+      expiry.year,
+      expiry.month,
+      expiry.day,
+    ).difference(DateTime(today.year, today.month, today.day)).inDays;
+
+    if (days > notice.inDays) return const SizedBox.shrink();
+
+    final lapsed = days < 0;
+    final message = switch (days) {
+      < 0 => 'Your driving licence expired on ${formatDate(expiry)}. Tell your school office.',
+      0 => 'Your driving licence expires today. Tell your school office.',
+      1 => 'Your driving licence expires tomorrow. Tell your school office.',
+      _ => 'Your driving licence expires in $days days, on ${formatDate(expiry)}. Tell your school office.',
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: lapsed ? colors.dangerContainer : colors.warningContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            lapsed ? Icons.error_outline : Icons.warning_amber_outlined,
+            size: 20,
+            color: lapsed ? colors.onDangerContainer : colors.onWarningContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: lapsed ? colors.onDangerContainer : colors.onWarningContainer),
+            ),
+          ),
+        ],
       ),
     );
   }
