@@ -63,14 +63,24 @@ class AuthRepository {
       if (user.role == UserRole.busAttendant) await _attendantStorage?.saveSession(json);
       return user;
     } on DioException catch (e) {
-      // A bus loses signal. An attendant opening the app there must still
-      // reach the trip kept on the phone (docs/maps.md, "Offline"), so with
-      // no answer at all their last session stands in until one comes.
-      if (e.response == null) {
+      // Only the server saying "this is not a session" ends one. A bus
+      // loses signal, a server has a bad morning, a proxy answers 502, a
+      // maintenance window answers 503 - none of those mean the crew signed
+      // out, and throwing the token away for them leaves a driver in a yard
+      // with no way back in (docs/driver-app.md).
+      if (e.response?.statusCode != 401) {
+        // The trip kept on the phone is still reachable: their last session
+        // stands in until a real answer comes (docs/maps.md, "Offline").
         final cached = await _attendantStorage?.readSession();
         if (cached != null) return AuthenticatedUser.fromJson(cached);
+
+        // Nothing cached, so there is nobody to be - but the token is kept,
+        // and the next launch asks again.
+        return null;
       }
+
       await _tokenStorage.clearToken();
+      await _attendantStorage?.clearSession();
       return null;
     }
   }

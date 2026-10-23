@@ -45,12 +45,6 @@ class SanctumTokenAuthentication(BaseAuthentication):
         if token is None:
             return None
 
-        # An expired session is gone for good: deleting it here keeps the
-        # list of signed-in devices honest without a clean-up job.
-        if tokens.has_expired(token):
-            token.delete()
-            return None
-
         # Sanctum's morph. Anything else in this column is a token for some
         # other kind of holder, and is not a user session.
         if token.tokenable_type != tokens.TOKENABLE_TYPE:
@@ -59,6 +53,16 @@ class SanctumTokenAuthentication(BaseAuthentication):
         user = User.objects.filter(pk=token.tokenable_id).select_related("school").first()
 
         if user is None:
+            return None
+
+        # Who holds it decides whether it lapses, so the lookup above comes
+        # first: the bus crew's session runs until they sign out
+        # (school/tokens.py, lapses).
+        #
+        # An expired session is gone for good: deleting it here keeps the
+        # list of signed-in devices honest without a clean-up job.
+        if tokens.has_expired(token, user):
+            token.delete()
             return None
 
         # A deactivated account keeps its tokens - deactivating does not

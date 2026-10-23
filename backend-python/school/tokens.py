@@ -36,6 +36,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from .fields import as_utc
+from .enums import UserRole
 from .models import PersonalAccessToken, User
 
 # Sanctum's own: 40 characters from its alphabet, which is what Str::random
@@ -137,12 +138,32 @@ def find(presented: str | None) -> PersonalAccessToken | None:
     return token if hmac.compare_digest(token.token or "", digest(secret)) else None
 
 
-def has_expired(token: PersonalAccessToken) -> bool:
+def lapses(holder: User | None) -> bool:
+    """Whether a session of this person's ends on its own.
+
+    **The bus crew's does not** (docs/driver-app.md). Everybody else works
+    at a desk and can sign in again in ten seconds; a driver is in a yard at
+    six in the morning, often with no signal, and a session that lapsed
+    overnight means a run that starts with nobody able to mark a child. The
+    passcode is on a registered device, so the phone is the second factor
+    whether the session is a day old or a year.
+
+    It is a real trade, and the answer to a lost phone is not a timer: an
+    admin revokes the device, which ends its sessions at once, and the
+    account can be locked. Those work in minutes; an idle timer works in
+    seven days.
+    """
+    return holder is None or holder.role != UserRole.BUS_ATTENDANT
+
+
+def has_expired(token: PersonalAccessToken, holder: User | None = None) -> bool:
     """Past its own expiry, idle too long, or simply too old.
 
     The last two are measured from the row's dates rather than trusting
     `expires_at`, so a token issued before Phase 21 - or by Laravel, which
-    leaves it null - ends on the same terms as any other.
+    leaves it null - ends on the same terms as any other. They do not apply
+    to the bus crew (see [lapses]); an expiry written on the row still does,
+    whoever holds it, because that is how a session is ended deliberately.
     """
     now = timezone.now()
 
@@ -153,6 +174,9 @@ def has_expired(token: PersonalAccessToken) -> bool:
     # while passing every test.
     if token.expires_at is not None and as_utc(token.expires_at) <= now:
         return True
+
+    if not lapses(holder):
+        return False
 
     began = as_utc(token.created_at) if token.created_at else None
     if began is not None and began + dt.timedelta(days=settings.SESSION_MAX_DAYS) <= now:
@@ -166,7 +190,7 @@ def sessions_of(user: User):
     """The user's live sessions, most recently used first."""
     rows = PersonalAccessToken.objects.filter(tokenable_type=TOKENABLE_TYPE, tokenable_id=user.id)
     return sorted(
-        (row for row in rows if not has_expired(row)),
+        (row for row in rows if not has_expired(row, user)),
         key=lambda row: as_utc(row.last_used_at or row.created_at),
         reverse=True,
     )

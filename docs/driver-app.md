@@ -580,6 +580,41 @@ profile simply cannot sign in — which is today's behaviour, unchanged.
 `attendant_user`. Now: if you are its attendant **or** its driver's staff
 member. One `OR`, in the policy that already exists.
 
+## The crew's session runs until they sign out
+
+*Decided 2026-10-23.* Everybody else's session lapses - seven days idle,
+thirty days absolute (docs/security.md, Phase 21). **The bus crew's does
+not.** A teacher at a desk can sign in again in ten seconds; a driver is in
+a yard at six in the morning, often with no signal, and a session that
+lapsed overnight means a run that starts with nobody able to mark a child.
+
+The second factor is unchanged: the passcode only works on a registered
+device, so the phone is the lock whether the session is a day old or a
+year. What ends a crew session is a deliberate act - signing out, an admin
+revoking the phone, the account being deactivated or locked. All of those
+still work, and they work in minutes; an idle timer works in seven days.
+
+Two things this also fixed on the phone, both of which threw a session away
+without anybody asking:
+
+- **A server having a bad morning signed the crew out.** Any error with a
+  response cleared the token - a 500, a proxy's 502, a maintenance 503.
+  Only a 401, the server saying "this is not a session", does now.
+- **An offline start with nothing cached cleared the token too**, which is
+  the worst possible moment for it: somebody who cannot reach the server
+  also cannot sign in again. The token is kept and the next launch asks
+  again.
+
+Checked on a phone with the network switched off entirely: the app opens
+signed in, shows the routes saved on the phone, and says *"No signal -
+showing your routes as last saved on this phone."*
+
+**The trade, stated plainly:** a lost phone stays signed in until somebody
+notices and revokes it. That is the right answer for a bus - a timer would
+not have shut out a thief inside seven days either - but it makes the
+admin's "sign this phone out" the thing that matters, and it should be easy
+to find when a crew member reports a lost handset.
+
 ## How the bus is actually crewed
 
 *Told to me, and it shapes the screen more than anything else here:*

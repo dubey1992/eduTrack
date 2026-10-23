@@ -61,11 +61,25 @@ void main() {
     expect(await tokens.readToken(), 'attendant-token');
   });
 
-  test('with no signal and nothing kept, nobody is signed in', () async {
+  test('with no signal and nothing kept, nobody is signed in - but the token survives', () async {
+    // The old rule threw the token away here, which is the worst possible
+    // moment for it: somebody who cannot reach the server also cannot sign
+    // in again. Now the next launch asks once more (docs/driver-app.md).
     final user = await repository(offlineError('/me')).restoreSession();
 
     expect(user, isNull);
-    expect(await tokens.readToken(), isNull);
+    expect(await tokens.readToken(), 'attendant-token');
+  });
+
+  test('a server having a bad morning does not sign anybody out', () async {
+    // 500, a proxy's 502, a maintenance 503: none of them mean the session
+    // ended, and only the server saying so does.
+    await repository(attendantUserJson()).restoreSession();
+
+    final user = await repository(apiError('/me', 503, 'UNAVAILABLE', 'Down for maintenance.')).restoreSession();
+
+    expect(user?.name, 'Asha Attendant');
+    expect(await tokens.readToken(), 'attendant-token');
   });
 
   test('a session the server refuses is not revived from the phone', () async {

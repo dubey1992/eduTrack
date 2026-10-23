@@ -234,6 +234,64 @@ class Sessions(SecurityTest):
 
         self.assertEqual(401, self.client_with(token).get("/api/v1/me").status_code)
 
+    def test_the_bus_crews_session_does_not_lapse_on_its_own(self):
+        """A driver is in a yard at six in the morning, often with no signal,
+        and a session that lapsed overnight means a run that starts with
+        nobody able to mark a child (docs/driver-app.md)."""
+        crew = factories.UserFactory(school=self.school, role=UserRole.BUS_ATTENDANT)
+        token = tokens.issue(crew)
+        PersonalAccessToken.objects.filter(pk=int(token.split("|")[0])).update(
+            expires_at=None,
+            created_at=timezone.now() - dt.timedelta(days=400),
+            last_used_at=timezone.now() - dt.timedelta(days=90),
+        )
+
+        self.assertEqual(200, self.client_with(token).get("/api/v1/me").status_code)
+
+    def test_and_is_still_there_afterwards(self):
+        """Not merely accepted: the row is not deleted on the way past, the
+        way an expired one is."""
+        crew = factories.UserFactory(school=self.school, role=UserRole.BUS_ATTENDANT)
+        token = tokens.issue(crew)
+        row_id = int(token.split("|")[0])
+        PersonalAccessToken.objects.filter(pk=row_id).update(
+            expires_at=None, last_used_at=timezone.now() - dt.timedelta(days=90),
+        )
+
+        self.client_with(token).get("/api/v1/me")
+
+        self.assertTrue(PersonalAccessToken.objects.filter(pk=row_id).exists())
+
+    def test_but_an_expiry_written_on_the_row_still_ends_it(self):
+        """How a session is ended deliberately - signing out elsewhere, an
+        admin revoking the phone - which must keep working for the crew too,
+        or a lost phone could not be shut out at all."""
+        crew = factories.UserFactory(school=self.school, role=UserRole.BUS_ATTENDANT)
+        token = tokens.issue(crew)
+        PersonalAccessToken.objects.filter(pk=int(token.split("|")[0])).update(
+            expires_at=timezone.now() - dt.timedelta(minutes=1),
+        )
+
+        self.assertEqual(401, self.client_with(token).get("/api/v1/me").status_code)
+
+    def test_and_a_deactivated_crew_account_is_still_turned_away(self):
+        crew = factories.UserFactory(school=self.school, role=UserRole.BUS_ATTENDANT)
+        token = tokens.issue(crew)
+        crew.status = "inactive"
+        crew.save(update_fields=["status"])
+
+        self.assertEqual(401, self.client_with(token).get("/api/v1/me").status_code)
+
+    def test_nobody_else_gets_the_same_licence(self):
+        """The exception is the crew's, not everybody's: a teacher at a desk
+        can sign in again in ten seconds."""
+        token = tokens.issue(self.teacher)
+        PersonalAccessToken.objects.filter(pk=int(token.split("|")[0])).update(
+            expires_at=None, last_used_at=timezone.now() - dt.timedelta(days=7, minutes=1),
+        )
+
+        self.assertEqual(401, self.client_with(token).get("/api/v1/me").status_code)
+
     def test_a_laravel_token_with_no_expiry_lives_by_the_same_rules(self):
         token = tokens.issue(self.teacher)
         PersonalAccessToken.objects.filter(pk=int(token.split("|")[0])).update(
