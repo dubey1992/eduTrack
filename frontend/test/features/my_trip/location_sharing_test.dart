@@ -1,6 +1,7 @@
 import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/features/my_trip/application/location_sharing_notifier.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
+import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,11 +15,13 @@ void main() {
   late FakeMyTripApi api;
   late InMemoryKeyValueStore store;
   late FakeLocationSource location;
+  late FakeTripService service;
 
   setUp(() {
     api = FakeMyTripApi();
     store = InMemoryKeyValueStore();
     location = FakeLocationSource();
+    service = FakeTripService();
   });
 
   /// A phone with the trip screen open: the provider is watched, as the
@@ -29,6 +32,7 @@ void main() {
         myTripApiProvider.overrideWithValue(api),
         keyValueStoreProvider.overrideWithValue(store),
         locationSourceProvider.overrideWithValue(location),
+        tripServiceProvider.overrideWithValue(service),
       ],
     );
     container.listen(locationSharingProvider(55), (_, _) {});
@@ -138,5 +142,38 @@ void main() {
     final taken = location.positionsTaken;
     await tester.pump(const Duration(seconds: 45));
     expect(location.positionsTaken, taken);
+  });
+
+  group('keeping the phone reporting with the screen off', () {
+    // Android stops a backgrounded app's timers, and a driver's phone sits
+    // in a cradle for most of a run. Without the service the bus vanishes
+    // from the office's map a minute in (docs/driver-app.md, D4).
+    test('sharing starts the service, and says what it is for', () async {
+      final container = openTrip();
+      await container.read(locationSharingProvider(55).notifier).setEnabled(true);
+
+      expect(service.running, isTrue);
+      expect(service.title, 'Trip in progress');
+    });
+
+    test('turning sharing off stops it, so the notification does not outlive it', () async {
+      final container = openTrip();
+      final notifier = container.read(locationSharingProvider(55).notifier);
+      await notifier.setEnabled(true);
+
+      await notifier.setEnabled(false);
+
+      expect(service.running, isFalse);
+      expect(service.stops, greaterThan(0));
+    });
+
+    test('and a refused permission never leaves it running', () async {
+      location.access = LocationAccess.denied;
+      final container = openTrip();
+
+      await container.read(locationSharingProvider(55).notifier).setEnabled(true);
+
+      expect(service.running, isFalse);
+    });
   });
 }

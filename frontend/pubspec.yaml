@@ -55,6 +55,13 @@ dependencies:
   # established plugin for both (the web build uses the browser's
   # Geolocation API through package:web instead - see location_source.dart).
   geolocator: ^14.0.3
+  # A trip keeps reporting its position with the phone in a cradle and the
+  # screen off. Dart timers stop when Android backgrounds the app, and
+  # Flutter has no API for a foreground service, so the only alternatives
+  # were this package or hand-written Kotlin plus an isolate - more platform
+  # code to own, and more ways to be subtly wrong across OEMs.
+  # Pinned: a service that keeps a bus visible is not a thing to float.
+  flutter_foreground_task: 11.0.3
   # Schools, routes, stops and running trips on a map (docs/maps.md).
   # Google's own plugin, and the only one that draws the same map in the
   # Android app and the web build from one widget - CLAUDE.md's rule on

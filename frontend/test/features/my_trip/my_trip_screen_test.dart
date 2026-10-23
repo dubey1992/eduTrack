@@ -2,6 +2,7 @@ import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/core/widgets/status_badge.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
+import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/my_trip/presentation/my_trip_screen.dart';
@@ -39,6 +40,7 @@ void main() {
           myTripApiProvider.overrideWithValue(api),
           keyValueStoreProvider.overrideWithValue(store),
           locationSourceProvider.overrideWithValue(location),
+          tripServiceProvider.overrideWithValue(FakeTripService()),
           phoneDialerProvider.overrideWithValue(dialer),
         ],
         child: MaterialApp(

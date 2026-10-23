@@ -463,16 +463,24 @@ tapping.
 *The riskiest phase, and the one that decides whether the live map is worth
 looking at.*
 
-**D4.1 — The foreground service**
+**D4.1 — The foreground service** *(built 2026-10-23)*
 - Android foreground service, `foregroundServiceType="location"`, started
   while the app is open and stopped when the trip ends.
 - Permissions: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`,
   `POST_NOTIFICATIONS`. **Not** `ACCESS_BACKGROUND_LOCATION`, which would
-  pull in Play's background-location review.
-- A persistent notification that says the trip is sharing its position, and
-  taps back into the trip.
-- *Done when:* a trip keeps reporting with the screen off and the phone in a
-  pocket, verified on a real device, not an emulator.
+  pull in Play's background-location review — a declaration form, a demo
+  video and weeks of calendar time, for a service the app does not need.
+- A persistent notification that says the trip is sharing its position, on a
+  LOW-importance channel: it has to be there, but it is a statement, not an
+  interruption, and a driver does not need a sound every time.
+- Shaped so the web build never sees any of it: `TripService` with
+  `trip_service_io.dart` / `trip_service_web.dart` behind a conditional
+  import, so the portal keeps building and the notifier has one thing to
+  call. The notifier holds its service from `build()` rather than reading it
+  in `onDispose`, which Riverpod forbids.
+- *Still open:* the real check — a trip reporting with the screen off and the
+  phone in a pocket — wants a real device, not an emulator. Until then this
+  is built and tested, not proven.
 
 **D4.2 — The battery profile**
 - Distance-filtered updates (send on ~50m moved, and at least once a
@@ -480,10 +488,13 @@ looking at.*
 - *Done when:* a two-hour run costs a few hundred points rather than five
   hundred, measured.
 
-**D4.3 — Stale is said, not implied**
-- The office's live map says "last seen 14 minutes ago" rather than showing
-  a stale bus as current.
-- Tests: fresh, stale, and never-reported.
+**D4.3 — Stale is said, not implied** *(already built, verified 2026-10-23)*
+- The maps work (docs/maps.md, M3) delivered this before the driver app
+  existed, so there was nothing to write. The API answers `age_seconds` and
+  `is_stale`; the card reads "Last seen 14 minutes ago (stale)" and greys
+  itself; the bus pin switches to `MapPinColour.busStale` and its info
+  window carries the same sentence.
+- Checked rather than assumed, and left alone.
 
 **D4.4 — The phones drivers actually carry**
 - A help screen for the OEM battery managers that kill foreground services
@@ -684,6 +695,26 @@ and telling their guardians so.
 app: the trip they are running, and their own details. A bar with one entry
 is decoration; with twenty it is the office's sidebar, which is what this
 build exists not to be.
+
+## A tablet is a big phone, not a new app
+
+*Asked for 2026-10-23.* Some buses carry a tablet in the cradle rather than
+a phone, so the same APK has to look deliberate on a 10-inch screen. Two
+changes, and no second layout:
+
+- `android:resizeableActivity="true"`, so Android stops letter-boxing the
+  app and hands it the real window — including split screen and a desktop
+  window on Chromebooks.
+- The crew frame centres its content in a **640dp column**. A trip sheet is
+  a list of children's names; stretched across a tablet, each row's name
+  sits a hand's width from its buttons, which is how a driver taps the wrong
+  child. The bar and the app bar still span the screen, because those are
+  the window's furniture, not the content.
+
+There is no tablet layout, no `if (isTablet)`, and no second set of screens
+to keep in step — the column is the whole of it. A driver router test pins
+it: at 1600x2560 the trip screen is wider than a phone and no wider than
+640.
 
 ## How the bus is actually crewed
 

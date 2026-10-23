@@ -8,6 +8,7 @@ import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/presentation/attendant_login_screen.dart';
 import 'package:edutrack_app/features/auth/presentation/login_screen.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
+import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/main.dart';
 import 'package:flutter/material.dart';
@@ -253,6 +254,7 @@ void main() {
             ...overrides(),
             myTripApiProvider.overrideWithValue(FakeMyTripApi()),
             locationSourceProvider.overrideWithValue(FakeLocationSource(access: LocationAccess.denied)),
+            tripServiceProvider.overrideWithValue(FakeTripService()),
           ],
           child: const EduTrackApp(),
         ),

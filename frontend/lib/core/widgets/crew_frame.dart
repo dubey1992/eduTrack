@@ -49,7 +49,17 @@ class CrewFrame extends ConsumerWidget {
           ),
         ],
       ),
-      body: SafeArea(child: child),
+      // A tablet is a real place for this app - mounted in a bus, or the
+      // attendant's. Left to itself the trip screen stretches a child's
+      // name to one edge and the Boarded button to the other, which is
+      // harder to use than the phone it was designed for, not easier. So
+      // the content keeps a phone's column and sits in the middle; on a
+      // phone nothing changes, because the screen is narrower than this.
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: child),
+        ),
+      ),
       // Two destinations, which is the whole app. A bar with one entry is
       // decoration; with twenty it is the office's sidebar, which is what
       // this build exists not to be (docs/driver-app.md).

@@ -7,6 +7,7 @@ import 'package:edutrack_app/features/auth/presentation/attendant_login_screen.d
 import 'package:edutrack_app/features/auth/presentation/driver_landing_screen.dart';
 import 'package:edutrack_app/features/auth/presentation/driver_splash_screen.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
+import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/my_trip/presentation/my_trip_screen.dart';
@@ -38,6 +39,7 @@ void main() {
         myTripApiProvider.overrideWithValue(FakeMyTripApi()),
         keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
         locationSourceProvider.overrideWithValue(FakeLocationSource(access: LocationAccess.denied)),
+        tripServiceProvider.overrideWithValue(FakeTripService()),
         phoneDialerProvider.overrideWithValue(FakePhoneDialer()),
         profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
       ],
@@ -174,6 +176,25 @@ void main() {
       expect(find.byType(MyTripScreen), findsOneWidget);
     });
 
+    testWidgets('on a tablet the trip keeps a readable column instead of stretching', (tester) async {
+      // A tablet is a real place for this app - mounted in a bus, or the
+      // attendant's. Stretched edge to edge, a child's name sits at one
+      // side and the Boarded button at the other (docs/driver-app.md).
+      tester.view.physicalSize = const Size(1600, 2560);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(driverApp(FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.busAttendant))));
+      await tester.pump(openingBeat + const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+
+      final trip = tester.getSize(find.byType(MyTripScreen));
+      expect(trip.width, lessThanOrEqualTo(640));
+      // And it is not squeezed to a phone's width either.
+      expect(trip.width, greaterThan(400));
+    });
+
     testWidgets('and the bar offers those two and nothing else', (tester) async {
       await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.busAttendant)));
 
@@ -205,6 +226,7 @@ void main() {
           myTripApiProvider.overrideWithValue(FakeMyTripApi()),
           keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
           locationSourceProvider.overrideWithValue(FakeLocationSource(access: LocationAccess.denied)),
+          tripServiceProvider.overrideWithValue(FakeTripService()),
           phoneDialerProvider.overrideWithValue(FakePhoneDialer()),
           profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
           maintenanceProvider.overrideWith(_Down.new),

@@ -7,6 +7,7 @@ import '../../../core/errors/failure.dart';
 import '../data/location_source.dart';
 import '../data/models/location_point.dart';
 import '../data/my_trip_repository.dart';
+import '../data/trip_service.dart';
 import '../data/trip_offline_store.dart';
 
 class LocationSharingState {
@@ -53,12 +54,21 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
   static const tripEndedMessage = 'The trip is no longer running, so location sharing has stopped.';
 
   Timer? _timer;
+  late TripService _service;
   bool _busy = false;
   List<LocationPoint> _buffer = [];
 
   @override
   LocationSharingState build() {
-    ref.onDispose(() => _timer?.cancel());
+    // Held rather than read later: a provider cannot be read from inside
+    // onDispose, and _turnOff runs after this notifier is gone.
+    _service = ref.read(tripServiceProvider);
+
+    ref.onDispose(() {
+      _timer?.cancel();
+      // Leaving the screen ends the following, so it ends the notification.
+      unawaited(_service.stop());
+    });
     Future.microtask(_startIfWanted);
     return const LocationSharingState();
   }
@@ -101,12 +111,27 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
     state = const LocationSharingState(enabled: true);
     _timer?.cancel();
     _timer = Timer.periodic(interval, (_) => _tick());
+
+    // Android stops a backgrounded app's timers, and a driver's phone sits
+    // in a cradle with the screen off for most of a run. Without this the
+    // bus vanishes from the office's map a minute after the run starts
+    // (docs/driver-app.md, D4).
+    await _service.start(title: 'Trip in progress', body: "Sharing this bus's position with the school.");
+
+    // Android stops a backgrounded app's timers, and a driver's phone sits
+    // in a cradle with the screen off for most of a run. Without this the
+    // bus vanishes from the office's map a minute after the run starts
+    // (docs/driver-app.md, D4).
+
     await _tick();
   }
 
   void _turnOff({String? message}) {
     _timer?.cancel();
     _timer = null;
+    // Stopped whenever sharing is: the notification says the bus is being
+    // followed, so it must not outlive the following.
+    unawaited(_service.stop());
     if (ref.mounted) state = LocationSharingState(message: message);
   }
 

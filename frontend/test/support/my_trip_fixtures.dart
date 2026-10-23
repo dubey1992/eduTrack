@@ -3,6 +3,7 @@ import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/models/location_point.dart';
 import 'package:edutrack_app/features/my_trip/data/models/trip_mark.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
+import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_trip.dart';
 
@@ -309,5 +310,27 @@ class FakePhoneDialer implements PhoneDialer {
   Future<bool> dial(String number) async {
     dialled.add(number);
     return opens;
+  }
+}
+
+/// Stands in for the foreground service that keeps a trip reporting with
+/// the screen off. Records what it was asked to do, and does nothing.
+class FakeTripService implements TripService {
+  bool running = false;
+  int starts = 0;
+  int stops = 0;
+  String? title;
+
+  @override
+  Future<void> start({required String title, required String body}) async {
+    running = true;
+    starts += 1;
+    this.title = title;
+  }
+
+  @override
+  Future<void> stop() async {
+    running = false;
+    stops += 1;
   }
 }
