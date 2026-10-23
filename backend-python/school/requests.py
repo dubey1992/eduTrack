@@ -2282,6 +2282,11 @@ class DriverFields(serializers.Serializer):
     mobile = LaravelCharField("mobile", max_length=20, required=False, allow_null=True)
     licence_number = LaravelCharField("licence_number", max_length=50)
     licence_expiry = LaravelDateField("licence_expiry", required=False, allow_null=True)
+    # Which member of staff this driver is, where they are one. Optional,
+    # because a school records a driver long before that person has a login
+    # - and until it is set, they cannot sign in to the app at all
+    # (docs/driver-app.md, D3).
+    staff_profile_id = serializers.IntegerField(required=False, allow_null=True)
 
     def validate_mobile(self, value):
         if value is not None and not DRIVER_MOBILE.match(value):
@@ -2289,8 +2294,39 @@ class DriverFields(serializers.Serializer):
 
         return value
 
+    def driver_school(self):
+        """The school this driver belongs to - the one being created, or the
+        one already on the record."""
+        raise NotImplementedError
+
+    def validate_staff_profile_id(self, value):
+        if value is None:
+            return None
+
+        profile = StaffProfile.objects.select_related("user").filter(pk=value).first()
+
+        # Somebody else's employee is not a thing this school may name, and
+        # saying "no such staff member" rather than "not yours" keeps one
+        # school from learning another's ids by trying them.
+        if profile is None or profile.school_id != self.driver_school():
+            raise serializers.ValidationError(["No such staff member at this school."])
+
+        taken_by = Driver.objects.filter(staff_profile_id=value).exclude(pk=self.ignoring_driver()).first()
+
+        if taken_by is not None:
+            raise serializers.ValidationError([f"{profile.user.name} is already linked to the driver {taken_by.name}."])
+
+        return value
+
+    def ignoring_driver(self):
+        """The driver being edited, so its own link does not look taken."""
+        return None
+
 
 class StoreDriverRequest(DriverFields, ScopedSerializer):
+    def driver_school(self):
+        return self.resolved_school_id()
+
     def validate_licence_number(self, value):
         taken(Driver.objects.filter(school_id=self.resolved_school_id(), licence_number=value), "licence_number")
 
@@ -2309,6 +2345,12 @@ class UpdateDriverRequest(DriverFields, PartialForm):
     def __init__(self, *args, driver=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.driver = driver
+
+    def driver_school(self):
+        return self.driver.school_id
+
+    def ignoring_driver(self):
+        return self.driver.pk
 
     def validate_licence_number(self, value):
         taken(

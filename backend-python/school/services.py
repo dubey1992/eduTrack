@@ -2832,11 +2832,15 @@ class FleetService:
     model = None
     in_use = ""
     has_history = ""
+    # What the resource reads beyond the row itself. A list of forty drivers
+    # that walked to each one's staff member would be a hundred and twenty
+    # queries (CLAUDE.md rule 22).
+    related = ("school",)
 
     @classmethod
     def visible_to(cls, actor: User, filters: dict):
         records = SchoolScope.for_actor(actor).apply_to(
-            cls.model.objects.select_related("school"), filters.get("school_id")
+            cls.model.objects.select_related(*cls.related), filters.get("school_id")
         )
 
         if filters.get("status"):
@@ -2903,6 +2907,7 @@ class VehicleService(FleetService):
 
 class DriverService(FleetService):
     model = Driver
+    related = ("school", "staff_profile__user")
     foreign_key = "driver_id"
     in_use = "This driver is still assigned to a route. Remove them from the route first."
     has_history = "This driver has trip history and cannot be deleted. Deactivate them instead."

@@ -866,3 +866,96 @@ class BuildingARouteOnTheMap(TransportTestCase):
 
         self.assertEqual(201, response.status_code, response.data)
         self.assertEqual(0, TransportRoute.objects.filter(school_id=self.school.id).count())
+
+
+class LinkingADriverToAStaffMember(TransportTestCase):
+    """A driver is a licence record; a staff member is a person who can sign
+    in. Linking them is what lets a driver use the app, and what makes the
+    driver named on a trip the same person as the one holding the phone
+    (docs/driver-app.md, D3).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.ravi = factories.StaffProfileFactory(school=self.school)
+        self.driver = factories.DriverFactory(school=self.school, name="Sanjay Patel")
+
+    def link(self, driver, profile, user=None):
+        return self.as_user(user or self.admin).patch(
+            f"/api/v1/transport/drivers/{driver.id}",
+            {"staff_profile_id": None if profile is None else profile.id},
+            format="json",
+        )
+
+    def test_an_admin_says_which_member_of_staff_a_driver_is(self):
+        response = self.link(self.driver, self.ravi)
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual(self.ravi.id, response.data["staff_profile_id"])
+        self.assertEqual(self.ravi.user.name, response.data["staff_name"])
+
+    def test_a_driver_nobody_has_linked_says_so(self):
+        response = self.as_user(self.admin).get(f"/api/v1/transport/drivers/{self.driver.id}")
+
+        self.assertIsNone(response.data["staff_profile_id"])
+        self.assertIsNone(response.data["staff_name"])
+
+    def test_the_link_can_be_taken_off_again(self):
+        self.link(self.driver, self.ravi)
+
+        response = self.link(self.driver, None)
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertIsNone(response.data["staff_profile_id"])
+
+    def test_one_person_is_one_driver(self):
+        """Two records claiming the same employee would make "whose licence
+        expires on Friday" a question with two answers."""
+        self.link(self.driver, self.ravi)
+        second = factories.DriverFactory(school=self.school, name="Another Driver")
+
+        response = self.link(second, self.ravi)
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("already linked", self.errors(response)["staff_profile_id"][0])
+
+    def test_but_a_driver_may_keep_the_link_it_already_has(self):
+        """Editing a driver without changing who they are must not read as
+        a clash with itself."""
+        self.link(self.driver, self.ravi)
+
+        response = self.link(self.driver, self.ravi)
+
+        self.assertEqual(200, response.status_code, response.data)
+
+    def test_another_schools_staff_member_is_not_offered_or_accepted(self):
+        theirs = factories.StaffProfileFactory(school=self.elsewhere)
+
+        response = self.link(self.driver, theirs)
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("No such staff member", self.errors(response)["staff_profile_id"][0])
+
+    def test_a_driver_can_be_created_already_linked(self):
+        response = self.as_user(self.admin).post("/api/v1/transport/drivers", {
+            "school_id": self.school.id,
+            "name": "Imran Khan",
+            "licence_number": "DL-99-2026",
+            "staff_profile_id": self.ravi.id,
+        }, format="json")
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(self.ravi.id, response.data["staff_profile_id"])
+
+    def test_a_transport_manager_may_not_link_one(self):
+        """The fleet is the school's: a Transport Manager runs trips and
+        builds routes, but who a driver *is* is an identity decision, and
+        it stays with the admins who manage the records themselves."""
+        response = self.link(self.driver, self.ravi, user=self.manager)
+
+        self.assertEqual(403, response.status_code)
+
+    def test_a_teacher_may_not(self):
+        response = self.link(self.driver, self.ravi, user=self.teacher)
+
+        self.assertEqual(403, response.status_code)

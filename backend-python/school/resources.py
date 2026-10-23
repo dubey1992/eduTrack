@@ -553,6 +553,10 @@ def driver_resource(driver, route) -> dict:
             "mobile": driver.mobile,
             "licence_number": driver.licence_number,
             "licence_expiry": driver.licence_expiry.isoformat() if driver.licence_expiry else None,
+            # Who this driver is, where somebody has said. Null means they
+            # cannot sign in to the app (docs/driver-app.md).
+            "staff_profile_id": driver.staff_profile_id,
+            "staff_name": driver.staff_profile.user.name if driver.staff_profile_id else None,
         },
     )
 
