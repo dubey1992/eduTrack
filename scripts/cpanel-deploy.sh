@@ -70,9 +70,30 @@ cd "$REPO/backend-python" || exit 1
 echo "--- backup ---" >> "$LOG"
 "$VENV_BIN/python" manage.py dump_before_migrate >> "$LOG" 2>&1
 
+# `php` on PATH from cron is the CGI wrapper on this host, and a CGI
+# binary answers a command line with "Status: 500 Internal Server Error"
+# and an HTML content-type - which is exactly what the first deploy
+# logged, and is not a Laravel error at all. The CLI binary has to be
+# named explicitly, and its path differs per EasyApache build, so the
+# candidates are tried in turn and the choice is logged.
+echo "--- php ---" >> "$LOG"
+PHP_CLI=""
+for candidate in /usr/local/bin/php /opt/cpanel/ea-php83/root/usr/bin/php                  /opt/cpanel/ea-php82/root/usr/bin/php /opt/cpanel/ea-php81/root/usr/bin/php                  /usr/bin/php-cli /usr/bin/php; do
+  if [ -x "$candidate" ] && "$candidate" -v 2>/dev/null | head -1 | grep -qi "^PHP"; then
+    PHP_CLI="$candidate"
+    break
+  fi
+done
+
+if [ -z "$PHP_CLI" ]; then
+  echo "STOP: no PHP CLI binary found - the schema cannot be migrated" >> "$LOG"
+  exit 1
+fi
+echo "php: $PHP_CLI ($("$PHP_CLI" -r 'echo PHP_VERSION;' 2>/dev/null))" >> "$LOG"
+
 echo "--- migrate (the schema is Laravel's) ---" >> "$LOG"
 cd "$REPO/backend" || exit 1
-php artisan migrate --force >> "$LOG" 2>&1
+"$PHP_CLI" artisan migrate --force >> "$LOG" 2>&1
 
 # Safe to run again: an account that already exists is left untouched, so a
 # password its owner has since changed is never reset back.

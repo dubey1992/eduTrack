@@ -196,7 +196,12 @@ TEMPLATES = [
 # backends and there is no second place to keep the credentials in step.
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        # The stock backend everywhere, unless the environment names another.
+        # The one other is config.legacy_postgresql, which exists solely to
+        # lower Django's version floor for a production host still on
+        # PostgreSQL 10 - see that module, and delete the setting the day it
+        # is upgraded.
+        "ENGINE": os.environ.get("PG_ENGINE", "django.db.backends.postgresql"),
         "HOST": os.environ.get("PG_HOST", "127.0.0.1"),
         "PORT": os.environ.get("PG_PORT", "5433"),
         "NAME": os.environ.get("PG_DATABASE", "edutrack"),
