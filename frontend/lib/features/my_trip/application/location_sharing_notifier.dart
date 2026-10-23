@@ -118,11 +118,6 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
     // (docs/driver-app.md, D4).
     await _service.start(title: 'Trip in progress', body: "Sharing this bus's position with the school.");
 
-    // Android stops a backgrounded app's timers, and a driver's phone sits
-    // in a cradle with the screen off for most of a run. Without this the
-    // bus vanishes from the office's map a minute after the run starts
-    // (docs/driver-app.md, D4).
-
     await _tick();
   }
 

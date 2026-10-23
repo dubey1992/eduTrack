@@ -478,9 +478,24 @@ looking at.*
   import, so the portal keeps building and the notifier has one thing to
   call. The notifier holds its service from `build()` rather than reading it
   in `onDispose`, which Riverpod forbids.
-- *Still open:* the real check — a trip reporting with the screen off and the
-  phone in a pocket — wants a real device, not an emulator. Until then this
-  is built and tested, not proven.
+- **Two things the plugin does not do for you**, both found by looking at
+  `dumpsys` rather than at the app, which showed nothing wrong:
+  - The plugin ships the service class but declares it in *no* manifest —
+    only the app knows its `foregroundServiceType`, and from Android 14 a
+    service started without the right one is refused. Android's answer was
+    one line in logcat: *"Unable to start service ... not found"*.
+  - From Android 13 the notification needs permission, and the notification
+    *is* the foreground service — refuse it and nothing starts. We now ask
+    the moment the driver switches sharing on, which is when the reason for
+    asking is on the screen behind the prompt.
+- *Verified 2026-10-23, screen off:* `isForeground=true`, type `0x8`
+  (location), channel `trip_in_progress`; the shade reads "Trip in progress
+  - Sharing this bus's position with the school." under Silent. With the
+  device asleep the trip posted a position every 15s for 90s, and ending the
+  trip took the service and its notification away with it.
+- *Still open:* that was an emulator. The phones that kill foreground
+  services are Xiaomi, Oppo and Vivo, which is D4.4's whole subject — so the
+  real-phone check belongs there rather than being claimed here.
 
 **D4.2 — The battery profile**
 - Distance-filtered updates (send on ~50m moved, and at least once a

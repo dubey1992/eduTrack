@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 /// Keeps the app alive while a trip is sharing its position.
@@ -36,7 +38,24 @@ Future<void> start({required String title, required String body}) async {
     return;
   }
 
-  await FlutterForegroundTask.startService(notificationTitle: title, notificationText: body);
+  // From Android 13 the notification needs permission, and the notification
+  // *is* the foreground service: refuse it and the service cannot start at
+  // all. Asked here rather than at sign-in because this is the moment it
+  // means something - the driver has just switched sharing on, so the
+  // system's prompt arrives with its reason on the screen behind it.
+  if (await FlutterForegroundTask.checkNotificationPermission() != NotificationPermission.granted) {
+    await FlutterForegroundTask.requestNotificationPermission();
+  }
+
+  final result = await FlutterForegroundTask.startService(notificationTitle: title, notificationText: body);
+
+  // A refused notification costs the screen-off half of the run, not the
+  // run: the trip keeps reporting while the driver is looking at it, and
+  // marks are never at risk. So this is logged and carried, not thrown at
+  // somebody driving a bus.
+  if (result is ServiceRequestFailure) {
+    developer.log('Could not start the trip foreground service', name: 'trip', error: result.error);
+  }
 }
 
 Future<void> stop() async {
