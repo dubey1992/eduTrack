@@ -87,6 +87,30 @@ void main() {
       expect(find.byKey(const Key('start-drop')), findsOneWidget);
     });
 
+    testWidgets('the drop waits for the pickup, and says why', (tester) async {
+      // A drop takes home the children a pickup brought in. The server
+      // refuses it too; this keeps the crew from meeting that refusal
+      // (docs/driver-app.md).
+      await pumpScreen(tester);
+
+      final drop = tester.widget<FilledButton>(find.byKey(const Key('start-drop')));
+      expect(drop.onPressed, isNull);
+      expect(find.textContaining('Starts after the pickup'), findsOneWidget);
+
+      final pickup = tester.widget<FilledButton>(find.byKey(const Key('start-pickup')));
+      expect(pickup.onPressed, isNotNull);
+    });
+
+    testWidgets('and once the pickup has started, the drop can be started', (tester) async {
+      api.routes = myRoutesJson(pickup: tripJson(status: 'completed'));
+
+      await pumpScreen(tester);
+
+      final drop = tester.widget<FilledButton>(find.byKey(const Key('start-drop')));
+      expect(drop.onPressed, isNotNull);
+      expect(find.textContaining('Starts after the pickup'), findsNothing);
+    });
+
     testWidgets('a route with one stop does not say "1 stops"', (tester) async {
       // Seen on a phone. The count beside it was already written this way;
       // this one was not.

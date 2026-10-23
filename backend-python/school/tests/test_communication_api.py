@@ -20,7 +20,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from school import factories, tokens
-from school.enums import UserRole
+from school.enums import MessageEvent, UserRole
 from school.models import Announcement, CommunicationSetting, Message, MessageTemplate, QueuedJob
 from school.validation import LaravelBooleanField
 
@@ -329,7 +329,9 @@ class TemplateTest(CommunicationTestCase):
     def test_every_event_is_listed_with_its_default_wording(self):
         response = self.as_user(self.admin).get(self.URL)
 
-        self.assertEqual(13, len(response.data))
+        # Every event the product can send, the operational ones included
+        # (transport.trip_left_open is addressed to the school's own staff).
+        self.assertEqual(len(MessageEvent.values), len(response.data))
         self.assertEqual(
             {
                 "event": "attendance.present",

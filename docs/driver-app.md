@@ -636,6 +636,55 @@ not have shut out a thief inside seven days either - but it makes the
 admin's "sign this phone out" the thing that matters, and it should be easy
 to find when a crew member reports a lost handset.
 
+## The day closes itself
+
+*Decided 2026-10-23, after a driver met it on an emulator.* A crew member
+who forgets to end a trip blocks the next morning's run: the route already
+has one in progress, and only the office can clear it. The driver finds
+that out in a yard at six, which is the worst moment and the wrong person.
+
+`python manage.py close_open_trips`, hourly from cron. Hourly because
+schools keep their own timezones - midnight in Mumbai is not midnight in
+Dubai - and a daily job would close one school's trips hours late or, worse,
+while a bus was still out.
+
+- **Cancelled, not ended.** Ending marks everyone who never boarded as
+  absent and tells their guardians. At two in the morning, about a trip
+  nobody watched, that would be inventing a fact and texting it to parents.
+  A cancelled trip says only what is true: it was running, nobody closed
+  it, the school should look.
+- **Ended at the end of its own day**, not when the job happened to run, so
+  the record never claims the bus was out until 2am.
+- **The transport managers are told** - the admins where a school has none,
+  because an alert nobody receives is not an alert. In their inbox and on
+  whatever channels the school has on. The guardian transport switch does
+  not silence it: that switch is about what parents are told.
+- **Only about the last two days.** The first run finds every trip anybody
+  ever left open - 196 of them in the dev database, which would have sent
+  774 alerts. Older ones are still closed and still audited; nobody is
+  asked to look into a bus from March.
+
+## A drop waits for its pickup
+
+*Asked for 2026-10-23.* **Start drop is disabled until the day's pickup has
+been started**, with the reason under it: "Starts after the pickup. The drop
+takes home the children the pickup brought in." The server refuses it too
+(`PICKUP_NOT_STARTED`) - the button only keeps the crew from meeting that
+refusal.
+
+A **cancelled** pickup still counts. The morning happened; children who
+reached school another way still have to get home, and refusing the drop
+would strand them. The rule is about a day where no pickup was ever
+attempted, which is the day a drop would end by marking every child absent
+and telling their guardians so.
+
+## Home and Profile
+
+*Asked for 2026-10-23.* Two destinations in a bottom bar, which is the whole
+app: the trip they are running, and their own details. A bar with one entry
+is decoration; with twenty it is the office's sidebar, which is what this
+build exists not to be.
+
 ## How the bus is actually crewed
 
 *Told to me, and it shapes the screen more than anything else here:*

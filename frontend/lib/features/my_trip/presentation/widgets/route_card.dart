@@ -88,6 +88,11 @@ class _RouteCardState extends ConsumerState<RouteCard> {
                 direction: direction,
                 trip: shown(direction),
                 starting: _starting == direction,
+                // A drop takes home the children a pickup brought in, so it
+                // waits for the morning run. The server refuses it too; this
+                // only keeps the crew from meeting that refusal
+                // (docs/driver-app.md).
+                waitingForPickup: direction == TripDirection.drop && route.tripFor(TripDirection.pickup) == null,
                 onStart: _starting == null ? () => _start(direction) : null,
                 onOpen: widget.onOpenTrip,
               ),
@@ -105,6 +110,7 @@ class _TripTile extends StatelessWidget {
     required this.direction,
     required this.trip,
     required this.starting,
+    required this.waitingForPickup,
     required this.onStart,
     required this.onOpen,
   });
@@ -112,6 +118,9 @@ class _TripTile extends StatelessWidget {
   final TripDirection direction;
   final TransportTrip? trip;
   final bool starting;
+
+  /// The day's pickup has not been started, so this drop cannot be.
+  final bool waitingForPickup;
   final VoidCallback? onStart;
   final ValueChanged<int> onOpen;
 
@@ -148,13 +157,22 @@ class _TripTile extends StatelessWidget {
             const SizedBox(height: 6),
             Text(_summary(trip), style: TextStyle(color: context.appColors.muted)),
           ],
+          // Why the button is grey, where it is. A disabled control with no
+          // reason beside it reads as a broken app.
+          if (trip == null && waitingForPickup) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Starts after the pickup. The drop takes home the children the pickup brought in.',
+              style: TextStyle(color: context.appColors.muted),
+            ),
+          ],
           const SizedBox(height: 10),
           SizedBox(
             height: 52,
             child: switch (trip?.status) {
               null => FilledButton.icon(
                 key: Key('start-${direction.apiValue}'),
-                onPressed: onStart,
+                onPressed: waitingForPickup ? null : onStart,
                 icon: starting
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.play_arrow),

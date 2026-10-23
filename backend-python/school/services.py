@@ -3422,6 +3422,26 @@ class TransportTripService:
         if TransportTrip.objects.filter(route_id=route.pk, status=TripStatus.IN_PROGRESS).exists():
             raise TripRule.already_in_progress(route.name)
 
+        # A drop takes home the children a pickup brought in, so the day's
+        # pickup has to have happened first. Starting a drop on a morning
+        # nobody drove would mark every child absent at the end of it, and
+        # tell their guardians so (docs/driver-app.md).
+        #
+        # Started, not finished: a bus that is still out on its pickup may
+        # legitimately be prepared for the drop, and the rule is about the
+        # order of the day rather than the minute.
+        if direction == TripDirection.DROP:
+            # Any state, cancelled included: a cancelled pickup still means
+            # the morning happened, and children who reached school another
+            # way still have to get home. The rule is about a day where no
+            # pickup was ever attempted.
+            pickup = TransportTrip.objects.filter(
+                route_id=route.pk, trip_date=today, direction=TripDirection.PICKUP
+            ).exists()
+
+            if not pickup:
+                raise TripRule.pickup_first(route.name)
+
         already = (
             TransportTrip.objects.filter(route_id=route.pk, trip_date=today, direction=direction)
             .exclude(status=TripStatus.CANCELLED)
@@ -3555,6 +3575,126 @@ class TransportTripService:
             audit.updated("transport", trip, before, action="transport_trip.cancelled")
 
             cls.record(trip, TripEventType.CANCELLED, actor, note="Trip cancelled")
+
+    # How recent a left-open trip has to be for anybody to be told. Two
+    # days covers "last night" including a weekend morning.
+    ALERT_ABOUT = dt.timedelta(days=2)
+
+    @classmethod
+    def close_left_open(cls, now=None) -> dict:
+        """Closes trips still running after their own day has ended, and
+        tells the school (docs/driver-app.md).
+
+        A crew member who forgets to end a trip blocks the next morning's
+        run: the route already has one in progress, and only the office can
+        clear it. The driver finds this out in a yard at six, which is the
+        worst possible moment and the wrong person to find out.
+
+        **Cancelled rather than ended.** Ending marks everyone who never
+        boarded as absent and tells their guardians - at two in the morning,
+        about a trip nobody watched, that would be inventing a fact and
+        texting it to parents. A cancelled trip says only what is true: it
+        was running, nobody closed it, and the school should look.
+
+        Each school's own midnight: a school in Dubai and one in Mumbai end
+        their days ninety minutes apart, and a trip is late only by its own
+        school's clock.
+        """
+        now = now or timezone.now()
+        closed, told = 0, 0
+
+        running = TransportTrip.objects.select_related(
+            "school", "route", "vehicle", "started_by"
+        ).filter(status=TripStatus.IN_PROGRESS)
+
+        for trip in running:
+            clock = SchoolClock.for_school(trip.school)
+            ended_at = clock.end_of_day_utc(trip.trip_date)
+
+            # Still its own day where the bus is: leave it alone.
+
+            if now <= ended_at:
+                continue
+
+            on_board = TransportTripRider.objects.filter(
+                trip_id=trip.pk, status=TripRiderStatus.BOARDED
+            ).count()
+
+            cls.close_one(trip, ended_at, on_board)
+            closed += 1
+
+            # Only about last night. The first run after this ships finds
+            # every trip anybody ever left open - in one dev database, 196
+            # of them - and telling a manager about a bus from March is not
+            # an alert, it is a flood that teaches people to ignore the
+            # ones that matter. Old ones are still closed, and still
+            # audited; nobody is asked to look into them.
+            if now - ended_at <= cls.ALERT_ABOUT:
+                told += cls.tell_the_school(trip, on_board, clock)
+
+        return {"closed": closed, "alerts": told}
+
+    @classmethod
+    def close_one(cls, trip, ended_at, on_board: int) -> None:
+        before = audit.fields_of(trip)
+
+        with transaction.atomic():
+            trip.status = TripStatus.CANCELLED
+            # The end of its own day, not the moment the job happened to
+            # run: the record should not claim the bus was out until 2am.
+            trip.ended_at = ended_at
+            trip.updated_at = timezone.now()
+            trip.save(update_fields=["status", "ended_at", "updated_at"])
+
+            audit.record(
+                action="transport_trip.closed_automatically",
+                module="transport",
+                entity_type="transport_trip",
+                entity_id=trip.pk,
+                school_id=trip.school_id,
+                old=before,
+                new={"status": trip.status, "on_board": on_board},
+            )
+
+            # Attributed to whoever started it: nobody else was there, and
+            # the column cannot be empty. The note says it was not them.
+            cls.record(
+                trip,
+                TripEventType.CANCELLED,
+                trip.started_by,
+                note="Closed automatically: the trip was still running at the end of the day.",
+            )
+
+    @staticmethod
+    def tell_the_school(trip, on_board: int, clock) -> int:
+        """The transport managers, or the admins where a school has none -
+        an alert nobody receives is not an alert."""
+        people = list(
+            User.objects.filter(
+                school_id=trip.school_id, role=UserRole.TRANSPORT_MANAGER, status=UserStatus.ACTIVE
+            )
+        ) or list(
+            User.objects.filter(
+                school_id=trip.school_id, role=UserRole.SCHOOL_ADMIN, status=UserStatus.ACTIVE
+            )
+        )
+
+        for person in people:
+            notifications.notify_staff(
+                MessageEvent.TRIP_LEFT_OPEN,
+                person,
+                {
+                    "route_name": trip.route.name,
+                    "vehicle_name": trip.vehicle.name,
+                    "direction": trip.direction,
+                    "date": dates.us(trip.trip_date),
+                    "started_by": trip.started_by.name,
+                    "on_board": str(on_board),
+                },
+                subject=f"{trip.route.name}: a trip was left open",
+            )
+
+        return len(people)
 
     @staticmethod
     def assert_nobody_on_board(trip, lock: bool = False) -> None:

@@ -8,6 +8,7 @@ import '../../features/auth/presentation/driver_landing_screen.dart';
 import '../../features/auth/presentation/driver_splash_screen.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
 import '../widgets/crew_frame.dart';
@@ -65,7 +66,13 @@ final driverRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/sign-in', builder: (context, state) => const AttendantLoginScreen(offersEmailSignIn: false)),
       GoRoute(
         path: '/my-trip',
-        builder: (context, state) => const CrewFrame(child: MyTripScreen()),
+        builder: (context, state) => const CrewFrame(place: CrewPlace.trip, child: MyTripScreen()),
+      ),
+      // The one screen besides the trip: their own details, which every
+      // employee may edit wherever they work (docs/profile.md).
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const CrewFrame(place: CrewPlace.profile, child: ProfileScreen()),
       ),
       GoRoute(path: '/maintenance', builder: (context, state) => const MaintenanceScreen()),
       // Somebody who is signed in but is not bus crew. Rare - this build
@@ -103,8 +110,8 @@ final driverRouterProvider = Provider<GoRouter>((ref) {
         return location == '/not-crew' ? null : '/not-crew';
       }
 
-      // Signed in, and crew. There is one screen.
-      return location == '/my-trip' ? null : '/my-trip';
+      // Signed in, and crew: the trip, or their own profile.
+      return location == '/my-trip' || location == '/profile' ? null : '/my-trip';
     },
   );
 });

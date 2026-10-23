@@ -20,16 +20,23 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from school import factories, tokens
+from school.clock import SchoolClock
 from school.enums import UserRole
+from school.fields import as_utc
 from school.models import (
+    AuditLog,
+    CommunicationSetting,
     Holiday,
     Message,
     StudentTransportAssignment,
     TransportRoute,
     TransportStop,
     TransportTrip,
+    TransportTripEvent,
     TransportTripRider,
+    User,
 )
+from school.services import TransportTripService
 
 TRIPS = "/api/v1/transport/trips"
 WEDNESDAY = dt.datetime(2026, 9, 9, 7, 30, tzinfo=dt.timezone.utc)
@@ -477,3 +484,217 @@ class TripMapTest(TripTestCase):
         ).json()["path"]
 
         self.assertEqual(trip, route)
+
+
+class ADropBeforeThePickup(TripTestCase):
+    """A drop takes home the children a pickup brought in, so the day's
+    pickup has to have happened first (docs/driver-app.md).
+
+    Without this, starting a drop on a morning nobody drove would end with
+    every child marked absent and their guardians told so.
+    """
+
+    def start(self, direction):
+        return self.as_user(self.f["admin"]).post(TRIPS, {
+            "route_id": self.f["route"].id, "direction": direction,
+        }, format="json")
+
+    def test_a_drop_with_no_pickup_today_is_refused_by_name(self):
+        response = self.start("drop")
+
+        self.assertEqual(409, response.status_code)
+        self.assertEqual("PICKUP_NOT_STARTED", response.data["code"])
+        self.assertIn(self.f["route"].name, response.data["message"])
+
+    def test_once_the_pickup_has_started_the_drop_is_allowed(self):
+        """Started, not finished: a bus still out on its pickup may be made
+        ready for the drop."""
+        pickup = self.start("pickup")
+        self.as_user(self.f["admin"]).post(f"{TRIPS}/{pickup.data['id']}/cancel")
+
+        response = self.start("drop")
+
+        self.assertEqual(201, response.status_code, response.data)
+
+    def test_a_cancelled_pickup_still_counts(self):
+        """The morning happened. Children who reached school another way
+        still have to get home, and refusing the drop would strand them."""
+        pickup = self.start("pickup")
+        self.as_user(self.f["admin"]).post(f"{TRIPS}/{pickup.data['id']}/cancel")
+
+        self.assertEqual(201, self.start("drop").status_code)
+
+    def test_yesterdays_pickup_does_not_unlock_todays_drop(self):
+        TransportTrip.objects.create(
+            school_id=self.f["school"].id, route_id=self.f["route"].id,
+            vehicle_id=self.f["route"].vehicle_id, driver_id=self.f["route"].driver_id,
+            trip_date=WEDNESDAY.date() - dt.timedelta(days=1), direction="pickup",
+            status="completed", started_by_id=self.f["admin"].id, started_at=WEDNESDAY - dt.timedelta(days=1),
+        )
+
+        self.assertEqual(409, self.start("drop").status_code)
+
+    def test_a_pickup_is_never_held_up_by_this(self):
+        self.assertEqual(201, self.start("pickup").status_code)
+
+
+class ATripNobodyEnded(TripTestCase):
+    """A crew member forgets to end a trip and the next morning's run is
+    blocked: the route already has one in progress, and only the office can
+    clear it. The driver finds out in a yard at six (docs/driver-app.md).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.manager = self.f["manager"]
+        self.trip = self.start_trip()
+
+    def start_trip(self, direction="pickup"):
+        response = self.as_user(self.f["admin"]).post(TRIPS, {
+            "route_id": self.f["route"].id, "direction": direction,
+        }, format="json")
+        self.assertEqual(201, response.status_code, response.data)
+
+        return TransportTrip.objects.get(pk=response.data["id"])
+
+    def run_job(self, days=1):
+        """The job, as cron runs it, some time after the trip's own day."""
+        later = as_utc(self.trip.started_at) + dt.timedelta(days=days)
+
+        return TransportTripService.close_left_open(now=later)
+
+    def test_a_trip_still_running_the_next_day_is_closed(self):
+        outcome = self.run_job()
+
+        self.trip.refresh_from_db()
+        self.assertEqual(1, outcome["closed"])
+        self.assertEqual("cancelled", self.trip.status)
+
+    def test_it_is_cancelled_rather_than_ended(self):
+        """Ending marks everyone who never boarded as absent and texts their
+        guardians. At two in the morning, about a trip nobody watched, that
+        would be inventing a fact and sending it to parents."""
+        before = Message.objects.filter(event="transport.absent").count()
+
+        self.run_job()
+
+        riders = TransportTripRider.objects.filter(trip_id=self.trip.pk)
+        self.assertEqual({"pending"}, {rider.status for rider in riders})
+        self.assertEqual(before, Message.objects.filter(event="transport.absent").count())
+
+    def test_the_record_says_the_day_it_ended_not_the_night_the_job_ran(self):
+        self.run_job(days=3)
+
+        self.trip.refresh_from_db()
+        clock = SchoolClock.for_school(self.f["school"])
+        self.assertEqual(clock.end_of_day_utc(self.trip.trip_date), as_utc(self.trip.ended_at))
+
+    def test_a_trip_still_inside_its_own_day_is_left_alone(self):
+        """Buses run late. A trip at 11pm is not a trip nobody ended."""
+        outcome = TransportTripService.close_left_open(
+            now=as_utc(self.trip.started_at) + dt.timedelta(hours=6)
+        )
+
+        self.trip.refresh_from_db()
+        self.assertEqual(0, outcome["closed"])
+        self.assertEqual("in_progress", self.trip.status)
+
+    def test_the_transport_manager_is_told(self):
+        outcome = self.run_job()
+
+        # One alert, several channels: the inbox and whatever the school has on.
+        message = Message.objects.filter(
+            event="transport.trip_left_open", user_id=self.manager.id
+        ).first()
+        self.assertEqual(1, outcome["alerts"])
+        self.assertIsNotNone(message)
+        self.assertIn(self.f["route"].name, message.body)
+        self.assertIn("has been closed", message.body)
+
+    def test_the_alert_reaches_an_inbox(self):
+        """Every other transport alert goes to a guardian, who has no login.
+        This one is for the school's own staff."""
+        self.run_job()
+
+        self.assertTrue(
+            Message.objects.filter(
+                event="transport.trip_left_open", user_id=self.manager.id, channel="in_app"
+            ).exists()
+        )
+
+    def test_a_school_with_no_transport_manager_tells_its_admins(self):
+        """An alert nobody receives is not an alert."""
+        User.objects.filter(pk=self.manager.id).delete()
+
+        outcome = self.run_job()
+
+        self.assertEqual(1, outcome["alerts"])
+        self.assertTrue(
+            Message.objects.filter(event="transport.trip_left_open", user_id=self.f["admin"].id).exists()
+        )
+
+    def test_switching_off_guardian_transport_alerts_does_not_silence_it(self):
+        """The switch is about what parents are told. A manager still needs
+        to hear that a bus was left running overnight."""
+        CommunicationSetting.objects.create(
+            school_id=self.f["school"].id,
+            sms_enabled=True,
+            transport_alerts_enabled=False,
+            leave_alerts_enabled=True,
+            result_alerts_enabled=True,
+            provider="log",
+        )
+
+        self.run_job()
+
+        self.assertTrue(Message.objects.filter(event="transport.trip_left_open").exists())
+
+    def test_the_closing_is_audited_as_the_system_doing_it(self):
+        self.run_job()
+
+        entry = AuditLog.objects.get(action="transport_trip.closed_automatically")
+        self.assertEqual(self.trip.pk, entry.entity_id)
+
+    def test_and_the_trail_says_nobody_ended_it(self):
+        self.run_job()
+
+        event = TransportTripEvent.objects.filter(trip_id=self.trip.pk, type="cancelled").latest("id")
+        self.assertIn("Closed automatically", event.note)
+
+    def test_a_trip_from_months_ago_is_closed_but_nobody_is_told(self):
+        """The first run after this ships finds every trip anybody ever
+        left open. Telling a manager about a bus from March is not an alert,
+        it is a flood that teaches people to ignore the ones that matter."""
+        outcome = self.run_job(days=90)
+
+        self.trip.refresh_from_db()
+        self.assertEqual("cancelled", self.trip.status)
+        self.assertEqual(0, outcome["alerts"])
+        self.assertFalse(Message.objects.filter(event="transport.trip_left_open").exists())
+
+    def test_but_it_is_still_audited(self):
+        self.run_job(days=90)
+
+        self.assertTrue(AuditLog.objects.filter(action="transport_trip.closed_automatically").exists())
+
+    def test_another_schools_running_trip_is_untouched(self):
+        elsewhere = self.ready_route(factories.SchoolFactory(), name="Far Road", vehicle_name="Bus 21")
+        theirs = self.as_user(elsewhere["admin"]).post(TRIPS, {
+            "route_id": elsewhere["route"].id, "direction": "pickup",
+        }, format="json")
+        self.assertEqual(201, theirs.status_code, theirs.data)
+
+        TransportTripService.close_left_open(now=as_utc(self.trip.started_at) + dt.timedelta(hours=6))
+
+        self.assertEqual("in_progress", TransportTrip.objects.get(pk=theirs.data["id"]).status)
+
+    def test_the_morning_after_a_close_a_new_trip_starts(self):
+        """The whole point: the next day's run is not blocked."""
+        self.run_job()
+
+        with mock.patch("django.utils.timezone.now", return_value=WEDNESDAY + dt.timedelta(days=1)):
+            response = self.as_user(self.f["admin"]).post(TRIPS, {
+                "route_id": self.f["route"].id, "direction": "pickup",
+            }, format="json")
+
+        self.assertEqual(201, response.status_code, response.data)

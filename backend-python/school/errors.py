@@ -564,6 +564,13 @@ class TripRule(ApiError):
         return cls("TRIP_ON_NON_WORKING_DAY", "Trips do not run on a day the school is closed.")
 
     @classmethod
+    def pickup_first(cls, route_name: str):
+        return cls(
+            "PICKUP_NOT_STARTED",
+            f"The pickup on {route_name} has not started yet. A drop takes home the children a pickup brought in.",
+        )
+
+    @classmethod
     def already_in_progress(cls, route_name: str):
         return cls("TRIP_ALREADY_IN_PROGRESS", f"{route_name} already has a trip in progress. End or cancel it first.")
 

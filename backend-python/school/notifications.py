@@ -163,6 +163,12 @@ def switched_off(event: str, setting: CommunicationSetting) -> bool:
     A message somebody wrote by hand is never switched off: the switches are
     for the alerts modules raise on their own.
     """
+    # An operational alert to the school's own staff. The transport switch
+    # is about what guardians are told; a manager still needs to hear that a
+    # bus was left running overnight (docs/driver-app.md).
+    if event == MessageEvent.TRIP_LEFT_OPEN:
+        return False
+
     category = MessageEvent.category(event)
 
     if category == MessageCategory.ATTENDANCE:

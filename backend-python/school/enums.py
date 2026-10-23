@@ -212,6 +212,10 @@ class MessageEvent(models.TextChoices):
     TRANSPORT_BOARDED = "transport.boarded", "Boarded the bus"
     TRANSPORT_DROPPED = "transport.dropped", "Dropped off"
     TRANSPORT_ABSENT = "transport.absent", "Did not board"
+    # The one transport alert addressed to the school rather than a
+    # guardian: a trip nobody ended, closed by the nightly job
+    # (docs/driver-app.md).
+    TRIP_LEFT_OPEN = "transport.trip_left_open", "Trip left open overnight"
     LEAVE_APPROVED = "leave.approved", "Leave approved"
     LEAVE_REJECTED = "leave.rejected", "Leave rejected"
     RESULT_PUBLISHED = "result.published", "Result published"
@@ -242,6 +246,11 @@ class MessageEvent(models.TextChoices):
         if event == cls.PROGRESS_REPORT:
             return [MessageChannel.EMAIL]
 
+        # Addressed to the transport manager, who has an inbox - unlike
+        # every other transport alert, which goes to a guardian who does not.
+        if event == cls.TRIP_LEFT_OPEN:
+            return [MessageChannel.IN_APP, *MessageChannel.external()]
+
         category = cls.category(event)
 
         if category in (
@@ -262,7 +271,10 @@ class MessageEvent(models.TextChoices):
 
     @classmethod
     def tokens(cls, event: str) -> list[str]:
-        return TOKENS[cls.category(event)] if event != cls.TRANSPORT_ABSENT else TRANSPORT_ABSENT_TOKENS
+        if event in PER_EVENT_TOKENS:
+            return PER_EVENT_TOKENS[event]
+
+        return TOKENS[cls.category(event)]
 
 
 DEFAULT_BODIES = {
@@ -295,6 +307,11 @@ DEFAULT_BODIES = {
     # has arrived and who it is about (docs/insights.md).
     MessageEvent.PROGRESS_REPORT: (
         "Dear {guardian_name}, the progress report for {student_name} in {term_name} is attached. - {school_name}"
+    ),
+    MessageEvent.TRIP_LEFT_OPEN: (
+        "The {direction} trip on {route_name} ({vehicle_name}) was still running at the end of {date} "
+        "and has been closed. {started_by} started it; {on_board} still showed as on board. "
+        "Please check what happened. - {school_name}"
     ),
     MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
     MessageEvent.GENERAL_MESSAGE: "{school_name}: {subject} - {body}",
@@ -332,6 +349,16 @@ TRANSPORT_ABSENT_TOKENS = [
     "student_name", "stop_name", "vehicle_name", "route_name", "direction", "date",
     "school_name", "guardian_name",
 ]
+
+TRIP_LEFT_OPEN_TOKENS = [
+    "staff_name", "route_name", "vehicle_name", "direction", "date", "started_by", "on_board", "school_name",
+]
+
+# Events whose wording needs something its category's list does not carry.
+PER_EVENT_TOKENS = {
+    MessageEvent.TRANSPORT_ABSENT: TRANSPORT_ABSENT_TOKENS,
+    MessageEvent.TRIP_LEFT_OPEN: TRIP_LEFT_OPEN_TOKENS,
+}
 
 
 class PaymentType(models.TextChoices):

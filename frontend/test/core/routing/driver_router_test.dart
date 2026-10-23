@@ -10,13 +10,17 @@ import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/my_trip/presentation/my_trip_screen.dart';
+import 'package:edutrack_app/features/profile/presentation/profile_screen.dart';
 import 'package:edutrack_app/main_driver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:edutrack_app/features/profile/data/profile_repository.dart';
+
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_profile_repository.dart';
 import '../../support/in_memory_key_value_store.dart';
 import '../../support/my_trip_fixtures.dart';
 import '../../support/session_users.dart';
@@ -35,6 +39,7 @@ void main() {
         keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
         locationSourceProvider.overrideWithValue(FakeLocationSource(access: LocationAccess.denied)),
         phoneDialerProvider.overrideWithValue(FakePhoneDialer()),
+        profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
       ],
       child: const DriverApp(),
     );
@@ -64,7 +69,7 @@ void main() {
 
       expect(
         pathsOf(container),
-        containsAll(['/start', '/sign-in', '/my-trip', '/splash', '/maintenance', '/not-crew']),
+        containsAll(['/start', '/sign-in', '/my-trip', '/profile', '/splash', '/maintenance', '/not-crew']),
       );
     });
 
@@ -74,7 +79,10 @@ void main() {
       final container = ProviderContainer(overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository())]);
       addTearDown(container.dispose);
 
-      for (final office in ['/', '/dashboard', '/login', '/students', '/payroll', '/reports', '/profile']) {
+      // '/profile' is not in this list: a crew member's own details are
+      // theirs wherever they work, and the app has a tab for them. Every
+      // other entry here belongs to the office.
+      for (final office in ['/', '/dashboard', '/login', '/students', '/payroll', '/reports', '/schools']) {
         expect(pathsOf(container), isNot(contains(office)), reason: office);
       }
     });
@@ -147,6 +155,33 @@ void main() {
       expect(find.text('Students'), findsNothing);
     });
 
+    testWidgets('the crew can reach their own profile and come back', (tester) async {
+      // Two places, which is the whole app: the trip they are running and
+      // their own details (docs/driver-app.md).
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.busAttendant)));
+
+      expect(find.byKey(const Key('crew-nav')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('crew-nav-profile')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ProfileScreen), findsOneWidget);
+      expect(find.byType(MyTripScreen), findsNothing);
+
+      await tester.tap(find.byKey(const Key('crew-nav-trip')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MyTripScreen), findsOneWidget);
+    });
+
+    testWidgets('and the bar offers those two and nothing else', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.busAttendant)));
+
+      expect(find.byType(NavigationDestination), findsNWidgets(2));
+      expect(find.text('Home'), findsOneWidget);
+      expect(find.text('Profile'), findsOneWidget);
+    });
+
     testWidgets('signed in as anybody else: told so, rather than left on a blank screen', (tester) async {
       await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.schoolAdmin)));
 
@@ -171,6 +206,7 @@ void main() {
           keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
           locationSourceProvider.overrideWithValue(FakeLocationSource(access: LocationAccess.denied)),
           phoneDialerProvider.overrideWithValue(FakePhoneDialer()),
+          profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
           maintenanceProvider.overrideWith(_Down.new),
         ],
         child: const DriverApp(),
