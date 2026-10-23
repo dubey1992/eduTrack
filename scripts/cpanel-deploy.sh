@@ -60,10 +60,23 @@ fi
 # authenticated endpoint, never by the web server.
 mkdir -p "$HOME_DIR/var/cache" "$HOME_DIR/var/media" "$HOME_DIR/backups"
 
-echo "--- pip install ---" >> "$LOG"
+# Not `pip install -r requirements.txt`: installing all forty over this
+# host's link takes long enough that the process is killed every time,
+# always around the compiled ones, and pip starts from the top on the next
+# run with no idea it is resuming. pip_missing.py installs only what is
+# missing, one package per pip call, so each run converges instead of
+# repeating - and a killed run costs one package.
+echo "--- pip install (only what is missing) ---" >> "$LOG"
+cd "$REPO" || exit 1
+"$VENV_BIN/python" scripts/pip_missing.py >> "$LOG" 2>&1
+PIP_STATUS=$?
+
+if [ "$PIP_STATUS" -ne 0 ]; then
+  echo "STOP: requirements are still incomplete - the next run continues" >> "$LOG"
+  exit 0
+fi
+
 cd "$REPO/backend-python" || exit 1
-"$VENV_BIN/pip" install --upgrade pip >> "$LOG" 2>&1
-"$VENV_BIN/pip" install -r requirements.txt >> "$LOG" 2>&1
 
 # The rollback for every deploy that changes the schema. Skips itself on an
 # empty database, and never stops the deploy - see the command's own notes.
