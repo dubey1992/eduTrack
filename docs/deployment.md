@@ -24,6 +24,36 @@ is Laravel's and migrations are the only way it changes — see
 Confirmed with the host 2026-10-20: this plan offers both Python and
 PostgreSQL. That was the last open question of M0.
 
+## 0. Point the domain at the host
+
+**At the registrar, not in cPanel.** This is the step that looks done when it
+is not: cPanel builds a zone for the domain the moment the account exists,
+with the apex and every subdomain already pointing at the server — so the
+host's own DNS screen reads perfectly while the world still gets the
+registrar's parking page. The host's zone is authoritative for nobody until
+the registrar sends traffic to it.
+
+Set the domain's nameservers, at whoever it is registered with, to the four
+the host's zone declares:
+
+```
+in.solidhosting.pro
+eu.solidhosting.pro
+sg.solidhosting.pro
+us.solidhosting.pro
+```
+
+Check it from outside, not from cPanel:
+
+```bash
+nslookup -type=NS school365ai.com 8.8.8.8     # must list solidhosting.pro
+nslookup school365ai.com 8.8.8.8              # must be the server's IP
+```
+
+Allow hours for propagation. Until both answer correctly, nothing deployed
+below is reachable by name — and AutoSSL cannot issue a certificate either,
+because Let's Encrypt validates over the public name.
+
 ## 1. Database
 
 Create a PostgreSQL database and a user in cPanel, and grant the user all
