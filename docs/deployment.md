@@ -72,6 +72,26 @@ Nothing else to do here: every table is created by migrations in step 4.
 
 ## 2. Files
 
+**Where there is no SSH**, which is the case on this host: use cPanel's
+**Git™ Version Control** instead of uploading anything. Create a repository
+with the clone URL, path `/home/<account>/edutrack`, branch `main`, and the
+repository's own `.cpanel.yml` does the install when you click *Deploy HEAD
+Commit* — `pip install`, migrations, the first Super Admin, and a Passenger
+restart. It is the only supported way to run a command on a host with the
+shell switched off, and the file is in the repository where it can be read
+rather than hidden in a panel.
+
+Two things `.cpanel.yml` deliberately leaves alone: `public_html`, because
+the Flutter build cannot be built on the host and a deploy must never wipe a
+working site; and anything secret, because the repository is public — the
+`.env` below is uploaded separately.
+
+It also stops, with a line in `~/edutrack-deploy.log`, if the Python app or
+`backend/.env` is missing. Read that log after every deploy; a deploy that
+did nothing says so there and nowhere else.
+
+
+
 Put the repository **outside** the web root. Two things on the host use it:
 the Python app, whose application root is `backend-python/`, and PHP, which
 is only ever run by hand for migrations.
