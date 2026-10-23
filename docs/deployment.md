@@ -14,15 +14,50 @@ is Laravel's and migrations are the only way it changes — see
 
 ## What you need
 
-- cPanel with SSH and cron.
-- **Setup Python App** (Passenger), Python 3.11 or newer.
+- cPanel with **cron**. SSH if you can get it; the rest of this page assumes
+  you cannot, because on the host this was first deployed to, you could not.
+- **Setup Python App** (CloudLinux Python Selector), Python 3.11 or newer.
 - **PostgreSQL**, with a database and a user you can create.
-- PHP 8.3+ and Composer, for migrations only.
+- **A PHP 8.3+ CLI binary with `pdo_pgsql`**, for migrations only. Not "PHP
+  8.3+": see below, because the two are not the same thing.
 - A domain (or subdomain) with HTTPS. Let's Encrypt via cPanel's AutoSSL is
-  fine.
+  fine, once DNS actually points here.
 
-Confirmed with the host 2026-10-20: this plan offers both Python and
-PostgreSQL. That was the last open question of M0.
+### What shared hosting will do to you
+
+Written down because every one of these cost an hour, and the next host will
+have its own version of each. All were met on one cPanel account in one day.
+
+- **SSH may simply not exist**, whatever the account's feature list says. A
+  port that accepts TCP is not SSH: 22222 there is Dovecot, and a key
+  imported into cPanel cannot help when nothing is listening.
+- **cPanel's Git deployment may be disabled.** `VersionControl/retrieve`
+  reports `deployable: 0` and `tasks: []` for a `.cpanel.yml` that is
+  valid, parses locally and sits at the checked-out HEAD. Nothing says why.
+- **Cron is then the only way to run a command**, which is why
+  `scripts/cpanel-deploy.sh` exists and why it takes a lock: scheduled every
+  minute, it ran on top of itself and truncated its own log.
+- **Long processes get killed.** `pip install -r requirements.txt` died
+  partway every time, always around the compiled packages. Install only what
+  is missing, one package per call - `scripts/pip_missing.py`.
+- **`php` and `composer` on PATH may be CGI wrappers.** A CGI binary answers
+  a command line with `Status: 500 Internal Server Error` and an HTML
+  content type, and composer refuses outright: *"cannot be run safely on
+  non-CLI SAPIs"*. Find a real CLI binary and prove it with `php -v`.
+- **The newest PHP is not the one you want, and the oldest is not either.**
+  `composer.json` needs ^8.3, so 8.2 is rejected; but of the six builds on
+  that host, only **ea-php85** carried `pdo_pgsql`, so every other one
+  reached `could not find driver (Connection: pgsql)`. Require both: version
+  and driver.
+- **PostgreSQL may be older than Django allows.** 10.23 against Django 5.1,
+  which demands 13+. `config.legacy_postgresql` lowers that one floor, opt
+  in through `PG_ENGINE`, and should be deleted the day the server is
+  upgraded.
+- **cPanel's file API hides dotfiles** from `Fileman/list_files`. Fetch by
+  name instead, or you will conclude that `.env.example` and `.htaccess` are
+  missing when they are not.
+- **Setup Python App overwrites `passenger_wsgi.py`** with a stub that
+  imports itself. Check the file after every Save on that screen.
 
 ## 0. Point the domain at the host
 
@@ -166,48 +201,77 @@ Leave `APP_TIMEZONE` alone. It is pinned to UTC in config because every
 timestamp column is written in it; changing it silently re-interprets every
 row already stored.
 
-## 4. Migrate and create the first Super Admin
+## 4. Deploy: migrate, and create the first Super Admin
 
-**The schema is always Laravel's.** Migrations are the only way it changes,
-whichever backend serves the requests.
+**One command does all of it**, so that a host with no shell can still run
+it from cron, and so nobody performs five steps in the wrong order:
 
-```bash
-cd /home/<account>/edutrack/backend
-php artisan migrate --force
+```
+/bin/bash /home/<account>/edutrack/scripts/cpanel-deploy.sh
 ```
 
-Then the one account that can onboard the first school:
+Add it as a cron job (**Every 5 Minutes** while deploying), watch
+`~/edutrack-deploy.log`, and **delete the cron once it reports done**. It
+takes a lock, so a schedule that fires while it is still working does no
+harm - later runs log `skipped` and exit.
 
-```bash
-cd /home/<account>/edutrack/backend-python
-python manage.py create_super_admin
+In order, it: installs whatever Python requirements are missing; dumps the
+database if there is anything in it; finds a PHP 8.3+ CLI binary that has
+`pdo_pgsql`; runs `composer install --no-dev`; runs `php artisan migrate
+--force`; creates the Super Admin; runs `check_models`; restarts Passenger;
+and finally calls the WSGI application directly to see whether it answers.
+
+**Read the last line of the log, not the middle.** It is either
+
+```
+== done ==
 ```
 
-It creates exactly one account — the Super Admin from the environment — and
-nothing else. It is safe to run again: if the account already exists it is
-left untouched, so a password the owner has since changed is never reset back
-to whatever the environment happens to say. It will not invent a password,
-and it holds the one you give it to the same policy the app enforces on
-everybody else.
+or
 
-Then check the two backends agree about the schema they are both looking at:
-
-```bash
-python manage.py check_models
+```
+== done, WITH 3 FAILED STEP(S) - search the log for FAILED ==
 ```
 
-**Then sign in and change the password**, and clear `SUPER_ADMIN_PASSWORD`
-out of `.env`. It has done its job and there is no reason to leave a live
-credential sitting in a file.
+The distinction exists because the first real deployment of this project
+wrote `== done ==` after every step inside it had failed, and nobody noticed
+until 59 tables turned out to be missing.
+
+**The schema is always Laravel's.** Django's models are `managed = False`;
+migrations are the only way the schema changes, whichever backend serves the
+requests. That is why a PHP binary is needed at all, and the only thing it
+is needed for.
+
+**Creating the Super Admin is safe to repeat.** An account that already
+exists is left untouched, so a password its owner has since changed is never
+reset back to whatever the environment says. It will not invent a password,
+and it holds the one you give it to the policy the app enforces on everybody
+else.
+
+**Then sign in, change the password, and clear `SUPER_ADMIN_PASSWORD` out of
+`.env`.** It has done its job and there is no reason to leave a live
+credential in a file.
+
+### When the API returns 404 and nothing is in the log
+
+Decide whose fault it is before opening a ticket or changing code:
+
+```
+/home/<account>/edutrack/scripts/check_wsgi.py
+```
+
+It calls the WSGI object directly, touching no network. A status line means
+the application is fine and the web server is not routing to it - a support
+ticket, not a code change. A traceback means it is yours.
 
 ## 5. Cron
 
 Three jobs. None of them is optional.
 
 ```
-* * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/3.11/bin/python manage.py work_queue >> var/queue.log 2>&1
-30 2 * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/3.11/bin/python manage.py purge_trip_locations >> var/purge.log 2>&1
-0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/3.11/bin/python manage.py close_open_trips >> var/trips.log 2>&1
+* * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py work_queue >> var/queue.log 2>&1
+30 2 * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py purge_trip_locations >> var/purge.log 2>&1
+0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py close_open_trips >> var/trips.log 2>&1
 ```
 
 The first drains the job queue — SMS, WhatsApp, announcement fan-out, emailed
@@ -228,8 +292,11 @@ The second deletes bus positions older than thirty days. Positions say where
 a named attendant was, minute by minute; nobody needs that a month later, so
 it is not kept — see [maps.md](maps.md).
 
-Use the **absolute path to the app's python**. Cron does not run the
-activation command, and the system python has none of the dependencies.
+Use the **absolute path to the app's python**, and check the version
+directory - cPanel offered 3.12 where this page once said 3.11, and a
+hardcoded version fails the day the host moves. `ls ~/virtualenv/edutrack/backend-python/`
+names it. Cron does not run the activation command, and the system python
+has none of the dependencies.
 
 ## 6. The web app
 
@@ -301,21 +368,19 @@ Anything with migrations in it should happen behind the maintenance page
 rather than under people's feet. Set the window first so the page can say
 when to come back — see [error-pages.md](error-pages.md).
 
+**With a shell**, it is a pull and the deploy script:
+
 ```bash
-cd /home/<account>/edutrack
-# take a database dump first if this release has migrations
-git pull
-
-cd backend
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-
-cd ../backend-python
-pip install -r requirements.txt
-python manage.py check_models
-
-mkdir -p tmp && touch tmp/restart.txt
+cd /home/<account>/edutrack && git pull
+/bin/bash scripts/cpanel-deploy.sh
 ```
+
+**Without one** - which is the case on this host - pull through cPanel's
+**Git™ Version Control → Update from Remote**, then let the deploy cron run
+once, then delete the cron again. The script takes the dump, installs what
+is missing, migrates, and restarts; it is the same path a first deployment
+takes, which is deliberate. There is no second procedure to keep in step
+with this one.
 
 `check_models` is cheap and worth running every time: it reads one row of
 every table and reports any model that no longer describes the column it is
