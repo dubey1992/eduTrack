@@ -144,11 +144,12 @@ credential sitting in a file.
 
 ## 5. Cron
 
-Two jobs. Neither is optional.
+Three jobs. None of them is optional.
 
 ```
 * * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/3.11/bin/python manage.py work_queue >> var/queue.log 2>&1
 30 2 * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/3.11/bin/python manage.py purge_trip_locations >> var/purge.log 2>&1
+0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/3.11/bin/python manage.py close_open_trips >> var/trips.log 2>&1
 ```
 
 The first drains the job queue — SMS, WhatsApp, announcement fan-out, emailed
@@ -156,6 +157,14 @@ reports, payroll runs and the road a bus route follows. It **drains once and
 exits** rather than looping, because shared hosting kills a long-running
 process and a worker killed mid-job leaves its jobs reserved and unfinished.
 Two runs overlapping is safe: reserving a job is a single conditional UPDATE.
+
+The third closes trips nobody ended and tells the school. **Hourly, not
+nightly**, because schools keep their own timezones: midnight in Mumbai is
+not midnight in Dubai, and a job that ran once a day in one of them would
+close the other's trips hours late — or hours early, while a bus was still
+out. Without it, a crew member who forgets to end a trip blocks the next
+morning's run, and the driver finds that out in a yard at six
+(docs/driver-app.md).
 
 The second deletes bus positions older than thirty days. Positions say where
 a named attendant was, minute by minute; nobody needs that a month later, so
