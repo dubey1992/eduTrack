@@ -323,3 +323,44 @@ broken page rather than as a question. It now asks for an address, says
 when what was typed is not one, clears the complaint as soon as somebody
 types again, and thanks them in the page's own dialog rather than the
 browser's.
+
+## The SelectionArea problem
+
+*Measured 2026-10-23.* The portal wraps every screen in a `SelectionArea`
+(main.dart) so the office can copy a name or a number off a screen. It has
+now caused three separate bugs, and the third is still there.
+
+- **The hand cursor on footer links.** Inside a `SelectionArea` a `Text`
+  wraps itself in its own `MouseRegion` with a text cursor, deeper than any
+  ancestor - so the links showed an I-beam. Fixed with
+  `DefaultSelectionStyle(mouseCursor: click)`.
+- **The driver app's SOS button did nothing.** `SelectionArea` claims the
+  long press, so holding the button selected its label and opened a Copy bar
+  instead of calling for help. Fixed by removing `SelectionArea` from the
+  driver build entirely - nobody on a bus copies anything
+  (docs/driver-app.md, D5.2).
+- **A console error on every page, still open.** `RenderBox was not laid
+  out: RenderStack`, thrown from Flutter's focus traversal
+  (`handleViewFocusChanged` → `_findInitialFocus` → `FocusNode.rect`) when
+  the browser view takes focus before the first layout.
+
+**Proven by three builds**, because the first two guesses were wrong:
+
+| build | result |
+|---|---|
+| `Overlay` + `SelectionArea` (what ships) | error on 6 of 6 route/size combinations |
+| no wrapper at all | **clean on 6 of 6** |
+| bare `SelectionArea`, no `Overlay` | error on 6 of 6 |
+
+So it is `SelectionArea` itself, not the `Overlay` it needs, and not any
+page's layout - `/privacy` is a plain `ListView` and throws it too.
+
+**It is cosmetic**: logged once at startup, every page renders and works.
+Left alone deliberately rather than fixed badly. The three options, none of
+which should be chosen quietly:
+
+1. accept the console error;
+2. drop app-wide selection, and lose copying from the portal;
+3. scope `SelectionArea` to where copying actually matters - data tables and
+   detail screens - rather than the whole app. The most work, and the only
+   one that keeps the feature and loses the bug.
