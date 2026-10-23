@@ -279,14 +279,32 @@ app serves the admin on a tablet as well as the driver in a cradle, and a
 manifest lock applies to everybody. Orientation belongs on the trip screen,
 in Flutter, when that screen is built.
 
-**D1.2 — Signing**
-- Generate an upload keystore; `key.properties` gitignored and never
-  committed, the keystore kept by you.
-- Release build type uses it instead of the debug key.
-- A written note of where the keystore lives and what losing it costs:
-  the app can never be updated again under that listing.
+**D1.2 — Signing** *(done 2026-10-23)*
+- An upload keystore at **`C:\Users\abhis\keystores\school365ai-upload.jks`**,
+  alias `upload`, RSA 2048, valid 10000 days. Deliberately outside the
+  repo; `android/key.properties` points at it and holds the password, and
+  `android/.gitignore` ignores both that file and any `.jks`.
+- The password was generated at creation and written only into
+  `key.properties`. It was passed to `keytool` through the environment
+  rather than the command line, so it never reached a process list, and it
+  has never been printed anywhere.
+- **The release certificate's SHA-1 is
+  `47:2C:35:3F:C6:C2:7F:23:C0:16:D8:8B:B6:F6:8D:0B:88:A2:80:2D`** — not a
+  secret, and what the Google Maps key restriction needs alongside the
+  package name.
+- **A machine without the keystore still builds.** The release falls back
+  to the debug key, so CI and a fresh checkout work; such a build simply
+  cannot be uploaded to Play. Checked by moving `key.properties` aside and
+  building: the APK came out signed `CN=Android Debug`, and with it back,
+  `CN=School365ai`.
 - *Done when:* a release APK installs on a phone and reports the right
-  signing certificate.
+  signing certificate. **Done** — installed and opened on the emulator.
+
+> **Back up the keystore and `key.properties` somewhere that is not this
+> machine.** Losing either one means this app can never be updated under
+> its Play listing again — a new key is a new listing, and every installed
+> copy stops receiving updates. This is the single most unrecoverable file
+> in the project.
 
 **D1.3 — Maps on Android** *(needs your key)*
 - `com.google.android.geo.API_KEY` meta-data in the manifest, read from

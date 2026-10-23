@@ -6,6 +6,24 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// The upload key. Kept out of the repo entirely: android/key.properties
+// names a keystore that lives outside the project, and .gitignore ignores
+// both the properties file and any .jks that wanders in.
+//
+// A machine without it still builds - CI, a new laptop, anybody checking
+// out the repo - the release just falls back to the debug key and cannot
+// be uploaded to Play. That is better than a build that fails with a
+// missing-file error nobody can act on (docs/driver-app.md, D1.2).
+val signing: java.util.Properties? = run {
+    val file = rootProject.file("key.properties")
+
+    if (!file.exists()) {
+        null
+    } else {
+        Properties().also { properties -> file.inputStream().use { properties.load(it) } }
+    }
+}
+
 // The Google Maps key for Android.
 //
 // The web app asks the server for its key, so it can be rotated without a
@@ -62,11 +80,27 @@ android {
         manifestPlaceholders["mapsApiKey"] = mapsApiKey
     }
 
+    signingConfigs {
+        if (signing != null) {
+            create("upload") {
+                storeFile = file(signing.getProperty("storeFile"))
+                storePassword = signing.getProperty("storePassword")
+                keyAlias = signing.getProperty("keyAlias")
+                keyPassword = signing.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // The upload key where this machine has it, the debug key where
+            // it does not - so a release build always runs, and only a
+            // properly signed one can reach Play.
+            signingConfig = if (signing != null) {
+                signingConfigs.getByName("upload")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
