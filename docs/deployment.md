@@ -189,6 +189,7 @@ The ones that hurt if you get them wrong:
 | `MAIL_*` | real SMTP | Without it password resets go nowhere and people lock themselves out with no way back. |
 | `PLATFORM_TIMEZONE` | e.g. `Asia/Kolkata` | Only the Super Admin's cross-school totals. Each school carries its own — see [timezones.md](timezones.md). |
 | `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` | the first admin | Used once, in step 4. |
+| `GOOGLE_MAPS_SERVER_KEY` / `GOOGLE_MAPS_BROWSER_KEY` / `GOOGLE_MAPS_REGION` | the two keys from [maps.md](maps.md) | Without the browser key every map in the web app reads *Map unavailable - no Google Maps key is configured*, because `/api/v1/maps/config` hands it to the app at runtime - it is not baked into the build. This table once left both keys out, and that is exactly what happened on the first live deploy. The browser key's HTTP-referrer restriction in Google Cloud must list the production domain (`https://school365ai.com/*`, `https://www.school365ai.com/*`); the server key's IP restriction must list the host's outbound address, which on shared hosting is not always the address the domain resolves to. |
 
 Generate the two keys with the app's own python:
 
