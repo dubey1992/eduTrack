@@ -15,6 +15,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_map.dart';
+
+import 'package:edutrack_app/features/transport/data/models/driver.dart';
+
 import '../../support/attendant_fixtures.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_staff_repository.dart';
@@ -110,6 +113,99 @@ void main() {
 
       expect(find.text('The registration number has already been taken.'), findsOneWidget);
       expect(find.byType(VehicleFormDialog), findsOneWidget);
+    });
+  });
+
+  group('DriverFormDialog - who the driver is', () {
+    // A driver is a licence record; linking it to a member of staff is
+    // what lets that person sign in to the driver app at all
+    // (docs/driver-app.md, D3).
+    // meeraAttendant is the fixture every other attendant test uses; this
+    // only needs somebody with a name and an id to pick.
+    final anil = meeraAttendant;
+
+    testWidgets("offers the school's bus crew, and sends the one picked", (tester) async {
+      final fake = FakeTransportRepository();
+      final staff = FakeStaffRepository(staff: [anil]);
+
+      await tester.pumpWidget(wrap(fake, () => const DriverFormDialog(), staff: staff));
+      await _open(tester);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Driver name'), 'Sanjay Patel');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Licence number'), 'DL-1234');
+
+      await tester.tap(find.byKey(const Key('driver-staff-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(anil.name).last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['op'], 'createDriver');
+      expect(fake.lastCall!['staff_profile_id'], anil.id);
+    });
+
+    testWidgets('and defaults to nobody, because most drivers have no login', (tester) async {
+      final fake = FakeTransportRepository();
+
+      await tester.pumpWidget(wrap(fake, () => const DriverFormDialog(), staff: FakeStaffRepository(staff: [anil])));
+      await _open(tester);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Driver name'), 'Sanjay Patel');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Licence number'), 'DL-1234');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['staff_profile_id'], isNull);
+    });
+
+    testWidgets('a school with no crew accounts says so rather than showing an empty list', (tester) async {
+      await tester.pumpWidget(
+        wrap(FakeTransportRepository(), () => const DriverFormDialog(), staff: FakeStaffRepository()),
+      );
+      await _open(tester);
+
+      expect(find.textContaining('Nobody at this school has a Bus Attendant account yet'), findsOneWidget);
+    });
+
+    testWidgets('editing a linked driver can unlink them again', (tester) async {
+      final linked = Driver(
+        id: sanjay.id,
+        schoolId: sanjay.schoolId,
+        schoolName: sanjay.schoolName,
+        name: sanjay.name,
+        mobile: sanjay.mobile,
+        licenceNumber: sanjay.licenceNumber,
+        licenceExpiry: sanjay.licenceExpiry,
+        status: sanjay.status,
+        routeId: sanjay.routeId,
+        routeName: sanjay.routeName,
+        staffProfileId: anil.id,
+        staffName: anil.name,
+      );
+      final fake = FakeTransportRepository(drivers: [linked]);
+
+      await tester.pumpWidget(
+        wrap(
+          fake,
+          () => DriverFormDialog(driver: linked),
+          staff: FakeStaffRepository(staff: [anil]),
+        ),
+      );
+      await _open(tester);
+
+      await tester.tap(find.byKey(const Key('driver-staff-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nobody - cannot sign in').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['op'], 'updateDriver');
+      expect(fake.lastCall!.containsKey('staff_profile_id'), isTrue);
+      expect(fake.lastCall!['staff_profile_id'], isNull);
     });
   });
 

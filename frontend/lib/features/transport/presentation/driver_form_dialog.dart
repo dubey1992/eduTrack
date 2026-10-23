@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/driver_page_notifier.dart';
+import '../application/transport_pickers.dart';
 import '../data/models/driver.dart';
 import 'widgets/submit_button.dart';
 import 'widgets/transport_school_picker.dart';
@@ -33,6 +34,10 @@ class _DriverFormDialogState extends ConsumerState<DriverFormDialog> {
   late DateTime? _licenceExpiry = widget.driver?.licenceExpiry == null
       ? null
       : DateTime.parse(widget.driver!.licenceExpiry!);
+
+  /// The member of staff this driver is, or null for a record with nobody
+  /// behind it - which is every driver until somebody says otherwise.
+  late int? _staffProfileId = widget.driver?.staffProfileId;
 
   int? _schoolId;
   bool _isSubmitting = false;
@@ -77,6 +82,10 @@ class _DriverFormDialogState extends ConsumerState<DriverFormDialog> {
           mobile: mobile,
           licenceNumber: _licenceController.text.trim(),
           licenceExpiry: expiry,
+          // Always sent on an edit, null included: null is how a link is
+          // taken off, and an omitted field would read as "leave it".
+          staffProfileGiven: true,
+          staffProfileId: _staffProfileId,
         );
       } else {
         await notifier.createDriver(
@@ -85,6 +94,7 @@ class _DriverFormDialogState extends ConsumerState<DriverFormDialog> {
           mobile: mobile,
           licenceNumber: _licenceController.text.trim(),
           licenceExpiry: expiry,
+          staffProfileId: _staffProfileId,
         );
       }
       if (mounted) {
@@ -154,6 +164,12 @@ class _DriverFormDialogState extends ConsumerState<DriverFormDialog> {
                     child: Text(_licenceExpiry == null ? 'Not set' : formatDate(_licenceExpiry!)),
                   ),
                 ),
+                const SizedBox(height: 10),
+                _StaffField(
+                  schoolId: _schoolId,
+                  selected: _staffProfileId,
+                  onChanged: (value) => setState(() => _staffProfileId = value),
+                ),
               ],
             ),
           ),
@@ -163,6 +179,62 @@ class _DriverFormDialogState extends ConsumerState<DriverFormDialog> {
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
         SubmitButton(isSubmitting: _isSubmitting, onPressed: _submit, label: 'Save'),
       ],
+    );
+  }
+}
+
+/// Who this driver is, picked from the school's bus crew.
+///
+/// Not every member of staff: only somebody holding the Bus Attendant role
+/// can sign in to the app at all, so offering the whole payroll would let
+/// an admin link a clerk and then wonder why nothing happened
+/// (docs/driver-app.md, D3).
+class _StaffField extends ConsumerWidget {
+  const _StaffField({required this.schoolId, required this.selected, required this.onChanged});
+
+  final int? schoolId;
+  final int? selected;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final crew = ref.watch(attendantPickerProvider(schoolId));
+
+    return crew.when(
+      loading: () => const InputDecorator(
+        decoration: InputDecoration(labelText: 'Signs in as (optional)'),
+        child: Text('Loading the bus crew…'),
+      ),
+      error: (_, _) => const InputDecorator(
+        decoration: InputDecoration(labelText: 'Signs in as (optional)'),
+        child: Text('Could not load the bus crew. Save without it and try again.'),
+      ),
+      data: (people) => DropdownButtonFormField<int?>(
+        key: const Key('driver-staff-field'),
+        // Without this the menu items size to their own text and overflow
+        // the dialog - the longest of them by 201 pixels.
+        isExpanded: true,
+        initialValue: people.any((person) => person.id == selected) ? selected : null,
+        decoration: InputDecoration(
+          labelText: 'Signs in as (optional)',
+          helperText: people.isEmpty
+              ? 'Nobody at this school has a Bus Attendant account yet.'
+              : 'Linking a driver lets them sign in to the driver app.',
+          helperMaxLines: 2,
+        ),
+        items: [
+          const DropdownMenuItem<int?>(
+            value: null,
+            child: Text('Nobody - cannot sign in', overflow: TextOverflow.ellipsis),
+          ),
+          for (final person in people)
+            DropdownMenuItem<int?>(
+              value: person.id,
+              child: Text(person.name, overflow: TextOverflow.ellipsis),
+            ),
+        ],
+        onChanged: onChanged,
+      ),
     );
   }
 }

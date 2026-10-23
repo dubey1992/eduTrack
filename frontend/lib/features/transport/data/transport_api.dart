@@ -145,6 +145,7 @@ class TransportApi {
     String? mobile,
     required String licenceNumber,
     String? licenceExpiry,
+    int? staffProfileId,
   }) async {
     final response = await _dio.post(
       '/transport/drivers',
@@ -152,6 +153,7 @@ class TransportApi {
         'school_id': schoolId,
         'name': name,
         'mobile': mobile,
+        'staff_profile_id': staffProfileId,
         'licence_number': licenceNumber,
         'licence_expiry': licenceExpiry,
       },
@@ -166,12 +168,16 @@ class TransportApi {
     String? licenceNumber,
     String? licenceExpiry,
     TransportStatus? status,
+    // Sent on every edit, null included: null is how a link is taken off.
+    bool staffProfileGiven = false,
+    int? staffProfileId,
   }) async {
     final response = await _dio.patch(
       '/transport/drivers/$driverId',
       data: {
         'name': ?name,
         'mobile': mobile,
+        if (staffProfileGiven) 'staff_profile_id': staffProfileId,
         'licence_number': ?licenceNumber,
         'licence_expiry': licenceExpiry,
         'status': ?status?.apiValue,

@@ -210,6 +210,7 @@ class FakeTransportRepository implements TransportRepository {
     String? mobile,
     required String licenceNumber,
     String? licenceExpiry,
+    int? staffProfileId,
   }) async {
     _check();
     lastCall = {
@@ -219,6 +220,7 @@ class FakeTransportRepository implements TransportRepository {
       'mobile': mobile,
       'licence_number': licenceNumber,
       'licence_expiry': licenceExpiry,
+      'staff_profile_id': staffProfileId,
     };
     final driver = Driver(
       id: _drivers.length + 1,
@@ -231,6 +233,7 @@ class FakeTransportRepository implements TransportRepository {
       status: TransportStatus.active,
       routeId: null,
       routeName: null,
+      staffProfileId: staffProfileId,
     );
     _drivers.add(driver);
     return driver;
@@ -244,6 +247,8 @@ class FakeTransportRepository implements TransportRepository {
     String? licenceNumber,
     String? licenceExpiry,
     TransportStatus? status,
+    bool staffProfileGiven = false,
+    int? staffProfileId,
   }) async {
     _check();
     lastCall = {
@@ -254,6 +259,7 @@ class FakeTransportRepository implements TransportRepository {
       'licence_number': licenceNumber,
       'licence_expiry': licenceExpiry,
       'status': status?.apiValue,
+      if (staffProfileGiven) 'staff_profile_id': staffProfileId,
     };
     final index = _drivers.indexWhere((d) => d.id == driverId);
     final e = _drivers[index];
@@ -268,6 +274,8 @@ class FakeTransportRepository implements TransportRepository {
       status: status ?? e.status,
       routeId: e.routeId,
       routeName: e.routeName,
+      staffProfileId: staffProfileGiven ? staffProfileId : e.staffProfileId,
+      staffName: staffProfileGiven && staffProfileId == null ? null : e.staffName,
     );
     _drivers[index] = updated;
     return updated;

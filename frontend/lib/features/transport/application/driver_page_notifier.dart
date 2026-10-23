@@ -57,6 +57,7 @@ class DriverPageNotifier extends AsyncNotifier<PagedList<Driver>> {
     String? mobile,
     required String licenceNumber,
     String? licenceExpiry,
+    int? staffProfileId,
   }) async {
     await ref
         .read(transportRepositoryProvider)
@@ -66,6 +67,7 @@ class DriverPageNotifier extends AsyncNotifier<PagedList<Driver>> {
           mobile: mobile,
           licenceNumber: licenceNumber,
           licenceExpiry: licenceExpiry,
+          staffProfileId: staffProfileId,
         );
     _page = 1;
     await refresh();
@@ -79,6 +81,8 @@ class DriverPageNotifier extends AsyncNotifier<PagedList<Driver>> {
     String? licenceNumber,
     String? licenceExpiry,
     TransportStatus? status,
+    bool staffProfileGiven = false,
+    int? staffProfileId,
   }) async {
     final updated = await ref
         .read(transportRepositoryProvider)
@@ -89,6 +93,8 @@ class DriverPageNotifier extends AsyncNotifier<PagedList<Driver>> {
           licenceNumber: licenceNumber,
           licenceExpiry: licenceExpiry,
           status: status,
+          staffProfileGiven: staffProfileGiven,
+          staffProfileId: staffProfileId,
         );
     state = state.whenData(
       (page) => page.withItems([for (final existing in page.items) existing.id == updated.id ? updated : existing]),

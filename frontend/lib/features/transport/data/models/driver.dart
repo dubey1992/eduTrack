@@ -12,6 +12,8 @@ class Driver {
     required this.status,
     required this.routeId,
     required this.routeName,
+    this.staffProfileId,
+    this.staffName,
   });
 
   factory Driver.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,8 @@ class Driver {
       status: TransportStatus.fromApiValue(json['status'] as String),
       routeId: json['route_id'] as int?,
       routeName: json['route_name'] as String?,
+      staffProfileId: json['staff_profile_id'] as int?,
+      staffName: json['staff_name'] as String?,
     );
   }
 
@@ -41,6 +45,14 @@ class Driver {
   final TransportStatus status;
   final int? routeId;
   final String? routeName;
+
+  /// The member of staff this driver is, where somebody has said. Null
+  /// means they cannot sign in to the driver app at all
+  /// (docs/driver-app.md, D3).
+  final int? staffProfileId;
+  final String? staffName;
+
+  bool get canSignIn => staffProfileId != null;
 
   bool get isActive => status == TransportStatus.active;
 

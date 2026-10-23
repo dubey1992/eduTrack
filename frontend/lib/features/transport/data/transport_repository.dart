@@ -95,6 +95,7 @@ class TransportRepository {
     String? mobile,
     required String licenceNumber,
     String? licenceExpiry,
+    int? staffProfileId,
   }) => _guard(
     () => _api.createDriver(
       schoolId: schoolId,
@@ -102,6 +103,7 @@ class TransportRepository {
       mobile: mobile,
       licenceNumber: licenceNumber,
       licenceExpiry: licenceExpiry,
+      staffProfileId: staffProfileId,
     ),
   );
 
@@ -112,6 +114,8 @@ class TransportRepository {
     String? licenceNumber,
     String? licenceExpiry,
     TransportStatus? status,
+    bool staffProfileGiven = false,
+    int? staffProfileId,
   }) => _guard(
     () => _api.updateDriver(
       driverId,
@@ -120,6 +124,8 @@ class TransportRepository {
       licenceNumber: licenceNumber,
       licenceExpiry: licenceExpiry,
       status: status,
+      staffProfileGiven: staffProfileGiven,
+      staffProfileId: staffProfileId,
     ),
   );
 

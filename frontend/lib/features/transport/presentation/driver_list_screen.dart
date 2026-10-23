@@ -190,6 +190,10 @@ class _DriverTable extends StatelessWidget {
               const DataColumn(label: Text('Mobile')),
               const DataColumn(label: Text('Licence')),
               const DataColumn(label: Text('Route')),
+              // Whether this driver can sign in to the app at all, which is
+              // not obvious from anything else on the row
+              // (docs/driver-app.md, D3).
+              const DataColumn(label: Text('Signs in as')),
               const DataColumn(label: Text('Status')),
               if (canManage) const DataColumn(label: Text('Actions')),
             ],
@@ -208,6 +212,11 @@ class _DriverTable extends StatelessWidget {
                       ),
                     ),
                     DataCell(Text(driver.routeName ?? 'Unassigned')),
+                    DataCell(
+                      driver.canSignIn
+                          ? Text(driver.staffName ?? '-')
+                          : Text('Not linked', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                    ),
                     DataCell(TransportStatusBadge(status: driver.status)),
                     if (canManage) DataCell(_DriverActions(driver: driver)),
                   ],
