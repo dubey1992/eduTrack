@@ -46,9 +46,11 @@ val mapsApiKey: String = run {
 
 android {
     namespace = "com.school365ai.app"
-    // flutter_secure_storage 11 requires 37, and Flutter still defaults to
-    // 36. Pinned here with android.suppressUnsupportedCompileSdk in
-    // gradle.properties (docs/driver-app.md, D0).
+    // flutter_secure_storage 11 compiles against 37 and Flutter still
+    // defaults to 36, so the app has to meet it or the AAR metadata check
+    // refuses the build. It needs AGP 9.3+ to resolve: earlier versions
+    // looked for a platform directory named android-37, which the SDK
+    // manager publishes as android-37.0 (docs/driver-app.md, D1.4).
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 

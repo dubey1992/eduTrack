@@ -264,3 +264,45 @@ jobs:
 
       - name: Test
         run: flutter test
+
+  android:
+    name: Android app
+    runs-on: ubuntu-latest
+
+    # The driver app is Android only, and nothing else in this workflow
+    # compiles a line of it: the Flutter job runs Dart tests, which never
+    # touch Gradle, the manifest or the SDK. Without this, the APK breaks
+    # on the day somebody tries to cut a release (docs/driver-app.md, D1.4).
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Gradle needs a JDK of its own; the Flutter action does not bring one.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build the driver app
+        # --target is not optional: without it this builds the school's web
+        # app into an APK, which is the bug D1.5 fixed. No signing key here,
+        # so a release build would fall back to the debug key; a debug build
+        # says the same thing about whether the project compiles.
+        run: flutter build apk --debug --target lib/main_driver.dart
+
+      - name: Say what came out
+        run: |
+          ls -lh build/app/outputs/flutter-apk/app-debug.apk
+          "$ANDROID_HOME"/build-tools/*/aapt2 dump badging             build/app/outputs/flutter-apk/app-debug.apk | head -3

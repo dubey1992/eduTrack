@@ -79,23 +79,13 @@ the next person meets them in the same order:
 3. **AGP 9.1.0 recommends at most compileSdk 36** and stops the build rather
    than warning.
 
-What makes it build today: `compileSdk = 37` pinned in
-`android/app/build.gradle.kts`, `android.suppressUnsupportedCompileSdk=37`
-in `android/gradle.properties`, and — **outside the repo** — a junction so
-the platform resolves:
-
-```
-mklink /J "%LOCALAPPDATA%\Android\Sdk\platforms\android-37" ^
-          "%LOCALAPPDATA%\Android\Sdk\platforms\android-37.0"
-```
-
-`flutter build apk --debug` then succeeds (173 MB debug APK).
-
-**That junction is the weak part**: any other machine, and CI, needs the
-same line or the build fails there while working here. Two ways to be rid
-of it, neither urgent: upgrade AGP once a version supports 37, or hold
-`flutter_secure_storage` at 10.x, which compiles against 36 — a downgrade
-of the thing that stores auth tokens, so not something to do casually.
+*Fixed in D1.4 by upgrading.* For a while it built on this machine only,
+with `compileSdk = 37` pinned, `android.suppressUnsupportedCompileSdk=37`
+and a junction linking `platforms/android-37` to `platforms/android-37.0`.
+AGP 9.3.3 and Gradle 9.5.0 removed the need for all three: that AGP reads
+the new naming and allows 37. The pin stays, because the plugin still asks
+for 37; both workarounds are gone, and a clean build with the junction
+deleted proves it.
 
 ## The design
 
@@ -362,12 +352,25 @@ in Flutter, when that screen is built.
 - Sign-in stays reachable from the landing and stays reachable afterwards,
   so reading it once is enough.
 
-**D1.4 — A build that works on more than this machine**
-- Decide the `android-37` problem: bump AGP when one supports 37, or hold
-  `flutter_secure_storage` at 10.x. Until then, the junction is written down
-  in this doc and nowhere else, which is not good enough.
-- Add the Android build to CI so it fails there rather than on a release day.
+**D1.4 — A build that works on more than this machine** *(done 2026-10-23)*
+- **The junction is gone, and so is the suppress flag.** AGP 9.3.3 (with
+  Gradle 9.5.0, which it requires) understands the SDK manager's new
+  naming, so `compileSdk = 37` resolves `platforms/android-37.0` on its
+  own and its ceiling now allows 37. Both workarounds were deleted and a
+  clean build — `flutter clean`, caches dropped, the junction removed from
+  the SDK — came out fine. The third option, holding
+  `flutter_secure_storage` at 9.x, was not taken: swapping the thing that
+  stores auth tokens to dodge a build-config problem is the wrong trade.
+- **CI builds the APK.** A new `android` job: JDK 17, Flutter, then
+  `flutter build apk --debug --target lib/main_driver.dart`. Nothing else
+  in the workflow compiles a line of Android — the Flutter job runs Dart
+  tests, which never touch Gradle, the manifest or the SDK — so without
+  this the APK breaks on the day somebody tries to cut a release.
+- The `--target` is not optional in that job either: without it CI would
+  cheerfully build the school's web app into an APK and call it green.
 - *Done when:* a clean checkout builds the APK on CI without a manual step.
+  **The local half is proven; the CI half is not yet** — it cannot be,
+  until the job has run once on GitHub. Watch the first run.
 
 ---
 
