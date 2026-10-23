@@ -161,13 +161,22 @@ class _WebCopy extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              // Top, not centre: once the text wraps, a centred tick floats
+              // between the two lines instead of marking the first one.
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   '✓',
                   style: TextStyle(color: MarketingColors.success, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(width: 8),
-                Text(check['text'] ?? '', style: const TextStyle(fontSize: 14, color: MarketingColors.muted)),
+                // Flexible, because these lines are written by the school
+                // and nobody promised they are short. Sized to their natural
+                // width they overflowed a phone by 29 pixels - and an
+                // overflow is content nobody can read, not a cosmetic stripe.
+                Flexible(
+                  child: Text(check['text'] ?? '', style: const TextStyle(fontSize: 14, color: MarketingColors.muted)),
+                ),
               ],
             ),
           ),

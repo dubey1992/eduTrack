@@ -156,42 +156,74 @@ class _AvatarStack extends StatelessWidget {
 class _HeroVisual extends StatelessWidget {
   const _HeroVisual();
 
+  /// The size the illustration is drawn at. Everything inside is laid out
+  /// against it - the mock-up's 590, the laptop base's 520, the phone's
+  /// offset from the right edge - so it is a composition, not a layout.
+  static const _design = Size(590, 400);
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 400,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const DashboardMockup(),
-              Container(
-                height: 12,
-                width: 520,
-                margin: const EdgeInsets.only(left: 40),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
+    // Scaled to fit rather than laid out to fit. At phone width the pieces
+    // cannot be made to agree - the mock-up alone is 590 wide, and on a
+    // 390-wide screen it overflowed by 202 pixels, with two more overflows
+    // inside it - and the honest answer for a decorative picture is to draw
+    // it smaller rather than rearrange a thing that is pretending to be a
+    // screenshot. scaleDown, so it is never blown up past its design size
+    // on a desktop.
+    // Kept out of the focus order and out of the semantics tree, because it
+    // is a picture of a product, not the product: a keyboard user tabbing
+    // the page should not stop on a fake dashboard, and a screen reader
+    // should not read one out.
+    //
+    // It also settles a console error. Every Text inside a SelectionArea is
+    // focusable, so this illustration enrolled its whole contents in focus
+    // traversal - and when the browser view takes focus, Flutter sorts
+    // every focusable node into reading order, asking each for its rect.
+    // A Stack in here had not been laid out yet, and an unlaid-out RenderBox
+    // has no size to give: "RenderBox was not laid out: RenderStack".
+    return ExcludeFocus(
+      child: ExcludeSemantics(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: _design.width,
+            height: _design.height,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const DashboardMockup(),
+                    Container(
+                      height: 12,
+                      width: 520,
+                      margin: const EdgeInsets.only(left: 40),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const Positioned(
-            right: 8,
-            bottom: 0,
-            child: PhoneMockup(
-              child: PhoneAppContent(
-                greeting: 'Good Morning,\nSarah! 👋',
-                subtitle: "Let's make today amazing.",
-                quickActions: [('✓', 'Attendance'), ('¤', 'Homework'), ('✓', 'Fees'), ('🚌', 'Transport')],
-                footerTitle: "Today's Classes",
-                footerBody: 'Grade 6A · Mathematics\nGrade 8B · Mathematics',
-              ),
+                const Positioned(
+                  right: 8,
+                  bottom: 0,
+                  child: PhoneMockup(
+                    child: PhoneAppContent(
+                      greeting: 'Good Morning,\nSarah! 👋',
+                      subtitle: "Let's make today amazing.",
+                      quickActions: [('✓', 'Attendance'), ('¤', 'Homework'), ('✓', 'Fees'), ('🚌', 'Transport')],
+                      footerTitle: "Today's Classes",
+                      footerBody: 'Grade 6A · Mathematics\nGrade 8B · Mathematics',
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
