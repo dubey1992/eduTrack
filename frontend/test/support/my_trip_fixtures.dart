@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/models/location_point.dart';
@@ -282,11 +284,29 @@ class FakeMyTripApi implements MyTripApi {
 }
 
 /// A location source that always has a position unless told otherwise.
+///
+/// The stream is driven by the test rather than by a clock: [offer] plays
+/// the part of the platform deciding the bus has moved.
 class FakeLocationSource implements LocationSource {
   FakeLocationSource({this.access = LocationAccess.granted});
 
   LocationAccess access;
   int positionsTaken = 0;
+
+  /// What the stream was asked for, so a test can check the platform is
+  /// being told to do the filtering.
+  Duration? askedInterval;
+  double? askedDistanceFilter;
+
+  final _offered = StreamController<DevicePosition>.broadcast();
+
+  /// Hands one position to whoever is listening to [positions].
+  void offer(DevicePosition position) => _offered.add(position);
+
+  /// Breaks the stream the way a phone with location switched off does.
+  void fail(LocationAccess reason) => _offered.addError(LocationUnavailable(reason));
+
+  void dispose() => _offered.close();
 
   @override
   Future<LocationAccess> requestAccess() async => access;
@@ -296,6 +316,13 @@ class FakeLocationSource implements LocationSource {
     if (access != LocationAccess.granted) throw LocationUnavailable(access);
     positionsTaken++;
     return DevicePosition(latitude: 12.97 + positionsTaken / 1000, longitude: 77.59, accuracy: 8, speed: 6.5);
+  }
+
+  @override
+  Stream<DevicePosition> positions({required Duration interval, required double distanceFilterMetres}) {
+    askedInterval = interval;
+    askedDistanceFilter = distanceFilterMetres;
+    return _offered.stream;
   }
 }
 

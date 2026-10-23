@@ -50,6 +50,16 @@ abstract class LocationSource {
 
   /// The current position. Throws [LocationUnavailable].
   Future<DevicePosition> currentPosition();
+
+  /// Positions as the device offers them while a trip runs: no more often
+  /// than [interval], and no closer together than [distanceFilterMetres].
+  ///
+  /// Asking the platform for one continuous stream, rather than waking up
+  /// to ask for a fresh fix on a timer, is what makes a two-hour run
+  /// affordable: between deliveries the app does nothing at all
+  /// (docs/driver-app.md, D4.2). The stream carries [LocationUnavailable]
+  /// as an error when the phone stops answering.
+  Stream<DevicePosition> positions({required Duration interval, required double distanceFilterMetres});
 }
 
 final locationSourceProvider = Provider<LocationSource>((ref) => platform.createLocationSource());

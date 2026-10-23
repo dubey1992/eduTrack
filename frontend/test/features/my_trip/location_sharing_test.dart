@@ -9,8 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/in_memory_key_value_store.dart';
 import '../../support/my_trip_fixtures.dart';
 
-/// Sharing runs on a 15-second timer, so these run as widget tests:
-/// `tester.pump(duration)` moves the clock.
+/// Sharing runs on a stream and a one-minute heartbeat timer, so these run
+/// as widget tests: `tester.pump(duration)` moves the clock, and
+/// `location.offer(...)` plays the part of the platform deciding the bus
+/// has moved.
 void main() {
   late FakeMyTripApi api;
   late InMemoryKeyValueStore store;
@@ -41,7 +43,13 @@ void main() {
 
   LocationSharingState stateOf(ProviderContainer container) => container.read(locationSharingProvider(55));
 
-  testWidgets('is on by default, and sends a position straight away and every 15 seconds', (tester) async {
+  /// The first fix the fake gives is 12.971, so these are measured from
+  /// there: about 11 m away, and about 222 m away.
+  const nearby = DevicePosition(latitude: 12.9711, longitude: 77.59, accuracy: 8);
+  const farOff = DevicePosition(latitude: 12.9730, longitude: 77.59, accuracy: 8);
+  const farther = DevicePosition(latitude: 12.9750, longitude: 77.59, accuracy: 8);
+
+  testWidgets('is on by default, and sends a position straight away', (tester) async {
     final container = openTrip();
     await tester.pump();
 
@@ -50,11 +58,90 @@ void main() {
     expect(api.locationBatches.single.single.accuracy, 8);
     expect(api.locationBatches.single.single.recordedAt, endsWith('Z'));
 
-    await tester.pump(const Duration(seconds: 15));
-    await tester.pump(const Duration(seconds: 15));
-    expect(api.locationBatches, hasLength(3));
-
     container.dispose();
+  });
+
+  group('what is worth sending (docs/driver-app.md, D4.2)', () {
+    testWidgets('the platform is asked to do the filtering', (tester) async {
+      final container = openTrip();
+      await tester.pump();
+
+      expect(location.askedDistanceFilter, LocationSharingNotifier.movedEnoughMetres);
+      expect(location.askedInterval, LocationSharingNotifier.interval);
+
+      container.dispose();
+    });
+
+    testWidgets('a bus that has moved is reported', (tester) async {
+      final container = openTrip();
+      await tester.pump();
+
+      location.offer(farOff);
+      await tester.pump();
+
+      expect(api.locationBatches, hasLength(2));
+      expect(api.locationBatches.last.single.latitude, farOff.latitude);
+
+      container.dispose();
+    });
+
+    testWidgets('a bus that has not moved is not reported again', (tester) async {
+      final container = openTrip();
+      await tester.pump();
+
+      location.offer(nearby);
+      location.offer(nearby);
+      await tester.pump();
+
+      expect(api.locationBatches, hasLength(1), reason: 'eleven metres is a parked bus, not a journey');
+
+      container.dispose();
+    });
+
+    testWidgets('a standing bus still says where it is once a minute', (tester) async {
+      final container = openTrip();
+      await tester.pump();
+      expect(api.locationBatches, hasLength(1));
+
+      await tester.pump(LocationSharingNotifier.heartbeat);
+      await tester.pump();
+
+      expect(api.locationBatches, hasLength(2));
+      expect(location.positionsTaken, 2, reason: 'a real fix, not the last one stamped again');
+
+      container.dispose();
+    });
+
+    testWidgets('a moving bus never reaches the heartbeat', (tester) async {
+      final container = openTrip();
+      await tester.pump();
+
+      // Half a minute apart, so the heartbeat would have fired twice were
+      // it not re-armed by each point.
+      for (final position in [farOff, farther]) {
+        await tester.pump(const Duration(seconds: 30));
+        location.offer(position);
+        await tester.pump();
+      }
+
+      expect(api.locationBatches, hasLength(3));
+      expect(location.positionsTaken, 1, reason: 'only the opening fix was asked for');
+
+      container.dispose();
+    });
+
+    testWidgets('the phone going quiet turns the switch off with the reason', (tester) async {
+      final container = openTrip();
+      await tester.pump();
+
+      location.fail(LocationAccess.serviceOff);
+      await tester.pump();
+
+      expect(stateOf(container).enabled, isFalse);
+      expect(stateOf(container).message, LocationSharingNotifier.serviceOffMessage);
+
+      container.dispose();
+    });
   });
 
   testWidgets('permission refused turns the switch off and says why', (tester) async {
@@ -103,12 +190,14 @@ void main() {
     api.offline = true;
     final container = openTrip();
     await tester.pump();
-    await tester.pump(const Duration(seconds: 15));
+    location.offer(farOff);
+    await tester.pump();
     expect(api.locationBatches, isEmpty);
     expect(store.values['my_trip.points'], contains('"trip_id":55'));
 
     api.offline = false;
-    await tester.pump(const Duration(seconds: 15));
+    location.offer(farther);
+    await tester.pump();
     expect(api.locationBatches.single, hasLength(3));
     expect(store.values['my_trip.points'], '[]');
 

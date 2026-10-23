@@ -55,4 +55,16 @@ class BrowserLocationSource implements LocationSource {
 
     return completer.future;
   }
+
+  @override
+  Stream<DevicePosition> positions({required Duration interval, required double distanceFilterMetres}) async* {
+    // The browser has no distance filter, and a laptop on a desk is not the
+    // case this was written for - the battery that matters is in a cradle
+    // on a bus. So the web build simply asks on the interval and lets the
+    // caller's own "has it moved?" rule do the thinning.
+    while (true) {
+      yield await currentPosition();
+      await Future<void>.delayed(interval);
+    }
+  }
 }

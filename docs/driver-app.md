@@ -497,11 +497,24 @@ looking at.*
   services are Xiaomi, Oppo and Vivo, which is D4.4's whole subject — so the
   real-phone check belongs there rather than being claimed here.
 
-**D4.2 — The battery profile**
-- Distance-filtered updates (send on ~50m moved, and at least once a
-  minute) in place of a 15s timer, still batched.
-- *Done when:* a two-hour run costs a few hundred points rather than five
-  hundred, measured.
+**D4.2 — The battery profile** *(built 2026-10-23)*
+- One continuous position stream in place of a fresh high-accuracy fix every
+  15 seconds. Android is told both rules — at least 50 m apart, at most one
+  every 15 s — so the *platform* decides when the bus has moved and the app
+  sleeps in between instead of waking to throw a position away.
+- A point is kept when the bus has moved 50 m, which is about a bus length
+  and a half: movement, rather than a parked phone's fix wandering.
+- A standing bus still reports **once a minute**, from a real fix. The
+  tempting cheap version — re-stamp the last position with the time now —
+  was not built: the office reads that line as "where the bus is now", and
+  D4.3 only works because that sentence is true.
+- The heartbeat is a one-shot timer re-armed by every kept point, not a
+  periodic one. A moving bus therefore never reaches it, and the rule needs
+  no clock arithmetic to express — which is also why it is testable.
+- *Measured on an emulator, standing still:* four positions a minute before,
+  one after. Over a two-hour run that is 480 points against 120, and a
+  moving bus is unchanged at its 15 s ceiling — so the saving is taken
+  entirely out of the standing time, which is where it was.
 
 **D4.3 — Stale is said, not implied** *(already built, verified 2026-10-23)*
 - The maps work (docs/maps.md, M3) delivered this before the driver app

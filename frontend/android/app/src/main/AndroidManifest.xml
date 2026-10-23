@@ -20,6 +20,14 @@
         android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- The bus mark, white on transparent, for the trip notification.
+             Android flattens a small icon to a silhouette: hand it the
+             colour launcher icon and the shade shows a plain white blob,
+             which is what it did until this existed. Cut from the launcher
+             icon's own foreground so the two are the same drawing. -->
+        <meta-data
+            android:name="com.school365ai.app.trip_notification_icon"
+            android:resource="@drawable/ic_trip_notification" />
         <!-- The foreground service that keeps a trip reporting with the
              screen off. The plugin ships the class but not this line: only
              the app knows which foregroundServiceType it is running under,

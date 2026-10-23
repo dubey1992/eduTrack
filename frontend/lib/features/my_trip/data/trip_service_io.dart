@@ -1,4 +1,5 @@
 import 'dart:developer' as developer;
+import 'dart:ui';
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
@@ -47,7 +48,11 @@ Future<void> start({required String title, required String body}) async {
     await FlutterForegroundTask.requestNotificationPermission();
   }
 
-  final result = await FlutterForegroundTask.startService(notificationTitle: title, notificationText: body);
+  final result = await FlutterForegroundTask.startService(
+    notificationTitle: title,
+    notificationText: body,
+    notificationIcon: _busMark,
+  );
 
   // A refused notification costs the screen-off half of the run, not the
   // run: the trip keeps reporting while the driver is looking at it, and
@@ -57,6 +62,18 @@ Future<void> start({required String title, required String body}) async {
     developer.log('Could not start the trip foreground service', name: 'trip', error: result.error);
   }
 }
+
+/// The bus, white on transparent, on the app's own blue.
+///
+/// Without this the plugin hands Android the launcher icon, and Android
+/// flattens any small icon to a silhouette - so a colour, rounded-square
+/// icon arrives in the shade as a plain white blob. The drawable is cut
+/// from the launcher icon's foreground, so the notification and the home
+/// screen show one drawing.
+const _busMark = NotificationIcon(
+  metaDataName: 'com.school365ai.app.trip_notification_icon',
+  backgroundColor: Color(0xFF2563EB),
+);
 
 Future<void> stop() async {
   if (await FlutterForegroundTask.isRunningService) await FlutterForegroundTask.stopService();
