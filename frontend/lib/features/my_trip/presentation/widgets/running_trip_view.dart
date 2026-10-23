@@ -10,10 +10,12 @@ import '../../../../core/widgets/status_badge.dart';
 import '../../../transport/data/models/transport_trip.dart';
 import '../../application/trip_detail_notifier.dart';
 import '../../application/trip_mark_queue.dart';
+import '../../data/map_navigator.dart';
 import '../../data/models/not_sent_mark.dart';
 import 'location_sharing_tile.dart';
 import 'not_sent_card.dart';
 import 'rider_tile.dart';
+import 'sos_button.dart';
 
 /// One trip, stop by stop, with each stop's children under it.
 ///
@@ -57,6 +59,21 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text("Could not open the phone's dialler.")));
+    }
+  }
+
+  /// Hands the stop to the maps app. Only ever offered for a stop that has
+  /// a position, so there is no "where?" to answer here.
+  Future<void> _navigateTo(TripStop stop) async {
+    final latitude = double.tryParse(stop.latitude ?? '');
+    final longitude = double.tryParse(stop.longitude ?? '');
+    if (latitude == null || longitude == null) return;
+
+    final opened = await ref.read(mapNavigatorProvider).navigateTo(latitude: latitude, longitude: longitude);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Could not open a maps app on this phone.')));
     }
   }
 
@@ -135,6 +152,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
             onReached: () {
               if (_acceptTap()) _trip.reachStop(stop);
             },
+            onNavigate: () => _navigateTo(stop),
           ),
           for (final rider in trip.riders.where((r) => r.stopId == stop.id)) _riderTile(rider, running),
         ],
@@ -144,6 +162,8 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
         ],
         const SizedBox(height: 16),
         if (running) ...[
+          SosButton(onSos: _trip.raiseSos),
+          const SizedBox(height: 12),
           SizedBox(
             height: 56,
             child: FilledButton.icon(
@@ -232,12 +252,24 @@ class _TripHeader extends StatelessWidget {
 }
 
 class _StopHeader extends StatelessWidget {
-  const _StopHeader({required this.stop, required this.direction, required this.isNext, required this.onReached});
+  const _StopHeader({
+    required this.stop,
+    required this.direction,
+    required this.isNext,
+    required this.onReached,
+    required this.onNavigate,
+  });
 
   final TripStop stop;
   final TripDirection direction;
   final bool isNext;
   final VoidCallback onReached;
+  final VoidCallback onNavigate;
+
+  /// A stop nobody has placed on the map cannot be navigated to, and a
+  /// button that does nothing is worse than no button.
+  bool get _hasPosition =>
+      double.tryParse(stop.latitude ?? '') != null && double.tryParse(stop.longitude ?? '') != null;
 
   @override
   Widget build(BuildContext context) {
@@ -259,6 +291,17 @@ class _StopHeader extends StatelessWidget {
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
             ),
           ),
+          if (isNext && !stop.reached && _hasPosition)
+            SizedBox(
+              height: 48,
+              width: 48,
+              child: IconButton(
+                key: Key('navigate-stop-${stop.id}'),
+                onPressed: onNavigate,
+                icon: const Icon(Icons.directions),
+                tooltip: 'Navigate to ${stop.name}',
+              ),
+            ),
           if (stop.reached)
             const StatusBadge(label: 'Reached', tone: BadgeTone.success)
           else if (isNext)

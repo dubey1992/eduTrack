@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../application/my_routes_notifier.dart';
 import '../application/trip_mark_queue.dart';
+import '../data/battery_guard.dart';
 import '../data/models/my_route.dart';
 import 'widgets/route_card.dart';
 import 'widgets/running_trip_view.dart';
@@ -68,6 +70,53 @@ class _MyTripScreenState extends ConsumerState<MyTripScreen> {
   }
 }
 
+/// Shown before the run rather than during it: a driver can walk through
+/// Settings in the yard at seven, and must not be sent into them at the
+/// wheel (docs/driver-app.md, D4.4).
+class _BatteryWarning extends ConsumerWidget {
+  const _BatteryWarning();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mayStop = ref.watch(phoneMayStopSharingProvider).value ?? false;
+    if (!mayStop) return const SizedBox.shrink();
+
+    final colors = context.appColors;
+
+    return Container(
+      key: const Key('battery-warning'),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: colors.warningContainer, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.battery_alert_outlined, size: 20, color: colors.onWarningContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "This phone may stop sending the bus's position when the screen is off.",
+                  style: TextStyle(color: colors.onWarningContainer),
+                ),
+                const SizedBox(height: 4),
+                TextButton(
+                  key: const Key('open-battery-help'),
+                  onPressed: () => context.push('/battery'),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
+                  child: const Text('How to fix it'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RoutesView extends ConsumerWidget {
   const _RoutesView({required this.onOpenTrip});
 
@@ -105,6 +154,7 @@ class _RoutesView extends ConsumerWidget {
                 ),
               ),
             const SizedBox(height: 16),
+            const _BatteryWarning(),
             for (final route in day.routes) RouteCard(route: route, onOpenTrip: onOpenTrip),
           ],
         ),

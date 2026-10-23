@@ -8,6 +8,11 @@ enum TripMarkType {
   dropped('dropped'),
   absent('absent'),
   guardianCalled('guardian_called'),
+
+  /// The crew asked the school for help from the road. It rides this queue
+  /// like any other mark, because a road with no signal is exactly when it
+  /// must be kept and sent later (docs/driver-app.md, D5.2).
+  sos('sos'),
   end('end');
 
   const TripMarkType(this.apiValue);

@@ -38,7 +38,7 @@ from . import (
     working_hours,
 )
 from .gateways import Template
-from .clock import TIME, SchoolClock
+from .clock import DATE_TIME, TIME, SchoolClock
 from .fields import as_utc
 from . import punches, week
 from .week import WorkingWeek
@@ -3665,6 +3665,61 @@ class TransportTripService:
                 note="Closed automatically: the trip was still running at the end of the day.",
             )
 
+    @classmethod
+    def raise_sos(cls, trip, actor: User, at, client_id: str) -> int:
+        """The crew asked the school for help from the road.
+
+        It changes nothing about the trip: the bus keeps running, the
+        children stay marked, and nothing is cancelled. Somebody on a road
+        wanted a person, not a state machine (docs/driver-app.md, D5.2).
+
+        Returns how many people were told, which is what the phone shows.
+        """
+        cls.record(trip, TripEventType.SOS, actor, at=at, client_id=client_id,
+                   note="SOS raised from the bus")
+
+        audit.record(action="transport_trip.sos", module="transport", entity_type="transport_trip",
+                     entity_id=trip.pk, school_id=trip.school_id,
+                     new={"raised_by": actor.id, "occurred_at": at.isoformat()})
+
+        return cls.alert_sos(trip, actor, at)
+
+    @staticmethod
+    def alert_sos(trip, actor: User, at) -> int:
+        """Everybody at the school who could act on it, and their number for
+        the crew is in the message - an alert that cannot be answered is not
+        an alert."""
+        clock = SchoolClock.for_school(trip.school)
+        on_board = TransportTripRider.objects.filter(trip_id=trip.pk, status=TripRiderStatus.BOARDED).count()
+
+        # Both, not one or the other: an SOS is the case where the manager's
+        # phone being off must not be the end of it.
+        people = list(
+            User.objects.filter(
+                school_id=trip.school_id,
+                role__in=(UserRole.TRANSPORT_MANAGER, UserRole.SCHOOL_ADMIN),
+                status=UserStatus.ACTIVE,
+            )
+        )
+
+        for person in people:
+            notifications.notify_staff(
+                MessageEvent.TRIP_SOS,
+                person,
+                {
+                    "route_name": trip.route.name,
+                    "vehicle_name": trip.vehicle.name if trip.vehicle_id else "no vehicle on record",
+                    "direction": trip.direction,
+                    "time": clock.format(at, DATE_TIME),
+                    "crew_name": actor.name,
+                    "crew_mobile": actor.mobile or "no number on record",
+                    "on_board": str(on_board),
+                },
+                subject=f"SOS from {trip.route.name}",
+            )
+
+        return len(people)
+
     @staticmethod
     def tell_the_school(trip, on_board: int, clock) -> int:
         """The transport managers, or the admins where a school has none -
@@ -6337,6 +6392,8 @@ class TripSyncService:
                            note=f"Called {student.guardian_name}")
             audit.record(action="transport_trip.guardian_called", module="transport", entity_type="transport_trip",
                          entity_id=trip.pk, school_id=trip.school_id, new={"student_id": student.pk})
+        elif kind == "sos":
+            service.raise_sos(trip, actor, at, client_id)
         elif kind == "end":
             service.end(trip, actor, at, client_id)
 

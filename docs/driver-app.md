@@ -538,35 +538,89 @@ looking at.*
   window carries the same sentence.
 - Checked rather than assumed, and left alone.
 
-**D4.4 — The phones drivers actually carry**
-- A help screen for the OEM battery managers that kill foreground services
-  (Xiaomi, Oppo, Vivo), and a check on first run.
-- *Done when:* a trip survives a run on one of those phones.
+**D4.4 — The phones drivers actually carry** *(built 2026-10-23)*
+- Two settings stand between a correct foreground service and a bus that
+  stays on the map. The first, Android's own battery optimisation, *can* be
+  asked for from code, and the help screen's one button does. The second —
+  the layer Xiaomi, Oppo and Vivo add on top — kills services on its own
+  schedule, sits somewhere different on every phone, and has **no API at
+  all**. That half is a person tapping through Settings, so the screen is
+  written as steps by make rather than as a button that cannot exist.
+- The warning lives on the **duty screen**, before the run: a driver can
+  walk through Settings in the yard at seven, and must not be sent into them
+  at the wheel. It shows only when the phone is actually restricted.
+- The screen is also always reachable from the crew app bar, because Android
+  can report this app as exempt while the manufacturer's own manager kills
+  it anyway — and that driver needs the steps too, with no warning to tap.
+- Makes covered: Xiaomi/Redmi/POCO, Oppo/Realme/OnePlus, Vivo/iQOO, Samsung,
+  and a generic path for anything else.
+- *Still open:* "a trip survives a run on one of those phones" — which needs
+  one of those phones. This is where D4.1's real-device check belongs too.
 
 ---
 
 ### Phase D5 — On the road
 
-**D5.1 — Navigate to the next stop**
-- Hand off to Google Maps with a `google.navigation:` intent. No Navigation
-  SDK, no licence, and it is the app drivers already know.
-- Tests: the intent is built from the right stop; a stop with no position
-  offers nothing rather than a broken button.
+**D5.1 — Navigate to the next stop** *(done 2026-10-23)*
+- Hand off to Google Maps with a `google.navigation:` intent, which starts
+  guidance rather than opening a preview. No Navigation SDK, no licence, and
+  it is the app drivers already know.
+- A phone without Google Maps falls back to an ordinary directions URL, so
+  the button is never dead. Android 11+ hides other apps unless they are
+  declared, so both schemes are in the manifest's `<queries>`.
+- Offered on the next stop only, and only when that stop has been placed on
+  the map. A stop nobody has surveyed offers nothing — a button that does
+  nothing is worse than no button.
+- Tests: the link's exact shape (including a southern/western stop), the
+  right stop's position, an unplaced stop, a reached stop, a stop that is
+  not next, and a phone with no maps app at all.
 
-**D5.2 — SOS**
-- One button, held two seconds, recording an `sos` trip event and alerting
-  the school through the existing `NotificationService`. Visible on the live
-  map.
-- Tests: the event, the alert, the audit row, and that a stray tap cannot
-  send one.
+**D5.2 — SOS** *(done 2026-10-23)*
+- One button, **held two seconds**, with the hold drawn as it fills. Held
+  rather than tapped because of where it lives: a phone in a cradle on a
+  moving bus, under a driver's hand, on the same screen as the buttons they
+  press forty times a morning.
+- It changes nothing about the trip. The bus keeps running, the children
+  stay marked, nothing is cancelled — somebody on a road wanted a person,
+  not a state machine.
+- It rides the **same offline queue** as every other mark, because a road
+  with no signal is exactly when an SOS must be kept and sent later. Same
+  `client_id`, so a second send alerts nobody twice.
+- Goes to the transport managers **and** the admins, not one or the other:
+  this is the case where the manager's phone being off must not be the end
+  of it. The message carries the crew member's own number, because an alert
+  nobody can answer is not an alert.
+- **No school can switch it off.** The transport switch is about what
+  guardians are told; a crew asking for help is not a setting.
+- On the office's trip timeline it is drawn in the danger colour with its
+  own icon, so somebody scrolling in a hurry finds it.
+- Tests: the event and its audit row, who is told and what the message says,
+  that the trip is untouched, that it needs no child or stop, that a repeat
+  send alerts once, that a switched-off school still gets it — and, on the
+  phone, that a stray tap and an early release both send nothing.
 
 ---
 
 ### Phase D6 — Release
 
-**D6.1 — A privacy policy that exists**
-- Required by Play for a location app, and the footer link currently points
-  at a page that does not exist. The two are the same job.
+**D6.1 — A privacy policy that exists** *(drafted 2026-10-23 — needs your review)*
+- `/privacy`, public like the homepage: it has to open for a parent, a Play
+  reviewer or a school's lawyer, none of whom have an account. The footer's
+  Privacy Policy link now points at it instead of at a page that never
+  existed.
+- Written from what the code actually does, and the tests pin the promises:
+  location only while a trip runs, no background-location permission,
+  positions deleted after 30 days, a guardian's number never recorded, and
+  the third parties that genuinely do receive something — Google Maps,
+  Google Fonts (the typeface is fetched at runtime, so Google sees the
+  request), the school's own messaging provider, and the hosting.
+- **What it deliberately does not say:** who the operating company is, its
+  address, or which country's law applies. Those are facts about the
+  business, not the software, and inventing them would be worse than leaving
+  them out — the page points to the school's agreement instead. Fill those
+  in before the Play listing goes anywhere.
+- *Needs a look from you, and probably from a lawyer.* This is a legal
+  document that happens to have been drafted by reading the source.
 
 **D6.2 — The Play listing**
 - Internal testing track first, data-safety form, location disclosure,

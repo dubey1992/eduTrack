@@ -94,5 +94,17 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="tel"/>
         </intent>
+        <!-- Navigate hands the next stop to Google Maps rather than drawing
+             a map here (docs/driver-app.md, D5.1). Without this the app
+             cannot even see whether a maps app exists, and the button would
+             fall back to the web link on a phone that has one. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="google.navigation"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
     </queries>
 </manifest>

@@ -39,6 +39,16 @@ class CrewFrame extends ConsumerWidget {
       appBar: AppBar(
         title: Text(user?.name ?? 'My Trip'),
         actions: [
+          // Always reachable, not only while the warning is up: Android can
+          // report this app as exempt while the phone's own battery manager
+          // kills it anyway, and that driver needs the steps too
+          // (docs/driver-app.md, D4.4).
+          IconButton(
+            key: const Key('crew-battery-help'),
+            icon: const Icon(Icons.battery_alert_outlined),
+            tooltip: 'Keep the bus on the map',
+            onPressed: () => context.push('/battery'),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',

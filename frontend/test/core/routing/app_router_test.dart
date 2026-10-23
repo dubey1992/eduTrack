@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:edutrack_app/features/marketing/presentation/privacy_policy_screen.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/dio_client.dart';
@@ -398,6 +399,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Run Your School Smarter, Together.'), findsOneWidget);
+  });
+
+  testWidgets('the privacy policy opens with no account, which is the whole point of it', (tester) async {
+    // Play's reviewer, a parent and a school's lawyer all open this without
+    // signing in. Routing it is not enough - a route the redirect does not
+    // know is public falls through to /login (docs/driver-app.md, D6.1).
+    final fake = FakeAuthRepository();
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(fake),
+        authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    container.read(routerProvider).go('/privacy');
+    await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const EduTrackApp()));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PrivacyPolicyScreen), findsOneWidget);
+    expect(find.byType(LoginScreen), findsNothing);
   });
 
   testWidgets('a deep-linked route survives session restore instead of bouncing to the dashboard', (tester) async {

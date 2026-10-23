@@ -148,15 +148,22 @@ class TripDetailView extends StatelessWidget {
                 ListTile(
                   dense: true,
                   leading: Text(_time(event.recordedAtLabel), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  title: event.type == TripEventType.guardianCalled
-                      ? Row(
-                          children: [
-                            Icon(Icons.phone_outlined, size: 16, color: Theme.of(context).colorScheme.primary),
-                            const SizedBox(width: 6),
-                            Expanded(child: Text(event.description)),
-                          ],
-                        )
-                      : Text(event.description),
+                  title: switch (event.type) {
+                    TripEventType.guardianCalled => _IconLine(
+                      icon: Icons.phone_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                      text: event.description,
+                    ),
+                    // An SOS has to be findable by somebody scrolling a
+                    // timeline in a hurry (docs/driver-app.md, D5.2).
+                    TripEventType.sos => _IconLine(
+                      icon: Icons.sos_outlined,
+                      color: context.appColors.danger,
+                      text: event.description,
+                      bold: true,
+                    ),
+                    _ => Text(event.description),
+                  },
                   subtitle: event.recordedByName == null ? null : Text('by ${event.recordedByName}', style: muted),
                 ),
             ],
@@ -168,6 +175,32 @@ class TripDetailView extends StatelessWidget {
 
   /// The API renders event times in the school's timezone; see TripEvent.
   static String _time(String? label) => label ?? '-';
+}
+
+/// A timeline line that has to be seen before it is read.
+class _IconLine extends StatelessWidget {
+  const _IconLine({required this.icon, required this.color, required this.text, this.bold = false});
+
+  final IconData icon;
+  final Color color;
+  final String text;
+  final bool bold;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: bold ? TextStyle(fontWeight: FontWeight.w700, color: color) : null,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class TripStatusBadge extends StatelessWidget {

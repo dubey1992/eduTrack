@@ -34,7 +34,9 @@ TransportTrip applyMark(TransportTrip trip, TripMark mark) {
     TripMarkType.boarded => _moveRider(trip, mark.studentId, TripRiderStatus.boarded),
     TripMarkType.dropped => _moveRider(trip, mark.studentId, TripRiderStatus.dropped),
     TripMarkType.absent => _moveRider(trip, mark.studentId, TripRiderStatus.absent),
-    TripMarkType.guardianCalled => trip,
+    // Neither changes the trip: one is a phone call, the other is a call
+    // for help. Both belong on the timeline and nowhere else.
+    TripMarkType.guardianCalled || TripMarkType.sos => trip,
     TripMarkType.end => _end(trip),
   };
 }

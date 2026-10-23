@@ -3,6 +3,9 @@ import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/core/widgets/status_badge.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
+import 'package:edutrack_app/features/my_trip/data/battery_guard.dart';
+import 'package:edutrack_app/features/my_trip/data/map_navigator.dart';
+import 'package:edutrack_app/features/my_trip/presentation/widgets/sos_button.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/my_trip/presentation/my_trip_screen.dart';
@@ -18,6 +21,8 @@ void main() {
   late InMemoryKeyValueStore store;
   late FakeLocationSource location;
   late FakePhoneDialer dialer;
+  late FakeMapNavigator navigator;
+  late FakeBatteryGuard battery;
 
   setUp(() {
     api = FakeMyTripApi();
@@ -25,6 +30,9 @@ void main() {
     // Sharing has its own tests; kept out of the way here unless a test asks.
     location = FakeLocationSource(access: LocationAccess.denied);
     dialer = FakePhoneDialer();
+    navigator = FakeMapNavigator();
+    // Exempt by default, so the warning stays out of every other test.
+    battery = FakeBatteryGuard();
   });
 
   Future<void> pumpScreen(WidgetTester tester) async {
@@ -42,6 +50,8 @@ void main() {
           locationSourceProvider.overrideWithValue(location),
           tripServiceProvider.overrideWithValue(FakeTripService()),
           phoneDialerProvider.overrideWithValue(dialer),
+          mapNavigatorProvider.overrideWithValue(navigator),
+          batteryGuardProvider.overrideWithValue(battery),
         ],
         child: MaterialApp(
           theme: AppTheme.light(),
@@ -356,6 +366,160 @@ void main() {
 
       expect(find.byKey(const Key('end-trip')), findsOneWidget);
       expect(api.syncedOps, isEmpty);
+    });
+  });
+
+  group('the phone that stops sharing (docs/driver-app.md, D4.4)', () {
+    testWidgets('a restricted phone is warned about before the run, not during it', (tester) async {
+      battery.exempt = false;
+      await pumpScreen(tester);
+
+      expect(find.byKey(const Key('battery-warning')), findsOneWidget);
+      expect(find.textContaining('may stop sending'), findsOneWidget);
+    });
+
+    testWidgets('a phone that is already allowed says nothing', (tester) async {
+      await pumpScreen(tester);
+
+      expect(find.byKey(const Key('battery-warning')), findsNothing);
+    });
+
+    testWidgets('the warning offers the way to fix it', (tester) async {
+      battery.exempt = false;
+      await pumpScreen(tester);
+
+      expect(find.byKey(const Key('open-battery-help')), findsOneWidget);
+    });
+  });
+
+  group('SOS (docs/driver-app.md, D5.2)', () {
+    /// What the server was actually sent, which is the only thing that
+    /// reaches the school.
+    List<String> sentMarkTypes() => [for (final op in api.syncedOps) op['type'] as String];
+
+    testWidgets('a held button asks the school for help', (tester) async {
+      await openRunningTrip(tester);
+
+      final press = await tester.startGesture(tester.getCenter(find.byKey(const Key('sos'))));
+      await tester.pump(SosButton.hold);
+      await tester.pumpAndSettle();
+      await press.up();
+      await tester.pumpAndSettle();
+
+      expect(sentMarkTypes(), contains('sos'));
+      expect(find.textContaining('SOS sent'), findsOneWidget);
+    });
+
+    testWidgets('a stray tap sends nothing, which is the point of holding it', (tester) async {
+      await openRunningTrip(tester);
+
+      await tester.tap(find.byKey(const Key('sos')));
+      await tester.pumpAndSettle();
+
+      expect(sentMarkTypes(), isNot(contains('sos')));
+    });
+
+    testWidgets('letting go early sends nothing', (tester) async {
+      await openRunningTrip(tester);
+
+      final press = await tester.startGesture(tester.getCenter(find.byKey(const Key('sos'))));
+      await tester.pump(const Duration(milliseconds: 1200));
+      await press.up();
+      await tester.pumpAndSettle();
+
+      expect(sentMarkTypes(), isNot(contains('sos')));
+    });
+
+    testWidgets('it changes nothing about the trip - the run carries on', (tester) async {
+      await openRunningTrip(tester);
+      await tapAndSettle(tester, find.byKey(const Key('mark-boarded-1')));
+
+      final press = await tester.startGesture(tester.getCenter(find.byKey(const Key('sos'))));
+      await tester.pump(SosButton.hold);
+      await tester.pumpAndSettle();
+      await press.up();
+      await tester.pumpAndSettle();
+
+      expect(statusOf(tester, 1), 'Boarded');
+      expect(find.byKey(const Key('end-trip')), findsOneWidget);
+      expect(find.byKey(const Key('reach-stop-101')), findsOneWidget);
+    });
+
+    testWidgets('with no signal it waits on the phone like any other mark', (tester) async {
+      await openRunningTrip(tester);
+      api.offline = true;
+
+      final press = await tester.startGesture(tester.getCenter(find.byKey(const Key('sos'))));
+      await tester.pump(SosButton.hold);
+      await tester.pumpAndSettle();
+      await press.up();
+      await tester.pumpAndSettle();
+
+      expect(store.values['my_trip.marks'], contains('"sos"'));
+    });
+
+    testWidgets('a trip that has ended offers no SOS', (tester) async {
+      api.serverTrip = tripJson(status: 'completed');
+      api.routes = myRoutesJson(pickup: api.serverTrip);
+      await pumpScreen(tester);
+      await tester.tap(find.byKey(const Key('view-pickup')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('sos')), findsNothing);
+    });
+  });
+
+  group('Navigate (docs/driver-app.md, D5.1)', () {
+    /// The trip's first stop placed on the map, the second not - which is
+    /// what a half-surveyed route looks like.
+    Future<void> openTripWithPlacedStop(WidgetTester tester) async {
+      api.serverTrip = tripJson(
+        stops: [
+          stopJson(101, 'Main Gate', 1, latitude: '12.9716', longitude: '77.5946'),
+          stopJson(102, 'Lake Road', 2),
+        ],
+      );
+      await openRunningTrip(tester);
+    }
+
+    testWidgets('the next stop hands its position to the maps app', (tester) async {
+      await openTripWithPlacedStop(tester);
+
+      await tester.tap(find.byKey(const Key('navigate-stop-101')));
+      await tester.pumpAndSettle();
+
+      expect(navigator.destinations, [(12.9716, 77.5946)]);
+    });
+
+    testWidgets('a stop nobody has placed offers nothing rather than a dead button', (tester) async {
+      await openTripWithPlacedStop(tester);
+      await tapAndSettle(tester, find.byKey(const Key('reach-stop-101')));
+
+      expect(find.byKey(const Key('navigate-stop-102')), findsNothing);
+      expect(find.byKey(const Key('reach-stop-102')), findsOneWidget, reason: 'it is still the next stop');
+    });
+
+    testWidgets('only the next stop offers it', (tester) async {
+      await openTripWithPlacedStop(tester);
+
+      expect(find.byKey(const Key('navigate-stop-102')), findsNothing);
+    });
+
+    testWidgets('a reached stop stops offering it', (tester) async {
+      await openTripWithPlacedStop(tester);
+      await tapAndSettle(tester, find.byKey(const Key('reach-stop-101')));
+
+      expect(find.byKey(const Key('navigate-stop-101')), findsNothing);
+    });
+
+    testWidgets('a phone with no maps app is told, not left guessing', (tester) async {
+      navigator.opens = false;
+      await openTripWithPlacedStop(tester);
+
+      await tester.tap(find.byKey(const Key('navigate-stop-101')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Could not open a maps app on this phone.'), findsOneWidget);
     });
   });
 

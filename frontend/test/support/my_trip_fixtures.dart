@@ -4,20 +4,32 @@ import 'package:dio/dio.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/models/location_point.dart';
 import 'package:edutrack_app/features/my_trip/data/models/trip_mark.dart';
+import 'package:edutrack_app/features/my_trip/data/battery_guard.dart';
+import 'package:edutrack_app/features/my_trip/data/map_navigator.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_trip.dart';
 
 /// A stop as the trip detail sends it.
-Map<String, dynamic> stopJson(int id, String name, int sequence, {bool reached = false}) => {
+///
+/// Unplaced by default, which is most stops: a school puts a pin on a stop
+/// when it gets round to it, and the app has to work either way.
+Map<String, dynamic> stopJson(
+  int id,
+  String name,
+  int sequence, {
+  bool reached = false,
+  String? latitude,
+  String? longitude,
+}) => {
   'id': id,
   'name': name,
   'sequence_number': sequence,
   'pickup_time': '07:${10 + sequence}',
   'drop_time': '15:${10 + sequence}',
-  'latitude': null,
-  'longitude': null,
+  'latitude': latitude,
+  'longitude': longitude,
   'reached': reached,
 };
 
@@ -56,6 +68,7 @@ Map<String, dynamic> tripJson({
   String status = 'in_progress',
   String direction = 'pickup',
   List<Map<String, dynamic>>? riders,
+  List<Map<String, dynamic>>? stops,
 }) => {
   'id': id,
   'school_id': 1,
@@ -79,7 +92,7 @@ Map<String, dynamic> tripJson({
   'started_at_label': '7:00 AM',
   'ended_at_label': null,
   'riders_count': 3,
-  'stops': [stopJson(101, 'Main Gate', 1), stopJson(102, 'Lake Road', 2)],
+  'stops': stops ?? [stopJson(101, 'Main Gate', 1), stopJson(102, 'Lake Road', 2)],
   'riders':
       riders ??
       [
@@ -331,6 +344,42 @@ class FakeLocationSource implements LocationSource {
     askedInterval = interval;
     askedDistanceFilter = distanceFilterMetres;
     return _offered.stream;
+  }
+}
+
+/// A phone that is, or is not, allowed to run in the background - without
+/// asking a real one.
+class FakeBatteryGuard implements BatteryGuard {
+  FakeBatteryGuard({this.exempt = true, this.grantsWhenAsked = true});
+
+  bool exempt;
+
+  /// What the person does with the system dialog.
+  bool grantsWhenAsked;
+  int timesAsked = 0;
+
+  @override
+  Future<bool> isExempt() async => exempt;
+
+  @override
+  Future<bool> askForExemption() async {
+    timesAsked++;
+    if (grantsWhenAsked) exempt = true;
+    return exempt;
+  }
+}
+
+/// Records where it was asked to navigate instead of leaving the app.
+class FakeMapNavigator implements MapNavigator {
+  FakeMapNavigator({this.opens = true});
+
+  bool opens;
+  final List<(double, double)> destinations = [];
+
+  @override
+  Future<bool> navigateTo({required double latitude, required double longitude}) async {
+    destinations.add((latitude, longitude));
+    return opens;
   }
 }
 

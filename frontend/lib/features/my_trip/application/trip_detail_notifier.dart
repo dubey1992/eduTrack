@@ -84,6 +84,15 @@ class TripDetailNotifier extends AsyncNotifier<TripSnapshot> {
     return opened;
   }
 
+  /// Asks the school for help. It changes nothing about the trip: the bus
+  /// keeps running and the children stay marked (docs/driver-app.md, D5.2).
+  Future<void> raiseSos() async {
+    final trip = _shown;
+    if (trip == null || !trip.isInProgress) return;
+
+    await _mark(TripMarkType.sos, 'SOS sent to the school');
+  }
+
   /// Ends the trip. Not while anybody is still aboard - the server's rule.
   Future<void> end() async {
     final trip = _shown;

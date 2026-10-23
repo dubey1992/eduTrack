@@ -624,6 +624,75 @@ class Syncing(AttendantTest):
         self.assertEqual(("Aarav Mehta", f"Called {self.aarav.guardian_name}"), (event.student_name, event.note))
         self.assertTrue(AuditLog.objects.filter(action="transport_trip.guardian_called").exists())
 
+    def test_an_sos_tells_the_school_and_leaves_the_trip_alone(self):
+        """Somebody on a road wanted a person, not a state machine: the bus
+        keeps running and the children stay marked (docs/driver-app.md,
+        D5.2)."""
+        self.sync([self.op("mark-0001", "boarded", -5, student=self.arjun)])
+
+        response = self.sync([self.op("mark-0002", "sos", -1)])
+
+        self.assertEqual(["applied"], [result["status"] for result in response.data["results"]])
+        self.assertEqual("in_progress", response.data["trip"]["status"])
+        self.assertEqual(
+            "boarded",
+            TransportTripRider.objects.get(trip_id=self.trip_id, student=self.arjun).status,
+        )
+
+        event = TransportTripEvent.objects.get(trip_id=self.trip_id, type="sos")
+        self.assertEqual((None, "SOS raised from the bus"), (event.student_id, event.note))
+        self.assertTrue(AuditLog.objects.filter(action="transport_trip.sos").exists())
+
+    def test_the_sos_reaches_the_manager_and_the_admin_with_a_number_to_call(self):
+        self.sync([self.op("mark-0001", "sos", -1)])
+
+        told = Message.objects.filter(event="transport.trip_sos")
+        reached = set(told.values_list("user_id", flat=True))
+
+        # Both roles, not one or the other: an SOS is the case where the
+        # manager's phone being off must not be the end of it.
+        self.assertIn(self.f["manager"].id, reached)
+        self.assertIn(self.f["admin"].id, reached)
+        self.assertNotIn(self.attendant.id, reached, "the crew do not alert themselves")
+        self.assertEqual({self.f["school"].id}, set(told.values_list("school_id", flat=True)))
+
+        self.assertIn(self.attendant.mobile, told.first().body)
+        self.assertIn("Green Park", told.first().body)
+
+    def test_an_sos_needs_no_child_and_no_stop(self):
+        response = self.sync([{"client_id": "mark-0001", "type": "sos", "occurred_at": at(-1)}])
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual(["applied"], [result["status"] for result in response.data["results"]])
+
+    def test_a_second_send_of_the_same_sos_does_not_alert_twice(self):
+        """The phone could not tell whether the first send arrived, which is
+        the whole reason marks carry a client_id."""
+        batch = [self.op("mark-0001", "sos", -1)]
+        self.sync(batch)
+        alerts = Message.objects.filter(event="transport.trip_sos").count()
+
+        again = self.sync(batch)
+
+        self.assertEqual(["duplicate"], [result["status"] for result in again.data["results"]])
+        self.assertEqual(1, TransportTripEvent.objects.filter(trip_id=self.trip_id, type="sos").count())
+        self.assertEqual(alerts, Message.objects.filter(event="transport.trip_sos").count())
+
+    def test_a_school_cannot_switch_an_sos_off(self):
+        """The transport switch is about what guardians are told. Nobody may
+        turn off a crew asking for help (docs/driver-app.md, D5.2)."""
+        from school import notifications
+        from school.models import CommunicationSetting
+
+        CommunicationSetting.objects.update_or_create(
+            school_id=self.f["school"].id,
+            defaults={**notifications.DEFAULTS, "transport_alerts_enabled": False},
+        )
+
+        self.sync([self.op("mark-0001", "sos", -1)])
+
+        self.assertTrue(Message.objects.filter(event="transport.trip_sos").exists())
+
     def test_a_malformed_batch_is_refused_whole(self):
         response = self.sync([
             {"client_id": "short", "type": "boarded", "occurred_at": at(0), "student_id": self.arjun.id},

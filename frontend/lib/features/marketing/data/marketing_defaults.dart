@@ -120,7 +120,9 @@ const marketingListDefaults = <String, List<Map<String, String>>>{
   ],
   'footer.resourceLinks': [
     {'label': 'Help Center', 'url': 'https://school365ai.com/help'},
-    {'label': 'Privacy Policy', 'url': 'https://school365ai.com/privacy'},
+    // A page of this site, not a promise about one: it is the only footer
+    // link besides the dashboard that goes somewhere real (D6.1).
+    {'label': 'Privacy Policy', 'url': '/privacy'},
     {'label': 'Terms', 'url': 'https://school365ai.com/terms'},
     {'label': 'Security', 'url': 'https://school365ai.com/security'},
   ],

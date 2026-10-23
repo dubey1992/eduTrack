@@ -51,7 +51,10 @@ enum TripEventType {
 
   /// The attendant pressed Call Parent on a rider's row. Recorded (who,
   /// which child, when) - the number itself never is.
-  guardianCalled('guardian_called');
+  guardianCalled('guardian_called'),
+
+  /// The crew asked the school for help from the road.
+  sos('sos');
 
   const TripEventType(this.apiValue);
 
@@ -246,6 +249,7 @@ class TripEvent {
     TripEventType.completed => note ?? 'Trip completed',
     TripEventType.cancelled => note ?? 'Trip cancelled',
     TripEventType.guardianCalled => "${recordedByName ?? 'Someone'} called ${studentName ?? 'a student'}'s guardian",
+    TripEventType.sos => 'SOS from the bus - ${recordedByName ?? 'the crew'} asked the school for help',
   };
 }
 

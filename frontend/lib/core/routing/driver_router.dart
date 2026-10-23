@@ -7,6 +7,7 @@ import '../../features/auth/presentation/attendant_login_screen.dart';
 import '../../features/auth/presentation/driver_landing_screen.dart';
 import '../../features/auth/presentation/driver_splash_screen.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
+import '../../features/my_trip/presentation/battery_help_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../models/user_role.dart';
@@ -74,6 +75,10 @@ final driverRouterProvider = Provider<GoRouter>((ref) {
         path: '/profile',
         builder: (context, state) => const CrewFrame(place: CrewPlace.profile, child: ProfileScreen()),
       ),
+      // Reached from the duty screen's warning and from Profile. Its own
+      // page rather than a dialog: it is a list of steps somebody follows
+      // with the phone in the other hand (docs/driver-app.md, D4.4).
+      GoRoute(path: '/battery', builder: (context, state) => const BatteryHelpScreen()),
       GoRoute(path: '/maintenance', builder: (context, state) => const MaintenanceScreen()),
       // Somebody who is signed in but is not bus crew. Rare - this build
       // only offers the crew's sign-in - but a session restored from an

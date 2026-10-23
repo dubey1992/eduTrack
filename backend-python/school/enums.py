@@ -216,6 +216,9 @@ class MessageEvent(models.TextChoices):
     # guardian: a trip nobody ended, closed by the nightly job
     # (docs/driver-app.md).
     TRIP_LEFT_OPEN = "transport.trip_left_open", "Trip left open overnight"
+    # The other one addressed to the school: the crew pressed SOS on a
+    # running trip (docs/driver-app.md, D5.2).
+    TRIP_SOS = "transport.trip_sos", "SOS from a bus"
     LEAVE_APPROVED = "leave.approved", "Leave approved"
     LEAVE_REJECTED = "leave.rejected", "Leave rejected"
     RESULT_PUBLISHED = "result.published", "Result published"
@@ -248,7 +251,7 @@ class MessageEvent(models.TextChoices):
 
         # Addressed to the transport manager, who has an inbox - unlike
         # every other transport alert, which goes to a guardian who does not.
-        if event == cls.TRIP_LEFT_OPEN:
+        if event in (cls.TRIP_LEFT_OPEN, cls.TRIP_SOS):
             return [MessageChannel.IN_APP, *MessageChannel.external()]
 
         category = cls.category(event)
@@ -313,6 +316,10 @@ DEFAULT_BODIES = {
         "and has been closed. {started_by} started it; {on_board} still showed as on board. "
         "Please check what happened. - {school_name}"
     ),
+    MessageEvent.TRIP_SOS: (
+        "SOS from {route_name} ({vehicle_name}): {crew_name} asked for help at {time} "
+        "on the {direction} run, with {on_board} on board. Call {crew_mobile}. - {school_name}"
+    ),
     MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
     MessageEvent.GENERAL_MESSAGE: "{school_name}: {subject} - {body}",
     MessageEvent.EMERGENCY_ALERT: "EMERGENCY - {school_name}: {body}",
@@ -354,10 +361,16 @@ TRIP_LEFT_OPEN_TOKENS = [
     "staff_name", "route_name", "vehicle_name", "direction", "date", "started_by", "on_board", "school_name",
 ]
 
+TRIP_SOS_TOKENS = [
+    "staff_name", "route_name", "vehicle_name", "direction", "time", "crew_name", "crew_mobile", "on_board",
+    "school_name",
+]
+
 # Events whose wording needs something its category's list does not carry.
 PER_EVENT_TOKENS = {
     MessageEvent.TRANSPORT_ABSENT: TRANSPORT_ABSENT_TOKENS,
     MessageEvent.TRIP_LEFT_OPEN: TRIP_LEFT_OPEN_TOKENS,
+    MessageEvent.TRIP_SOS: TRIP_SOS_TOKENS,
 }
 
 
@@ -581,6 +594,10 @@ class TripEventType(models.TextChoices):
     # The attendant pressed Call Parent for a rider. Kept on the timeline:
     # who was called about which child, and when, is part of the trip.
     GUARDIAN_CALLED = "guardian_called"
+    # The crew asked the school for help from the road (docs/driver-app.md,
+    # D5.2). It changes nothing about the trip - the bus keeps running, the
+    # children stay marked - and exists to be seen quickly.
+    SOS = "sos"
 
 
 class TripRiderStatus(models.TextChoices):

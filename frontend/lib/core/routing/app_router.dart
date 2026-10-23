@@ -27,6 +27,7 @@ import '../../features/hod/presentation/hod_report_screen.dart';
 import '../../features/holidays/presentation/holiday_list_screen.dart';
 import '../../features/mail_settings/presentation/mail_settings_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
+import '../../features/marketing/presentation/privacy_policy_screen.dart';
 import '../../features/marketing/presentation/marketing_content_screen.dart';
 import '../../features/marketing/presentation/marketing_screen.dart';
 import '../../features/payments/presentation/payment_list_screen.dart';
@@ -63,7 +64,12 @@ import 'app_nav.dart';
 /// Routes reachable without an active session - rendered full-screen,
 /// outside the sidebar shell. '/' is the public marketing homepage (see
 /// MarketingScreen); the authenticated landing screen lives at /dashboard.
-const _publicPaths = {'/', '/login', '/attendant-login', '/forgot-password', '/reset-password'};
+///
+/// '/privacy' has to be here rather than merely routed: Play's reviewer, a
+/// parent and a school's lawyer all open it without an account, and a
+/// privacy policy that answers "please sign in" is no policy at all
+/// (docs/driver-app.md, D6.1).
+const _publicPaths = {'/', '/privacy', '/login', '/attendant-login', '/forgot-password', '/reset-password'};
 
 /// Where a signed-in user lands: a bus attendant on their trip, everybody
 /// else on the dashboard.
@@ -94,6 +100,7 @@ bool isAppRoute(String location) {
 const appRoutePaths = {
   '/',
   '/splash',
+  '/privacy',
   '/login',
   '/attendant-login',
   '/forgot-password',
@@ -158,6 +165,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', builder: (context, state) => const MarketingScreen()),
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
+      // Public, like the homepage: it has to be readable by a parent, a
+      // Play reviewer or a school's lawyer, none of whom have an account
+      // (docs/driver-app.md, D6.1).
+      GoRoute(path: '/privacy', builder: (context, state) => const PrivacyPolicyScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/attendant-login', builder: (context, state) => const AttendantLoginScreen()),
       // Outside the shell on purpose: an account still holding a temporary

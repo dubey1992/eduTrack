@@ -4993,7 +4993,10 @@ def parse_instant(field_name: str, value):
     return parsed.astimezone(dt.timezone.utc)
 
 
-SYNC_TYPES = ("stop_reached", "boarded", "dropped", "absent", "guardian_called", "end")
+# "sos" rides the same queue as every other mark: an emergency on a road
+# with no signal is exactly when the phone must keep it and send it the
+# moment there is some (docs/driver-app.md, D5.2).
+SYNC_TYPES = ("stop_reached", "boarded", "dropped", "absent", "guardian_called", "sos", "end")
 CLIENT_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 MAX_SYNC_OPERATIONS = 200
 

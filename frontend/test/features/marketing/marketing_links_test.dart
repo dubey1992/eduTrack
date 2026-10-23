@@ -75,6 +75,18 @@ void main() {
   });
 
   group('the addresses the page ships with', () {
+    test('the privacy policy is a page of this site, not a promise of one', () {
+      // Play requires a privacy policy that opens, and the footer promised
+      // one for months at an address that did not exist
+      // (docs/driver-app.md, D6.1).
+      final privacy = marketingListDefaults['footer.resourceLinks']!.firstWhere(
+        (link) => link['label'] == 'Privacy Policy',
+      );
+
+      expect(privacy['url'], '/privacy');
+      expect(linkKind(privacy['url']), MarketingLinkKind.inApp);
+    });
+
     test('every footer line carries one this page will follow', () {
       // A line whose address is mistyped silently goes back to being
       // plain text, which looks like nothing at all went wrong.
