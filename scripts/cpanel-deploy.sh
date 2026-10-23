@@ -104,8 +104,51 @@ if [ -z "$PHP_CLI" ]; then
 fi
 echo "php: $PHP_CLI ($("$PHP_CLI" -r 'echo PHP_VERSION;' 2>/dev/null))" >> "$LOG"
 
-echo "--- migrate (the schema is Laravel's) ---" >> "$LOG"
+# Laravel's vendor/ is gitignored, as it should be, so a fresh clone has
+# no autoloader and `php artisan` dies instantly - printing nothing at
+# all, which is exactly how the first run looked like it had migrated.
+echo "--- composer ---" >> "$LOG"
 cd "$REPO/backend" || exit 1
+
+if [ -f vendor/autoload.php ]; then
+  echo "vendor/ already present" >> "$LOG"
+else
+  COMPOSER=""
+  for candidate in /usr/local/bin/composer /opt/cpanel/composer/bin/composer /usr/bin/composer; do
+    if [ -x "$candidate" ]; then
+      COMPOSER="$candidate"
+      break
+    fi
+  done
+
+  # No composer on the host: fetch the one-file version next to the project
+  # rather than giving up. It is kept out of the repo and out of the web
+  # root, and re-downloaded only when it is not already there.
+  if [ -z "$COMPOSER" ]; then
+    if [ ! -f "$HOME_DIR/composer.phar" ]; then
+      echo "no composer on PATH - downloading composer.phar" >> "$LOG"
+      "$PHP_CLI" -r "copy('https://getcomposer.org/composer-stable.phar', '$HOME_DIR/composer.phar');" >> "$LOG" 2>&1
+    fi
+    [ -f "$HOME_DIR/composer.phar" ] && COMPOSER="$PHP_CLI $HOME_DIR/composer.phar"
+  fi
+
+  if [ -z "$COMPOSER" ]; then
+    echo "STOP: no composer and composer.phar could not be downloaded" >> "$LOG"
+    exit 1
+  fi
+
+  echo "composer: $COMPOSER" >> "$LOG"
+  # --no-dev: the test packages are not wanted on a live server, and they
+  # are most of the download.
+  $COMPOSER install --no-dev --no-interaction --prefer-dist --optimize-autoloader >> "$LOG" 2>&1
+fi
+
+if [ ! -f vendor/autoload.php ]; then
+  echo "STOP: vendor/autoload.php still missing - the next run continues" >> "$LOG"
+  exit 0
+fi
+
+echo "--- migrate (the schema is Laravel's) ---" >> "$LOG"
 "$PHP_CLI" artisan migrate --force >> "$LOG" 2>&1
 
 # Safe to run again: an account that already exists is left untouched, so a
