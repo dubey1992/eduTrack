@@ -30,29 +30,37 @@ PostgreSQL. That was the last open question of M0.
 is not: cPanel builds a zone for the domain the moment the account exists,
 with the apex and every subdomain already pointing at the server — so the
 host's own DNS screen reads perfectly while the world still gets the
-registrar's parking page. The host's zone is authoritative for nobody until
-the registrar sends traffic to it.
+registrar's parking page. The host's zone is authoritative for nobody unless
+the registrar delegates to it.
 
-Set the domain's nameservers, at whoever it is registered with, to the four
-the host's zone declares:
-
-```
-in.solidhosting.pro
-eu.solidhosting.pro
-sg.solidhosting.pro
-us.solidhosting.pro
-```
-
-Check it from outside, not from cPanel:
+Two ways, and **which one depends on where the domain's DNS actually lives**.
+Find out first, and ask the registry rather than a screen:
 
 ```bash
-nslookup -type=NS school365ai.com 8.8.8.8     # must list solidhosting.pro
-nslookup school365ai.com 8.8.8.8              # must be the server's IP
+curl -s https://rdap.verisign.com/com/v1/domain/<domain> | grep -i ldhName
 ```
 
-Allow hours for propagation. Until both answer correctly, nothing deployed
-below is reachable by name — and AutoSSL cannot issue a certificate either,
-because Let's Encrypt validates over the public name.
+- **The domain uses the registrar's own DNS** (for school365ai.com: GoDaddy,
+  `ns15/ns16.domaincontrol.com`). Then leave the nameservers alone and set
+  two records in the registrar's DNS panel: `@` → the server's IP, and `api`
+  → the same. Remove any domain *forwarding* first — it overrides the A
+  record, and it is what serves the parking page.
+- **Or delegate the whole domain to the host**, by setting the nameservers to
+  the four this host's zone declares: `in.`, `eu.`, `sg.`, `us.solidhosting.pro`.
+  More disruptive: every other record (mail especially) moves with it.
+
+Check from outside, and **mind the trailing dot** — without it a resolver may
+append a search suffix and answer about an entirely different name, which is
+how an hour went missing here:
+
+```bash
+nslookup school365ai.com. 8.8.8.8
+nslookup api.school365ai.com. 8.8.8.8
+```
+
+Allow for propagation. Until both answer with the server's IP, nothing
+deployed below is reachable by name — and AutoSSL cannot issue a certificate
+either, because Let's Encrypt validates over the public name.
 
 ## 1. Database
 
