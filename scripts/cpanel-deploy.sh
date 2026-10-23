@@ -91,17 +91,42 @@ echo "--- backup ---" >> "$LOG"
 # candidates are tried in turn and the choice is logged.
 echo "--- php ---" >> "$LOG"
 PHP_CLI=""
-for candidate in /usr/local/bin/php /opt/cpanel/ea-php83/root/usr/bin/php                  /opt/cpanel/ea-php82/root/usr/bin/php /opt/cpanel/ea-php81/root/usr/bin/php                  /usr/bin/php-cli /usr/bin/php; do
-  if [ -x "$candidate" ] && "$candidate" -v 2>/dev/null | head -1 | grep -qi "^PHP"; then
+
+# Ordered on purpose, and checked by version rather than by existing.
+#
+# Two traps here, both already paid for: `php` on PATH from cron is this
+# host's CGI wrapper, which answers a command line with "Status: 500
+# Internal Server Error" instead of running anything; and /usr/local/bin/php
+# is 8.2 while composer.json requires ^8.3, so the first binary that merely
+# *is* PHP is the wrong one. The composer error that found this was
+# "Root composer.json requires php ^8.3 but your php version (8.2.34)".
+#
+# 8.3 first, not the newest: it is the version the project is built and
+# tested against, and a deploy is the wrong place to discover what 8.5
+# thinks of Laravel.
+for candidate in /opt/cpanel/ea-php83/root/usr/bin/php /opt/alt/php83/usr/bin/php                  /opt/cpanel/ea-php84/root/usr/bin/php /opt/alt/php84/usr/bin/php                  /opt/cpanel/ea-php85/root/usr/bin/php /opt/alt/php85/usr/bin/php                  /usr/local/bin/php /usr/bin/php; do
+  [ -x "$candidate" ] || continue
+
+  # PHP_VERSION_ID is 80300 for 8.3.0 - a number, so no string comparison
+  # decides that "8.10" is older than "8.9".
+  version_id="$("$candidate" -r 'echo PHP_VERSION_ID;' 2>/dev/null)"
+  case "$version_id" in
+    ''|*[!0-9]*) continue ;;
+  esac
+
+  if [ "$version_id" -ge 80300 ]; then
     PHP_CLI="$candidate"
     break
   fi
+
+  echo "skipping $candidate (PHP_VERSION_ID $version_id, need 80300+)" >> "$LOG"
 done
 
 if [ -z "$PHP_CLI" ]; then
-  echo "STOP: no PHP CLI binary found - the schema cannot be migrated" >> "$LOG"
+  echo "STOP: no PHP 8.3+ CLI binary found - composer.json requires ^8.3" >> "$LOG"
   exit 1
 fi
+
 echo "php: $PHP_CLI ($("$PHP_CLI" -r 'echo PHP_VERSION;' 2>/dev/null))" >> "$LOG"
 
 # Laravel's vendor/ is gitignored, as it should be, so a fresh clone has
