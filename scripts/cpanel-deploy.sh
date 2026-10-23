@@ -113,27 +113,26 @@ cd "$REPO/backend" || exit 1
 if [ -f vendor/autoload.php ]; then
   echo "vendor/ already present" >> "$LOG"
 else
-  COMPOSER=""
-  for candidate in /usr/local/bin/composer /opt/cpanel/composer/bin/composer /usr/bin/composer; do
-    if [ -x "$candidate" ]; then
-      COMPOSER="$candidate"
-      break
-    fi
-  done
+  # Always the phar, driven by the CLI binary we proved above. The host's
+  # /usr/local/bin/composer is a wrapper that starts PHP in CGI mode, and
+  # composer refuses that outright: "cannot be run safely on non-CLI SAPIs
+  # with register_argc_argv=On". Handing the phar to a real CLI php
+  # sidesteps the wrapper entirely.
+  if [ ! -f "$HOME_DIR/composer.phar" ]; then
+    echo "fetching composer.phar" >> "$LOG"
+    "$PHP_CLI" -r "copy('https://getcomposer.org/composer-stable.phar', '$HOME_DIR/composer.phar');" >> "$LOG" 2>&1
+  fi
 
-  # No composer on the host: fetch the one-file version next to the project
-  # rather than giving up. It is kept out of the repo and out of the web
-  # root, and re-downloaded only when it is not already there.
-  if [ -z "$COMPOSER" ]; then
-    if [ ! -f "$HOME_DIR/composer.phar" ]; then
-      echo "no composer on PATH - downloading composer.phar" >> "$LOG"
-      "$PHP_CLI" -r "copy('https://getcomposer.org/composer-stable.phar', '$HOME_DIR/composer.phar');" >> "$LOG" 2>&1
-    fi
-    [ -f "$HOME_DIR/composer.phar" ] && COMPOSER="$PHP_CLI $HOME_DIR/composer.phar"
+  COMPOSER=""
+  if [ -f "$HOME_DIR/composer.phar" ]; then
+    COMPOSER="$PHP_CLI $HOME_DIR/composer.phar"
+  elif [ -f /usr/local/bin/composer ]; then
+    # A last resort, and only through the CLI php for the same reason.
+    COMPOSER="$PHP_CLI /usr/local/bin/composer"
   fi
 
   if [ -z "$COMPOSER" ]; then
-    echo "STOP: no composer and composer.phar could not be downloaded" >> "$LOG"
+    echo "STOP: no composer available" >> "$LOG"
     exit 1
   fi
 
