@@ -1,0 +1,79 @@
+#!/bin/bash
+# Installs the backend on the cPanel host (docs/deployment.md).
+#
+# Run by .cpanel.yml when somebody clicks "Deploy HEAD Commit". The logic
+# lives here rather than as tasks in the YAML for two reasons: cPanel's
+# deployment parser is fussy about shell constructs and rejects a whole file
+# silently when it dislikes one line, and a script in the repository can be
+# read, reviewed and tested like any other code.
+#
+# **This file is public.** The repository is public on GitHub, so nothing
+# here may ever be a credential. Everything secret is in backend/.env, which
+# is gitignored and uploaded to the server separately.
+#
+# What it deliberately does NOT do: touch public_html. The Flutter web build
+# is uploaded there directly, cannot be built on this host, and a deploy must
+# never wipe a working site because a Dart toolchain is missing.
+
+HOME_DIR="$(cd ~ && pwd)"
+REPO="$HOME_DIR/edutrack"
+LOG="$HOME_DIR/edutrack-deploy.log"
+ENV_FILE="$REPO/backend/.env"
+
+date "+== deploy %Y-%m-%d %H:%M:%S ==" > "$LOG"
+
+# The app's own python, not the system one. cPanel builds the virtualenv
+# under a version directory, so it is discovered rather than hardcoded - the
+# host offered 3.12 where the runbook assumed 3.11, and a hardcoded path
+# would have failed on a detail nobody chose.
+VENV_BIN="$(ls -d "$HOME_DIR"/virtualenv/edutrack/backend-python/*/bin 2>/dev/null | head -1)"
+echo "virtualenv: ${VENV_BIN:-NOT FOUND}" >> "$LOG"
+
+# Both of these must exist first. Missing either, say so and stop: a
+# half-run deploy against an unconfigured database is worse than one that
+# refuses, and the log is the only place anybody will find out.
+if [ -z "$VENV_BIN" ]; then
+  echo "STOP: no Python app yet - create it in Setup Python App, application root edutrack/backend-python" >> "$LOG"
+  exit 0
+fi
+
+if [ ! -f "$ENV_FILE" ]; then
+  echo "STOP: backend/.env is missing - upload it before deploying" >> "$LOG"
+  exit 0
+fi
+
+# Writable, and outside the web root: profile photos are served by an
+# authenticated endpoint, never by the web server.
+mkdir -p "$HOME_DIR/var/cache" "$HOME_DIR/var/media" "$HOME_DIR/backups"
+
+echo "--- pip install ---" >> "$LOG"
+cd "$REPO/backend-python" || exit 1
+"$VENV_BIN/pip" install --upgrade pip >> "$LOG" 2>&1
+"$VENV_BIN/pip" install -r requirements.txt >> "$LOG" 2>&1
+
+# The rollback for every deploy that changes the schema. Skips itself on an
+# empty database, and never stops the deploy - see the command's own notes.
+echo "--- backup ---" >> "$LOG"
+"$VENV_BIN/python" manage.py dump_before_migrate >> "$LOG" 2>&1
+
+echo "--- migrate (the schema is Laravel's) ---" >> "$LOG"
+cd "$REPO/backend" || exit 1
+php artisan migrate --force >> "$LOG" 2>&1
+
+# Safe to run again: an account that already exists is left untouched, so a
+# password its owner has since changed is never reset back.
+echo "--- super admin ---" >> "$LOG"
+cd "$REPO/backend-python" || exit 1
+"$VENV_BIN/python" manage.py create_super_admin >> "$LOG" 2>&1
+
+# The two backends must agree about the schema they are both looking at.
+echo "--- check_models ---" >> "$LOG"
+"$VENV_BIN/python" manage.py check_models >> "$LOG" 2>&1
+
+# Passenger reloads when this is touched; without it the old code keeps
+# serving and a successful deploy looks like it did nothing.
+echo "--- restart ---" >> "$LOG"
+mkdir -p "$REPO/backend-python/tmp"
+touch "$REPO/backend-python/tmp/restart.txt"
+
+echo "== done ==" >> "$LOG"
