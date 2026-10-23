@@ -37,6 +37,10 @@ deployment:
     - if [ -z "$VENV_BIN" ]; then echo "STOP: no Python app yet - create it in Setup Python App with application root edutrack/backend-python" >> "$LOG"; exit 0; fi
     - if [ ! -f "$ENV_FILE" ]; then echo "STOP: backend/.env is missing - upload it before deploying" >> "$LOG"; exit 0; fi
 
+    # Writable, and outside the web root: profile photos are served by an
+    # authenticated endpoint, never by the web server (docs/deployment.md).
+    - /bin/mkdir -p "$HOME_DIR/var/cache" "$HOME_DIR/var/media" "$HOME_DIR/backups"
+
     - echo "--- pip install ---" >> "$LOG"
     - cd "$REPO/backend-python" && "$VENV_BIN/pip" install --upgrade pip >> "$LOG" 2>&1
     - cd "$REPO/backend-python" && "$VENV_BIN/pip" install -r requirements.txt >> "$LOG" 2>&1
