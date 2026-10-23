@@ -1,0 +1,59 @@
+#!__PYTHON__
+"""The API as a CGI script - the fallback for a host whose Passenger is off.
+
+Installed by scripts/install-cgi-fallback.sh into the API subdomain's
+cgi-bin, with __PYTHON__ replaced by the virtualenv's interpreter, and a
+rewrite rule sending every request here (docs/deployment.md).
+
+**Why this exists.** LiteSpeed on the production host never invokes the
+Python application Setup Python App registers - the request is served from
+the empty document root as a 404 and no process is started - while the same
+application answers 200 when called directly. CGI is the oldest way a web
+server runs a program, every shared host supports it because PHP once needed
+it, and it asks the host for nothing.
+
+**What it costs.** A fresh interpreter and a fresh Django for every request:
+one to three seconds before the first byte, on hardware like this. A portal
+makes several requests per screen, so it feels slow, and it is. This is a
+bridge until Passenger is enabled or the server is upgraded, and the switch
+back is deleting one rewrite rule.
+
+**Nothing is configured here.** Settings come from the same backend/.env the
+cron jobs read, so there is no second place to keep in step.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+APP_ROOT = Path.home() / "edutrack" / "backend-python"
+sys.path.insert(0, str(APP_ROOT))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+# The rewrite sends /api/v1/students here as /cgi-bin/api.cgi/api/v1/students,
+# and the server reports SCRIPT_NAME=/cgi-bin/api.cgi with the rest as
+# PATH_INFO. Django would then prefix every URL it builds with the script
+# name. Blanked, so the application sees the same paths Passenger would give
+# it and nothing it answers mentions cgi-bin.
+os.environ["SCRIPT_NAME"] = ""
+
+try:
+    from wsgiref.handlers import CGIHandler
+
+    from config.wsgi import application
+
+    CGIHandler().run(application)
+except Exception:  # noqa: BLE001 - last resort: say *something* readable
+    import traceback
+
+    # Logged where the deploy's own log lives, because a CGI script's stderr
+    # goes to a server log the account may not be allowed to read.
+    log = Path.home() / "var" / "cgi.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("a", encoding="utf-8") as handle:
+        handle.write("---- " + os.environ.get("REQUEST_METHOD", "?") + " " + os.environ.get("PATH_INFO", "?") + "\n")
+        traceback.print_exc(file=handle)
+
+    sys.stdout.write("Status: 500 Internal Server Error\r\n")
+    sys.stdout.write("Content-Type: application/json\r\n\r\n")
+    sys.stdout.write('{"code":"SERVER_ERROR","message":"The server could not handle this request.","details":{}}')

@@ -264,6 +264,30 @@ It calls the WSGI object directly, touching no network. A status line means
 the application is fine and the web server is not routing to it - a support
 ticket, not a code change. A traceback means it is yours.
 
+### When Passenger never starts the app: the CGI fallback
+
+On the production host, LiteSpeed serves the API subdomain's document root
+as plain files and never starts the Python application, whatever the
+`.htaccess` says - while `check_wsgi.py` gets 200 from the same application.
+If the host cannot or will not enable Passenger, the API can run as **CGI**
+instead, which every shared host supports because PHP once needed it:
+
+```
+/bin/bash /home/<account>/edutrack/scripts/install-cgi-fallback.sh
+```
+
+Run once, from cron. It installs `backend-python/cgi/api.cgi.template` into
+the subdomain's `cgi-bin` with the virtualenv's python as its shebang,
+proves the script answers 200 when run directly, and only then puts a
+rewrite rule in front of everything in that docroot's `.htaccess`. The
+previous `.htaccess` is backed up by name in `~/backups/`; restoring it is
+the whole undo.
+
+**It is slow.** A fresh interpreter and a fresh Django per request - one to
+three seconds before the first byte - and the portal makes several requests
+a screen. A bridge, not a destination: the day Passenger works, remove the
+block the script adds and the app is served properly.
+
 ## 5. Cron
 
 Three jobs. None of them is optional.
