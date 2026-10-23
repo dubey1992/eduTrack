@@ -574,6 +574,9 @@ looking at.*
 - Tests: the link's exact shape (including a southern/western stop), the
   right stop's position, an unplaced stop, a reached stop, a stop that is
   not next, and a phone with no maps app at all.
+- *Verified on the emulator:* tapping it starts Google Maps on
+  `act=VIEW dat=google.navigation:`, which is the hand-off working rather
+  than a button that merely looks right.
 
 **D5.2 — SOS** *(done 2026-10-23)*
 - One button, **held two seconds**, with the hold drawn as it fills. Held
@@ -598,6 +601,24 @@ looking at.*
   that the trip is untouched, that it needs no child or stop, that a repeat
   send alerts once, that a switched-off school still gets it — and, on the
   phone, that a stray tap and an early release both send nothing.
+- **What the tests could not see.** On a real phone the first build did
+  nothing: the app wrapped every screen in a `SelectionArea` so the office
+  can copy a name, and that claims the long press — the label highlighted, a
+  Copy bar slid in, and the call for help never left. Two changes, found
+  only by holding the button on a device:
+  - the driver build **has no SelectionArea at all**. Nobody on a bus copies
+    anything, and a feature nobody uses is not worth a gesture they do;
+  - the button listens to **raw pointer events** rather than using a gesture
+    recogniser, because a recogniser has to win an arena and this one could
+    not. It cancels itself if the finger travels, so a thumb resting there
+    while the trip sheet scrolls sends nothing.
+- `sos_selection_test.dart` wraps the button in the SelectionArea the app
+  used to have, so the bug cannot come back quietly. It fails on the old
+  code — checked.
+- *Verified on the emulator:* three SOS events, twelve alerts across two
+  recipients and four channels, two audit rows, the trip still in progress,
+  and the message reading "SOS from ITest Route (ITest Bus): Imran Khan
+  asked for help at 10/23/2026 11:51 AM on the drop run, with 0 on board."
 
 ---
 

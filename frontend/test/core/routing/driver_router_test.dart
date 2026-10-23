@@ -124,6 +124,17 @@ void main() {
       expect(find.text('Join Early Access →'), findsNothing);
     });
 
+    testWidgets('nothing on the bus is selectable, because a long press belongs to SOS', (tester) async {
+      // The portal wraps its screens in a SelectionArea so an administrator
+      // can copy a phone number. On the bus nobody copies anything, and the
+      // cost is real: it claims every long press, so holding the SOS button
+      // highlighted the label and opened a Copy bar instead of calling for
+      // help (docs/driver-app.md, D5.2).
+      await pump(tester, FakeAuthRepository());
+
+      expect(find.byType(SelectionArea), findsNothing);
+    });
+
     testWidgets('and the landing leads to the sign-in, which has no dead ends', (tester) async {
       await pump(tester, FakeAuthRepository());
 
