@@ -25,6 +25,8 @@ import os
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import dotenv_values, load_dotenv
 
+from config.cors import allowed_origins
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # `manage.py test`: the suite runs without DEBUG, as production does, but
@@ -267,13 +269,8 @@ REST_FRAMEWORK = {
 # and 8000 in development - so the browser preflights every request. Laravel
 # answers those through its own CORS config; this is the same allowance,
 # spelled out here rather than inherited.
-CORS_ALLOWED_ORIGINS = [
-    origin
-    for origin in os.environ.get(
-        "DJANGO_CORS_ORIGINS", "http://127.0.0.1:5000,http://localhost:5000"
-    ).split(",")
-    if origin
-]
+# Django's key first, then Laravel's; see config/cors.py for why both.
+CORS_ALLOWED_ORIGINS = allowed_origins(os.environ)
 
 # Not Django's TIME_ZONE, which must stay UTC because it decides how instants
 # are stored. This is the zone the few views that belong to no school are read

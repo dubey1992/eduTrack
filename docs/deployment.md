@@ -185,7 +185,7 @@ The ones that hurt if you get them wrong:
 | `DB_CONNECTION` | `pgsql` | What `php artisan migrate` uses. Laravel's `pgsql` connection reads the same `PG_*` keys Django does, so there is nothing to keep in step — but left as `mysql` the migrations land in a database nothing reads. |
 | `DJANGO_CACHE_DIR` / `DJANGO_MEDIA_ROOT` | writable, outside the web root | Profile photos are served by an authenticated endpoint, never by the web server. |
 | `FRONTEND_URL` | `https://<domain>` | The password-reset link points here. |
-| `CORS_ALLOWED_ORIGINS` | the web app's real origin | The example ships `*`. |
+| `DJANGO_CORS_ORIGINS` | the web app's real origin, e.g. `https://school365ai.com,https://www.school365ai.com` | Django's key. It now also honours Laravel's `CORS_ALLOWED_ORIGINS` when its own is unset - but not the example's `*`, which is not an origin. The first live sign-in was CORS-blocked because only the Laravel key was set and Django kept its development default; a `Vary: origin` header with no `Access-Control-Allow-Origin` is what that looks like. |
 | `MAIL_*` | real SMTP | Without it password resets go nowhere and people lock themselves out with no way back. |
 | `PLATFORM_TIMEZONE` | e.g. `Asia/Kolkata` | Only the Super Admin's cross-school totals. Each school carries its own — see [timezones.md](timezones.md). |
 | `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` | the first admin | Used once, in step 4. |
