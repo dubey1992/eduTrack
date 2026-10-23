@@ -203,6 +203,14 @@ echo "--- restart ---" >> "$LOG"
 mkdir -p "$REPO/backend-python/tmp"
 touch "$REPO/backend-python/tmp/restart.txt"
 
+# Does the application actually answer? A deploy that installs cleanly and
+# leaves a dead site is the failure mode this whole file has been chasing,
+# and the web server's 404 cannot tell "app is broken" from "app is never
+# called". This calls the WSGI object directly, so the log says which.
+echo "--- self check ---" >> "$LOG"
+cd "$REPO" || exit 1
+"$VENV_BIN/python" scripts/check_wsgi.py >> "$LOG" 2>&1
+
 echo "== done ==" >> "$LOG"
 
 # A marker that says the install finished, so a repeating cron can be
