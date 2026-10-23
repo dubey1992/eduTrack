@@ -19,8 +19,22 @@ HOME_DIR="$(cd ~ && pwd)"
 REPO="$HOME_DIR/edutrack"
 LOG="$HOME_DIR/edutrack-deploy.log"
 ENV_FILE="$REPO/backend/.env"
+LOCK="$HOME_DIR/edutrack-deploy.lock"
 
-date "+== deploy %Y-%m-%d %H:%M:%S ==" > "$LOG"
+# One at a time, always. This runs from cron on a host with no shell, and
+# the first attempt was scheduled every minute: pip was still downloading
+# over a slow link when the next run started a second install into the same
+# virtualenv and truncated the log underneath it. mkdir is the lock because
+# it is atomic everywhere, unlike "test -f then touch".
+if ! mkdir "$LOCK" 2>/dev/null; then
+  echo "[$(date '+%H:%M:%S')] another deploy is still running - skipped" >> "$LOG"
+  exit 0
+fi
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
+# Appended, never truncated: a log that starts from nothing on every run
+# cannot show what the previous run did, which is the one thing it is for.
+date "+== deploy %Y-%m-%d %H:%M:%S ==" >> "$LOG"
 
 # The app's own python, not the system one. cPanel builds the virtualenv
 # under a version directory, so it is discovered rather than hardcoded - the
@@ -77,3 +91,7 @@ mkdir -p "$REPO/backend-python/tmp"
 touch "$REPO/backend-python/tmp/restart.txt"
 
 echo "== done ==" >> "$LOG"
+
+# A marker that says the install finished, so a repeating cron can be
+# told to leave it alone without anybody reading the log.
+touch "$HOME_DIR/edutrack-deployed"
