@@ -114,16 +114,28 @@ for candidate in /opt/cpanel/ea-php83/root/usr/bin/php /opt/alt/php83/usr/bin/ph
     ''|*[!0-9]*) continue ;;
   esac
 
-  if [ "$version_id" -ge 80300 ]; then
-    PHP_CLI="$candidate"
-    break
+  if [ "$version_id" -lt 80300 ]; then
+    echo "skipping $candidate (PHP_VERSION_ID $version_id, need 80300+)" >> "$LOG"
+    continue
   fi
 
-  echo "skipping $candidate (PHP_VERSION_ID $version_id, need 80300+)" >> "$LOG"
+  # Being new enough is not the same as being able to reach the database.
+  # ea-php83 here is 8.3.35 and has no pdo_pgsql, so artisan got as far as
+  # "could not find driver (Connection: pgsql)" - a Laravel error that
+  # reads like configuration and is actually a missing extension.
+  if ! "$candidate" -m 2>/dev/null | grep -qi '^pdo_pgsql$'; then
+    echo "skipping $candidate ($version_id, no pdo_pgsql)" >> "$LOG"
+    continue
+  fi
+
+  PHP_CLI="$candidate"
+  break
 done
 
 if [ -z "$PHP_CLI" ]; then
-  echo "STOP: no PHP 8.3+ CLI binary found - composer.json requires ^8.3" >> "$LOG"
+  echo "STOP: no PHP 8.3+ binary with pdo_pgsql. The schema cannot be migrated" >> "$LOG"
+  echo "      until the host installs the PostgreSQL PDO driver for one of them" >> "$LOG"
+  echo "      (ea-php83-php-pgsql, or the alt-php equivalent)." >> "$LOG"
   exit 1
 fi
 
