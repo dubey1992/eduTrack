@@ -5,11 +5,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/widgets/phone_number_field.dart';
-import '../../marketing/presentation/marketing_colors.dart';
 import '../application/auth_notifier.dart';
 import '../data/attendant_auth_repository.dart';
 import '../data/passcode_rules.dart';
 import 'widgets/auth_card.dart';
+import 'widgets/auth_palette.dart';
 import 'widgets/primary_button.dart';
 
 /// Which of the two forms the screen shows.
@@ -123,7 +123,7 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: MarketingColors.background,
+      backgroundColor: AuthPalette.of(context).background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -144,6 +144,7 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
 
   Widget _buildForm() {
     final registering = _mode == _Mode.register;
+    final palette = AuthPalette.of(context);
 
     return Form(
       key: _formKey,
@@ -151,18 +152,18 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.directions_bus_filled, size: 36, color: MarketingColors.primary),
+          Icon(Icons.directions_bus_filled, size: 36, color: palette.primary),
           const SizedBox(height: 12),
           Text(
             registering ? 'Register this phone' : 'Bus attendant sign in',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: MarketingColors.text),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: palette.text),
           ),
           const SizedBox(height: 4),
           Text(
             registering
                 ? 'Enter your mobile number, the 8-digit setup code from your school office, and choose a 4-digit passcode.'
                 : 'Enter your mobile number and your 4-digit passcode.',
-            style: const TextStyle(fontSize: 14, color: MarketingColors.muted),
+            style: TextStyle(fontSize: 14, color: palette.muted),
           ),
           const SizedBox(height: 20),
           PhoneNumberField(
@@ -220,13 +221,13 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
           if (!registering)
             TextButton(
               onPressed: _isSubmitting ? null : () => _switchTo(_Mode.register),
-              style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
+              style: TextButton.styleFrom(foregroundColor: palette.primary),
               child: const Text('Have a new setup code? Register this phone again'),
             ),
           if (widget.offersEmailSignIn)
             TextButton(
               onPressed: _isSubmitting ? null : () => context.go('/login'),
-              style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
+              style: TextButton.styleFrom(foregroundColor: palette.primary),
               child: const Text('Sign in with email instead'),
             ),
         ],
@@ -257,6 +258,8 @@ class _DigitsField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AuthPalette.of(context);
+
     return TextFormField(
       controller: controller,
       obscureText: obscure,
@@ -265,14 +268,14 @@ class _DigitsField extends StatelessWidget {
       validator: validator,
       onFieldSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
       textAlign: TextAlign.center,
-      style: const TextStyle(color: MarketingColors.text, fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: 10),
+      style: TextStyle(color: palette.text, fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: 10),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: MarketingColors.subtle, letterSpacing: 0, fontSize: 15),
-        floatingLabelStyle: const TextStyle(color: MarketingColors.primary, letterSpacing: 0),
-        errorStyle: const TextStyle(color: MarketingColors.danger, fontSize: 12, fontWeight: FontWeight.w600),
+        labelStyle: TextStyle(color: palette.subtle, letterSpacing: 0, fontSize: 15),
+        floatingLabelStyle: TextStyle(color: palette.primary, letterSpacing: 0),
+        errorStyle: TextStyle(color: palette.danger, fontSize: 12, fontWeight: FontWeight.w600),
         filled: true,
-        fillColor: MarketingColors.surface,
+        fillColor: palette.surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       ),
@@ -287,23 +290,25 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AuthPalette.of(context);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: MarketingColors.danger.withValues(alpha: 0.08),
-        border: Border.all(color: MarketingColors.danger.withValues(alpha: 0.4)),
+        color: palette.danger.withValues(alpha: 0.08),
+        border: Border.all(color: palette.danger.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline, color: MarketingColors.danger, size: 20),
+          Icon(Icons.error_outline, color: palette.danger, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: MarketingColors.danger, fontWeight: FontWeight.w600),
+              style: TextStyle(color: palette.danger, fontWeight: FontWeight.w600),
             ),
           ),
         ],

@@ -321,7 +321,7 @@ in Flutter, when that screen is built.
   throwing them away.
 - The crew sign-in loses its "sign in with email instead" link in this
   build, because there is no email sign-in here for it to reach.
-- Built with `flutter build apk --target lib/main_driver.dart`. **Without
+- Built with `flutter build apk --flavor driver --target lib/main_driver.dart`. **Without
   the `--target` the APK is the web app**, which is exactly the bug this
   slice fixed, so D1.4's CI job has to pass it.
 - *Done when:* the installed app opens on "Register this phone" and there
@@ -366,7 +366,7 @@ in Flutter, when that screen is built.
   `flutter_secure_storage` at 9.x, was not taken: swapping the thing that
   stores auth tokens to dodge a build-config problem is the wrong trade.
 - **CI builds the APK.** A new `android` job: JDK 17, Flutter, then
-  `flutter build apk --debug --target lib/main_driver.dart`. Nothing else
+  `flutter build apk --debug --flavor driver --target lib/main_driver.dart`. Nothing else
   in the workflow compiles a line of Android — the Flutter job runs Dart
   tests, which never touch Gradle, the manifest or the SDK — so without
   this the APK breaks on the day somebody tries to cut a release.
@@ -689,6 +689,39 @@ the other thing, here is what it actually took.*
   the screens, and of the buttons that open them — because neither went
   through the router. The reachable set is now one list beside the routes,
   and two tests push through the real router to land on each.
+
+---
+
+### Phase D9 — Dark mode, and the permission list *(2026-10-24)*
+
+*Two things the owner saw on a real phone that the emulator, set to light,
+had not shown.*
+
+- **The sign-in screens were light-only.** They carried the product's
+  public palette as constants, so a dark phone got a white card with the
+  theme's dark input boxes sitting inside it. They now take every colour
+  from `AuthPalette.of(context)` - the marketing set in light, the admin
+  theme's dark greys with the brand blue kept in dark - and a test pins the
+  card and the fields to the same surface in both. The web's homepage is
+  untouched.
+- **A disabled button came out lighter than an enabled one in the dark
+  theme** - on the trip sheet the greyed-out Dropped outshone Boarded and
+  Absent beside it, which reads as the one to press. The theme now says
+  what disabled looks like in both themes instead of leaving it to
+  Material.
+- **The merged manifest asked for background location.** Not ours - the
+  Navigation SDK's manifest brings it in - but the permission list is what
+  Play and a school read, and this app's whole design (D4) is that it never
+  needs it. Removed from the merge with `tools:node="remove"`; the teacher
+  app removes the rest of the bus's permissions the same way
+  (docs/teacher-app.md, T0).
+- **Signing in again after logging out** needs only the mobile number
+  (filled in) and the passcode; the phone stays registered. Checked on the
+  emulator because it was asked, and it was already so - a new setup code
+  is needed only when the office revokes the phone or the app is
+  reinstalled.
+- **Every build now names its flavour**: `--flavor driver`, because the
+  teacher app lives in the same Gradle project.
 
 ---
 

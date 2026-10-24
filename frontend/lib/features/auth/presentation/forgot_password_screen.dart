@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/failure.dart';
-import '../../marketing/presentation/marketing_colors.dart';
 import '../data/auth_repository.dart';
 import 'widgets/auth_card.dart';
+import 'widgets/auth_palette.dart';
 import 'widgets/custom_text_field.dart';
 import 'widgets/primary_button.dart';
 
@@ -51,7 +51,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: MarketingColors.background,
+      backgroundColor: AuthPalette.of(context).background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -64,20 +64,22 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Widget _buildSentMessage() {
+    final palette = AuthPalette.of(context);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.mark_email_read_outlined, size: 40, color: MarketingColors.primary),
+        Icon(Icons.mark_email_read_outlined, size: 40, color: palette.primary),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'Check your email',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: MarketingColors.text),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: palette.text),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'If an account exists for that email, a password reset link has been sent.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: MarketingColors.muted),
+          style: TextStyle(fontSize: 14, color: palette.muted),
         ),
         const SizedBox(height: 22),
         const _BackToLoginButton(),
@@ -86,24 +88,26 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Widget _buildForm() {
+    final palette = AuthPalette.of(context);
+
     return Form(
       key: _formKey,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Forgot Password?',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: MarketingColors.text),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: palette.text),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Enter your email and we will send you a password reset link.',
-            style: TextStyle(fontSize: 14, color: MarketingColors.muted),
+            style: TextStyle(fontSize: 14, color: palette.muted),
           ),
           const SizedBox(height: 24),
           if (_errorMessage != null) ...[
-            Text(_errorMessage!, style: const TextStyle(color: MarketingColors.danger)),
+            Text(_errorMessage!, style: TextStyle(color: palette.danger)),
             const SizedBox(height: 12),
           ],
           CustomTextField(
@@ -131,7 +135,7 @@ class _BackToLoginButton extends StatelessWidget {
     return Center(
       child: TextButton.icon(
         onPressed: () => context.go('/login'),
-        style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
+        style: TextButton.styleFrom(foregroundColor: AuthPalette.of(context).primary),
         icon: const Icon(Icons.arrow_back, size: 16),
         label: const Text('Back to Login'),
       ),

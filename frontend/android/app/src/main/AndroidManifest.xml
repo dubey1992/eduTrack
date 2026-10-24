@@ -1,4 +1,12 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- The Navigation SDK's own manifest asks for background location ("My
+         Location"). This app never uses it: the bus reports through a
+         foreground service with the screen off, which is the whole design
+         (docs/driver-app.md, D4), and Play's background-location review is
+         the thing that design avoids. Removed from the merged manifest so
+         the permission list says what the app actually does. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove"/>
     <!-- The app talks to the school's API. Flutter adds this to debug and
          profile builds only, so a release build needs it said here. -->
     <uses-permission android:name="android.permission.INTERNET"/>

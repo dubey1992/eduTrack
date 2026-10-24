@@ -148,6 +148,12 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primary,
+          // Said explicitly for both themes. Left to Material, a disabled
+          // button in the dark theme came out *lighter* than an enabled one
+          // - on the bus the greyed-out Dropped button outshone Boarded and
+          // Absent beside it, which reads as the one to press.
+          disabledBackgroundColor: colorScheme.onSurface.withValues(alpha: 0.12),
+          disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),

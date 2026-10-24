@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../marketing/presentation/marketing_colors.dart';
 import 'auth_card.dart';
+import 'auth_palette.dart';
 import 'custom_text_field.dart';
 import 'primary_button.dart';
 
@@ -44,6 +44,12 @@ class LoginCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Every colour on this card comes from the public palette for the
+    // phone's current brightness, never from the admin theme and never
+    // from a constant - a constant was how a dark phone got a white card
+    // with dark boxes in it (see AuthPalette).
+    final palette = AuthPalette.of(context);
+
     return AuthCard(
       child: Form(
         key: formKey,
@@ -56,7 +62,7 @@ class LoginCard extends StatelessWidget {
                 Flexible(
                   child: Text(
                     'Welcome Back',
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: MarketingColors.text),
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: palette.text),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -65,10 +71,7 @@ class LoginCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Sign in to continue to School365ai',
-              style: TextStyle(fontSize: 14, color: MarketingColors.muted),
-            ),
+            Text('Sign in to continue to School365ai', style: TextStyle(fontSize: 14, color: palette.muted)),
             const SizedBox(height: 24),
             CustomTextField(
               controller: emailController,
@@ -88,7 +91,7 @@ class LoginCard extends StatelessWidget {
               suffixIcon: IconButton(
                 icon: Icon(
                   obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                  color: MarketingColors.subtle,
+                  color: palette.subtle,
                 ),
                 tooltip: obscurePassword ? 'Show password' : 'Hide password',
                 onPressed: onToggleObscurePassword,
@@ -122,24 +125,18 @@ class LoginCard extends StatelessWidget {
                         Checkbox(
                           value: rememberMe,
                           onChanged: (value) => onRememberMeChanged(value ?? false),
-                          // Explicit colors throughout, same as every other
-                          // control here - this card intentionally carries the
-                          // marketing palette regardless of the device's
-                          // light/dark setting (see MarketingColors), so
-                          // nothing here can fall back to the admin app's
-                          // ambient theme.
-                          activeColor: MarketingColors.primary,
+                          activeColor: palette.primary,
                           visualDensity: VisualDensity.compact,
                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         const SizedBox(width: 6),
-                        const Text('Remember me', style: TextStyle(fontSize: 14, color: MarketingColors.text)),
+                        Text('Remember me', style: TextStyle(fontSize: 14, color: palette.text)),
                       ],
                     ),
                   ),
                   TextButton(
                     onPressed: onForgotPassword,
-                    style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
+                    style: TextButton.styleFrom(foregroundColor: palette.primary),
                     child: const Text('Forgot password?'),
                   ),
                 ],
@@ -151,25 +148,25 @@ class LoginCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.lock_outline, size: 14, color: MarketingColors.subtle),
+                Icon(Icons.lock_outline, size: 14, color: palette.subtle),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
                     'Your data is protected with secure authentication',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: MarketingColors.subtle),
+                    style: TextStyle(fontSize: 12, color: palette.subtle),
                   ),
                 ),
               ],
             ),
             if (onAttendantSignIn != null) ...[
               const SizedBox(height: 18),
-              const Divider(color: MarketingColors.border, height: 1),
+              Divider(color: palette.border, height: 1),
               const SizedBox(height: 10),
               Center(
                 child: TextButton.icon(
                   onPressed: onAttendantSignIn,
-                  style: TextButton.styleFrom(foregroundColor: MarketingColors.primary),
+                  style: TextButton.styleFrom(foregroundColor: palette.primary),
                   icon: const Icon(Icons.directions_bus_filled_outlined, size: 18),
                   label: const Text('Bus attendant? Sign in with your mobile number'),
                 ),

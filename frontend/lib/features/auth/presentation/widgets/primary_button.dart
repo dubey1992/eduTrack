@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../marketing/presentation/marketing_colors.dart';
+import 'auth_palette.dart';
 
 /// The login card's full-width "Sign In" action - built on a plain
 /// [ElevatedButton] (matching every other primary action in the app, and
 /// what the existing login widget tests already find via
 /// `find.widgetWithText(ElevatedButton, 'Sign In')`) with a loading spinner
-/// swapped in for [isLoading], and the marketing palette's blue instead of
-/// the admin app's monochrome theme (see [MarketingColors]).
+/// swapped in for [isLoading], and the public palette's blue instead of the
+/// admin app's monochrome theme (see [AuthPalette]).
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({super.key, required this.label, required this.onPressed, this.isLoading = false});
 
@@ -17,15 +17,17 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AuthPalette.of(context);
+
     return SizedBox(
       width: double.infinity,
       height: 50,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: MarketingColors.primary,
+          backgroundColor: palette.primary,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: MarketingColors.primary,
+          disabledBackgroundColor: palette.primary,
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           elevation: 0,
