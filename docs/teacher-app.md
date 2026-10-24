@@ -1,0 +1,290 @@
+# The Teacher app (Android) — plan for review
+
+*Written 2026-10-24. Nothing here is built. Four decisions are asked for at
+the end; everything else is a recommendation that can be overruled.*
+
+## The short version
+
+**Most of what a teacher does already exists as web screens and as API,
+and the way to ship a second Android app has just been proven once.** The
+driver app (docs/driver-app.md) showed the shape: one Flutter codebase,
+a second entry point (`lib/main_driver.dart`), a phone-first router, the
+same repositories and notifiers the web uses, and screens rebuilt for a
+thumb rather than a mouse where the web ones would not fold. The teacher
+app is the same move for a different person, with one big difference:
+**a teacher's day is scheduled.** The bus has one trip; the teacher has
+seven periods, a register that closes, reports that are owed by the end
+of the day, and a class test next week. So the home screen is not a list
+of things the app can do - it is **today**, in order, with what is done
+and what is owed.
+
+| | |
+|---|---|
+| Reuse as-is | sign-in and sessions, the permission matrix and module switches, attendance register API, teaching reports, syllabus checklist, leave, timetable, assessments/marks, inbox, profile, holidays and working days |
+| Extend | a "my day" view of the timetable, teaching-report submission keyed to a period, phone layouts for the register and marks entry |
+| Genuinely new | the Today screen, push notifications, an offline register, the Android release of a second app |
+
+## Who it is for, precisely
+
+- **`TEACHER`** - signs in with email and password (Phase 1 auth: Sanctum-
+  style tokens, 7-day idle / 30-day sessions, lockout, device sign-out
+  from Profile). Their rights, from the matrix (`school/permissions.py`):
+  students *view*, attendance *manage*, assessments *manage*, teaching
+  reports *manage*, syllabus *manage*, leave *manage*, timetable *view*,
+  academics *view*, transport *view*. Each is narrowed by policy to **their
+  own classes, sections and subjects** - a teacher of 8A cannot touch 9A.
+- **`HOD`** - a teacher with a department to look after: reviews teaching
+  reports, marks the staff register, reads the department's syllabus and
+  reports. **In scope as a second phase**, because an HOD teaches too and
+  will not carry two apps.
+- *Not this app:* `SCHOOL_ADMIN`, `STAFF`, `ACCOUNTANT`, `TRANSPORT_MANAGER`
+  keep the web portal, which already works in a phone browser; the Super
+  Admin has nothing to do on a phone.
+
+## What exists today, precisely
+
+Every row below is live on the web and on `/api/v1` with tests.
+
+| A teacher's job | API | Web screen | Phone-ready? |
+|---|---|---|---|
+| Mark the class register | `GET attendance/register?class_section_id&date`, `POST attendance` | Student Attendance | the grid is a desktop table; the rule set (working day, one submission, holiday blocked) is all server-side |
+| See the timetable | `GET timetable?teacher_id…` | Timetable (grid) | the grid; no "today for me" view |
+| Submit a daily teaching report | `POST teaching-reports` (timetable entry + date + syllabus topic + notes), `GET teaching-reports/summary` | Teaching Reports | form is fine; the list is a table |
+| Tick syllabus topics | `GET syllabus-topics`, `POST syllabus-progress` (toggle) | Syllabus checklist | a checklist - nearly phone-ready |
+| Apply for leave, see its state | `POST leaves`, `GET leaves`, `GET leaves/summary` | Staff Leave | form and a table |
+| Enter marks for a class test | assessments + marks endpoints (docs/assessments.md) | Class Tests | a wide grid: students × components |
+| Look a student up | `GET students`, `GET students/{id}` | Students (view only) | list is a table; detail is cards |
+| Read what the school sent | `GET inbox`, `unread-count`, `read`, `read-all` | the bell | already compact |
+| Own payslips | payroll "My Payslips" | My Payslips | a list and a PDF |
+| Profile, password, devices | `GET/PATCH me`, change-password, sessions | My Profile | reused as-is by the driver app already |
+
+What does **not** exist, anywhere:
+
+- **A "today" view.** The timetable API answers a grid for a teacher; nobody
+  has asked it "what is period 3 right now, and did I report it?".
+- **Push notifications.** `MessageChannel` has SMS, WhatsApp, email and
+  in-app; there is no push adapter, no device token table, no Firebase
+  project. The inbox is pull-only.
+- **Any offline tolerance outside the bus.** Every web screen assumes
+  signal.
+- **A second Android release**: name, id, icon, listing, signing.
+
+## Decisions this plan rests on *(asked for below)*
+
+1. **One app or two?** Recommendation: **two APKs from one codebase.** The
+   driver app carries location, foreground service and microphone
+   permissions and a Play listing written for drivers; a teacher app with
+   those permissions in its manifest would be refused by cautious schools
+   and reviewed harder by Play. Separate `applicationId`s
+   (`com.school365ai.app` is taken by the driver; `com.school365ai.teacher`
+   is proposed), separate icons, one repository, shared everything else -
+   exactly how `main.dart` / `main_driver.dart` already relate. The cost is
+   a second listing and a second signing key entry, once.
+2. **Push now, or inbox first?** Recommendation: **ship Phase T1-T4 on
+   the pull-only inbox, add push as its own phase (T6).** Push needs a
+   Firebase project owned by the business, `google-services.json` kept out
+   of git, a device-token table, a `PUSH` channel with the switched-off rule
+   from docs/communication.md, and a background handler on the phone. It is
+   a week of its own and should not gate the register.
+3. **Offline register: yes or later?** Recommendation: **yes, in T2, using
+   the pattern the bus already proved** - marks saved on the phone with an
+   idempotent id and the time they happened, sent oldest-first, a "Not sent"
+   card when the server refuses. Classrooms lose signal too, and a register
+   that is lost when the Wi-Fi drops is the complaint every teacher app
+   gets first. The server already refuses a second submission and a
+   non-working day, so nothing new is needed on its side beyond honouring
+   `client_id` on `POST attendance` the way `trips/{id}/sync` does.
+4. **HOD in this app?** Recommendation: **yes, as T7**, gated by role at
+   sign-in like the driver app gates crew: an HOD sees the teacher screens
+   plus a *Department* tab (reports to review, the staff register). Not
+   before the teacher half is in a teacher's hands.
+
+## Architecture - what is shared and what is not
+
+```
+lib/
+  main.dart            web portal          (exists)
+  main_driver.dart     crew app            (exists)
+  main_teacher.dart    teacher app         (new, ~50 lines like main_driver)
+  core/routing/
+    app_router.dart    web                 (exists)
+    driver_router.dart crew                (exists)
+    teacher_router.dart                    (new: sign-in, Today, Register,
+                                            Reports, Syllabus, Leave, Tests,
+                                            Students, Inbox, Profile)
+  features/<module>/
+    data/              repositories + API  (reused unchanged)
+    application/       notifiers           (reused; a few new ones: today,
+                                            offline register queue)
+    presentation/      web screens         (reused where they fold:
+                                            syllabus checklist, leave form,
+                                            inbox, profile, student detail)
+    presentation/phone/                    (new, only where the web one is a
+                                            table or a grid: register, marks,
+                                            timetable, report list)
+```
+
+Rules carried over from the driver app, because they held:
+
+- **No API call or rule in a widget.** Presentation → notifier → repository
+  → API. The teacher app adds notifiers, not endpoints.
+- **Everything the server already refuses, the app does not offer** - a
+  register for a holiday, a second submission, a section that is not
+  theirs. The UI mirrors the policy; the policy stays the authority.
+- **One column.** A tablet gets a readable 640-px column, not a second
+  layout (`driver_router` pins this with a test at 1600×2560).
+- **Role gate at the door.** Anyone who is not `TEACHER` or `HOD` is told
+  in one sentence that this app is for teachers and offered the portal -
+  the same screen the crew app shows an administrator.
+- **Platform things behind an interface with a web stub and a fake:**
+  push, the offline store, anything that touches a plugin. Tests never
+  reach the phone.
+
+## The phases
+
+Each slice ends with: backend tests where anything server-side changed,
+widget tests for every state (loading / empty / error / success, ALLOW and
+DENY), a run on the emulator, and a line in this document.
+
+### Phase T0 — The second app exists *(small)*
+- `main_teacher.dart`, `teacher_router.dart`, a `TeacherFrame` (header: who
+  you are, the bell, the way out; bottom bar: Today · Classes · Me),
+  role gate, sign-in reusing the web screen's form in a phone layout.
+- Android: a product flavour or a second module for `com.school365ai.teacher`
+  with its own icon and label, **no** location / foreground / microphone
+  permissions, Maps key *not* required (no maps in T0-T5).
+- Tests: router (who lands where; a Bus Attendant and an admin are turned
+  away), frame at phone and tablet widths.
+- *Decision 1 settles this phase's shape.*
+
+### Phase T1 — Today
+- **New API, one endpoint:** `GET timetable/today` (or `my-day`) answering
+  for the signed-in teacher: the school's date on its own clock, whether
+  it is a working day (holidays.md), each period in order with class,
+  section, subject, room, start/end, and - joined here so the phone makes
+  one call - whether the **register** for that section is submitted today
+  and whether a **teaching report** exists for that period. Scoped to the
+  caller; a `teacher_id` parameter is not accepted.
+- The screen: the date; a closed-day card on a holiday; otherwise the
+  periods as a vertical list with the current one marked, each carrying
+  two small states (*Register ✓ / owed*, *Report ✓ / owed*) and the two
+  actions. Under the list, the day's owed count, and the week's leave if
+  any is approved.
+- Tests: backend ALLOW (own day) / DENY (another teacher's), holiday,
+  non-working day, a period with and without report; widget states.
+
+### Phase T2 — The register, offline-tolerant
+- Phone register: one section, one date (today by default; back-dates only
+  as far as the server allows), the class as a list of large rows - name,
+  roll number, **Present / Absent / Leave** as big buttons like the bus's
+  Boarded / Dropped / Absent (those three are the student statuses the
+  server knows - there is no "late" for a child; that is a staff-register
+  idea, docs/biometric.md) - a running tally in the header, and one
+  **Submit** with a confirm ("27 present, 3 absent. Submit?").
+- **Offline:** the submission is saved on the phone first with a
+  `client_id` and the time it happened, sent when signal returns, and the
+  Today card reads *Register: saved on this phone, not yet sent* until it
+  lands. Server: `POST attendance` honours `client_id` (a resend is
+  harmless) - a migration on the Laravel side for the column, a small
+  change in `AttendanceService`. The refusal cases (already submitted,
+  not a working day, not your section) come back as the codes they are
+  today and go to a "Not sent" card, as on the bus.
+- Tests: queue unit tests (reuse `trip_mark_queue` patterns), ALLOW/DENY
+  on the server for `client_id` replays, widget tests for the tally and
+  the confirm, the Not-sent card.
+
+### Phase T3 — Teaching reports and the syllabus
+- From a period on Today: **Report this period** - the form the web has
+  (what was taught, the syllabus topic, remarks), prefilled with the
+  period, submitted once; the server already refuses a second report for
+  the same period and date.
+- Reports list for the teacher: their own, by date, with the HOD's review
+  state. A phone list, not the table.
+- **Syllabus**: the existing checklist screen fits a phone already; wrap it
+  in the frame, keyed to the teacher's subjects.
+- Tests: form validation, duplicate refusal surfaced plainly, list states.
+
+### Phase T4 — Leave, students, payslips, inbox, profile
+- **Leave**: apply (dates, type, reason) and the list with status - the web
+  form folds to one column; the summary card (balance) on top.
+- **Students**: the teacher's own sections as a list, a student's detail
+  as the card stack the web already has (view only, as the matrix says).
+- **Payslips** and **Profile**: reused as they are (the driver app reuses
+  Profile today; the crew-mobile lock does not apply - a teacher may edit
+  their number).
+- **Inbox**: the bell and the list, pull-to-refresh, unread badge from
+  `inbox/unread-count`.
+- Tests: mostly widget states; ALLOW/DENY already covered server-side.
+
+### Phase T5 — Class tests and marks
+- Marks entry on a phone is the hard screen: students × components. One
+  component at a time, students as a list, a numeric keypad field per row
+  with next-field focus, running count of entered / missing, save per
+  component, the pass-mark and max-mark rules from docs/assessments.md
+  surfaced inline. Read-only once published, as on the web.
+- Tests: validation (over max, non-numeric), partial save, locked state.
+
+### Phase T6 — Push notifications *(decision 2)*
+- Backend: `device_tokens` (user, platform, token, app, last seen; Laravel
+  migration), a `PUSH` adapter behind `NotificationService` with FCM, the
+  switched-off rule (a muted alert is not sent **and not logged**,
+  docs/communication.md), and the events that should push: a report
+  reviewed, a leave decided, an announcement, a message. Credentials in
+  `backend/.env`, never in git.
+- App: `firebase_messaging` behind an interface with a web stub; token
+  registered at sign-in, removed at sign-out; tapping a notification opens
+  the thing it is about.
+- Tests: adapter unit tests with a fake sender, the muted rule, token
+  lifecycle; widget test that a tap routes.
+
+### Phase T7 — HOD *(decision 4)*
+- Same app, one more tab for `HOD`: **Department** - teaching reports
+  awaiting review (approve / return with a note), the department's staff
+  register for today, the syllabus coverage the web shows. All existing
+  endpoints.
+- Tests: role gate (a teacher never sees the tab), review ALLOW/DENY.
+
+### Phase T8 — Release
+- Second listing: name ("School365ai Teacher" proposed), icon, screenshots,
+  the privacy policy (`/privacy` already covers the driver app; the teacher
+  app collects less - no location, no microphone - so it needs a section,
+  not a new page), signing with the upload key, SHA-1s where keys need them
+  (none until Maps or Firebase), internal testing track first.
+
+## Order and size
+
+T0 → T1 → T2 → T3 → T4 → T5, then T6 / T7 in either order, T8 last. T1 and
+T2 are the app; a teacher who has those two would use it on Monday. The
+rough weight: T0 small; T1 medium (the one new endpoint plus the screen);
+T2 medium-large (offline is where the care goes); T3 small; T4 small-
+medium (mostly reuse); T5 medium (the grid); T6 medium (a new channel end
+to end); T7 small-medium; T8 small but gated on the business (listing,
+keystore, policy text).
+
+## Risks, named
+
+- **Two apps on one signing key.** The upload keystore that does not exist
+  yet (docs/driver-app.md, D6) is now needed for two listings. Make it
+  before either reaches Play.
+- **Statuses drift.** The register offers exactly the statuses the server
+  accepts (present / absent / leave today). If the school side ever gains
+  one, the phone must learn it from the API, not from a hard-coded list.
+- **Back-dated registers.** The web allows what the server allows; the
+  phone must not quietly widen it. The date picker's range comes from the
+  API's refusal, not from the app.
+- **Push without a business Firebase project** is a demo, not a feature.
+  T6 waits for the account.
+- **Session length on a shared staff-room phone.** 30 days is right for a
+  driver's own phone; a teacher app on a shared tablet needs the existing
+  device sign-out to be easy to find. Profile already has it.
+
+## What I need from you
+
+1. **One app or two** (recommend two APKs, one codebase).
+2. **Push in a later phase** (recommend yes - T6) and, when the time comes,
+   a Firebase project owned by the business.
+3. **Offline register in T2** (recommend yes).
+4. **HOD inside the teacher app** (recommend yes - T7).
+
+Answer those and T0 can start the same day; T0 and T1 together give a
+screen to show.
