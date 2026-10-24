@@ -622,7 +622,7 @@ looking at.*
 
 ---
 
-### Phase D7 — Guidance inside the app *(built 2026-10-23, blocked on a key)*
+### Phase D7 — Guidance inside the app *(built 2026-10-23, running 2026-10-24)*
 
 *D5.1 handed the stop to Google Maps and said so was enough. Asked to do
 the other thing, here is what it actually took.*
@@ -657,15 +657,30 @@ the other thing, here is what it actually took.*
   with a run to start. Ten seconds for each call, thirty for Google's
   consent dialog.
 
-**D7.3 — What it is waiting for** *(needs the school's Google Cloud project)*
-- Verified on the emulator: the SDK initialises, reaches Google and is
-  refused — `Google Navigation SDK: Authorization failure` — and the app
-  falls back to Google Maps exactly as designed.
-- To switch it on: enable **Navigation SDK for Android** on the project that
-  owns the Maps key, with billing; add the build's signing certificate
-  SHA-1 to that key's Android restrictions (the debug certificate too, for
-  testing); and know the cost — billed per destination in a route
-  calculation, first 1,000 a month free.
+**D7.3 — What it took to switch on** *(done 2026-10-24)*
+- Verified first with the key refused: the SDK initialises, reaches Google,
+  is turned away, and the app falls back to Google Maps exactly as designed.
+- Then with **Navigation SDK** enabled on the Cloud project that owns the
+  Android key: Google's consent sheet ("Navigate to your stops… Got It")
+  the first time only, then turn-by-turn drawn inside the app — route,
+  manoeuvre card, ETA, Google's own 3D map — for Shivajinagar on the Map
+  Demo Route, on the emulator parked in Pune. Reproduced from a wiped
+  install (terms and registration gone) and from a cold start; both well
+  inside the deadlines. Leaving the screen ends guidance.
+- What the Cloud side needs, for the record: the Navigation SDK API
+  enabled with billing (routes are billed per destination, first 1,000 a
+  month free); the Android key restricted to `com.school365ai.app` with
+  each signing certificate's SHA-1 - the debug certificate's for test
+  builds, the upload keystore's for the release; and Navigation SDK among
+  that key's allowed APIs.
+- **One thing seen once and not again:** the very first attempt on this
+  emulator, minutes after the API was switched on, came back refused and
+  the screen said guidance was "not switched on for your school yet" -
+  which was by then untrue. Every attempt since, including the wiped-install
+  repeat, has worked. The likeliest reading is Google taking a few minutes
+  to propagate a freshly enabled API; a driver cannot hit that. If it ever
+  shows up on a phone, the words are the bug to fix first: a deadline and
+  a refusal are different things and should not share a sentence.
 
 **And a bug this phase found in the last one**
 - The driver router sent every address that was not the trip or the profile
