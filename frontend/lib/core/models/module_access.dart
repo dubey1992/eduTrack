@@ -111,6 +111,8 @@ class ModuleAccess {
       UserRole.transportManager => row[4],
       UserRole.accountant => row[5],
       UserRole.busAttendant => row[6],
+      // A driver's row is the attendant's: the same person on the same bus.
+      UserRole.driver => row[6],
     };
   }
 

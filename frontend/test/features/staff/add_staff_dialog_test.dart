@@ -280,4 +280,77 @@ void main() {
       expect(find.text('Optional. Their id on the fingerprint devices.'), findsOneWidget);
     });
   });
+
+  group('a Driver', () {
+    // An employee like the attendant - mobile, no password - with a licence
+    // besides, kept on a record the server creates with them
+    // (docs/driver-app.md, D10).
+    Future<void> chooseDriver(WidgetTester tester) async {
+      final roleField = find.widgetWithText(DropdownButtonFormField<UserRole>, 'Teacher');
+      await tester.ensureVisible(roleField);
+      await tester.pumpAndSettle();
+      await tester.tap(roleField);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Driver').last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> fillNames(WidgetTester tester) async {
+      await tester.enterText(find.widgetWithText(TextFormField, 'First name'), 'Suresh');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Last name'), 'Pawar');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Employee ID'), 'DRV-001');
+    }
+
+    testWidgets('is offered, signs in like an attendant, and must have a licence', (tester) async {
+      final fake = FakeStaffRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _openDialog(tester);
+
+      await chooseDriver(tester);
+
+      expect(find.widgetWithText(TextFormField, 'Password'), findsNothing);
+      expect(find.textContaining('No password: a Driver signs in with this mobile number'), findsOneWidget);
+      expect(find.byKey(const Key('staff-licence-number')), findsOneWidget);
+      expect(find.byKey(const Key('staff-licence-expiry')), findsOneWidget);
+
+      await fillNames(tester);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mobile'), '9822010001');
+      final save = find.text('Save');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Required for a driver'), findsOneWidget);
+      expect(fake.lastCreate, isNull);
+    });
+
+    testWidgets('is created with the licence, and told how to get a setup code', (tester) async {
+      final fake = FakeStaffRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _openDialog(tester);
+
+      await chooseDriver(tester);
+      await fillNames(tester);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Mobile'), '9822010001');
+      await tester.enterText(find.byKey(const Key('staff-licence-number')), 'MH12 20190012345');
+      final save = find.text('Save');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCreate!['role'], UserRole.driver);
+      expect(fake.lastCreate!['password'], isNull);
+      expect(fake.lastCreate!['licence_number'], 'MH12 20190012345');
+      expect(find.byType(AddStaffDialog), findsNothing);
+      expect(find.textContaining('Driver added.'), findsOneWidget);
+    });
+
+    testWidgets('a teacher is never asked for a licence', (tester) async {
+      final fake = FakeStaffRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _openDialog(tester);
+
+      expect(find.byKey(const Key('staff-licence-number')), findsNothing);
+    });
+  });
 }

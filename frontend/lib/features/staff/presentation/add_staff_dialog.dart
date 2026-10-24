@@ -23,6 +23,10 @@ const _staffRoles = [
   UserRole.transportManager,
   UserRole.accountant,
   UserRole.busAttendant,
+  // A driver is an employee too, added here by the School Admin in a school
+  // with no Transport Manager, or from Transport > Crew by one that has
+  // (docs/driver-app.md, D10).
+  UserRole.driver,
 ];
 
 class AddStaffDialog extends ConsumerStatefulWidget {
@@ -43,8 +47,10 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
   final _passwordController = TextEditingController();
   final _designationController = TextEditingController();
   final _addressController = TextEditingController();
+  final _licenceController = TextEditingController();
 
   UserRole _role = UserRole.teacher;
+  DateTime? _licenceExpiry;
   int? _schoolId;
   int? _departmentId;
   late DateTime _joiningDate;
@@ -53,10 +59,13 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
   String? _errorMessage;
   Map<String, List<String>> _fieldErrors = const {};
 
-  /// A Bus Attendant signs in with their mobile number and a passcode on a
-  /// registered phone, so the form asks for the mobile, makes the email
-  /// optional and has no password at all (docs/maps.md).
-  bool get _isAttendant => _role == UserRole.busAttendant;
+  /// Bus crew - an attendant or a driver - sign in with their mobile number
+  /// and a passcode on a registered phone, so the form asks for the mobile,
+  /// makes the email optional and has no password at all (docs/maps.md).
+  bool get _isAttendant => _role.isCrew;
+
+  /// A driver also has a licence, kept on a record beside the employment one.
+  bool get _isDriver => _role == UserRole.driver;
 
   String? _serverError(String field) => _fieldErrors[field]?.first;
 
@@ -77,7 +86,18 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
     _passwordController.dispose();
     _designationController.dispose();
     _addressController.dispose();
+    _licenceController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLicenceExpiry() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _licenceExpiry ?? ref.read(schoolClockProvider).today,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _licenceExpiry = picked);
   }
 
   Future<void> _pickJoiningDate() async {
@@ -118,13 +138,15 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
             designation: _designationController.text.trim().isEmpty ? null : _designationController.text.trim(),
             joiningDate: _joiningDate,
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+            licenceNumber: _isDriver ? _licenceController.text.trim() : null,
+            licenceExpiry: _isDriver ? _licenceExpiry : null,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               _isAttendant
-                  ? 'Bus Attendant added. Open their Sign-in to issue a setup code for their phone.'
+                  ? '${_role.label} added. Open their Sign-in to issue a setup code for their phone.'
                   : 'Employee added.',
             ),
           ),
@@ -138,7 +160,8 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
           _fieldErrors = failure.validationErrors;
           // A message that belongs to a field is shown under that field;
           // anything else goes at the top of the form.
-          final shownByField = _serverError('mobile') != null || _serverError('email') != null;
+          final shownByField =
+              _serverError('mobile') != null || _serverError('email') != null || _serverError('licence_number') != null;
           _errorMessage = shownByField ? null : failure.message;
         });
       }
@@ -258,6 +281,36 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
                 ),
                 if (_serverError('mobile') != null) _FieldError(_serverError('mobile')!),
                 const SizedBox(height: 10),
+                if (_isDriver) ...[
+                  TextFormField(
+                    key: const Key('staff-licence-number'),
+                    controller: _licenceController,
+                    decoration: InputDecoration(
+                      labelText: 'Driving licence number',
+                      errorText: _serverError('licence_number'),
+                    ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required for a driver' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    key: const Key('staff-licence-expiry'),
+                    onTap: _pickLicenceExpiry,
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Licence expiry (optional)',
+                        suffixIcon: _licenceExpiry == null
+                            ? const Icon(Icons.calendar_today_outlined, size: 18)
+                            : IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                tooltip: 'Clear',
+                                onPressed: () => setState(() => _licenceExpiry = null),
+                              ),
+                      ),
+                      child: Text(_licenceExpiry == null ? 'Not set' : formatDate(_licenceExpiry!)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -273,7 +326,7 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
                 ),
                 const SizedBox(height: 10),
                 if (_isAttendant)
-                  const _AttendantSignInNote()
+                  _AttendantSignInNote(role: _role)
                 else
                   PasswordField(controller: _passwordController, helperText: newPasswordHint),
                 const SizedBox(height: 10),
@@ -361,7 +414,9 @@ class _FieldError extends StatelessWidget {
 
 /// Stands where the password field would be, saying why there is none.
 class _AttendantSignInNote extends StatelessWidget {
-  const _AttendantSignInNote();
+  const _AttendantSignInNote({required this.role});
+
+  final UserRole role;
 
   @override
   Widget build(BuildContext context) {
@@ -372,7 +427,7 @@ class _AttendantSignInNote extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'No password: a Bus Attendant signs in with this mobile number and a 4-digit passcode on a '
+            'No password: a ${role.label} signs in with this mobile number and a 4-digit passcode on a '
             'registered phone. After saving, open their Sign-in to issue a setup code.',
             style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),

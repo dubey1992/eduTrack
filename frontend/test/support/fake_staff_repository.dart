@@ -20,12 +20,19 @@ class FakeStaffRepository implements StaffRepository {
   /// without an email or password.
   Map<String, Object?>? lastCreate;
 
-  List<StaffProfile> _filtered({int? schoolId, int? departmentId, UserRole? role, String? search}) {
+  List<StaffProfile> _filtered({
+    int? schoolId,
+    int? departmentId,
+    UserRole? role,
+    List<UserRole>? roles,
+    String? search,
+  }) {
     final query = search?.trim().toLowerCase();
     return _staff
         .where((s) => schoolId == null || s.schoolId == schoolId)
         .where((s) => departmentId == null || s.departmentId == departmentId)
         .where((s) => role == null || s.role == role)
+        .where((s) => roles == null || roles.contains(s.role))
         .where((s) => query == null || query.isEmpty || s.name.toLowerCase().contains(query))
         .toList();
   }
@@ -40,13 +47,14 @@ class FakeStaffRepository implements StaffRepository {
     int? schoolId,
     int? departmentId,
     UserRole? role,
+    List<UserRole>? roles,
     String? search,
     required int page,
     required int perPage,
   }) async {
     if (failListPageWith != null) throw failListPageWith!;
     return paginateFake(
-      _filtered(schoolId: schoolId, departmentId: departmentId, role: role, search: search),
+      _filtered(schoolId: schoolId, departmentId: departmentId, role: role, roles: roles, search: search),
       page: page,
       perPage: perPage,
     );
@@ -76,8 +84,17 @@ class FakeStaffRepository implements StaffRepository {
     String? designation,
     required DateTime joiningDate,
     String? address,
+    String? licenceNumber,
+    DateTime? licenceExpiry,
   }) async {
-    lastCreate = {'email': email, 'mobile': mobile, 'password': password, 'role': role};
+    lastCreate = {
+      'email': email,
+      'mobile': mobile,
+      'password': password,
+      'role': role,
+      'licence_number': licenceNumber,
+      'licence_expiry': licenceExpiry,
+    };
     if (failCreateWith != null) throw failCreateWith!;
 
     final profile = StaffProfile(
@@ -104,10 +121,15 @@ class FakeStaffRepository implements StaffRepository {
       joiningDate: joiningDate,
       address: address,
       classTeacherOf: const [],
+      driverId: role == UserRole.driver ? _staff.length + 1 : null,
+      licenceNumber: role == UserRole.driver ? licenceNumber : null,
     );
     _staff.add(profile);
     return profile;
   }
+
+  /// What the last update sent, so a test can check a licence went along.
+  Map<String, Object?>? lastUpdate;
 
   @override
   Future<StaffProfile> update(
@@ -117,10 +139,18 @@ class FakeStaffRepository implements StaffRepository {
     String? designation,
     DateTime? joiningDate,
     String? address,
+    bool licenceGiven = false,
+    String? licenceNumber,
+    DateTime? licenceExpiry,
   }) async {
+    lastUpdate = {'licence_given': licenceGiven, 'licence_number': licenceNumber, 'licence_expiry': licenceExpiry};
     if (failUpdateWith != null) throw failUpdateWith!;
     final index = _staff.indexWhere((s) => s.id == staffProfileId);
-    final updated = _staff[index].copyWith(designation: designation, departmentId: departmentId);
+    final updated = _staff[index].copyWith(
+      designation: designation,
+      departmentId: departmentId,
+      licenceNumber: licenceGiven ? licenceNumber : null,
+    );
     _staff[index] = updated;
     return updated;
   }

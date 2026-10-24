@@ -100,7 +100,7 @@ Nearly every school-owned table carries `school_id` (students, teachers, staff, 
 
 Laravel Sanctum (or equivalent secure token auth): login, logout, token/session management, password reset, user activation/deactivation, auth middleware. Never store plaintext passwords, never return password hashes via API, never log passwords/tokens/authorization headers/credentials.
 
-**Roles:** `SUPER_ADMIN`, `SCHOOL_ADMIN`, `HOD`, `TEACHER`, `STAFF`, `TRANSPORT_MANAGER`. (Future, out of scope for now: `PARENT`, `STUDENT`.)
+**Roles:** `SUPER_ADMIN`, `SCHOOL_ADMIN`, `HOD`, `TEACHER`, `STAFF`, `TRANSPORT_MANAGER`, `ACCOUNTANT`, and the bus crew `DRIVER` / `BUS_ATTENDANT` (mobile + passcode sign-in). (Future, out of scope for now: `PARENT`, `STUDENT`.)
 
 Authorization is never role-only — also consider school, department, assigned class, assigned subject, ownership (e.g. a Teacher assigned to 8A must not access 9A attendance). Every protected API must verify authorization server-side, never rely on hiding UI buttons. Every important permission needs an ALLOW test and a DENY test.
 

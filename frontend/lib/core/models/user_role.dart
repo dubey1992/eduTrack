@@ -18,9 +18,19 @@ enum UserRole {
   /// The person on the bus: runs the trips of the routes they are assigned
   /// to, from a phone, signing in with a mobile number and passcode on a
   /// registered device. See docs/maps.md.
-  busAttendant('BUS_ATTENDANT', 'Bus Attendant');
+  busAttendant('BUS_ATTENDANT', 'Bus Attendant'),
+
+  /// Drives the bus. Bus crew like the attendant - same sign-in, same app -
+  /// with a licence record kept beside the employment one
+  /// (docs/driver-app.md, D10).
+  driver('DRIVER', 'Driver');
 
   const UserRole(this.apiValue, this.label);
+
+  /// Works on the bus - driver or attendant - and signs in with a mobile
+  /// number and a passcode on a registered phone, never a password. Every
+  /// rule that used to ask "is a Bus Attendant" asks this instead.
+  bool get isCrew => this == UserRole.busAttendant || this == UserRole.driver;
 
   final String apiValue;
   final String label;

@@ -692,6 +692,43 @@ the other thing, here is what it actually took.*
 
 ---
 
+### Phase D10 — The crew are employees *(built 2026-10-24)*
+
+*Asked for: the Transport Manager could not add a driver or an attendant,
+the Driver form knew nothing of attendants, and a school with no Transport
+Manager needed its admin to manage all of it from Teachers & Staff.*
+
+- **A driver is now a person who signs in**, not a record the office keeps.
+  New user role `DRIVER`, beside `BUS_ATTENDANT`; the two are *the bus
+  crew* - same mobile-and-passcode sign-in, same app, same reach, same
+  permission row - and every rule that used to ask "is a Bus Attendant"
+  asks `UserRole.is_crew` / `role.isCrew` instead (login, tokens, profile,
+  trips, policies, the app's gate). A `DRIVER` employee always has a
+  `drivers` row - the licence - created in the same transaction, linked by
+  `staff_profile_id`, renamed when the login is renamed, corrected on the
+  employment record. No migration: `users.role` is a plain string, and the
+  licence lives where it always did.
+- **Teachers & Staff** offers Driver beside Bus Attendant, with the licence
+  fields for a driver; the School Admin manages all roles there, as they
+  did, which is what a school without a Transport Manager needs.
+- **Transport → Crew** (was Drivers) lists drivers and attendants together
+  from the staff API, with the licence, the status and a Sign-in panel on
+  each row, and an **Add crew** form - role, name, mobile, employee id,
+  licence for a driver - open to the Transport Manager. Driver records from
+  before drivers could sign in are listed apart until linked.
+- **Who may:** whoever manages transport may add, edit and hand setup codes
+  to crew roles and nobody else (`manages_crew` in policies.py); their
+  staff list is narrowed to the crew whatever they ask. The School Admin's
+  reach is unchanged. ALLOW/DENY on the server: a manager adds a driver and
+  an attendant ✓, a teacher ✗; reads crew ✓, a teacher's profile ✗; one at
+  another school reaches nothing.
+- Tests: `TheBusCrew` in test_staff_api.py, `ADriverSignsIn` in
+  test_attendants_api.py (registers, sees the route they drive), the
+  profile and role-change rules for both crew roles; Flutter: the Add
+  Employee driver group, the Crew screen, the driver router's gate.
+
+---
+
 ### Phase D9 — Dark mode, and the permission list *(2026-10-24)*
 
 *Two things the owner saw on a real phone that the emulator, set to light,

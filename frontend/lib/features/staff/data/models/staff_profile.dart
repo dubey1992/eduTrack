@@ -25,6 +25,9 @@ class StaffProfile {
     this.lockedUntil,
     this.photoUrl,
     this.hasEmail = true,
+    this.driverId,
+    this.licenceNumber,
+    this.licenceExpiry,
   });
 
   factory StaffProfile.fromJson(Map<String, dynamic> json) {
@@ -51,6 +54,9 @@ class StaffProfile {
       classTeacherOf: (json['class_teacher_of'] as List).cast<String>(),
       photoUrl: json['photo_url'] as String?,
       hasEmail: json['has_email'] as bool? ?? true,
+      driverId: json['driver_id'] as int?,
+      licenceNumber: json['licence_number'] as String?,
+      licenceExpiry: json['licence_expiry'] as String?,
     );
   }
 
@@ -95,12 +101,26 @@ class StaffProfile {
 
   bool get isBusAttendant => role == UserRole.busAttendant;
 
+  /// Drives or attends the bus: signs in by passcode, has a Sign-in panel.
+  bool get isCrew => role.isCrew;
+  bool get isDriver => role == UserRole.driver;
+
+  /// The licence record a driver carries beside the employment one
+  /// (docs/driver-app.md, D10). Null for everybody else.
+  final int? driverId;
+  final String? licenceNumber;
+
+  /// ISO date, or null when the licence has no expiry on record.
+  final String? licenceExpiry;
+
   StaffProfile copyWith({
     UserStatus? status,
     String? designation,
     int? departmentId,
     String? departmentName,
     bool unlocked = false,
+    String? licenceNumber,
+    String? licenceExpiry,
   }) {
     return StaffProfile(
       id: id,
@@ -124,6 +144,9 @@ class StaffProfile {
       classTeacherOf: classTeacherOf,
       photoUrl: photoUrl,
       hasEmail: hasEmail,
+      driverId: driverId,
+      licenceNumber: licenceNumber ?? this.licenceNumber,
+      licenceExpiry: licenceExpiry ?? this.licenceExpiry,
     );
   }
 }

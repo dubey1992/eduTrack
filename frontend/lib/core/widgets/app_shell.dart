@@ -6,7 +6,6 @@ import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/change_password_dialog.dart';
 import '../../features/auth/presentation/signed_in_devices_dialog.dart';
 import '../../features/my_trip/application/trip_mark_queue.dart';
-import '../models/user_role.dart';
 import '../routing/app_nav.dart';
 import 'confirm_dialog.dart';
 import 'responsive.dart';
@@ -124,7 +123,7 @@ class _Topbar extends ConsumerWidget {
 /// A bus attendant may have trip marks on the phone that have not reached
 /// the server (no signal); signing out throws them away, so they are told.
 Future<void> confirmLogout(BuildContext context, WidgetRef ref) async {
-  final isAttendant = ref.read(authNotifierProvider).value?.role == UserRole.busAttendant;
+  final isAttendant = ref.read(authNotifierProvider).value?.role.isCrew ?? false;
   final unsent = isAttendant ? await ref.read(tripMarkQueueProvider.notifier).waitingCount() : 0;
   if (!context.mounted) return;
 

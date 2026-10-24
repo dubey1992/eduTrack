@@ -42,10 +42,10 @@ class _EditUserDialogState extends ConsumerState<EditUserDialog> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
-  /// A Bus Attendant signs in with a mobile number and passcode, so the role
-  /// cannot be changed to or from theirs (the API refuses it), there is no
-  /// password to set, and the email is optional.
-  bool get _isAttendant => widget.user.role == UserRole.busAttendant;
+  /// Bus crew - a driver or an attendant - sign in with a mobile number and
+  /// passcode, so the role cannot be changed to or from theirs (the API
+  /// refuses it), there is no password to set, and the email is optional.
+  bool get _isAttendant => widget.user.role.isCrew;
 
   @override
   void dispose() {
@@ -95,10 +95,10 @@ class _EditUserDialogState extends ConsumerState<EditUserDialog> {
     // Reassigning a role is a platform action, not a group one - a Group
     // Admin gets the same short list a School Admin does.
     final isSuperAdmin = actorRole == UserRole.superAdmin;
-    // Nobody becomes a Bus Attendant by an edit: they sign in differently,
-    // and are added as one from Teachers & Staff.
+    // Nobody becomes bus crew by an edit: they sign in differently, and are
+    // added as a driver or attendant from Teachers & Staff or Transport.
     final assignableRoles = isSuperAdmin
-        ? UserRole.values.where((role) => role != UserRole.busAttendant).toList()
+        ? UserRole.values.where((role) => !role.isCrew).toList()
         : _schoolAdminAssignableRoles;
 
     return AlertDialog(

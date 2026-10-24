@@ -11,7 +11,6 @@ import '../../features/my_trip/presentation/battery_help_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
 import '../../features/my_trip/presentation/navigate_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
-import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
 import '../widgets/crew_frame.dart';
 
@@ -139,7 +138,7 @@ final driverRouterProvider = Provider<GoRouter>((ref) {
         return location == '/start' || location == '/sign-in' ? null : '/start';
       }
 
-      if (user.role != UserRole.busAttendant) {
+      if (!user.role.isCrew) {
         return location == '/not-crew' ? null : '/not-crew';
       }
 

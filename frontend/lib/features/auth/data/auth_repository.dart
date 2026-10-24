@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models/user_role.dart';
 import '../../../core/network/auth_token_storage.dart';
 import '../../../core/network/dio_client.dart';
 import 'attendant_device_storage.dart';
@@ -60,7 +59,7 @@ class AuthRepository {
     try {
       final json = await _api.meJson();
       final user = AuthenticatedUser.fromJson(json);
-      if (user.role == UserRole.busAttendant) await _attendantStorage?.saveSession(json);
+      if (user.role.isCrew) await _attendantStorage?.saveSession(json);
       return user;
     } on DioException catch (e) {
       // Only the server saying "this is not a session" ends one. A bus

@@ -100,7 +100,7 @@ class AppNav {
 
   /// Every role, the Bus Attendant included - for what is every signed-in
   /// person's own: the landing page and their inbox.
-  static const _everyone = {..._allRoles, UserRole.busAttendant};
+  static const _everyone = {..._allRoles, UserRole.busAttendant, UserRole.driver};
 
   static const overview = NavGroup(
     label: 'Overview',
@@ -370,6 +370,7 @@ class AppNav {
           UserRole.transportManager,
           UserRole.accountant,
           UserRole.busAttendant,
+          UserRole.driver,
         },
         pageTitle: 'Staff Leave',
         pageSubtitle: 'Leave requests, approvals and attendance sync',
@@ -431,6 +432,7 @@ class AppNav {
           UserRole.transportManager,
           UserRole.accountant,
           UserRole.busAttendant,
+          UserRole.driver,
         },
         pageTitle: 'My Payslips',
         pageSubtitle: 'Your finalized payslips',
@@ -471,9 +473,9 @@ class AppNav {
     UserRole.transportManager,
   };
 
-  /// Transport's fleet and trip screens are the office's; an attendant runs
+  /// Transport's fleet and trip screens are the office's; the bus crew run
   /// their own routes from My Trip instead.
-  static const _notAttendants = {UserRole.busAttendant};
+  static const _notAttendants = {UserRole.busAttendant, UserRole.driver};
 
   static const transport = NavGroup(
     label: 'Transport',
@@ -486,7 +488,7 @@ class AppNav {
         requiredLevel: PermissionLevel.none,
         label: 'My Trip',
         icon: Icons.directions_bus_filled,
-        allowedRoles: {UserRole.busAttendant},
+        allowedRoles: {UserRole.busAttendant, UserRole.driver},
         pageTitle: 'My Trip',
         pageSubtitle: "Today's trips on your routes",
       ),
@@ -504,11 +506,11 @@ class AppNav {
         path: '/transport/drivers',
         module: AppModules.transport,
         deniedRoles: _notAttendants,
-        label: 'Drivers',
+        label: 'Crew',
         icon: Icons.badge_outlined,
         allowedRoles: _transportViewerRoles,
-        pageTitle: 'Drivers',
-        pageSubtitle: 'Bus drivers and their licences',
+        pageTitle: 'Bus crew',
+        pageSubtitle: 'Drivers and attendants, their licences and their phones',
       ),
       NavItem(
         path: '/transport/bus-stops',

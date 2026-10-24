@@ -283,6 +283,14 @@ void main() {
 
     expect(find.byType(MyTripScreen), findsNothing);
   });
+  testWidgets('a driver is crew too: on the trip, like an attendant', (tester) async {
+    // A driver is an employee who signs in exactly as an attendant does
+    // (docs/driver-app.md, D10); the gate asks "is crew", not "is attendant".
+    await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.driver, name: 'Suresh Pawar')));
+
+    expect(find.byType(MyTripScreen), findsOneWidget);
+    expect(find.text('This app is for the bus crew'), findsNothing);
+  });
 }
 
 /// Stuck down, with no Dio behind it.

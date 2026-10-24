@@ -32,6 +32,7 @@ const _staffRoles = [
   UserRole.transportManager,
   UserRole.accountant,
   UserRole.busAttendant,
+  UserRole.driver,
 ];
 
 class StaffListScreen extends ConsumerStatefulWidget {
@@ -182,8 +183,13 @@ class _StatRow extends StatelessWidget {
     final teachers = staff.where((m) => m.role == UserRole.teacher).length;
     final nonTeaching = staff
         .where(
-          (m) =>
-              {UserRole.staff, UserRole.transportManager, UserRole.accountant, UserRole.busAttendant}.contains(m.role),
+          (m) => {
+            UserRole.staff,
+            UserRole.transportManager,
+            UserRole.accountant,
+            UserRole.busAttendant,
+            UserRole.driver,
+          }.contains(m.role),
         )
         .length;
     final hods = staff.where((m) => m.role == UserRole.hod).length;

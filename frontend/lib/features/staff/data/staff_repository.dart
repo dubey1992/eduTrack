@@ -44,6 +44,7 @@ class StaffRepository {
     int? schoolId,
     int? departmentId,
     UserRole? role,
+    List<UserRole>? roles,
     String? search,
     required int page,
     required int perPage,
@@ -53,6 +54,7 @@ class StaffRepository {
         schoolId: schoolId,
         departmentId: departmentId,
         role: role,
+        roles: roles,
         search: search,
         page: page,
         perPage: perPage,
@@ -78,6 +80,8 @@ class StaffRepository {
     String? designation,
     required DateTime joiningDate,
     String? address,
+    String? licenceNumber,
+    DateTime? licenceExpiry,
   }) async {
     try {
       return await _api.create(
@@ -94,6 +98,8 @@ class StaffRepository {
         designation: designation,
         joiningDate: joiningDate,
         address: address,
+        licenceNumber: licenceNumber,
+        licenceExpiry: licenceExpiry,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);
@@ -107,6 +113,9 @@ class StaffRepository {
     String? designation,
     DateTime? joiningDate,
     String? address,
+    bool licenceGiven = false,
+    String? licenceNumber,
+    DateTime? licenceExpiry,
   }) async {
     try {
       return await _api.update(
@@ -116,6 +125,9 @@ class StaffRepository {
         designation: designation,
         joiningDate: joiningDate,
         address: address,
+        licenceGiven: licenceGiven,
+        licenceNumber: licenceNumber,
+        licenceExpiry: licenceExpiry,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);

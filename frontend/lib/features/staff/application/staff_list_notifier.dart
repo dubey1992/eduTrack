@@ -112,6 +112,8 @@ class StaffListNotifier extends AsyncNotifier<PagedList<StaffProfile>> {
     String? designation,
     required DateTime joiningDate,
     String? address,
+    String? licenceNumber,
+    DateTime? licenceExpiry,
   }) async {
     await ref
         .read(staffRepositoryProvider)
@@ -129,6 +131,8 @@ class StaffListNotifier extends AsyncNotifier<PagedList<StaffProfile>> {
           designation: designation,
           joiningDate: joiningDate,
           address: address,
+          licenceNumber: licenceNumber,
+          licenceExpiry: licenceExpiry,
         );
     _page = 1;
     await refresh();
@@ -141,6 +145,9 @@ class StaffListNotifier extends AsyncNotifier<PagedList<StaffProfile>> {
     String? designation,
     DateTime? joiningDate,
     String? address,
+    bool licenceGiven = false,
+    String? licenceNumber,
+    DateTime? licenceExpiry,
   }) async {
     final updated = await ref
         .read(staffRepositoryProvider)
@@ -151,6 +158,9 @@ class StaffListNotifier extends AsyncNotifier<PagedList<StaffProfile>> {
           designation: designation,
           joiningDate: joiningDate,
           address: address,
+          licenceGiven: licenceGiven,
+          licenceNumber: licenceNumber,
+          licenceExpiry: licenceExpiry,
         );
 
     state = state.whenData(

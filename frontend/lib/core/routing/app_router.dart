@@ -47,13 +47,12 @@ import '../../features/subjects/presentation/subject_list_screen.dart';
 import '../../features/syllabus/presentation/syllabus_screen.dart';
 import '../../features/teaching_reports/presentation/teaching_report_screen.dart';
 import '../../features/timetable/presentation/timetable_screen.dart';
-import '../../features/transport/presentation/driver_list_screen.dart';
+import '../../features/transport/presentation/crew_list_screen.dart';
 import '../../features/transport/presentation/bus_stop_list_screen.dart';
 import '../../features/transport/presentation/route_list_screen.dart';
 import '../../features/transport/presentation/trip_screen.dart';
 import '../../features/transport/presentation/vehicle_list_screen.dart';
 import '../../features/users/presentation/user_list_screen.dart';
-import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
 import '../../features/module_settings/presentation/module_settings_screen.dart';
 import '../../features/permissions/presentation/permissions_screen.dart';
@@ -73,7 +72,7 @@ const _publicPaths = {'/', '/privacy', '/login', '/attendant-login', '/forgot-pa
 
 /// Where a signed-in user lands: a bus attendant on their trip, everybody
 /// else on the dashboard.
-String landingPathFor(AuthenticatedUser user) => user.role == UserRole.busAttendant ? '/my-trip' : '/dashboard';
+String landingPathFor(AuthenticatedUser user) => user.role.isCrew ? '/my-trip' : '/dashboard';
 
 /// Every path this router actually serves.
 ///
@@ -223,7 +222,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/syllabus', builder: (context, state) => const SyllabusScreen()),
           GoRoute(path: '/hod-reports', builder: (context, state) => const HodReportScreen()),
           GoRoute(path: '/transport/vehicles', builder: (context, state) => const VehicleListScreen()),
-          GoRoute(path: '/transport/drivers', builder: (context, state) => const DriverListScreen()),
+          GoRoute(path: '/transport/drivers', builder: (context, state) => const CrewListScreen()),
           GoRoute(path: '/transport/bus-stops', builder: (context, state) => const BusStopListScreen()),
           GoRoute(path: '/transport/routes', builder: (context, state) => const RouteListScreen()),
           GoRoute(path: '/transport/trips', builder: (context, state) => const TripScreen()),

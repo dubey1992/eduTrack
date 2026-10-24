@@ -26,9 +26,13 @@ class _EditStaffProfileDialogState extends ConsumerState<EditStaffProfileDialog>
   late final _employeeIdController = TextEditingController(text: widget.profile.employeeId);
   late final _designationController = TextEditingController(text: widget.profile.designation ?? '');
   late final _addressController = TextEditingController(text: widget.profile.address ?? '');
+  late final _licenceController = TextEditingController(text: widget.profile.licenceNumber ?? '');
 
   late int? _departmentId = widget.profile.departmentId;
   late DateTime _joiningDate = widget.profile.joiningDate;
+  late DateTime? _licenceExpiry = widget.profile.licenceExpiry == null
+      ? null
+      : DateTime.parse(widget.profile.licenceExpiry!);
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -38,7 +42,18 @@ class _EditStaffProfileDialogState extends ConsumerState<EditStaffProfileDialog>
     _employeeIdController.dispose();
     _designationController.dispose();
     _addressController.dispose();
+    _licenceController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLicenceExpiry() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _licenceExpiry ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _licenceExpiry = picked);
   }
 
   Future<void> _pickJoiningDate() async {
@@ -69,6 +84,9 @@ class _EditStaffProfileDialogState extends ConsumerState<EditStaffProfileDialog>
             designation: _designationController.text.trim().isEmpty ? null : _designationController.text.trim(),
             joiningDate: _joiningDate,
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+            licenceGiven: widget.profile.isDriver,
+            licenceNumber: widget.profile.isDriver ? _licenceController.text.trim() : null,
+            licenceExpiry: widget.profile.isDriver ? _licenceExpiry : null,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Staff profile updated.')));
@@ -130,6 +148,33 @@ class _EditStaffProfileDialogState extends ConsumerState<EditStaffProfileDialog>
                   decoration: const InputDecoration(labelText: 'Address (optional)'),
                   maxLines: 2,
                 ),
+                if (widget.profile.isDriver) ...[
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    key: const Key('staff-licence-number'),
+                    controller: _licenceController,
+                    decoration: const InputDecoration(labelText: 'Driving licence number'),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required for a driver' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    key: const Key('staff-licence-expiry'),
+                    onTap: _pickLicenceExpiry,
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Licence expiry (optional)',
+                        suffixIcon: _licenceExpiry == null
+                            ? const Icon(Icons.calendar_today_outlined, size: 18)
+                            : IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                tooltip: 'Clear',
+                                onPressed: () => setState(() => _licenceExpiry = null),
+                              ),
+                      ),
+                      child: Text(_licenceExpiry == null ? 'Not set' : formatDate(_licenceExpiry!)),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -201,7 +246,7 @@ class _AccountSummary extends StatelessWidget {
             Expanded(child: StaffEmailText(profile: profile)),
           ],
         ),
-        if (profile.isBusAttendant) ...[
+        if (profile.isCrew) ...[
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: () => showDialog(

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models/user_role.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
 import '../../assessments/application/assessment_list_notifier.dart';
 import '../../promotion/application/promotion_history_notifier.dart';
@@ -29,6 +28,7 @@ import '../../biometric/application/device_page_notifier.dart';
 import '../../biometric/application/punch_page_notifier.dart';
 import '../../schools/application/school_list_notifier.dart';
 import '../../staff/application/staff_list_notifier.dart';
+import '../../transport/application/crew_list_notifier.dart';
 import '../../staff_leave/application/staff_leave_list_notifier.dart';
 import '../../staff_leave/application/staff_leave_summary_notifier.dart';
 import '../../students/application/student_list_notifier.dart';
@@ -105,7 +105,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     // A bus attendant's phone keeps trip marks and the trip itself for when
     // there is no signal; none of it is for whoever signs in next. (Unsent
     // marks were warned about before getting here - see AppShell.)
-    if (state.value?.role == UserRole.busAttendant) {
+    if (state.value?.role.isCrew ?? false) {
       await ref.read(tripMarkQueueProvider.notifier).discardAll();
     }
     await ref.read(authRepositoryProvider).logout();
@@ -121,6 +121,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(userListNotifierProvider);
     ref.invalidate(studentListNotifierProvider);
     ref.invalidate(staffListNotifierProvider);
+    ref.invalidate(crewListNotifierProvider);
     ref.invalidate(departmentListNotifierProvider);
     ref.invalidate(subjectListNotifierProvider);
     ref.invalidate(schoolClassListNotifierProvider);

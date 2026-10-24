@@ -19,6 +19,7 @@ class StaffApi {
     int? schoolId,
     int? departmentId,
     UserRole? role,
+    List<UserRole>? roles,
     String? search,
     int? page,
     int? perPage,
@@ -28,7 +29,9 @@ class StaffApi {
       queryParameters: {
         'school_id': ?schoolId,
         'department_id': ?departmentId,
-        'role': ?role?.apiValue,
+        // One role, or several: the Crew screen asks for drivers and
+        // attendants in one page, and the server takes a comma-separated list.
+        'role': ?(roles != null ? roles.map((r) => r.apiValue).join(',') : role?.apiValue),
         'search': ?search,
         'page': ?page,
         'per_page': ?perPage,
@@ -54,6 +57,8 @@ class StaffApi {
     String? designation,
     required DateTime joiningDate,
     String? address,
+    String? licenceNumber,
+    DateTime? licenceExpiry,
   }) async {
     final response = await _dio.post(
       '/staff',
@@ -71,6 +76,9 @@ class StaffApi {
         'designation': designation,
         'joining_date': DateFormat('yyyy-MM-dd').format(joiningDate),
         'address': address,
+        // A driver's licence; the server ignores it for anybody else.
+        'licence_number': ?licenceNumber,
+        'licence_expiry': ?(licenceExpiry == null ? null : DateFormat('yyyy-MM-dd').format(licenceExpiry)),
       },
     );
 
@@ -84,6 +92,9 @@ class StaffApi {
     String? designation,
     DateTime? joiningDate,
     String? address,
+    bool licenceGiven = false,
+    String? licenceNumber,
+    DateTime? licenceExpiry,
   }) async {
     final response = await _dio.patch(
       '/staff/$staffProfileId',
@@ -93,6 +104,11 @@ class StaffApi {
         'designation': designation,
         if (joiningDate != null) 'joining_date': DateFormat('yyyy-MM-dd').format(joiningDate),
         'address': address,
+        // Only when the form had licence fields - a driver's. Sent as a
+        // pair so clearing the expiry reaches the server as null.
+        if (licenceGiven) 'licence_number': licenceNumber,
+        if (licenceGiven)
+          'licence_expiry': licenceExpiry == null ? null : DateFormat('yyyy-MM-dd').format(licenceExpiry),
       },
     );
 
