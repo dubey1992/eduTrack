@@ -29,7 +29,7 @@ from school.enums import (
     StudentStatus,
     UserRole,
 )
-from school.models import AcademicYear, Assessment, AssessmentMark, Attendance, Student, StudentEnrollment
+from school.models import AcademicYear, Assessment, AssessmentMark, Attendance, School, Student, StudentEnrollment
 
 # A Wednesday inside the newer year, and in the past: a register may not be
 # taken for a day that has not happened.
@@ -183,6 +183,15 @@ class TakingARegisterInTheNewYear(YearChangeTestCase):
 
 
 class TheTimetableAcrossTheChange(YearChangeTestCase):
+    def every_day_is_a_school_day(self):
+        """The three counting tests put a period on whatever weekday today
+        is. On a Saturday the default Monday-to-Friday week counts that as
+        nothing owed - right for a school, and beside the point here, where
+        the question is one year's grid versus two. So these schools teach
+        all week, and the tests pass on the weekend they were first run on."""
+        School.objects.filter(pk=self.school.pk).update(working_days="1111111")
+        cache.clear()
+
     def entry(self, section, day="monday"):
         return self.client.post(
             "/api/v1/timetable",
@@ -233,6 +242,7 @@ class TheTimetableAcrossTheChange(YearChangeTestCase):
         )
 
     def test_the_dashboard_counts_this_year_s_periods_once(self):
+        self.every_day_is_a_school_day()
         # Both years hold the same slot on whatever weekday today is, so a
         # count that spanned years would read two.
         today = SchoolClock.for_school(self.school.id).now().strftime("%A").lower()
@@ -247,6 +257,7 @@ class TheTimetableAcrossTheChange(YearChangeTestCase):
         self.assertEqual("1", cards["periods"], f"one grid, not two: {cards!r}")
 
     def test_the_pending_teaching_reports_count_this_year_only(self):
+        self.every_day_is_a_school_day()
         today = SchoolClock.for_school(self.school.id).now()
         weekday = today.strftime("%A").lower()
         self.entry(self.old_section, day=weekday)
@@ -260,6 +271,7 @@ class TheTimetableAcrossTheChange(YearChangeTestCase):
         self.assertEqual(1, response.data["scheduled"], "last year's grid is not work still owed")
 
     def test_the_coverage_report_counts_this_year_s_periods(self):
+        self.every_day_is_a_school_day()
         today = SchoolClock.for_school(self.school.id).now().date()
         weekday = today.strftime("%A").lower()
         self.entry(self.old_section, day=weekday)
