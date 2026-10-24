@@ -148,10 +148,15 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primary,
-          // Said explicitly for both themes. Left to Material, a disabled
-          // button in the dark theme came out *lighter* than an enabled one
-          // - on the bus the greyed-out Dropped button outshone Boarded and
-          // Absent beside it, which reads as the one to press.
+          // The text colour that goes with that background, said for tonal
+          // buttons too: FilledButton.tonal takes this theme's background
+          // but, left alone, Material's tonal *foreground* - which in the
+          // dark theme is a light grey on this light primary. On the trip
+          // sheet the one button a crew member could press, Dropped, had
+          // its label all but invisible (docs/driver-app.md, D9).
+          foregroundColor: colorScheme.onPrimary,
+          // Disabled said explicitly for both themes as well, so a greyed-
+          // out button never outshines the live ones beside it.
           disabledBackgroundColor: colorScheme.onSurface.withValues(alpha: 0.12),
           disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
