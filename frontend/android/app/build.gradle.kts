@@ -62,10 +62,31 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
+    // Two apps from one project (docs/teacher-app.md, decision 1): the
+    // crew's and the teacher's. A flavour is the one Android mechanism that
+    // gives each its own application id, name, icon and manifest while
+    // every line of Dart and every plugin stays shared. Gradle insists a
+    // flavour be named once any exist, so every build now says which:
+    //
+    //     flutter build apk --flavor driver  --target lib/main_driver.dart
+    //     flutter build apk --flavor teacher --target lib/main_teacher.dart
+    flavorDimensions += "app"
+    productFlavors {
+        create("driver") {
+            dimension = "app"
+            // Permanent: Play identifies the app by this for ever, and it
+            // cannot be changed after the first upload (docs/driver-app.md).
+            applicationId = "com.school365ai.app"
+        }
+        create("teacher") {
+            dimension = "app"
+            applicationId = "com.school365ai.teacher"
+            // Its own name, icon and the permissions it does *not* ask for
+            // live in src/teacher/, merged over src/main/.
+        }
+    }
+
     defaultConfig {
-        // Permanent: Play identifies the app by this for ever, and it
-        // cannot be changed after the first upload (docs/driver-app.md).
-        applicationId = "com.school365ai.app"
         // Pinned rather than taken from Flutter's defaults, which move with
         // the SDK. A bus driver's phone is old and cheap, so the floor is a
         // deliberate choice: 24 covers Android 7, which is as far back as

@@ -146,16 +146,38 @@ Each slice ends with: backend tests where anything server-side changed,
 widget tests for every state (loading / empty / error / success, ALLOW and
 DENY), a run on the emulator, and a line in this document.
 
-### Phase T0 — The second app exists *(small)*
-- `main_teacher.dart`, `teacher_router.dart`, a `TeacherFrame` (header: who
-  you are, the bell, the way out; bottom bar: Today · Classes · Me),
-  role gate, sign-in reusing the web screen's form in a phone layout.
-- Android: a product flavour or a second module for `com.school365ai.teacher`
-  with its own icon and label, **no** location / foreground / microphone
-  permissions, Maps key *not* required (no maps in T0-T5).
-- Tests: router (who lands where; a Bus Attendant and an admin are turned
-  away), frame at phone and tablet widths.
-- *Decision 1 settles this phase's shape.*
+### Phase T0 — The second app exists *(built 2026-10-24)*
+*Decision 1 came back "2 apks", and this phase is its shape.*
+- `lib/main_teacher.dart` and `core/routing/teacher_router.dart`, on the
+  pattern of the driver's: no '/', no dashboard, no office. Routes:
+  splash, `/login` (the web's sign-in screen, which already folds to a
+  phone, with the bus crew's link switched off), `/forgot-password`,
+  `/today`, `/profile`, maintenance, and `/not-teacher` for an
+  administrator or bus crew who installed the wrong app. `TEACHER` and
+  `HOD` get in; the HOD's Department tab waits for T7.
+- `TeacherFrame`: who is signed in, the way out, a bottom bar with **Today
+  · Me**. Two tabs, not the three the plan drew: Classes has nothing behind
+  it until T2 and a tab with nothing behind it is decoration. One 640-px
+  column on a tablet, pinned by a test.
+- **Today** is in place with the greeting and the date; the periods and
+  what each owes are T1's.
+- **Android: product flavours**, `driver` and `teacher`, in one Gradle
+  project - the one Android mechanism that gives each app its own id
+  (`com.school365ai.app`, `com.school365ai.teacher`), name, icon and
+  manifest while every line of Dart and every plugin stays shared. The
+  teacher manifest is subtraction: it removes location, the foreground
+  service and its notification permission, and the microphone, plus the
+  plugin manifests' own copies, so Play and a cautious school see an app
+  that asks for nothing a teacher does not need. The icon is an open book
+  on green (`scripts/teacher_icon.py` draws it at every density; the
+  driver's is blue so the two tell apart on a launcher). **Every build now
+  names its flavour** - `--flavor driver` / `--flavor teacher` - because
+  Gradle refuses to guess once flavours exist; CI builds both and prints
+  each package name, which is the proof the flavours did their one job.
+- Tests: `teacher_router_test.dart` - the screens it carries and the ones
+  it does not, the splash held for its beat, signed-out → sign-in without
+  the crew's link, teacher and HOD → Today, admin / crew / staff told and
+  signed out, the tablet column, the API-down screen.
 
 ### Phase T1 — Today
 - **New API, one endpoint:** `GET timetable/today` (or `my-day`) answering

@@ -5,13 +5,18 @@ import 'package:go_router/go_router.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/widgets/responsive.dart';
-import '../../marketing/presentation/marketing_colors.dart';
 import '../application/auth_notifier.dart';
+import 'widgets/auth_palette.dart';
 import 'widgets/brand_panel.dart';
 import 'widgets/login_card.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.offersAttendantSignIn = true});
+
+  /// Whether to show the bus crew's way in. The web portal offers it; the
+  /// teacher app has no passcode sign-in behind the link, so it does not
+  /// (docs/teacher-app.md, T0).
+  final bool offersAttendantSignIn;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -92,11 +97,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       isSubmitting: _isSubmitting,
       onSubmit: _submit,
       onForgotPassword: () => context.push('/forgot-password'),
-      onAttendantSignIn: () => context.go('/attendant-login'),
+      onAttendantSignIn: widget.offersAttendantSignIn ? () => context.go('/attendant-login') : null,
     );
 
     return Scaffold(
-      backgroundColor: MarketingColors.background,
+      backgroundColor: AuthPalette.of(context).background,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, viewport) {

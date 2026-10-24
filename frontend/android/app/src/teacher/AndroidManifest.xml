@@ -1,0 +1,40 @@
+<!--
+  The teacher flavour's manifest, merged over src/main/AndroidManifest.xml.
+
+  Its job is subtraction. The main manifest is the driver app's and asks for
+  what a bus needs: location, a foreground service to keep reporting with
+  the screen off, notifications for that service, a microphone for the trip
+  sheet's search. A teacher's app needs none of it, and a school reading
+  the permission list on Play should see none of it - so each is removed
+  here, along with the service and the plugin manifests' own copies, which
+  tools:node="remove" takes out of the merged result too.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" tools:node="remove"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+    <!-- And what the bus's plugins bring in on their own: the Navigation
+         SDK's Bluetooth and Wi-Fi state, the foreground service's start on
+         boot, its vibration. A teacher's phone does none of it. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove"/>
+    <!-- The Navigation SDK declares Bluetooth with the sdk-23 element, which
+         the merger treats as a different node from uses-permission - so the
+         removal has to be said in the same element. -->
+    <uses-permission-sdk-23 android:name="android.permission.BLUETOOTH" tools:node="remove"/>
+    <uses-permission-sdk-23 android:name="android.permission.BLUETOOTH_ADMIN" tools:node="remove"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.VIBRATE" tools:node="remove"/>
+
+    <application>
+        <!-- The bus's position service has no business in this app. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            tools:node="remove"/>
+    </application>
+</manifest>

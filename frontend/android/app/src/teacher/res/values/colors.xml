@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The adaptive icon's background: a deep green, so the two apps are
+         told apart on a launcher at a glance - the driver's is blue. -->
+    <color name="ic_launcher_background">#FF0F766E</color>
+</resources>

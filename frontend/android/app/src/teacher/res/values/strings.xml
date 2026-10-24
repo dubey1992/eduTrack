@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The teacher app's name, over the driver's in src/main. -->
+    <string name="app_name">School365ai Teacher</string>
+</resources>

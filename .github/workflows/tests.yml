@@ -297,12 +297,23 @@ jobs:
 
       - name: Build the driver app
         # --target is not optional: without it this builds the school's web
-        # app into an APK, which is the bug D1.5 fixed. No signing key here,
-        # so a release build would fall back to the debug key; a debug build
-        # says the same thing about whether the project compiles.
-        run: flutter build apk --debug --target lib/main_driver.dart
+        # app into an APK, which is the bug D1.5 fixed. --flavor is not
+        # optional either since the teacher app arrived: the project has two
+        # flavours and Gradle refuses to guess (docs/teacher-app.md, T0). No
+        # signing key here, so a release build would fall back to the debug
+        # key; a debug build says the same thing about whether it compiles.
+        run: flutter build apk --debug --flavor driver --target lib/main_driver.dart
+
+      - name: Build the teacher app
+        run: flutter build apk --debug --flavor teacher --target lib/main_teacher.dart
 
       - name: Say what came out
+        # Two application ids, two names: the proof the flavours did their
+        # one job. A teacher app that reported com.school365ai.app would be
+        # the driver app wearing a different icon.
         run: |
-          ls -lh build/app/outputs/flutter-apk/app-debug.apk
-          "$ANDROID_HOME"/build-tools/*/aapt2 dump badging             build/app/outputs/flutter-apk/app-debug.apk | head -3
+          for flavour in driver teacher; do
+            apk=build/app/outputs/flutter-apk/app-$flavour-debug.apk
+            ls -lh "$apk"
+            "$ANDROID_HOME"/build-tools/*/aapt2 dump badging "$apk" | grep -E "^package|application-label:" | head -2
+          done
