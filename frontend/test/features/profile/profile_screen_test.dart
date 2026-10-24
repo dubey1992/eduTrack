@@ -428,4 +428,41 @@ void main() {
     expect(find.text('Signed-in devices'), findsOneWidget);
     expect(find.textContaining('no-email.invalid'), findsNothing);
   });
+
+  group("a crew member's mobile number", () {
+    // It is how they sign in, and the server refuses to change it from the
+    // app (KeptBySchoolOffice). The screen says so instead of offering a box
+    // that would be refused.
+
+    testWidgets('is shown but cannot be edited', (tester) async {
+      final fake = FakeProfileRepository(profile: attendantProfile());
+      await pumpScreen(tester, fake);
+
+      expect(find.byKey(const Key('profile-mobile-locked')), findsOneWidget);
+      expect(find.byKey(const Key('profile-mobile')), findsNothing);
+      expect(tester.widget<TextFormField>(find.byKey(const Key('profile-mobile-locked'))).enabled, isFalse);
+      expect(find.textContaining('Ask your school office to change it'), findsOneWidget);
+    });
+
+    testWidgets('and is never sent back when the name is saved', (tester) async {
+      final fake = FakeProfileRepository(profile: attendantProfile());
+      await pumpScreen(tester, fake);
+
+      await tester.enterText(find.byKey(const Key('profile-first-name')), 'Ravindra');
+      await tester.pump();
+      await tapSave(tester);
+
+      expect(fake.updateCalls, 1);
+      expect(fake.lastUpdate, isNot(contains('mobile')));
+      expect(fake.lastUpdate!['first_name'], 'Ravindra');
+    });
+
+    testWidgets('while everybody else still edits theirs', (tester) async {
+      final fake = FakeProfileRepository(profile: teacherProfile());
+      await pumpScreen(tester, fake);
+
+      expect(find.byKey(const Key('profile-mobile')), findsOneWidget);
+      expect(find.byKey(const Key('profile-mobile-locked')), findsNothing);
+    });
+  });
 }

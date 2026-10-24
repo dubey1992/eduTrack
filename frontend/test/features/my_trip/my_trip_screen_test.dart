@@ -6,6 +6,7 @@ import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/battery_guard.dart';
 import 'package:edutrack_app/features/my_trip/data/map_navigator.dart';
 import 'package:edutrack_app/features/my_trip/data/navigation_session.dart';
+import 'package:edutrack_app/features/my_trip/data/voice_search.dart';
 import 'package:edutrack_app/features/my_trip/presentation/widgets/sos_button.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
@@ -24,6 +25,7 @@ void main() {
   late FakePhoneDialer dialer;
   late FakeMapNavigator navigator;
   late FakeBatteryGuard battery;
+  late FakeVoiceSearch voice;
 
   setUp(() {
     api = FakeMyTripApi();
@@ -34,6 +36,9 @@ void main() {
     navigator = FakeMapNavigator();
     // Exempt by default, so the warning stays out of every other test.
     battery = FakeBatteryGuard();
+    // Cannot listen unless a test says so, so the microphone stays out of
+    // every other test's way.
+    voice = FakeVoiceSearch();
   });
 
   Future<void> pumpScreen(WidgetTester tester) async {
@@ -56,6 +61,7 @@ void main() {
           // Not supported, so these exercise the Google Maps hand-off.
           // In-app guidance has its own screen and its own tests.
           navigationSessionProvider.overrideWithValue(FakeNavigationSession()),
+          voiceSearchProvider.overrideWithValue(voice),
         ],
         child: MaterialApp(
           theme: AppTheme.light(),
@@ -635,6 +641,124 @@ void main() {
 
       expect(tester.widget<SwitchListTile>(find.byKey(const Key('share-location-switch'))).value, isFalse);
       expect(find.text('Location permission was not given, so your location is not being shared.'), findsOneWidget);
+    });
+  });
+
+  group('finding a child', () {
+    // Fifty children is fifty cards; the one who just climbed on is in the
+    // middle of them. The box above the list narrows the sheet to the
+    // children - and the stops - that match (docs/driver-app.md, D8).
+
+    testWidgets('typing part of a name leaves only the children who match, under their own stop', (tester) async {
+      await openRunningTrip(tester);
+      expect(find.byKey(const Key('rider-1')), findsOneWidget);
+      expect(find.byKey(const Key('rider-3')), findsOneWidget);
+
+      await tester.enterText(find.byKey(const Key('rider-search')), 'kab');
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('rider-3')), findsOneWidget, reason: 'Kabir Rao matches');
+      expect(find.byKey(const Key('rider-1')), findsNothing, reason: 'Aarav does not');
+      expect(find.byKey(const Key('rider-2')), findsNothing);
+      expect(find.byKey(const Key('stop-102')), findsOneWidget, reason: "Kabir's stop stays");
+      expect(find.byKey(const Key('stop-101')), findsNothing, reason: 'a stop with nobody matching is left out');
+    });
+
+    testWidgets('a child can still be marked from the narrowed sheet', (tester) async {
+      await openRunningTrip(tester);
+      await tester.enterText(find.byKey(const Key('rider-search')), 'Diya');
+      await tester.pumpAndSettle();
+
+      await tapAndSettle(tester, find.byKey(const Key('mark-boarded-2')));
+
+      expect(statusOf(tester, 2), 'Boarded');
+      expect(find.text('1 on board · 2 waiting · 0 dropped · 0 absent'), findsOneWidget);
+    });
+
+    testWidgets('nobody matching says so, and Clear brings everybody back', (tester) async {
+      await openRunningTrip(tester);
+      await tester.enterText(find.byKey(const Key('rider-search')), 'Zubin');
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('rider-search-empty')), findsOneWidget);
+      expect(find.textContaining('No child on this trip matches "Zubin"'), findsOneWidget);
+      expect(find.byKey(const Key('rider-1')), findsNothing);
+      expect(find.byKey(const Key('end-trip')), findsOneWidget, reason: 'the trip controls never disappear');
+
+      await tester.tap(find.byKey(const Key('rider-search-clear')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('rider-search-empty')), findsNothing);
+      expect(find.byKey(const Key('rider-1')), findsOneWidget);
+      expect(find.byKey(const Key('rider-3')), findsOneWidget);
+    });
+
+    testWidgets('a phone that cannot listen shows no microphone', (tester) async {
+      await openRunningTrip(tester);
+
+      expect(find.byKey(const Key('rider-search')), findsOneWidget);
+      expect(find.byKey(const Key('rider-search-voice')), findsNothing);
+    });
+
+    testWidgets('saying a name fills the box with what was heard and narrows the sheet', (tester) async {
+      voice
+        ..available = true
+        ..hears = ['di', 'Diya', 'Diya Patel'];
+      await openRunningTrip(tester);
+
+      await tester.tap(find.byKey(const Key('rider-search-voice')));
+      await tester.pumpAndSettle();
+
+      expect(voice.listens, 1);
+      expect(tester.widget<TextField>(find.byKey(const Key('rider-search'))).controller!.text, 'Diya Patel');
+      expect(find.byKey(const Key('rider-2')), findsOneWidget);
+      expect(find.byKey(const Key('rider-1')), findsNothing);
+      expect(find.byKey(const Key('rider-3')), findsNothing);
+    });
+
+    testWidgets('a name heard one letter wrong still finds the child', (tester) async {
+      voice
+        ..available = true
+        ..hears = ['Kabeer Rao'];
+      await openRunningTrip(tester);
+
+      await tester.tap(find.byKey(const Key('rider-search-voice')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('rider-3')), findsOneWidget);
+      expect(find.byKey(const Key('rider-1')), findsNothing);
+    });
+
+    testWidgets('a phone that refuses to listen says so once, and the box still types', (tester) async {
+      voice
+        ..available = true
+        ..refuses = true;
+      await openRunningTrip(tester);
+
+      await tester.tap(find.byKey(const Key('rider-search-voice')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('The microphone could not be used'), findsOneWidget);
+      expect(find.byKey(const Key('rider-search-voice')), findsOneWidget, reason: 'next time may be allowed');
+
+      await tester.enterText(find.byKey(const Key('rider-search')), 'Aarav');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('rider-1')), findsOneWidget);
+      expect(find.byKey(const Key('rider-3')), findsNothing);
+    });
+
+    testWidgets('a finished trip can be searched too', (tester) async {
+      api.serverTrip = tripJson(status: 'completed');
+      api.routes = myRoutesJson(pickup: api.serverTrip);
+      await pumpScreen(tester);
+      await tester.tap(find.byKey(const Key('view-pickup')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('rider-search')), 'Aarav');
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('rider-1')), findsOneWidget);
+      expect(find.byKey(const Key('rider-2')), findsNothing);
     });
   });
 }

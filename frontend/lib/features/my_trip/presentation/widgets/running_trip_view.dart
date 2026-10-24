@@ -13,10 +13,12 @@ import '../../application/trip_detail_notifier.dart';
 import '../../application/trip_mark_queue.dart';
 import '../../data/map_navigator.dart';
 import '../../data/navigation_session.dart';
+import '../../data/rider_search.dart';
 import '../navigate_screen.dart';
 import '../../data/models/not_sent_mark.dart';
 import 'location_sharing_tile.dart';
 import 'not_sent_card.dart';
+import 'rider_search_field.dart';
 import 'rider_tile.dart';
 import 'sos_button.dart';
 
@@ -41,6 +43,11 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
 
   /// Running while taps are being ignored.
   Timer? _tapCooldown;
+
+  /// What the crew typed or said into the search box. Empty is the whole
+  /// sheet; anything else narrows the stops and children to the ones that
+  /// match (rider_search.dart).
+  String _query = '';
 
   TripDetailNotifier get _trip => ref.read(tripDetailProvider(widget.tripId).notifier);
 
@@ -133,9 +140,52 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     final stops = [...trip.stops]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
     final nextStop = running ? stops.where((s) => !s.reached).firstOrNull : null;
     final stopIds = {for (final s in stops) s.id};
-    final unplaced = trip.riders.where((r) => !stopIds.contains(r.stopId)).toList();
+    final searching = _query.trim().isNotEmpty;
+    final shown = findRiders(trip.riders, _query);
+    final unplaced = shown.where((r) => !stopIds.contains(r.stopId)).toList();
     final aboard = trip.riders.where((r) => r.status == TripRiderStatus.boarded).length;
 
+    // The search box stays above the list rather than scrolling off with
+    // it: the moment it is wanted is the moment the sheet is longest.
+    return Column(
+      children: [
+        if (trip.riders.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: RiderSearchField(onChanged: (query) => setState(() => _query = query)),
+          ),
+        Expanded(
+          child: _buildSheet(
+            context,
+            trip,
+            snapshot,
+            notSent,
+            stops,
+            nextStop,
+            shown,
+            unplaced,
+            searching,
+            aboard,
+            running,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSheet(
+    BuildContext context,
+    TransportTrip trip,
+    TripSnapshot snapshot,
+    List<NotSentMark> notSent,
+    List<TripStop> stops,
+    TripStop? nextStop,
+    List<TripRider> shown,
+    List<TripRider> unplaced,
+    bool searching,
+    int aboard,
+    bool running,
+  ) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
@@ -162,18 +212,31 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
             marks: notSent,
             onDismiss: (mark) => ref.read(tripMarkQueueProvider.notifier).dismissNotSent(mark.clientId),
           ),
-        for (final stop in stops) ...[
-          _StopHeader(
-            stop: stop,
-            direction: trip.direction,
-            isNext: stop.id == nextStop?.id,
-            onReached: () {
-              if (_acceptTap()) _trip.reachStop(stop);
-            },
-            onNavigate: () => _navigateTo(stop),
+        if (searching && shown.isEmpty)
+          Padding(
+            key: const Key('rider-search-empty'),
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(
+              'No child on this trip matches "${_query.trim()}". Check the spelling, or clear the search.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.appColors.muted),
+            ),
           ),
-          for (final rider in trip.riders.where((r) => r.stopId == stop.id)) _riderTile(rider, running),
-        ],
+        // While searching, a stop with nobody matching at it is left out
+        // altogether - its header would only say where the child is not.
+        for (final stop in stops)
+          if (!searching || shown.any((r) => r.stopId == stop.id)) ...[
+            _StopHeader(
+              stop: stop,
+              direction: trip.direction,
+              isNext: stop.id == nextStop?.id,
+              onReached: () {
+                if (_acceptTap()) _trip.reachStop(stop);
+              },
+              onNavigate: () => _navigateTo(stop),
+            ),
+            for (final rider in shown.where((r) => r.stopId == stop.id)) _riderTile(rider, running),
+          ],
         if (unplaced.isNotEmpty) ...[
           const _SectionTitle('Other riders'),
           for (final rider in unplaced) _riderTile(rider, running),

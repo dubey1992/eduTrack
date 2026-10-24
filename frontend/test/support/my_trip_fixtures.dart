@@ -11,6 +11,7 @@ import 'package:edutrack_app/features/my_trip/data/map_navigator.dart';
 import 'package:edutrack_app/features/my_trip/data/navigation_session.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
+import 'package:edutrack_app/features/my_trip/data/voice_search.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_trip.dart';
 
@@ -451,4 +452,33 @@ class FakeTripService implements TripService {
     running = false;
     stops += 1;
   }
+}
+
+/// Hears whatever a test tells it to, one phrase after another, the way the
+/// recogniser firms up a name while it is still being said.
+class FakeVoiceSearch implements VoiceSearch {
+  FakeVoiceSearch({this.available = false, this.hears = const []});
+
+  bool available;
+
+  /// The words handed over, in order; the last is the final result.
+  List<String> hears;
+
+  /// The phone refuses - permission denied, no recogniser - when set.
+  bool refuses = false;
+  int listens = 0;
+  int stops = 0;
+
+  @override
+  Future<bool> isAvailable() async => available;
+
+  @override
+  Stream<String> listen() {
+    listens++;
+    if (refuses) return Stream.error(StateError('refused'));
+    return Stream.fromIterable(hears);
+  }
+
+  @override
+  Future<void> stop() async => stops++;
 }

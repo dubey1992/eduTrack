@@ -692,6 +692,60 @@ the other thing, here is what it actually took.*
 
 ---
 
+### Phase D8 — Finding a child on a full bus *(built 2026-10-24)*
+
+*Asked for after a demo of a school with three routes, five stops each and
+ten children a stop: fifty cards on the trip sheet, and the one who has
+just climbed on somewhere in the middle of them.*
+
+**D8.1 — A search box that stays put**
+- Above the list, not in it: it is wanted most when the sheet is longest.
+  Type a name, part of one, an admission number or a class; the sheet
+  narrows to the children who match, each still under their own stop, and
+  a stop with nobody matching is left out rather than left as a heading
+  that says where the child is not. Marks work from the narrowed sheet
+  exactly as from the full one. Nobody matching says so, with Clear.
+- **Forgiving on purpose.** A word matches when it starts one of the
+  child's, or when it is a letter or two off - one for words of four or
+  five letters, two from six, none below that or "Sai" would find half the
+  bus. Every word asked for has to land somewhere, so "Sai Verma" finds
+  nobody rather than two children (`rider_search.dart`, with the cases in
+  its test).
+
+**D8.2 — Saying the name**
+- A microphone button in the same box, for crew who would rather not type.
+  It fills the box with what the phone's own recogniser hears, as it
+  hears it, and stops at a pause, after eight seconds, or on a tap. Nothing
+  else about the screen changes, and nothing of ours is involved - no
+  account, key or server; it is the keyboard's microphone key, wired to
+  this one field.
+- `speech_to_text`, the long-standing plugin over Android's recogniser,
+  behind the same kind of interface as navigation and the foreground
+  service: the web portal gets none of it, tests hear what they are told
+  to, and the web build shows no microphone. The permission is asked for
+  the first time the button is tapped - found on the tablet when it was
+  asked on opening the trip instead, which is the wrong moment: setting the
+  recogniser up is what prompts, so it is set up on the tap. A phone that
+  then refuses is told once, in a sentence, and the button stays for the
+  next time.
+- The forgiving match above is what makes this usable: a recogniser says
+  "Kabeer" for Kabir and "Sai Ayer" for Sai Iyer, and the child is found
+  anyway.
+
+**D8.3 — Two things checked at the same time**
+- *Dropping a child who never boarded.* Already refused on both sides: the
+  Dropped button is disabled for a Pending child, and the server answers
+  `INVALID_RIDER_STATUS_CHANGE` to the same request made directly (the
+  state machine in `TripRiderStatus.can_become`, with its test). Nothing
+  to add.
+- *A crew member's mobile in Profile.* The server already refused the
+  change (it is how they sign in); the app still offered the box and the
+  refusal. It now shows the number as a fact, says the school office
+  changes it, and never sends it back - a reformatted number would have
+  read as a change.
+
+---
+
 ### Phase D6 — Release
 
 **D6.1 — A privacy policy that exists** *(drafted 2026-10-23 — needs your review)*

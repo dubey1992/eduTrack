@@ -70,6 +70,10 @@ dependencies:
   # created; app_map.dart does that at runtime with the key the server
   # hands out, so no key is ever written into the build.
   google_navigation_flutter: 0.11.2
+  # Hearing a child's name on the trip sheet (docs/driver-app.md, D8).
+  # Flutter has no speech recognition of its own; this is the long-standing
+  # plugin over Android's built-in recogniser - no account or key of ours.
+  speech_to_text: ^7.5.0
   google_maps_flutter: ^2.9.0
 
 dev_dependencies:

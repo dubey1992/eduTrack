@@ -358,7 +358,7 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
           .updateDetails(
             firstName: _firstNameController.text.trim(),
             lastName: _lastNameController.text.trim(),
-            mobile: _mobileController.text.trim(),
+            mobile: widget.profile.signsInWithPasscode ? null : _mobileController.text.trim(),
             address: widget.profile.hasStaffRecord ? _addressController.text.trim() : null,
           );
       messenger
@@ -405,7 +405,22 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
               validator: (v) => _nameProblem(v, 'Last name'),
             ),
             const SizedBox(height: 12),
-            PhoneNumberField(key: const Key('profile-mobile'), controller: _mobileController, label: 'Mobile'),
+            // A crew member's mobile is how they sign in, so the server
+            // refuses to change it from here (KeptBySchoolOffice). Shown as
+            // a fact rather than a box they can type into and be refused.
+            if (widget.profile.signsInWithPasscode)
+              TextFormField(
+                key: const Key('profile-mobile-locked'),
+                initialValue: widget.profile.mobile ?? '',
+                enabled: false,
+                decoration: const InputDecoration(
+                  labelText: 'Mobile',
+                  helperText: 'You sign in with this number. Ask your school office to change it.',
+                  helperMaxLines: 2,
+                ),
+              )
+            else
+              PhoneNumberField(key: const Key('profile-mobile'), controller: _mobileController, label: 'Mobile'),
             if (mobileError != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 12),
