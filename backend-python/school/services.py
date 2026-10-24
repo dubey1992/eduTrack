@@ -5083,8 +5083,12 @@ class UserService:
         now = timezone.now()
 
         # Bus crew - an attendant or a driver - sign in with a passcode, never
-        # a password, so theirs is a long random one nobody knows.
-        password = data.get("password") or secrets.token_urlsafe(32)
+        # a password, so theirs is a long random one nobody knows. Anybody
+        # else gets the password the office typed or, when it typed none, the
+        # same kind of random one plus an email with a link to set their own
+        # - so a password need never pass through the office at all.
+        chosen = bool(data.get("password"))
+        password = data["password"] if chosen else secrets.token_urlsafe(32)
 
         user = User.objects.create(
             first_name=data["first_name"],
@@ -5126,6 +5130,9 @@ class UserService:
                 created_at=now,
                 updated_at=now,
             )
+
+        if not chosen and not UserRole.is_crew(user.role):
+            queue.push(SEND_PASSWORD_RESET, {"user_id": user.id, "welcome": True})
 
         audit.created("users", user)
 

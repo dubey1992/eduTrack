@@ -3022,8 +3022,9 @@ class StoreStaffRequest(ScopedSerializer):
     # Optional for a Bus Attendant only (see validate()); required otherwise.
     email = LaravelCharField("email", max_length=255, required=False, allow_null=True, allow_blank=True)
     mobile = MobileField("mobile")
-    # A Bus Attendant has no password: they sign in with a passcode on a
-    # registered phone. Required for everybody else.
+    # Bus crew have no password: they sign in with a passcode on a registered
+    # phone. Anybody else may be given one here or, when it is left out, is
+    # emailed a link to set their own (docs/security.md).
     password = PasswordField("password", required=False, allow_null=True)
     role = LaravelCharField("role")
     employee_id = LaravelCharField("employee_id", max_length=30)
@@ -3088,9 +3089,6 @@ class StoreStaffRequest(ScopedSerializer):
         else:
             if not attrs.get("email"):
                 errors["email"] = [required("email")]
-
-            if not attrs.get("password"):
-                errors["password"] = [required("password")]
 
         if role == UserRole.DRIVER:
             if not (attrs.get("licence_number") or "").strip():
@@ -4604,7 +4602,9 @@ class StoreUserRequest(ScopedSerializer):
     last_name = LaravelCharField("last_name", max_length=100)
     email = LaravelCharField("email", max_length=255)
     mobile = MobileField("mobile")
-    password = PasswordField("password")
+    # Optional: left out, the new admin is emailed a link to set their own
+    # (docs/security.md). Given, it has to meet the password rules.
+    password = PasswordField("password", required=False, allow_null=True)
     role = LaravelCharField("role")
 
     def validate_email(self, value: str) -> str:

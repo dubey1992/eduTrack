@@ -65,7 +65,7 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
             lastName: _lastNameController.text.trim(),
             email: _emailController.text.trim(),
             mobile: _mobileController.text.trim().isEmpty ? null : _mobileController.text.trim(),
-            password: _passwordController.text,
+            password: _passwordController.text.isEmpty ? null : _passwordController.text,
             role: _role,
             schoolId: _schoolId,
           );
@@ -76,7 +76,10 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
             : isSuperAdmin
             ? 'School admin created.'
             : 'Sub admin created.';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(what)));
+        final emailed = _passwordController.text.isEmpty
+            ? ' A link to set their password was emailed to ${_emailController.text.trim()}.'
+            : '';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$what$emailed')));
         Navigator.of(context).pop();
       }
     } catch (error) {
@@ -151,7 +154,11 @@ class _AddUserDialogState extends ConsumerState<AddUserDialog> {
                 const SizedBox(height: 10),
                 PhoneNumberField(controller: _mobileController, label: 'Mobile (optional)'),
                 const SizedBox(height: 10),
-                PasswordField(controller: _passwordController, helperText: newPasswordHint),
+                PasswordField(
+                  controller: _passwordController,
+                  helperText: optionalPasswordHint,
+                  validator: optionalPasswordProblem,
+                ),
                 // A School Admin's Sub Admin always lands in their own
                 // school, resolved server-side - no picker needed. Only a
                 // SUPER_ADMIN, who has no "own school", must choose one.

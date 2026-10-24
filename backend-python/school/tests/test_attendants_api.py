@@ -140,12 +140,16 @@ class Creating(AttendantTest):
             taken.data["details"]["errors"]["mobile"],
         )
 
-    def test_everybody_else_still_needs_an_email_and_a_password(self):
+    def test_everybody_else_still_needs_an_email(self):
+        """The password may be left out for anybody - they are then emailed a
+        link to set one - but the email that link goes to cannot be."""
         response = self.as_user(self.f["admin"]).post("/api/v1/staff", {
             "first_name": "A", "last_name": "B", "role": "TEACHER", "employee_id": "T-9", "joining_date": "2026-04-01",
         }, format="json")
 
-        self.assertEqual({"email", "password"}, {"email", "password"} & set(response.data["details"]["errors"]))
+        errors = response.data["details"]["errors"]
+        self.assertIn("email", errors)
+        self.assertNotIn("password", errors)
 
     def test_an_attendant_with_a_real_email_still_cannot_use_the_password_form(self):
         profile = self.make_attendant("+91 91111 22222", email="ravi@example.com")

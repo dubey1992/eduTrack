@@ -66,7 +66,8 @@ void main() {
     // validator message.
     expect(find.text('Required'), findsNWidgets(3));
     expect(find.text('Enter a valid email'), findsOneWidget);
-    expect(find.text('At least 8 characters'), findsOneWidget);
+    // The password may be left blank - see 'left without a password' below.
+    expect(find.text('At least 8 characters'), findsNothing);
   });
 
   testWidgets('creates the employee, closes the dialog, and shows a confirmation snackbar', (tester) async {
@@ -215,7 +216,7 @@ void main() {
     });
   });
 
-  testWidgets('any other role still needs an email and a password', (tester) async {
+  testWidgets('any other role still needs an email, and may be left without a password', (tester) async {
     final fake = FakeStaffRepository();
     await tester.pumpWidget(wrap(fake));
     await _openDialog(tester);
@@ -227,9 +228,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Enter a valid email'), findsOneWidget);
-    expect(find.text('At least 8 characters'), findsOneWidget);
+    expect(find.text('At least 8 characters'), findsNothing);
     expect(find.text('Mobile (optional)'), findsOneWidget);
     expect(fake.lastCreate, isNull);
+  });
+
+  testWidgets('a password that is typed still has to be a proper one', (tester) async {
+    final fake = FakeStaffRepository();
+    await tester.pumpWidget(wrap(fake));
+    await _openDialog(tester);
+
+    await _fillRequiredFields(tester);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'short1');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('At least 8 characters'), findsOneWidget);
+    expect(fake.lastCreate, isNull);
+  });
+
+  testWidgets('left without a password, an employee is emailed a link to set one', (tester) async {
+    final fake = FakeStaffRepository();
+    await tester.pumpWidget(wrap(fake));
+    await _openDialog(tester);
+
+    expect(find.textContaining('Leave blank to email them a link'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextFormField, 'First name'), 'Ananya');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Last name'), 'Rao');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Employee ID'), 'STF-100');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'ananya.rao@example.com');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(fake.lastCreate!['password'], isNull);
+    expect(fake.lastCreate!['email'], 'ananya.rao@example.com');
+    expect(find.byType(AddStaffDialog), findsNothing);
+    expect(
+      find.text('Employee added. A link to set their password was emailed to ananya.rao@example.com.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows the failure message and keeps the dialog open when the repository throws', (tester) async {

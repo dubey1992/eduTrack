@@ -65,6 +65,40 @@ Widget wrap({AuthenticatedUser actor = _superAdmin, List<School> schools = const
   );
 }
 
+/// Opens the dialog from a button, so that saving can close it the way it
+/// does in the app and the confirmation lands on the page beneath.
+Widget openable(FakeUserRepository users, {AuthenticatedUser actor = _schoolAdmin}) {
+  return ProviderScope(
+    overrides: [
+      authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: actor)),
+      userRepositoryProvider.overrideWithValue(users),
+      schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository(schools: const [_school])),
+    ],
+    child: MaterialApp(
+      theme: AppTheme.light(),
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () => showDialog(context: context, builder: (_) => const AddUserDialog()),
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> openAndFill(WidgetTester tester, {String? password}) async {
+  await tester.tap(find.text('Open'));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.widgetWithText(TextFormField, 'First name'), 'Priya');
+  await tester.enterText(find.widgetWithText(TextFormField, 'Last name'), 'Nair');
+  await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'priya@example.com');
+  if (password != null) {
+    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), password);
+  }
+}
+
 /// This dialog only ever creates SCHOOL_ADMIN-role accounts (see
 /// UserPolicy::create() and StoreUserRequest on the backend) - whether the
 /// result reads as "School Admin" or "Sub Admin" depends on who's creating
@@ -100,5 +134,49 @@ void main() {
 
     expect(find.text('Sunrise Public School').hitTestable(), findsWidgets);
     expect(find.text('Closed Down Academy').hitTestable(), findsNothing);
+  });
+
+  group('the password', () {
+    testWidgets('may be left blank, and then a link to set one is emailed', (tester) async {
+      final users = FakeUserRepository();
+      await tester.pumpWidget(openable(users));
+      await openAndFill(tester);
+
+      expect(find.textContaining('Leave blank to email them a link'), findsOneWidget);
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(users.createCalled, isTrue);
+      expect(users.lastPassword, isNull);
+      expect(find.byType(AddUserDialog), findsNothing);
+      expect(
+        find.text('Sub admin created. A link to set their password was emailed to priya@example.com.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('when typed, is sent as it is and no email is promised', (tester) async {
+      final users = FakeUserRepository();
+      await tester.pumpWidget(openable(users));
+      await openAndFill(tester, password: 'AGoodPassword2026');
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(users.lastPassword, 'AGoodPassword2026');
+      expect(find.text('Sub admin created.'), findsOneWidget);
+      expect(find.textContaining('emailed'), findsNothing);
+    });
+
+    testWidgets('when typed badly, is refused rather than dropped', (tester) async {
+      final users = FakeUserRepository();
+      await tester.pumpWidget(openable(users));
+      await openAndFill(tester, password: 'short1');
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('At least 8 characters'), findsOneWidget);
+      expect(users.createCalled, isFalse);
+      expect(find.byType(AddUserDialog), findsOneWidget);
+    });
   });
 }

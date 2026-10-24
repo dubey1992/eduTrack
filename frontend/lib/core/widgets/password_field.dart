@@ -14,6 +14,15 @@ String? newPasswordProblem(String? value) {
 /// What every new-password field says under itself.
 const newPasswordHint = 'At least 8 characters, with a letter and a number.';
 
+/// The same rule where the office may leave the password blank: a new
+/// account created without one is emailed a link to set its own, so no
+/// password need pass through the office at all (docs/security.md).
+String? optionalPasswordProblem(String? value) => (value == null || value.isEmpty) ? null : newPasswordProblem(value);
+
+const optionalPasswordHint =
+    'Leave blank to email them a link to set their own password, or enter at least 8 characters with a letter '
+    'and a number.';
+
 /// A password field with a reveal toggle.
 ///
 /// Hidden by default, because a password typed in an office is typed in front

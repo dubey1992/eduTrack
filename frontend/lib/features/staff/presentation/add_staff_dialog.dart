@@ -129,7 +129,7 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
             lastName: _lastNameController.text.trim(),
             email: email.isEmpty ? null : email,
             mobile: _mobileController.text.trim().isEmpty ? null : _mobileController.text.trim(),
-            password: _isAttendant ? null : _passwordController.text,
+            password: _isAttendant || _passwordController.text.isEmpty ? null : _passwordController.text,
             role: _role,
             schoolId: _schoolId,
             employeeId: _employeeIdController.text.trim(),
@@ -147,6 +147,8 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
             content: Text(
               _isAttendant
                   ? '${_role.label} added. Open their Sign-in to issue a setup code for their phone.'
+                  : _passwordController.text.isEmpty
+                  ? 'Employee added. A link to set their password was emailed to $email.'
                   : 'Employee added.',
             ),
           ),
@@ -328,7 +330,11 @@ class _AddStaffDialogState extends ConsumerState<AddStaffDialog> {
                 if (_isAttendant)
                   _AttendantSignInNote(role: _role)
                 else
-                  PasswordField(controller: _passwordController, helperText: newPasswordHint),
+                  PasswordField(
+                    controller: _passwordController,
+                    helperText: optionalPasswordHint,
+                    validator: optionalPasswordProblem,
+                  ),
                 const SizedBox(height: 10),
                 InkWell(
                   onTap: _pickJoiningDate,

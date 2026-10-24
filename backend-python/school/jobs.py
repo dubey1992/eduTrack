@@ -318,8 +318,9 @@ def publish_announcement(announcement_id: int, actor_id: int | None = None) -> N
 
 
 @handler("password_reset_link")
-def send_password_reset_link(user_id: int) -> None:
-    """Makes a reset token and emails the link.
+def send_password_reset_link(user_id: int, welcome: bool = False) -> None:
+    """Makes a reset token and emails the link - to somebody who forgot
+    their password or, with `welcome`, to a new account that has none yet.
 
     Laravel's broker rules: a second link within a minute of the first is not
     sent, and issuing a new token replaces the old one. Only a bcrypt hash of
@@ -357,13 +358,29 @@ def send_password_reset_link(user_id: int) -> None:
     name = settings.APP_NAME
     expiry = settings.PASSWORD_RESET_EXPIRE_MINUTES
 
+    if welcome:
+        subject = f"Set your password for {name}"
+        reason = (
+            f"An account has been created for you on {name}. "
+            "Choose a password, then sign in with it and this email address."
+        )
+        action = "Set Password"
+        lasts = f"This link will expire in {expiry} minutes."
+        otherwise = 'If it has expired, open the sign-in page and use "Forgot password" to be sent a new one.'
+    else:
+        subject = "Reset your password"
+        reason = "You are receiving this email because we received a password reset request for your account."
+        action = "Reset Password"
+        lasts = f"This password reset link will expire in {expiry} minutes."
+        otherwise = "If you did not request a password reset, no further action is required."
+
     text = (
         f"{name}\n\n"
         "Hello!\n\n"
-        "You are receiving this email because we received a password reset request for your account.\n\n"
-        f"Reset Password: {link}\n\n"
-        f"This password reset link will expire in {expiry} minutes.\n\n"
-        "If you did not request a password reset, no further action is required.\n\n"
+        f"{reason}\n\n"
+        f"{action}: {link}\n\n"
+        f"{lasts}\n\n"
+        f"{otherwise}\n\n"
         f"Regards,\n{name}\n\n"
         "Smarter Schools. Brighter Futures.\n"
         f"\u00a9 {now.year} {name}. All rights reserved."
@@ -374,21 +391,21 @@ def send_password_reset_link(user_id: int) -> None:
         '<div style="font-family:Arial,sans-serif;color:#1f2937;max-width:570px;margin:0 auto">'
         f'<p style="font-size:19px;font-weight:bold">\U0001f393 {html.escape(name)}</p>'
         "<p>Hello!</p>"
-        "<p>You are receiving this email because we received a password reset request for your account.</p>"
+        f"<p>{html.escape(reason)}</p>"
         f'<p><a href="{safe_link}" style="background-color:#2563eb;border:8px solid #2563eb;'
         'border-left-width:18px;border-right-width:18px;color:#ffffff;text-decoration:none;'
-        'border-radius:4px;display:inline-block">Reset Password</a></p>'
-        f"<p>This password reset link will expire in {expiry} minutes.</p>"
-        "<p>If you did not request a password reset, no further action is required.</p>"
+        f'border-radius:4px;display:inline-block">{action}</a></p>'
+        f"<p>{lasts}</p>"
+        f"<p>{html.escape(otherwise)}</p>"
         f"<p>Regards,<br>{html.escape(name)}</p>"
-        '<p style="font-size:12px;color:#6b7280">If you\'re having trouble clicking the "Reset Password" button, '
+        f'<p style="font-size:12px;color:#6b7280">If you\'re having trouble clicking the "{action}" button, '
         f'copy and paste the URL below into your web browser: <a href="{safe_link}" style="color:#2563eb">{safe_link}</a></p>'
         '<p style="font-size:12px;color:#6b7280;text-align:center">Smarter Schools. Brighter Futures.<br>'
         f"\u00a9 {now.year} {html.escape(name)}. All rights reserved.</p>"
         "</div>"
     )
 
-    mailer.message(subject="Reset your password", body=text, to=[user.email], html=body).send()
+    mailer.message(subject=subject, body=text, to=[user.email], html=body).send()
 
 
 @handler("payslip_email")

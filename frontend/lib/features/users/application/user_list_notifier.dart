@@ -58,7 +58,7 @@ class UserListNotifier extends AsyncNotifier<PagedList<AppUser>> {
     required String lastName,
     required String email,
     String? mobile,
-    required String password,
+    String? password,
     required UserRole role,
     int? schoolId,
   }) async {

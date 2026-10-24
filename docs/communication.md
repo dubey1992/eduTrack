@@ -209,7 +209,8 @@ takes the three original names or a comma-separated list such as
 
 ### Where email leaves from
 
-Every email - password resets, receipts, payslips, the email channel -
+Every email - password resets, the set-your-password link a new account
+is sent, receipts, payslips, the email channel -
 goes through `school/mailer.py`, which answers one question: the SMTP
 settings the Super Admin saved in the app (`settings/mail`, one row for the
 platform, password encrypted and never returned), or the `MAIL_*`

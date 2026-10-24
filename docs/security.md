@@ -122,6 +122,13 @@ A session also ends in these cases:
   member, an admin setting one, changing your own, and a reset.
 - They never apply to signing in, so existing passwords keep working until
   their owners next change them.
+- An admin or an employee may be created *without* a password. The account
+  gets a random one nobody is told, and the person is emailed a link to
+  set their own - so no password need pass through the office. The link
+  is the password-reset link (one hour, single use); once it has expired,
+  *Forgot password* on the sign-in page sends a fresh one. The email is
+  queued like every other and goes out with the next `work_queue` run.
+  Bus crew get no such email: they sign in with a passcode.
 - Staff import still generates its own 14-character temporary passwords, and
   those accounts must change them on first sign-in.
 

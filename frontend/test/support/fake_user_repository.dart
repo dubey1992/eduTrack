@@ -8,6 +8,10 @@ class FakeUserRepository implements UserRepository {
   FakeUserRepository({List<AppUser>? users, this.failCreateWith, this.failUpdateWith}) : _users = users ?? [];
 
   final List<AppUser> _users;
+
+  /// The password the last create() was given - null when none was.
+  String? lastPassword;
+  bool createCalled = false;
   Failure? failCreateWith;
   Failure? failUpdateWith;
   int? lastListSchoolId;
@@ -54,10 +58,12 @@ class FakeUserRepository implements UserRepository {
     required String lastName,
     required String email,
     String? mobile,
-    required String password,
+    String? password,
     required UserRole role,
     int? schoolId,
   }) async {
+    createCalled = true;
+    lastPassword = password;
     if (failCreateWith != null) throw failCreateWith!;
 
     final user = AppUser(

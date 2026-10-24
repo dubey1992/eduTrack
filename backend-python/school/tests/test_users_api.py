@@ -7,11 +7,15 @@ Sub Admin manages no admin account at all, and nobody manages another head.
 Every arm of that has an ALLOW and a DENY below.
 """
 
+import re
+
+from django.conf import settings
+from django.core import mail
 from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from school import factories, hashing, tokens
+from school import factories, hashing, queue, tokens
 from school.enums import UserRole, UserStatus
 from school.models import PersonalAccessToken, StaffProfile, User
 
@@ -408,3 +412,85 @@ class TheList(UserApiTest):
         self.assertIn("manages_branches", mine[0])
         for row in others:
             self.assertNotIn("manages_branches", row)
+
+
+class ChoosingTheirOwnPassword(UserApiTest):
+    """An admin created without a password is emailed a link to set one, so
+    no password need pass through the office (docs/security.md)."""
+
+    def create(self, **overrides):
+        body = self.payload(**overrides)
+
+        if body.get("password") is None:
+            body.pop("password", None)
+
+        response = self.as_user(self.root).post("/api/v1/users", body, format="json")
+        queue.work()
+
+        return response
+
+    def test_without_a_password_the_new_admin_is_emailed_a_link_to_set_one(self):
+        response = self.create(password=None)
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(1, len(mail.outbox))
+
+        email = mail.outbox[0]
+
+        self.assertEqual((f"Set your password for {settings.APP_NAME}", ["priya@example.invalid"]), (email.subject, email.to))
+        self.assertIn("An account has been created for you", email.body)
+        self.assertIn("/reset-password?token=", email.body)
+        self.assertIn("Forgot password", email.body)
+        self.assertNotIn("password reset request", email.body)
+
+        html = email.alternatives[0][0]
+
+        self.assertIn("Set Password", html)
+        self.assertIn("&amp;email=priya@example.invalid", html)
+
+    def test_the_emailed_link_sets_a_password_they_can_sign_in_with(self):
+        self.create(password=None)
+        token = re.search(r"token=([0-9a-f]+)&", mail.outbox[0].body).group(1)
+
+        reset = APIClient().post(
+            "/api/v1/auth/reset-password",
+            {"email": "priya@example.invalid", "token": token, "password": "ChosenByPriya2026"},
+            format="json",
+        )
+        self.assertEqual(200, reset.status_code, reset.data)
+
+        login = APIClient().post(
+            "/api/v1/auth/login", {"email": "priya@example.invalid", "password": "ChosenByPriya2026"}, format="json"
+        )
+        self.assertEqual(200, login.status_code, login.data)
+
+    def test_a_blank_password_counts_as_none(self):
+        response = self.create(password="")
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(1, len(mail.outbox))
+
+    def test_a_password_that_was_set_sends_no_email(self):
+        response = self.create()
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual([], mail.outbox)
+        self.assertTrue(hashing.check("AGoodPassword2026", User.objects.get(email="priya@example.invalid").password))
+
+    def test_a_short_password_is_still_refused_rather_than_ignored(self):
+        response = self.create(password="short1")
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("password", response.data["details"]["errors"])
+        self.assertEqual([], mail.outbox)
+
+    def test_nobody_in_the_office_knows_the_placeholder(self):
+        """Until the link is used, the account has a random password nobody
+        was told - so the office cannot sign in as the new admin."""
+        self.create(password=None)
+
+        for guess in ("", "password", "priya@example.invalid"):
+            login = APIClient().post(
+                "/api/v1/auth/login", {"email": "priya@example.invalid", "password": guess}, format="json"
+            )
+            self.assertIn(login.status_code, (401, 422), guess)

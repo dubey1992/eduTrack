@@ -7,11 +7,12 @@ cannot sign in. Both halves are asserted, including that a failure leaves
 neither behind.
 """
 
+from django.core import mail
 from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from school import factories, hashing, tokens
+from school import factories, hashing, queue, tokens
 from school.enums import UserRole, UserStatus
 from school.models import AttendantCredential, Driver, StaffProfile, User
 
@@ -549,3 +550,48 @@ class TheBusCrew(StaffApiTest):
         self.assertEqual([], stranger.get("/api/v1/staff").data["data"])
         self.assertEqual(403, stranger.get(f"/api/v1/staff/{driver_id}").status_code)
         self.assertEqual(403, stranger.post(f"/api/v1/staff/{driver_id}/attendant/setup-code").status_code)
+
+
+class ChoosingTheirOwnPassword(StaffApiTest):
+    """The same rule as for admins: an employee added without a password is
+    emailed a link to set one. Bus crew, who have no password, get no email."""
+
+    def test_an_employee_added_without_a_password_is_emailed_a_link_to_set_one(self):
+        body = self.payload()
+        body.pop("password")
+
+        response = self.client.post("/api/v1/staff", body, format="json")
+        queue.work()
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual(["rahul@example.invalid"], mail.outbox[0].to)
+        self.assertIn("Set your password", mail.outbox[0].subject)
+
+    def test_an_employee_given_a_password_gets_no_email(self):
+        response = self.client.post("/api/v1/staff", self.payload(), format="json")
+        queue.work()
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual([], mail.outbox)
+
+    def test_the_email_is_still_required_without_a_password(self):
+        body = self.payload(email=None)
+        body.pop("password")
+
+        response = self.client.post("/api/v1/staff", body, format="json")
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("email", response.data["details"]["errors"])
+
+    def test_the_bus_crew_get_no_email(self):
+        body = self.payload(
+            role=UserRole.BUS_ATTENDANT, email=None, mobile="+919876543210", department_id=None, employee_id="ATT-9"
+        )
+        body.pop("password")
+
+        response = self.client.post("/api/v1/staff", body, format="json")
+        queue.work()
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual([], mail.outbox)

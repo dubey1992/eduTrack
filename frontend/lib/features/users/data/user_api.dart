@@ -39,7 +39,7 @@ class UserApi {
     required String lastName,
     required String email,
     String? mobile,
-    required String password,
+    String? password,
     required UserRole role,
     int? schoolId,
   }) async {
@@ -50,7 +50,8 @@ class UserApi {
         'last_name': lastName,
         'email': email,
         'mobile': mobile,
-        'password': password,
+        // Left out, the server emails them a link to set their own.
+        'password': ?password,
         'role': role.apiValue,
         'school_id': schoolId,
       },
