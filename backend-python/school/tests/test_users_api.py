@@ -439,7 +439,7 @@ class ChoosingTheirOwnPassword(UserApiTest):
 
         self.assertEqual((f"Set your password for {settings.APP_NAME}", ["priya@example.invalid"]), (email.subject, email.to))
         self.assertIn("An account has been created for you", email.body)
-        self.assertIn("/reset-password?token=", email.body)
+        self.assertIn("/#/reset-password?token=", email.body)
         self.assertIn("Forgot password", email.body)
         self.assertNotIn("password reset request", email.body)
 

@@ -354,7 +354,10 @@ def send_password_reset_link(user_id: int, welcome: bool = False) -> None:
     PasswordResetToken.objects.filter(email=user.email).delete()
     PasswordResetToken.objects.create(email=user.email, token=hashing.make(token), created_at=now)
 
-    link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}&email={user.email}"
+    # The web app routes on the URL fragment (Flutter web's default), so the
+    # screen lives behind "/#/" - a plain "/reset-password" path reaches the
+    # static host instead and is a 404 there.
+    link = f"{settings.FRONTEND_URL.rstrip('/')}/#/reset-password?token={token}&email={user.email}"
     name = settings.APP_NAME
     expiry = settings.PASSWORD_RESET_EXPIRE_MINUTES
 

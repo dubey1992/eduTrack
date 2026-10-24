@@ -236,7 +236,7 @@ class PasswordResetTest(PublicTestCase):
         html = email.alternatives[0][0]
 
         self.assertEqual(("Reset your password", ["priya.sharma@example.com"]), (email.subject, email.to))
-        self.assertIn("https://app.school365.invalid/reset-password?token=", email.body)
+        self.assertIn("https://app.school365.invalid/#/reset-password?token=", email.body)
         self.assertIn("&email=priya.sharma@example.com", email.body)
         self.assertIn("This password reset link will expire in 60 minutes.", email.body)
         for fragment in ("School365ai", "Smarter Schools. Brighter Futures.", "#2563eb", "&amp;email=priya.sharma@example.com"):
