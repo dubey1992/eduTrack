@@ -237,10 +237,27 @@ class PasswordResetTest(PublicTestCase):
 
         self.assertEqual(("Reset your password", ["priya.sharma@example.com"]), (email.subject, email.to))
         self.assertIn("https://app.school365.invalid/#/reset-password?token=", email.body)
-        self.assertIn("&email=priya.sharma@example.com", email.body)
+        self.assertIn("&email=priya.sharma%40example.com", email.body)
         self.assertIn("This password reset link will expire in 60 minutes.", email.body)
-        for fragment in ("School365ai", "Smarter Schools. Brighter Futures.", "#2563eb", "&amp;email=priya.sharma@example.com"):
+        for fragment in ("School365ai", "Smarter Schools. Brighter Futures.", "#2563eb", "&amp;email=priya.sharma%40example.com"):
             self.assertIn(fragment, html)
+
+    def test_a_plus_in_the_address_survives_the_link(self):
+        """A "+" bare in a query string reads back as a space, so the address
+        in the link is percent-encoded and the screen receives it intact."""
+        from urllib.parse import parse_qs, urlsplit
+
+        self.user.email = "priya+school@example.com"
+        self.user.save()
+        self.forgot()
+
+        link = re.search(r"https://\S+", mail.outbox[0].body).group(0)
+        self.assertIn("email=priya%2Bschool%40example.com", link)
+        query = parse_qs(urlsplit(link).fragment.split("?", 1)[1])
+        self.assertEqual(["priya+school@example.com"], query["email"])
+
+        reset = self.reset(query["token"][0], email="priya+school@example.com")
+        self.assertEqual(200, reset.status_code, reset.data)
 
     def test_only_a_hash_of_the_token_is_stored(self):
         self.forgot()

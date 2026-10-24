@@ -446,7 +446,7 @@ class ChoosingTheirOwnPassword(UserApiTest):
         html = email.alternatives[0][0]
 
         self.assertIn("Set Password", html)
-        self.assertIn("&amp;email=priya@example.invalid", html)
+        self.assertIn("&amp;email=priya%40example.invalid", html)
 
     def test_the_emailed_link_sets_a_password_they_can_sign_in_with(self):
         self.create(password=None)

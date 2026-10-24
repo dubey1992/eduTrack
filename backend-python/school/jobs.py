@@ -330,6 +330,7 @@ def send_password_reset_link(user_id: int, welcome: bool = False) -> None:
     import html
     import secrets
     from datetime import timedelta
+    from urllib.parse import quote
 
     from django.conf import settings
 
@@ -357,7 +358,10 @@ def send_password_reset_link(user_id: int, welcome: bool = False) -> None:
     # The web app routes on the URL fragment (Flutter web's default), so the
     # screen lives behind "/#/" - a plain "/reset-password" path reaches the
     # static host instead and is a 404 there.
-    link = f"{settings.FRONTEND_URL.rstrip('/')}/#/reset-password?token={token}&email={user.email}"
+    # The address is a query value, so it is percent-encoded: a "+" left
+    # bare in a query string reads back as a space, and the reset is then
+    # refused for an address nobody has.
+    link = f"{settings.FRONTEND_URL.rstrip('/')}/#/reset-password?token={token}&email={quote(user.email, safe='')}"
     name = settings.APP_NAME
     expiry = settings.PASSWORD_RESET_EXPIRE_MINUTES
 
