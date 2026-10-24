@@ -70,7 +70,21 @@ def rides_the_bus(actor: User) -> bool:
     route underneath them. The parent policy keeps them off the fleet
     entirely; routes and stops have to say it too, now that the Transport
     Manager has been let in on the same permission."""
-    return actor.role == UserRole.BUS_ATTENDANT
+    return UserRole.is_crew(actor.role)
+
+
+def manages_crew(actor: User, school_id=None) -> bool:
+    """May add, edit and hand setup codes to the people on the bus - drivers
+    and attendants - without being allowed near any other employee. The
+    Transport Manager's reach, through the transport permission; the School
+    Admin has it anyway through the staff one (docs/driver-app.md, D10)."""
+    if UserRole.is_crew(actor.role):
+        return False
+
+    if not permitted(actor, "transport", write=True, school_id=school_id):
+        return False
+
+    return school_id is None or in_scope(actor, school_id)
 
 
 def administers(actor: User) -> bool:
@@ -591,7 +605,7 @@ def runs_route(actor: User, route) -> bool:
     """A Bus Attendant reaches the routes they are assigned to and nothing
     else - the way a teacher reaches their own class. Every other role
     reaches its school's routes."""
-    if actor.role == UserRole.BUS_ATTENDANT:
+    if UserRole.is_crew(actor.role):
         return route is not None and TransportRoute.objects.filter(crew_routes(actor), pk=route.pk).exists()
 
     return True
@@ -608,11 +622,11 @@ class TransportMasterPolicy:
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return actor.role != UserRole.BUS_ATTENDANT and permitted(actor, "transport")
+        return not UserRole.is_crew(actor.role) and permitted(actor, "transport")
 
     @staticmethod
     def view(actor: User, record) -> bool:
-        if actor.role == UserRole.BUS_ATTENDANT:
+        if UserRole.is_crew(actor.role):
             return False
 
         return permitted(actor, "transport", school_id=record.school_id) and in_scope(actor, record.school_id)
@@ -710,7 +724,7 @@ class TransportTripPolicy:
 
     @staticmethod
     def my_routes(actor: User) -> bool:
-        return actor.role == UserRole.BUS_ATTENDANT and permitted(actor, "transport")
+        return UserRole.is_crew(actor.role) and permitted(actor, "transport")
 
 
 class StaffProfilePolicy:
@@ -719,19 +733,32 @@ class StaffProfilePolicy:
     Admins only, even to read: a teacher does not browse their colleagues'
     joining dates and addresses. That is the one way this differs from the
     school-owned shape, which lets every role read.
+
+    One exception, narrow on purpose: whoever manages transport may add and
+    look after the **bus crew** - drivers and attendants - because in a
+    school with a Transport Manager that is their job, and in one without,
+    the admin has it through staff anyway. The crew and nobody else: the
+    list a Transport Manager reads is filtered to them (StaffProfileService)
+    and the role they may create is checked here.
     """
 
     @staticmethod
     def view_any(actor: User) -> bool:
-        return permitted(actor, "staff")
+        return permitted(actor, "staff") or manages_crew(actor)
 
     @staticmethod
     def view(actor: User, profile) -> bool:
-        return permitted(actor, "staff", school_id=profile.school_id) and in_scope(actor, profile.school_id)
+        if permitted(actor, "staff", school_id=profile.school_id) and in_scope(actor, profile.school_id):
+            return True
+
+        return UserRole.is_crew(profile.user.role) and manages_crew(actor, profile.school_id)
 
     @staticmethod
-    def create(actor: User) -> bool:
-        return permitted(actor, "staff", write=True)
+    def create(actor: User, role=None) -> bool:
+        if permitted(actor, "staff", write=True):
+            return True
+
+        return UserRole.is_crew(role) and manages_crew(actor)
 
     @classmethod
     def update(cls, actor: User, profile) -> bool:
@@ -739,9 +766,10 @@ class StaffProfilePolicy:
 
     @staticmethod
     def _manages(actor: User, profile) -> bool:
-        return permitted(actor, "staff", write=True, school_id=profile.school_id) and in_scope(
-            actor, profile.school_id
-        )
+        if permitted(actor, "staff", write=True, school_id=profile.school_id) and in_scope(actor, profile.school_id):
+            return True
+
+        return UserRole.is_crew(profile.user.role) and manages_crew(actor, profile.school_id)
 
 
 class PayrollPolicy:

@@ -36,6 +36,17 @@ class UserRole(models.TextChoices):
     # the routes they are assigned to, from a phone, signing in with a mobile
     # number and passcode on a registered device. See docs/maps.md.
     BUS_ATTENDANT = "BUS_ATTENDANT"
+    # Drives the bus. An employee exactly like the attendant - same sign-in,
+    # same app, same reach - with a licence record (drivers) beside the
+    # employment one. Added so a driver is a person who signs in rather than
+    # a record the office keeps (docs/driver-app.md, D10).
+    DRIVER = "DRIVER"
+
+    @classmethod
+    def is_crew(cls, role) -> bool:
+        """Works on the bus - driver or attendant - and signs in with a mobile
+        number and a passcode on a registered phone, never a password."""
+        return role in (cls.DRIVER, cls.BUS_ATTENDANT)
 
     @classmethod
     def administers_school(cls, role: str) -> bool:

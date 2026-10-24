@@ -62,7 +62,10 @@ def collection(request) -> Response:
 
 
 def store(request) -> Response:
-    authorize(StaffProfilePolicy.create(request.user))
+    # The role is read before validation only to ask the policy: a Transport
+    # Manager may add bus crew and nobody else, and the answer has to come
+    # before the form is trusted with anything.
+    authorize(StaffProfilePolicy.create(request.user, request.data.get("role")))
 
     form = StoreStaffRequest(data=request.data, actor=request.user)
     form.is_valid(raise_exception=True)

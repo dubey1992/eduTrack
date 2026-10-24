@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 
 from school import factories, hashing, tokens
 from school.enums import UserRole, UserStatus
-from school.models import StaffProfile, User
+from school.models import AttendantCredential, Driver, StaffProfile, User
 
 
 class StaffApiTest(TestCase):
@@ -333,7 +333,9 @@ class WhoMaySeeTheRoster(StaffApiTest):
         )
 
     def test_operational_roles_are_refused(self):
-        for role in (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT):
+        # The Transport Manager is not here: they read and add the bus crew,
+        # and nobody else - see TheBusCrew below.
+        for role in (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.ACCOUNTANT):
             with self.subTest(role=role):
                 client = self.as_user(factories.UserFactory(school=self.school, role=role))
 
@@ -410,3 +412,140 @@ class ADeactivatedEmployee(StaffApiTest):
         self.assertEqual(
             UserStatus.INACTIVE, User.objects.get(pk=created["user_id"]).status
         )
+
+
+class TheBusCrew(StaffApiTest):
+    """A driver is an employee who signs in, with a licence record beside the
+    employment one; the Transport Manager may add and look after drivers and
+    attendants and nobody else (docs/driver-app.md, D10)."""
+
+    def setUp(self):
+        super().setUp()
+        self.manager = self.as_user(factories.UserFactory(school=self.school, role=UserRole.TRANSPORT_MANAGER))
+        self.teacher_profile = factories.StaffProfileFactory(
+            school=self.school, user=factories.UserFactory(school=self.school, role=UserRole.TEACHER), employee_id="EMP-0100"
+        )
+
+    def driver_payload(self, **overrides):
+        body = self.payload(
+            role=UserRole.DRIVER, email=None, password=None, mobile="+91 98220 10001", employee_id="DRV-01",
+            designation="Driver", licence_number="MH12 20190012345", licence_expiry="2028-06-30",
+        )
+        body.update(overrides)
+        return body
+
+    def test_a_driver_is_a_login_a_profile_and_a_licence_record(self):
+        response = self.client.post("/api/v1/staff", self.driver_payload(), format="json")
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(
+            ("DRIVER", "MH12 20190012345", "2028-06-30"),
+            (response.data["role"], response.data["licence_number"], response.data["licence_expiry"]),
+        )
+
+        profile = StaffProfile.objects.select_related("user", "driver").get(pk=response.data["id"])
+        self.assertEqual(UserRole.DRIVER, profile.user.role)
+        self.assertTrue(AttendantCredential.objects.filter(user=profile.user).exists(), "signs in by passcode")
+        self.assertEqual(
+            ("Rahul Verma", "+91 98220 10001", "MH12 20190012345", profile.id),
+            (profile.driver.name, profile.driver.mobile, profile.driver.licence_number, profile.driver.staff_profile_id),
+        )
+        self.assertEqual(profile.driver.id, response.data["driver_id"])
+
+    def test_a_driver_needs_a_licence_number_and_a_mobile(self):
+        response = self.client.post("/api/v1/staff", self.driver_payload(licence_number=""), format="json")
+        self.assertEqual(422, response.status_code)
+        self.assertIn("licence_number", response.data["details"]["errors"])
+
+        response = self.client.post("/api/v1/staff", self.driver_payload(mobile=None), format="json")
+        self.assertEqual(422, response.status_code)
+        self.assertEqual(
+            ["A Driver signs in with their mobile number, so it is required."],
+            response.data["details"]["errors"]["mobile"],
+        )
+
+    def test_a_licence_sent_for_a_teacher_is_ignored(self):
+        response = self.client.post(
+            "/api/v1/staff", self.payload(licence_number="MH12 1", licence_expiry="2028-06-30"), format="json"
+        )
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertIsNone(response.data["driver_id"])
+        self.assertFalse(Driver.objects.filter(staff_profile_id=response.data["id"]).exists())
+
+    def test_the_licence_is_corrected_on_the_employment_record(self):
+        created = self.client.post("/api/v1/staff", self.driver_payload(), format="json").data
+
+        response = self.client.patch(
+            f"/api/v1/staff/{created['id']}", {"licence_number": "MH12 99", "licence_expiry": None}, format="json"
+        )
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual(("MH12 99", None), (response.data["licence_number"], response.data["licence_expiry"]))
+        self.assertEqual("MH12 99", Driver.objects.get(pk=created["driver_id"]).licence_number)
+
+        blank = self.client.patch(f"/api/v1/staff/{created['id']}", {"licence_number": ""}, format="json")
+        self.assertEqual(422, blank.status_code)
+
+    def test_renaming_the_login_renames_the_licence_record(self):
+        created = self.client.post("/api/v1/staff", self.driver_payload(), format="json").data
+
+        response = self.client.patch(
+            f"/api/v1/users/{created['user_id']}", {"first_name": "Suresh", "last_name": "Pawar"}, format="json"
+        )
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual("Suresh Pawar", Driver.objects.get(pk=created["driver_id"]).name)
+
+    def test_the_transport_manager_adds_drivers_and_attendants_and_nobody_else(self):
+        driver = self.manager.post("/api/v1/staff", self.driver_payload(), format="json")
+        self.assertEqual(201, driver.status_code, driver.data)
+        self.assertEqual(self.school.id, driver.data["school_id"])
+
+        attendant = self.manager.post(
+            "/api/v1/staff",
+            self.payload(
+                role=UserRole.BUS_ATTENDANT, email=None, password=None, mobile="+91 98220 10002", employee_id="ATT-01"
+            ),
+            format="json",
+        )
+        self.assertEqual(201, attendant.status_code, attendant.data)
+
+        teacher = self.manager.post("/api/v1/staff", self.payload(employee_id="EMP-0200"), format="json")
+        self.assertEqual(403, teacher.status_code)
+
+    def test_the_transport_manager_reads_the_crew_only(self):
+        driver_id = self.client.post("/api/v1/staff", self.driver_payload(), format="json").data["id"]
+
+        listed = self.manager.get("/api/v1/staff")
+        self.assertEqual(200, listed.status_code, listed.data)
+        self.assertEqual([driver_id], [row["id"] for row in listed.data["data"]])
+
+        self.assertEqual(200, self.manager.get(f"/api/v1/staff/{driver_id}").status_code)
+        self.assertEqual(403, self.manager.get(f"/api/v1/staff/{self.teacher_profile.id}").status_code)
+
+    def test_the_transport_manager_edits_and_equips_the_crew_only(self):
+        driver_id = self.client.post("/api/v1/staff", self.driver_payload(), format="json").data["id"]
+
+        edited = self.manager.patch(f"/api/v1/staff/{driver_id}", {"licence_number": "MH12 77"}, format="json")
+        self.assertEqual(200, edited.status_code, edited.data)
+        self.assertEqual("MH12 77", edited.data["licence_number"])
+
+        code = self.manager.post(f"/api/v1/staff/{driver_id}/attendant/setup-code")
+        self.assertEqual(201, code.status_code, code.data)
+
+        refused = self.manager.patch(f"/api/v1/staff/{self.teacher_profile.id}", {"designation": "X"}, format="json")
+        self.assertEqual(403, refused.status_code)
+        self.assertEqual(
+            403, self.manager.post(f"/api/v1/staff/{self.teacher_profile.id}/attendant/setup-code").status_code
+        )
+
+    def test_a_transport_manager_elsewhere_reaches_none_of_it(self):
+        driver_id = self.client.post("/api/v1/staff", self.driver_payload(), format="json").data["id"]
+        stranger = self.as_user(
+            factories.UserFactory(school=factories.SchoolFactory(), role=UserRole.TRANSPORT_MANAGER)
+        )
+
+        self.assertEqual([], stranger.get("/api/v1/staff").data["data"])
+        self.assertEqual(403, stranger.get(f"/api/v1/staff/{driver_id}").status_code)
+        self.assertEqual(403, stranger.post(f"/api/v1/staff/{driver_id}/attendant/setup-code").status_code)

@@ -201,7 +201,7 @@ class AuthService:
         if not user.is_active():
             raise AccountInactive()
 
-        if user.role == UserRole.BUS_ATTENDANT:
+        if UserRole.is_crew(user.role):
             raise UsePasscodeSignIn()
 
         User.objects.filter(pk=user.pk).update(failed_login_attempts=0, locked_until=None)
@@ -3335,7 +3335,7 @@ class TransportTripService:
             filters.get("school_id"),
         )
 
-        if actor.role == UserRole.BUS_ATTENDANT:
+        if UserRole.is_crew(actor.role):
             trips = trips.filter(crew_routes(actor, "route__"))
 
         for field, column in (("route_id", "route_id"), ("date", "trip_date"), ("status", "status")):
@@ -3847,7 +3847,7 @@ class StaffProfileService:
     no login is somebody on a roster who cannot sign in.
     """
 
-    WITH = ("user", "school", "department")
+    WITH = ("user", "school", "department", "driver")
 
     @classmethod
     def visible_to(cls, actor: User, filters: dict):
@@ -3863,8 +3863,17 @@ class StaffProfileService:
         if filters.get("department_id"):
             staff = staff.filter(department_id=filters["department_id"])
 
+        # Whoever is not allowed the roster reads the bus crew only - the
+        # Transport Manager's list (StaffProfilePolicy).
+        from .policies import permitted
+
+        if not permitted(actor, "staff"):
+            staff = staff.filter(user__role__in=(UserRole.DRIVER, UserRole.BUS_ATTENDANT))
+
+        # One role, or several separated by commas: the Crew screen asks
+        # for drivers and attendants in one page.
         if filters.get("role"):
-            staff = staff.filter(user__role=filters["role"])
+            staff = staff.filter(user__role__in=[r.strip() for r in str(filters["role"]).split(",") if r.strip()])
 
         if filters.get("status"):
             staff = staff.filter(user__status=filters["status"])
@@ -3927,6 +3936,23 @@ class StaffProfileService:
             punches.attach_waiting(profile)
             audit.created("staff", profile)
 
+            # A driver is also a licence record, created in the same
+            # transaction and linked to the person, so the route picker,
+            # the trip and the licence warning all find one driver.
+            if user.role == UserRole.DRIVER:
+                driver = Driver.objects.create(
+                    school_id=user.school_id,
+                    name=user.name,
+                    mobile=user.mobile,
+                    licence_number=profile_data["licence_number"],
+                    licence_expiry=profile_data.get("licence_expiry"),
+                    status=TransportStatus.ACTIVE,
+                    staff_profile=profile,
+                    created_at=now,
+                    updated_at=now,
+                )
+                audit.created("transport", driver)
+
             return profile
 
     @staticmethod
@@ -3934,12 +3960,24 @@ class StaffProfileService:
         before = audit.fields_of(profile)
         was_enrolled_as = profile.biometric_user_id
 
+        data = dict(data)
+        licence = {field: data.pop(field) for field in ("licence_number", "licence_expiry") if field in data}
+
         for field, value in data.items():
             setattr(profile, field, value)
 
         profile.updated_at = timezone.now()
         profile.save()
         audit.updated("staff", profile, before)
+
+        driver = getattr(profile, "driver", None) if licence else None
+        if driver is not None:
+            was = audit.fields_of(driver)
+            for field, value in licence.items():
+                setattr(driver, field, value)
+            driver.updated_at = profile.updated_at
+            driver.save()
+            audit.updated("transport", driver, was)
 
         # Enrolling somebody has to reach backwards. Punches that arrived
         # while the id was unmapped would otherwise stay unattached for ever,
@@ -5044,8 +5082,8 @@ class UserService:
 
         now = timezone.now()
 
-        # A Bus Attendant signs in with a passcode, never a password, so theirs
-        # is a long random one nobody knows.
+        # Bus crew - an attendant or a driver - sign in with a passcode, never
+        # a password, so theirs is a long random one nobody knows.
         password = data.get("password") or secrets.token_urlsafe(32)
 
         user = User.objects.create(
@@ -5065,7 +5103,7 @@ class UserService:
             updated_at=now,
         )
 
-        if user.role == UserRole.BUS_ATTENDANT:
+        if UserRole.is_crew(user.role):
             AttendantCredential.objects.create(
                 user_id=user.id, school_id=user.school_id, login_mobile=attendants.login_mobile(user.mobile),
                 failed_attempts=0, created_at=now, updated_at=now,
@@ -5105,9 +5143,16 @@ class UserService:
         user.updated_at = timezone.now()
         user.save()
 
-        if user.role == UserRole.BUS_ATTENDANT and "mobile" in data:
+        if UserRole.is_crew(user.role) and "mobile" in data:
             AttendantCredential.objects.filter(user_id=user.pk).update(
                 login_mobile=attendants.login_mobile(user.mobile), updated_at=user.updated_at
+            )
+
+        # A driver's licence record carries their name and number too, for
+        # the route and trip screens that read it; it follows the login.
+        if user.role == UserRole.DRIVER and ({"first_name", "last_name", "mobile"} & set(data)):
+            Driver.objects.filter(staff_profile__user_id=user.pk).update(
+                name=user.name, mobile=user.mobile, updated_at=user.updated_at
             )
 
         # A new password, a new role or a new sign-in address ends every
@@ -5981,7 +6026,7 @@ class ProfileService:
         if "address" in data and profile is None:
             raise NoStaffRecord("A home address is kept on a staff record, and this account has none.")
 
-        if "mobile" in data and user.role == UserRole.BUS_ATTENDANT and data["mobile"] != user.mobile:
+        if "mobile" in data and UserRole.is_crew(user.role) and data["mobile"] != user.mobile:
             raise KeptBySchoolOffice(
                 "Your mobile number is how you sign in, so only your school office can change it."
             )
@@ -6089,8 +6134,8 @@ class AttendantService:
     def credential_of(profile) -> AttendantCredential:
         credential = AttendantCredential.objects.filter(user_id=profile.user_id).first()
 
-        if profile.user.role != UserRole.BUS_ATTENDANT or credential is None:
-            raise NotAnAttendant("Only a Bus Attendant signs in with a setup code and passcode.")
+        if not UserRole.is_crew(profile.user.role) or credential is None:
+            raise NotAnAttendant("Only bus crew - a driver or an attendant - sign in with a setup code and passcode.")
 
         return credential
 

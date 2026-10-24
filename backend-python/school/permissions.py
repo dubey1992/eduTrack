@@ -39,36 +39,36 @@ EDITABLE_ROLES = (
     UserRole.TRANSPORT_MANAGER,
     UserRole.ACCOUNTANT,
     UserRole.BUS_ATTENDANT,
+    UserRole.DRIVER,
 )
 
 # module -> (SCHOOL_ADMIN, HOD, TEACHER, STAFF, TRANSPORT_MANAGER, ACCOUNTANT,
-# BUS_ATTENDANT),
+# BUS_ATTENDANT, DRIVER),
 # each what the policies granted before the matrix existed. Admin users and
 # the audit log are administration rather than a module a role is granted,
 # so they are not here: those policies answer for themselves.
 _DEFAULT_ROWS = {
-    "students":         (MANAGE, NONE,   VIEW,   NONE,   NONE,   NONE,   NONE),
-    "staff":            (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE,   NONE),
-    "academics":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW,   NONE),
-    "assessments":      (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),
-    "attendance":       (MANAGE, NONE,   MANAGE, NONE,   NONE,   NONE,   NONE),
-    "staff_attendance": (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE,   NONE),
+    "students":         (MANAGE, NONE,   VIEW,   NONE,   NONE,   NONE, NONE, NONE),
+    "staff":            (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE, NONE, NONE),
+    "academics":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW, NONE, NONE),
+    "assessments":      (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE, NONE, NONE),
+    "attendance":       (MANAGE, NONE,   MANAGE, NONE,   NONE,   NONE, NONE, NONE),
+    "staff_attendance": (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE, NONE, NONE),
     # An HOD marks the staff register but does not buy the readers, which is
     # why this is not the same row as the one above it.
-    "biometric":        (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE,   NONE),
-    "leave":            (MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE),
-    "timetable":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW,   NONE),
-    "teaching_reports": (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),
-    "syllabus":         (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE),
-    "hod":              (VIEW,   VIEW,   NONE,   NONE,   NONE,   NONE,   NONE),
+    "biometric":        (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE, NONE, NONE),
+    "leave":            (MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE, MANAGE),
+    "timetable":        (MANAGE, VIEW,   VIEW,   VIEW,   VIEW,   VIEW, NONE, NONE),
+    "teaching_reports": (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE, NONE, NONE),
+    "syllabus":         (MANAGE, MANAGE, MANAGE, NONE,   NONE,   NONE, NONE, NONE),
+    "hod":              (VIEW,   VIEW,   NONE,   NONE,   NONE,   NONE, NONE, NONE),
     # An attendant manages transport only for the routes they are assigned
     # to - the policies narrow it, as they narrow a teacher to their class.
-    "transport":        (MANAGE, VIEW,   VIEW,   NONE,   MANAGE, NONE,   MANAGE),
-    "communication":    (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE,   NONE),
-    "announcements":    (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE,   NONE),
-    "payroll":          (MANAGE, NONE,   NONE,   NONE,   NONE,   MANAGE, NONE),
-    "reports":          (VIEW,   VIEW,   NONE,   NONE,   VIEW,   VIEW,   NONE),
-}
+    "transport":        (MANAGE, VIEW,   VIEW,   NONE,   MANAGE, NONE, MANAGE, MANAGE),
+    "communication":    (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE, NONE, NONE),
+    "announcements":    (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE, NONE, NONE),
+    "payroll":          (MANAGE, NONE,   NONE,   NONE,   NONE,   MANAGE, NONE, NONE),
+    "reports":          (VIEW,   VIEW,   NONE,   NONE,   VIEW,   VIEW, NONE, NONE),}
 
 DEFAULTS: dict[str, dict[str, str]] = {
     role: {module: levels[index] for module, levels in _DEFAULT_ROWS.items()}

@@ -130,9 +130,9 @@ class ChangingDetails(ProfileTest):
                 school = None if role == UserRole.SUPER_ADMIN else self.school
                 user = factories.UserFactory(school=school, role=role)
 
-                # A Bus Attendant's mobile is their sign-in; that has its own test.
+                # Bus crew's mobile is their sign-in; that has its own test.
                 changes = {"first_name": "Asha", "last_name": "Rao"}
-                if role != UserRole.BUS_ATTENDANT:
+                if not UserRole.is_crew(role):
                     changes["mobile"] = "+91 9888888888"
 
                 response = self.client_for(user).patch(PROFILE, changes, format="json")

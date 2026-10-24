@@ -1067,3 +1067,38 @@ class ADriverWhoIsAlsoStaff(AttendantTest):
         response = self.as_user(self.driver_user).get("/api/v1/transport/my-routes")
 
         self.assertIsNone(response.data["routes"][0]["my_licence_expiry"])
+
+
+class ADriverSignsIn(AttendantTest):
+    """A driver is bus crew too: added with a licence, registered the way an
+    attendant is, and the route they drive is theirs on the phone
+    (docs/driver-app.md, D10)."""
+
+    DRIVER_MOBILE = "+91 98220 10001"
+
+    def make_driver(self):
+        response = self.as_user(self.f["admin"]).post("/api/v1/staff", {
+            "first_name": "Suresh", "last_name": "Pawar", "mobile": self.DRIVER_MOBILE, "role": "DRIVER",
+            "employee_id": "DRV-01", "joining_date": "2026-04-01", "licence_number": "MH12 20190012345",
+        }, format="json")
+        self.assertEqual(201, response.status_code, response.data)
+
+        return StaffProfile.objects.select_related("user", "driver").get(pk=response.data["id"])
+
+    def test_the_route_they_drive_is_theirs_on_the_phone(self):
+        profile = self.make_driver()
+        route = self.f["route"]
+        route.driver = profile.driver
+        route.save(update_fields=["driver"])
+
+        token, _ = self.register(mobile=self.DRIVER_MOBILE, profile=profile)
+        mine = self.phone(token).get("/api/v1/transport/my-routes")
+
+        self.assertEqual(200, mine.status_code, mine.data)
+        self.assertEqual([route.id], [row["id"] for row in mine.data["routes"]])
+
+    def test_the_email_form_turns_a_driver_away_like_an_attendant(self):
+        profile = self.make_driver()
+        response = self.anon().post("/api/v1/auth/login", {"email": profile.user.email, "password": "x"}, format="json")
+
+        self.assertIn(response.status_code, (401, 422))

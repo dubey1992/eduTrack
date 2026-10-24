@@ -3004,7 +3004,7 @@ class ReviewStaffLeaveRequest(ScopedSerializer):
 # from the actor rather than from a field.
 STAFF_ROLES = (
     UserRole.HOD, UserRole.TEACHER, UserRole.STAFF, UserRole.TRANSPORT_MANAGER, UserRole.ACCOUNTANT,
-    UserRole.BUS_ATTENDANT,
+    UserRole.BUS_ATTENDANT, UserRole.DRIVER,
 )
 
 
@@ -3036,6 +3036,11 @@ class StoreStaffRequest(ScopedSerializer):
     designation = optional_text("designation", 100)
     joining_date = LaravelDateField("joining_date")
     address = optional_text("address", 500)
+    # A driver's licence, kept on the drivers record created beside the
+    # employment one (docs/driver-app.md, D10). Required for a DRIVER, not
+    # accepted for anybody else.
+    licence_number = LaravelCharField("licence_number", max_length=50, required=False, allow_null=True, allow_blank=True)
+    licence_expiry = LaravelDateField("licence_expiry", required=False, allow_null=True)
 
     def validate_email(self, value):
         if value in (None, ""):
@@ -3057,18 +3062,24 @@ class StoreStaffRequest(ScopedSerializer):
             errors.update(invalid.detail)
 
         school_id = self.resolved_school_id()
-        is_attendant = attrs.get("role") == UserRole.BUS_ATTENDANT
+        role = attrs.get("role")
+        is_attendant = UserRole.is_crew(role)
+        who = "A Driver" if role == UserRole.DRIVER else "A Bus Attendant"
 
-        if attrs.get("role") not in STAFF_ROLES:
+        if role not in STAFF_ROLES:
             errors["role"] = [selected_is_invalid("role")]
 
         if is_attendant:
             # The mobile number is how they sign in, so it is required and
             # must not already sign somebody else in.
             if not attrs.get("mobile"):
-                errors["mobile"] = ["A Bus Attendant signs in with their mobile number, so it is required."]
+                errors["mobile"] = [f"{who} signs in with their mobile number, so it is required."]
             elif AttendantCredential.objects.filter(login_mobile=attendants.login_mobile(attrs["mobile"])).exists():
-                errors["mobile"] = ["Another Bus Attendant already signs in with this mobile number."]
+                errors["mobile"] = [
+                    "Another Bus Attendant already signs in with this mobile number."
+                    if role == UserRole.BUS_ATTENDANT
+                    else "Another driver or attendant already signs in with this mobile number."
+                ]
 
             attrs.pop("password", None)
 
@@ -3080,6 +3091,16 @@ class StoreStaffRequest(ScopedSerializer):
 
             if not attrs.get("password"):
                 errors["password"] = [required("password")]
+
+        if role == UserRole.DRIVER:
+            if not (attrs.get("licence_number") or "").strip():
+                errors["licence_number"] = ["A driver's licence number is required."]
+            else:
+                attrs["licence_number"] = attrs["licence_number"].strip()
+        else:
+            # Not a driver: a licence sent by mistake is dropped, not kept.
+            attrs.pop("licence_number", None)
+            attrs.pop("licence_expiry", None)
 
         if attrs.get("email") and User.objects.filter(email=attrs["email"]).exists():
             errors["email"] = [already_taken("email")]
@@ -3147,6 +3168,8 @@ class StoreStaffRequest(ScopedSerializer):
                 "designation",
                 "joining_date",
                 "address",
+                "licence_number",
+                "licence_expiry",
             )
         }
 
@@ -3164,6 +3187,9 @@ class UpdateStaffProfileRequest(ScopedSerializer):
     designation = optional_text("designation", 100)
     joining_date = LaravelDateField("joining_date", required=False)
     address = optional_text("address", 500)
+    # A driver's licence, corrected here rather than on a second screen.
+    licence_number = LaravelCharField("licence_number", max_length=50, required=False, allow_null=True, allow_blank=True)
+    licence_expiry = LaravelDateField("licence_expiry", required=False, allow_null=True)
 
     def __init__(self, *args, profile=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -3172,6 +3198,16 @@ class UpdateStaffProfileRequest(ScopedSerializer):
     def validate(self, attrs):
         school_id = self.profile.school_id
         errors = {}
+
+        if self.profile.user.role == UserRole.DRIVER:
+            if "licence_number" in attrs:
+                if not (attrs["licence_number"] or "").strip():
+                    errors["licence_number"] = ["A driver's licence number is required."]
+                else:
+                    attrs["licence_number"] = attrs["licence_number"].strip()
+        else:
+            attrs.pop("licence_number", None)
+            attrs.pop("licence_expiry", None)
 
         if "employee_id" in attrs and StaffProfile.objects.filter(
             school_id=school_id, employee_id=attrs["employee_id"]
@@ -4653,7 +4689,7 @@ class UpdateUserRequest(ScopedSerializer):
         ).exists():
             errors["email"] = [already_taken("email")]
 
-        if self.user.role == UserRole.BUS_ATTENDANT and "mobile" in attrs:
+        if UserRole.is_crew(self.user.role) and "mobile" in attrs:
             login = attendants.login_mobile(attrs["mobile"])
 
             if login is None:
@@ -4661,7 +4697,11 @@ class UpdateUserRequest(ScopedSerializer):
             elif AttendantCredential.objects.filter(login_mobile=login).exclude(user_id=self.user.pk).exists():
                 errors["mobile"] = ["Another Bus Attendant already signs in with this mobile number."]
 
-        if "role" in attrs and attrs["role"] != self.user.role and UserRole.BUS_ATTENDANT in (attrs["role"], self.user.role):
+        if (
+            "role" in attrs
+            and attrs["role"] != self.user.role
+            and (UserRole.is_crew(attrs["role"]) or UserRole.is_crew(self.user.role))
+        ):
             errors["role"] = [
                 "A Bus Attendant signs in differently from everybody else, so the role cannot be changed to "
                 "or from it. Add the person again with the role they need."

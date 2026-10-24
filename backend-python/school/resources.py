@@ -842,7 +842,7 @@ def profile_resource(user) -> dict:
         # that is never shown; they sign in with a passcode, not an email.
         "email": user.email if has_email(user) else None,
         "has_email": has_email(user),
-        "signs_in_with": "passcode" if user.role == UserRole.BUS_ATTENDANT else "email",
+        "signs_in_with": "passcode" if UserRole.is_crew(user.role) else "email",
         "mobile": user.mobile,
         "role": user.role,
         "role_label": role_label(user.role),
@@ -872,11 +872,18 @@ def staff_profile_resource(profile, class_teacher_of=None) -> dict:
     fire a query per employee in a list.
     """
     user = profile.user
+    # The licence record a driver carries beside the employment one. Loaded
+    # with the profile (StaffProfileService.WITH), so a list costs no extra
+    # queries; everybody else simply has none.
+    driver = getattr(profile, "driver", None)
 
     return {
         "id": profile.id,
         "user_id": profile.user_id,
         "employee_id": profile.employee_id,
+        "driver_id": driver.id if driver else None,
+        "licence_number": driver.licence_number if driver else None,
+        "licence_expiry": driver.licence_expiry.isoformat() if driver and driver.licence_expiry else None,
         # The id this person has on the school's fingerprint devices, or
         # null for the many who are not enrolled on one.
         "biometric_user_id": profile.biometric_user_id,

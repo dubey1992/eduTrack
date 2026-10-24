@@ -153,7 +153,7 @@ def lapses(holder: User | None) -> bool:
     account can be locked. Those work in minutes; an idle timer works in
     seven days.
     """
-    return holder is None or holder.role != UserRole.BUS_ATTENDANT
+    return holder is None or not UserRole.is_crew(holder.role)
 
 
 def has_expired(token: PersonalAccessToken, holder: User | None = None) -> bool:

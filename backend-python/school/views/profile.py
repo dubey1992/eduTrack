@@ -54,7 +54,7 @@ def detail(request) -> Response:
 def email(request) -> Response:
     # An attendant has no password to confirm this with, and does not sign
     # in with an email: their school office keeps their address.
-    if request.user.role == UserRole.BUS_ATTENDANT:
+    if UserRole.is_crew(request.user.role):
         raise KeptBySchoolOffice("Your school office keeps your email address. Ask them to change it.")
 
     form = ChangeEmailRequest(data=request.data, actor=request.user)
