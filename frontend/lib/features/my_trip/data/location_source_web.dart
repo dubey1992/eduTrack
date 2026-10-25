@@ -37,6 +37,7 @@ class BrowserLocationSource implements LocationSource {
           accuracy: coords.accuracy,
           speed: coords.speed,
           heading: coords.heading,
+          takenAt: DateTime.fromMillisecondsSinceEpoch(position.timestamp),
         ),
       );
     }
@@ -55,6 +56,14 @@ class BrowserLocationSource implements LocationSource {
 
     return completer.future;
   }
+
+  // A browser has no settings page to open on a site's behalf; the person
+  // changes it from the address bar's padlock.
+  @override
+  Future<bool> openAppSettings() async => false;
+
+  @override
+  Future<bool> openLocationSettings() async => false;
 
   @override
   Stream<DevicePosition> positions({required Duration interval, required double distanceFilterMetres}) async* {

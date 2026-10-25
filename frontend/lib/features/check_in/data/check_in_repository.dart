@@ -30,7 +30,15 @@ class CheckInApi {
   Future<Map<String, dynamic>> _post(String path, DevicePosition at) async {
     final response = await _dio.post(
       path,
-      data: {'latitude': at.latitude, 'longitude': at.longitude, 'accuracy_m': at.accuracy},
+      data: {
+        'latitude': at.latitude,
+        'longitude': at.longitude,
+        'accuracy_m': at.accuracy,
+        // The server refuses a made-up or remembered position; it can only
+        // do that if it is told (school/check_in.py).
+        'is_mocked': at.isMocked,
+        if (at.takenAt != null) 'fix_age_s': DateTime.now().difference(at.takenAt!).inMilliseconds.abs() / 1000,
+      },
     );
     return response.data as Map<String, dynamic>;
   }

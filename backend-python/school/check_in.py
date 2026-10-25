@@ -14,8 +14,21 @@ What a check-in does, decided 2026-10-25:
 
 What it refuses, each with its own code so the app can say exactly why:
 a closed day or a holiday, approved leave, a school with no pin on the map,
-a fix too vague to judge, a phone too far away, a second check-in, and a
-check-out before any check-in. The office can still correct anything on
+a location another app is inventing (a mock location), a fix too old or too
+vague to judge, a phone too far away, a second check-in, and a check-out
+before any check-in.
+
+Edge cases decided 2026-10-25 (docs/staff-check-in.md, "Edge cases"):
+- **Half-day leave** does not refuse: the person works the other half, so
+  checking in makes the day a half day - which is how payroll already counts
+  a half-day leave (half present, half leave).
+- **Two taps at once**, from two phones, land once: the second is told the
+  day is already checked in, never a server error.
+- **A fingerprint punch first**: the second check-in is told the reader has
+  it, so nobody thinks the app lost their tap.
+- **A forgotten check-out** is not fixable from the app the next day - the
+  leaving time is not knowable - so the app is told about the open day and
+  says to ask the office. The office can still correct anything on
 the register afterwards; a self check-in is a mark like any other.
 
 The location itself is never stored - only how far from school it was, in
@@ -24,17 +37,25 @@ the audit log, which is what anybody reviewing a disputed day needs.
 
 from __future__ import annotations
 
-from django.db import transaction
+import datetime as dt
+
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from . import audit, geo, modules, working_hours
 from .clock import SchoolClock
-from .enums import LeaveStatus, StaffAttendanceStatus
+from .enums import LeaveStatus, LeaveType, StaffAttendanceStatus
 from .errors import ApiError, ModuleDisabled, NoStaffRecord
-from .models import Period, School, StaffAttendance, StaffLeave, StaffProfile, User
+from .models import AuditLog, Period, School, StaffAttendance, StaffLeave, StaffProfile, User
 from .services import AttendanceService, HolidayService, _is_late, holiday_summary
 
 MODULE = "staff_attendance"
+
+# How old a location fix may be, in seconds, and still count as "now".
+STALE_AFTER_S = 120
+
+# How far back a forgotten check-out is still mentioned.
+UNFINISHED_LOOKBACK_DAYS = 7
 
 
 class CheckInRefused(ApiError):
@@ -72,17 +93,49 @@ def _approved_leave(profile: StaffProfile, date) -> StaffLeave | None:
     ).first()
 
 
+def _leave_today(profile: StaffProfile, today, row: StaffAttendance | None) -> tuple[bool, bool]:
+    """(on leave for the whole day, on approved half-day leave).
+
+    Approving leave writes `leave` on the register even for a half day
+    (StaffLeaveService.sync_attendance), so the register alone cannot tell
+    the two apart; the approved request can."""
+    leave = _approved_leave(profile, today)
+    half = leave is not None and leave.leave_type == LeaveType.HALF_DAY
+    full = not half and (leave is not None or (row is not None and row.status == StaffAttendanceStatus.LEAVE))
+
+    return full, half
+
+
 def _row(profile: StaffProfile, date) -> StaffAttendance | None:
     return StaffAttendance.objects.filter(staff_profile_id=profile.id, attendance_date=date).first()
 
 
-def _assert_place(school: School, latitude, longitude, accuracy_m, radius: int) -> int:
+def _assert_place(school: School, latitude, longitude, accuracy_m, radius: int, is_mocked=False, fix_age_s=None) -> int:
     """The phone has to be within the radius of the school's pin. Returns
     how far it was, rounded to the metre."""
     if school.latitude is None or school.longitude is None:
         raise CheckInRefused(
             "NO_SCHOOL_LOCATION",
             "Your school has not set its location yet, so the app cannot check you in. Ask the office.",
+        )
+
+    # Android says when the position comes from another app rather than the
+    # satellites - a "fake GPS" app, or a developer's test tool. That is not a
+    # place, whatever its distance.
+    if is_mocked:
+        raise CheckInRefused(
+            "LOCATION_MOCKED",
+            "Your phone is using a location set by another app (a mock location). "
+            "Turn that app off, then check in again.",
+        )
+
+    # A position the phone remembered from earlier is where somebody was,
+    # not where they are.
+    if fix_age_s is not None and fix_age_s > STALE_AFTER_S:
+        raise CheckInRefused(
+            "LOCATION_STALE",
+            "Your phone's location is out of date. Wait a few seconds for it to update, then try again.",
+            {"fix_age_s": round(fix_age_s)},
         )
 
     # A fix that could be anywhere within a few hundred metres says nothing
@@ -108,11 +161,17 @@ def _assert_place(school: School, latitude, longitude, accuracy_m, radius: int) 
     return distance
 
 
-def _assert_day(profile: StaffProfile, today, row: StaffAttendance | None) -> None:
+def _assert_day(profile: StaffProfile, today, row: StaffAttendance | None) -> bool:
+    """Refuses a closed day and a day of leave. Returns whether the person
+    is on approved half-day leave, which does not refuse."""
     AttendanceService.assert_school_is_open(profile.school_id, today)
 
-    if _approved_leave(profile, today) is not None or (row is not None and row.status == StaffAttendanceStatus.LEAVE):
+    full, half = _leave_today(profile, today, row)
+
+    if full:
         raise CheckInRefused("ON_LEAVE", "You are on leave today, so there is nothing to check in to.")
+
+    return half
 
 
 def _assert_enabled(school_id) -> None:
@@ -123,6 +182,41 @@ def _assert_enabled(school_id) -> None:
 
     if not enabled:
         raise CheckInRefused("CHECK_IN_OFF", "Your school marks staff attendance in the office, not from the app.")
+
+
+def _already_in(row: StaffAttendance):
+    """Refuses a second check-in, saying where the first one came from."""
+    at = working_hours.clock(row.check_in)
+
+    if row.marked_by_id is None:
+        raise CheckInRefused(
+            "ALREADY_CHECKED_IN", f"The fingerprint reader already checked you in at {at} today."
+        )
+
+    raise CheckInRefused("ALREADY_CHECKED_IN", f"You checked in at {at} today.")
+
+
+def _unfinished_day(profile: StaffProfile, actor: User, today) -> dict | None:
+    """The latest recent day this person checked themselves in and never
+    out - so the app can say so. Only their own check-ins: a day the office
+    marked is the office's to complete."""
+    row = (
+        StaffAttendance.objects.filter(
+            staff_profile_id=profile.id,
+            attendance_date__lt=today,
+            attendance_date__gte=today - dt.timedelta(days=UNFINISHED_LOOKBACK_DAYS),
+            check_in__isnull=False,
+            check_out__isnull=True,
+            marked_by_id=actor.id,
+        )
+        .order_by("-attendance_date")
+        .first()
+    )
+
+    if row is None:
+        return None
+
+    return {"date": row.attendance_date.isoformat(), "check_in": working_hours.clock(row.check_in)}
 
 
 class CheckInService:
@@ -144,8 +238,8 @@ class CheckInService:
         has_pin = school.latitude is not None and school.longitude is not None
         holiday = HolidayService.holiday_on(school_id, today)
         is_open = holiday is None and HolidayService.is_working_day(school_id, today)
-        leave = _approved_leave(profile, today)
         row = _row(profile, today)
+        on_leave, half_day_leave = _leave_today(profile, today, row)
 
         check_in = working_hours.clock(row.check_in) if row and row.check_in else None
         check_out = working_hours.clock(row.check_out) if row and row.check_out else None
@@ -156,7 +250,7 @@ class CheckInService:
             reason = "Your school marks staff attendance in the office, not from the app."
         elif not is_open:
             reason = f"No attendance today: {holiday.name}." if holiday else "The school is closed today."
-        elif leave is not None or (row is not None and row.status == StaffAttendanceStatus.LEAVE):
+        elif on_leave:
             reason = "You are on leave today."
         elif not has_pin:
             reason = "Your school has not set its location yet, so the app cannot check you in. Ask the office."
@@ -167,7 +261,8 @@ class CheckInService:
             "enabled": enabled,
             "radius_m": radius,
             "school_day": {"is_open": is_open, "holiday": holiday_summary(holiday) if holiday else None},
-            "on_leave": leave is not None or (row is not None and row.status == StaffAttendanceStatus.LEAVE),
+            "on_leave": on_leave,
+            "half_day_leave": half_day_leave,
             "status": row.status if row else None,
             "check_in": check_in,
             "check_out": check_out,
@@ -180,10 +275,11 @@ class CheckInService:
             "can_check_in": reason is None and check_in is None,
             "can_check_out": reason is None and check_in is not None,
             "blocked_reason": reason,
+            "unfinished_day": _unfinished_day(profile, actor, today),
         }
 
     @staticmethod
-    def check_in(actor: User, latitude, longitude, accuracy_m=None) -> dict:
+    def check_in(actor: User, latitude, longitude, accuracy_m=None, is_mocked=False, fix_age_s=None) -> dict:
         profile = profile_of(actor)
         school_id = profile.school_id
         _assert_enabled(school_id)
@@ -196,31 +292,39 @@ class CheckInService:
             row = StaffAttendance.objects.select_for_update().filter(
                 staff_profile_id=profile.id, attendance_date=today
             ).first()
-            _assert_day(profile, today, row)
+            half_day_leave = _assert_day(profile, today, row)
 
             if row is not None and row.check_in is not None:
-                raise CheckInRefused(
-                    "ALREADY_CHECKED_IN", f"You checked in at {working_hours.clock(row.check_in)} today."
-                )
+                _already_in(row)
 
-            distance = _assert_place(School.objects.get(pk=school_id), latitude, longitude, accuracy_m, radius)
+            distance = _assert_place(
+                School.objects.get(pk=school_id), latitude, longitude, accuracy_m, radius, is_mocked, fix_age_s
+            )
             at = now.time().replace(second=0, microsecond=0)
             stamp = timezone.now()
+            arriving_status = StaffAttendanceStatus.HALF_DAY if half_day_leave else StaffAttendanceStatus.PRESENT
 
             if row is None:
-                row = StaffAttendance.objects.create(
-                    school_id=school_id, staff_profile_id=profile.id, attendance_date=today,
-                    status=StaffAttendanceStatus.PRESENT, check_in=at, marked_by_id=actor.id,
-                    created_at=stamp, updated_at=stamp,
-                )
+                try:
+                    # Its own savepoint: a second phone that created the row a
+                    # moment ago fails here alone, and is told the truth.
+                    with transaction.atomic():
+                        row = StaffAttendance.objects.create(
+                            school_id=school_id, staff_profile_id=profile.id, attendance_date=today,
+                            status=arriving_status, check_in=at, marked_by_id=actor.id,
+                            created_at=stamp, updated_at=stamp,
+                        )
+                except IntegrityError:
+                    _already_in(StaffAttendance.objects.get(staff_profile_id=profile.id, attendance_date=today))
                 before = None
             else:
                 # The office marked the day first - absent before they arrived,
                 # or half a day. Being here, provably, makes an absent day a
-                # present one; any other status the office chose stands.
+                # present one; any other status the office chose stands. A
+                # half-day leave's `leave` mark becomes the half day worked.
                 before = {"status": row.status, "check_in": None}
-                if row.status == StaffAttendanceStatus.ABSENT:
-                    row.status = StaffAttendanceStatus.PRESENT
+                if row.status in (StaffAttendanceStatus.ABSENT, StaffAttendanceStatus.LEAVE):
+                    row.status = arriving_status
                 row.check_in = at
                 row.marked_by_id = actor.id
                 row.updated_at = stamp
@@ -237,7 +341,7 @@ class CheckInService:
 
 
     @staticmethod
-    def check_out(actor: User, latitude, longitude, accuracy_m=None) -> dict:
+    def check_out(actor: User, latitude, longitude, accuracy_m=None, is_mocked=False, fix_age_s=None) -> dict:
         profile = profile_of(actor)
         school_id = profile.school_id
         _assert_enabled(school_id)
@@ -255,7 +359,9 @@ class CheckInService:
             if row is None or row.check_in is None:
                 raise CheckInRefused("NOT_CHECKED_IN", "Check in first - there is no arrival to check out from.")
 
-            distance = _assert_place(School.objects.get(pk=school_id), latitude, longitude, accuracy_m, radius)
+            distance = _assert_place(
+                School.objects.get(pk=school_id), latitude, longitude, accuracy_m, radius, is_mocked, fix_age_s
+            )
             at = now.time().replace(second=0, microsecond=0)
             before = {"check_out": working_hours.clock(row.check_out)} if row.check_out else None
 
@@ -272,3 +378,51 @@ class CheckInService:
             )
 
         return CheckInService.today_for(actor)
+
+    @staticmethod
+    def log(actor: User, school_id: int, department_id, date) -> list[dict]:
+        """Every check-in and check-out made from the app on one day, in the
+        order they happened, for the people the actor may see on the staff
+        register (an HOD: their departments). Read from the audit trail, which
+        is where each one is recorded with the distance from school.
+
+        The times are as recorded at the tap. If the office later corrected
+        the register, the register shows the correction; this shows what the
+        phone said, which is what somebody looking into a disputed day needs.
+        """
+        from .services import StaffAttendanceService
+
+        staff = {
+            profile.id: profile
+            for profile in StaffAttendanceService.roster(school_id, department_id, actor)
+        }
+        rows = {
+            row.id: row.staff_profile_id
+            for row in StaffAttendance.objects.filter(
+                school_id=school_id, attendance_date=date, staff_profile_id__in=list(staff)
+            )
+        }
+        entries = AuditLog.objects.filter(
+            school_id=school_id,
+            entity_type="staff_attendance",
+            entity_id__in=list(rows),
+            action__in=("staff_attendance.checked_in", "staff_attendance.checked_out"),
+        ).order_by("created_at", "id")
+
+        events = []
+        for entry in entries:
+            profile = staff[rows[int(entry.entity_id)]]
+            arriving = entry.action == "staff_attendance.checked_in"
+            new = entry.new_values or {}
+            events.append({
+                "id": entry.id,
+                "staff_profile_id": profile.id,
+                "name": profile.user.name,
+                "employee_id": profile.employee_id,
+                "department_name": profile.department.name if profile.department_id else None,
+                "kind": "check_in" if arriving else "check_out",
+                "time": new.get("check_in" if arriving else "check_out"),
+                "distance_m": new.get("distance_m"),
+            })
+
+        return events

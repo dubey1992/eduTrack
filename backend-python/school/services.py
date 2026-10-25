@@ -836,6 +836,11 @@ class StaffAttendanceService:
                     # Marked by a punch rather than by a person: the row
                     # exists and nobody's name is on it (school/punches.py).
                     "marked_by_device": profile.id in existing and existing[profile.id].marked_by_id is None,
+                    # Checked in from the phone by the person themselves, and
+                    # not since corrected by the office (school/check_in.py).
+                    "checked_in_from_app": profile.id in existing
+                    and existing[profile.id].check_in is not None
+                    and existing[profile.id].marked_by_id == profile.user_id,
                     "late": _is_late(
                         mark(existing, profile, "check_in") or _device_time(from_device, profile, "check_in"),
                         late_after,

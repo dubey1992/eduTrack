@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import 'models/check_in_event.dart';
 import 'models/staff_attendance_record.dart';
 import 'models/staff_attendance_register.dart';
 import 'staff_attendance_api.dart';
@@ -14,6 +15,14 @@ class StaffAttendanceRepository {
   StaffAttendanceRepository(this._api);
 
   final StaffAttendanceApi _api;
+
+  Future<List<CheckInEvent>> checkIns({int? schoolId, int? departmentId, required String date}) async {
+    try {
+      return await _api.checkIns(schoolId: schoolId, departmentId: departmentId, date: date);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
 
   Future<StaffAttendanceRegister> register({int? schoolId, int? departmentId, required String date}) async {
     try {

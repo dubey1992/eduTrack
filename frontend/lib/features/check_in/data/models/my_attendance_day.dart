@@ -10,6 +10,7 @@ class MyAttendanceDay {
     required this.radiusMetres,
     required this.isOpen,
     required this.onLeave,
+    this.halfDayLeave = false,
     required this.status,
     required this.checkIn,
     required this.checkOut,
@@ -19,6 +20,7 @@ class MyAttendanceDay {
     required this.canCheckIn,
     required this.canCheckOut,
     required this.blockedReason,
+    this.unfinishedDay,
   });
 
   factory MyAttendanceDay.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,7 @@ class MyAttendanceDay {
       radiusMetres: json['radius_m'] as int,
       isOpen: (json['school_day'] as Map<String, dynamic>)['is_open'] as bool,
       onLeave: json['on_leave'] as bool,
+      halfDayLeave: json['half_day_leave'] as bool? ?? false,
       status: status == null ? null : StaffAttendanceStatus.fromApiValue(status),
       checkIn: json['check_in'] as String?,
       checkOut: json['check_out'] as String?,
@@ -39,6 +42,9 @@ class MyAttendanceDay {
       canCheckIn: json['can_check_in'] as bool,
       canCheckOut: json['can_check_out'] as bool,
       blockedReason: json['blocked_reason'] as String?,
+      unfinishedDay: json['unfinished_day'] == null
+          ? null
+          : UnfinishedDay.fromJson(json['unfinished_day'] as Map<String, dynamic>),
     );
   }
 
@@ -50,6 +56,10 @@ class MyAttendanceDay {
   final int radiusMetres;
   final bool isOpen;
   final bool onLeave;
+
+  /// Approved half-day leave: they check in for the half they work, and the
+  /// day becomes a half day.
+  final bool halfDayLeave;
 
   /// What the register says for today, or null when nothing yet.
   final StaffAttendanceStatus? status;
@@ -71,7 +81,24 @@ class MyAttendanceDay {
   /// Why neither is possible today, in the server's words.
   final String? blockedReason;
 
+  /// A recent day they checked in to and never out of.
+  final UnfinishedDay? unfinishedDay;
+
   /// Nothing for the app to show: the school marks staff in the office, or
   /// the day is one Today already explains (closed, or on leave).
   bool get hidden => !enabled || !isOpen || onLeave;
+}
+
+/// A day somebody checked in to from the app and never checked out of. The
+/// leaving time is not knowable the next day, so the office adds it.
+class UnfinishedDay {
+  const UnfinishedDay({required this.date, required this.checkIn});
+
+  factory UnfinishedDay.fromJson(Map<String, dynamic> json) =>
+      UnfinishedDay(date: DateTime.parse(json['date'] as String), checkIn: json['check_in'] as String);
+
+  final DateTime date;
+
+  /// `HH:mm`.
+  final String checkIn;
 }

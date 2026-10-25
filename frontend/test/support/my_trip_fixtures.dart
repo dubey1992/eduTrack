@@ -336,11 +336,37 @@ class FakeLocationSource implements LocationSource {
   @override
   Future<LocationAccess> requestAccess() async => access;
 
+  /// What the next position says about itself.
+  bool mocked = false;
+  Duration fixAge = Duration.zero;
+
+  int appSettingsOpened = 0;
+  int locationSettingsOpened = 0;
+
+  @override
+  Future<bool> openAppSettings() async {
+    appSettingsOpened++;
+    return true;
+  }
+
+  @override
+  Future<bool> openLocationSettings() async {
+    locationSettingsOpened++;
+    return true;
+  }
+
   @override
   Future<DevicePosition> currentPosition() async {
     if (access != LocationAccess.granted) throw LocationUnavailable(access);
     positionsTaken++;
-    return DevicePosition(latitude: 12.97 + positionsTaken / 1000, longitude: 77.59, accuracy: 8, speed: 6.5);
+    return DevicePosition(
+      latitude: 12.97 + positionsTaken / 1000,
+      longitude: 77.59,
+      accuracy: 8,
+      speed: 6.5,
+      isMocked: mocked,
+      takenAt: DateTime.now().subtract(fixAge),
+    );
   }
 
   @override

@@ -22,6 +22,8 @@ class DevicePosition {
     required this.accuracy,
     this.speed,
     this.heading,
+    this.isMocked = false,
+    this.takenAt,
   });
 
   final double latitude;
@@ -31,6 +33,13 @@ class DevicePosition {
   final double accuracy;
   final double? speed;
   final double? heading;
+
+  /// Android's word that another app supplied this position - a "fake GPS"
+  /// app or a test tool - rather than the satellites. Never true on the web.
+  final bool isMocked;
+
+  /// When the device fixed it. A cached fix can be minutes old.
+  final DateTime? takenAt;
 }
 
 /// Thrown when a position cannot be had; [access] says why.
@@ -50,6 +59,14 @@ abstract class LocationSource {
 
   /// The current position. Throws [LocationUnavailable].
   Future<DevicePosition> currentPosition();
+
+  /// Opens this app's page in the phone's settings, where a location
+  /// permission refused for good can be given back. False where there is no
+  /// such page (the web).
+  Future<bool> openAppSettings();
+
+  /// Opens the phone's location settings, to switch location on.
+  Future<bool> openLocationSettings();
 
   /// Positions as the device offers them while a trip runs: no more often
   /// than [interval], and no closer together than [distanceFilterMetres].

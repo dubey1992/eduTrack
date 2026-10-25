@@ -1,9 +1,20 @@
+import 'package:edutrack_app/features/staff_attendance/data/models/check_in_event.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/features/staff_attendance/data/models/staff_attendance_record.dart';
 import 'package:edutrack_app/features/staff_attendance/data/models/staff_attendance_register.dart';
 import 'package:edutrack_app/features/staff_attendance/data/staff_attendance_repository.dart';
 
 class FakeStaffAttendanceRepository implements StaffAttendanceRepository {
+  /// What the day's check-in log says, and a failure to answer with.
+  List<CheckInEvent> checkInEvents = const [];
+  Failure? failCheckInsWith;
+
+  @override
+  Future<List<CheckInEvent>> checkIns({int? schoolId, int? departmentId, required String date}) async {
+    if (failCheckInsWith != null) throw failCheckInsWith!;
+    return checkInEvents;
+  }
+
   // The field is private but tests (a different library) construct this
   // with a named `register:` argument, so it can't be an initializing
   // formal (`this._register`) - that would make the parameter private too.

@@ -60,6 +60,7 @@ MyAttendanceDay attendanceDay({
   bool enabled = true,
   bool isOpen = true,
   bool onLeave = false,
+  bool halfDayLeave = false,
   StaffAttendanceStatus? status,
   String? checkIn,
   String? checkOut,
@@ -67,6 +68,7 @@ MyAttendanceDay attendanceDay({
   String? workingHours,
   bool markedBySomeoneElse = false,
   String? blockedReason,
+  UnfinishedDay? unfinishedDay,
 }) {
   final open = enabled && isOpen && !onLeave && blockedReason == null;
 
@@ -76,6 +78,7 @@ MyAttendanceDay attendanceDay({
     radiusMetres: 100,
     isOpen: isOpen,
     onLeave: onLeave,
+    halfDayLeave: halfDayLeave,
     status: status,
     checkIn: checkIn,
     checkOut: checkOut,
@@ -85,5 +88,6 @@ MyAttendanceDay attendanceDay({
     canCheckIn: open && checkIn == null,
     canCheckOut: open && checkIn != null,
     blockedReason: blockedReason,
+    unfinishedDay: unfinishedDay,
   );
 }

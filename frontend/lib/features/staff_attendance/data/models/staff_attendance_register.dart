@@ -16,6 +16,7 @@ class StaffRosterEntry {
     required this.remarks,
     this.timesFromDevice = false,
     this.markedByDevice = false,
+    this.checkedInFromApp = false,
     this.late = false,
   });
 
@@ -32,6 +33,7 @@ class StaffRosterEntry {
       remarks: json['remarks'] as String?,
       timesFromDevice: json['times_from_device'] as bool? ?? false,
       markedByDevice: json['marked_by_device'] as bool? ?? false,
+      checkedInFromApp: json['checked_in_from_app'] as bool? ?? false,
       late: json['late'] as bool? ?? false,
     );
   }
@@ -55,6 +57,10 @@ class StaffRosterEntry {
   /// exists and nobody's name is on it, which is what the screen says rather
   /// than implying somebody decided it.
   final bool markedByDevice;
+
+  /// The person checked themselves in from the School365ai app, and the
+  /// office has not changed the day since (docs/staff-check-in.md).
+  final bool checkedInFromApp;
 
   /// Checked in after the first period of the school's day. Derived by the
   /// server from the timetable - the same rule the staff report counts by -
@@ -81,6 +87,7 @@ class StaffRosterEntry {
       remarks: remarks ?? this.remarks,
       timesFromDevice: timesFromDevice,
       markedByDevice: markedByDevice,
+      checkedInFromApp: checkedInFromApp,
       late: late,
     );
   }

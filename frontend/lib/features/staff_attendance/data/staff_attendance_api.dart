@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
+import 'models/check_in_event.dart';
 import 'models/staff_attendance_record.dart';
 import 'models/staff_attendance_register.dart';
 
@@ -14,6 +15,18 @@ class StaffAttendanceApi {
   StaffAttendanceApi(this._dio);
 
   final Dio _dio;
+
+  /// The day's check-ins and check-outs from the app.
+  Future<List<CheckInEvent>> checkIns({int? schoolId, int? departmentId, required String date}) async {
+    final response = await _dio.get(
+      '/staff-attendance/check-ins',
+      queryParameters: {'school_id': ?schoolId, 'department_id': ?departmentId, 'date': date},
+    );
+    return [
+      for (final item in (response.data as Map<String, dynamic>)['events'] as List)
+        CheckInEvent.fromJson(item as Map<String, dynamic>),
+    ];
+  }
 
   Future<StaffAttendanceRegister> register({int? schoolId, int? departmentId, required String date}) async {
     final response = await _dio.get(

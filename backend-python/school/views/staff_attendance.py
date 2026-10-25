@@ -134,6 +134,29 @@ def mark(request, correcting: bool) -> Response:
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+def check_in_log(request) -> Response:
+    """The day's app check-ins and check-outs, for whoever may mark the staff
+    register - the web's "App check-ins" list beside it."""
+    payload = request.query_params.dict()
+    form = StaffAttendanceRegisterRequest(data=payload, actor=request.user, context=context_for(request, payload))
+    form.is_valid(raise_exception=True)
+
+    school_id = school_for(request, form)
+
+    authorize(StaffAttendancePolicy.manage(request.user, school_id))
+
+    return Response(
+        {
+            "date": str(form.validated_data["date"]),
+            "events": self_check_in.CheckInService.log(
+                request.user, school_id, form.validated_data.get("department_id"), form.validated_data["date"]
+            ),
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def my_day(request) -> Response:
     return Response(self_check_in.CheckInService.today_for(request.user))
 

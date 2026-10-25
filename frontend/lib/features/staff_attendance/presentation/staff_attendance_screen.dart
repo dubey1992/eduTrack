@@ -7,6 +7,8 @@ import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/horizontal_scroll_table.dart';
+import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../auth/application/school_clock_provider.dart';
 import '../../departments/application/department_picker_provider.dart';
@@ -114,7 +116,7 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          if (ready)
+          if (ready) ...[
             _RegisterView(
               key: ValueKey('$_schoolId-$_departmentId-$_formattedDate'),
               params: StaffAttendanceRegisterParams(
@@ -123,6 +125,15 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
                 date: _formattedDate,
               ),
             ),
+            const SizedBox(height: 20),
+            _CheckInLog(
+              params: StaffAttendanceRegisterParams(
+                schoolId: _schoolId,
+                departmentId: _departmentId,
+                date: _formattedDate,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -388,6 +399,15 @@ class _StaffRosterRowState extends State<_StaffRosterRow> {
                 _DeviceNote(
                   label: 'From the device',
                   tooltip: 'First and last punch on the fingerprint reader. Change them if they are wrong.',
+                )
+              // The person checked themselves in from the School365ai app,
+              // within the school's distance (docs/staff-check-in.md).
+              else if (entry.checkedInFromApp)
+                _DeviceNote(
+                  key: ValueKey('from-app-${entry.staffProfileId}'),
+                  label: 'From the app',
+                  icon: Icons.phone_android,
+                  tooltip: 'Checked in from the School365ai app at school. Change it if it is wrong.',
                 ),
               if (entry.late)
                 Tooltip(
@@ -419,10 +439,11 @@ class _StaffRosterRowState extends State<_StaffRosterRow> {
 
 /// "This came off a reader, not from a person."
 class _DeviceNote extends StatelessWidget {
-  const _DeviceNote({required this.label, required this.tooltip});
+  const _DeviceNote({super.key, required this.label, required this.tooltip, this.icon = Icons.fingerprint});
 
   final String label;
   final String tooltip;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -433,10 +454,99 @@ class _DeviceNote extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.fingerprint, size: 16, color: colour),
+          Icon(icon, size: 16, color: colour),
           const SizedBox(width: 4),
           Text(label, style: TextStyle(color: colour)),
         ],
+      ),
+    );
+  }
+}
+
+/// Every check-in and check-out made from the School365ai app on the chosen
+/// day, in the order they happened (docs/staff-check-in.md). What the phone
+/// recorded at the tap - if the office corrected the day above, this still
+/// shows what the phone said - with how far from school it was.
+class _CheckInLog extends ConsumerWidget {
+  const _CheckInLog({required this.params});
+
+  final StaffAttendanceRegisterParams params;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final log = ref.watch(staffCheckInLogProvider(params));
+    final muted = TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant);
+
+    return Card(
+      key: const Key('check-in-log'),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.phone_android, size: 20),
+                const SizedBox(width: 8),
+                Text('App check-ins', style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('Check-ins and check-outs made from the School365ai app at school, as recorded.', style: muted),
+            const SizedBox(height: 12),
+            log.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (error, _) => Row(
+                children: [
+                  Expanded(child: Text('The app check-ins could not be loaded.', style: muted)),
+                  TextButton(
+                    onPressed: () => ref.invalidate(staffCheckInLogProvider(params)),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+              data: (events) => events.isEmpty
+                  ? Text(
+                      'Nobody has checked in from the app on this day.',
+                      key: const Key('check-in-log-empty'),
+                      style: muted,
+                    )
+                  : HorizontalScrollTable(
+                      child: DataTable(
+                        columns: const [
+                          DataColumn(label: Text('Time')),
+                          DataColumn(label: Text('Name')),
+                          DataColumn(label: Text('Department')),
+                          DataColumn(label: Text('Event')),
+                          DataColumn(label: Text('From school')),
+                        ],
+                        rows: [
+                          for (final event in events)
+                            DataRow(
+                              cells: [
+                                DataCell(
+                                  Text(
+                                    event.time == null ? '-' : formatClock(event.time!),
+                                    key: ValueKey('check-in-event-${event.id}'),
+                                  ),
+                                ),
+                                DataCell(Text('${event.name} (${event.employeeId})')),
+                                DataCell(Text(event.departmentName ?? '-')),
+                                DataCell(
+                                  StatusBadge(
+                                    label: event.isCheckIn ? 'Checked in' : 'Checked out',
+                                    tone: event.isCheckIn ? BadgeTone.success : BadgeTone.neutral,
+                                  ),
+                                ),
+                                DataCell(Text(event.distanceMetres == null ? '-' : '${event.distanceMetres} m')),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

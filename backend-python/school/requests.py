@@ -865,6 +865,10 @@ class CheckInRequest(serializers.Serializer):
     latitude = serializers.FloatField(min_value=-90, max_value=90)
     longitude = serializers.FloatField(min_value=-180, max_value=180)
     accuracy_m = serializers.FloatField(min_value=0, required=False, allow_null=True)
+    # What the phone says about the fix itself: whether another app made it
+    # up, and how many seconds old it is (school/check_in.py).
+    is_mocked = serializers.BooleanField(required=False, default=False)
+    fix_age_s = serializers.FloatField(min_value=0, required=False, allow_null=True)
 
     def __init__(self, *args, **kwargs) -> None:
         if "data" in kwargs:

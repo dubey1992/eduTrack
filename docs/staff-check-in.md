@@ -51,6 +51,53 @@ Attendance is switched off.
   proven arrival; **half day** stays; **leave** refuses the check-in.
 - Approved leave and closed days refuse it too.
 
+## Edge cases (2026-10-25)
+
+Every case the owner asked to be covered, what happens, and where it is
+tested (`test_check_in_api.py`, `test_check_in_edges_api.py`,
+`check_in_card_test.dart`).
+
+| Situation | What happens |
+|---|---|
+| Phone more than the radius from school | Refused with the distance: "You are 474 m from school…" (`OUTSIDE_SCHOOL`). |
+| Location accuracy worse than the radius | Refused, asked to step outside or near a window (`LOCATION_TOO_VAGUE`). |
+| A fake-GPS / mock location app | Refused whatever distance it claims (`LOCATION_MOCKED`). Android reports it; the web never does. |
+| A remembered, out-of-date fix (over 2 minutes) | Refused, asked to wait for it to update (`LOCATION_STALE`). |
+| Location switched off on the phone | Nothing sent; the card offers **Turn on location**. |
+| Location permission refused for good | Nothing sent; the card offers **Open settings**. |
+| No internet | Nothing recorded; the card says so and that the time saved is when it reaches the school. No offline queue: the register's time is the server's. |
+| Phone clock wrong | Irrelevant - every time is the school's clock on the server. |
+| School has no map pin | Check-in unavailable, "ask the office" (`NO_SCHOOL_LOCATION`). |
+| School switched app check-in off, or Staff Attendance off | Card hidden; the Home says attendance is marked in the office (`CHECK_IN_OFF`, `MODULE_DISABLED`). |
+| Holiday or a day the school does not run | Card hidden; refused if called (`ATTENDANCE_ON_HOLIDAY`, `NON_WORKING_DAY`). |
+| Approved full-day leave | Card hidden; refused (`ON_LEAVE`). Pending leave does not count. |
+| Approved **half-day** leave | Allowed; the day becomes a **half day** (approval writes `leave`; check-in turns it into the half worked, which payroll already counts as half present, half leave). |
+| Office marked absent first | Check-in makes it present. |
+| Office marked half day first | Stays a half day; the time is added. |
+| Office marked leave by hand | Refused. |
+| Fingerprint reader checked them in first | Refused, naming the reader and its time. |
+| Second check-in | Refused with the first time (`ALREADY_CHECKED_IN`). |
+| Double tap / two phones at the same moment | One lands; the other is told "already checked in", never a server error. |
+| Check-out before any check-in | Refused (`NOT_CHECKED_IN`). |
+| Accidental check-out tap | The app asks "Check out now?" first. |
+| Checking out again | Allowed after a warning; the last check-out counts. |
+| Check-out from home | Refused like a check-in - same location proof. |
+| Forgot to check out | Not fixable from the app the next day; the card says which day and to ask the office (last 7 days, own check-ins only). |
+| Office corrects the day afterwards | The register shows the correction; the card says the office updated the day; the web log still shows what the phone recorded. |
+| Signed in as somebody with no staff record | The card says check-in is not set up for the account. |
+| Super Admin / Group Admin / bus crew | Told which app or website to use. |
+
+## On the web
+
+- **Staff Attendance register:** a time the person checked in from the app
+  reads **From the app** (phone icon) beside the times, until the office
+  changes the day.
+- **App check-ins** (below the register, same school / department / date):
+  every check-in and check-out made from the app that day, in order - time,
+  name, department, event, and the distance from school. Read from the audit
+  trail (`GET staff-attendance/check-ins`), for whoever may mark the
+  register; an HOD sees their own departments.
+
 ## Settings
 
 Two settings on the Staff Attendance module (`school/modules.py`), on the
@@ -80,11 +127,11 @@ the bus crew's passcode sign-in, background location and navigation).
 - An account with no staff record behind it is told so on the card rather
   than offered a retry that cannot work.
 
-The Android application id stays `com.school365ai.teacher`, and the Gradle
-flavour and `main_teacher.dart` keep their names; only what people see
-changed. An application id is permanent once on Play, so if it should read
-`staff` or match the brand, that is the moment to change it - before the
-first upload.
+The Android application id is **`com.school365ai`** (chosen by the owner
+2026-10-25, before the first Play upload, and permanent from it). The Driver
+app's stays `com.school365ai.app`. The Gradle flavour and `main_teacher.dart`
+keep their first names inside the build only. The web app is untouched by
+the id: it never reads it.
 
 ## Not yet
 

@@ -80,9 +80,12 @@ android {
         }
         create("teacher") {
             dimension = "app"
-            applicationId = "com.school365ai.teacher"
-            // Its own name, icon and the permissions it does *not* ask for
-            // live in src/teacher/, merged over src/main/.
+            // The School365ai app for a school's staff (docs/staff-check-in.md).
+            // Chosen 2026-10-25 before the first upload, and permanent from
+            // it. The flavour keeps its first name, "teacher", inside the
+            // build only. Its name, icon and the permissions it does *not*
+            // ask for live in src/teacher/, merged over src/main/.
+            applicationId = "com.school365ai"
         }
     }
 

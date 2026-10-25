@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/check_in/data/check_in_repository.dart';
+import 'package:edutrack_app/features/check_in/data/models/my_attendance_day.dart';
 import 'package:edutrack_app/features/check_in/presentation/check_in_card.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/staff_attendance/data/models/staff_attendance_status.dart';
@@ -72,6 +73,11 @@ void main() {
     await show(tester, repository);
 
     await tester.tap(find.byKey(const Key('check-out-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('check-out-confirm')), findsOneWidget);
+    expect(find.textContaining('You checked in at 9:05 AM'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('check-out-confirm-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('9:05 AM – 4:05 PM · 7h 0m'), findsOneWidget);
@@ -188,6 +194,136 @@ void main() {
 
     expect(repository.checkIns, 1);
     expect(location.positionsTaken, 1);
+  });
+
+  group('edge cases', () {
+    testWidgets('a check-out can be called off, and then nothing is sent', (tester) async {
+      final repository = FakeCheckInRepository(
+        day: attendanceDay(status: StaffAttendanceStatus.present, checkIn: '09:05'),
+      );
+      await show(tester, repository);
+
+      await tester.tap(find.byKey(const Key('check-out-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('check-out-cancel')));
+      await tester.pumpAndSettle();
+
+      expect(repository.sentFrom, isNull);
+      expect(location.positionsTaken, 0, reason: 'not even the location is asked for');
+      expect(find.text('Checked in at 9:05 AM'), findsOneWidget);
+    });
+
+    testWidgets('checking out again says the time will change', (tester) async {
+      await show(
+        tester,
+        FakeCheckInRepository(
+          day: attendanceDay(status: StaffAttendanceStatus.present, checkIn: '09:05', checkOut: '16:05'),
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('check-out-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Check out again?'), findsOneWidget);
+      expect(find.textContaining('The last check-out is the one that counts'), findsOneWidget);
+    });
+
+    testWidgets('location switched off comes with the button that turns it on', (tester) async {
+      location.access = LocationAccess.serviceOff;
+      await show(tester, FakeCheckInRepository());
+
+      await tester.tap(find.byKey(const Key('check-in-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('check-in-open-settings')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Turn on location'), findsOneWidget);
+      expect(location.locationSettingsOpened, 1);
+      expect(location.appSettingsOpened, 0);
+    });
+
+    testWidgets("location refused for good opens the app's settings", (tester) async {
+      location.access = LocationAccess.deniedForever;
+      await show(tester, FakeCheckInRepository());
+
+      await tester.tap(find.byKey(const Key('check-in-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('check-in-open-settings')));
+      await tester.pumpAndSettle();
+
+      expect(location.appSettingsOpened, 1);
+    });
+
+    testWidgets('a refusal from the server has no settings button to offer', (tester) async {
+      await show(
+        tester,
+        FakeCheckInRepository(
+          refuseWith: const Failure(code: 'OUTSIDE_SCHOOL', message: 'You are 300 m from school.'),
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('check-in-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('check-in-open-settings')), findsNothing);
+    });
+
+    testWidgets('without signal it says that nothing was recorded', (tester) async {
+      await show(tester, FakeCheckInRepository(refuseWith: Failure.network()));
+
+      await tester.tap(find.byKey(const Key('check-in-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('No connection, so nothing was recorded'), findsOneWidget);
+      expect(find.byKey(const Key('check-in-button')), findsOneWidget);
+    });
+
+    testWidgets('the phone tells the server whether the fix is mocked and how old it is', (tester) async {
+      location
+        ..mocked = true
+        ..fixAge = const Duration(seconds: 30);
+      final repository = FakeCheckInRepository();
+      await show(tester, repository);
+
+      await tester.tap(find.byKey(const Key('check-in-button')));
+      await tester.pumpAndSettle();
+
+      expect(repository.sentFrom!.isMocked, isTrue);
+      expect(DateTime.now().difference(repository.sentFrom!.takenAt!).inSeconds, inInclusiveRange(29, 40));
+    });
+
+    testWidgets('half-day leave says so and still offers the check-in', (tester) async {
+      await show(tester, FakeCheckInRepository(day: attendanceDay(halfDayLeave: true)));
+
+      expect(find.text('Half-day leave today'), findsOneWidget);
+      expect(find.byKey(const Key('check-in-button')), findsOneWidget);
+    });
+
+    testWidgets('a day they forgot to check out of is mentioned, with who can fix it', (tester) async {
+      await show(
+        tester,
+        FakeCheckInRepository(
+          day: attendanceDay(
+            unfinishedDay: UnfinishedDay(date: DateTime(2026, 10, 23), checkIn: '08:45'),
+          ),
+        ),
+      );
+
+      expect(find.byKey(const Key('check-in-unfinished')), findsOneWidget);
+      expect(find.textContaining('You did not check out on Fri, Oct 23 (checked in 8:45 AM)'), findsOneWidget);
+    });
+
+    testWidgets('a day the office changed after the check-in says so', (tester) async {
+      await show(
+        tester,
+        FakeCheckInRepository(
+          day: attendanceDay(status: StaffAttendanceStatus.halfDay, checkIn: '09:05', markedBySomeoneElse: true),
+        ),
+      );
+
+      expect(find.byKey(const Key('check-in-office-changed')), findsOneWidget);
+      expect(find.text('Half Day'), findsOneWidget);
+    });
   });
 
   testWidgets('reads in dark mode', (tester) async {

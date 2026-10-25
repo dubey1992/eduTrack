@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/models/check_in_event.dart';
 import '../data/models/staff_attendance_register.dart';
 import '../data/models/staff_attendance_status.dart';
 import '../data/staff_attendance_repository.dart';
@@ -28,6 +29,15 @@ class StaffAttendanceRegisterParams {
   @override
   int get hashCode => Object.hash(schoolId, departmentId, date);
 }
+
+/// The day's check-ins and check-outs from the app, for the same school,
+/// department and date as the register beside them.
+final staffCheckInLogProvider = FutureProvider.autoDispose.family<List<CheckInEvent>, StaffAttendanceRegisterParams>(
+  (ref, params) => ref
+      .read(staffAttendanceRepositoryProvider)
+      .checkIns(schoolId: params.schoolId, departmentId: params.departmentId, date: params.date),
+  retry: (retryCount, error) => null,
+);
 
 final staffAttendanceRegisterProvider = AsyncNotifierProvider.autoDispose
     .family<StaffAttendanceRegisterNotifier, StaffAttendanceRegister, StaffAttendanceRegisterParams>(

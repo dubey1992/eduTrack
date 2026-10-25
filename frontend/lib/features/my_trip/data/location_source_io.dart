@@ -35,6 +35,8 @@ class GeolocatorLocationSource implements LocationSource {
         // The platform reports 0 or less when it does not know.
         speed: position.speed > 0 ? position.speed : null,
         heading: position.heading >= 0 ? position.heading : null,
+        isMocked: position.isMocked,
+        takenAt: position.timestamp,
       );
     } on LocationServiceDisabledException {
       throw const LocationUnavailable(LocationAccess.serviceOff);
@@ -42,6 +44,12 @@ class GeolocatorLocationSource implements LocationSource {
       throw const LocationUnavailable(LocationAccess.denied);
     }
   }
+
+  @override
+  Future<bool> openAppSettings() => Geolocator.openAppSettings();
+
+  @override
+  Future<bool> openLocationSettings() => Geolocator.openLocationSettings();
 
   @override
   Stream<DevicePosition> positions({required Duration interval, required double distanceFilterMetres}) {
