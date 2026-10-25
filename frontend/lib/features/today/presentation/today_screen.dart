@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -9,6 +10,7 @@ import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../check_in/application/check_in_notifier.dart';
 import '../../check_in/presentation/check_in_card.dart';
+import '../../my_register/application/register_queue.dart';
 import '../../staff_leave/data/models/leave_type.dart';
 import '../application/today_notifier.dart';
 import '../data/models/teacher_day.dart';
@@ -20,9 +22,9 @@ import '../data/models/teacher_day.dart';
 /// if they are a class teacher, and what is still owed. Pull down to ask
 /// again - the period under way moves on through the day.
 ///
-/// The register and the report are shown as states only. Taking a register
-/// on the phone is T2 and writing a report is T3; a button that went nowhere
-/// until then would be a promise the app cannot keep.
+/// The class register opens from its card (T2, features/my_register). The
+/// report is shown as a state only: writing one is T3, and a button that
+/// went nowhere until then would be a promise the app cannot keep.
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
@@ -78,7 +80,10 @@ class _DayView extends StatelessWidget {
         else ...[
           if (day.leaveToday != null) ...[_OnLeaveCard(leave: day.leaveToday!), const SizedBox(height: 12)],
           if (day.leaveToday == null) ...[_OwedLine(day: day), const SizedBox(height: 12)],
-          for (final register in day.registers) ...[_RegisterCard(register: register), const SizedBox(height: 12)],
+          for (final register in day.registers) ...[
+            _RegisterCard(register: register, date: day.date),
+            const SizedBox(height: 12),
+          ],
           _SectionTitle(day.periods.isEmpty ? 'Your periods' : 'Your periods (${day.periods.length})'),
           const SizedBox(height: 8),
           if (day.periods.isEmpty)
@@ -270,13 +275,29 @@ class _OwedLine extends StatelessWidget {
   }
 }
 
-class _RegisterCard extends StatelessWidget {
-  const _RegisterCard({required this.register});
+class _RegisterCard extends ConsumerWidget {
+  const _RegisterCard({required this.register, required this.date});
 
   final ClassRegister register;
+  final DateTime date;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final day = apiDate(date);
+    final queue = ref.watch(registerQueueProvider);
+    // What the phone knows comes first: the server cannot know about a
+    // register still waiting on this phone for signal.
+    final waiting = !register.submitted && queue.waitingFor(register.classSectionId, day) != null;
+    final refused = !register.submitted && !waiting && queue.unsentFor(register.classSectionId, day) != null;
+
+    final (label, tone, hint) = register.submitted
+        ? ('Taken', BadgeTone.success, 'Your class register')
+        : waiting
+        ? ('Saved, not sent', BadgeTone.info, 'Sends when there is signal')
+        : refused
+        ? ('Not sent', BadgeTone.danger, 'Tap to see why')
+        : ('Not taken', BadgeTone.warning, 'Tap to take the register');
+
     return Card(
       key: Key('today-register-${register.classSectionId}'),
       child: ListTile(
@@ -284,10 +305,14 @@ class _RegisterCard extends StatelessWidget {
         // The class as the title and what it is beneath: on a phone the badge
         // left "Grade 8 A register" cut short.
         title: Text(register.classSection, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: const Text('Your class register'),
-        trailing: register.submitted
-            ? const StatusBadge(label: 'Taken', tone: BadgeTone.success)
-            : const StatusBadge(label: 'Not taken', tone: BadgeTone.warning),
+        subtitle: Text(hint),
+        trailing: StatusBadge(label: label, tone: tone),
+        onTap: () => context.push(
+          Uri(
+            path: '/register/${register.classSectionId}',
+            queryParameters: {'date': day, 'label': register.classSection},
+          ).toString(),
+        ),
       ),
     );
   }

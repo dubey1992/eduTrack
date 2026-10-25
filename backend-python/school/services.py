@@ -579,14 +579,34 @@ class AttendanceService:
 
     @classmethod
     def submit(cls, section: ClassSection, data: dict, actor: User) -> dict:
-        already = Attendance.objects.filter(
-            class_section_id=section.id, attendance_date=data["attendance_date"]
-        ).exists()
+        existing = list(
+            Attendance.objects.filter(class_section_id=section.id, attendance_date=data["attendance_date"])
+        )
 
-        if already:
+        if existing:
+            # The School365ai app saves a register on the phone and sends it
+            # when it has signal, and may send it again if the answer to the
+            # first send was lost (docs/teacher-app.md, T2). That resend is
+            # the same teacher's same marks, and lands as done - nothing is
+            # written twice and no parent is texted twice. Anything else - a
+            # different set of marks, or a register somebody else took - is
+            # the refusal it always was.
+            if cls.is_resend(existing, data, actor):
+                return {**cls.register(section, data["attendance_date"]), "resent": True}
+
             raise AttendanceAlreadySubmitted("Attendance has already been submitted.")
 
         return cls.save(section, data, actor)
+
+    @staticmethod
+    def is_resend(existing: list, data: dict, actor: User) -> bool:
+        """Whether a second submission is the first one again: every mark
+        already there was put there by this person, and says exactly what
+        this submission says, student for student."""
+        marked = {row.student_id: row.status for row in existing}
+        sent = {record["student_id"]: record["status"] for record in data["records"]}
+
+        return all(row.marked_by_id == actor.id for row in existing) and marked == sent
 
     @classmethod
     def update(cls, section: ClassSection, data: dict, actor: User) -> dict:

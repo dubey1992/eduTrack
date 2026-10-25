@@ -14,12 +14,14 @@ import '../../features/my_inbox/presentation/my_inbox_screen.dart';
 import '../../features/my_leave/presentation/apply_leave_screen.dart';
 import '../../features/my_pay/presentation/my_payslip_detail_screen.dart';
 import '../../features/my_pay/presentation/my_payslips_phone_screen.dart';
+import '../../features/my_register/presentation/register_screen.dart';
 import '../../features/my_leave/presentation/my_leave_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/today/presentation/staff_home_screen.dart';
 import '../../features/today/presentation/today_screen.dart';
 import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
+import '../utils/date_format.dart';
 import '../widgets/teacher_frame.dart';
 
 /// The router the teacher app runs on (docs/teacher-app.md).
@@ -38,6 +40,9 @@ const teacherPaths = {'/today', '/leave', '/leave/apply', '/pay', '/inbox', '/pr
 
 /// A payslip's own screen, `/pay/<id>`.
 final _payslipPath = RegExp(r'^/pay/\d+$');
+
+/// A class register, `/register/<class section id>?date=yyyy-MM-dd&label=...`.
+final _registerPath = RegExp(r'^/register/\d+$');
 
 /// Those who teach a timetable: their home is Today, with periods and
 /// registers. An HOD teaches too, and gets a Department tab in T7.
@@ -108,6 +113,19 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
         path: '/pay/:id',
         builder: (context, state) => MyPayslipDetailScreen(payslipId: int.parse(state.pathParameters['id']!)),
       ),
+      // Over the frame, from the register card on Today. The date comes from
+      // Today, which has it from the server - the phone's own clock is not
+      // the school's.
+      GoRoute(
+        path: '/register/:sectionId',
+        builder: (context, state) => RegisterScreen(
+          registerKey: (
+            sectionId: int.parse(state.pathParameters['sectionId']!),
+            date: state.uri.queryParameters['date'] ?? apiDate(DateTime.now()),
+            label: state.uri.queryParameters['label'] ?? 'Class',
+          ),
+        ),
+      ),
       // Over the frame, from the bell, with a back arrow.
       GoRoute(path: '/inbox', builder: (context, state) => const MyInboxScreen()),
       GoRoute(
@@ -148,7 +166,9 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
         return location == '/change-password' ? null : '/change-password';
       }
 
-      return teacherPaths.contains(location) || _payslipPath.hasMatch(location) ? null : '/today';
+      final known =
+          teacherPaths.contains(location) || _payslipPath.hasMatch(location) || _registerPath.hasMatch(location);
+      return known ? null : '/today';
     },
   );
 });

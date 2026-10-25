@@ -1,3 +1,6 @@
+import 'package:edutrack_app/features/attendance/data/attendance_repository.dart';
+import 'package:edutrack_app/features/attendance/data/models/attendance_register.dart';
+import 'package:edutrack_app/features/my_register/presentation/register_screen.dart';
 import 'package:edutrack_app/features/my_inbox/data/my_inbox_repository.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/maintenance_notifier.dart';
@@ -21,6 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../support/fake_my_inbox_repository.dart';
+import '../../support/fake_attendance_repository.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
 import '../../support/fake_profile_repository.dart';
@@ -28,6 +32,13 @@ import '../../support/fake_check_in_repository.dart';
 import '../../support/fake_today_repository.dart';
 import '../../support/in_memory_key_value_store.dart';
 import '../../support/session_users.dart';
+
+const _grade8A = AttendanceRegister(
+  classSectionId: 81,
+  attendanceDate: '2026-10-26',
+  submitted: false,
+  students: [AttendanceRosterEntry(studentId: 1, name: 'Asha Rao', rollNumber: '1', status: null, remarks: null)],
+);
 
 /// What the teacher app has screens for (docs/teacher-app.md, T0).
 ///
@@ -44,6 +55,7 @@ void main() {
         todayRepositoryProvider.overrideWithValue(FakeTodayRepository()),
         myInboxRepositoryProvider.overrideWithValue(FakeMyInboxRepository()),
         checkInRepositoryProvider.overrideWithValue(FakeCheckInRepository()),
+        attendanceRepositoryProvider.overrideWithValue(FakeAttendanceRepository(register: _grade8A)),
         authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
         if (maintenance) maintenanceProvider.overrideWith(_Down.new),
       ],
@@ -155,6 +167,20 @@ void main() {
     testWidgets('an HOD is a teacher here too', (tester) async {
       await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.hod)));
 
+      expect(find.byType(TodayScreen), findsOneWidget);
+    });
+
+    testWidgets('opens the class register from Today, and comes back', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher)));
+
+      await tester.tap(find.byKey(const Key('today-register-81')));
+      await tester.pumpAndSettle();
+      expect(find.byType(RegisterScreen), findsOneWidget, reason: 'not bounced back to Today');
+      expect(find.text('Grade 8 A register'), findsOneWidget);
+      expect(find.text('Asha Rao'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
       expect(find.byType(TodayScreen), findsOneWidget);
     });
 

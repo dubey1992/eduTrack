@@ -306,7 +306,43 @@ already pinned to the signed-in person. Pull-only until push (T6). Tests:
 
 T4 is complete: leave, pay and messages are in the app.
 
-### Phase T2 — The register, offline-tolerant
+### Phase T2 — The register, offline-tolerant *(built 2026-10-25)*
+
+**As built.** The register card on Today opens `/register/<section>` with
+the date and class name from Today, so the school's date is used, not the
+phone's. The screen shows a tally (Present / Absent / Leave / Not marked),
+**All present** (fills only students not yet marked), a large Present /
+Absent / Leave row per student, and **Submit**. Submit stays shut until
+everyone is marked, then asks with the counts. A day already taken shows
+its marks with **Correct**.
+
+- **Saved first, sent after.** Submit saves the register on the phone
+  (`register.waiting`), then sends it. With no signal it is retried after
+  5, 15, 30, then every 60 seconds, on app resume, and on sign-in. It is
+  read back from the phone after the app is closed. Only the teacher who
+  took a register sends it, so a shared phone never sends one teacher's
+  register under another's sign-in. Sign-out drops the in-memory copy only.
+- **Opening without signal.** Each class list is kept on the phone when
+  opened (names and roll numbers, never marks), so a class opened once with
+  signal can be taken without it. A class never opened says to open it once
+  with signal.
+- **Refusals.** Anything the server refuses other than a lost connection
+  moves the register to "Not sent" with the server's own message, and it is
+  not retried. Taking the register again replaces it.
+- **Corrections need signal.** Parents may already have been told, so a
+  correction is never left waiting on a phone.
+- **No `client_id` column, no migration.** The server recognises a resend
+  instead: the day's rows were all marked by the same person, with exactly
+  the same marks. It answers 201 with `resent: true` and sends no second
+  absence message or audit entry. Anything else is still
+  `ATTENDANCE_ALREADY_SUBMITTED` (409). This covers the one case that
+  matters, an answer lost after the server saved the register.
+- **Today card:** Taken, Saved not sent, Not sent, or Not taken.
+- **Tests:** backend `TheAppSendingItAgain` (5). Flutter: queue (11), sheet
+  (14), screen (12), Today card (3), and the router opening the register
+  and coming back.
+
+**The plan, as written before building:**
 - Phone register: one section, one date (today by default; back-dates only
   as far as the server allows), the class as a list of large rows - name,
   roll number, **Present / Absent / Leave** as big buttons like the bus's

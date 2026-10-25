@@ -541,3 +541,59 @@ class TheDaysThisFileMarks(TestCase):
         nothing else called."""
         self.assertEqual(A_SCHOOL_DAY, _last_wednesday_for(dt.date.today()))
         self.assertEqual(A_SATURDAY, A_SCHOOL_DAY - dt.timedelta(days=4))
+
+
+class TheAppSendingItAgain(AttendanceTest):
+    """The School365ai app saves a register on the phone and sends it when it
+    has signal; if the answer to a send is lost, it sends it again
+    (docs/teacher-app.md, T2). That resend lands as done, once."""
+
+    def setUp(self):
+        super().setUp()
+        self.teacher = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+        self.section.class_teacher = self.teacher
+        self.section.save()
+        self.phone = self.as_user(self.teacher)
+
+    def test_the_same_teachers_same_marks_again_land_as_done(self):
+        first = self.phone.post("/api/v1/attendance", self.marks(AttendanceStatus.ABSENT), format="json")
+        again = self.phone.post("/api/v1/attendance", self.marks(AttendanceStatus.ABSENT), format="json")
+
+        self.assertEqual(201, first.status_code, first.data)
+        self.assertEqual(201, again.status_code, again.data)
+        self.assertTrue(again.data["resent"])
+        self.assertEqual(2, Attendance.objects.count())
+
+    def test_a_resend_texts_no_parent_twice_and_records_nothing_twice(self):
+        from school.models import AuditLog
+
+        self.phone.post("/api/v1/attendance", self.marks(AttendanceStatus.ABSENT), format="json")
+        messages, audits = Message.objects.count(), AuditLog.objects.filter(action="attendance.marked").count()
+
+        self.phone.post("/api/v1/attendance", self.marks(AttendanceStatus.ABSENT), format="json")
+
+        self.assertEqual(messages, Message.objects.count())
+        self.assertEqual(audits, AuditLog.objects.filter(action="attendance.marked").count())
+
+    def test_different_marks_are_still_refused(self):
+        self.phone.post("/api/v1/attendance", self.marks(), format="json")
+
+        response = self.phone.post("/api/v1/attendance", self.marks(AttendanceStatus.ABSENT), format="json")
+
+        self.assertEqual(409, response.status_code)
+        self.assertEqual("ATTENDANCE_ALREADY_SUBMITTED", response.data["code"])
+        self.assertEqual({AttendanceStatus.PRESENT}, set(Attendance.objects.values_list("status", flat=True)))
+
+    def test_somebody_elses_register_is_still_refused_even_with_the_same_marks(self):
+        self.client.post("/api/v1/attendance", self.marks(), format="json")  # the office
+
+        response = self.phone.post("/api/v1/attendance", self.marks(), format="json")
+
+        self.assertEqual(409, response.status_code)
+
+    def test_a_partial_resend_is_not_the_same_register(self):
+        self.phone.post("/api/v1/attendance", self.marks(), format="json")
+        fewer = self.marks()
+        fewer["records"] = fewer["records"][:1]
+
+        self.assertEqual(409, self.phone.post("/api/v1/attendance", fewer, format="json").status_code)

@@ -11,6 +11,7 @@ import '../../mail_settings/application/mail_settings_notifier.dart';
 import '../../maps/data/maps_config.dart';
 import '../../schools/data/school_locations_repository.dart';
 import '../../marketing/application/marketing_draft_notifier.dart';
+import '../../my_register/application/register_queue.dart';
 import '../../my_trip/application/trip_mark_queue.dart';
 import '../../classes/application/school_class_list_notifier.dart';
 import '../../communication/application/inbox_notifier.dart';
@@ -117,6 +118,10 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
   /// the previous session. New feature list providers need to be added here
   /// too, or they'll leak the outgoing user's data into the next session.
   void _resetSessionScopedProviders() {
+    // Registers waiting for signal stay saved on the phone for the teacher
+    // who took them, and go when they next sign in; only the copy in
+    // memory, and its retry timer, end with the session.
+    ref.invalidate(registerQueueProvider);
     ref.invalidate(schoolListNotifierProvider);
     ref.invalidate(userListNotifierProvider);
     ref.invalidate(studentListNotifierProvider);

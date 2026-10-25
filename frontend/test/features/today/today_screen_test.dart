@@ -74,7 +74,7 @@ void main() {
     await pump(tester, FakeTodayRepository());
 
     expect(
-      find.descendant(of: find.byKey(const Key('today-register-81')), matching: find.text('Your class register')),
+      find.descendant(of: find.byKey(const Key('today-register-81')), matching: find.text('Tap to take the register')),
       findsOneWidget,
     );
     expect(

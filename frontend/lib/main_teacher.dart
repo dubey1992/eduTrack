@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/routing/teacher_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/my_register/presentation/register_sender.dart';
 
 /// The app a teacher installs (docs/teacher-app.md).
 ///
@@ -35,8 +36,10 @@ class TeacherApp extends ConsumerWidget {
       // (main_driver.dart): on a phone it claims every long press and
       // leaves selections behind scrolls, and nobody copies text off a
       // register. The Overlay stays so snackbars from pages have a home.
-      builder: (context, child) =>
-          Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+      // RegisterSender sends registers saved on the phone without signal.
+      builder: (context, child) => RegisterSender(
+        child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+      ),
     );
   }
 }

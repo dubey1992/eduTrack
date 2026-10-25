@@ -12,14 +12,17 @@ class FakeAttendanceRepository implements AttendanceRepository {
     this.records = const [],
     this.failSubmitWith,
     this.failRegisterWith,
+    this.failUpdateWith,
   }) : _register = register; // ignore: prefer_initializing_formals
 
   AttendanceRegister? _register;
   List<AttendanceRecord> records;
   Failure? failSubmitWith;
   Failure? failRegisterWith;
+  Failure? failUpdateWith;
 
   int registerCallCount = 0;
+  int submitCallCount = 0;
 
   /// The date the screen actually asked for - which must be the school's
   /// today, not the machine running the test.
@@ -41,6 +44,7 @@ class FakeAttendanceRepository implements AttendanceRepository {
     required String attendanceDate,
     required List<Map<String, dynamic>> records,
   }) async {
+    submitCallCount++;
     if (failSubmitWith != null) throw failSubmitWith!;
     lastSubmitPayload = {'class_section_id': classSectionId, 'attendance_date': attendanceDate, 'records': records};
     _register = AttendanceRegister(
@@ -58,6 +62,7 @@ class FakeAttendanceRepository implements AttendanceRepository {
     required String attendanceDate,
     required List<Map<String, dynamic>> records,
   }) async {
+    if (failUpdateWith != null) throw failUpdateWith!;
     lastUpdatePayload = {'class_section_id': classSectionId, 'attendance_date': attendanceDate, 'records': records};
     _register = AttendanceRegister(
       classSectionId: classSectionId,
