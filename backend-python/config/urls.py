@@ -174,6 +174,7 @@ urlpatterns = [
     path("api/v1/leaves/<int:leave_id>/reject", leave.reject),
     # -- timetable ---------------------------------------------------------
     path("api/v1/timetable", timetable.collection),
+    path("api/v1/timetable/today", timetable.today),
     path("api/v1/timetable/<int:entry_id>", timetable.entry),
     # -- daily teaching reports --------------------------------------------
     path("api/v1/teaching-reports/summary", teaching_reports.summary),

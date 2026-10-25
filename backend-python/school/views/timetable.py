@@ -24,12 +24,24 @@ from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .. import today as my_day
 from ..models import ClassSection, TimetableEntry, User
 from ..policies import TimetableEntryPolicy, authorize
 from ..requests import TimetableGridRequest, UpsertTimetableEntryRequest
 from ..resources import timetable_entry_resource
 from ..scope import SchoolScope
 from ..services import TimetableService
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def today(request) -> Response:
+    """The caller's own day: their periods, what each owes, their class
+    register and their leave (docs/teacher-app.md, T1). Never anybody
+    else's - there is no parameter to ask with."""
+    authorize(TimetableEntryPolicy.view_any(request.user))
+
+    return Response(my_day.day_for(request.user))
 
 
 @api_view(["GET", "POST"])

@@ -179,7 +179,39 @@ DENY), a run on the emulator, and a line in this document.
   the crew's link, teacher and HOD → Today, admin / crew / staff told and
   signed out, the tablet column, the API-down screen.
 
-### Phase T1 — Today
+### Phase T1 — Today *(built 2026-10-25)*
+**As built.** `GET timetable/today` (backend-python/school/today.py) answers
+for the caller only - a `teacher_id` in the query is ignored, and a role
+without the timetable (the bus crew) gets 403. One call returns:
+the school's date and wall clock (`now`, `HH:mm`) on its own timezone;
+`school_day` - open or not, `full`/`half`, the holiday if any; `periods` -
+today's entries of today's shape, earliest first, each `done` / `current` /
+`upcoming` with its report filed or not (and the report's id); `registers` -
+the classes the caller is **class teacher** of this year, submitted or not;
+`leave` - approved leave covering today and this week's; `owed` - reports
+for periods that have started, registers not yet in.
+
+Two corrections to the plan below, both from what the server enforces:
+- **The register is not per period.** Only a section's class teacher may
+  mark it (`ClassSectionPolicy._reaches`), once a day. So it is its own card,
+  not a badge on every period the teacher happens to teach in that class.
+- **The two actions wait for T2 and T3.** The phone register is T2 and the
+  report form T3; until then Today shows the states only. A button that
+  opened nothing would be a promise the app cannot keep.
+
+Nothing is owed on a closed day or while on approved leave; the day is
+still shown on leave. The screen pulls to refresh, keeps the old day on
+screen while the new one loads, and has no automatic retry (its own Retry
+button instead). Tests: `test_today_api.py` (19: order, current, owed only
+once started, filed report, another day's report, the school's clock across
+midnight UTC, last year's grid, register owed/submitted/none, holiday,
+closed weekday, half-day bells, leave today/this week/pending, HOD, the
+ignored `teacher_id`, DENY for a driver, 401), `today_screen_test.dart`
+(14 states incl. dark mode, retry, pull to refresh) and `teacher_day_test.dart`
+(the JSON as the server writes it). Run on the tablet emulator against the
+local API with its clock pinned to a Monday morning.
+
+*The plan, as written before building:*
 - **New API, one endpoint:** `GET timetable/today` (or `my-day`) answering
   for the signed-in teacher: the school's date on its own clock, whether
   it is a working day (holidays.md), each period in order with class,
