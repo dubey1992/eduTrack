@@ -48,6 +48,9 @@ def collection(request) -> Response:
             "staff_profile_id": request.query_params.get("staff_profile_id"),
             "department_id": request.query_params.get("department_id"),
             "status": request.query_params.get("status"),
+            # The School365ai app's "My leave": the caller's own, whatever
+            # else their role lets them see.
+            "mine": request.query_params.get("mine") in ("1", "true"),
         },
     )
 

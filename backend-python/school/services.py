@@ -1124,6 +1124,9 @@ class StaffLeaveService:
 
         leaves = cls.scoped(leaves, actor, filters.get("school_id"))
 
+        if filters.get("mine"):
+            leaves = leaves.filter(staff_profile__user_id=actor.id)
+
         if filters.get("staff_profile_id"):
             leaves = leaves.filter(staff_profile_id=filters["staff_profile_id"])
 

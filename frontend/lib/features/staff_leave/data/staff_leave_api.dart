@@ -33,10 +33,13 @@ class StaffLeaveApi {
     String? status,
     int? page,
     int? perPage,
+    bool mine = false,
   }) async {
     final response = await _dio.get(
       '/leaves',
       queryParameters: {
+        // The caller's own requests only - the app's "My leave".
+        if (mine) 'mine': 1,
         'school_id': ?schoolId,
         'department_id': ?departmentId,
         'status': ?status,

@@ -266,6 +266,20 @@ phone within 100 m of the school's pin, which marks them present
 for every member of a school's staff - teachers on Today, everybody else on
 a check-in Home - with the bus crew kept on the Driver app.
 
+### T4, part 1 — My leave *(built 2026-10-25)*
+A **Leave** tab between Today and Me, for every role the app serves, hidden
+when the school switched leave off. "My leave" lists the person's own
+requests, newest first, with their status and the reviewer's remarks, 20 at a
+time; **Apply for leave** opens a full screen (type, dates, reason). A half
+day is one date - the To field goes. The form checks what it can see; the
+server's notice, overlap and closed-day rules come back as its own sentence
+on the form. A School Admin's own request approves itself, and the message
+says so. The list asks `GET leaves?mine=1` - new on the server, the caller's
+own requests whatever else their role sees. Tests: `MyOwnLeave` in
+`test_leave_api.py`, `my_leave_test.dart` (10).
+
+Still to come in T4: payslips and messages.
+
 ### Phase T2 — The register, offline-tolerant
 - Phone register: one section, one date (today by default; back-dates only
   as far as the server allows), the class as a list of large rows - name,

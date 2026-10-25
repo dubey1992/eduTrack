@@ -522,3 +522,41 @@ class StaffLeaveTest(TestCase):
         )
         self.assertEqual(leave.id, response.data["data"][0]["id"])
         self.assertEqual(1, StaffLeave.objects.count())
+
+
+class MyOwnLeave(StaffLeaveTest):
+    """`mine=1`: the School365ai app's "My leave" - the caller's own requests,
+    whatever else their role lets them see (docs/teacher-app.md, T4)."""
+
+    def ids(self, user, **params):
+        response = self.as_user(user).get("/api/v1/leaves", {"mine": "1", **params})
+        self.assertEqual(200, response.status_code, response.data)
+
+        return sorted(row["id"] for row in response.data["data"])
+
+    def test_an_hod_who_reviews_a_department_sees_only_their_own(self):
+        own = factories.StaffLeaveFactory(staff_profile=self.hod_profile)
+        factories.StaffLeaveFactory(staff_profile=self.teacher_profile)
+
+        self.assertEqual([own.id], self.ids(self.hod))
+
+    def test_an_admin_who_sees_the_school_sees_only_their_own(self):
+        admin_profile = self.employee(self.admin, None)
+        own = factories.StaffLeaveFactory(staff_profile=admin_profile)
+        factories.StaffLeaveFactory(staff_profile=self.teacher_profile)
+
+        self.assertEqual([own.id], self.ids(self.admin))
+
+    def test_without_it_the_list_is_what_it_always_was(self):
+        factories.StaffLeaveFactory(staff_profile=self.hod_profile)
+        factories.StaffLeaveFactory(staff_profile=self.teacher_profile)
+
+        response = self.as_user(self.hod).get("/api/v1/leaves")
+
+        self.assertEqual(2, len(response.data["data"]), "the HOD's department, as before")
+
+    def test_it_combines_with_the_status_filter(self):
+        pending = factories.StaffLeaveFactory(staff_profile=self.teacher_profile, status="pending")
+        factories.StaffLeaveFactory(staff_profile=self.teacher_profile, status="approved")
+
+        self.assertEqual([pending.id], self.ids(self.teacher, status="pending"))

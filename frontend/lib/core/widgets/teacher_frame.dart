@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
+import '../models/module_access.dart';
 import 'app_shell.dart';
 import 'teacher_mark.dart';
 
@@ -16,6 +17,7 @@ import 'teacher_mark.dart';
 /// The places a teacher can be, in the order the bar shows them.
 enum TeacherPlace {
   today('/today', 'Today', Icons.today_outlined, Icons.today),
+  leave('/leave', 'Leave', Icons.event_note_outlined, Icons.event_note),
   profile('/profile', 'Me', Icons.person_outline, Icons.person);
 
   const TeacherPlace(this.path, this.label, this.icon, this.selectedIcon);
@@ -35,6 +37,12 @@ class TeacherFrame extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authNotifierProvider).value;
+    // A school that switched leave off has no Leave tab, rather than one
+    // that opens on "switched off".
+    final places = [
+      for (final candidate in TeacherPlace.values)
+        if (candidate != TeacherPlace.leave || (user?.canView(AppModules.leave) ?? false)) candidate,
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -65,13 +73,13 @@ class TeacherFrame extends ConsumerWidget {
       ),
       bottomNavigationBar: NavigationBar(
         key: const Key('teacher-nav'),
-        selectedIndex: TeacherPlace.values.indexOf(place),
+        selectedIndex: places.indexOf(place).clamp(0, places.length - 1),
         onDestinationSelected: (index) {
-          final chosen = TeacherPlace.values[index];
+          final chosen = places[index];
           if (chosen != place) context.go(chosen.path);
         },
         destinations: [
-          for (final destination in TeacherPlace.values)
+          for (final destination in places)
             NavigationDestination(
               key: Key('teacher-nav-${destination.name}'),
               icon: Icon(destination.icon),

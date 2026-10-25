@@ -26,6 +26,10 @@ class FakeStaffLeaveRepository implements StaffLeaveRepository {
   LeaveStatus applyResultStatus;
 
   Map<String, dynamic>? lastApplyPayload;
+
+  /// Whether the last list() asked for the caller's own requests only.
+  bool? lastListMine;
+  Failure? failListWith;
   int? lastApprovedId;
   int? lastRejectedId;
 
@@ -72,7 +76,10 @@ class FakeStaffLeaveRepository implements StaffLeaveRepository {
     String? status,
     required int page,
     required int perPage,
+    bool mine = false,
   }) async {
+    lastListMine = mine;
+    if (failListWith != null) throw failListWith!;
     return PaginatedResponse(items: leaves, currentPage: page, lastPage: 1, total: leaves.length, perPage: perPage);
   }
 
