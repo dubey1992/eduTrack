@@ -64,8 +64,29 @@ log (`staff_attendance.checked_in` / `checked_out`) keeps the time and how
 far from school the phone was. The Teacher app asks for location only while
 in use, at the tap; background location stays removed from its manifest.
 
+## One app for the school's staff (2026-10-25)
+
+The owner chose one app for everyone who works in the school, named just
+**School365ai** (the Teacher app renamed; the Driver app stays separate for
+the bus crew's passcode sign-in, background location and navigation).
+- Teachers and HODs: Today, with periods, register and reports, check-in on
+  top.
+- Office staff, accountants, transport managers and school admins: their
+  own Home - the school's date and the check-in card, or why there is none
+  today (closed, on leave, marked in the office), and a line that leave,
+  payslips and messages are on the website for now.
+- Bus crew are sent to the Driver app; a Super Admin or Group Admin, who
+  answer for many schools, to the website.
+- An account with no staff record behind it is told so on the card rather
+  than offered a retry that cannot work.
+
+The Android application id stays `com.school365ai.teacher`, and the Gradle
+flavour and `main_teacher.dart` keep their names; only what people see
+changed. An application id is permanent once on Play, so if it should read
+`staff` or match the brand, that is the moment to change it - before the
+first upload.
+
 ## Not yet
 
-- The other roles' home screens in the same app (decision pending: one
-  staff app, the Driver app kept separate).
+- Leave, payslips and messages in the app (T4).
 - A reminder if nobody has checked in by the first bell (needs push, T6).

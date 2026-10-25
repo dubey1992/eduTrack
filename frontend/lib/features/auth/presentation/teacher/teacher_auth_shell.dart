@@ -67,7 +67,7 @@ class TeacherAuthShell extends StatelessWidget {
                                   SizedBox(width: 10),
                                   Flexible(
                                     child: Text(
-                                      'School365ai Teacher',
+                                      'School365ai',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),

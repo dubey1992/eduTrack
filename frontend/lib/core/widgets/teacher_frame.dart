@@ -43,7 +43,7 @@ class TeacherFrame extends ConsumerWidget {
           children: [
             const TeacherMark(size: 34, tile: true),
             const SizedBox(width: 12),
-            Flexible(child: Text(user?.name ?? 'School365ai Teacher', maxLines: 1, overflow: TextOverflow.ellipsis)),
+            Flexible(child: Text(user?.name ?? 'School365ai', maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ),
         actions: [

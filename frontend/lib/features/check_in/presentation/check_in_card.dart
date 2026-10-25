@@ -62,7 +62,13 @@ class _CheckInCardState extends ConsumerState<CheckInCard> {
     return day.when(
       // A line's height while it loads, so Today does not jump when it lands.
       loading: () => const SizedBox(height: 4, child: LinearProgressIndicator()),
-      error: (error, _) => _LoadFailed(onRetry: () => ref.read(checkInProvider.notifier).retry()),
+      error: (error, _) {
+        // An account with no employment record behind it has no day on the
+        // staff register to check in to; retrying will not change that.
+        if (error is Failure && error.code == 'NO_STAFF_RECORD') return const _NoStaffRecord();
+
+        return _LoadFailed(onRetry: () => ref.read(checkInProvider.notifier).retry());
+      },
       data: (day) {
         if (day.hidden) return const SizedBox.shrink();
 
@@ -243,6 +249,22 @@ class _LoadFailed extends StatelessWidget {
         leading: const Icon(Icons.cloud_off_outlined),
         title: const Text('Could not load your check-in'),
         trailing: TextButton(onPressed: onRetry, child: const Text('Retry')),
+      ),
+    );
+  }
+}
+
+class _NoStaffRecord extends StatelessWidget {
+  const _NoStaffRecord();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      key: Key('check-in-no-staff-record'),
+      child: ListTile(
+        leading: Icon(Icons.badge_outlined),
+        title: Text('Check-in is not set up for your account'),
+        subtitle: Text('Your account has no staff record at this school. Ask the office to add one.'),
       ),
     );
   }

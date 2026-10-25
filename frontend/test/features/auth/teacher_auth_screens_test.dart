@@ -124,7 +124,7 @@ void main() {
 
       expect(find.byType(TeacherWelcomeScreen), findsOneWidget);
       expect(find.byType(TeacherMark), findsWidgets);
-      for (final point in ['Today at a glance', 'Nothing slips', "Your school's calendar", 'Only your own day']) {
+      for (final point in ['Check in at school', 'Today at a glance', 'Nothing slips', "Your school's calendar"]) {
         expect(find.text(point), findsOneWidget, reason: point);
       }
 
@@ -245,7 +245,7 @@ void main() {
       expect(find.byType(TodayScreen), findsOneWidget);
     });
 
-    testWidgets('somebody who is not a teacher is told so after signing in', (tester) async {
+    testWidgets('somebody this app is not for is told where to go after signing in', (tester) async {
       await open(tester, FakeAuthRepository());
       await toSignIn(tester);
 
@@ -253,7 +253,8 @@ void main() {
       await tester.enterText(find.byKey(const Key('sign-in-password')), 'Correct-horse-1');
       await tapVisible(tester, find.byKey(const Key('sign-in-submit')));
 
-      expect(find.text('This app is for teachers'), findsOneWidget);
+      // The fake signs in a Super Admin, who answers for every school.
+      expect(find.text('Use the School365ai website'), findsOneWidget);
     });
   });
 

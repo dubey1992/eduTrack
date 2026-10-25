@@ -11,6 +11,7 @@ import '../../features/auth/presentation/teacher_splash_screen.dart';
 import '../widgets/teacher_mark.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/today/presentation/staff_home_screen.dart';
 import '../../features/today/presentation/today_screen.dart';
 import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
@@ -30,9 +31,21 @@ import '../widgets/teacher_frame.dart';
 /// and their tests passed because they never went through the router.
 const teacherPaths = {'/today', '/profile'};
 
-/// The roles this app is for. An HOD teaches too and gets a Department tab
-/// in T7; until then they see the teacher's screens.
+/// Those who teach a timetable: their home is Today, with periods and
+/// registers. An HOD teaches too, and gets a Department tab in T7.
 const teacherRoles = {UserRole.teacher, UserRole.hod};
+
+/// Everybody this app is for: the teachers above and the rest of the
+/// school's own staff, whose home is check-in (docs/staff-check-in.md).
+/// Not the bus crew - their app is the Driver app - and not a Super Admin
+/// or a Group Admin, who answer for many schools from the website.
+const appRoles = {
+  ...teacherRoles,
+  UserRole.staff,
+  UserRole.accountant,
+  UserRole.transportManager,
+  UserRole.schoolAdmin,
+};
 
 /// How long the opening screen is held: long enough for the book to open
 /// and the name to settle, short enough that a teacher is never waiting on
@@ -63,7 +76,14 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/change-password', builder: (context, state) => const TeacherChangePasswordScreen()),
       GoRoute(
         path: '/today',
-        builder: (context, state) => const TeacherFrame(place: TeacherPlace.today, child: TodayScreen()),
+        // One address, two homes: a teacher's day is periods and registers;
+        // everybody else's, here, is arriving and leaving.
+        builder: (context, state) => TeacherFrame(
+          place: TeacherPlace.today,
+          child: teacherRoles.contains(ref.read(authNotifierProvider).value?.role)
+              ? const TodayScreen()
+              : const StaffHomeScreen(),
+        ),
       ),
       GoRoute(
         path: '/profile',
@@ -95,7 +115,7 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
         return teacherSignedOutPaths.contains(location) ? null : '/welcome';
       }
 
-      if (!teacherRoles.contains(user.role)) {
+      if (!appRoles.contains(user.role)) {
         return location == '/not-teacher' ? null : '/not-teacher';
       }
 
@@ -131,12 +151,15 @@ class _AuthRefresh extends ChangeNotifier {
   }
 }
 
-/// Signed in, but not with a teacher's account.
+/// Signed in, but with an account this app is not for: bus crew, who have
+/// the Driver app, or somebody who answers for many schools from the website.
 class _NotTeacherScreen extends ConsumerWidget {
   const _NotTeacherScreen();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final crew = ref.watch(authNotifierProvider).value?.role.isCrew ?? false;
+
     return Scaffold(
       body: Center(
         child: Padding(
@@ -147,14 +170,17 @@ class _NotTeacherScreen extends ConsumerWidget {
               const TeacherMark(size: 72, tile: true),
               const SizedBox(height: 16),
               Text(
-                'This app is for teachers',
+                crew ? 'Use the Driver app' : 'Use the School365ai website',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Your account signs in to the school on the web instead, '
-                'or to the Driver app if you work on a bus.',
+              Text(
+                crew
+                    ? 'Drivers and bus attendants sign in to School365ai Driver, with their mobile number '
+                          'and passcode.'
+                    : 'This app is for the staff of a school. Your account looks after more than one school, '
+                          'which the website is made for.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),

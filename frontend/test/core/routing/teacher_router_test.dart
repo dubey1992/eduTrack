@@ -11,6 +11,7 @@ import 'package:edutrack_app/features/profile/data/profile_repository.dart';
 import 'package:edutrack_app/features/profile/presentation/profile_screen.dart';
 import 'package:edutrack_app/features/check_in/data/check_in_repository.dart';
 import 'package:edutrack_app/features/today/data/today_repository.dart';
+import 'package:edutrack_app/features/today/presentation/staff_home_screen.dart';
 import 'package:edutrack_app/features/today/presentation/today_screen.dart';
 import 'package:edutrack_app/main_teacher.dart';
 import 'package:flutter/material.dart';
@@ -178,17 +179,37 @@ void main() {
       expect(width, lessThanOrEqualTo(640));
     });
 
+    // The rest of the school's staff: their home is check-in, not periods
+    // (docs/staff-check-in.md).
     for (final (role, label) in [
       (UserRole.schoolAdmin, 'a school admin'),
-      (UserRole.busAttendant, 'bus crew'),
       (UserRole.staff, 'office staff'),
+      (UserRole.accountant, 'an accountant'),
+      (UserRole.transportManager, 'a transport manager'),
     ]) {
-      testWidgets('signed in as $label: told this app is for teachers, with a way out', (tester) async {
+      testWidgets('signed in as $label: on their own Home, with check-in and the same two tabs', (tester) async {
+        await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(role)));
+
+        expect(find.byType(StaffHomeScreen), findsOneWidget);
+        expect(find.byType(TodayScreen), findsNothing, reason: 'no periods for somebody without a timetable');
+        expect(find.byKey(const Key('check-in-card')), findsOneWidget);
+        expect(find.byKey(const Key('teacher-nav')), findsOneWidget);
+      });
+    }
+
+    for (final (role, label, title) in [
+      (UserRole.busAttendant, 'bus crew', 'Use the Driver app'),
+      (UserRole.driver, 'a driver', 'Use the Driver app'),
+      (UserRole.groupAdmin, 'a group admin', 'Use the School365ai website'),
+      (UserRole.superAdmin, 'the super admin', 'Use the School365ai website'),
+    ]) {
+      testWidgets('signed in as $label: told where to go instead, with a way out', (tester) async {
         final auth = FakeAuthRepository(sessionOnRestore: sessionUser(role));
         await pump(tester, auth);
 
-        expect(find.text('This app is for teachers'), findsOneWidget);
+        expect(find.text(title), findsOneWidget);
         expect(find.byType(TodayScreen), findsNothing);
+        expect(find.byType(StaffHomeScreen), findsNothing);
 
         await tester.tap(find.byKey(const Key('not-teacher-sign-out')));
         await tester.pumpAndSettle();

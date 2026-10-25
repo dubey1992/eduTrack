@@ -54,8 +54,8 @@ class TeacherWelcomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 12),
                               const Text(
-                                'School365ai Teacher is for teachers and heads of department. '
-                                'Sign in with the email and password you use for your school.',
+                                'For everyone who works at your school. Sign in with the email '
+                                'and password you use for School365ai.',
                                 style: TextStyle(color: Color(0xD9FFFFFF), fontSize: 15.5, height: 1.45),
                               ),
                             ],
@@ -78,9 +78,14 @@ class TeacherWelcomeScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const _Point(
+                              icon: Icons.fingerprint,
+                              title: 'Check in at school',
+                              body: 'Mark your arrival and departure from your phone, at school.',
+                            ),
+                            const _Point(
                               icon: Icons.today_outlined,
                               title: 'Today at a glance',
-                              body: 'Your periods in order, with the one under way marked.',
+                              body: 'For teachers: your periods in order, with the one under way marked.',
                             ),
                             const _Point(
                               icon: Icons.task_alt,
@@ -91,11 +96,6 @@ class TeacherWelcomeScreen extends StatelessWidget {
                               icon: Icons.event_available_outlined,
                               title: "Your school's calendar",
                               body: 'Holidays, half days and your approved leave, without asking the office.',
-                            ),
-                            const _Point(
-                              icon: Icons.lock_outline,
-                              title: 'Only your own day',
-                              body: 'You see your classes and your timetable. Your school decides the rest.',
                             ),
                             const SizedBox(height: 12),
                             SizedBox(

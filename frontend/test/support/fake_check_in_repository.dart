@@ -71,6 +71,7 @@ MyAttendanceDay attendanceDay({
   final open = enabled && isOpen && !onLeave && blockedReason == null;
 
   return MyAttendanceDay(
+    date: DateTime(2026, 10, 26),
     enabled: enabled,
     radiusMetres: 100,
     isOpen: isOpen,

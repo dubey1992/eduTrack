@@ -115,14 +115,14 @@ class _TeacherSplashScreenState extends ConsumerState<TeacherSplashScreen> with 
                                 Text.rich(
                                   TextSpan(
                                     children: [
-                                      const TextSpan(text: 'School365ai '),
+                                      const TextSpan(text: 'School'),
                                       TextSpan(
-                                        text: 'Teacher',
+                                        text: '365ai',
                                         style: TextStyle(color: TeacherBrand.amber.withValues(alpha: 0.95)),
                                       ),
                                     ],
                                   ),
-                                  style: Theme.of(context).textTheme.headlineSmall
+                                  style: Theme.of(context).textTheme.headlineMedium
                                       ?.copyWith(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: -0.2),
                                   textAlign: TextAlign.center,
                                 ),

@@ -259,6 +259,13 @@ and landing like the driver app's, no web sign-in page, and a proper brand.
   non-teacher, reset sent and refused, the temporary-password hold and its
   sign-out, dark mode) and `teacher_mark_test.dart`.
 
+### Staff check-in, and one app for all staff *(built 2026-10-25)*
+Asked by the owner before the register: staff check in and out from the
+phone within 100 m of the school's pin, which marks them present
+(docs/staff-check-in.md). Then, on their word, the app became **School365ai**
+for every member of a school's staff - teachers on Today, everybody else on
+a check-in Home - with the bus crew kept on the Driver app.
+
 ### Phase T2 — The register, offline-tolerant
 - Phone register: one section, one date (today by default; back-dates only
   as far as the server allows), the class as a list of large rows - name,

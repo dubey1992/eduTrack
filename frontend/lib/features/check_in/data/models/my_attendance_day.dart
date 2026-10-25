@@ -5,6 +5,7 @@ import '../../../staff_attendance/data/models/staff_attendance_status.dart';
 /// the register already says.
 class MyAttendanceDay {
   const MyAttendanceDay({
+    required this.date,
     required this.enabled,
     required this.radiusMetres,
     required this.isOpen,
@@ -24,6 +25,7 @@ class MyAttendanceDay {
     final status = json['status'] as String?;
 
     return MyAttendanceDay(
+      date: DateTime.parse(json['date'] as String),
       enabled: json['enabled'] as bool,
       radiusMetres: json['radius_m'] as int,
       isOpen: (json['school_day'] as Map<String, dynamic>)['is_open'] as bool,
@@ -39,6 +41,9 @@ class MyAttendanceDay {
       blockedReason: json['blocked_reason'] as String?,
     );
   }
+
+  /// The school's date, not the phone's.
+  final DateTime date;
 
   /// The school lets staff check in from the app at all.
   final bool enabled;

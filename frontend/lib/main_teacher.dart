@@ -24,7 +24,7 @@ class TeacherApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'School365ai Teacher',
+      title: 'School365ai',
       debugShowCheckedModeBanner: false,
       // The portal's theme in the teacher brand's teal (core/theme/teacher_brand.dart).
       theme: AppTheme.teacherLight(),

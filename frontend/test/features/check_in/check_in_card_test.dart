@@ -147,6 +147,18 @@ void main() {
     });
   }
 
+  testWidgets('an account with no staff record is told so, without a retry that cannot help', (tester) async {
+    await show(
+      tester,
+      FakeCheckInRepository(
+        failLoadWith: const Failure(code: 'NO_STAFF_RECORD', message: 'Checking in is for members of a school.'),
+      ),
+    );
+
+    expect(find.byKey(const Key('check-in-no-staff-record')), findsOneWidget);
+    expect(find.text('Retry'), findsNothing);
+  });
+
   testWidgets('if the day cannot be loaded it offers a retry', (tester) async {
     final repository = FakeCheckInRepository(failLoadWith: Failure.network());
     await show(tester, repository);
