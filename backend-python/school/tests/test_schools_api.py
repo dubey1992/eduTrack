@@ -7,13 +7,14 @@ and the dearest to fix, because unpicking a three-deep tree in production
 means deciding what somebody's records belonged to all along.
 """
 
+from django.core import mail
 from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from school import factories, tokens
+from school import factories, hashing, queue, tokens
 from school.enums import UserRole
-from school.models import EarlyAccessRequest, School
+from school.models import EarlyAccessRequest, School, StaffProfile, User
 
 
 def a_payload(**overrides) -> dict:
@@ -424,3 +425,99 @@ class OnlyThePlatformManagesSchools(SchoolApiTest):
 
     def test_a_signed_out_caller_gets_401(self):
         self.assertEqual(401, APIClient().get("/api/v1/schools").status_code)
+
+
+class TheFirstSchoolAdmin(SchoolApiTest):
+    """Add School can create the school's first School Admin in the same
+    save, so a new school is never left with nobody who can sign in."""
+
+    def with_admin(self, **overrides) -> dict:
+        return a_payload(admin_first_name="Ada", admin_last_name="Obi", **overrides)
+
+    def test_the_admin_is_created_with_the_school_and_emailed_a_link(self):
+        response = self.root.post("/api/v1/schools", self.with_admin(), format="json")
+        queue.work()
+
+        self.assertEqual(201, response.status_code, response.data)
+        admin = User.objects.get(email="head@greenfield.invalid")
+
+        self.assertEqual((UserRole.SCHOOL_ADMIN, response.data["id"]), (admin.role, admin.school_id))
+        self.assertFalse(admin.is_sub_admin, "created by the platform, so the head of the school")
+        self.assertTrue(StaffProfile.objects.filter(user_id=admin.id).exists())
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual(["head@greenfield.invalid"], mail.outbox[0].to)
+        self.assertIn("Set your password", mail.outbox[0].subject)
+
+    def test_the_admin_may_have_an_email_of_their_own(self):
+        response = self.root.post(
+            "/api/v1/schools", self.with_admin(admin_email="Ada.Obi@Greenfield.invalid"), format="json"
+        )
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertTrue(User.objects.filter(email="ada.obi@greenfield.invalid").exists())
+        self.assertFalse(User.objects.filter(email="head@greenfield.invalid").exists())
+
+    def test_a_password_given_is_used_and_no_email_is_sent(self):
+        response = self.root.post(
+            "/api/v1/schools", self.with_admin(admin_password="AGoodPassword2026"), format="json"
+        )
+        queue.work()
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertTrue(hashing.check("AGoodPassword2026", User.objects.get(email="head@greenfield.invalid").password))
+        self.assertEqual([], mail.outbox)
+
+    def test_without_admin_fields_only_the_school_is_created(self):
+        response = self.root.post("/api/v1/schools", a_payload(), format="json")
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertFalse(User.objects.filter(email="head@greenfield.invalid").exists())
+
+    def test_the_admin_needs_both_names(self):
+        response = self.root.post("/api/v1/schools", a_payload(admin_email="ada@greenfield.invalid"), format="json")
+
+        self.assertEqual(422, response.status_code)
+        errors = response.data["details"]["errors"]
+        self.assertIn("admin_first_name", errors)
+        self.assertIn("admin_last_name", errors)
+        self.assertFalse(School.objects.filter(name="Greenfield Academy").exists(), "neither is created")
+
+    def test_an_email_already_signing_in_is_refused_and_nothing_is_created(self):
+        factories.UserFactory(email="head@greenfield.invalid", school=self.school, role=UserRole.TEACHER)
+
+        response = self.root.post("/api/v1/schools", self.with_admin(), format="json")
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("already signs in", response.data["details"]["errors"]["admin_email"][0])
+        self.assertFalse(School.objects.filter(name="Greenfield Academy").exists())
+
+    def test_a_malformed_admin_email_is_refused(self):
+        response = self.root.post("/api/v1/schools", self.with_admin(admin_email="not-an-email"), format="json")
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("admin_email", response.data["details"]["errors"])
+
+    def test_a_weak_admin_password_is_refused(self):
+        response = self.root.post("/api/v1/schools", self.with_admin(admin_password="short1"), format="json")
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("admin_password", response.data["details"]["errors"])
+
+    def test_school_and_admin_errors_are_reported_together(self):
+        factories.SchoolFactory(email="head@greenfield.invalid")
+
+        response = self.root.post("/api/v1/schools", a_payload(admin_first_name="Ada"), format="json")
+
+        self.assertEqual(422, response.status_code)
+        errors = response.data["details"]["errors"]
+        self.assertIn("email", errors)
+        self.assertIn("admin_last_name", errors)
+
+    def test_nobody_but_a_super_admin_creates_one(self):
+        for role in (UserRole.SCHOOL_ADMIN, UserRole.GROUP_ADMIN, UserRole.TEACHER):
+            client = self.as_user(factories.UserFactory(school=self.school, role=role))
+            response = client.post("/api/v1/schools", self.with_admin(), format="json")
+
+            self.assertEqual(403, response.status_code, role)
+
+        self.assertFalse(User.objects.filter(email="head@greenfield.invalid").exists())

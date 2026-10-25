@@ -470,14 +470,21 @@ class SchoolService:
         )
 
     @staticmethod
-    def create(data: dict) -> School:
+    def create(data: dict, admin: dict | None = None, actor: User | None = None) -> School:
+        """The school and, when `admin` is given, its first School Admin -
+        both or neither, so a failure creating the admin never leaves a school
+        that nobody can sign in to."""
         now = timezone.now()
 
-        school = School.objects.create(
-            status=SchoolStatus.ACTIVE, created_at=now, updated_at=now, **data
-        )
+        with transaction.atomic():
+            school = School.objects.create(
+                status=SchoolStatus.ACTIVE, created_at=now, updated_at=now, **data
+            )
 
-        audit.created("schools", school)
+            audit.created("schools", school)
+
+            if admin is not None:
+                UserService.create(actor, {**admin, "role": UserRole.SCHOOL_ADMIN, "school_id": school.id})
 
         return school
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/currency.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/password_field.dart';
 import '../../maps/presentation/location_picker.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
@@ -50,8 +51,32 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
   WorkingWeek _workingDays = WorkingWeek.mondayToFriday();
   int? _parentSchoolId;
 
+  // The school's first School Admin, created in the same save so a new
+  // school is never left with nobody who can sign in to it. On unless
+  // the Super Admin switches it off.
+  bool _createAdmin = true;
+  late final _adminFirstNameController = TextEditingController(text: _firstWord(widget.fromEarlyAccess?.contactName));
+  late final _adminLastNameController = TextEditingController(text: _rest(widget.fromEarlyAccess?.contactName));
+  final _adminEmailController = TextEditingController();
+  final _adminPasswordController = TextEditingController();
+
   bool _isSubmitting = false;
   String? _errorMessage;
+  Map<String, List<String>> _fieldErrors = const {};
+
+  static String _firstWord(String? name) => (name ?? '').trim().split(RegExp(r'\s+')).first;
+
+  static String _rest(String? name) {
+    final words = (name ?? '').trim().split(RegExp(r'\s+'));
+    return words.length > 1 ? words.sublist(1).join(' ') : '';
+  }
+
+  String? _serverError(String field) => _fieldErrors[field]?.first;
+
+  /// Where the set-password email goes: the admin's own address, or the
+  /// school's when none was typed.
+  String get _adminEmail =>
+      _adminEmailController.text.trim().isEmpty ? _emailController.text.trim() : _adminEmailController.text.trim();
 
   @override
   void dispose() {
@@ -66,6 +91,10 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
     _postalCodeController.dispose();
     _latitudeController.dispose();
     _longitudeController.dispose();
+    _adminFirstNameController.dispose();
+    _adminLastNameController.dispose();
+    _adminEmailController.dispose();
+    _adminPasswordController.dispose();
     super.dispose();
   }
 
@@ -75,6 +104,7 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
+      _fieldErrors = const {};
     });
 
     try {
@@ -99,17 +129,117 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
             workingDays: _workingDays,
             latitude: _latitudeController.text.trim().isEmpty ? null : _latitudeController.text.trim(),
             longitude: _longitudeController.text.trim().isEmpty ? null : _longitudeController.text.trim(),
+            adminFirstName: _createAdmin ? _adminFirstNameController.text.trim() : null,
+            adminLastName: _createAdmin ? _adminLastNameController.text.trim() : null,
+            adminEmail: _createAdmin && _adminEmailController.text.trim().isNotEmpty
+                ? _adminEmailController.text.trim()
+                : null,
+            adminPassword: _createAdmin && _adminPasswordController.text.isNotEmpty
+                ? _adminPasswordController.text
+                : null,
           );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School created.')));
+        final message = !_createAdmin
+            ? 'School created.'
+            : _adminPasswordController.text.isEmpty
+            ? 'School and School Admin created. A link to set their password was emailed to $_adminEmail.'
+            : 'School and School Admin created.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
         Navigator.of(context).pop();
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _errorMessage = failure.message);
+      if (mounted) {
+        setState(() {
+          _fieldErrors = failure.validationErrors;
+          final shownByField = _fieldErrors.keys.any((field) => field.startsWith('admin_'));
+          _errorMessage = shownByField ? 'Check the School Admin details below.' : failure.message;
+        });
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  Widget _adminSection(BuildContext context) {
+    final muted = TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(),
+        SwitchListTile(
+          key: const Key('school-create-admin'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Create the School Admin now'),
+          subtitle: Text(
+            'The person who runs this school in the app. They are emailed to set a password.',
+            style: muted,
+          ),
+          value: _createAdmin,
+          onChanged: (value) => setState(() => _createAdmin = value),
+        ),
+        if (_createAdmin) ...[
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextFormField(
+                  key: const Key('school-admin-first-name'),
+                  controller: _adminFirstNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Admin first name',
+                    errorText: _serverError('admin_first_name'),
+                  ),
+                  validator: (v) => _required(v, 'First name'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextFormField(
+                  key: const Key('school-admin-last-name'),
+                  controller: _adminLastNameController,
+                  decoration: InputDecoration(labelText: 'Admin last name', errorText: _serverError('admin_last_name')),
+                  validator: (v) => _required(v, 'Last name'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            key: const Key('school-admin-email'),
+            controller: _adminEmailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              labelText: 'Admin email (optional)',
+              helperText: 'Leave blank to use the school email.',
+              errorText: _serverError('admin_email'),
+            ),
+            validator: (v) {
+              final value = v?.trim() ?? '';
+              return value.isEmpty || value.contains('@') ? null : 'Enter a valid email';
+            },
+          ),
+          const SizedBox(height: 10),
+          PasswordField(
+            key: const Key('school-admin-password'),
+            controller: _adminPasswordController,
+            label: 'Admin password (optional)',
+            helperText: optionalPasswordHint,
+            validator: optionalPasswordProblem,
+          ),
+          if (_serverError('admin_password') != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 12),
+              child: Text(
+                _serverError('admin_password')!,
+                style: TextStyle(color: context.appColors.danger, fontSize: 12),
+              ),
+            ),
+        ],
+      ],
+    );
   }
 
   String? _required(String? value, String label) =>
@@ -223,6 +353,8 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
                   longitude: _longitudeController,
                   child: CoordinatesFields(latitude: _latitudeController, longitude: _longitudeController),
                 ),
+                const SizedBox(height: 16),
+                _adminSection(context),
               ],
             ),
           ),

@@ -372,6 +372,9 @@ void main() {
       expect(find.text('India'), findsOneWidget);
       // The dial code is split back out of the stored number.
       expect(find.text('9876543210'), findsOneWidget);
+      // The person who signed up is who the School Admin will most likely be.
+      expect(find.text('Priya'), findsOneWidget);
+      expect(find.text('Nair'), findsOneWidget);
     });
 
     testWidgets('a plain Add School starts empty', (tester) async {

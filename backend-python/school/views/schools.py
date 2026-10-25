@@ -119,8 +119,9 @@ def store(request) -> Response:
 
     data = dict(form.validated_data)
     early_access_request_id = data.pop("early_access_request_id", None)
+    admin = data.pop("admin", None)
 
-    school = SchoolService.create(data)
+    school = SchoolService.create(data, admin=admin, actor=request.user)
 
     # Closing the loop: the signup request records the school it became, which
     # is the only way "Converted" can be true rather than remembered.

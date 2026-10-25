@@ -96,6 +96,10 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
     required WorkingWeek workingDays,
     String? latitude,
     String? longitude,
+    String? adminFirstName,
+    String? adminLastName,
+    String? adminEmail,
+    String? adminPassword,
   }) async {
     await ref
         .read(schoolRepositoryProvider)
@@ -116,6 +120,10 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
           workingDays: workingDays,
           latitude: latitude,
           longitude: longitude,
+          adminFirstName: adminFirstName,
+          adminLastName: adminLastName,
+          adminEmail: adminEmail,
+          adminPassword: adminPassword,
         );
     _page = 1;
     await refresh();

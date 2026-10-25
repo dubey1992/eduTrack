@@ -8,6 +8,9 @@ import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'fake_pagination.dart';
 
 class FakeSchoolRepository implements SchoolRepository {
+  /// The School Admin the last create() was asked for - null when none.
+  Map<String, String?>? lastCreateAdmin;
+
   FakeSchoolRepository({
     List<School>? schools,
     this.failCreateWith,
@@ -108,7 +111,14 @@ class FakeSchoolRepository implements SchoolRepository {
     required WorkingWeek workingDays,
     String? latitude,
     String? longitude,
+    String? adminFirstName,
+    String? adminLastName,
+    String? adminEmail,
+    String? adminPassword,
   }) async {
+    lastCreateAdmin = adminFirstName == null
+        ? null
+        : {'first_name': adminFirstName, 'last_name': adminLastName, 'email': adminEmail, 'password': adminPassword};
     if (failCreateWith != null) throw failCreateWith!;
 
     final school = School(

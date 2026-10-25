@@ -74,6 +74,10 @@ class SchoolRepository {
     required WorkingWeek workingDays,
     String? latitude,
     String? longitude,
+    String? adminFirstName,
+    String? adminLastName,
+    String? adminEmail,
+    String? adminPassword,
   }) async {
     try {
       return await _api.create({
@@ -93,6 +97,12 @@ class SchoolRepository {
         'working_days': workingDays.apiValue,
         'latitude': latitude,
         'longitude': longitude,
+        // The first School Admin, created in the same save. Left out, only
+        // the school is created; no password means a set-password email.
+        'admin_first_name': ?adminFirstName,
+        'admin_last_name': ?adminLastName,
+        'admin_email': ?adminEmail,
+        'admin_password': ?adminPassword,
       });
     } on DioException catch (e) {
       throw failureFromDioException(e);

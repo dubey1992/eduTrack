@@ -477,17 +477,71 @@ class StoreSchoolRequest(SchoolForm):
         "early_access_request_id", required=False, allow_null=True
     )
 
+    # The school's first School Admin, created in the same save so a new
+    # school is never left with nobody who can sign in to it. All optional:
+    # sending none of them creates the school alone, as before. The email
+    # defaults to the school's own, and with no password the admin is emailed
+    # a link to set one (docs/security.md).
+    admin_first_name = optional_text("admin_first_name", 100)
+    admin_last_name = optional_text("admin_last_name", 100)
+    admin_email = optional_text("admin_email", 255)
+    admin_password = PasswordField("admin_password", required=False, allow_null=True)
+
+    ADMIN_FIELDS = ("admin_first_name", "admin_last_name", "admin_email", "admin_password")
+
     def validate(self, attrs):
-        attrs = super().validate(attrs)
+        errors = {}
+
+        # Every failing field is reported together, the school's and the
+        # admin's alike, rather than the admin's only after the school's pass.
+        try:
+            attrs = super().validate(attrs)
+        except serializers.ValidationError as invalid:
+            errors.update(invalid.detail)
 
         request_id = attrs.get("early_access_request_id")
 
         if request_id is not None and not EarlyAccessRequest.objects.filter(pk=request_id).exists():
-            raise serializers.ValidationError(
-                {"early_access_request_id": [does_not_exist("early_access_request_id")]}
-            )
+            errors["early_access_request_id"] = [does_not_exist("early_access_request_id")]
+
+        admin = self.validate_admin(attrs, errors)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        for field in self.ADMIN_FIELDS:
+            attrs.pop(field, None)
+
+        attrs["admin"] = admin
 
         return attrs
+
+    def validate_admin(self, attrs, errors: dict) -> dict | None:
+        """The admin to create with the school, or None when none was asked
+        for. Problems go into `errors` under the admin_* field names."""
+        if not any(attrs.get(field) for field in self.ADMIN_FIELDS):
+            return None
+
+        for field in ("admin_first_name", "admin_last_name"):
+            if not attrs.get(field):
+                errors[field] = [required(field)]
+
+        typed = attrs.get("admin_email")
+        email = (typed or attrs.get("email") or "").strip().lower()
+
+        if typed and not EMAIL_PATTERN.match(email):
+            errors["admin_email"] = [not_an_email("admin_email")]
+        elif email and User.objects.filter(email=email).exists():
+            errors["admin_email"] = [
+                "An account already signs in with this email. Enter a different email for the School Admin."
+            ]
+
+        return {
+            "first_name": attrs.get("admin_first_name"),
+            "last_name": attrs.get("admin_last_name"),
+            "email": email,
+            "password": attrs.get("admin_password"),
+        }
 
 
 class UpdateSchoolRequest(SchoolForm):
