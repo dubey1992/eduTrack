@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
+import '../../features/auth/data/models/authenticated_user.dart';
 import '../models/module_access.dart';
 import 'app_shell.dart';
 import 'teacher_mark.dart';
@@ -18,6 +19,7 @@ import 'teacher_mark.dart';
 enum TeacherPlace {
   today('/today', 'Today', Icons.today_outlined, Icons.today),
   leave('/leave', 'Leave', Icons.event_note_outlined, Icons.event_note),
+  pay('/pay', 'Pay', Icons.receipt_long_outlined, Icons.receipt_long),
   profile('/profile', 'Me', Icons.person_outline, Icons.person);
 
   const TeacherPlace(this.path, this.label, this.icon, this.selectedIcon);
@@ -27,6 +29,15 @@ enum TeacherPlace {
   final IconData icon;
   final IconData selectedIcon;
 }
+
+/// Whether a tab is there at all: Leave where the school uses leave, Pay
+/// where it runs payroll - every employee reads their own payslips there,
+/// whatever their role's matrix says about the office's payroll screen.
+bool _shows(TeacherPlace place, AuthenticatedUser? user) => switch (place) {
+  TeacherPlace.leave => user?.canView(AppModules.leave) ?? false,
+  TeacherPlace.pay => user?.access.moduleOn(AppModules.payroll) ?? false,
+  _ => true,
+};
 
 class TeacherFrame extends ConsumerWidget {
   const TeacherFrame({super.key, required this.child, required this.place});
@@ -41,7 +52,7 @@ class TeacherFrame extends ConsumerWidget {
     // that opens on "switched off".
     final places = [
       for (final candidate in TeacherPlace.values)
-        if (candidate != TeacherPlace.leave || (user?.canView(AppModules.leave) ?? false)) candidate,
+        if (_shows(candidate, user)) candidate,
     ];
 
     return Scaffold(

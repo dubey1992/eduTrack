@@ -154,6 +154,13 @@ class PayrollApi {
     return response.data ?? const [];
   }
 
+  /// Sends the caller's own finalized payslip PDF to their own inbox - the
+  /// School365ai app's "Email me the PDF". Returns the server's sentence.
+  Future<String> emailMyPayslip(int payslipId) async {
+    final response = await _dio.post('/payroll/my-payslips/$payslipId/email');
+    return (response.data as Map<String, dynamic>)['message'] as String;
+  }
+
   Future<PaginatedResponse<Payslip>> myPayslips({int? page, int? perPage}) async {
     final response = await _dio.get('/payroll/my-payslips', queryParameters: {'page': ?page, 'per_page': ?perPage});
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, Payslip.fromJson);

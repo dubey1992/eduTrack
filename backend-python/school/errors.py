@@ -505,6 +505,17 @@ class PayrollRunLocked(ApiError):
     error_code = "PAYROLL_RUN_LOCKED"
 
 
+class PayslipEmailRefused(ApiError):
+    """An employee's "email me my payslip" that cannot be sent: no real
+    address on the account, or one sent a moment ago. 422, a code per reason."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.error_code = code
+
+
 class PayrollRunNotFinalized(ApiError):
     """Money leaves the school only against a finalized run."""
 

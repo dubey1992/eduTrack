@@ -10,22 +10,25 @@ record in this API: the id exists, and it is not theirs.
 
 from __future__ import annotations
 
+import datetime as dt
+
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..enums import PayrollRunStatus, PayslipLineSource
-from ..errors import PayrollRunNotFinalized
+from ..errors import PayrollRunNotFinalized, PayslipEmailRefused
 from ..models import PayrollRun, Payslip, PayslipLine, School, StaffProfile
 from ..pagination import LaravelPagination
 from ..payroll import payslips
 from ..payroll.requests import AdjustmentRequest, GeneratePayrollRunRequest, PayRequest, SaveSalaryRequest
 from ..payroll.resources import employee_salary_resource, payslip_resource, run_resource
-from ..payroll.service import PayrollRunService, PayslipService, SalaryService, school_today
+from ..payroll.service import PayrollRunService, PayslipService, SalaryService, period_label, school_today
 from ..policies import PayrollPolicy, authorize
 
 
@@ -266,6 +269,60 @@ def my_payslips(request) -> Response:
     page = paginator.paginate_queryset(PayslipService.mine(request.user), request)
 
     return paginator.get_paginated_response([payslip_resource(slip) for slip in page])
+
+
+# How soon the same payslip may be emailed to its owner again.
+EMAIL_ME_AGAIN_AFTER = dt.timedelta(minutes=2)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def email_my_payslip(request, payslip_id: int) -> Response:
+    """Sends an employee their own payslip PDF, from the School365ai app
+    (docs/teacher-app.md, T4) - the phone has no file to save, the inbox
+    does. Their own and finalized only: anybody else's, or a draft, is
+    "not found", because it is not theirs to know about."""
+    slip = get_object_or_404(
+        PayslipService.mine(request.user).select_related("staff_profile__user"), pk=payslip_id
+    )
+    user = slip.staff_profile.user
+
+    from ..attendants import is_placeholder_email
+
+    if not user.email or is_placeholder_email(user.email):
+        raise PayslipEmailRefused(
+            "NO_EMAIL", "Your account has no email address to send it to. Ask the office to add one."
+        )
+
+    # Sent a moment ago - or asked for and still waiting in the queue, which
+    # sends a minute later; two taps must not become two emails.
+    from ..models import QueuedJob
+    from ..payroll.service import SEND_PAYSLIP
+
+    # The payload column is `json`, not `jsonb` (Laravel made the table), so
+    # the database cannot look inside it; the waiting emails are few.
+    waiting = any(
+        (payload or {}).get("payslip_id") == slip.id
+        for payload in QueuedJob.objects.filter(name=SEND_PAYSLIP, reserved_at__isnull=True).values_list(
+            "payload", flat=True
+        )
+    )
+
+    if waiting:
+        raise PayslipEmailRefused(
+            "EMAILED_RECENTLY", "This payslip is already on its way to your inbox. It arrives within a few minutes."
+        )
+
+    if slip.emailed_at is not None and timezone.now() - slip.emailed_at < EMAIL_ME_AGAIN_AFTER:
+        raise PayslipEmailRefused(
+            "EMAILED_RECENTLY", "This payslip was emailed to you a moment ago. Check your inbox and spam folder."
+        )
+
+    PayslipService.send(slip)
+
+    month = period_label(slip.payroll_run.year, slip.payroll_run.month)
+
+    return Response({"message": f"Your payslip for {month} is on its way to {user.email}.", "email": user.email})
 
 
 # -- helpers ------------------------------------------------------------------

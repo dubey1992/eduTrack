@@ -11,6 +11,8 @@ import '../../features/auth/presentation/teacher_splash_screen.dart';
 import '../widgets/teacher_mark.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/my_leave/presentation/apply_leave_screen.dart';
+import '../../features/my_pay/presentation/my_payslip_detail_screen.dart';
+import '../../features/my_pay/presentation/my_payslips_phone_screen.dart';
 import '../../features/my_leave/presentation/my_leave_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/today/presentation/staff_home_screen.dart';
@@ -31,7 +33,10 @@ import '../widgets/teacher_frame.dart';
 /// routes for the reason the driver router keeps one: a redirect written as
 /// "anything else goes home" bounced screens that were pushed from home,
 /// and their tests passed because they never went through the router.
-const teacherPaths = {'/today', '/leave', '/leave/apply', '/profile'};
+const teacherPaths = {'/today', '/leave', '/leave/apply', '/pay', '/profile'};
+
+/// A payslip's own screen, `/pay/<id>`.
+final _payslipPath = RegExp(r'^/pay/\d+$');
 
 /// Those who teach a timetable: their home is Today, with periods and
 /// registers. An HOD teaches too, and gets a Department tab in T7.
@@ -95,6 +100,14 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
       // the room the keyboard leaves.
       GoRoute(path: '/leave/apply', builder: (context, state) => const ApplyLeaveScreen()),
       GoRoute(
+        path: '/pay',
+        builder: (context, state) => const TeacherFrame(place: TeacherPlace.pay, child: MyPayslipsPhoneScreen()),
+      ),
+      GoRoute(
+        path: '/pay/:id',
+        builder: (context, state) => MyPayslipDetailScreen(payslipId: int.parse(state.pathParameters['id']!)),
+      ),
+      GoRoute(
         path: '/profile',
         builder: (context, state) => const TeacherFrame(place: TeacherPlace.profile, child: ProfileScreen()),
       ),
@@ -132,7 +145,7 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
         return location == '/change-password' ? null : '/change-password';
       }
 
-      return teacherPaths.contains(location) ? null : '/today';
+      return teacherPaths.contains(location) || _payslipPath.hasMatch(location) ? null : '/today';
     },
   );
 });

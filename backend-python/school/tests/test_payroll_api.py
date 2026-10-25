@@ -589,3 +589,98 @@ class AccountantDashboard(PayrollTestCase):
         self.assertEqual(("Finalized", "1", "2"), (after["payroll"]["value"], after["salaries"]["value"], after["unpaid"]["value"]))
         self.assertEqual({"leave", "inbox"} <= set(after), True)
         self.assertEqual(["salaries", "unpaid"], [note["key"] for note in data["attention"]])
+
+
+class EmailMeMyPayslip(PayrollTestCase):
+    """The School365ai app's "Email me the PDF" (docs/teacher-app.md, T4):
+    an employee sends their own finalized payslip to their own inbox."""
+
+    def finalized_slip(self):
+        run = self.draft()
+        self.finalize(run["id"])
+
+        return self.payslip_of(run["id"], self.teacher_profile)
+
+    def email_me(self, slip, user=None):
+        return self.as_user(user or self.teacher).post(f"/api/v1/payroll/my-payslips/{slip.id}/email")
+
+    def test_their_own_finalized_payslip_is_queued_for_their_inbox(self):
+        from school.models import QueuedJob
+
+        slip = self.finalized_slip()
+        # Finalizing queued everybody's payslip email; say it has gone.
+        QueuedJob.objects.filter(name="payslip_email").delete()
+        before = 0
+
+        response = self.email_me(slip)
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertIn("September 2026", response.data["message"])
+        self.assertEqual(self.teacher.email, response.data["email"])
+        self.assertEqual(before + 1, QueuedJob.objects.filter(name="payslip_email").count())
+
+    def test_somebody_elses_payslip_is_not_found(self):
+        slip = self.finalized_slip()
+
+        self.assertEqual(404, self.email_me(slip, user=self.clerk).status_code)
+
+    def test_a_draft_is_not_found_either(self):
+        run = self.draft()
+
+        self.assertEqual(404, self.email_me(self.payslip_of(run["id"], self.teacher_profile)).status_code)
+
+    def test_an_account_without_a_real_address_is_told(self):
+        slip = self.finalized_slip()
+        self.teacher.email = "attendant-0123456789abcdef@no-email.invalid"
+        self.teacher.save()
+
+        response = self.email_me(slip)
+
+        self.assertEqual(422, response.status_code)
+        self.assertEqual("NO_EMAIL", response.data["code"])
+
+    def test_twice_in_a_minute_is_refused(self):
+        slip = self.finalized_slip()
+        Payslip.objects.filter(pk=slip.pk).update(emailed_at=NOW - dt.timedelta(seconds=30))
+
+        response = self.email_me(slip)
+
+        self.assertEqual(422, response.status_code)
+        self.assertEqual("EMAILED_RECENTLY", response.data["code"])
+
+    def test_straight_after_finalizing_it_is_already_on_its_way(self):
+        slip = self.finalized_slip()
+
+        response = self.email_me(slip)
+
+        self.assertEqual("EMAILED_RECENTLY", response.data["code"])
+        self.assertIn("already on its way", response.data["message"])
+
+    def test_two_taps_before_the_queue_runs_send_one_email(self):
+        from school.models import QueuedJob
+
+        slip = self.finalized_slip()
+        QueuedJob.objects.filter(name="payslip_email").delete()
+
+        first = self.email_me(slip)
+        second = self.email_me(slip)
+
+        self.assertEqual(200, first.status_code, first.data)
+        self.assertEqual("EMAILED_RECENTLY", second.data["code"])
+        payloads = QueuedJob.objects.filter(name="payslip_email").values_list("payload", flat=True)
+        self.assertEqual(1, sum(1 for payload in payloads if payload["payslip_id"] == slip.id))
+
+    def test_a_while_later_it_may_be_sent_again(self):
+        from school.models import QueuedJob
+
+        slip = self.finalized_slip()
+        # Finalizing queued everybody's payslip email; this one has gone.
+        QueuedJob.objects.filter(name="payslip_email").delete()
+        Payslip.objects.filter(pk=slip.pk).update(emailed_at=NOW - dt.timedelta(minutes=5))
+
+        self.assertEqual(200, self.email_me(slip).status_code)
+
+    def test_signed_out_is_refused(self):
+        slip = self.finalized_slip()
+
+        self.assertEqual(401, APIClient().post(f"/api/v1/payroll/my-payslips/{slip.id}/email").status_code)

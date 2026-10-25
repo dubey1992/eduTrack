@@ -209,6 +209,7 @@ urlpatterns = [
     path("api/v1/payroll/payslips/<int:payslip_id>/pdf", payroll.payslip_pdf),
     path("api/v1/payroll/payslips/<int:payslip_id>/email", payroll.email_payslip),
     path("api/v1/payroll/my-payslips", payroll.my_payslips),
+    path("api/v1/payroll/my-payslips/<int:payslip_id>/email", payroll.email_my_payslip),
     path("api/v1/reports/student-attendance", reports.student_attendance),
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),

@@ -278,7 +278,23 @@ says so. The list asks `GET leaves?mine=1` - new on the server, the caller's
 own requests whatever else their role sees. Tests: `MyOwnLeave` in
 `test_leave_api.py`, `my_leave_test.dart` (10).
 
-Still to come in T4: payslips and messages.
+### T4, part 2 — My pay *(built 2026-10-25)*
+A **Pay** tab (Today · Leave · Pay · Me), shown where the school runs
+payroll - every employee reads their own payslips, whatever their role's
+matrix says about the office's payroll screen. One card a month, newest
+first: net pay in the school's currency and whether it has been paid. A
+payslip opens on its own screen: net pay, paid on / by, the days (paid,
+absent, half, unmarked - zeros left out), every earning and deduction with
+totals, and any shortfall from unpaid days. **Email me the PDF** - new on the
+server, `POST payroll/my-payslips/{id}/email`: the caller's own finalized
+payslip only (anybody else's, or a draft, is a 404); refused with `NO_EMAIL`
+for an account with no real address, and `EMAILED_RECENTLY` while one is
+still in the queue or was sent in the last two minutes, so two taps never
+become two emails. The phone needs no PDF viewer and no storage permission:
+the inbox keeps the file. Tests: `EmailMeMyPayslip` (9) in
+`test_payroll_api.py`, `my_pay_test.dart` (11).
+
+Still to come in T4: messages.
 
 ### Phase T2 — The register, offline-tolerant
 - Phone register: one section, one date (today by default; back-dates only
