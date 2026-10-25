@@ -31,3 +31,14 @@ String formatIsoDate(String? iso) {
 
 /// yyyy-MM-dd, for the API. Never shown to anyone.
 String apiDate(DateTime date) => _wire.format(date);
+
+/// "09:05" as a person reads it: 9:05 AM.
+///
+/// A fixed pattern rather than the locale's: newer locale data puts a narrow
+/// no-break space before AM, which reads the same and matches nothing.
+String formatClock(String hhmm) {
+  final parts = hhmm.split(':');
+  final moment = DateTime(2000, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
+
+  return DateFormat('h:mm a').format(moment);
+}

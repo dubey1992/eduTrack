@@ -9,6 +9,7 @@ import 'package:edutrack_app/features/auth/presentation/teacher_splash_screen.da
 import 'package:edutrack_app/features/errors/presentation/maintenance_screen.dart';
 import 'package:edutrack_app/features/profile/data/profile_repository.dart';
 import 'package:edutrack_app/features/profile/presentation/profile_screen.dart';
+import 'package:edutrack_app/features/check_in/data/check_in_repository.dart';
 import 'package:edutrack_app/features/today/data/today_repository.dart';
 import 'package:edutrack_app/features/today/presentation/today_screen.dart';
 import 'package:edutrack_app/main_teacher.dart';
@@ -20,6 +21,7 @@ import 'package:go_router/go_router.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
 import '../../support/fake_profile_repository.dart';
+import '../../support/fake_check_in_repository.dart';
 import '../../support/fake_today_repository.dart';
 import '../../support/in_memory_key_value_store.dart';
 import '../../support/session_users.dart';
@@ -37,6 +39,7 @@ void main() {
         keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
         profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
         todayRepositoryProvider.overrideWithValue(FakeTodayRepository()),
+        checkInRepositoryProvider.overrideWithValue(FakeCheckInRepository()),
         authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
         if (maintenance) maintenanceProvider.overrideWith(_Down.new),
       ],

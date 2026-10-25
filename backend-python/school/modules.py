@@ -92,6 +92,17 @@ MODULES: tuple[Module, ...] = (
                 help="How many days back the staff register may still be submitted or corrected.",
                 min=0, max=365,
             ),
+            # Checking in from the phone (docs/staff-check-in.md, decided
+            # 2026-10-25). On by default; the school's map pin is the proof.
+            Setting(
+                "app_check_in", "Staff check in and out from the app", "bool", True,
+                help="Staff mark their own arrival and departure from their phone, at school.",
+            ),
+            Setting(
+                "check_in_radius_m", "Check-in distance from school (metres)", "int", 100,
+                help="How close to the school's map pin a phone must be to check in or out.",
+                min=25, max=1000,
+            ),
         ),
     ),
     Module(

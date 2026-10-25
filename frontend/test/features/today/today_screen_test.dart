@@ -3,6 +3,7 @@ import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/today/data/models/teacher_day.dart';
+import 'package:edutrack_app/features/check_in/data/check_in_repository.dart';
 import 'package:edutrack_app/features/today/data/today_repository.dart';
 import 'package:edutrack_app/features/today/presentation/today_screen.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_check_in_repository.dart';
 import '../../support/fake_today_repository.dart';
 import '../../support/session_users.dart';
 
@@ -20,6 +22,7 @@ void main() {
     return ProviderScope(
       overrides: [
         todayRepositoryProvider.overrideWithValue(today),
+        checkInRepositoryProvider.overrideWithValue(FakeCheckInRepository()),
         authRepositoryProvider.overrideWithValue(
           FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher, name: 'Asha Rao')),
         ),

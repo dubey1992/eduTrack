@@ -164,6 +164,9 @@ urlpatterns = [
     path("api/v1/staff/<int:profile_id>", staff.detail),
     # -- staff attendance --------------------------------------------------
     path("api/v1/staff-attendance/register", staff_attendance.register),
+    path("api/v1/staff-attendance/me", staff_attendance.my_day),
+    path("api/v1/staff-attendance/me/check-in", staff_attendance.check_in),
+    path("api/v1/staff-attendance/me/check-out", staff_attendance.check_out),
     path("api/v1/staff-attendance", staff_attendance.collection),
     # -- leave -------------------------------------------------------------
     # /leaves/summary before /leaves so the stat cards are not read as a

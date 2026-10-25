@@ -25,7 +25,8 @@ from rest_framework.response import Response
 from ..clock import SchoolClock
 from ..pagination import LaravelPagination
 from ..policies import StaffAttendancePolicy, authorize
-from ..requests import MarkStaffAttendanceRequest, StaffAttendanceRegisterRequest
+from .. import check_in as self_check_in
+from ..requests import CheckInRequest, MarkStaffAttendanceRequest, StaffAttendanceRegisterRequest
 from ..resources import staff_attendance_resource
 from ..scope import SchoolScope
 from ..services import StaffAttendanceService
@@ -123,3 +124,33 @@ def mark(request, correcting: bool) -> Response:
         StaffAttendanceService.submit(school_id, form.validated_data, request.user),
         status=status.HTTP_201_CREATED,
     )
+
+
+# -- checking in from the phone (school/check_in.py) ---------------------------
+#
+# Self-service, like applying for leave: no permission in the matrix to hold,
+# only an employment record. Always the caller's own day.
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_day(request) -> Response:
+    return Response(self_check_in.CheckInService.today_for(request.user))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def check_in(request) -> Response:
+    form = CheckInRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
+    return Response(self_check_in.CheckInService.check_in(request.user, **form.validated_data))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def check_out(request) -> Response:
+    form = CheckInRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
+    return Response(self_check_in.CheckInService.check_out(request.user, **form.validated_data))

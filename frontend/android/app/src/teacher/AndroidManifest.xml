@@ -12,8 +12,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove"/>
+    <!-- Location stays, foreground only: checking in reads the phone's
+         position once, at the tap, to confirm the person is at school
+         (docs/staff-check-in.md). Never in the background - that removal
+         is below and stays. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" tools:node="remove"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove"/>

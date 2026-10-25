@@ -7,6 +7,8 @@ import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../check_in/application/check_in_notifier.dart';
+import '../../check_in/presentation/check_in_card.dart';
 import '../../staff_leave/data/models/leave_type.dart';
 import '../application/today_notifier.dart';
 import '../data/models/teacher_day.dart';
@@ -30,7 +32,9 @@ class TodayScreen extends ConsumerWidget {
 
     return RefreshIndicator(
       key: const Key('today-refresh'),
-      onRefresh: () => ref.read(todayProvider.notifier).refresh(),
+      // The check-in card asks its own endpoint; a pull refreshes both.
+      onRefresh: () =>
+          Future.wait([ref.read(todayProvider.notifier).refresh(), ref.read(checkInProvider.notifier).refresh()]),
       child: day.hasValue
           ? _DayView(day: day.requireValue)
           // The spinner and the error still sit in a scrollable, so a pull
@@ -64,6 +68,11 @@ class _DayView extends StatelessWidget {
       children: [
         _Greeting(date: day.date, isHalfDay: day.isOpen && day.isHalfDay),
         const SizedBox(height: 16),
+        // First thing in the day, before the register and the periods.
+        // It hides itself on a closed day, on leave, and where the school
+        // marks staff in the office.
+        const CheckInCard(),
+        const SizedBox(height: 12),
         if (!day.isOpen)
           _ClosedCard(holidayName: day.holidayName)
         else ...[
@@ -86,14 +95,7 @@ class _DayView extends StatelessWidget {
   }
 }
 
-String _time(String hhmm) {
-  final parts = hhmm.split(':');
-  final moment = DateTime(2000, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
-
-  // A fixed pattern rather than the locale's: newer locale data puts a
-  // narrow no-break space before AM, which reads the same and matches nothing.
-  return DateFormat('h:mm a').format(moment);
-}
+String _time(String hhmm) => formatClock(hhmm);
 
 String _leaveLabel(String apiValue) {
   for (final type in LeaveType.values) {

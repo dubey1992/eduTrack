@@ -855,6 +855,24 @@ class StaffAttendanceScopedRequest(ScopedSerializer):
             errors["department_id"] = [does_not_exist("department_id")]
 
 
+class CheckInRequest(serializers.Serializer):
+    """Where the phone is, for a check-in or check-out (school/check_in.py).
+
+    Both coordinates are required - there is no checking in from nowhere -
+    and the accuracy, when the phone gives one, is how sure it is.
+    """
+
+    latitude = serializers.FloatField(min_value=-90, max_value=90)
+    longitude = serializers.FloatField(min_value=-180, max_value=180)
+    accuracy_m = serializers.FloatField(min_value=0, required=False, allow_null=True)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+
 class StaffAttendanceRegisterRequest(StaffAttendanceScopedRequest):
     date = SchoolDateField("date")
 
