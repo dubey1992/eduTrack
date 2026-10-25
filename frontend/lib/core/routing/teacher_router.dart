@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
-import '../../features/auth/presentation/forgot_password_screen.dart';
-import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/teacher/teacher_change_password_screen.dart';
+import '../../features/auth/presentation/teacher/teacher_forgot_password_screen.dart';
+import '../../features/auth/presentation/teacher/teacher_sign_in_screen.dart';
+import '../../features/auth/presentation/teacher/teacher_welcome_screen.dart';
 import '../../features/auth/presentation/teacher_splash_screen.dart';
+import '../widgets/teacher_mark.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/today/presentation/today_screen.dart';
@@ -31,10 +34,14 @@ const teacherPaths = {'/today', '/profile'};
 /// in T7; until then they see the teacher's screens.
 const teacherRoles = {UserRole.teacher, UserRole.hod};
 
-/// How long the opening screen is held. Shorter than the driver's, whose
-/// splash is a scene; this one is a mark and a line, and a beat is only so
-/// the app opens rather than appears.
-const teacherOpeningBeat = Duration(milliseconds: 900);
+/// How long the opening screen is held: long enough for the book to open
+/// and the name to settle, short enough that a teacher is never waiting on
+/// an animation.
+const teacherOpeningBeat = Duration(milliseconds: 1400);
+
+/// Where a signed-out teacher may be. All four are the app's own phone
+/// screens; none is the web portal's.
+const teacherSignedOutPaths = {'/welcome', '/login', '/forgot-password'};
 
 final teacherOpeningBeatProvider = FutureProvider<void>((ref) => Future<void>.delayed(teacherOpeningBeat));
 
@@ -47,13 +54,13 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     routes: [
       GoRoute(path: '/splash', builder: (context, state) => const TeacherSplashScreen()),
-      // The web's sign-in, which already folds to a phone: email, password,
-      // remember me, forgot password. Without the "bus attendant? sign in
-      // with your mobile" way out - this build has no passcode sign-in to
-      // offer. Named '/login' because the forgot- and reset-password
-      // screens send people back to that address.
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen(offersAttendantSignIn: false)),
-      GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
+      // Signed out: what the app is, then the sign-in. Phone screens of the
+      // app's own, not the portal's two-panel page.
+      GoRoute(path: '/welcome', builder: (context, state) => const TeacherWelcomeScreen()),
+      GoRoute(path: '/login', builder: (context, state) => const TeacherSignInScreen()),
+      GoRoute(path: '/forgot-password', builder: (context, state) => const TeacherForgotPasswordScreen()),
+      // Held here, as on the portal, until a temporary password is replaced.
+      GoRoute(path: '/change-password', builder: (context, state) => const TeacherChangePasswordScreen()),
       GoRoute(
         path: '/today',
         builder: (context, state) => const TeacherFrame(place: TeacherPlace.today, child: TodayScreen()),
@@ -82,14 +89,18 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
 
       final user = auth.value;
 
-      // Signed out: the sign-in is home, and the password reset is the one
-      // other place a signed-out person may be.
+      // Signed out, the welcome is home. Sign-in and the password reset are
+      // reachable from it and stay reachable.
       if (user == null) {
-        return location == '/login' || location == '/forgot-password' ? null : '/login';
+        return teacherSignedOutPaths.contains(location) ? null : '/welcome';
       }
 
       if (!teacherRoles.contains(user.role)) {
         return location == '/not-teacher' ? null : '/not-teacher';
+      }
+
+      if (user.mustChangePassword) {
+        return location == '/change-password' ? null : '/change-password';
       }
 
       return teacherPaths.contains(location) ? null : '/today';
@@ -133,7 +144,7 @@ class _NotTeacherScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.school_outlined, size: 48),
+              const TeacherMark(size: 72, tile: true),
               const SizedBox(height: 16),
               Text(
                 'This app is for teachers',

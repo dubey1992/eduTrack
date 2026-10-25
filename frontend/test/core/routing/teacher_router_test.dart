@@ -3,7 +3,8 @@ import 'package:edutrack_app/core/network/maintenance_notifier.dart';
 import 'package:edutrack_app/core/routing/teacher_router.dart';
 import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
-import 'package:edutrack_app/features/auth/presentation/login_screen.dart';
+import 'package:edutrack_app/core/network/dio_client.dart';
+import 'package:edutrack_app/features/auth/presentation/teacher/teacher_welcome_screen.dart';
 import 'package:edutrack_app/features/auth/presentation/teacher_splash_screen.dart';
 import 'package:edutrack_app/features/errors/presentation/maintenance_screen.dart';
 import 'package:edutrack_app/features/profile/data/profile_repository.dart';
@@ -17,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_auth_token_storage.dart';
 import '../../support/fake_profile_repository.dart';
 import '../../support/fake_today_repository.dart';
 import '../../support/in_memory_key_value_store.dart';
@@ -35,6 +37,7 @@ void main() {
         keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
         profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
         todayRepositoryProvider.overrideWithValue(FakeTodayRepository()),
+        authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
         if (maintenance) maintenanceProvider.overrideWith(_Down.new),
       ],
       child: const TeacherApp(),
@@ -63,7 +66,17 @@ void main() {
 
       expect(
         pathsOf(container),
-        containsAll(['/splash', '/login', '/forgot-password', '/today', '/profile', '/maintenance', '/not-teacher']),
+        containsAll([
+          '/splash',
+          '/welcome',
+          '/login',
+          '/forgot-password',
+          '/change-password',
+          '/today',
+          '/profile',
+          '/maintenance',
+          '/not-teacher',
+        ]),
       );
     });
 
@@ -116,8 +129,8 @@ void main() {
     testWidgets('signed out: on the sign-in, without the bus crew\'s way in', (tester) async {
       await pump(tester, FakeAuthRepository());
 
-      expect(find.byType(LoginScreen), findsOneWidget);
-      expect(find.textContaining('Welcome Back'), findsOneWidget);
+      expect(find.byType(TeacherWelcomeScreen), findsOneWidget);
+      expect(find.textContaining('Welcome to a Smarter School'), findsNothing, reason: "the web's marketing panel");
       expect(find.textContaining('Bus attendant?'), findsNothing);
     });
 
@@ -176,7 +189,7 @@ void main() {
 
         await tester.tap(find.byKey(const Key('not-teacher-sign-out')));
         await tester.pumpAndSettle();
-        expect(find.byType(LoginScreen), findsOneWidget);
+        expect(find.byType(TeacherWelcomeScreen), findsOneWidget);
       });
     }
 

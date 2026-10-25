@@ -70,7 +70,10 @@ void main() {
   testWidgets("shows the class teacher's register and the day's total owed", (tester) async {
     await pump(tester, FakeTodayRepository());
 
-    expect(find.text('Grade 8 A register'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byKey(const Key('today-register-81')), matching: find.text('Your class register')),
+      findsOneWidget,
+    );
     expect(
       find.descendant(of: find.byKey(const Key('today-register-81')), matching: find.text('Not taken')),
       findsOneWidget,

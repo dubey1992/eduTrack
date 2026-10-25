@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The adaptive icon's background: a deep green, so the two apps are
-         told apart on a launcher at a glance - the driver's is blue. -->
+    <!-- The adaptive icon's background: the teacher brand's teal
+         (TeacherBrand.teal), so the two apps are told apart on a launcher
+         at a glance - the driver's is blue. -->
     <color name="ic_launcher_background">#FF0F766E</color>
+    <!-- The window the app opens in: the same teal the Flutter splash
+         paints first (TeacherSplashScreen), in light and dark alike, so a
+         cold start is one colour from the system splash to the app's.
+         Only the launch window; once running, the app's own background. -->
+    <color name="splash_background">#FF0F766E</color>
 </resources>

@@ -279,8 +279,10 @@ class _RegisterCard extends StatelessWidget {
       key: Key('today-register-${register.classSectionId}'),
       child: ListTile(
         leading: const Icon(Icons.fact_check_outlined),
-        title: Text('${register.classSection} register'),
-        subtitle: const Text('Your class'),
+        // The class as the title and what it is beneath: on a phone the badge
+        // left "Grade 8 A register" cut short.
+        title: Text(register.classSection, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: const Text('Your class register'),
         trailing: register.submitted
             ? const StatusBadge(label: 'Taken', tone: BadgeTone.success)
             : const StatusBadge(label: 'Not taken', tone: BadgeTone.warning),
@@ -311,6 +313,7 @@ class _PeriodCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
               width: 76,
@@ -331,11 +334,12 @@ class _PeriodCard extends StatelessWidget {
                     '${period.classSection} · Period ${period.periodNumber}',
                     style: TextStyle(fontSize: 13, color: colors.muted),
                   ),
+                  // Under the class rather than in a column of their own: on a
+                  // phone a third column left the subject a word's width.
+                  _PeriodStatus(period: period),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            _PeriodStatus(period: period),
           ],
         ),
       ),
@@ -358,11 +362,11 @@ class _PeriodStatus extends StatelessWidget {
         const StatusBadge(label: 'Report owed', tone: BadgeTone.warning),
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        for (var i = 0; i < badges.length; i++) ...[if (i > 0) const SizedBox(height: 4), badges[i]],
-      ],
+    if (badges.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(spacing: 6, runSpacing: 6, children: badges),
     );
   }
 }

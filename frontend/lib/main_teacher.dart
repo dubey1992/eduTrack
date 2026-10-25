@@ -26,8 +26,9 @@ class TeacherApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'School365ai Teacher',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      // The portal's theme in the teacher brand's teal (core/theme/teacher_brand.dart).
+      theme: AppTheme.teacherLight(),
+      darkTheme: AppTheme.teacherDark(),
       themeMode: ThemeMode.system,
       routerConfig: ref.watch(teacherRouterProvider),
       // No SelectionArea, for the same reasons the driver app has none

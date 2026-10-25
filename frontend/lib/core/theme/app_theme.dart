@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
+import 'teacher_brand.dart';
 
 /// App theme. Palette is "Slate Monochrome" - near-black/white, high
 /// contrast, almost no brand color - so status badges (green/red/amber)
@@ -52,6 +53,34 @@ class AppTheme {
     brightness: Brightness.dark,
     primary: _darkPrimary,
     primarySoft: _darkPrimarySoft,
+    background: _darkBackground,
+    surface: _darkSurface,
+    text: _darkText,
+    border: _darkBorder,
+    appColors: AppColors.dark,
+  );
+
+  // ---- The Teacher app (docs/teacher-app.md) ----
+  //
+  // The same theme with the teacher brand's teal for its primary, so the
+  // app reads as its own product on a phone while every widget, badge and
+  // spacing stays the portal's. The semantic colours (success, danger,
+  // warning) are unchanged: a "Report owed" means the same thing in both.
+  static ThemeData teacherLight() => _build(
+    brightness: Brightness.light,
+    primary: TeacherBrand.teal,
+    primarySoft: TeacherBrand.mint,
+    background: _lightBackground,
+    surface: _lightSurface,
+    text: _lightText,
+    border: _lightBorder,
+    appColors: AppColors.light,
+  );
+
+  static ThemeData teacherDark() => _build(
+    brightness: Brightness.dark,
+    primary: TeacherBrand.tealBright,
+    primarySoft: TeacherBrand.tealNight,
     background: _darkBackground,
     surface: _darkSurface,
     text: _darkText,

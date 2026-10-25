@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The teacher app's adaptive icon. Like the driver's, plus a monochrome
+  layer: on Android 13 and later a phone set to themed icons tints that one
+  shape to its wallpaper instead of showing a teal square among grey ones.
+  Drawn by scripts/teacher_icon.py.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
+</adaptive-icon>

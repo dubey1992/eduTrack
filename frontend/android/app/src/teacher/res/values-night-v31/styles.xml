@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12's own splash takes its colour from windowSplashScreenBackground.
+  Teal here, so the system splash, the launch window and the first Flutter
+  frame are all the same colour (main/res/values-v31/styles.xml explains why
+  this attribute matters). NormalTheme is unchanged from main.
+-->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>

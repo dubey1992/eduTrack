@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
 import 'app_shell.dart';
+import 'teacher_mark.dart';
 
 /// The frame around the teacher app's screens (docs/teacher-app.md, T0).
 ///
@@ -37,7 +38,14 @@ class TeacherFrame extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(user?.name ?? 'School365ai Teacher'),
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            const TeacherMark(size: 34, tile: true),
+            const SizedBox(width: 12),
+            Flexible(child: Text(user?.name ?? 'School365ai Teacher', maxLines: 1, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
         actions: [
           IconButton(
             key: const Key('teacher-logout'),

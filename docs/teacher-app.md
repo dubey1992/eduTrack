@@ -227,6 +227,38 @@ local API with its clock pinned to a Monday morning.
 - Tests: backend ALLOW (own day) / DENY (another teacher's), holiday,
   non-working day, a period with and without report; widget states.
 
+### T1.1 — The app's own look *(built 2026-10-25)*
+The owner asked for a phone app, not the portal on a phone: its own splash
+and landing like the driver app's, no web sign-in page, and a proper brand.
+- **Brand** (`core/theme/teacher_brand.dart`): classroom teal `#0F766E` to
+  `#115E59`, bookmark amber `#F59E0B` as the one warm note, mint containers;
+  `AppTheme.teacherLight()` / `teacherDark()` are the portal's theme with that
+  primary (bright teal `#2DD4BF` in dark mode). Status colours are unchanged.
+- **Mark** (`core/widgets/teacher_mark.dart`): an open book with an amber
+  ribbon, painted, so it is sharp at every size and can open. The launcher
+  icon is the same drawing (`scripts/teacher_icon.py`, drawn at 8x and scaled
+  down for smooth edges), with a **monochrome layer** for Android 13 themed
+  icons and a rounded legacy icon.
+- **Cold start is one colour.** The teacher flavour's launch window and
+  Android 12's system splash are teal (`res/values-v31`, `drawable/
+  launch_background.xml`), so the system splash hands straight to the Flutter
+  splash: the book opens, the name and "Your school day, in your pocket."
+  follow, with the old six-second "try again".
+- **Signed out**, the app's own screens: `/welcome` (what it does, in four
+  true lines, and how an account is made), `/login` (email and password with
+  the keyboard's email key, autofill, remember-my-email, failures in a banner
+  that stays), `/forgot-password` (the same answer whether or not the address
+  has an account), and `/change-password`, which a teacher with an imported
+  temporary password is now held on, as on the portal - the T0 router let
+  them straight through.
+- Today's period cards put their badges under the class line: at phone width
+  a third column had left "Mathematics" breaking mid-word.
+- Tests: `teacher_auth_screens_test.dart` (19, through the real router:
+  splash, slow splash, welcome, small phone, empty and malformed forms,
+  server refusal, Today after sign-in, remembered email, busy button, a
+  non-teacher, reset sent and refused, the temporary-password hold and its
+  sign-out, dark mode) and `teacher_mark_test.dart`.
+
 ### Phase T2 — The register, offline-tolerant
 - Phone register: one section, one date (today by default; back-dates only
   as far as the server allows), the class as a list of large rows - name,
