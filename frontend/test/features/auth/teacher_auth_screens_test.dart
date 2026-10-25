@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:edutrack_app/features/my_inbox/data/my_inbox_repository.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/dio_client.dart';
@@ -22,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_my_inbox_repository.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
 import '../../support/fake_profile_repository.dart';
@@ -49,6 +51,7 @@ void main() {
         keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
         profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
         todayRepositoryProvider.overrideWithValue(FakeTodayRepository()),
+        myInboxRepositoryProvider.overrideWithValue(FakeMyInboxRepository()),
         checkInRepositoryProvider.overrideWithValue(FakeCheckInRepository()),
       ],
       child: const TeacherApp(),

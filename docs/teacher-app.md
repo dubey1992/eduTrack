@@ -294,7 +294,17 @@ become two emails. The phone needs no PDF viewer and no storage permission:
 the inbox keeps the file. Tests: `EmailMeMyPayslip` (9) in
 `test_payroll_api.py`, `my_pay_test.dart` (11).
 
-Still to come in T4: messages.
+### T4, part 3 — Messages *(built 2026-10-25)*
+A **bell** in the top bar with the unread count - not a fifth tab, which a
+phone's bottom bar has no room for - opens **Messages**: what the school
+sent this person in the app (announcements, leave decisions, alerts), newest
+first, unread ones marked, **All / Unread**, **Mark all read**, older pages.
+Opening one shows it whole in a sheet and marks it read in place; the count
+is read again on the way back. No server change: the inbox endpoints were
+already pinned to the signed-in person. Pull-only until push (T6). Tests:
+`my_inbox_test.dart` (13).
+
+T4 is complete: leave, pay and messages are in the app.
 
 ### Phase T2 — The register, offline-tolerant
 - Phone register: one section, one date (today by default; back-dates only

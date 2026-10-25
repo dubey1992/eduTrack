@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/my_inbox/data/my_inbox_repository.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/maintenance_notifier.dart';
 import 'package:edutrack_app/core/routing/teacher_router.dart';
@@ -19,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../support/fake_my_inbox_repository.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
 import '../../support/fake_profile_repository.dart';
@@ -40,6 +42,7 @@ void main() {
         keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
         profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
         todayRepositoryProvider.overrideWithValue(FakeTodayRepository()),
+        myInboxRepositoryProvider.overrideWithValue(FakeMyInboxRepository()),
         checkInRepositoryProvider.overrideWithValue(FakeCheckInRepository()),
         authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
         if (maintenance) maintenanceProvider.overrideWith(_Down.new),

@@ -10,6 +10,7 @@ import '../../features/auth/presentation/teacher/teacher_welcome_screen.dart';
 import '../../features/auth/presentation/teacher_splash_screen.dart';
 import '../widgets/teacher_mark.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
+import '../../features/my_inbox/presentation/my_inbox_screen.dart';
 import '../../features/my_leave/presentation/apply_leave_screen.dart';
 import '../../features/my_pay/presentation/my_payslip_detail_screen.dart';
 import '../../features/my_pay/presentation/my_payslips_phone_screen.dart';
@@ -33,7 +34,7 @@ import '../widgets/teacher_frame.dart';
 /// routes for the reason the driver router keeps one: a redirect written as
 /// "anything else goes home" bounced screens that were pushed from home,
 /// and their tests passed because they never went through the router.
-const teacherPaths = {'/today', '/leave', '/leave/apply', '/pay', '/profile'};
+const teacherPaths = {'/today', '/leave', '/leave/apply', '/pay', '/inbox', '/profile'};
 
 /// A payslip's own screen, `/pay/<id>`.
 final _payslipPath = RegExp(r'^/pay/\d+$');
@@ -107,6 +108,8 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
         path: '/pay/:id',
         builder: (context, state) => MyPayslipDetailScreen(payslipId: int.parse(state.pathParameters['id']!)),
       ),
+      // Over the frame, from the bell, with a back arrow.
+      GoRoute(path: '/inbox', builder: (context, state) => const MyInboxScreen()),
       GoRoute(
         path: '/profile',
         builder: (context, state) => const TeacherFrame(place: TeacherPlace.profile, child: ProfileScreen()),

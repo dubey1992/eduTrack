@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/my_inbox/data/my_inbox_repository.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/module_access.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
@@ -15,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../support/fake_my_inbox_repository.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_staff_leave_repository.dart';
 import '../../support/session_users.dart';
@@ -70,6 +72,7 @@ void main() {
     return ProviderScope(
       overrides: [
         staffLeaveRepositoryProvider.overrideWithValue(repository),
+        myInboxRepositoryProvider.overrideWithValue(FakeMyInboxRepository()),
         authRepositoryProvider.overrideWithValue(
           FakeAuthRepository(
             sessionOnRestore: sessionUser(

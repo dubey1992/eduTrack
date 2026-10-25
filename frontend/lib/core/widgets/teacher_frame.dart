@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/data/models/authenticated_user.dart';
 import '../models/module_access.dart';
+import '../../features/my_inbox/application/my_inbox_notifier.dart';
 import 'app_shell.dart';
 import 'teacher_mark.dart';
 
@@ -66,6 +67,7 @@ class TeacherFrame extends ConsumerWidget {
           ],
         ),
         actions: [
+          const _InboxBell(),
           IconButton(
             key: const Key('teacher-logout'),
             icon: const Icon(Icons.logout),
@@ -98,6 +100,31 @@ class TeacherFrame extends ConsumerWidget {
               label: destination.label,
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// The bell: the school's messages, with how many are unread. Opens the
+/// inbox over the frame, and reads the count again on the way back.
+class _InboxBell extends ConsumerWidget {
+  const _InboxBell();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(myUnreadCountProvider).value ?? 0;
+
+    return IconButton(
+      key: const Key('teacher-inbox'),
+      tooltip: unread == 0 ? 'Messages' : 'Messages, $unread unread',
+      onPressed: () async {
+        await context.push('/inbox');
+        ref.invalidate(myUnreadCountProvider);
+      },
+      icon: Badge(
+        isLabelVisible: unread > 0,
+        label: Text(unread > 99 ? '99+' : '$unread', key: const Key('teacher-inbox-count')),
+        child: const Icon(Icons.notifications_outlined),
       ),
     );
   }
