@@ -82,7 +82,7 @@ tested (`test_check_in_api.py`, `test_check_in_edges_api.py`,
 | Accidental check-out tap | The app asks "Check out now?" first. |
 | Checking out again | Allowed after a warning; the last check-out counts. |
 | Check-out from home | Refused like a check-in - same location proof. |
-| Forgot to check out | Not fixable from the app the next day; the card says which day and to ask the office (last 7 days, own check-ins only). |
+| Forgot to check out | Closed automatically once the school's own day is over (the hourly `close_open_trips` job, since 2026-10-26): the leaving time becomes the school's closing time - the end of the last period, the half-day bell on a half day - and the register's remarks say "Check-out not recorded - closed at school closing time." for the office to review and correct. Only the person's own check-ins and reader punches from the last 7 days; never a day the office marked, a check-in after the last bell, or a school with no bell schedule - those stay open, and until then the app's card says which day and to ask the office. |
 | Office corrects the day afterwards | The register shows the correction; the card says the office updated the day; the web log still shows what the phone recorded. |
 | Signed in as somebody with no staff record | The card says check-in is not set up for the account. |
 | Super Admin / Group Admin / bus crew | Told which app or website to use. |

@@ -1,4 +1,8 @@
-"""Closes trips nobody ended, and tells the school (docs/driver-app.md).
+"""Closes what nobody closed at the end of a school's day: trips nobody
+ended, and the school is told (docs/driver-app.md); and staff days checked
+into and never out, closed at the school's closing time with a note for the
+office (docs/staff-check-in.md). Both live in one hourly job so the server
+needs no second cron line.
 
     python manage.py close_open_trips
 
@@ -15,14 +19,16 @@ wrong person.
 
 from django.core.management.base import BaseCommand
 
+from school.check_in import close_forgotten_check_outs
 from school.services import TransportTripService
 
 
 class Command(BaseCommand):
-    help = "Close trips still running after their own school's day has ended"
+    help = "Close trips and staff days still open after their own school's day has ended"
 
     def handle(self, *args, **options):
         outcome = TransportTripService.close_left_open()
 
         self.stdout.write(f"closed  : {outcome['closed']}")
         self.stdout.write(f"alerts  : {outcome['alerts']}")
+        self.stdout.write(f"staff days closed : {close_forgotten_check_outs()}")

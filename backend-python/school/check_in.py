@@ -12,6 +12,15 @@ What a check-in does, decided 2026-10-25:
 - **late** is not a status: it is derived on the register from the school's
   first period, exactly as for punches and for the office's own marks.
 
+What the hourly job does with a forgotten check-out (decided 2026-10-26):
+once the person's own school day is over, it records the leaving time as the
+school's closing time - the end of the last period, on a half day the half
+day's - and notes on the register that the time was not recorded, for the
+office to review. Only for a day the person checked in themselves (or a
+reader did), within the last week; a day the office marked is the office's,
+and a day with no bell schedule, or a check-in after the last bell, has no
+closing time to give, so it is left open for the office.
+
 What it refuses, each with its own code so the app can say exactly why:
 a closed day or a holiday, approved leave, a school with no pin on the map,
 a location another app is inventing (a mock location), a fix too old or too
@@ -40,9 +49,10 @@ from __future__ import annotations
 import datetime as dt
 
 from django.db import IntegrityError, transaction
+from django.db.models import Max
 from django.utils import timezone
 
-from . import audit, geo, modules, working_hours
+from . import audit, geo, modules, week, working_hours
 from .clock import SchoolClock
 from .enums import LeaveStatus, LeaveType, StaffAttendanceStatus
 from .errors import ApiError, ModuleDisabled, NoStaffRecord
@@ -56,6 +66,9 @@ STALE_AFTER_S = 120
 
 # How far back a forgotten check-out is still mentioned.
 UNFINISHED_LOOKBACK_DAYS = 7
+
+# What the register says about a day the hourly job closed.
+AUTO_CLOSED_NOTE = "Check-out not recorded - closed at school closing time."
 
 
 class CheckInRefused(ApiError):
@@ -217,6 +230,78 @@ def _unfinished_day(profile: StaffProfile, actor: User, today) -> dict | None:
         return None
 
     return {"date": row.attendance_date.isoformat(), "check_in": working_hours.clock(row.check_in)}
+
+
+def closing_time(school: School, date) -> dt.time | None:
+    """When the school's last bell ends on that date: the end of its last
+    period of the day's shape - a Saturday half day ends earlier. None when
+    the school has no bell schedule for it."""
+    shape = week.WorkingWeek(school.working_days).shape_on(date) or week.FULL_DAY
+
+    return Period.objects.filter(school_id=school.id, day_shape=shape).aggregate(last=Max("end_time"))["last"]
+
+
+def close_forgotten_check_outs(now=None) -> int:
+    """Closes the days somebody checked into and never out, once their own
+    school's day is over, at the school's closing time - with a note on the
+    register for the office to review. Returns how many it closed.
+
+    Run hourly (the close_open_trips command), because every school's
+    midnight is its own.
+    """
+    now = now or timezone.now()
+    closed = 0
+    closing_times: dict[tuple[int, dt.date], dt.time | None] = {}
+
+    # A day either side of the lookback, to be decided per school below.
+    earliest = now.date() - dt.timedelta(days=UNFINISHED_LOOKBACK_DAYS + 1)
+    open_days = StaffAttendance.objects.select_related("school", "staff_profile").filter(
+        attendance_date__gte=earliest, check_in__isnull=False, check_out__isnull=True
+    )
+
+    for row in open_days:
+        clock = SchoolClock.for_school(row.school)
+        today = clock.now().date()
+
+        # Still the day where the school is - they may yet check out - or
+        # longer ago than anybody is still told about.
+        if now < clock.end_of_day_utc(row.attendance_date):
+            continue
+        if row.attendance_date < today - dt.timedelta(days=UNFINISHED_LOOKBACK_DAYS):
+            continue
+
+        # The person's own check-in, or a reader's. A time the office wrote
+        # in is the office's to complete.
+        if row.marked_by_id not in (None, row.staff_profile.user_id):
+            continue
+
+        key = (row.school_id, row.attendance_date)
+        if key not in closing_times:
+            closing_times[key] = closing_time(row.school, row.attendance_date)
+        closes_at = closing_times[key]
+
+        if closes_at is None or closes_at <= row.check_in:
+            continue
+
+        remarks = f"{row.remarks} {AUTO_CLOSED_NOTE}" if row.remarks else AUTO_CLOSED_NOTE
+
+        with transaction.atomic():
+            # Only if still open: the office may have corrected it meanwhile.
+            updated = StaffAttendance.objects.filter(pk=row.pk, check_out__isnull=True).update(
+                check_out=closes_at, remarks=remarks[:255], updated_at=timezone.now()
+            )
+            if not updated:
+                continue
+
+            audit.record(
+                actor=None, action="staff_attendance.auto_closed", module="staff_attendance",
+                entity_type="staff_attendance", entity_id=row.id, school_id=row.school_id,
+                old={"check_out": None},
+                new={"attendance_date": row.attendance_date.isoformat(), "check_out": closes_at.strftime("%H:%M")},
+            )
+        closed += 1
+
+    return closed
 
 
 class CheckInService:
