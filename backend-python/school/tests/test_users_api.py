@@ -272,6 +272,44 @@ class TheAdminHierarchy(UserApiTest):
             response.data["details"]["errors"]["role"][0],
         )
 
+    def test_a_group_admin_may_not_assign_an_admin_role(self):
+        # A Group Admin was once let through here with any role at all, and
+        # could make a teacher in the group a Super Admin and sign in as them.
+        group = factories.SchoolFactory(name="A Group")
+        branch = factories.SchoolFactory(name="A Branch", parent_school=group)
+        group_admin = factories.UserFactory(school=group, role=UserRole.GROUP_ADMIN)
+        teacher = factories.UserFactory(school=branch, role=UserRole.TEACHER)
+
+        for role in (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN):
+            with self.subTest(role=role):
+                response = self.as_user(group_admin).patch(
+                    f"/api/v1/users/{teacher.id}", {"role": role}, format="json"
+                )
+
+                self.assertEqual(422, response.status_code, response.data)
+                teacher.refresh_from_db()
+                self.assertEqual(UserRole.TEACHER, teacher.role)
+
+    def test_a_group_admin_may_assign_an_operational_role_in_the_group(self):
+        group = factories.SchoolFactory(name="A Group")
+        branch = factories.SchoolFactory(name="A Branch", parent_school=group)
+        group_admin = factories.UserFactory(school=group, role=UserRole.GROUP_ADMIN)
+        teacher = factories.UserFactory(school=branch, role=UserRole.TEACHER)
+
+        response = self.as_user(group_admin).patch(
+            f"/api/v1/users/{teacher.id}", {"role": UserRole.HOD}, format="json"
+        )
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual("HOD", response.data["role"])
+
+    def test_a_sub_admin_may_not_assign_an_admin_role_either(self):
+        response = self.as_user(self.sub).patch(
+            f"/api/v1/users/{self.teacher.id}", {"role": UserRole.SUPER_ADMIN}, format="json"
+        )
+
+        self.assertEqual(422, response.status_code, response.data)
+
     def test_a_super_admin_may_assign_any_role(self):
         response = self.as_user(self.root).patch(
             f"/api/v1/users/{self.teacher.id}", {"role": UserRole.HOD}, format="json"

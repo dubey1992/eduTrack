@@ -4690,8 +4690,8 @@ class SaveMarksRequest(serializers.Serializer):
 
 # -- users ------------------------------------------------------------------
 
-# What a School or Group Admin may assign when editing somebody. Not the admin
-# roles: promoting a colleague to admin is the create path's business, and it
+# What anybody but a Super Admin may assign when editing somebody - a School
+# Admin, a Sub Admin or a Group Admin alike. Not the admin roles: promoting a colleague to admin is the create path's business, and it
 # derives the tier from who is doing the creating.
 SCHOOL_ADMIN_ASSIGNABLE_ROLES = (
     UserRole.HOD,
@@ -4822,9 +4822,12 @@ class UpdateUserRequest(ScopedSerializer):
             if attrs["role"] not in UserRole.values:
                 errors["role"] = [selected_is_invalid("role")]
             elif (
-                self.actor.role == UserRole.SCHOOL_ADMIN
+                self.actor.role != UserRole.SUPER_ADMIN
                 and attrs["role"] not in SCHOOL_ADMIN_ASSIGNABLE_ROLES
             ):
+                # Every admin below the platform, not only a School Admin:
+                # a Group Admin left out of this once could make anyone in
+                # the group a Super Admin (docs/security.md).
                 errors["role"] = [
                     "A school admin can only assign the HOD, Teacher, Staff, "
                     "Transport Manager or Accountant role."
