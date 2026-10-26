@@ -511,6 +511,17 @@ looking at.*
   services are Xiaomi, Oppo and Vivo, which is D4.4's whole subject — so the
   real-phone check belongs there rather than being claimed here.
 
+**D4.1a — Sharing outlives the switch's row** *(fixed 2026-10-26)*
+- "Share my location" lived only as long as its switch: one row of the trip
+  sheet's lazily built list. Scrolling down to tick children at a later
+  stop took the row down, which disposed the sharing and stopped it - and
+  in-app guidance, opened from a later stop's header, was always reached
+  that way. Found live: a whole guided drive sent nothing and the office map
+  stayed on the depot. The sheet itself now keeps sharing alive
+  (`RunningTripView`), so it runs from opening the trip to leaving it,
+  guidance included; a widget test scrolls the switch away and checks the
+  bus is still reported.
+
 **D4.2 — The battery profile** *(built 2026-10-23)*
 - One continuous position stream in place of a fresh high-accuracy fix every
   15 seconds. Android is told both rules — at least 50 m apart, at most one
@@ -656,6 +667,15 @@ the other thing, here is what it actually took.*
   and then never answers. Unbounded, that is a driver holding a spinner
   with a run to start. Ten seconds for each call, thirty for Google's
   consent dialog.
+
+**D7.2a — Release builds keep the Navigation SDK whole** *(fixed 2026-10-26)*
+- Guidance had only ever run in debug builds. In a release build R8 shrank
+  the SDK's internals, and the app crashed the moment guidance started
+  (`IllegalAccessException ... navigation.internal ... is not accessible`).
+  `android/app/proguard-rules.pro` now keeps
+  `com.google.android.libraries.navigation.**` and `...geo.**`; the driver
+  APK grows from 39.3 to 40.8 MB (x86_64). Verified on the emulator with
+  the release APK: guidance opens, draws the route and follows the bus.
 
 **D7.3 — What it took to switch on** *(done 2026-10-24)*
 - Verified first with the key refused: the SDK initialises, reaches Google,

@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/transport/application/trip_live_location_notifier.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/maps/presentation/map_pin_icons.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_route.dart';
@@ -524,6 +525,66 @@ void main() {
 
       expect(fake.liveCalls, greaterThan(0));
       expect(renderer.markersById.containsKey('bus'), isTrue);
+    });
+
+    testWidgets('a new position is glided to over the next fifteen seconds, not jumped to', (tester) async {
+      useDesktop(tester);
+      // About 400 m north between two answers.
+      final fake = FakeTransportRepository()
+        ..liveAnswers = [
+          TripLiveLocation(
+            tripId: 7,
+            status: 'in_progress',
+            position: bus(latitude: '18.5200000'),
+            nextStop: null,
+          ),
+          TripLiveLocation(
+            tripId: 7,
+            status: 'in_progress',
+            position: bus(latitude: '18.5236000'),
+            nextStop: null,
+          ),
+        ];
+
+      await tester.pumpWidget(wrapCard(trip(stops: [stop(id: 1)]), fake));
+      await tester.pumpAndSettle();
+      expect(renderer.markersById['bus']!.position.latitude, closeTo(18.52, 0.00001), reason: 'the first is drawn');
+
+      // The next poll brings the new position; half way through the glide
+      // the pin is half way there.
+      await tester.pump(TripLiveLocationNotifier.pollInterval);
+      await tester.pump(const Duration(milliseconds: 7500));
+      expect(renderer.markersById['bus']!.position.latitude, closeTo(18.5218, 0.0002));
+
+      await tester.pump(const Duration(milliseconds: 7600));
+      expect(renderer.markersById['bus']!.position.latitude, closeTo(18.5236, 0.00001), reason: 'and then there');
+    });
+
+    testWidgets('a jump too long to be driving is drawn where it lands', (tester) async {
+      useDesktop(tester);
+      // About 5.5 km north - a phone back in signal, not a bus at 1300 km/h.
+      final fake = FakeTransportRepository()
+        ..liveAnswers = [
+          TripLiveLocation(
+            tripId: 7,
+            status: 'in_progress',
+            position: bus(latitude: '18.5200000'),
+            nextStop: null,
+          ),
+          TripLiveLocation(
+            tripId: 7,
+            status: 'in_progress',
+            position: bus(latitude: '18.5700000'),
+            nextStop: null,
+          ),
+        ];
+
+      await tester.pumpWidget(wrapCard(trip(stops: [stop(id: 1)]), fake));
+      await tester.pumpAndSettle();
+      await tester.pump(TripLiveLocationNotifier.pollInterval);
+      await tester.pump();
+
+      expect(renderer.markersById['bus']!.position.latitude, closeTo(18.57, 0.00001));
     });
 
     testWidgets('a finished trip is never asked - its bus is not going anywhere', (tester) async {

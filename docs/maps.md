@@ -734,6 +734,26 @@ Two things the browser taught us:
   greyed, because "greyed" means nothing to somebody who has never seen it
   ungreyed.
 
+### A bus that glides *(2026-10-26)*
+
+The office map hears from the bus about every fifteen seconds (the phone's
+own cadence, and the page's poll), often a few hundred metres on. A pin
+that jumped to each answer hopped along the route and cut every corner, so
+it now **glides**: from where it was drawn to the new position, over the
+next fifteen seconds, along the route's own road (`RoadGlide`,
+`lib/features/maps/data/road_glide.dart`; `TripMapCard`).
+
+- Along the road only when both positions are within 60 m of it and the bus
+  has gone forwards along it; otherwise a straight line (a diversion, a bus
+  turning back).
+- The first position, and any jump over 2 km (a phone back in signal), are
+  drawn where they land.
+- The pin is moved ten times a second, not sixty: the eye cannot tell, the
+  office computer can.
+- It is always up to fifteen seconds behind the last answer - the Bus
+  location card's "last seen" says how old that answer is. No extra
+  requests: the same poll, drawn differently.
+
 ### The arrival
 
 `GET transport/trips/{id}/live` gains `next_stop.eta_seconds` and

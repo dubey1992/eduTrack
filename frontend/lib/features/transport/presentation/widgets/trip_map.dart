@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../maps/data/polyline.dart';
+import '../../../maps/data/road_glide.dart';
 import '../../../maps/presentation/app_map.dart';
 import '../../../maps/presentation/fit_bounds.dart';
 import '../../../maps/presentation/map_pin_icons.dart';
@@ -21,7 +24,7 @@ import 'trip_live_location_card.dart';
 /// position** - it is drawn from the stop marks the trip already records,
 /// so a trip that finished last week reads the same way as one running now.
 class TripMap extends ConsumerWidget {
-  const TripMap({super.key, required this.trip, this.bus, this.etaSeconds, this.height = 320});
+  const TripMap({super.key, required this.trip, this.bus, this.busAt, this.etaSeconds, this.height = 320});
 
   final TransportTrip trip;
 
@@ -30,6 +33,11 @@ class TripMap extends ConsumerWidget {
   /// flight. The map is drawn either way; the bus is the one thing on it
   /// that is allowed to be missing.
   final BusPosition? bus;
+
+  /// Where to draw the bus pin right now, when that is not [bus] itself:
+  /// the pin glides along the road between two positions rather than
+  /// jumping (see [TripMapCard]). Null draws it at [bus].
+  final LatLng? busAt;
 
   /// How long until the bus reaches the next stop, when the server could
   /// work it out. Shown on the next stop's own pin rather than beside the
@@ -139,7 +147,10 @@ class TripMap extends ConsumerWidget {
 
   LatLng? _schoolPoint() => _point(trip.schoolLatitude, trip.schoolLongitude);
 
-  LatLng? _busPoint() => bus == null ? null : _point(bus!.latitude, bus!.longitude);
+  LatLng? _busPoint() => bus == null ? null : busAt ?? busPointOf(bus!);
+
+  /// Public for [TripMapCard], which glides the pin between two of these.
+  static LatLng? busPointOf(BusPosition bus) => _point(bus.latitude, bus.longitude);
 
   /// Null unless both halves are there and both are on the earth. A stop
   /// with half a coordinate points nowhere; drawn at (0, 0) it would sit
@@ -295,16 +306,100 @@ class _Legend extends StatelessWidget {
 /// the position comes from: the same fifteen-second poll the Bus location
 /// card uses, shared through the provider rather than asked for twice.
 ///
+/// **The pin glides.** Each new position arrives about fifteen seconds
+/// after the last, often a few hundred metres on; a pin that jumped there
+/// would hop along the route and cut its corners. Instead it is moved along
+/// the road from where it was drawn to the new position over the next
+/// [glideOver] - about the time until the one after - so it is always on
+/// its way somewhere and keeps to the streets (docs/maps.md, "A bus that
+/// glides"). The first position, and a jump too long to be driving, are
+/// drawn where they are.
+///
 /// A trip that is not running is not polled at all - there is nowhere for
 /// its bus to have moved to, and the stop marks already say where it went.
-class TripMapCard extends ConsumerWidget {
+class TripMapCard extends ConsumerStatefulWidget {
   const TripMapCard({super.key, required this.trip});
 
   final TransportTrip trip;
 
+  /// How long each glide takes: the gap between two positions.
+  static const glideOver = TripLiveLocationNotifier.pollInterval;
+
+  /// Further than this between two positions is not driving - a phone that
+  /// was out of signal, or a trip restarted elsewhere - and is not glided.
+  static const longestGlideMetres = 2000.0;
+
+  /// How often the pin is moved while gliding. A map redrawn sixty times a
+  /// second costs the office computer more than the eye can tell apart.
+  static const step = Duration(milliseconds: 100);
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final live = trip.isInProgress ? ref.watch(tripLiveLocationProvider(trip.id)).value : null;
+  ConsumerState<TripMapCard> createState() => _TripMapCardState();
+}
+
+class _TripMapCardState extends ConsumerState<TripMapCard> {
+  LatLng? _drawn;
+  RoadGlide? _glide;
+  int _steps = 0;
+  Timer? _ticker;
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  /// A new position from the server: glide to it from wherever the pin is.
+  void _arrived(BusPosition? position) {
+    final target = position == null ? null : TripMap.busPointOf(position);
+    final from = _drawn;
+
+    if (target == null || from == null) {
+      _stop(target);
+      return;
+    }
+
+    final glide = RoadGlide.between(from, target, decodePolyline(widget.trip.path.polyline));
+    if (glide.metres == 0 || glide.metres > TripMapCard.longestGlideMetres) {
+      _stop(target);
+      return;
+    }
+
+    _glide = glide;
+    _steps = 0;
+    _ticker?.cancel();
+    _ticker = Timer.periodic(TripMapCard.step, (_) => _tick());
+  }
+
+  void _tick() {
+    final glide = _glide;
+    if (!mounted || glide == null) return;
+
+    // Counted in steps rather than read off the clock: the same on screen,
+    // and a test can move it.
+    _steps++;
+    final fraction = _steps * TripMapCard.step.inMilliseconds / TripMapCard.glideOver.inMilliseconds;
+    setState(() => _drawn = glide.at(fraction));
+    if (fraction >= 1) _stop(_drawn);
+  }
+
+  void _stop(LatLng? at) {
+    _ticker?.cancel();
+    _ticker = null;
+    _glide = null;
+    if (mounted) setState(() => _drawn = at);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final running = widget.trip.isInProgress;
+
+    if (running) {
+      ref.listen(tripLiveLocationProvider(widget.trip.id), (previous, next) => _arrived(next.value?.position));
+    }
+
+    final live = running ? ref.watch(tripLiveLocationProvider(widget.trip.id)).value : null;
+    final position = live?.position;
 
     return Card(
       child: Padding(
@@ -312,7 +407,12 @@ class TripMapCard extends ConsumerWidget {
         // Loading and failure are not the map's business: the Bus location
         // card above it already says both, and a map that disappeared every
         // time a poll failed would be worse than one without a bus on it.
-        child: TripMap(trip: trip, bus: live?.position, etaSeconds: live?.nextStop?.etaSeconds),
+        child: TripMap(
+          trip: widget.trip,
+          bus: position,
+          busAt: _drawn ?? (position == null ? null : TripMap.busPointOf(position)),
+          etaSeconds: live?.nextStop?.etaSeconds,
+        ),
       ),
     );
   }
