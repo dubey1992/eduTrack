@@ -1,3 +1,5 @@
+import '../../../core/utils/date_period.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../assessments/data/assessment_repository.dart';
@@ -13,11 +15,14 @@ import '../../today/application/today_notifier.dart';
 
 /// The teacher's own teaching reports, newest first, a page at a time.
 class MyReports {
-  const MyReports({required this.items, required this.hasMore, required this.page});
+  const MyReports({required this.items, required this.hasMore, required this.page, this.period = DatePeriod.all});
 
   final List<TeachingReport> items;
   final bool hasMore;
   final int page;
+
+  /// The period the list is filtered to.
+  final DatePeriod period;
 }
 
 /// No automatic retry: the screens have their own.
@@ -35,16 +40,25 @@ final myReportsProvider = AsyncNotifierProvider.autoDispose<MyReportsNotifier, M
 class MyReportsNotifier extends AsyncNotifier<MyReports> {
   static const perPage = 20;
 
+  DatePeriod _period = DatePeriod.all;
+
+  /// The chosen period - read by the chips, which show it while loading too.
+  DatePeriod get period => _period;
+
   @override
   Future<MyReports> build() => _page(1, const []);
 
   Future<MyReports> _page(int page, List<TeachingReport> before) async {
-    final response = await ref.read(teachingReportRepositoryProvider).list(mine: true, page: page, perPage: perPage);
+    final range = _period.rangeFrom(DateTime.now());
+    final response = await ref
+        .read(teachingReportRepositoryProvider)
+        .list(mine: true, dateFrom: range?.from, dateTo: range?.to, page: page, perPage: perPage);
 
     return MyReports(
       items: [...before, ...response.items],
       hasMore: response.currentPage < response.lastPage,
       page: response.currentPage,
+      period: _period,
     );
   }
 
@@ -53,6 +67,13 @@ class MyReportsNotifier extends AsyncNotifier<MyReports> {
   }
 
   Future<void> retry() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(build);
+  }
+
+  /// Day / week / month (docs/teacher-app.md, "Filters by period").
+  Future<void> setPeriod(DatePeriod period) async {
+    _period = period;
     state = const AsyncLoading();
     state = await AsyncValue.guard(build);
   }
@@ -140,11 +161,14 @@ final subjectTopicsProvider = FutureProvider.autoDispose.family<List<SyllabusTop
 
 /// The class tests of the classes the teacher teaches, newest first.
 class MyTests {
-  const MyTests({required this.items, required this.hasMore, required this.page});
+  const MyTests({required this.items, required this.hasMore, required this.page, this.period = DatePeriod.all});
 
   final List<Assessment> items;
   final bool hasMore;
   final int page;
+
+  /// The period the list is filtered to.
+  final DatePeriod period;
 }
 
 /// "Marks" in the School365ai app (docs/teacher-app.md, T5): always the
@@ -157,16 +181,25 @@ final myTestsProvider = AsyncNotifierProvider.autoDispose<MyTestsNotifier, MyTes
 class MyTestsNotifier extends AsyncNotifier<MyTests> {
   static const perPage = 20;
 
+  DatePeriod _period = DatePeriod.all;
+
+  /// The chosen period - read by the chips, which show it while loading too.
+  DatePeriod get period => _period;
+
   @override
   Future<MyTests> build() => _page(1, const []);
 
   Future<MyTests> _page(int page, List<Assessment> before) async {
-    final response = await ref.read(assessmentRepositoryProvider).listPage(mine: true, page: page, perPage: perPage);
+    final range = _period.rangeFrom(DateTime.now());
+    final response = await ref
+        .read(assessmentRepositoryProvider)
+        .listPage(mine: true, dateFrom: range?.from, dateTo: range?.to, page: page, perPage: perPage);
 
     return MyTests(
       items: [...before, ...response.items],
       hasMore: response.currentPage < response.lastPage,
       page: response.currentPage,
+      period: _period,
     );
   }
 
@@ -175,6 +208,13 @@ class MyTestsNotifier extends AsyncNotifier<MyTests> {
   }
 
   Future<void> retry() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(build);
+  }
+
+  /// Day / week / month (docs/teacher-app.md, "Filters by period").
+  Future<void> setPeriod(DatePeriod period) async {
+    _period = period;
     state = const AsyncLoading();
     state = await AsyncValue.guard(build);
   }

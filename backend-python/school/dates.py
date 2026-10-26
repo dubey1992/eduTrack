@@ -26,6 +26,19 @@ DATE = "%m/%d/%Y"
 TIME = "%I:%M %p"
 
 
+def iso_or_none(value) -> dt.date | None:
+    """A `yyyy-mm-dd` filter from a query string, or None when it is absent
+    or is not a date. A list filter that cannot be read is no filter, the
+    same as a junk id - never a 500."""
+    if not value:
+        return None
+
+    try:
+        return dt.date.fromisoformat(str(value))
+    except ValueError:
+        return None
+
+
 def us(value: dt.date | dt.datetime | None) -> str:
     """09/29/2026, or a dash where there is no date."""
     return "-" if value is None else value.strftime(DATE)

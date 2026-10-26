@@ -50,6 +50,9 @@ class FakeAssessmentRepository implements AssessmentRepository {
   /// Whether the last list asked for the caller's own (`mine=1`).
   bool? lastMine;
 
+  /// The date range the last list asked for.
+  (String?, String?)? lastRange;
+
   /// What the last create sent.
   Map<String, Object?>? lastCreated;
 
@@ -78,11 +81,14 @@ class FakeAssessmentRepository implements AssessmentRepository {
     String? status,
     String? type,
     bool mine = false,
+    String? dateFrom,
+    String? dateTo,
     required int page,
     required int perPage,
   }) async {
     _enter('listPage');
     lastMine = mine;
+    lastRange = (dateFrom, dateTo);
     lastSectionFilter = classSectionId;
     lastStatusFilter = status;
 

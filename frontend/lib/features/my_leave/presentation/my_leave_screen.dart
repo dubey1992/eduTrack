@@ -1,3 +1,5 @@
+import '../../../core/widgets/period_filter.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,6 +40,8 @@ class MyLeaveScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 children: [
                   const _Heading(),
+                  const SizedBox(height: 12),
+                  const _Period(),
                   const SizedBox(height: 16),
                   AsyncValueView<MyLeave>(
                     value: leave,
@@ -77,6 +81,8 @@ class _LeaveList extends ConsumerWidget {
         const _Heading(),
         const SizedBox(height: 4),
         Text('Your requests and where each one stands.', style: TextStyle(color: colors.muted)),
+        const SizedBox(height: 12),
+        const _Period(),
         const SizedBox(height: 16),
         if (leave.items.isEmpty)
           Padding(
@@ -86,7 +92,7 @@ class _LeaveList extends ConsumerWidget {
               children: [
                 Icon(Icons.event_available_outlined, size: 48, color: colors.muted),
                 const SizedBox(height: 12),
-                const Text('No leave requests yet.', textAlign: TextAlign.center),
+                Text(leave.period.emptyPhrase('leave requests'), textAlign: TextAlign.center),
                 const SizedBox(height: 4),
                 Text(
                   'Tap Apply for leave to ask for a day off.',
@@ -167,5 +173,18 @@ class _LeaveCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// All / Today / This week / This month - leave that touches the period.
+class _Period extends ConsumerWidget {
+  const _Period();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(myLeaveProvider);
+    final notifier = ref.read(myLeaveProvider.notifier);
+
+    return PeriodFilter(value: notifier.period, onChanged: notifier.setPeriod);
   }
 }

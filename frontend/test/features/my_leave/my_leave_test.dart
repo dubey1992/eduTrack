@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/utils/date_period.dart';
 import 'package:edutrack_app/features/my_inbox/data/my_inbox_repository.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/module_access.dart';
@@ -120,6 +121,20 @@ void main() {
       expect(find.text('10/28/2026 to 10/29/2026'), findsNWidgets(2));
       expect(find.text('11/02/2026 · half a day'), findsOneWidget);
       expect(find.text('Greenfield Admin: Enjoy the wedding.'), findsOneWidget);
+    });
+
+    testWidgets('This month asks for leave touching this month, and an empty month says so', (tester) async {
+      final repository = FakeStaffLeaveRepository();
+      await open(tester, repository);
+
+      await tester.ensureVisible(find.byKey(const Key('period-month')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-month')));
+      await tester.pumpAndSettle();
+
+      final month = DatePeriod.month.rangeFrom(DateTime.now())!;
+      expect(repository.lastListRange, (month.from, month.to));
+      expect(find.text('No leave requests this month.'), findsOneWidget);
     });
 
     testWidgets('with nothing yet, it says how to ask', (tester) async {

@@ -44,6 +44,8 @@ class TeachingReportRepository {
     String? reportDate,
     bool mine = false,
     bool toReview = false,
+    String? dateFrom,
+    String? dateTo,
     required int page,
     required int perPage,
   }) async {
@@ -54,6 +56,8 @@ class TeachingReportRepository {
         reportDate: reportDate,
         mine: mine,
         toReview: toReview,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
         page: page,
         perPage: perPage,
       );

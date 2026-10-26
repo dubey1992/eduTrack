@@ -37,10 +37,14 @@ class StaffLeaveRepository {
     required int page,
     required int perPage,
     bool mine = false,
+    String? dateFrom,
+    String? dateTo,
   }) async {
     try {
       return await _api.list(
         mine: mine,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
         schoolId: schoolId,
         departmentId: departmentId,
         status: status,

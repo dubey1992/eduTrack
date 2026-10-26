@@ -1,6 +1,9 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/core/utils/date_period.dart';
+import 'package:edutrack_app/features/reports/data/models/report.dart';
+import 'package:edutrack_app/features/reports/data/report_repository.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/hod/data/hod_report_repository.dart';
 import 'package:edutrack_app/features/hod/data/models/hod_department_report.dart';
@@ -20,6 +23,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_hod_report_repository.dart';
+import '../../support/fake_report_repository.dart';
 import '../../support/fake_staff_attendance_repository.dart';
 import '../../support/fake_teaching_report_repository.dart';
 import '../../support/fake_today_repository.dart';
@@ -109,6 +113,7 @@ void main() {
   late FakeTeachingReportRepository reports;
   late FakeStaffAttendanceRepository staff;
   late FakeHodReportRepository month;
+  late FakeReportRepository staffReport;
 
   setUp(() {
     reports = FakeTeachingReportRepository(
@@ -123,6 +128,24 @@ void main() {
         person(2, 'Ravi Kumar', StaffAttendanceStatus.absent),
         person(3, 'Sana Khan', null),
       ]),
+    );
+    staffReport = FakeReportRepository(
+      result: ReportResult.fromJson({
+        'range': {'from': '2026-10-26', 'to': '2026-10-28', 'working_days': 3},
+        'rows': [
+          {
+            'staff_profile_id': 1,
+            'name': 'Meera Joshi',
+            'present': 3,
+            'half_day': 0,
+            'absent': 0,
+            'leave': 0,
+            'not_marked': 0,
+            'attendance_rate': 96,
+          },
+        ],
+        'totals': {'working_days': 3},
+      }),
     );
     month = FakeHodReportRepository(
       report: monthOf([teacherRow(1, 'Meera Joshi'), teacherRow(2, 'Ravi Kumar', status: HodTeacherStatus.review)]),
@@ -156,6 +179,7 @@ void main() {
           teachingReportRepositoryProvider.overrideWithValue(reports),
           staffAttendanceRepositoryProvider.overrideWithValue(staff),
           hodReportRepositoryProvider.overrideWithValue(month),
+          reportRepositoryProvider.overrideWithValue(staffReport),
           todayRepositoryProvider.overrideWithValue(FakeTodayRepository()),
           authRepositoryProvider.overrideWithValue(
             FakeAuthRepository(
@@ -420,6 +444,57 @@ void main() {
       await pump(tester, at: '/teaching/reports/1');
 
       expect(find.byKey(const Key('report-change')), findsNothing);
+    });
+  });
+
+  group('By period', () {
+    testWidgets('To review: This month asks for this month', (tester) async {
+      await pump(tester);
+
+      await tester.ensureVisible(find.byKey(const Key('period-month')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-month')));
+      await tester.pumpAndSettle();
+
+      final month = DatePeriod.month.rangeFrom(DateTime.now())!;
+      expect(reports.lastListRange, (month.from, month.to));
+    });
+
+    testWidgets('Staff: a week shows each person totals from the attendance report', (tester) async {
+      await pump(tester);
+      await openTab(tester, 'staff');
+      expect(find.byKey(const Key('staff-today-summary')), findsOneWidget, reason: 'a day is the register');
+
+      await tester.ensureVisible(find.byKey(const Key('period-week')).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-week')).last);
+      await tester.pumpAndSettle();
+
+      // The school's today is Monday 26 October: the week starts there and
+      // stops there, since the report refuses days still to come.
+      expect(staffReport.lastKind, ReportKind.staffAttendance);
+      expect((staffReport.lastFrom, staffReport.lastTo), ('2026-10-26', '2026-10-26'));
+      expect(find.text('3 school days so far'), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('staff-period-1')), matching: find.text('96%')), findsOneWidget);
+    });
+
+    testWidgets('Staff: a month runs from the 1st to the school today, never past it', (tester) async {
+      await pump(tester);
+      await openTab(tester, 'staff');
+
+      await tester.ensureVisible(find.byKey(const Key('period-month')).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-month')).last);
+      await tester.pumpAndSettle();
+
+      expect((staffReport.lastFrom, staffReport.lastTo), ('2026-10-01', '2026-10-26'));
+    });
+
+    testWidgets('Staff: no week view offers All - a register is always about days', (tester) async {
+      await pump(tester);
+      await openTab(tester, 'staff');
+
+      expect(find.byKey(const Key('period-all')), findsNothing);
     });
   });
 }

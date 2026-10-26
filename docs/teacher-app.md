@@ -621,6 +621,30 @@ name stays **School365ai** (decided 2026-10-25), not "School365ai Teacher".
   not a new page), signing with the upload key, SHA-1s where keys need them
   (none until Maps or Firebase), internal testing track first.
 
+### Filters by period *(built 2026-10-26)*
+
+Every list in the app can be narrowed to **All / Today / This week / This
+month**, with chips above the list:
+
+| Where | What the period matches |
+|---|---|
+| Teaching > Reports | the report's date |
+| Teaching > Marks | the test's date |
+| Department > To review | the report's date |
+| Leave | any request that **touches** the period (a leave from the 30th to the 2nd shows in both months) |
+| Messages | the day the message arrived, in the school's own timezone |
+| Department > Staff | Today is the register; a week or a month is each person's totals (present, half day, absent, leave, unmarked) from the staff attendance report |
+
+- A week runs Monday to Sunday; a month is the calendar month.
+- Lists start on **All**, so nothing looks missing; the Staff part has no
+  All, since a register is always about days, and starts on **Today**.
+- The Staff week and month stop at the school's today: the report refuses
+  days still to come, which nobody could have failed to mark yet.
+- The server does the filtering (`date_from` / `date_to`, both inclusive
+  school dates, on the list endpoints). A date it cannot read is ignored,
+  not an error, and the usual school and department scoping still applies.
+- An empty list says which period it is about ("No reports this week.").
+
 ## Order and size
 
 T0 → T1 → T2 → T3 → T4 → T5, then T6 / T7 in either order, T8 last. T1 and

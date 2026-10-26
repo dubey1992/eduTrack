@@ -1,3 +1,5 @@
+import '../../../core/utils/date_period.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../staff_leave/data/models/leave_type.dart';
@@ -6,11 +8,14 @@ import '../../staff_leave/data/staff_leave_repository.dart';
 
 /// The person's own leave requests, newest first, a page at a time.
 class MyLeave {
-  const MyLeave({required this.items, required this.hasMore, required this.page});
+  const MyLeave({required this.items, required this.hasMore, required this.page, this.period = DatePeriod.all});
 
   final List<StaffLeave> items;
   final bool hasMore;
   final int page;
+
+  /// The period the list is filtered to.
+  final DatePeriod period;
 }
 
 /// No automatic retry: the screen has its own.
@@ -28,16 +33,25 @@ final myLeaveProvider = AsyncNotifierProvider.autoDispose<MyLeaveNotifier, MyLea
 class MyLeaveNotifier extends AsyncNotifier<MyLeave> {
   static const perPage = 20;
 
+  DatePeriod _period = DatePeriod.all;
+
+  /// The chosen period - read by the chips, which show it while loading too.
+  DatePeriod get period => _period;
+
   @override
   Future<MyLeave> build() => _page(1, const []);
 
   Future<MyLeave> _page(int page, List<StaffLeave> before) async {
-    final response = await ref.read(staffLeaveRepositoryProvider).list(mine: true, page: page, perPage: perPage);
+    final range = _period.rangeFrom(DateTime.now());
+    final response = await ref
+        .read(staffLeaveRepositoryProvider)
+        .list(mine: true, dateFrom: range?.from, dateTo: range?.to, page: page, perPage: perPage);
 
     return MyLeave(
       items: [...before, ...response.items],
       hasMore: response.currentPage < response.lastPage,
       page: response.currentPage,
+      period: _period,
     );
   }
 
@@ -46,6 +60,13 @@ class MyLeaveNotifier extends AsyncNotifier<MyLeave> {
   }
 
   Future<void> retry() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(build);
+  }
+
+  /// Day / week / month (docs/teacher-app.md, "Filters by period").
+  Future<void> setPeriod(DatePeriod period) async {
+    _period = period;
     state = const AsyncLoading();
     state = await AsyncValue.guard(build);
   }

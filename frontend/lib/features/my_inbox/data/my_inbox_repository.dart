@@ -18,8 +18,14 @@ class MyInboxRepository {
 
   final CommunicationApi _api;
 
-  Future<PaginatedResponse<Message>> inbox({required bool unreadOnly, required int page, required int perPage}) =>
-      _call(() => _api.inbox(unreadOnly: unreadOnly, page: page, perPage: perPage));
+  Future<PaginatedResponse<Message>> inbox({
+    required bool unreadOnly,
+    required int page,
+    required int perPage,
+    String? dateFrom,
+    String? dateTo,
+  }) =>
+      _call(() => _api.inbox(unreadOnly: unreadOnly, page: page, perPage: perPage, dateFrom: dateFrom, dateTo: dateTo));
 
   Future<int> unreadCount() => _call(_api.unreadCount);
 

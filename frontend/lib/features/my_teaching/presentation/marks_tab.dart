@@ -1,3 +1,5 @@
+import '../../../core/widgets/period_filter.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +20,7 @@ class MarksTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tests = ref.watch(myTestsProvider);
+    final notifier = ref.read(myTestsProvider.notifier);
     final colors = context.appColors;
 
     return Scaffold(
@@ -44,6 +47,8 @@ class MarksTab extends ConsumerWidget {
               'publish when everyone is marked.',
               style: TextStyle(color: colors.muted),
             ),
+            const SizedBox(height: 12),
+            PeriodFilter(value: notifier.period, onChanged: notifier.setPeriod),
             const SizedBox(height: 16),
             if (!tests.hasValue)
               AsyncValueView<MyTests>(
@@ -59,7 +64,7 @@ class MarksTab extends ConsumerWidget {
                   children: [
                     Icon(Icons.assignment_outlined, size: 48, color: colors.muted),
                     const SizedBox(height: 12),
-                    const Text('No class tests yet.', textAlign: TextAlign.center),
+                    Text(notifier.period.emptyPhrase('class tests'), textAlign: TextAlign.center),
                     const SizedBox(height: 4),
                     Text(
                       'Tap New test to set one for a class you teach.',

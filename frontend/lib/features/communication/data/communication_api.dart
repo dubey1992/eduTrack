@@ -195,10 +195,22 @@ class CommunicationApi {
     return NoticeResult.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<PaginatedResponse<Message>> inbox({bool unreadOnly = false, int? page, int? perPage}) async {
+  Future<PaginatedResponse<Message>> inbox({
+    bool unreadOnly = false,
+    int? page,
+    int? perPage,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
     final response = await _dio.get(
       '/inbox',
-      queryParameters: {'unread': ?(unreadOnly ? 1 : null), 'page': ?page, 'per_page': ?perPage},
+      queryParameters: {
+        'unread': ?(unreadOnly ? 1 : null),
+        'date_from': ?dateFrom,
+        'date_to': ?dateTo,
+        'page': ?page,
+        'per_page': ?perPage,
+      },
     );
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, Message.fromJson);
   }

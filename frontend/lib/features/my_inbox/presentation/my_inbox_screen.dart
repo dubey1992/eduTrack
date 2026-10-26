@@ -1,3 +1,5 @@
+import '../../../core/widgets/period_filter.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -79,21 +81,28 @@ class _Filter extends ConsumerWidget {
     final unreadOnly = ref.watch(myInboxProvider).value?.unreadOnly ?? false;
     final notifier = ref.read(myInboxProvider.notifier);
 
-    return Wrap(
-      spacing: 8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ChoiceChip(
-          key: const Key('inbox-all'),
-          label: const Text('All'),
-          selected: !unreadOnly,
-          onSelected: (_) => notifier.setUnreadOnly(false),
+        Wrap(
+          spacing: 8,
+          children: [
+            ChoiceChip(
+              key: const Key('inbox-all'),
+              label: const Text('All'),
+              selected: !unreadOnly,
+              onSelected: (_) => notifier.setUnreadOnly(false),
+            ),
+            ChoiceChip(
+              key: const Key('inbox-unread'),
+              label: const Text('Unread'),
+              selected: unreadOnly,
+              onSelected: (_) => notifier.setUnreadOnly(true),
+            ),
+          ],
         ),
-        ChoiceChip(
-          key: const Key('inbox-unread'),
-          label: const Text('Unread'),
-          selected: unreadOnly,
-          onSelected: (_) => notifier.setUnreadOnly(true),
-        ),
+        const SizedBox(height: 8),
+        PeriodFilter(value: notifier.period, onChanged: notifier.setPeriod),
       ],
     );
   }

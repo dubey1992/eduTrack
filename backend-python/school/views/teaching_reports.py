@@ -20,6 +20,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .. import dates
 from ..clock import SchoolClock
 from ..models import DailyTeachingReport, TimetableEntry
 from ..pagination import LaravelPagination
@@ -51,6 +52,9 @@ def collection(request) -> Response:
             "report_date": request.query_params.get("report_date"),
             "mine": request.query_params.get("mine") in ("1", "true"),
             "to_review": request.query_params.get("to_review") in ("1", "true"),
+            # Day / week / month in the apps: an inclusive range of report dates.
+            "date_from": dates.iso_or_none(request.query_params.get("date_from")),
+            "date_to": dates.iso_or_none(request.query_params.get("date_to")),
         },
     )
 

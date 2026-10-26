@@ -1,3 +1,7 @@
+import '../../../core/utils/date_period.dart';
+import '../../../core/widgets/period_filter.dart';
+import '../../reports/data/models/report.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,8 +33,8 @@ class DepartmentScreen extends StatelessWidget {
             key: Key('department-tabs'),
             tabs: [
               Tab(key: Key('department-tab-review'), text: 'To review'),
-              Tab(key: Key('department-tab-staff'), text: 'Staff today'),
-              Tab(key: Key('department-tab-month'), text: 'This month'),
+              Tab(key: Key('department-tab-staff'), text: 'Staff'),
+              Tab(key: Key('department-tab-month'), text: 'Teachers'),
             ],
           ),
           Expanded(child: TabBarView(children: [_ReviewTab(), _StaffTab(), _MonthTab()])),
@@ -87,6 +91,7 @@ class _ReviewTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final queue = ref.watch(reviewQueueProvider);
+    final notifier = ref.read(reviewQueueProvider.notifier);
 
     return RefreshIndicator(
       key: const Key('review-refresh'),
@@ -96,6 +101,8 @@ class _ReviewTab extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           const _Intro('Reports from your department that nobody has reviewed yet. Open one to read and review it.'),
+          const SizedBox(height: 12),
+          PeriodFilter(value: notifier.period, onChanged: notifier.setPeriod),
           const SizedBox(height: 16),
           if (!queue.hasValue)
             AsyncValueView<ReviewQueue>(
@@ -104,10 +111,12 @@ class _ReviewTab extends ConsumerWidget {
               data: (context, value) => const SizedBox.shrink(),
             )
           else if (queue.requireValue.items.isEmpty)
-            const _Empty(
-              key: Key('review-empty'),
+            _Empty(
+              key: const Key('review-empty'),
               icon: Icons.task_alt,
-              title: 'Nothing waiting for review.',
+              title: notifier.period == DatePeriod.all
+                  ? 'Nothing waiting for review.'
+                  : 'Nothing waiting for review ${notifier.period == DatePeriod.day ? 'from today' : 'from ${notifier.period.label.toLowerCase()}'}.',
               body: 'Reports your department files appear here until you review them.',
             )
           else ...[
@@ -180,24 +189,120 @@ class _StaffTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final view = ref.watch(staffViewProvider);
+    final notifier = ref.read(staffViewProvider.notifier);
+    final period = notifier.period;
+
     return RefreshIndicator(
       key: const Key('staff-today-refresh'),
-      onRefresh: () => ref.refresh(staffTodayProvider.future),
+      onRefresh: notifier.refresh,
       child: ListView(
         key: const Key('staff-today-list'),
         padding: const EdgeInsets.all(16),
         children: [
-          const _Intro(
-            'Your department today: who is in, and when they arrived. The register is marked on the website.',
+          _Intro(
+            period == DatePeriod.day
+                ? 'Your department today: who is in, and when they arrived. The register is marked on the website.'
+                : 'Your department ${period.label.toLowerCase()}: each person\'s days in, absent and on leave, '
+                      'out of the school days so far.',
+          ),
+          const SizedBox(height: 12),
+          PeriodFilter(
+            value: period,
+            periods: const [DatePeriod.day, DatePeriod.week, DatePeriod.month],
+            onChanged: notifier.setPeriod,
           ),
           const SizedBox(height: 16),
-          AsyncValueView<StaffAttendanceRegister>(
-            value: ref.watch(staffTodayProvider),
-            onRetry: () => ref.invalidate(staffTodayProvider),
-            data: (context, register) => _Register(register: register),
+          AsyncValueView<StaffView>(
+            value: view,
+            onRetry: () => ref.invalidate(staffViewProvider),
+            data: (context, value) =>
+                value.register != null ? _Register(register: value.register!) : _Summary(summary: value.summary!),
           ),
         ],
       ),
+    );
+  }
+}
+
+String _schoolDays(Object count) => count == 1 ? '1 school day so far' : '$count school days so far';
+
+/// A week or a month: each person's totals, out of the school days so far.
+class _Summary extends StatelessWidget {
+  const _Summary({required this.summary});
+
+  final ReportResult summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+
+    if (summary.rows.isEmpty) {
+      return const _Empty(
+        key: Key('staff-period-empty'),
+        icon: Icons.group_off_outlined,
+        title: 'Nobody in your department yet.',
+        body: 'The school office adds staff to departments on the website.',
+      );
+    }
+
+    Widget figure(Object value, String label, Color colour) => Expanded(
+      child: Column(
+        children: [
+          Text(
+            '$value',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: colour),
+          ),
+          Text(label, style: TextStyle(fontSize: 12, color: colors.muted)),
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _schoolDays(summary.totals['working_days'] ?? 0),
+          key: const Key('staff-period-days'),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        for (final row in summary.rows) ...[
+          Card(
+            key: Key('staff-period-${row['staff_profile_id']}'),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${row['name']}',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      Text('${row['attendance_rate']}%', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      figure(row['present'] ?? 0, 'present', colors.success),
+                      figure(row['half_day'] ?? 0, 'half day', colors.info),
+                      figure(row['absent'] ?? 0, 'absent', colors.danger),
+                      figure(row['leave'] ?? 0, 'leave', colors.info),
+                      figure(row['not_marked'] ?? 0, 'unmarked', colors.muted),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 }

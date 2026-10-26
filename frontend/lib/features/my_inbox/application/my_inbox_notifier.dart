@@ -1,3 +1,5 @@
+import '../../../core/utils/date_period.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../communication/data/models/message.dart';
@@ -12,15 +14,24 @@ final myUnreadCountProvider = FutureProvider.autoDispose<int>(
 );
 
 class MyInbox {
-  const MyInbox({required this.items, required this.hasMore, required this.page, required this.unreadOnly});
+  const MyInbox({
+    required this.items,
+    required this.hasMore,
+    required this.page,
+    required this.unreadOnly,
+    this.period = DatePeriod.all,
+  });
 
   final List<Message> items;
   final bool hasMore;
   final int page;
   final bool unreadOnly;
 
+  /// The period the inbox is filtered to.
+  final DatePeriod period;
+
   MyInbox copyWith({List<Message>? items}) =>
-      MyInbox(items: items ?? this.items, hasMore: hasMore, page: page, unreadOnly: unreadOnly);
+      MyInbox(items: items ?? this.items, hasMore: hasMore, page: page, unreadOnly: unreadOnly, period: period);
 }
 
 final myInboxProvider = AsyncNotifierProvider.autoDispose<MyInboxNotifier, MyInbox>(
@@ -35,20 +46,26 @@ class MyInboxNotifier extends AsyncNotifier<MyInbox> {
   static const perPage = 20;
 
   bool _unreadOnly = false;
+  DatePeriod _period = DatePeriod.all;
+
+  /// The chosen period - read by the chips, which show it while loading too.
+  DatePeriod get period => _period;
 
   @override
   Future<MyInbox> build() => _page(1, const []);
 
   Future<MyInbox> _page(int page, List<Message> before) async {
+    final range = _period.rangeFrom(DateTime.now());
     final response = await ref
         .read(myInboxRepositoryProvider)
-        .inbox(unreadOnly: _unreadOnly, page: page, perPage: perPage);
+        .inbox(unreadOnly: _unreadOnly, dateFrom: range?.from, dateTo: range?.to, page: page, perPage: perPage);
 
     return MyInbox(
       items: [...before, ...response.items],
       hasMore: response.currentPage < response.lastPage,
       page: response.currentPage,
       unreadOnly: _unreadOnly,
+      period: _period,
     );
   }
 
@@ -58,6 +75,13 @@ class MyInboxNotifier extends AsyncNotifier<MyInbox> {
   }
 
   Future<void> retry() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(build);
+  }
+
+  /// Day / week / month (docs/teacher-app.md, "Filters by period").
+  Future<void> setPeriod(DatePeriod period) async {
+    _period = period;
     state = const AsyncLoading();
     state = await AsyncValue.guard(build);
   }

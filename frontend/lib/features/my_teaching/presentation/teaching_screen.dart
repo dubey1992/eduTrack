@@ -1,3 +1,5 @@
+import '../../../core/widgets/period_filter.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,6 +56,7 @@ class _ReportsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reports = ref.watch(myReportsProvider);
+    final notifier = ref.read(myReportsProvider.notifier);
     final colors = context.appColors;
 
     return RefreshIndicator(
@@ -68,6 +71,8 @@ class _ReportsTab extends ConsumerWidget {
             'File a report from its period on Today.',
             style: TextStyle(color: colors.muted),
           ),
+          const SizedBox(height: 12),
+          PeriodFilter(value: notifier.period, onChanged: notifier.setPeriod),
           const SizedBox(height: 16),
           if (!reports.hasValue)
             AsyncValueView<MyReports>(
@@ -76,10 +81,10 @@ class _ReportsTab extends ConsumerWidget {
               data: (context, value) => const SizedBox.shrink(),
             )
           else if (reports.requireValue.items.isEmpty)
-            const _Empty(
-              key: Key('my-reports-empty'),
+            _Empty(
+              key: const Key('my-reports-empty'),
               icon: Icons.description_outlined,
-              title: 'No reports yet.',
+              title: notifier.period.emptyPhrase('reports'),
               body: 'Once a period has begun, tap it on Today to say what was taught.',
             )
           else ...[

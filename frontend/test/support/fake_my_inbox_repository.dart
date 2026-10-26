@@ -13,9 +13,19 @@ class FakeMyInboxRepository implements MyInboxRepository {
   bool? lastUnreadOnly;
   final List<int> markedRead = [];
 
+  /// The date range the last inbox page asked for.
+  (String?, String?)? lastRange;
+
   @override
-  Future<PaginatedResponse<Message>> inbox({required bool unreadOnly, required int page, required int perPage}) async {
+  Future<PaginatedResponse<Message>> inbox({
+    required bool unreadOnly,
+    required int page,
+    required int perPage,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
     lastUnreadOnly = unreadOnly;
+    lastRange = (dateFrom, dateTo);
     if (failListWith != null) throw failListWith!;
     final items = unreadOnly ? messages.where((m) => m.isUnread).toList() : messages;
     return PaginatedResponse(items: items, currentPage: 1, lastPage: 1, total: items.length, perPage: perPage);

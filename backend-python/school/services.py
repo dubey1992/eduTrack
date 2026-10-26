@@ -1161,6 +1161,14 @@ class StaffLeaveService:
         # Newest first, and id to break the tie: two requests applied for in
         # the same second would otherwise be in no fixed order, which shows
         # one row twice and skips another as the reviewer pages through.
+        # Any request that touches the range, so a week's view shows leave
+        # that started last week and runs into this one.
+        if filters.get("date_from"):
+            leaves = leaves.filter(end_date__gte=filters["date_from"])
+
+        if filters.get("date_to"):
+            leaves = leaves.filter(start_date__lte=filters["date_to"])
+
         return leaves.order_by("-created_at", "-id")
 
     @classmethod
@@ -1659,6 +1667,12 @@ class DailyTeachingReportService:
 
         if filters.get("report_date"):
             reports = reports.filter(report_date=filters["report_date"])
+
+        if filters.get("date_from"):
+            reports = reports.filter(report_date__gte=filters["date_from"])
+
+        if filters.get("date_to"):
+            reports = reports.filter(report_date__lte=filters["date_to"])
 
         if filters.get("to_review"):
             # What the caller could review: not yet reviewed, not waiting on
@@ -2358,11 +2372,20 @@ class MessageService:
         )
 
     @classmethod
-    def inbox(cls, actor: User, unread):
+    def inbox(cls, actor: User, unread, date_from=None, date_to=None):
         messages = cls.inbox_of(actor).select_related("school")
 
         if php_truthy(unread):
             messages = messages.filter(read_at__isnull=True)
+
+        # By the day a message arrived at the school, not on the server's
+        # UTC calendar, so "today" in Pune starts at Pune's midnight.
+        clock = SchoolClock.for_user(actor)
+        if date_from:
+            messages = messages.filter(created_at__gte=clock.start_of_day_utc(date_from))
+
+        if date_to:
+            messages = messages.filter(created_at__lt=clock.end_of_day_utc(date_to))
 
         return messages.order_by("-created_at", "-id")
 
@@ -5466,6 +5489,12 @@ class AssessmentService:
         for field in ("academic_term_id", "class_section_id", "subject_id", "status", "type"):
             if filters.get(field):
                 found = found.filter(**{field: filters[field]})
+
+        if filters.get("date_from"):
+            found = found.filter(assessment_date__gte=filters["date_from"])
+
+        if filters.get("date_to"):
+            found = found.filter(assessment_date__lte=filters["date_to"])
 
         # Newest first: a teacher is almost always looking at the test they
         # just set. `id` breaks the tie, since a class can sit two tests on

@@ -27,12 +27,16 @@ class AssessmentRepository {
     String? status,
     String? type,
     bool mine = false,
+    String? dateFrom,
+    String? dateTo,
     required int page,
     required int perPage,
   }) {
     return _call(
       () => _api.list(
         mine: mine,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
         schoolId: schoolId,
         academicTermId: academicTermId,
         classSectionId: classSectionId,

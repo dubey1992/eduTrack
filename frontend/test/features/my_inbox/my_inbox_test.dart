@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/utils/date_period.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
@@ -155,6 +156,23 @@ void main() {
       expect(repository.lastUnreadOnly, isTrue);
       expect(find.text('Staff meeting moved'), findsNothing);
       expect(find.text('Sports day on Friday'), findsOneWidget);
+    });
+
+    testWidgets('Today asks for the messages that arrived today, and keeps Unread as it was', (tester) async {
+      final repository = FakeMyInboxRepository(messages: [...twoUnreadOneRead]);
+      await open(tester, repository);
+      await toInbox(tester);
+      await tester.tap(find.byKey(const Key('inbox-unread')));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('period-day')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-day')));
+      await tester.pumpAndSettle();
+
+      final today = DatePeriod.day.rangeFrom(DateTime.now())!;
+      expect(repository.lastRange, (today.from, today.to));
+      expect(repository.lastUnreadOnly, isTrue);
     });
 
     testWidgets('Mark all read clears every dot and says how many', (tester) async {

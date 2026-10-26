@@ -14,6 +14,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .. import dates
 from ..models import Message
 from ..pagination import LaravelPagination
 from ..resources import message_resource
@@ -23,7 +24,12 @@ from ..services import MessageService
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def messages(request) -> Response:
-    found = MessageService.inbox(request.user, request.query_params.get("unread"))
+    found = MessageService.inbox(
+        request.user,
+        request.query_params.get("unread"),
+        dates.iso_or_none(request.query_params.get("date_from")),
+        dates.iso_or_none(request.query_params.get("date_to")),
+    )
 
     paginator = LaravelPagination()
     page = paginator.paginate_queryset(found, request)

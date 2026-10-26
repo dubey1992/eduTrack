@@ -25,6 +25,8 @@ class AssessmentApi {
     String? status,
     String? type,
     bool mine = false,
+    String? dateFrom,
+    String? dateTo,
     int? page,
     int? perPage,
   }) async {
@@ -38,6 +40,8 @@ class AssessmentApi {
         'status': ?status,
         'type': ?type,
         if (mine) 'mine': 1,
+        'date_from': ?dateFrom,
+        'date_to': ?dateTo,
         'page': ?page,
         'per_page': ?perPage,
       },

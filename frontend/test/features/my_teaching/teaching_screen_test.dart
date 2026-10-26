@@ -2,6 +2,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/permission_level.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
+import 'package:edutrack_app/core/utils/date_period.dart';
 import 'package:edutrack_app/features/assessments/data/assessment_repository.dart';
 import 'package:edutrack_app/features/assessments/data/models/assessment.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
@@ -36,6 +37,8 @@ class _PagingReports extends FakeTeachingReportRepository {
     String? reportDate,
     bool mine = false,
     bool toReview = false,
+    String? dateFrom,
+    String? dateTo,
     required int page,
     required int perPage,
   }) async {
@@ -358,5 +361,41 @@ void main() {
     expect(find.byKey(const Key('teaching-tab-reports')), findsOneWidget);
     expect(find.byKey(const Key('teaching-tab-syllabus')), findsNothing);
     expect(find.byKey(const Key('teaching-tab-marks')), findsOneWidget);
+  });
+
+  group('By period', () {
+    testWidgets('reports: This week asks the server for this week, and an empty week says so', (tester) async {
+      await pump(tester);
+      reports.reports = [];
+
+      await tester.ensureVisible(find.byKey(const Key('period-week')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-week')));
+      await tester.pumpAndSettle();
+
+      final week = DatePeriod.week.rangeFrom(DateTime.now())!;
+      expect(reports.lastListRange, (week.from, week.to));
+      expect(find.text('No reports this week.'), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(const Key('period-all')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-all')));
+      await tester.pumpAndSettle();
+      expect(reports.lastListRange, (null, null));
+    });
+
+    testWidgets('marks: Today asks for today', (tester) async {
+      await pump(tester);
+      await tester.tap(find.byKey(const Key('teaching-tab-marks')));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('period-day')).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-day')).last);
+      await tester.pumpAndSettle();
+
+      final today = DatePeriod.day.rangeFrom(DateTime.now())!;
+      expect(assessments.lastRange, (today.from, today.to));
+    });
   });
 }

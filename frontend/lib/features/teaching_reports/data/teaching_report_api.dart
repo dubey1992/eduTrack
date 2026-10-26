@@ -41,6 +41,8 @@ class TeachingReportApi {
     String? reportDate,
     bool mine = false,
     bool toReview = false,
+    String? dateFrom,
+    String? dateTo,
     int? page,
     int? perPage,
   }) async {
@@ -52,6 +54,8 @@ class TeachingReportApi {
         'report_date': ?reportDate,
         if (mine) 'mine': 1,
         if (toReview) 'to_review': 1,
+        'date_from': ?dateFrom,
+        'date_to': ?dateTo,
         'page': ?page,
         'per_page': ?perPage,
       },

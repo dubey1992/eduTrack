@@ -34,6 +34,8 @@ class StaffLeaveApi {
     int? page,
     int? perPage,
     bool mine = false,
+    String? dateFrom,
+    String? dateTo,
   }) async {
     final response = await _dio.get(
       '/leaves',
@@ -43,6 +45,8 @@ class StaffLeaveApi {
         'school_id': ?schoolId,
         'department_id': ?departmentId,
         'status': ?status,
+        'date_from': ?dateFrom,
+        'date_to': ?dateTo,
         'page': ?page,
         'per_page': ?perPage,
       },

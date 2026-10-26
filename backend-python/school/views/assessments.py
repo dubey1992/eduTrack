@@ -21,7 +21,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import csv_export
+from .. import csv_export, dates
 from ..imports import marks as marks_import
 from ..models import Assessment, Student
 from ..pagination import LaravelPagination
@@ -55,6 +55,8 @@ def index(request) -> Response:
             "status": request.query_params.get("status"),
             "type": request.query_params.get("type"),
             "mine": request.query_params.get("mine") in ("1", "true"),
+            "date_from": dates.iso_or_none(request.query_params.get("date_from")),
+            "date_to": dates.iso_or_none(request.query_params.get("date_to")),
         },
     )
 
