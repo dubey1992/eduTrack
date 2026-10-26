@@ -143,6 +143,18 @@ configurations.all {
     exclude(group = "com.google.android.gms", module = "play-services-maps")
 }
 
+// The staff app never navigates, so it does not carry the Navigation SDK's
+// native engine - about 9 MB per processor type, the largest single thing
+// in the app. Its Java classes stay (the plugin registers at start-up, which
+// only sets up message handlers); the engine is loaded only when a
+// navigator starts, which nothing in the staff app does. Checked by running
+// the release build on a phone after removing it.
+androidComponents {
+    onVariants(selector().withFlavor("app" to "teacher")) { variant ->
+        variant.packaging.jniLibs.excludes.add("**/libgmm-jni.so")
+    }
+}
+
 dependencies {
     // The _nio flavour, not the plain one: the Navigation SDK uses
     // java.nio.file, and AGP refuses the build without it.

@@ -9,6 +9,7 @@ are the ones that need the Play Console account.
 | Item | Where |
 |---|---|
 | App bundle, signed with the upload key | `Desktop\School365ai-release\School365ai-1.0.0-1.aab` |
+| APKs for installing by hand | `School365ai-1.0.0-arm64.apk` (most phones), `School365ai-1.0.0-arm32.apk` (old phones) |
 | App icon 512 x 512 | `Desktop\School365ai-release\store\icon-512.png` |
 | Feature graphic 1024 x 500 | `Desktop\School365ai-release\store\feature-graphic.png` |
 | Eight phone screenshots, 1080 x 2160 | `Desktop\School365ai-release\store\phone-1.png` ... `phone-8.png` |
@@ -27,8 +28,37 @@ off this machine (docs/driver-app.md, D1.2).
 
 ```
 flutter build appbundle --release --flavor teacher -t lib/main_teacher.dart ^
+  --obfuscate --split-debug-info=<release folder>\symbols	eacher ^
   --dart-define=API_BASE_URL=https://api.school365ai.com/api/v1
 ```
+
+Keep each release's `symbols` folder: with `--obfuscate`, a crash report
+from a phone is only readable through `flutter symbolize` with the symbols
+of that exact build.
+
+## Size (2026-10-27)
+
+What a phone downloads is one processor type's worth. Play cuts it from the
+bundle by itself; for installing by hand there is one APK per type.
+
+| App | Before | 64-bit phone (arm64) | Older 32-bit phone | Play bundle |
+|---|---|---|---|---|
+| School365ai (staff) | 90.2 MB universal APK | 27.6 MB | 25.0 MB | 64.2 MB (was 79.1) |
+| School365ai Driver | 88.7 MB universal APK | 36.2 MB | 30.4 MB | 74.5 MB |
+
+How:
+- **One processor type per APK** (`--split-per-abi`). The universal APK
+  carried 64-bit ARM, 32-bit ARM and x86_64 (emulators only) side by side.
+- **The staff app no longer carries the Navigation SDK's native engine**
+  (`libgmm-jni.so`, about 9 MB per type), excluded for the teacher flavour
+  in `android/app/build.gradle.kts`. The driver app keeps it - turn-by-turn
+  needs it. Checked by running the slimmed staff release: sign-in, Today,
+  check-in and Department all work, nothing in the device log.
+- **Dart code obfuscated and its debug symbols kept outside the app**
+  (`--obfuscate --split-debug-info`).
+
+For sideloading, give phones the `arm64` APK; the `arm32` one is for old
+handsets that reject it.
 
 Add the four `FIREBASE_*` defines once push is set up (docs/teacher-app.md, T6).
 

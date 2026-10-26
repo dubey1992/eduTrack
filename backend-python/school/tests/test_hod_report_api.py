@@ -160,6 +160,17 @@ class MetricsTest(HodReportTestCase):
         self.assertEqual(33, row["syllabus_percent"])       # 2 of 4 maths + 2 science
         self.assertEqual("review", row["status"])
 
+    def test_a_report_sent_back_is_not_pending_review(self):
+        """It is with its teacher, not waiting on the HOD (docs/teacher-app.md, T7)."""
+        DailyTeachingReport.objects.filter(teacher=self.teacher, reviewed_by__isnull=True).update(
+            returned_at=timezone.now()
+        )
+
+        row = self.row(self.report(self.hod), self.teacher)
+
+        self.assertEqual(0, row["reports_pending_review"])
+        self.assertEqual(2, row["reports_submitted"])
+
     def test_department_wide_figures(self):
         response = self.report(self.hod)
 

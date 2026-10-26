@@ -2036,13 +2036,16 @@ class HodReportService:
         ):
             entries.setdefault(entry["teacher_id"], []).append(entry)
 
+        # "Pending review" leaves out a report sent back: it is with its
+        # teacher, not waiting on the HOD (docs/teacher-app.md, T7).
+        waiting_on_the_hod = Q(reviewed_by__isnull=True, returned_at__isnull=True)
         reports = {
             row["teacher_id"]: row
             for row in DailyTeachingReport.objects.filter(
                 teacher_id__in=user_ids, report_date__range=(month_start, month_end)
             )
             .values("teacher_id")
-            .annotate(submitted=Count("id"), pending=Count("id", filter=Q(reviewed_by__isnull=True)))
+            .annotate(submitted=Count("id"), pending=Count("id", filter=waiting_on_the_hod))
         }
 
         syllabus = cls.syllabus_coverage([entry for rows in entries.values() for entry in rows])
