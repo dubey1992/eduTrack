@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/widgets/driver_mark.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/maintenance_notifier.dart';
 import 'package:edutrack_app/core/routing/driver_router.dart';
@@ -124,6 +125,8 @@ void main() {
       expect(find.byType(DriverLandingScreen), findsOneWidget);
       expect(find.text('Your trip sheet, on this phone.'), findsOneWidget);
       expect(find.text('Join Early Access →'), findsNothing);
+      // The shuttle, not the graduation cap the app first had.
+      expect(find.byType(DriverMark), findsOneWidget);
     });
 
     testWidgets('nothing on the bus is selectable, because a long press belongs to SOS', (tester) async {

@@ -1,3 +1,5 @@
+import '../../../core/widgets/driver_mark.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -152,7 +154,7 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.directions_bus_filled, size: 36, color: palette.primary),
+          const DriverMark(size: 48),
           const SizedBox(height: 12),
           Text(
             registering ? 'Register this phone' : 'Bus attendant sign in',

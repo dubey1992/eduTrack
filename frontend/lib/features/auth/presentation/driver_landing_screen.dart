@@ -1,3 +1,5 @@
+import '../../../core/widgets/driver_mark.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,16 +54,8 @@ class _DriverLandingScreenState extends ConsumerState<DriverLandingScreen> {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.directions_bus_rounded, color: Colors.white, size: 24),
-                      ),
+                      // The shuttle, as on the launcher icon (scripts/driver_icon.py).
+                      const DriverMark(key: Key('driver-mark'), size: 44),
                       const SizedBox(width: 12),
                       // Flexible, not bare: the name plus the mark is wider
                       // than a narrow phone, and a bare Row overflows rather
