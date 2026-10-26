@@ -16,6 +16,8 @@ import '../../features/my_pay/presentation/my_payslip_detail_screen.dart';
 import '../../features/my_pay/presentation/my_payslips_phone_screen.dart';
 import '../../features/my_register/presentation/register_screen.dart';
 import '../../features/my_teaching/presentation/file_report_screen.dart';
+import '../../features/my_teaching/presentation/marks_entry_screen.dart';
+import '../../features/my_teaching/presentation/new_test_screen.dart';
 import '../../features/my_teaching/presentation/report_detail_screen.dart';
 import '../../features/my_teaching/presentation/syllabus_class_screen.dart';
 import '../../features/my_teaching/presentation/teaching_screen.dart';
@@ -45,6 +47,7 @@ const teacherPaths = {
   '/today',
   '/teaching',
   '/teaching/report',
+  '/teaching/tests/new',
   '/leave',
   '/leave/apply',
   '/pay',
@@ -60,7 +63,11 @@ final _registerPath = RegExp(r'^/register/\d+$');
 
 /// A filed report, `/teaching/reports/<id>`, and one class's syllabus,
 /// `/teaching/syllabus/<class section id>/<subject id>?label=...`.
-final _teachingPaths = [RegExp(r'^/teaching/reports/\d+$'), RegExp(r'^/teaching/syllabus/\d+/\d+$')];
+final _teachingPaths = [
+  RegExp(r'^/teaching/reports/\d+$'),
+  RegExp(r'^/teaching/syllabus/\d+/\d+$'),
+  RegExp(r'^/teaching/tests/\d+$'),
+];
 
 /// Those who teach a timetable: their home is Today, with periods and
 /// registers. An HOD teaches too, and gets a Department tab in T7.
@@ -136,6 +143,12 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
             ),
           );
         },
+      ),
+      // A new class test, then its marks - both over the frame.
+      GoRoute(path: '/teaching/tests/new', builder: (context, state) => const NewTestScreen()),
+      GoRoute(
+        path: '/teaching/tests/:id',
+        builder: (context, state) => MarksEntryScreen(assessmentId: int.parse(state.pathParameters['id']!)),
       ),
       GoRoute(
         path: '/teaching/reports/:id',

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/assessment.dart';
+import 'models/assessment_setup.dart';
 import 'models/assessment_sheet.dart';
 
 final assessmentApiProvider = Provider<AssessmentApi>((ref) => AssessmentApi(ref.watch(dioClientProvider)));
@@ -23,6 +24,7 @@ class AssessmentApi {
     int? subjectId,
     String? status,
     String? type,
+    bool mine = false,
     int? page,
     int? perPage,
   }) async {
@@ -35,12 +37,18 @@ class AssessmentApi {
         'subject_id': ?subjectId,
         'status': ?status,
         'type': ?type,
+        if (mine) 'mine': 1,
         'page': ?page,
         'per_page': ?perPage,
       },
     );
 
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, Assessment.fromJson);
+  }
+
+  Future<AssessmentSetup> setup() async {
+    final response = await _dio.get('/assessments/setup');
+    return AssessmentSetup.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<Assessment> create({

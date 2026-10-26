@@ -1320,6 +1320,24 @@ class TimetableService:
         )
 
     @classmethod
+    def taught_pairs(cls, teacher: User) -> list[dict]:
+        """Each class and subject the teacher is timetabled for this year,
+        once, ordered by class then subject."""
+        pairs = {}
+        for entry in cls.for_teacher(teacher).select_related("class_section__school_class", "subject"):
+            key = (entry.class_section_id, entry.subject_id)
+            if key not in pairs:
+                section = entry.class_section
+                pairs[key] = {
+                    "class_section_id": section.id,
+                    "class_section": f"{section.school_class.name} {section.name}".strip(),
+                    "subject_id": entry.subject_id,
+                    "subject_name": entry.subject.name,
+                }
+
+        return sorted(pairs.values(), key=lambda row: (row["class_section"], row["subject_name"]))
+
+    @classmethod
     def for_teacher(cls, teacher: User):
         """One teacher's periods across every class they teach, this year.
 
@@ -1719,19 +1737,9 @@ class SyllabusProgressService:
         may mark. Three queries whatever the size: the pairs, the topic
         counts, the ticks.
         """
-        pairs = {}
-        for entry in TimetableService.for_teacher(teacher).select_related(
-            "class_section__school_class", "subject"
-        ):
-            key = (entry.class_section_id, entry.subject_id)
-            if key not in pairs:
-                section = entry.class_section
-                pairs[key] = {
-                    "class_section_id": section.id,
-                    "class_section": f"{section.school_class.name} {section.name}".strip(),
-                    "subject_id": entry.subject_id,
-                    "subject_name": entry.subject.name,
-                }
+        pairs = {
+            (row["class_section_id"], row["subject_id"]): row for row in TimetableService.taught_pairs(teacher)
+        }
 
         subject_ids = {subject_id for _, subject_id in pairs}
         totals = dict(
@@ -5300,6 +5308,34 @@ class UserService:
 
 
 class AssessmentService:
+    @staticmethod
+    def setup_for(actor: User) -> dict:
+        """What the phone's New test form chooses from (docs/teacher-app.md,
+        T5): the classes and subjects the caller teaches this year, this
+        year's terms, the school's grade scales and its pass percentage.
+        Only ever the caller's own classes."""
+        school_id = actor.school_id
+        year_id = TimetableService.current_year_id(school_id)
+
+        terms = (
+            AcademicTerm.objects.filter(school_id=school_id, academic_year_id=year_id).order_by("sequence_number")
+            if year_id is not None
+            else AcademicTerm.objects.none()
+        )
+        scales = GradeScale.objects.filter(school_id=school_id).order_by("-is_default", "name")
+
+        return {
+            "classes": TimetableService.taught_pairs(actor),
+            "terms": [
+                {"id": term.id, "name": term.name, "start_date": term.start_date.isoformat(),
+                 "end_date": term.end_date.isoformat()}
+                for term in terms
+            ],
+            "grade_scales": [{"id": scale.id, "name": scale.name, "is_default": scale.is_default} for scale in scales],
+            "pass_percentage": modules.setting(school_id, "assessments", "pass_percentage") if school_id else None,
+            "types": [{"value": value, "label": label} for value, label in AssessmentType.choices],
+        }
+
     """Class tests: the record, before any mark exists (docs/assessments.md).
 
     What a person may reach is the policy's business. What this adds is the
@@ -5323,16 +5359,21 @@ class AssessmentService:
         # gives them; an HOD sees their department's subjects. Neither can
         # widen this with a filter, because the filters below can only cut
         # further into what is left.
-        if actor.role == UserRole.TEACHER:
-            taught = TimetableEntry.objects.filter(teacher_id=actor.id).values_list("class_section_id", "subject_id")
-            pairs = Q(pk__in=[])
+        taught = TimetableEntry.objects.filter(teacher_id=actor.id).values_list("class_section_id", "subject_id")
+        pairs = Q(pk__in=[])
 
-            for section_id, subject_id in taught:
-                pairs |= Q(class_section_id=section_id, subject_id=subject_id)
+        for section_id, subject_id in taught:
+            pairs |= Q(class_section_id=section_id, subject_id=subject_id)
 
+        if filters.get("mine"):
+            # The tests of the classes the caller teaches, whatever else they
+            # may see - the phone's Marks list (docs/teacher-app.md, T5).
+            found = found.filter(pairs)
+        elif actor.role == UserRole.TEACHER:
             found = found.filter(pairs)
         elif actor.role == UserRole.HOD:
-            found = found.filter(subject__department__hod_user_id=actor.id)
+            # Their department's subjects, and any class they teach outside it.
+            found = found.filter(Q(subject__department__hod_user_id=actor.id) | pairs)
 
         for field in ("academic_term_id", "class_section_id", "subject_id", "status", "type"):
             if filters.get(field):

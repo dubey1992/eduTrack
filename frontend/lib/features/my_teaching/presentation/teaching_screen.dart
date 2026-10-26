@@ -2,35 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/models/module_access.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../syllabus/data/models/my_syllabus_class.dart';
 import '../../teaching_reports/data/models/teaching_report.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../application/my_teaching_providers.dart';
+import 'marks_tab.dart';
 
 /// The Teaching tab in the School365ai app (docs/teacher-app.md, T3): the
 /// teacher's own reports, and the syllabus of each class they teach. A
 /// report is filed from its period on Today, where the period is already
 /// known, so this tab has no "new report" button.
-class TeachingScreen extends StatelessWidget {
+class TeachingScreen extends ConsumerWidget {
   const TeachingScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const DefaultTabController(
-      length: 2,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authNotifierProvider).value;
+    // Only the parts the school uses: a part switched off is left out
+    // rather than shown answering "switched off".
+    final parts = [
+      if (user?.canView(AppModules.teachingReports) ?? false)
+        (const Tab(key: Key('teaching-tab-reports'), text: 'Reports'), const _ReportsTab()),
+      if (user?.canView(AppModules.syllabus) ?? false)
+        (const Tab(key: Key('teaching-tab-syllabus'), text: 'Syllabus'), const _SyllabusTab()),
+      if (user?.canView(AppModules.assessments) ?? false)
+        (const Tab(key: Key('teaching-tab-marks'), text: 'Marks'), const MarksTab()),
+    ];
+
+    if (parts.isEmpty) return const SizedBox.shrink();
+
+    return DefaultTabController(
+      length: parts.length,
       child: Column(
         children: [
-          TabBar(
-            key: Key('teaching-tabs'),
-            tabs: [
-              Tab(key: Key('teaching-tab-reports'), text: 'Reports'),
-              Tab(key: Key('teaching-tab-syllabus'), text: 'Syllabus'),
-            ],
-          ),
-          Expanded(child: TabBarView(children: [_ReportsTab(), _SyllabusTab()])),
+          TabBar(key: const Key('teaching-tabs'), tabs: [for (final part in parts) part.$1]),
+          Expanded(child: TabBarView(children: [for (final part in parts) part.$2])),
         ],
       ),
     );

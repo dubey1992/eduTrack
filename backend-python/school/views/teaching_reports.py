@@ -59,10 +59,12 @@ def file_a_report(request) -> Response:
     # "Not in the future" is measured on the school's calendar, not the
     # server's: a teacher in Kolkata filing at 7am is already on a date a UTC
     # server has not reached.
-    today = SchoolClock.for_scope(request.user, request.data.get("school_id")).now().date()
+    now = SchoolClock.for_scope(request.user, request.data.get("school_id")).now()
 
     form = StoreDailyTeachingReportRequest(
-        data=request.data, actor=request.user, context={"school_today": today}
+        data=request.data,
+        actor=request.user,
+        context={"school_today": now.date(), "school_time": now.time()},
     )
     form.is_valid(raise_exception=True)
 

@@ -375,6 +375,9 @@ never see it). It has two parts: **Reports** and **Syllabus**.
   each). The period, class, subject and the school's date come from Today,
   so nothing is chosen. A filed period opens its report. A period still to
   come opens nothing: a report about a lesson not given is not one to write.
+  Since 2026-10-26 the server refuses it too, on the school's clock (422,
+  "This period has not started yet"), for the website as well; an earlier
+  day is never too early.
 - **Refusals in a teacher's words:** a second report for the period, no
   connection (nothing was sent), a period no longer theirs; anything else
   as the server said it. A double tap files one report. A syllabus that
@@ -429,7 +432,53 @@ period taps (3), router (3 new).
   `inbox/unread-count`.
 - Tests: mostly widget states; ALLOW/DENY already covered server-side.
 
-### Phase T5 — Class tests and marks
+### Phase T5 — Class tests and marks *(built 2026-10-26)*
+
+**As built.** A third part, **Marks**, in the Teaching tab, beside Reports
+and Syllabus. The tab now shows only the parts the school has switched on,
+and appears at all only where one of the three is on.
+
+The plan guessed "students × components"; the real model is one mark per
+student per test (docs/assessments.md), so a test is one list.
+
+- **The list:** the tests of the classes the teacher teaches (`mine=1`),
+  newest first, Draft or Published, a page at a time.
+- **New test:** class and subject (only those on their timetable this
+  year), title, kind, day, maximum, optional pass mark. The term is the
+  one the day falls in, and the grade scale is the school's default;
+  weightage and other scales stay on the website. A day no term covers is
+  refused before sending, and a year with no terms says the office has to
+  set them up. On success the test opens for its marks.
+- **The marks sheet:** each student with a number box (digits and a point
+  only) and an Absent switch; Next on the keyboard moves down the class.
+  "12 of 30 marked", the maximum and the pass mark at the top. A mark over
+  the maximum or not a number is caught as typed, Save waits, and a line
+  above the buttons says how many need fixing. The whole sheet saves in
+  one go; a partial sheet saves (blanks are "not yet marked", never zero;
+  absent is not zero either). The server's objections land on the student
+  they are about. Without signal the marks stay on screen to save again -
+  they are not queued like the register. Leaving with unsaved marks asks
+  first.
+- **Publish** opens once everyone is marked and saved, says whether
+  guardians will be told, and then the sheet is read-only with grades.
+  Reopening stays with the HOD of the subject's department or the office.
+
+**Server changes (no migration):**
+- `GET assessments?mine=1` - only the tests of the caller's own classes.
+- `GET assessments/setup` - the caller's classes this year, this year's
+  terms, the school's grade scales, the pass percentage and the test kinds.
+- **Gap fixed:** an HOD timetabled for a subject outside the department
+  they head could not see, set or mark its tests. They now can, like any
+  teacher of it; reopening a published one still needs the head of that
+  subject's department.
+- `TimetableService.taught_pairs` now answers "what does this teacher
+  teach" for both the syllabus list and the test setup.
+
+**Tests:** backend `MyTests` (5), `AnHodWhoTeachesOutsideTheirDepartment`
+(4), `TheNewTestForm` (5), `NotBeforeTheLessonBegins` (4). Flutter: marks
+sheet (14), New test (10), Marks tab and switched-off parts (6), router (1).
+
+**The plan, as written before building:**
 - Marks entry on a phone is the hard screen: students × components. One
   component at a time, students as a list, a numeric keypad field per row
   with next-field focus, running count of entered / missing, save per

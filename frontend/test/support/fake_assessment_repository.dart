@@ -2,6 +2,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/assessments/data/assessment_repository.dart';
 import 'package:edutrack_app/features/assessments/data/models/assessment.dart';
+import 'package:edutrack_app/features/assessments/data/models/assessment_setup.dart';
 import 'package:edutrack_app/features/assessments/data/models/assessment_sheet.dart';
 import 'package:edutrack_app/features/imports/data/import_repository.dart';
 
@@ -18,6 +19,8 @@ class FakeAssessmentRepository implements AssessmentRepository {
     List<SheetEntry>? sheetEntries,
     this.failWith = const {},
     this.refuseUploadWith,
+    this.setupData,
+    this.sheetAssessment,
   }) : _assessments = assessments ?? [],
        _sheetEntries = sheetEntries ?? [];
 
@@ -38,6 +41,24 @@ class FakeAssessmentRepository implements AssessmentRepository {
 
   final List<String> calls = [];
 
+  /// What `setup()` answers with.
+  AssessmentSetup? setupData;
+
+  /// The test the sheet is about, when it should not be the default draft.
+  Assessment? sheetAssessment;
+
+  /// Whether the last list asked for the caller's own (`mine=1`).
+  bool? lastMine;
+
+  /// What the last create sent.
+  Map<String, Object?>? lastCreated;
+
+  @override
+  Future<AssessmentSetup> setup() async {
+    _enter('setup');
+    return setupData ?? const AssessmentSetup(classes: [], terms: [], gradeScales: [], passPercentage: 33);
+  }
+
   /// The filters the screen last asked for.
   int? lastSectionFilter;
   String? lastStatusFilter;
@@ -56,10 +77,12 @@ class FakeAssessmentRepository implements AssessmentRepository {
     int? subjectId,
     String? status,
     String? type,
+    bool mine = false,
     required int page,
     required int perPage,
   }) async {
     _enter('listPage');
+    lastMine = mine;
     lastSectionFilter = classSectionId;
     lastStatusFilter = status;
 
@@ -90,6 +113,17 @@ class FakeAssessmentRepository implements AssessmentRepository {
     required DateTime assessmentDate,
   }) async {
     _enter('create');
+    lastCreated = {
+      'class_section_id': classSectionId,
+      'subject_id': subjectId,
+      'academic_term_id': academicTermId,
+      'grade_scale_id': gradeScaleId,
+      'type': type,
+      'title': title,
+      'max_marks': maxMarks,
+      'pass_marks': passMarks,
+      'assessment_date': assessmentDate,
+    };
 
     final created = fakeAssessment(
       id: _assessments.length + 1,
@@ -153,7 +187,7 @@ class FakeAssessmentRepository implements AssessmentRepository {
     _enter('sheet');
 
     return AssessmentSheet(
-      assessment: fakeAssessment(id: assessmentId),
+      assessment: sheetAssessment ?? fakeAssessment(id: assessmentId),
       entries: List.unmodifiable(_sheetEntries),
     );
   }
@@ -165,7 +199,7 @@ class FakeAssessmentRepository implements AssessmentRepository {
     _sheetEntries = List.of(entries);
 
     return AssessmentSheet(
-      assessment: fakeAssessment(id: assessmentId),
+      assessment: sheetAssessment ?? fakeAssessment(id: assessmentId),
       entries: List.unmodifiable(_sheetEntries),
     );
   }

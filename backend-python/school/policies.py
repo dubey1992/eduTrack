@@ -1072,7 +1072,9 @@ class AssessmentPolicy:
         if administers(actor):
             return True
 
-        return actor.role == UserRole.HOD and cls._teaches(actor, assessment.class_section_id, assessment.subject_id)
+        # The head of the subject's department - not an HOD who merely
+        # teaches the class, who is a teacher of it like any other.
+        return actor.role == UserRole.HOD and cls._heads(actor, assessment.subject_id)
 
     @classmethod
     def _manages(cls, actor: User, school_id, class_section_id, subject_id) -> bool:
@@ -1097,23 +1099,31 @@ class AssessmentPolicy:
         """Whether this person is the one who teaches that subject to that
         section - by the timetable, or by heading the department the subject
         belongs to."""
+        if actor.role not in (UserRole.HOD, UserRole.TEACHER):
+            return False
+
+        on_the_timetable = TimetableEntry.objects.filter(
+            class_section_id=class_section_id,
+            subject_id=subject_id,
+            teacher_id=actor.id,
+        ).exists()
+
+        # An HOD also teaches, sometimes outside the department they head.
         if actor.role == UserRole.HOD:
-            subject = Subject.objects.select_related("department").filter(pk=subject_id).first()
+            return on_the_timetable or AssessmentPolicy._heads(actor, subject_id)
 
-            return (
-                subject is not None
-                and subject.department_id is not None
-                and subject.department.hod_user_id == actor.id
-            )
+        return on_the_timetable
 
-        if actor.role == UserRole.TEACHER:
-            return TimetableEntry.objects.filter(
-                class_section_id=class_section_id,
-                subject_id=subject_id,
-                teacher_id=actor.id,
-            ).exists()
+    @staticmethod
+    def _heads(actor: User, subject_id) -> bool:
+        """Whether this person heads the department the subject belongs to."""
+        subject = Subject.objects.select_related("department").filter(pk=subject_id).first()
 
-        return False
+        return (
+            subject is not None
+            and subject.department_id is not None
+            and subject.department.hod_user_id == actor.id
+        )
 
 
 class UserPolicy:

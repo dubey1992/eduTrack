@@ -683,3 +683,134 @@ class TheListShowsOnlyWhatIsYours(AssessmentTestCase):
         response = self.client.get(URL)
 
         self.assertEqual("Later", response.data["data"][0]["title"])
+
+
+class MyTests(AssessmentTestCase):
+    """`GET assessments?mine=1` - the phone's Marks list (docs/teacher-app.md,
+    T5): the tests of the classes the caller teaches, whatever else their
+    role may see."""
+
+    def ids(self, user, **query):
+        response = self.as_user(user).get("/api/v1/assessments", {"mine": 1, **query})
+        self.assertEqual(200, response.status_code)
+
+        return [row["id"] for row in response.data["data"]]
+
+    def test_a_teacher_gets_the_tests_of_their_class(self):
+        mine = self.existing()
+        self.existing(class_section=self.other_section)
+
+        self.assertEqual([mine.id], self.ids(self.teacher))
+
+    def test_an_hod_gets_only_the_classes_they_teach_not_the_whole_department(self):
+        hod = factories.UserFactory(school=self.school, role=UserRole.HOD)
+        self.department.hod_user = hod
+        self.department.save()
+        factories.TimetableEntryFactory(
+            school=self.school, class_section=self.other_section, subject=self.subject, teacher=hod,
+            period=factories.PeriodFactory(school=self.school, period_number=7),
+        )
+        theirs = self.existing(class_section=self.other_section)
+        self.existing()
+
+        self.assertEqual([theirs.id], self.ids(hod))
+
+    def test_an_admin_teaches_nothing_so_gets_nothing(self):
+        self.existing()
+
+        self.assertEqual([], self.ids(self.admin))
+
+    def test_another_schools_teacher_gets_nothing(self):
+        self.existing()
+        stranger = factories.UserFactory(school=factories.SchoolFactory(), role=UserRole.TEACHER)
+
+        self.assertEqual([], self.ids(stranger))
+
+    def test_filters_still_cut_further(self):
+        self.existing(title="Draft one")
+        published = self.existing(status="published")
+
+        self.assertEqual([published.id], self.ids(self.teacher, status="published"))
+
+
+class AnHodWhoTeachesOutsideTheirDepartment(AssessmentTestCase):
+    """An HOD timetabled for another department's subject sets and marks its
+    tests like any teacher of it - but does not reopen a published one,
+    which stays with the head of that subject's department."""
+
+    def setUp(self):
+        super().setUp()
+        self.hod = factories.UserFactory(school=self.school, role=UserRole.HOD)
+        factories.DepartmentFactory(school=self.school, name="Languages", hod_user=self.hod)
+        factories.TimetableEntryFactory(
+            school=self.school, class_section=self.section, subject=self.other_subject, teacher=self.hod,
+            period=factories.PeriodFactory(school=self.school, period_number=8),
+        )
+
+    def test_may_set_a_test_for_the_class_they_teach(self):
+        response = self.as_user(self.hod).post(
+            "/api/v1/assessments", self.payload(subject_id=self.other_subject.id), format="json"
+        )
+
+        self.assertEqual(201, response.status_code)
+
+    def test_sees_it_in_their_list(self):
+        theirs = self.existing(subject=self.other_subject)
+
+        response = self.as_user(self.hod).get("/api/v1/assessments")
+
+        self.assertEqual([theirs.id], [row["id"] for row in response.data["data"]])
+
+    def test_may_not_set_one_for_a_subject_they_neither_head_nor_teach(self):
+        response = self.as_user(self.hod).post(
+            "/api/v1/assessments", self.payload(class_section_id=self.other_section.id), format="json"
+        )
+
+        self.assertEqual(403, response.status_code)
+
+    def test_may_not_reopen_a_published_one(self):
+        published = self.existing(subject=self.other_subject, status="published")
+
+        response = self.as_user(self.hod).post(f"/api/v1/assessments/{published.id}/reopen")
+
+        self.assertEqual(403, response.status_code)
+
+
+class TheNewTestForm(AssessmentTestCase):
+    """`GET assessments/setup` - what the phone's New test form chooses from."""
+
+    url = "/api/v1/assessments/setup"
+
+    def test_a_teacher_gets_their_classes_this_years_terms_the_scales_and_the_pass_mark(self):
+        scale = factories.GradeScaleFactory(school=self.school, name="CBSE", is_default=True)
+
+        response = self.as_user(self.teacher).get(self.url)
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            [{"class_section_id": self.section.id, "class_section": "Grade 8 A",
+              "subject_id": self.subject.id, "subject_name": "Mathematics"}],
+            response.data["classes"],
+        )
+        self.assertEqual([self.term.id], [term["id"] for term in response.data["terms"]])
+        self.assertEqual([{"id": scale.id, "name": "CBSE", "is_default": True}], response.data["grade_scales"])
+        self.assertEqual(33, response.data["pass_percentage"])
+        self.assertIn({"value": "class_test", "label": "Class Test"}, response.data["types"])
+
+    def test_another_schools_scales_are_not_offered(self):
+        factories.GradeScaleFactory(school=factories.SchoolFactory())
+
+        self.assertEqual([], self.as_user(self.teacher).get(self.url).data["grade_scales"])
+
+    def test_someone_who_teaches_nothing_gets_no_classes(self):
+        colleague = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+
+        self.assertEqual([], self.as_user(colleague).get(self.url).data["classes"])
+
+    def test_a_role_without_assessments_is_refused(self):
+        staff = factories.UserFactory(school=self.school, role=UserRole.STAFF)
+
+        self.assertEqual(403, self.as_user(staff).get(self.url).status_code)
+
+    def test_signed_out_is_refused(self):
+        self.assertEqual(401, APIClient().get(self.url).status_code)

@@ -37,12 +37,14 @@ enum TeacherPlace {
 /// where it runs payroll - every employee reads their own payslips there,
 /// whatever their role's matrix says about the office's payroll screen.
 bool _shows(TeacherPlace place, AuthenticatedUser? user) => switch (place) {
-  // Those who teach a timetable, where the school uses reports or the
-  // syllabus. Staff, accountants and the office have no periods to report.
+  // Those who teach a timetable, where the school uses reports, the
+  // syllabus or class tests. Staff, accountants and the office have no periods to report.
   TeacherPlace.teaching =>
     user != null &&
         (user.role == UserRole.teacher || user.role == UserRole.hod) &&
-        (user.canView(AppModules.teachingReports) || user.canView(AppModules.syllabus)),
+        (user.canView(AppModules.teachingReports) ||
+            user.canView(AppModules.syllabus) ||
+            user.canView(AppModules.assessments)),
   TeacherPlace.leave => user?.canView(AppModules.leave) ?? false,
   TeacherPlace.pay => user?.access.moduleOn(AppModules.payroll) ?? false,
   _ => true,

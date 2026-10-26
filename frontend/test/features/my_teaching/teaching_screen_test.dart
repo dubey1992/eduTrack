@@ -1,5 +1,10 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/models/permission_level.dart';
+import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
+import 'package:edutrack_app/features/assessments/data/assessment_repository.dart';
+import 'package:edutrack_app/features/assessments/data/models/assessment.dart';
+import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/my_teaching/presentation/report_detail_screen.dart';
 import 'package:edutrack_app/features/my_teaching/presentation/syllabus_class_screen.dart';
@@ -13,8 +18,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../support/fake_assessment_repository.dart';
+import '../../support/fake_auth_repository.dart';
 import '../../support/fake_syllabus_progress_repository.dart';
 import '../../support/fake_teaching_report_repository.dart';
+import '../../support/session_users.dart';
 import 'teaching_fixtures.dart';
 
 /// A report fake that pages: two reports a page.
@@ -47,6 +55,7 @@ class _PagingReports extends FakeTeachingReportRepository {
 void main() {
   late FakeTeachingReportRepository reports;
   late FakeSyllabusProgressRepository syllabus;
+  late FakeAssessmentRepository assessments;
 
   setUp(() {
     reports = FakeTeachingReportRepository(
@@ -55,13 +64,24 @@ void main() {
         report(id: 2, date: '2026-10-23', topic: 'Place value'),
       ],
     );
+    assessments = FakeAssessmentRepository(
+      assessments: [
+        fakeAssessment(id: 41, title: 'Fractions - unit test'),
+        fakeAssessment(id: 42, title: 'Place value quiz', status: AssessmentStatus.published),
+      ],
+    );
     syllabus = FakeSyllabusProgressRepository(
       checklist: mathsChecklist(),
       myClasses: const [mathsGrade3A, scienceGrade4A],
     );
   });
 
-  Future<void> pump(WidgetTester tester, {String at = '/teaching', ThemeData? theme}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    String at = '/teaching',
+    ThemeData? theme,
+    Map<String, PermissionLevel>? permissions,
+  }) async {
     tester.view.physicalSize = const Size(400, 860);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -70,6 +90,11 @@ void main() {
     final router = GoRouter(
       initialLocation: at,
       routes: [
+        GoRoute(path: '/teaching/tests/new', builder: (context, state) => const Text('new test form')),
+        GoRoute(
+          path: '/teaching/tests/:id',
+          builder: (context, state) => Text('marks of ${state.pathParameters['id']}'),
+        ),
         GoRoute(
           path: '/teaching',
           builder: (context, state) => const Scaffold(body: TeachingScreen()),
@@ -97,6 +122,10 @@ void main() {
         overrides: [
           teachingReportRepositoryProvider.overrideWithValue(reports),
           syllabusProgressRepositoryProvider.overrideWithValue(syllabus),
+          assessmentRepositoryProvider.overrideWithValue(assessments),
+          authRepositoryProvider.overrideWithValue(
+            FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher, id: 7, permissions: permissions)),
+          ),
         ],
         child: MaterialApp.router(theme: theme ?? AppTheme.teacherLight(), routerConfig: router),
       ),
@@ -265,5 +294,68 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byKey(const Key('syllabus-class-list')), findsOneWidget);
     });
+  });
+
+  group('Marks', () {
+    Future<void> openMarksTab(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('teaching-tab-marks')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('lists the tests of the classes taught, mine=1, with their state', (tester) async {
+      await pump(tester);
+      await openMarksTab(tester);
+
+      expect(assessments.lastMine, isTrue);
+      expect(find.descendant(of: find.byKey(const Key('my-test-41')), matching: find.text('Draft')), findsOneWidget);
+      expect(
+        find.descendant(of: find.byKey(const Key('my-test-42')), matching: find.text('Published')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a test opens its marks', (tester) async {
+      await pump(tester);
+      await openMarksTab(tester);
+
+      await tester.tap(find.byKey(const Key('my-test-41')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('marks of 41'), findsOneWidget);
+    });
+
+    testWidgets('New test opens the form', (tester) async {
+      await pump(tester);
+      await openMarksTab(tester);
+
+      await tester.tap(find.byKey(const Key('my-tests-new')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('new test form'), findsOneWidget);
+    });
+
+    testWidgets('with none yet, says how to set one', (tester) async {
+      assessments = FakeAssessmentRepository();
+      await pump(tester);
+      await openMarksTab(tester);
+
+      expect(find.byKey(const Key('my-tests-empty')), findsOneWidget);
+    });
+
+    testWidgets('an error offers Retry', (tester) async {
+      assessments = FakeAssessmentRepository(failWith: {'listPage': Failure.network()});
+      await pump(tester);
+      await openMarksTab(tester);
+
+      expect(find.text('Retry'), findsOneWidget);
+    });
+  });
+
+  testWidgets('a part the school switched off is left out, not shown switched off', (tester) async {
+    await pump(tester, permissions: {...allModulesAt(PermissionLevel.manage), 'syllabus': PermissionLevel.none});
+
+    expect(find.byKey(const Key('teaching-tab-reports')), findsOneWidget);
+    expect(find.byKey(const Key('teaching-tab-syllabus')), findsNothing);
+    expect(find.byKey(const Key('teaching-tab-marks')), findsOneWidget);
   });
 }

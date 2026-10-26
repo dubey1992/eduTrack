@@ -676,3 +676,36 @@ class OneReport(TeachingReportCase):
 
     def test_a_missing_report_is_not_found(self):
         self.assertEqual(404, self.read(self.teacher, 999999).status_code)
+
+
+class NotBeforeTheLessonBegins(TeachingReportCase):
+    """A report says what a lesson covered, so today's waits until the
+    period has begun, on the school's own clock. Period 1 runs 09:00-09:45;
+    the school is in Kolkata."""
+
+    MONDAY = "2026-10-26"
+
+    def at(self, hour, minute):
+        # IST is UTC+5:30.
+        utc = dt.datetime(2026, 10, 26, hour, minute, tzinfo=dt.timezone.utc) - dt.timedelta(hours=5, minutes=30)
+        return mock.patch("django.utils.timezone.now", return_value=utc)
+
+    def test_refused_before_the_period_starts(self):
+        with self.at(8, 55):
+            response = self.file(report_date=self.MONDAY)
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("has not started yet", str(response.data["details"]))
+        self.assertFalse(DailyTeachingReport.objects.exists())
+
+    def test_accepted_from_the_moment_it_starts(self):
+        with self.at(9, 0):
+            self.assertEqual(201, self.file(report_date=self.MONDAY).status_code)
+
+    def test_accepted_once_it_is_over(self):
+        with self.at(15, 0):
+            self.assertEqual(201, self.file(report_date=self.MONDAY).status_code)
+
+    def test_an_earlier_day_is_never_too_early(self):
+        with self.at(8, 0):
+            self.assertEqual(201, self.file(report_date="2026-10-19").status_code)

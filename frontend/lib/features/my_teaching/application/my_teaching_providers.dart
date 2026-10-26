@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../assessments/data/assessment_repository.dart';
+import '../../assessments/data/models/assessment.dart';
+import '../../assessments/data/models/assessment_setup.dart';
 import '../../syllabus/data/models/my_syllabus_class.dart';
 import '../../syllabus/data/models/syllabus_topic.dart';
 import '../../syllabus/data/syllabus_progress_repository.dart';
@@ -112,5 +115,60 @@ final mySyllabusProvider = FutureProvider.autoDispose<List<MySyllabusClass>>(
 /// A subject's topics, for the report form's "Syllabus topic" choice.
 final subjectTopicsProvider = FutureProvider.autoDispose.family<List<SyllabusTopic>, int>(
   (ref, subjectId) => ref.read(syllabusTopicRepositoryProvider).list(subjectId: subjectId),
+  retry: (retryCount, error) => null,
+);
+
+/// The class tests of the classes the teacher teaches, newest first.
+class MyTests {
+  const MyTests({required this.items, required this.hasMore, required this.page});
+
+  final List<Assessment> items;
+  final bool hasMore;
+  final int page;
+}
+
+/// "Marks" in the School365ai app (docs/teacher-app.md, T5): always the
+/// caller's own classes (`mine=1`), whatever else an HOD or admin may see.
+final myTestsProvider = AsyncNotifierProvider.autoDispose<MyTestsNotifier, MyTests>(
+  MyTestsNotifier.new,
+  retry: (retryCount, error) => null,
+);
+
+class MyTestsNotifier extends AsyncNotifier<MyTests> {
+  static const perPage = 20;
+
+  @override
+  Future<MyTests> build() => _page(1, const []);
+
+  Future<MyTests> _page(int page, List<Assessment> before) async {
+    final response = await ref.read(assessmentRepositoryProvider).listPage(mine: true, page: page, perPage: perPage);
+
+    return MyTests(
+      items: [...before, ...response.items],
+      hasMore: response.currentPage < response.lastPage,
+      page: response.currentPage,
+    );
+  }
+
+  Future<void> refresh() async {
+    state = await AsyncValue.guard(build);
+  }
+
+  Future<void> retry() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(build);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null || !current.hasMore) return;
+
+    state = await AsyncValue.guard(() => _page(current.page + 1, current.items));
+  }
+}
+
+/// What the New test form chooses from.
+final assessmentSetupProvider = FutureProvider.autoDispose<AssessmentSetup>(
+  (ref) => ref.read(assessmentRepositoryProvider).setup(),
   retry: (retryCount, error) => null,
 );

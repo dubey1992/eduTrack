@@ -40,6 +40,12 @@ class AssessmentSheetNotifier extends AsyncNotifier<AssessmentSheet> {
     state = await AsyncValue.guard(_fetch);
   }
 
+  /// Reads the sheet again without a loading state in between, so a screen
+  /// showing it stays up - after publishing, say.
+  Future<void> reload() async {
+    state = await AsyncValue.guard(_fetch);
+  }
+
   /// Types a mark for one student. Nothing is sent until [save].
   void setMark(int studentId, String marks) {
     _edit(studentId, (entry) => entry.copyWith(marksObtained: marks, isAbsent: false, clearMarks: marks.isEmpty));

@@ -54,6 +54,7 @@ def index(request) -> Response:
             "subject_id": request.query_params.get("subject_id"),
             "status": request.query_params.get("status"),
             "type": request.query_params.get("type"),
+            "mine": request.query_params.get("mine") in ("1", "true"),
         },
     )
 
@@ -292,3 +293,15 @@ def marks_preview(request, assessment_id: int) -> Response:
             "truncated": False,
         }
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def setup(request) -> Response:
+    """What the phone's New test form chooses from - the caller's own classes
+    and subjects, this year's terms, the grade scales and the pass mark
+    (docs/teacher-app.md, T5). There is no parameter to ask about anybody
+    else."""
+    authorize(AssessmentPolicy.view_any(request.user))
+
+    return Response(AssessmentService.setup_for(request.user))

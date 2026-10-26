@@ -7,6 +7,7 @@ import '../../imports/data/import_repository.dart';
 import '../../imports/data/models/import_result.dart';
 import 'assessment_api.dart';
 import 'models/assessment.dart';
+import 'models/assessment_setup.dart';
 import 'models/assessment_sheet.dart';
 
 final assessmentRepositoryProvider = Provider<AssessmentRepository>(
@@ -25,11 +26,13 @@ class AssessmentRepository {
     int? subjectId,
     String? status,
     String? type,
+    bool mine = false,
     required int page,
     required int perPage,
   }) {
     return _call(
       () => _api.list(
+        mine: mine,
         schoolId: schoolId,
         academicTermId: academicTermId,
         classSectionId: classSectionId,
@@ -41,6 +44,10 @@ class AssessmentRepository {
       ),
     );
   }
+
+  /// What the phone's New test form chooses from: the caller's classes, the
+  /// terms, the grade scales and the school's pass mark.
+  Future<AssessmentSetup> setup() => _call(_api.setup);
 
   Future<Assessment> create({
     required int classSectionId,

@@ -1151,6 +1151,20 @@ class StoreDailyTeachingReportRequest(ScopedSerializer):
                     f"({entry.day_of_week.capitalize()})."
                 )
 
+            # A report says what a lesson covered, so today's has to wait
+            # until the lesson has begun (docs/teacher-app.md, T3).
+            school_time = self.context.get("school_time")
+            if (
+                today is not None
+                and school_time is not None
+                and value == today
+                and entry.period_id is not None
+                and school_time < entry.period.start_time
+            ):
+                problems.append(
+                    "This period has not started yet. File its report once the lesson has begun."
+                )
+
         if problems:
             raise serializers.ValidationError(problems)
 
