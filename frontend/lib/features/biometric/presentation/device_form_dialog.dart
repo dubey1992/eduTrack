@@ -100,6 +100,36 @@ class _DeviceFormDialogState extends ConsumerState<DeviceFormDialog> {
     }
   }
 
+  /// A new reader must have a key, and a key once set is changed, never
+  /// removed (docs/security.md, "The 2026-10-26 review"): the serial number
+  /// is printed on the box, so a reader with no key takes punches from
+  /// anybody who has seen it.
+  String? _validatePushKey(String? value) {
+    final key = (value ?? '').trim();
+    final hadOne = widget.device?.hasPushKey ?? false;
+
+    if (!_isEdit && key.isEmpty) return 'A push key is required';
+    if (_isEdit && _pushKeyTouched && key.isEmpty && hadOne) {
+      return 'A push key cannot be removed. Type a new one, or leave this box alone.';
+    }
+    if (key.isNotEmpty && key.length < _minPushKey) return 'At least $_minPushKey characters';
+
+    return null;
+  }
+
+  String _pushKeyHelp() {
+    if (!_isEdit) {
+      return 'At least $_minPushKey characters. Set the same value on the device - without it, anybody who knows '
+          'the serial number could send punches.';
+    }
+    if (widget.device!.hasPushKey) return 'A key is set. Type a new one to replace it, or leave this box alone.';
+
+    return 'This device has no key, so anybody who knows its serial number can send punches. '
+        'Set one here and on the device.';
+  }
+
+  static const _minPushKey = 8;
+
   @override
   Widget build(BuildContext context) {
     final picksSchool = ref.watch(authNotifierProvider).value?.picksSchool ?? false;
@@ -151,15 +181,12 @@ class _DeviceFormDialogState extends ConsumerState<DeviceFormDialog> {
                 TextFormField(
                   controller: _pushKeyController,
                   decoration: InputDecoration(
-                    labelText: 'Push key',
-                    helperText: widget.device?.hasPushKey ?? false
-                        ? 'A key is set. Type a new one to replace it, or empty this box to remove it. '
-                              'Leave it alone to keep the one it has.'
-                        : 'Optional. A secret the device sends with its punches, where it can. '
-                              'Set the same value on the device.',
+                    labelText: _isEdit ? 'Push key' : 'Push key *',
+                    helperText: _pushKeyHelp(),
                     helperMaxLines: 3,
                   ),
                   maxLength: 64,
+                  validator: _validatePushKey,
                   onChanged: (_) => _pushKeyTouched = true,
                 ),
               ],

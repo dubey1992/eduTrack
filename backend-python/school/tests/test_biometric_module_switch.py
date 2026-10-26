@@ -61,7 +61,7 @@ class BiometricModuleTest(TestCase):
     def register_a_device(self):
         return self.client.post(
             DEVICES,
-            {"name": "Front gate", "serial_number": "ZK-0001", "location": "Reception"},
+            {"name": "Front gate", "serial_number": "ZK-0001", "location": "Reception", "push_key": "gate-key-2026"},
             format="json",
         )
 

@@ -176,8 +176,32 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Register Device'));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(TextFormField, 'Push key'), findsOneWidget);
-      expect(find.textContaining('A secret the device sends with its punches'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Push key *'), findsOneWidget);
+      expect(find.textContaining('Set the same value on the device'), findsOneWidget);
+    });
+
+    testWidgets('a new device cannot be registered without one', (tester) async {
+      useDesktop(tester);
+      final fake = FakeBiometricRepository();
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Register Device'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Device name'), 'Front gate');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Serial number'), 'ZK-0007');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('A push key is required'), findsOneWidget);
+      expect(fake.created, isEmpty);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Push key *'), 'short');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('At least 8 characters'), findsOneWidget);
+      expect(fake.created, isEmpty);
     });
 
     testWidgets('typing one sends it', (tester) async {
@@ -190,11 +214,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.widgetWithText(TextFormField, 'Device name'), 'Front gate');
       await tester.enterText(find.widgetWithText(TextFormField, 'Serial number'), 'ZK-0007');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Push key'), 's3cret');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Push key *'), 'gate-key-2026');
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
       await tester.pumpAndSettle();
 
-      expect(fake.created.single['push_key'], 's3cret');
+      expect(fake.created.single['push_key'], 'gate-key-2026');
     });
 
     testWidgets('leaving it alone on an edit says nothing about it', (tester) async {
@@ -224,6 +248,38 @@ void main() {
 
       expect(find.textContaining('A key is set'), findsOneWidget);
       expect(tester.widget<TextFormField>(find.widgetWithText(TextFormField, 'Push key')).controller?.text, '');
+    });
+
+    testWidgets('a key once set cannot be emptied away', (tester) async {
+      useDesktop(tester);
+      final fake = FakeBiometricRepository(devices: [fakeDevice(hasPushKey: true)]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Push key'), 'x');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Push key'), '');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('cannot be removed'), findsOneWidget);
+      expect(fake.edited, isEmpty);
+    });
+
+    testWidgets('a device with no key is marked in the list, and one with a key is not', (tester) async {
+      useDesktop(tester);
+      final fake = FakeBiometricRepository(
+        devices: [
+          fakeDevice(id: 1),
+          fakeDevice(id: 2, serial: 'ZK-0002', hasPushKey: true),
+        ],
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('no-push-key-1')), findsOneWidget);
+      expect(find.byKey(const Key('no-push-key-2')), findsNothing);
     });
   });
 }

@@ -3529,8 +3529,38 @@ class BiometricDeviceForm(ScopedSerializer):
     # The shared secret the device sends with its punches (B4). Write-only:
     # it is never read back, because the people who may *see* this register
     # are a wider set than the people who should be able to post punches
-    # into it. Empty clears it, which is how a school turns it off.
+    # into it.
+    #
+    # **Required for a new reader, and never removed once set** (decided
+    # 2026-10-26, docs/security.md). A serial number is printed on the box,
+    # so a reader with no key accepts punches from anybody who has seen it -
+    # and a punch can mark somebody Present. Readers registered before this
+    # keep working without one, so no school loses its register overnight;
+    # the website marks them so a key can be added.
     push_key = LaravelCharField("push_key", max_length=64, required=False, allow_null=True, allow_blank=True)
+
+    MIN_PUSH_KEY = 8
+
+    def push_key_errors(self, attrs, *, required: bool, had_one: bool = False) -> dict:
+        if "push_key" not in attrs and not required:
+            return {}
+
+        key = (attrs.get("push_key") or "").strip()
+
+        if not key:
+            if required:
+                return {"push_key": [
+                    "A new reader needs a push key - set the same one on the reader. "
+                    "Without it, anybody who knows the serial number could send punches."
+                ]}
+            if had_one:
+                return {"push_key": ["A push key cannot be removed once set. Change it instead."]}
+            return {}
+
+        if len(key) < self.MIN_PUSH_KEY:
+            return {"push_key": [f"The push key must be at least {self.MIN_PUSH_KEY} characters."]}
+
+        return {}
 
     def validate_serial_number(self, value: str) -> str:
         # Upper case, because a serial read off a sticker and typed in is
@@ -3563,7 +3593,7 @@ class StoreBiometricDeviceRequest(BiometricDeviceForm):
     def validate(self, attrs):
         self.validate_school_id_field()
 
-        errors = self.check(attrs)
+        errors = {**self.check(attrs), **self.push_key_errors(attrs, required=True)}
 
         if errors:
             raise serializers.ValidationError(errors)
@@ -3582,7 +3612,10 @@ class UpdateBiometricDeviceRequest(BiometricDeviceForm):
             field.required = False
 
     def validate(self, attrs):
-        errors = self.check(attrs, ignoring=self.device.pk)
+        errors = {
+            **self.check(attrs, ignoring=self.device.pk),
+            **self.push_key_errors(attrs, required=False, had_one=bool(self.device.push_key)),
+        }
 
         if errors:
             raise serializers.ValidationError(errors)

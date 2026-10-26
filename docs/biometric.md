@@ -287,8 +287,14 @@ damage, in order of how much work each does:
 - **A shared secret where the firmware can send one** (`push_key`, set on
   the device form). Write-only: never read back through the API and never
   in the audit trail, because the people who may *look* at this register
-  are a wider set than the people who should be able to post into it. Null
-  means none required, which is the only workable answer for older boxes.
+  are a wider set than the people who should be able to post into it.
+  **Required for every reader registered from 2026-10-26** (at least 8
+  characters), and never removable once set - only changed: the serial is
+  printed on the box, and a reader with no key takes punches, which mark
+  people Present, from anybody who has seen it. Readers registered earlier
+  without one keep working, so no school lost its register overnight; the
+  device list marks them "No key" until somebody sets one. A box whose
+  firmware cannot send a key is a school for the CSV upload instead.
 - **A rate limit per serial**, not per address: a school's devices sit
   behind one address, and a per-address limit tight enough to matter would
   throttle the school rather than the problem.

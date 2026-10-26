@@ -14,6 +14,7 @@ import '../../../core/widgets/pagination_controls.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/device_page_notifier.dart';
 import '../data/models/biometric_device.dart';
@@ -194,7 +195,7 @@ class _DeviceTable extends StatelessWidget {
           for (final device in devices)
             DataRow(
               cells: [
-                DataCell(Text(device.name)),
+                DataCell(_DeviceName(device: device)),
                 DataCell(Text(device.serialNumber)),
                 DataCell(Text(device.location ?? '-')),
                 DataCell(Text(device.schoolName)),
@@ -204,6 +205,32 @@ class _DeviceTable extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// The device's name, and a warning beside it when it has no push key:
+/// such a reader takes punches from anybody who knows its serial number
+/// (docs/security.md, "The 2026-10-26 review").
+class _DeviceName extends StatelessWidget {
+  const _DeviceName({required this.device, this.style});
+
+  final BiometricDevice device;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(device.name, style: style),
+        if (!device.hasPushKey)
+          Tooltip(
+            message: 'Anybody who knows the serial number can send punches. Edit the device to set a key.',
+            child: StatusBadge(key: Key('no-push-key-${device.id}'), label: 'No key', tone: BadgeTone.warning),
+          ),
+      ],
     );
   }
 }
@@ -229,7 +256,7 @@ class _DeviceCards extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(device.name, style: Theme.of(context).textTheme.titleMedium),
+                _DeviceName(device: device, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 4),
                 Text(device.serialNumber),
                 if (device.location case final where?) Text(where),

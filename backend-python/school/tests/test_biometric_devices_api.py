@@ -45,7 +45,7 @@ class DeviceTest(TestCase):
         return client
 
     def add(self, user=None, **overrides):
-        body = {"name": "Front gate", "serial_number": "ZK-0001", "location": "Reception"}
+        body = {"name": "Front gate", "serial_number": "ZK-0001", "location": "Reception", "push_key": "gate-key-2026"}
         body.update(overrides)
 
         return self.client_as(user or self.admin).post(DEVICES, body, format="json")
@@ -268,46 +268,63 @@ class TheSharedSecret(DeviceTest):
     may look at this register is wider than that."""
 
     def test_it_can_be_set_when_a_device_is_registered(self):
-        response = self.add(push_key="s3cret")
+        response = self.add(push_key="s3cret-key")
 
         self.assertEqual(201, response.status_code, response.data)
         self.assertTrue(response.data["has_push_key"])
-        self.assertEqual("s3cret", BiometricDevice.objects.get(serial_number="ZK-0001").push_key)
+        self.assertEqual("s3cret-key", BiometricDevice.objects.get(serial_number="ZK-0001").push_key)
 
     def test_it_is_never_read_back(self):
-        self.add(push_key="s3cret")
+        self.add(push_key="s3cret-key")
 
         listed = self.client_as(self.admin).get(DEVICES).data["data"][0]
         self.assertNotIn("push_key", listed)
         self.assertTrue(listed["has_push_key"])
 
-    def test_a_device_without_one_says_so(self):
-        response = self.add()
+    def test_a_new_reader_needs_one(self):
+        # A serial is printed on the box; with no key anybody who has seen
+        # it could send punches, and a punch can mark somebody Present.
+        for missing in ({"push_key": ""}, {"push_key": None}):
+            with self.subTest(sent=missing):
+                response = self.add(**missing)
 
-        self.assertFalse(response.data["has_push_key"])
+                self.assertEqual(422, response.status_code, response.data)
+                self.assertIn("needs a push key", response.data["details"]["errors"]["push_key"][0])
 
-    def test_an_empty_one_is_no_key_rather_than_an_empty_string(self):
-        """"" would answer "yes, a key is set" at the push endpoint and
-        refuse every device that cannot send one."""
-        response = self.add(push_key="")
+        self.assertFalse(BiometricDevice.objects.exists())
 
-        self.assertFalse(response.data["has_push_key"])
-        self.assertIsNone(BiometricDevice.objects.get(serial_number="ZK-0001").push_key)
+    def test_a_short_one_is_refused(self):
+        response = self.add(push_key="1234567")
 
-    def test_it_can_be_cleared_later(self):
-        device = self.add(push_key="s3cret").data
+        self.assertEqual(422, response.status_code)
+        self.assertIn("at least 8", response.data["details"]["errors"]["push_key"][0])
 
-        response = self.client_as(self.admin).patch(
-            f"{DEVICES}/{device['id']}", {"push_key": ""}, format="json"
+    def test_once_set_it_cannot_be_removed_only_changed(self):
+        device = self.add(push_key="s3cret-key").data
+        url = f"{DEVICES}/{device['id']}"
+
+        cleared = self.client_as(self.admin).patch(url, {"push_key": ""}, format="json")
+        changed = self.client_as(self.admin).patch(url, {"push_key": "new-gate-key"}, format="json")
+
+        self.assertEqual((422, 200), (cleared.status_code, changed.status_code), cleared.data)
+        self.assertEqual("new-gate-key", BiometricDevice.objects.get(pk=device["id"]).push_key)
+
+    def test_a_reader_from_before_the_rule_keeps_working_and_says_it_has_none(self):
+        # Registered without a key before 2026-10-26: still accepted, still
+        # editable, and marked so the school can add one.
+        old = BiometricDevice.objects.create(
+            school_id=self.school.id, name="Old gate", serial_number="ZK-OLD", push_key=None
         )
 
-        self.assertEqual(200, response.status_code, response.data)
-        self.assertFalse(response.data["has_push_key"])
+        renamed = self.client_as(self.admin).patch(f"{DEVICES}/{old.id}", {"name": "Back gate"}, format="json")
+
+        self.assertEqual(200, renamed.status_code, renamed.data)
+        self.assertFalse(renamed.data["has_push_key"])
 
     def test_it_never_reaches_the_audit_trail(self):
         """The trail should not be the one place a secret can be found."""
-        self.add(push_key="s3cret")
+        self.add(push_key="s3cret-key")
 
         for entry in AuditLog.objects.filter(module="staff_attendance"):
-            self.assertNotIn("s3cret", str(entry.new_values))
+            self.assertNotIn("s3cret-key", str(entry.new_values))
             self.assertNotIn("push_key", (entry.new_values or {}))
