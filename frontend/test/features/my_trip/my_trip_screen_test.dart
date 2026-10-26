@@ -636,6 +636,26 @@ void main() {
       expect(api.locationBatches, hasLength(1));
     });
 
+    testWidgets('keeps sending when the switch has scrolled out of sight', (tester) async {
+      // The attendant scrolls down to the children at a later stop - or
+      // opens guidance on top of the sheet - and the bus must not vanish
+      // from the office's map because the switch's row was taken down.
+      location.access = LocationAccess.granted;
+      await openRunningTrip(tester);
+      expect(api.locationBatches, hasLength(1));
+
+      tester.view.physicalSize = const Size(480, 360);
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('share-location-switch')), findsNothing, reason: 'the row is gone from the list');
+
+      location.offer(const DevicePosition(latitude: 12.9750, longitude: 77.59, accuracy: 8));
+      await tester.pump();
+
+      expect(api.locationBatches, hasLength(2), reason: 'the moved bus is still reported');
+    });
+
     testWidgets('turns itself off with the reason when permission is refused', (tester) async {
       await openRunningTrip(tester);
 

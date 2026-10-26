@@ -9,6 +9,7 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../transport/data/models/transport_trip.dart';
+import '../../application/location_sharing_notifier.dart';
 import '../../application/trip_detail_notifier.dart';
 import '../../application/trip_mark_queue.dart';
 import '../../data/map_navigator.dart';
@@ -144,6 +145,13 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     final shown = findRiders(trip.riders, _query);
     final unplaced = shown.where((r) => !stopIds.contains(r.stopId)).toList();
     final aboard = trip.riders.where((r) => r.status == TripRiderStatus.boarded).length;
+
+    // Sharing lives as long as this sheet, not as long as the switch's row:
+    // the list below builds rows lazily and takes one down once it scrolls
+    // out of sight, and the attendant scrolls down to tick children at
+    // every stop. Watched here, sharing also carries on under in-app
+    // guidance, which is pushed on top of this sheet.
+    if (running) ref.watch(locationSharingProvider(trip.id));
 
     // The search box stays above the list rather than scrolling off with
     // it: the moment it is wanted is the moment the sheet is longest.
