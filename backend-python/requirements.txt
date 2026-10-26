@@ -2,8 +2,12 @@
 # reproduce an API the Flutter apps already depend on, and a silent upgrade that
 # changes how DRF renders an error would be a contract break nobody asked for.
 
-Django==5.1.4
-djangorestframework==3.15.2
+# 5.2 is the long-term-support line (security fixes to April 2028). 5.1
+# stopped receiving them at the end of 2025; this moved off 5.1.4 on
+# 2026-10-26, when pip-audit counted some thirty published advisories
+# against it, and the full suite passed unchanged on the new versions.
+Django==5.2.17
+djangorestframework==3.18.2
 
 # psycopg 3, binary build - no local libpq or compiler needed, which matters on
 # Windows and on shared hosting alike.
@@ -21,11 +25,14 @@ bcrypt==4.2.1
 # the browser preflights every request; Laravel answers those through its own
 # config/cors.php and this is the same allowance. Hand-rolling it was the
 # alternative, and a preflight handled almost correctly is a security bug.
-django-cors-headers==4.6.0
+django-cors-headers==4.9.0
 
 # The PDF receipt. Pure Python on purpose: shared hosting has no cairo or
 # pango, which rules out WeasyPrint. Like dompdf on the Laravel side it
 # understands only simple CSS, so the receipt template came across unchanged.
+# PYSEC-2026-2056 (a crafted string can make it slow) has no fixed release
+# yet. The only input is our own receipt template and the school's own
+# names and amounts, never free text from the public; watch for a release.
 xhtml2pdf==0.2.16
 
 # Provider credentials and the SMTP password are stored encrypted
@@ -38,14 +45,14 @@ cryptography==50.0.1
 # Profile photos are decoded and re-encoded before they are kept
 # (school/photos.py), which is what strips EXIF and anything smuggled after
 # the image data. Already here through xhtml2pdf; pinned now it is used.
-Pillow==12.3.0
+Pillow==13.0.0
 
 # One .env serves both stacks: the schema stays Laravel's, so PHP and Python sit
 # on the same host and read the same file. Laravel's format has quoting and
 # ${VAR} interpolation in it, and a hand-rolled reader that got a quoted secret
 # key subtly wrong would misconfigure production silently. Pure Python, no
 # build step, which matters on shared hosting.
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 
 # Makes a --parallel failure readable. Without it the worker that failed
 # reports "tracebacks cannot be pickled" and nothing else, which turns a
