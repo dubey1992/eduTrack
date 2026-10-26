@@ -4,6 +4,19 @@
 # in public_html beside index.html. The API sends its own headers; these are
 # for the page itself, which is what a browser runs and an attacker targets.
 
+# Plain HTTP to HTTPS (docs/deployment.md, "The plain-HTTP trap"). Kept here
+# so every upload of the web build carries it: this file replaces the one in
+# public_html, and the redirect used to live only there. Two conditions, both
+# required: the host sits behind a proxy (Via: Caddy), so %{HTTPS} alone can
+# read 'off' on a secure request and loop forever.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteCond %{REQUEST_URI} !^/\.well-known/
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+</IfModule>
+
 <IfModule mod_headers.c>
   # What the page may load and talk to, and nothing else. Each source is here
   # because the app needs it:

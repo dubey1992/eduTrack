@@ -333,7 +333,16 @@ cd frontend
 flutter build web --release --dart-define=API_BASE_URL=https://api.<domain>/api/v1
 ```
 
-The app uses hash routing, so no `.htaccess` rewrite rules are needed.
+The app uses hash routing, so no routing rules are needed - but the build
+does carry an `.htaccess` (`frontend/web/.htaccess`), and uploading it
+**replaces** the one in `public_html`. It holds everything that file needs
+from us: the HTTP-to-HTTPS redirect and the page's security headers
+(docs/security.md). cPanel adds a block of its own for PHP's error log
+("cPanel-generated php ini directives"); the site has no PHP, but put that
+block back at the end of the uploaded file rather than let it go missing,
+so cPanel's MultiPHP screens find what they wrote. Check afterwards that
+`http://` still answers 301 and `https://` 200 with a
+`Content-Security-Policy` header.
 
 ## 7. Restarting the app
 
