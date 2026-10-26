@@ -1,3 +1,5 @@
+import '../../../../core/network/session_ended_notifier.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +39,8 @@ class _TeacherSignInScreenState extends ConsumerState<TeacherSignInScreen> {
   @override
   void initState() {
     super.initState();
+    // Here because the server ended the last session - say so.
+    if (ref.read(sessionEndedProvider)) _error = sessionEndedMessage;
     _loadRememberedEmail();
   }
 

@@ -50,6 +50,14 @@ class AuthRepository {
     }
   }
 
+  /// Forgets the session on this device without asking the server, which
+  /// has already said the session is over - asking it to sign out would only
+  /// be answered with the same 401.
+  Future<void> forgetSession() async {
+    await _tokenStorage.clearToken();
+    await _attendantStorage?.clearSession();
+  }
+
   /// Returns the current user if a stored token is still valid, or null if
   /// there is no session (no stored token, or the server rejected it).
   Future<AuthenticatedUser?> restoreSession() async {

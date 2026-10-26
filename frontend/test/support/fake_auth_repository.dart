@@ -65,6 +65,14 @@ class FakeAuthRepository implements AuthRepository {
         const AuthenticatedUser(id: 1, name: 'Test User', email: 'test@example.com', role: UserRole.superAdmin);
   }
 
+  /// Whether the session was forgotten on this device without the server.
+  bool forgotSession = false;
+
+  @override
+  Future<void> forgetSession() async {
+    forgotSession = true;
+  }
+
   @override
   Future<void> logout() async {
     loggedOutCalled = true;

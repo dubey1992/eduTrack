@@ -1,3 +1,4 @@
+import '../../../core/network/session_ended_notifier.dart';
 import '../../../core/widgets/driver_mark.dart';
 
 import 'package:flutter/material.dart';
@@ -54,6 +55,8 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
   @override
   void initState() {
     super.initState();
+    // Here because the server ended the last session - say so.
+    if (ref.read(sessionEndedProvider)) _errorMessage = sessionEndedMessage;
     _loadDevice();
   }
 

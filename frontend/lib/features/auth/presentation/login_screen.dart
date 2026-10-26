@@ -1,3 +1,5 @@
+import '../../../core/network/session_ended_notifier.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,6 +40,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _loadRememberedEmail();
+    // Here because the server ended the last session - say so.
+    if (ref.read(sessionEndedProvider)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            // Longer than a passing note: somebody who did not sign themselves
+            // out needs time to read why they are here.
+            const SnackBar(
+              key: Key('session-ended'),
+              duration: Duration(seconds: 10),
+              content: Text(sessionEndedMessage),
+            ),
+          );
+      });
+    }
   }
 
   Future<void> _loadRememberedEmail() async {

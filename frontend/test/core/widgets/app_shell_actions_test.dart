@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../support/fake_auth_repository.dart';
+import '../../support/in_memory_key_value_store.dart';
 
 const _admin = AuthenticatedUser(id: 1, name: 'Priya Sharma', email: 'priya@example.com', role: UserRole.schoolAdmin);
 
@@ -18,7 +20,11 @@ const _admin = AuthenticatedUser(id: 1, name: 'Priya Sharma', email: 'priya@exam
 void main() {
   Widget wrap(FakeAuthRepository fake) {
     return ProviderScope(
-      overrides: [authRepositoryProvider.overrideWithValue(fake)],
+      overrides: [
+        authRepositoryProvider.overrideWithValue(fake),
+        // Signing out clears what the phone keeps; this stands in for it.
+        keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
+      ],
       child: MaterialApp.router(
         theme: AppTheme.light(),
         routerConfig: GoRouter(

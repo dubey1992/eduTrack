@@ -7,6 +7,7 @@ import '../config/env.dart';
 import '../errors/failure.dart';
 import 'auth_token_storage.dart';
 import 'maintenance_notifier.dart';
+import 'session_ended_notifier.dart';
 
 final authTokenStorageProvider = Provider<AuthTokenStorage>((ref) => AuthTokenStorage());
 
@@ -40,6 +41,15 @@ final dioClientProvider = Provider<Dio>((ref) {
         // than each caller showing its own red box - see maintenanceProvider.
         if (error.response?.statusCode == 503) {
           ref.read(maintenanceProvider.notifier).reportUnavailable();
+        }
+        // The same for a session the server no longer accepts: one answer
+        // for the whole app, acted on by the auth notifier.
+        if (endsSession(
+          status: error.response?.statusCode,
+          path: error.requestOptions.path,
+          carriedSession: error.requestOptions.headers.containsKey('Authorization'),
+        )) {
+          ref.read(sessionEndedProvider.notifier).report();
         }
         handler.next(error);
       },

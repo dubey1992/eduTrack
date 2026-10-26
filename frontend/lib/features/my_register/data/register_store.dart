@@ -23,6 +23,10 @@ class RegisterStore {
   static const _unsentKey = 'register.unsent';
   static String _rosterKey(int sectionId) => 'register.roster.$sectionId';
 
+  /// Which sections have a class list saved, so they can all be found again
+  /// to be cleared: the phone's store cannot list its own keys.
+  static const _rostersKey = 'register.rosters';
+
   Future<List<SavedRegister>> readWaiting() async => _readList(_waitingKey, (json) => SavedRegister.fromJson(json));
 
   Future<void> saveWaiting(List<SavedRegister> registers) =>
@@ -45,8 +49,37 @@ class RegisterStore {
     }
   }
 
-  Future<void> saveRoster(int sectionId, List<CachedStudent> students) =>
-      _store.write(_rosterKey(sectionId), jsonEncode([for (final s in students) s.toJson()]));
+  Future<void> saveRoster(int sectionId, List<CachedStudent> students) async {
+    await _store.write(_rosterKey(sectionId), jsonEncode([for (final s in students) s.toJson()]));
+
+    final saved = await _savedRosterIds();
+    if (!saved.contains(sectionId)) await _store.write(_rostersKey, jsonEncode([...saved, sectionId]));
+  }
+
+  /// Every saved class list, gone - on signing out (docs/security.md, "The
+  /// phone apps"). They name children, and they are no business of whoever
+  /// signs in next; a teacher's next sign-in downloads their own again.
+  /// Registers waiting to be sent are not touched: they are that teacher's
+  /// attendance, sent only under their own sign-in, and losing them would
+  /// lose the day's register.
+  Future<void> clearRosters() async {
+    for (final sectionId in await _savedRosterIds()) {
+      await _store.delete(_rosterKey(sectionId));
+    }
+    await _store.delete(_rostersKey);
+  }
+
+  Future<List<int>> _savedRosterIds() async {
+    final raw = await _store.read(_rostersKey);
+    if (raw == null) return [];
+
+    try {
+      return [for (final id in jsonDecode(raw) as List) id as int];
+    } catch (error) {
+      debugPrint('The list of saved class lists could not be read: $error');
+      return [];
+    }
+  }
 
   Future<List<T>> _readList<T>(String key, T Function(Map<String, dynamic>) parse) async {
     final raw = await _store.read(key);

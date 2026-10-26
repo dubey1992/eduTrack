@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/session_ended_notifier.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
 import '../../assessments/application/assessment_list_notifier.dart';
 import '../../promotion/application/promotion_history_notifier.dart';
@@ -12,6 +14,7 @@ import '../../maps/data/maps_config.dart';
 import '../../schools/data/school_locations_repository.dart';
 import '../../marketing/application/marketing_draft_notifier.dart';
 import '../../my_register/application/register_queue.dart';
+import '../../my_register/data/register_store.dart';
 import '../../push/device_repository.dart';
 import '../../my_trip/application/trip_mark_queue.dart';
 import '../../classes/application/school_class_list_notifier.dart';
@@ -52,7 +55,23 @@ final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, AuthenticatedUs
 class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
   @override
   Future<AuthenticatedUser?> build() {
+    ref.listen(sessionEndedProvider, (previous, ended) {
+      if (ended && state.value != null) _sessionEnded();
+    });
+
     return ref.read(authRepositoryProvider).restoreSession();
+  }
+
+  /// The server no longer accepts this session (see [sessionEndedProvider]):
+  /// signed out on this device, back to the sign-in screen, which says why.
+  /// Nothing is sent to the server, and nothing still waiting to be sent is
+  /// thrown away - a bus phone's unsent marks and a teacher's unsent
+  /// registers go when that person signs in again.
+  Future<void> _sessionEnded() async {
+    await ref.read(authRepositoryProvider).forgetSession();
+    await _clearSavedClassLists();
+    state = const AsyncData(null);
+    _resetSessionScopedProviders();
   }
 
   /// Re-reads the session from /me - what the app gates on (module
@@ -81,13 +100,17 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     // PREVIOUS user, since none of these providers are autoDispose or
     // otherwise tied to the session. That looked exactly like a school-data
     // isolation bug even though the API itself was scoping correctly.
-    if (state.hasValue) _resetSessionScopedProviders();
+    if (state.hasValue) {
+      ref.read(sessionEndedProvider.notifier).clear();
+      _resetSessionScopedProviders();
+    }
   }
 
   /// Takes a session that was opened some other way than [login] - a bus
   /// attendant's passcode sign-in, whose token the attendant repository has
   /// already stored.
   void signedIn(AuthenticatedUser user) {
+    ref.read(sessionEndedProvider.notifier).clear();
     state = AsyncData(user);
     _resetSessionScopedProviders();
   }
@@ -110,12 +133,24 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     if (state.value?.role.isCrew ?? false) {
       await ref.read(tripMarkQueueProvider.notifier).discardAll();
     }
+    await _clearSavedClassLists();
     // Taken back while still signed in - the server needs to know whose it
     // was. Never blocks signing out (features/push).
     await ref.read(pushRegistrationProvider).forget();
     await ref.read(authRepositoryProvider).logout();
     state = const AsyncData(null);
     _resetSessionScopedProviders();
+  }
+
+  /// A teacher's saved class lists name children, so they go with the
+  /// session. Never blocks signing out - a phone whose store fails still
+  /// signs out.
+  Future<void> _clearSavedClassLists() async {
+    try {
+      await ref.read(registerStoreProvider).clearRosters();
+    } catch (error) {
+      debugPrint('Saved class lists could not be cleared on sign-out: $error');
+    }
   }
 
   /// Every top-level list/summary provider that caches data fetched under

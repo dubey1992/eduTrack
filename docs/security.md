@@ -160,6 +160,80 @@ A session also ends in these cases:
   - This applies to every CSV the API writes: reports, the audit log and
     import templates.
 
+## The 2026-10-26 review
+
+A review of the API, the website and both phone apps after the staff app and
+the bus app went live. What it found and what changed:
+
+**API**
+- **Role changes (critical).** Editing a user let a Group Admin set any
+  role, Super Admin included - and then sign in as that user. Only a Super
+  Admin may now give an admin role; everybody else may assign HOD, Teacher,
+  Staff, Transport Manager or Accountant and nothing more.
+- **Bus crew and other routes' children.** A driver or attendant could read
+  the riders, and their guardians' numbers, of any route in the school. They
+  now see only the routes they are on.
+- **Crew setup codes.** Five wrong setup codes used to lock the crew member
+  for good - and needed no phone, so anybody who knew a driver's number could
+  lock them out of the phone they already use. Now a setup attempt with no
+  code waiting counts nothing; five wrong codes cancel the code (the office
+  issues another) and lock nothing; and every failed setup gets the same
+  answer, so the form no longer tells a stranger which numbers are crew.
+- **Fingerprint readers.** The device key is compared in constant time, and
+  unknown serials write one audit entry per sender per ten minutes rather
+  than one per request. A reader with no `push_key` still accepts punches
+  from anyone who knows its serial; set a key wherever the firmware can send
+  one (docs/biometric.md).
+- **Throttles.** Five tries a minute for anything that checks the current
+  password while signed in (changing the password or the email), so a
+  stolen session is not a free run at the password; ten test messages an
+  hour per person; 120 emailed payslips or progress reports an hour.
+- **Smaller things.** A report PDF no longer prints another school's class
+  or department name in its heading; the punch-file upload has the same
+  2 MB and CSV-only rules as every other import; the public early-access
+  form fills in blanks on a repeat but never overwrites an answer, and keeps
+  what the repeat said in the audit trail.
+- **Libraries.** Django 5.1.4 to 5.2.17 (5.1 had stopped getting security
+  fixes), Django REST framework to 3.18.2, Pillow to 13.0.0 (it decodes
+  uploaded photos), python-dotenv to 1.2.2, django-cors-headers to 4.9.0.
+  Run `pip-audit -r requirements.txt` before each release. xhtml2pdf
+  0.2.16 has an open advisory with no fix yet; it only ever renders our own
+  receipt template.
+
+**The website** gets its own headers from `frontend/web/.htaccess`, which
+the build copies beside `index.html`: a Content-Security-Policy that allows
+only the app, Google Maps, the fonts and the API; `frame-ancestors 'none'`
+and `X-Frame-Options: DENY` against clickjacking; `nosniff`;
+`Referrer-Policy: no-referrer`. Checked in a real browser - sign-in, the
+dashboard and the live trip map - with no violation reported. If the API
+moves, its address in `connect-src` moves with it.
+
+**The phone apps**
+- No Android backup, to the cloud or to a new phone (`allowBackup`, and
+  `data_extraction_rules.xml` for Android 12+). What the apps keep is
+  encrypted with a key that never leaves the phone, so a copy is useless.
+- Signing out clears a teacher's saved class lists (they name children).
+  Registers still waiting to be sent stay: they are that teacher's
+  attendance and go only under their own sign-in.
+- **A session the server has ended** - signed out elsewhere, expired, the
+  account switched off, a bus phone revoked - now signs out on the device
+  at the first 401, and the sign-in screen says "Your session has ended.
+  Sign in again." Before, every screen kept failing until a restart.
+- A release build with no `API_BASE_URL` refuses to start, rather than
+  quietly talking plain HTTP to localhost.
+- The driver app's release command is documented with `--obfuscate`, like
+  the staff app's.
+
+**Left open, on purpose**
+- A locked account answers 423 where an unknown address answers 401, which
+  confirms the account exists to somebody who has already failed ten
+  times. The usual lockout trade-off.
+- Payslips and the passcode screen can be screenshotted (no FLAG_SECURE):
+  blocking it everywhere would also block the screenshots staff use to ask
+  for help.
+- The set-password link carries its token in the address bar, as reset
+  links do; it is one hour and single use, and the page sends no referrer.
+
 ## Production checklist (Phase 22)
 
 - **Environment:** set `DJANGO_SECRET_KEY`, `DJANGO_ENCRYPTION_KEY` (see

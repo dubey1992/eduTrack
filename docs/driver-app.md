@@ -324,6 +324,19 @@ in Flutter, when that screen is built.
 - Built with `flutter build apk --flavor driver --target lib/main_driver.dart`. **Without
   the `--target` the APK is the web app**, which is exactly the bug this
   slice fixed, so D1.4's CI job has to pass it.
+- **A release for Play** (added 2026-10-26), obfuscated like the staff app's,
+  with the API address given - a release build without one now refuses to
+  start rather than talking plain HTTP to localhost:
+
+  ```
+  flutter build appbundle --release --flavor driver -t lib/main_driver.dart ^
+    --obfuscate --split-debug-info=<release folder>\symbols\driver ^
+    --dart-define=API_BASE_URL=https://api.school365ai.com/api/v1
+  ```
+
+  Bump `version:` in `pubspec.yaml` first: besides Play needing it, a phone
+  updating over an older install keeps showing the old launcher icon (the
+  graduation cap) on Android's own splash until the version changes.
 - *Done when:* the installed app opens on "Register this phone" and there
   is no way to reach a school screen from it. Seen on a device.
 

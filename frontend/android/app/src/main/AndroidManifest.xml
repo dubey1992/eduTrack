@@ -28,10 +28,18 @@
          (docs/driver-app.md, D8). Asked for the first time the microphone
          button is tapped, never before. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- No backup, to the cloud or to a new phone (docs/security.md, "The
+         phone apps"). Everything the apps keep - the session, the bus
+         phone's device secret, offline registers and trip marks - is
+         encrypted with a key that never leaves this phone, so a copy is
+         useless on any other; making one only spreads the ciphertext. -->
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <!-- The bus mark, white on transparent, for the trip notification.
              Android flattens a small icon to a silhouette: hand it the
              colour launcher icon and the shade shows a plain white blob,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/config/env.dart';
 import 'core/routing/driver_router.dart';
 import 'core/theme/app_theme.dart';
 
@@ -18,6 +19,7 @@ import 'core/theme/app_theme.dart';
 /// screen itself - is the same code, which is the whole reason the driver
 /// app is a day's work rather than a second project.
 void main() {
+  Env.checkReleaseConfiguration();
   runApp(const ProviderScope(child: DriverApp()));
 }
 

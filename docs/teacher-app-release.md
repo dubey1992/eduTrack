@@ -28,7 +28,7 @@ off this machine (docs/driver-app.md, D1.2).
 
 ```
 flutter build appbundle --release --flavor teacher -t lib/main_teacher.dart ^
-  --obfuscate --split-debug-info=<release folder>\symbols	eacher ^
+  --obfuscate --split-debug-info=<release folder>\symbols\teacher ^
   --dart-define=API_BASE_URL=https://api.school365ai.com/api/v1
 ```
 

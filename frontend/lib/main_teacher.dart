@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/config/env.dart';
 import 'core/routing/teacher_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/my_register/presentation/register_sender.dart';
@@ -17,6 +18,7 @@ import 'features/push/push_registrar.dart';
 ///
 ///     flutter build apk --flavor teacher --target lib/main_teacher.dart
 void main() {
+  Env.checkReleaseConfiguration();
   runApp(const ProviderScope(child: TeacherApp()));
 }
 

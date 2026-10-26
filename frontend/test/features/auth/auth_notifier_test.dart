@@ -3,6 +3,8 @@ import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/features/auth/application/auth_notifier.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
+import 'package:edutrack_app/core/storage/key_value_store.dart';
+import 'package:edutrack_app/features/my_register/data/register_store.dart';
 import 'package:edutrack_app/features/schools/application/school_list_notifier.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_repository.dart';
+import '../../support/in_memory_key_value_store.dart';
 
 void main() {
   ProviderContainer makeContainer(FakeAuthRepository fake) {
@@ -73,6 +76,32 @@ void main() {
 
     expect(fake.loggedOutCalled, isTrue);
     expect(container.read(authNotifierProvider).value, isNull);
+  });
+
+  test("logout() clears the phone's saved class lists but keeps registers still to send", () async {
+    // The lists name children and are nobody's business after sign-out; a
+    // register waiting for signal is the teacher's attendance and goes
+    // when they next sign in.
+    const user = AuthenticatedUser(id: 7, name: 'Priya', email: 'priya@example.com', role: UserRole.teacher);
+    final store = InMemoryKeyValueStore();
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: user)),
+        keyValueStoreProvider.overrideWithValue(store),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(authNotifierProvider.future);
+    final registers = container.read(registerStoreProvider);
+    await registers.saveRoster(11, const []);
+    await registers.saveRoster(12, const []);
+    store.values['register.waiting'] = '[]';
+
+    await container.read(authNotifierProvider.notifier).logout();
+
+    expect(await registers.readRoster(11), isNull);
+    expect(await registers.readRoster(12), isNull);
+    expect(store.values.keys, ['register.waiting']);
   });
 
   test('logout() and login() invalidate cached feature data so the next session refetches it', () async {

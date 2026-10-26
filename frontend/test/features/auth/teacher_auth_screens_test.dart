@@ -4,6 +4,7 @@ import 'package:edutrack_app/features/my_inbox/data/my_inbox_repository.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/dio_client.dart';
+import 'package:edutrack_app/core/network/session_ended_notifier.dart';
 import 'package:edutrack_app/core/routing/teacher_router.dart';
 import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/core/widgets/teacher_mark.dart';
@@ -177,6 +178,20 @@ void main() {
 
       expect(find.text('That does not look like an email address.'), findsOneWidget);
       expect(auth.loginEmail, isNull);
+    });
+
+    testWidgets('a session the server ended signs out, and the sign-in says why', (tester) async {
+      const teacher = AuthenticatedUser(id: 7, name: 'Asha', email: 'asha@school.test', role: UserRole.teacher);
+      await open(tester, FakeAuthRepository(sessionOnRestore: teacher));
+      expect(find.byType(TodayScreen), findsOneWidget);
+
+      // What the network layer does when a request comes back 401.
+      ProviderScope.containerOf(tester.element(find.byType(TeacherApp))).read(sessionEndedProvider.notifier).report();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TodayScreen), findsNothing);
+      if (find.byType(TeacherSignInScreen).evaluate().isEmpty) await toSignIn(tester);
+      expect(find.text(sessionEndedMessage), findsOneWidget);
     });
 
     testWidgets("the server's refusal is shown in a banner and the form stays", (tester) async {
