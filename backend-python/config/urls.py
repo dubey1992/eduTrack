@@ -36,6 +36,7 @@ from school.views import (
     hod,
     iclock,
     imports,
+    devices,
     inbox,
     leave,
     mail_settings,
@@ -249,6 +250,8 @@ urlpatterns = [
     path("api/v1/settings/permissions/reset", permissions.reset),
     # -- the inbox ---------------------------------------------------------
     path("api/v1/inbox", inbox.messages),
+    # The phones a person is signed in on, for push (docs/teacher-app.md, T6).
+    path("api/v1/devices", devices.devices),
     path("api/v1/inbox/unread-count", inbox.unread_count),
     path("api/v1/inbox/read-all", inbox.read_all),
     path("api/v1/inbox/<int:message_id>/read", inbox.read),

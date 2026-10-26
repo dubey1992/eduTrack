@@ -9,7 +9,9 @@ enum MessageCategory {
   // Written by hand in the Communication Center rather than by a module.
   general('general', 'General'),
   emergency('emergency', 'Emergency'),
-  fee('fee', 'Fee');
+  fee('fee', 'Fee'),
+  // A teacher's report reviewed by their HOD (docs/teacher-app.md, T6).
+  teaching('teaching', 'Teaching');
 
   const MessageCategory(this.apiValue, this.label);
 

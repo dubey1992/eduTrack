@@ -197,6 +197,9 @@ class MessageCategory(models.TextChoices):
     GENERAL = "general"
     EMERGENCY = "emergency"
     FEE = "fee"
+    # About a teacher's own teaching - a report their HOD has reviewed. Only
+    # ever to that teacher's inbox (docs/teacher-app.md, T6).
+    TEACHING = "teaching"
 
     @classmethod
     def label_for(cls, category: str) -> str:
@@ -238,6 +241,7 @@ class MessageEvent(models.TextChoices):
     GENERAL_MESSAGE = "general.message", "Message"
     EMERGENCY_ALERT = "emergency.alert", "Emergency alert"
     FEE_REMINDER = "fee.reminder", "Fee reminder"
+    REPORT_REVIEWED = "teaching.report_reviewed", "Teaching report reviewed"
 
     @classmethod
     def category(cls, event: str) -> str:
@@ -266,6 +270,11 @@ class MessageEvent(models.TextChoices):
             return [MessageChannel.IN_APP, *MessageChannel.external()]
 
         category = cls.category(event)
+
+        # Between colleagues, about the day's work: the inbox, and the push
+        # that rides on it. Not worth an SMS.
+        if category == MessageCategory.TEACHING:
+            return [MessageChannel.IN_APP]
 
         if category in (
             MessageCategory.ATTENDANCE, MessageCategory.TRANSPORT, MessageCategory.FEE, MessageCategory.RESULT
@@ -331,6 +340,9 @@ DEFAULT_BODIES = {
         "SOS from {route_name} ({vehicle_name}): {crew_name} asked for help at {time} "
         "on the {direction} run, with {on_board} on board. Call {crew_mobile}. - {school_name}"
     ),
+    MessageEvent.REPORT_REVIEWED: (
+        "{reviewer_name} reviewed your report for {subject_name}, {class_name}, period {period} on {date}."
+    ),
     MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
     MessageEvent.GENERAL_MESSAGE: "{school_name}: {subject} - {body}",
     MessageEvent.EMERGENCY_ALERT: "EMERGENCY - {school_name}: {body}",
@@ -359,6 +371,9 @@ TOKENS = {
     MessageCategory.GENERAL: ["recipient_name", "subject", "body", "school_name"],
     MessageCategory.EMERGENCY: ["subject", "body", "school_name"],
     MessageCategory.FEE: ["student_name", "guardian_name", "amount", "due_date", "school_name"],
+    MessageCategory.TEACHING: [
+        "staff_name", "reviewer_name", "subject_name", "class_name", "period", "date", "school_name",
+    ],
 }
 
 # The one event whose tokens differ from its category's: it names a direction

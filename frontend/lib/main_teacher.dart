@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/routing/teacher_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/my_register/presentation/register_sender.dart';
+import 'features/push/push_registrar.dart';
 
 /// The app a teacher installs (docs/teacher-app.md).
 ///
@@ -37,8 +38,18 @@ class TeacherApp extends ConsumerWidget {
       // leaves selections behind scrolls, and nobody copies text off a
       // register. The Overlay stays so snackbars from pages have a home.
       // RegisterSender sends registers saved on the phone without signal.
+      // PushRegistrar registers this phone for notifications and opens what
+      // a tapped one is about (features/push).
       builder: (context, child) => RegisterSender(
-        child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+        child: PushRegistrar(
+          app: 'staff',
+          onOpen: (route) {
+            final router = ref.read(teacherRouterProvider);
+            // The inbox opens over the frame; the rest are tabs.
+            route == '/inbox' ? router.push(route) : router.go(route);
+          },
+          child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+        ),
       ),
     );
   }

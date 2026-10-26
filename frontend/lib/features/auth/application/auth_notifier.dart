@@ -12,6 +12,7 @@ import '../../maps/data/maps_config.dart';
 import '../../schools/data/school_locations_repository.dart';
 import '../../marketing/application/marketing_draft_notifier.dart';
 import '../../my_register/application/register_queue.dart';
+import '../../push/device_repository.dart';
 import '../../my_trip/application/trip_mark_queue.dart';
 import '../../classes/application/school_class_list_notifier.dart';
 import '../../communication/application/inbox_notifier.dart';
@@ -109,6 +110,9 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     if (state.value?.role.isCrew ?? false) {
       await ref.read(tripMarkQueueProvider.notifier).discardAll();
     }
+    // Taken back while still signed in - the server needs to know whose it
+    // was. Never blocks signing out (features/push).
+    await ref.read(pushRegistrationProvider).forget();
     await ref.read(authRepositoryProvider).logout();
     state = const AsyncData(null);
     _resetSessionScopedProviders();

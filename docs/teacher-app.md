@@ -486,7 +486,60 @@ sheet (14), New test (10), Marks tab and switched-off parts (6), router (1).
   surfaced inline. Read-only once published, as on the web.
 - Tests: validation (over max, non-numeric), partial save, locked state.
 
-### Phase T6 — Push notifications *(decision 2)*
+### Phase T6 — Push notifications *(built 2026-10-26; switched on when Firebase is set up)*
+
+**As built.** A push is a second delivery of an in-app message, never a
+message of its own: whatever reaches a member of staff's inbox also buzzes
+the phones they are signed in on. So a switched-off alert - never recorded
+(docs/communication.md) - is never pushed, and nothing is logged twice.
+
+- **Server:** `device_tokens` (Laravel migration, one row per phone, the
+  token unique across everybody so a shared phone moves to whoever signed
+  in last). `POST /devices` registers the caller's phone, `DELETE /devices`
+  forgets it (only the caller's own; silent otherwise). The in-app send job
+  queues a `send_push` job, so a slow Firebase never holds up the inbox.
+  `school/push.py` sends through FCM HTTP v1, signing the service account's
+  JWT itself with `cryptography` (no new server package), reuses the access
+  token for 50 minutes, removes tokens Firebase says are dead, and logs no
+  token, key or message body. A tap opens `/leave` for leave, `/teaching`
+  for teaching, `/inbox` for anything else.
+- **New event, gap filled:** `teaching.report_reviewed` - an HOD (or the
+  office) reviewing a report now tells the teacher who wrote it, in the
+  inbox only (category `teaching`, never SMS).
+- **App:** `firebase_core` + `firebase_messaging` behind `PushMessaging`,
+  with `NoPush` when the build has no Firebase keys - so every build without
+  them behaves exactly as before. `PushRegistrar` (above the router, like
+  `RegisterSender`) asks permission after sign-in, registers the phone,
+  re-registers when Firebase rotates the token, follows a tapped
+  notification (only to the app's own known addresses, otherwise the
+  inbox), and shows one that arrives with the app open, with Open. Sign-out
+  forgets the phone first and never waits on it.
+- **Kept on purpose:** the classic FCM registration token
+  (`getToken`/`onTokenRefresh`), deprecated in firebase_messaging 17 in
+  favour of an installation id for a newer send route; moving means moving
+  the server's send target too, so the two move together.
+
+**To switch push on** (the business's own Firebase project - needed once):
+1. In the Firebase console, create (or reuse the Google Cloud project of
+   the Maps keys as) a Firebase project, and add an **Android app** with
+   package name `com.school365ai`.
+2. From the Android app's settings take the **API key, App ID, Sender ID
+   and Project ID**, and build with
+   `--dart-define=FIREBASE_API_KEY=... --dart-define=FIREBASE_APP_ID=...
+   --dart-define=FIREBASE_SENDER_ID=... --dart-define=FIREBASE_PROJECT_ID=...`.
+   No google-services.json goes into git.
+3. Project settings → Service accounts → **Generate new private key**.
+   Upload the JSON to the server outside the web root (for example
+   `/home/<account>/secrets/firebase.json`) and set
+   `FIREBASE_CREDENTIALS_FILE` to that path in the shared `.env`.
+
+**Tests:** backend `test_push_api.py` (35 with the skeleton): registering
+and forgetting phones ALLOW/DENY, the sender against a fake Firebase (who is
+pushed to, title, route, cut body, dead tokens, outage, token reuse, signed
+assertion), no push without Firebase, the muted rule, the review message.
+Flutter `push_registrar_test.dart` (14).
+
+**The plan, as written before building:**
 - Backend: `device_tokens` (user, platform, token, app, last seen; Laravel
   migration), a `PUSH` adapter behind `NotificationService` with FCM, the
   switched-off rule (a muted alert is not sent **and not logged**,

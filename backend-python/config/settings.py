@@ -106,6 +106,10 @@ ENCRYPTION_KEY = os.environ.get("DJANGO_ENCRYPTION_KEY", "")
 GOOGLE_MAPS_SERVER_KEY = os.environ.get("GOOGLE_MAPS_SERVER_KEY", "")
 GOOGLE_MAPS_BROWSER_KEY = os.environ.get("GOOGLE_MAPS_BROWSER_KEY", "")
 
+# Push notifications (docs/teacher-app.md, T6): the path to the Firebase
+# service account key file, kept outside git. Empty means push is off.
+FIREBASE_CREDENTIALS_FILE = os.environ.get("FIREBASE_CREDENTIALS_FILE", "")
+
 # Biases address search towards the country the platform is sold in. An
 # ISO 3166-1 alpha-2 code, or empty for no bias.
 GOOGLE_MAPS_REGION = os.environ.get("GOOGLE_MAPS_REGION", "IN")

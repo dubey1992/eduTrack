@@ -1417,3 +1417,23 @@ class Vehicle(models.Model):
         managed = False
         db_table = 'vehicles'
         unique_together = (('school', 'registration_number'),)
+
+
+class DeviceToken(models.Model):
+    """A phone somebody is signed in on, for push notifications
+    (docs/teacher-app.md, T6). The token is Firebase's name for one install
+    of the app, so it is unique across everybody: a shared phone belongs to
+    whoever signed in on it last."""
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey('User', models.DO_NOTHING)
+    token = models.CharField(unique=True, max_length=255)
+    platform = models.CharField(max_length=16)
+    app = models.CharField(max_length=20)
+    last_seen_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'device_tokens'

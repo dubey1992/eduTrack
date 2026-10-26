@@ -1554,7 +1554,30 @@ class DailyTeachingReportService:
         report.save(update_fields=["reviewed_by", "reviewed_at", "updated_at"])
         audit.updated("teaching", report, before, action="daily_teaching_report.reviewed")
 
-        return cls.fresh(report)
+        reviewed = cls.fresh(report)
+        cls.tell_the_teacher(reviewed, actor)
+
+        return reviewed
+
+    @staticmethod
+    def tell_the_teacher(report, actor: User) -> None:
+        """The teacher hears that their report was read - in the inbox, and
+        on their phone where push is set up (docs/teacher-app.md, T6)."""
+        entry = report.timetable_entry
+        section = entry.class_section if entry else None
+
+        notifications.notify_staff(
+            MessageEvent.REPORT_REVIEWED,
+            report.teacher,
+            {
+                "reviewer_name": actor.name,
+                "subject_name": entry.subject.name if entry else "",
+                "class_name": f"{section.school_class.name} {section.name}".strip() if section else "",
+                "period": str(entry.period.period_number) if entry else "",
+                "date": dates.us(report.report_date),
+            },
+            actor=actor,
+        )
 
     @classmethod
     def fresh(cls, report):

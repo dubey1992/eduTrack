@@ -13,7 +13,7 @@ import logging
 
 from django.utils import timezone
 
-from . import mailer, notifications, progress_reports, receipts, sms, whatsapp
+from . import mailer, notifications, progress_reports, push, queue, receipts, sms, whatsapp
 
 # Imported for its side effect: registering compute_route_path. The worker
 # finds handlers by importing this module, so one that lives elsewhere has
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 SEND_PAYMENT_RECEIPT = "payment_receipt"
 SEND_PROGRESS_REPORT = "progress_report"
 SEND_NOTICE = "send_notice"
+SEND_PUSH = "send_push"
 EMAIL_CHANGED_NOTICE = "email_changed_notice"
 
 
@@ -50,11 +51,16 @@ def send_message(message_id: int) -> None:
 
     now = timezone.now()
 
-    # The in-app inbox has no gateway - the row *is* the delivery.
+    # The in-app inbox has no gateway - the row *is* the delivery. The phones
+    # the person is signed in on are told separately, so a slow Firebase
+    # never holds up the inbox (school/push.py).
     if message.channel == MessageChannel.IN_APP:
         Message.objects.filter(pk=message.pk).update(
             status=MessageStatus.SENT, sent_at=now, updated_at=now
         )
+
+        if message.user_id and push.configured():
+            queue.push(SEND_PUSH, {"message_id": message.id})
 
         return
 
@@ -486,3 +492,12 @@ def send_email_changed_notice(user_id: int, old_email: str) -> None:
         ),
         to=[old_email],
     ).send()
+
+
+@handler(SEND_PUSH)
+def send_push(message_id: int) -> None:
+    """Buzzes the phones of the person an in-app message was written for."""
+    message = Message.objects.filter(pk=message_id).first()
+
+    if message is not None:
+        push.deliver(message)
