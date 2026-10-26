@@ -19,7 +19,7 @@ import 'teacher_mark.dart';
 /// exist.
 /// The places a teacher can be, in the order the bar shows them.
 enum TeacherPlace {
-  today('/today', 'Today', Icons.today_outlined, Icons.today),
+  today('/today', 'Home', Icons.home_outlined, Icons.home),
   teaching('/teaching', 'Teaching', Icons.menu_book_outlined, Icons.menu_book),
   department('/department', 'Department', Icons.groups_outlined, Icons.groups),
   leave('/leave', 'Leave', Icons.event_note_outlined, Icons.event_note),

@@ -155,6 +155,8 @@ DENY), a run on the emulator, and a line in this document.
   `/today`, `/profile`, maintenance, and `/not-teacher` for an
   administrator or bus crew who installed the wrong app. `TEACHER` and
   `HOD` get in; the HOD's Department tab waits for T7.
+  *(Since 2026-10-26 the first tab is labelled **Home**, with a house icon;
+  the screen behind it and its `/today` path are unchanged.)*
 - `TeacherFrame`: who is signed in, the way out, a bottom bar with **Today
   · Me**. Two tabs, not the three the plan drew: Classes has nothing behind
   it until T2 and a tab with nothing behind it is decoration. One 640-px
