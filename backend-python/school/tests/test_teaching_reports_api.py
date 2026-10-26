@@ -36,7 +36,9 @@ A_TUESDAY = dt.date(2026, 9, 15)
 A_SATURDAY = dt.date(2026, 9, 12)
 
 
-class TeachingReportTest(TestCase):
+class TeachingReportCase(TestCase):
+    """The school, people and periods every report test starts from."""
+
     def setUp(self):
         cache.clear()
         self.school = factories.SchoolFactory(timezone="Asia/Kolkata")
@@ -106,6 +108,8 @@ class TeachingReportTest(TestCase):
     def errors(self, response) -> dict:
         return response.data["details"]["errors"]
 
+
+class TeachingReportTest(TeachingReportCase):
     # -- filing -------------------------------------------------------------
 
     def test_a_teacher_files_a_report_for_their_own_period(self):
@@ -572,3 +576,103 @@ class FilingTicksTheSyllabus(TeachingReportTest):
             self.as_user(self.teacher).get("/api/v1/teaching-reports")
 
         self.assertLess(len(many), 15, "the topic should ride on the existing select_related")
+
+
+class MyReports(TeachingReportCase):
+    """`GET teaching-reports?mine=1` - the app's Reports list
+    (docs/teacher-app.md, T3): only the caller's own, whatever else they may
+    see."""
+
+    def mine(self, user):
+        response = self.as_user(user).get("/api/v1/teaching-reports", {"mine": 1})
+        self.assertEqual(200, response.status_code)
+
+        return [row["teacher_id"] for row in response.data["data"]]
+
+    def test_an_hod_sees_only_their_own_not_their_departments(self):
+        self.assertEqual(201, self.file().status_code)
+        entry = self.period_for(self.hod, self.second)
+        self.assertEqual(201, self.file(self.hod, timetable_entry_id=entry.id).status_code)
+
+        self.assertEqual([self.hod.id], self.mine(self.hod))
+
+    def test_an_hod_sees_their_own_even_from_outside_the_department_they_head(self):
+        # Their own profile sits in Arts while they head Science: the
+        # department view leaves them out, and "mine" must not.
+        self.hod.staffprofile.department = self.arts
+        self.hod.staffprofile.save()
+        entry = self.period_for(self.hod, self.second)
+        self.assertEqual(201, self.file(self.hod, timetable_entry_id=entry.id).status_code)
+
+        self.assertEqual([self.hod.id], self.mine(self.hod))
+
+    def test_an_admin_asking_for_mine_gets_none_of_the_schools_reports(self):
+        self.assertEqual(201, self.file().status_code)
+
+        self.assertEqual([], self.mine(self.admin))
+
+    def test_mine_overrides_a_teacher_id_for_somebody_else(self):
+        self.assertEqual(201, self.file().status_code)
+        response = self.as_user(self.hod).get(
+            "/api/v1/teaching-reports", {"mine": 1, "teacher_id": self.teacher.id}
+        )
+
+        self.assertEqual([], response.data["data"])
+
+    def test_another_schools_teacher_sees_none_of_these(self):
+        self.assertEqual(201, self.file().status_code)
+        stranger = factories.UserFactory(school=factories.SchoolFactory(), role=UserRole.TEACHER)
+
+        self.assertEqual([], self.mine(stranger))
+
+
+class OneReport(TeachingReportCase):
+    """`GET teaching-reports/{id}` - a report opened from its period on the
+    app's Today."""
+
+    def setUp(self):
+        super().setUp()
+        response = self.file(homework="Exercise 4.2")
+        self.assertEqual(201, response.status_code)
+        self.report_id = response.data["id"]
+
+    def read(self, user, report_id=None):
+        return self.as_user(user).get(f"/api/v1/teaching-reports/{report_id or self.report_id}")
+
+    def test_its_author_reads_it(self):
+        response = self.read(self.teacher)
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("Exercise 4.2", response.data["homework"])
+
+    def test_the_hod_of_the_authors_department_reads_it(self):
+        self.assertEqual(200, self.read(self.hod).status_code)
+
+    def test_an_admin_of_the_school_reads_it(self):
+        self.assertEqual(200, self.read(self.admin).status_code)
+
+    def test_an_hod_reads_their_own_from_outside_the_department_they_head(self):
+        self.hod.staffprofile.department = self.arts
+        self.hod.staffprofile.save()
+        entry = self.period_for(self.hod, self.second)
+        own = self.file(self.hod, timetable_entry_id=entry.id).data["id"]
+
+        self.assertEqual(200, self.read(self.hod, own).status_code)
+
+    def test_another_teacher_gets_not_found(self):
+        colleague = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+
+        self.assertEqual(404, self.read(colleague).status_code)
+
+    def test_another_schools_admin_gets_not_found(self):
+        stranger = factories.UserFactory(school=factories.SchoolFactory(), role=UserRole.SCHOOL_ADMIN)
+
+        self.assertEqual(404, self.read(stranger).status_code)
+
+    def test_a_role_without_reports_is_refused(self):
+        staff = factories.UserFactory(school=self.school, role=UserRole.STAFF)
+
+        self.assertEqual(403, self.read(staff).status_code)
+
+    def test_a_missing_report_is_not_found(self):
+        self.assertEqual(404, self.read(self.teacher, 999999).status_code)

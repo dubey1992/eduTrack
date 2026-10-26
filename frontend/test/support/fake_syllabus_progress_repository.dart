@@ -1,9 +1,16 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/features/syllabus/data/models/my_syllabus_class.dart';
 import 'package:edutrack_app/features/syllabus/data/models/syllabus_checklist.dart';
 import 'package:edutrack_app/features/syllabus/data/syllabus_progress_repository.dart';
 
 class FakeSyllabusProgressRepository implements SyllabusProgressRepository {
-  FakeSyllabusProgressRepository({required SyllabusChecklist checklist, this.failChecklistWith, this.failToggleWith})
+  FakeSyllabusProgressRepository({
+    required SyllabusChecklist checklist,
+    this.failChecklistWith,
+    this.failToggleWith,
+    this.myClasses = const [],
+    this.failMineWith,
+  })
     // Private field, public parameter - see AuthenticatedUser.
     // ignore: prefer_initializing_formals
     : _checklist = checklist;
@@ -11,6 +18,14 @@ class FakeSyllabusProgressRepository implements SyllabusProgressRepository {
   SyllabusChecklist _checklist;
   Failure? failChecklistWith;
   Failure? failToggleWith;
+  List<MySyllabusClass> myClasses;
+  Failure? failMineWith;
+
+  @override
+  Future<List<MySyllabusClass>> mine() async {
+    if (failMineWith != null) throw failMineWith!;
+    return myClasses;
+  }
 
   @override
   Future<SyllabusChecklist> checklist({required int classSectionId, required int subjectId}) async {

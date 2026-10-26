@@ -17,6 +17,7 @@ class TeachingReport {
     required this.reviewedBy,
     required this.reviewedByName,
     required this.reviewedAt,
+    this.syllabusTopicName,
   });
 
   factory TeachingReport.fromJson(Map<String, dynamic> json) {
@@ -36,6 +37,7 @@ class TeachingReport {
       reviewedBy: json['reviewed_by'] as int?,
       reviewedByName: json['reviewed_by_name'] as String?,
       reviewedAt: json['reviewed_at'] as String?,
+      syllabusTopicName: json['syllabus_topic_name'] as String?,
     );
   }
 
@@ -56,6 +58,9 @@ class TeachingReport {
   final int? reviewedBy;
   final String? reviewedByName;
   final String? reviewedAt;
+
+  /// The syllabus topic the report ticked off, if it named one.
+  final String? syllabusTopicName;
 
   bool get isReviewed => reviewedBy != null;
 }

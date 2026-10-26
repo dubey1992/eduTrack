@@ -362,7 +362,51 @@ its marks with **Correct**.
   on the server for `client_id` replays, widget tests for the tally and
   the confirm, the Not-sent card.
 
-### Phase T3 — Teaching reports and the syllabus
+### Phase T3 — Teaching reports and the syllabus *(built 2026-10-26)*
+
+**As built.** A fifth tab, **Teaching**, for teachers and HODs where the
+school uses reports or the syllabus (staff, accountants and the office
+never see it). It has two parts: **Reports** and **Syllabus**.
+
+- **Filing from Today.** A period that has begun and has no report shows
+  "Report owed - tap to file" and opens the form: what was taught
+  (required, 255 characters), an optional syllabus topic of that subject
+  (picking one ticks it off for the class), homework and remarks (500
+  each). The period, class, subject and the school's date come from Today,
+  so nothing is chosen. A filed period opens its report. A period still to
+  come opens nothing: a report about a lesson not given is not one to write.
+- **Refusals in a teacher's words:** a second report for the period, no
+  connection (nothing was sent), a period no longer theirs; anything else
+  as the server said it. A double tap files one report. A syllabus that
+  will not load does not stop the report.
+- **Reports list:** the teacher's own, newest first, a page at a time, each
+  marked Reviewed or Awaiting review, opening read-only. No editing: the
+  web has none, and a reviewed report must stay what was reviewed.
+- **Syllabus:** every class and subject the teacher is timetabled for this
+  year, with progress, each opening a checklist to tick topics on or off.
+
+**Server changes (no migration):**
+- `GET syllabus-progress/mine` - the caller's own classes and subjects this
+  year with topic counts, read from the live timetable (the same rule that
+  lets them tick). Three queries whatever the size.
+- `GET teaching-reports?mine=1` - only the caller's own, whatever else they
+  may see. **Gap fixed:** an HOD's view is narrowed to the departments they
+  head, so an HOD whose own staff profile sits in another department could
+  not see their own reports.
+- `GET teaching-reports/{id}` - one report, for whoever may see it in the
+  list or its author; anything else is a 404.
+- **Gap fixed:** an HOD timetabled for another department's subject could
+  not tick its syllabus. They now may, like any teacher of it; still not a
+  subject they neither head nor teach.
+- `GET timetable/today` already sent `subject_id`; the app now reads it.
+
+**Tests:** backend `WhatITeach` (8), `AnHodWhoTeachesOutsideTheirDepartment`
+(2), `MyReports` (5), `OneReport` (8). The report tests' fixtures moved into
+`TeachingReportCase`, so new classes no longer re-run every inherited test.
+Flutter: report form (14), Teaching tab, report and checklist (15), Today
+period taps (3), router (3 new).
+
+**The plan, as written before building:**
 - From a period on Today: **Report this period** - the form the web has
   (what was taught, the syllabus topic, remarks), prefilled with the
   period, submitted once; the server already refuses a second report for

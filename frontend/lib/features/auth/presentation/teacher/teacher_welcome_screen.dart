@@ -89,8 +89,8 @@ class TeacherWelcomeScreen extends StatelessWidget {
                             ),
                             const _Point(
                               icon: Icons.task_alt,
-                              title: 'Nothing slips',
-                              body: 'See which register and which teaching reports are still owed.',
+                              title: 'Register and reports',
+                              body: 'Take your class register, even without signal, and say what each period covered.',
                             ),
                             const _Point(
                               icon: Icons.event_available_outlined,

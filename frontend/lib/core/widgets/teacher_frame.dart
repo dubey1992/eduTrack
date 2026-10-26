@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/data/models/authenticated_user.dart';
 import '../models/module_access.dart';
+import '../models/user_role.dart';
 import '../../features/my_inbox/application/my_inbox_notifier.dart';
 import 'app_shell.dart';
 import 'teacher_mark.dart';
@@ -19,6 +20,7 @@ import 'teacher_mark.dart';
 /// The places a teacher can be, in the order the bar shows them.
 enum TeacherPlace {
   today('/today', 'Today', Icons.today_outlined, Icons.today),
+  teaching('/teaching', 'Teaching', Icons.menu_book_outlined, Icons.menu_book),
   leave('/leave', 'Leave', Icons.event_note_outlined, Icons.event_note),
   pay('/pay', 'Pay', Icons.receipt_long_outlined, Icons.receipt_long),
   profile('/profile', 'Me', Icons.person_outline, Icons.person);
@@ -35,6 +37,12 @@ enum TeacherPlace {
 /// where it runs payroll - every employee reads their own payslips there,
 /// whatever their role's matrix says about the office's payroll screen.
 bool _shows(TeacherPlace place, AuthenticatedUser? user) => switch (place) {
+  // Those who teach a timetable, where the school uses reports or the
+  // syllabus. Staff, accountants and the office have no periods to report.
+  TeacherPlace.teaching =>
+    user != null &&
+        (user.role == UserRole.teacher || user.role == UserRole.hod) &&
+        (user.canView(AppModules.teachingReports) || user.canView(AppModules.syllabus)),
   TeacherPlace.leave => user?.canView(AppModules.leave) ?? false,
   TeacherPlace.pay => user?.access.moduleOn(AppModules.payroll) ?? false,
   _ => true,

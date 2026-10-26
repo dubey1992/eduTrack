@@ -1,3 +1,10 @@
+import 'package:edutrack_app/core/models/permission_level.dart';
+import 'package:edutrack_app/features/my_teaching/presentation/file_report_screen.dart';
+import 'package:edutrack_app/features/my_teaching/presentation/report_detail_screen.dart';
+import 'package:edutrack_app/features/my_teaching/presentation/syllabus_class_screen.dart';
+import 'package:edutrack_app/features/my_teaching/presentation/teaching_screen.dart';
+import 'package:edutrack_app/features/syllabus/data/syllabus_progress_repository.dart';
+import 'package:edutrack_app/features/teaching_reports/data/teaching_report_repository.dart';
 import 'package:edutrack_app/features/attendance/data/attendance_repository.dart';
 import 'package:edutrack_app/features/attendance/data/models/attendance_register.dart';
 import 'package:edutrack_app/features/my_register/presentation/register_screen.dart';
@@ -25,7 +32,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../support/fake_my_inbox_repository.dart';
 import '../../support/fake_attendance_repository.dart';
+import '../../features/my_teaching/teaching_fixtures.dart';
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_syllabus_progress_repository.dart';
+import '../../support/fake_teaching_report_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
 import '../../support/fake_profile_repository.dart';
 import '../../support/fake_check_in_repository.dart';
@@ -56,6 +66,10 @@ void main() {
         myInboxRepositoryProvider.overrideWithValue(FakeMyInboxRepository()),
         checkInRepositoryProvider.overrideWithValue(FakeCheckInRepository()),
         attendanceRepositoryProvider.overrideWithValue(FakeAttendanceRepository(register: _grade8A)),
+        teachingReportRepositoryProvider.overrideWithValue(FakeTeachingReportRepository(reports: [report(id: 501)])),
+        syllabusProgressRepositoryProvider.overrideWithValue(
+          FakeSyllabusProgressRepository(checklist: mathsChecklist(), myClasses: const [mathsGrade3A]),
+        ),
         authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
         if (maintenance) maintenanceProvider.overrideWith(_Down.new),
       ],
@@ -160,6 +174,7 @@ void main() {
       expect(find.text('Good day, Asha'), findsOneWidget);
       expect(find.byKey(const Key('teacher-nav')), findsOneWidget);
       expect(find.byKey(const Key('teacher-nav-today')), findsOneWidget);
+      expect(find.byKey(const Key('teacher-nav-teaching')), findsOneWidget);
       expect(find.byKey(const Key('teacher-nav-profile')), findsOneWidget);
       expect(find.text('Asha Rao'), findsOneWidget, reason: 'the header says who is signed in');
     });
@@ -182,6 +197,56 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(find.byType(TodayScreen), findsOneWidget);
+    });
+
+    testWidgets('opens Teaching, a report and a class syllabus, and comes back from each', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher)));
+
+      await tester.tap(find.byKey(const Key('teacher-nav-teaching')));
+      await tester.pumpAndSettle();
+      expect(find.byType(TeachingScreen), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('my-report-501')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ReportDetailScreen), findsOneWidget, reason: 'not bounced back to Today');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('teaching-tab-syllabus')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('my-syllabus-622-31')));
+      await tester.pumpAndSettle();
+      expect(find.byType(SyllabusClassScreen), findsOneWidget, reason: 'not bounced back to Today');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(TeachingScreen), findsOneWidget);
+    });
+
+    testWidgets('opens the report form from a period on Today', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher)));
+
+      await tester.ensureVisible(find.byKey(const Key('today-period-11')));
+      await tester.tap(find.byKey(const Key('today-period-11')));
+      await tester.pumpAndSettle();
+      expect(find.byType(FileReportScreen), findsOneWidget, reason: 'not bounced back to Today');
+    });
+
+    testWidgets('a teacher whose school switched reports and the syllabus off has no Teaching tab', (tester) async {
+      await pump(
+        tester,
+        FakeAuthRepository(
+          sessionOnRestore: sessionUser(
+            UserRole.teacher,
+            permissions: {
+              ...allModulesAt(PermissionLevel.manage),
+              'teaching_reports': PermissionLevel.none,
+              'syllabus': PermissionLevel.none,
+            },
+          ),
+        ),
+      );
+
+      expect(find.byKey(const Key('teacher-nav-teaching')), findsNothing);
     });
 
     testWidgets('and reaches their own profile and comes back', (tester) async {
@@ -223,6 +288,7 @@ void main() {
         expect(find.byType(TodayScreen), findsNothing, reason: 'no periods for somebody without a timetable');
         expect(find.byKey(const Key('check-in-card')), findsOneWidget);
         expect(find.byKey(const Key('teacher-nav')), findsOneWidget);
+        expect(find.byKey(const Key('teacher-nav-teaching')), findsNothing, reason: 'no periods to report on');
       });
     }
 

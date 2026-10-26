@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import 'models/my_syllabus_class.dart';
 import 'models/syllabus_checklist.dart';
 
 final syllabusProgressApiProvider = Provider<SyllabusProgressApi>(
@@ -19,6 +20,14 @@ class SyllabusProgressApi {
       queryParameters: {'class_section_id': classSectionId, 'subject_id': subjectId},
     );
     return SyllabusChecklist.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<MySyllabusClass>> mine() async {
+    final response = await _dio.get('/syllabus-progress/mine');
+    return [
+      for (final row in (response.data as Map<String, dynamic>)['data'] as List)
+        MySyllabusClass.fromJson(row as Map<String, dynamic>),
+    ];
   }
 
   Future<SyllabusChecklist> toggle({

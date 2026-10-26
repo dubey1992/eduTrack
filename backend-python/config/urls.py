@@ -183,11 +183,13 @@ urlpatterns = [
     # -- daily teaching reports --------------------------------------------
     path("api/v1/teaching-reports/summary", teaching_reports.summary),
     path("api/v1/teaching-reports", teaching_reports.collection),
+    path("api/v1/teaching-reports/<int:report_id>", teaching_reports.detail),
     path("api/v1/teaching-reports/<int:report_id>/review", teaching_reports.review),
     # -- syllabus ----------------------------------------------------------
     path("api/v1/syllabus-topics", syllabus.topics),
     path("api/v1/syllabus-topics/<int:topic_id>", syllabus.topic),
     path("api/v1/syllabus-progress", syllabus.progress),
+    path("api/v1/syllabus-progress/mine", syllabus.mine),
     # -- HOD --------------------------------------------------------------
     path("api/v1/hod/department-report", hod.department_report),
     # Phase 18 - the landing screen, and the four reports behind it. Each

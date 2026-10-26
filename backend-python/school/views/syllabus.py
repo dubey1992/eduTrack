@@ -156,3 +156,14 @@ def tick(request) -> Response:
     SyllabusProgressService.toggle(found, section, form.validated_data["completed"], request.user)
 
     return Response(SyllabusProgressService.checklist(found.subject, section))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def mine(request) -> Response:
+    """The classes and subjects the caller teaches this year, each with its
+    syllabus progress - the app's Syllabus list (docs/teacher-app.md, T3).
+    Only ever the caller's own: there is no parameter to ask with."""
+    authorize(SyllabusTopicPolicy.view_any(request.user))
+
+    return Response({"data": SyllabusProgressService.mine(request.user)})

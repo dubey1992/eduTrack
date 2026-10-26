@@ -434,3 +434,119 @@ class PercentTest(TestCase):
 
     def test_nothing_to_do_is_nought_percent(self):
         self.assertEqual(0, percent_of(0, 0))
+
+
+class WhatITeach(SyllabusTestCase):
+    """`GET syllabus-progress/mine` - the app's Syllabus list
+    (docs/teacher-app.md, T3): the caller's own classes and subjects, this
+    year, each with how far it has got."""
+
+    url = "/api/v1/syllabus-progress/mine"
+
+    def topics(self, subject, count):
+        return [
+            SyllabusTopic.objects.create(
+                school_id=self.school.id, subject_id=subject.id, title=f"Topic {n}", sequence_number=n,
+                created_at="2026-10-01T00:00:00Z", updated_at="2026-10-01T00:00:00Z",
+            )
+            for n in range(1, count + 1)
+        ]
+
+    def tick(self, topic, section):
+        SyllabusTopicProgress.objects.create(
+            school_id=self.school.id, syllabus_topic_id=topic.id, class_section_id=section.id,
+            completed_by_id=self.teacher.id,
+            completed_at="2026-10-02T00:00:00Z", created_at="2026-10-02T00:00:00Z",
+            updated_at="2026-10-02T00:00:00Z",
+        )
+
+    def test_a_teacher_sees_each_class_and_subject_they_teach_with_its_progress(self):
+        first, second, _, _ = self.topics(self.subject, 4)
+        self.tick(first, self.section)
+        self.tick(second, self.section)
+
+        response = self.as_user(self.teacher).get(self.url)
+
+        self.assertEqual(200, response.status_code)
+        [row] = response.data["data"]
+        self.assertEqual(self.section.id, row["class_section_id"])
+        self.assertEqual(self.subject.id, row["subject_id"])
+        self.assertEqual("Algebra", row["subject_name"])
+        self.assertEqual((4, 2, percent_of(2, 4)), (row["total_topics"], row["completed_topics"], row["progress_percent"]))
+
+    def test_several_periods_of_one_class_and_subject_are_one_row(self):
+        factories.TimetableEntryFactory(
+            school=self.school, class_section=self.section,
+            period=factories.PeriodFactory(school=self.school, period_number=2),
+            subject=self.subject, teacher=self.teacher, day_of_week="tuesday",
+        )
+
+        self.assertEqual(1, len(self.as_user(self.teacher).get(self.url).data["data"]))
+
+    def test_ticks_in_another_section_do_not_count_here(self):
+        [topic] = self.topics(self.subject, 1)
+        other = factories.ClassSectionFactory(school_class=self.section.school_class, name="B")
+        self.tick(topic, other)
+
+        [row] = self.as_user(self.teacher).get(self.url).data["data"]
+        self.assertEqual(0, row["completed_topics"])
+
+    def test_a_subject_with_no_outline_is_listed_with_nothing_to_tick(self):
+        [row] = self.as_user(self.teacher).get(self.url).data["data"]
+
+        self.assertEqual((0, 0), (row["total_topics"], row["completed_topics"]))
+
+    def test_another_teachers_classes_are_not_listed(self):
+        colleague = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+
+        self.assertEqual([], self.as_user(colleague).get(self.url).data["data"])
+
+    def test_there_is_no_way_to_ask_about_somebody_else(self):
+        colleague = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+
+        response = self.as_user(colleague).get(self.url, {"teacher_id": self.teacher.id})
+
+        self.assertEqual([], response.data["data"])
+
+    def test_a_role_without_the_syllabus_is_refused(self):
+        staff = factories.UserFactory(school=self.school, role=UserRole.STAFF)
+
+        self.assertEqual(403, self.as_user(staff).get(self.url).status_code)
+
+    def test_signed_out_is_refused(self):
+        self.assertEqual(401, APIClient().get(self.url).status_code)
+
+
+class AnHodWhoTeachesOutsideTheirDepartment(SyllabusTestCase):
+    """An HOD timetabled for another department's subject ticks it off like
+    any teacher of it - and still not a subject they neither head nor teach."""
+
+    def setUp(self):
+        super().setUp()
+        self.science = factories.SubjectFactory(
+            school=self.school, department=factories.DepartmentFactory(school=self.school, name="Science"),
+            name="Physics",
+        )
+        self.topic = SyllabusTopic.objects.create(
+            school_id=self.school.id, subject_id=self.science.id, title="Motion", sequence_number=1,
+            created_at="2026-10-01T00:00:00Z", updated_at="2026-10-01T00:00:00Z",
+        )
+
+    def tick(self, user):
+        return self.as_user(user).patch(
+            "/api/v1/syllabus-progress",
+            {"syllabus_topic_id": self.topic.id, "class_section_id": self.section.id, "completed": True},
+            format="json",
+        )
+
+    def test_may_tick_a_subject_they_teach(self):
+        factories.TimetableEntryFactory(
+            school=self.school, class_section=self.section,
+            period=factories.PeriodFactory(school=self.school, period_number=3),
+            subject=self.science, teacher=self.hod,
+        )
+
+        self.assertEqual(200, self.tick(self.hod).status_code)
+
+    def test_may_not_tick_a_subject_they_neither_head_nor_teach(self):
+        self.assertEqual(403, self.tick(self.hod).status_code)

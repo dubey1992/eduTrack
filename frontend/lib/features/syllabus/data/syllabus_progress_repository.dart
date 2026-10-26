@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import 'models/my_syllabus_class.dart';
 import 'models/syllabus_checklist.dart';
 import 'syllabus_progress_api.dart';
 
@@ -17,6 +18,15 @@ class SyllabusProgressRepository {
   Future<SyllabusChecklist> checklist({required int classSectionId, required int subjectId}) async {
     try {
       return await _api.checklist(classSectionId: classSectionId, subjectId: subjectId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  /// The classes and subjects the caller teaches this year, with progress.
+  Future<List<MySyllabusClass>> mine() async {
+    try {
+      return await _api.mine();
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

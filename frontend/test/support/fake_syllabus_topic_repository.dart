@@ -8,6 +8,7 @@ class FakeSyllabusTopicRepository implements SyllabusTopicRepository {
     this.failCreateWith,
     this.failUpdateWith,
     this.failDeleteWith,
+    this.failListWith,
     // Private field, public parameter - see AuthenticatedUser.
     // ignore: prefer_initializing_formals
   }) : _topics = topics;
@@ -16,12 +17,14 @@ class FakeSyllabusTopicRepository implements SyllabusTopicRepository {
   Failure? failCreateWith;
   Failure? failUpdateWith;
   Failure? failDeleteWith;
+  Failure? failListWith;
 
   Map<String, dynamic>? lastCreatePayload;
   int? lastDeletedId;
 
   @override
   Future<List<SyllabusTopic>> list({required int subjectId}) async {
+    if (failListWith != null) throw failListWith!;
     return _topics.where((t) => t.subjectId == subjectId).toList()
       ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
   }

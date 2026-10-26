@@ -64,9 +64,9 @@ void main() {
     Finder within(int id, String text) =>
         find.descendant(of: find.byKey(Key('today-period-$id')), matching: find.text(text));
 
-    expect(within(11, 'Report owed'), findsOneWidget);
+    expect(within(11, 'Report owed - tap to file'), findsOneWidget);
     expect(within(13, 'Report filed'), findsOneWidget);
-    expect(within(15, 'Report owed'), findsNothing, reason: 'a period still to come owes nothing');
+    expect(within(15, 'Report owed - tap to file'), findsNothing, reason: 'a period still to come owes nothing');
     expect(within(15, 'Report filed'), findsNothing);
   });
 

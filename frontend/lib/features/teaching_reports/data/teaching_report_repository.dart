@@ -42,6 +42,7 @@ class TeachingReportRepository {
     int? schoolId,
     int? teacherId,
     String? reportDate,
+    bool mine = false,
     required int page,
     required int perPage,
   }) async {
@@ -50,9 +51,19 @@ class TeachingReportRepository {
         schoolId: schoolId,
         teacherId: teacherId,
         reportDate: reportDate,
+        mine: mine,
         page: page,
         perPage: perPage,
       );
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  /// One report: the author's own, or one the caller may see in the list.
+  Future<TeachingReport> get(int reportId) async {
+    try {
+      return await _api.get(reportId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

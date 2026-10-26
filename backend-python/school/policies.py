@@ -411,17 +411,21 @@ class SyllabusTopicPolicy:
         if administers(actor):
             return True
 
+        # Whoever is timetabled to teach the subject in the section, this
+        # year - an HOD too, when they teach outside the department they head.
+        teaches = TimetableEntry.objects.filter(
+            class_section_id=section.id,
+            subject_id=topic.subject_id,
+            teacher_id=actor.id,
+        ).exists()
+
         if actor.role == UserRole.HOD:
             department = topic.subject.department
 
-            return department is not None and department.hod_user_id == actor.id
+            return teaches or (department is not None and department.hod_user_id == actor.id)
 
         if actor.role == UserRole.TEACHER:
-            return TimetableEntry.objects.filter(
-                class_section_id=section.id,
-                subject_id=topic.subject_id,
-                teacher_id=actor.id,
-            ).exists()
+            return teaches
 
         return False
 

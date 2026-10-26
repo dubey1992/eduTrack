@@ -13,6 +13,7 @@ a form request.
 
 from __future__ import annotations
 
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -42,6 +43,7 @@ def collection(request) -> Response:
             "school_id": request.query_params.get("school_id"),
             "teacher_id": request.query_params.get("teacher_id"),
             "report_date": request.query_params.get("report_date"),
+            "mine": request.query_params.get("mine") in ("1", "true"),
         },
     )
 
@@ -102,3 +104,22 @@ def review(request, report_id: int) -> Response:
     return Response(
         daily_teaching_report_resource(DailyTeachingReportService.review(report, request.user))
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def detail(request, report_id: int) -> Response:
+    """One report, for whoever may see it in the list - or its own author,
+    whom an HOD's department view can leave out. Anything else is a 404,
+    so an id from another school or teacher says nothing about whether it
+    exists (docs/teacher-app.md, T3)."""
+    authorize(DailyTeachingReportPolicy.view_any(request.user))
+
+    report = (
+        DailyTeachingReportService.visible_to(request.user, {}).filter(pk=report_id).first()
+        or DailyTeachingReportService.visible_to(request.user, {"mine": True}).filter(pk=report_id).first()
+    )
+    if report is None:
+        raise Http404
+
+    return Response(daily_teaching_report_resource(report))

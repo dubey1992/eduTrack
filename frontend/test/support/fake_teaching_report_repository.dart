@@ -14,6 +14,9 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
   List<TeachingReport> reports;
   TeachingReportSummary summaryData;
   Failure? failStoreWith;
+  Failure? failListWith;
+  Failure? failGetWith;
+  bool? lastListMine;
 
   Map<String, dynamic>? lastStorePayload;
   int? lastReviewedId;
@@ -62,9 +65,12 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
     int? schoolId,
     int? teacherId,
     String? reportDate,
+    bool mine = false,
     required int page,
     required int perPage,
   }) async {
+    lastListMine = mine;
+    if (failListWith != null) throw failListWith!;
     final filtered = reports.where((r) {
       if (schoolId != null && r.schoolId != schoolId) return false;
       if (teacherId != null && r.teacherId != teacherId) return false;
@@ -73,6 +79,12 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
     }).toList();
 
     return PaginatedResponse(items: filtered, currentPage: page, lastPage: 1, total: filtered.length, perPage: perPage);
+  }
+
+  @override
+  Future<TeachingReport> get(int reportId) async {
+    if (failGetWith != null) throw failGetWith!;
+    return reports.firstWhere((r) => r.id == reportId);
   }
 
   @override

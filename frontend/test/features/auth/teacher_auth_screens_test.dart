@@ -127,7 +127,12 @@ void main() {
 
       expect(find.byType(TeacherWelcomeScreen), findsOneWidget);
       expect(find.byType(TeacherMark), findsWidgets);
-      for (final point in ['Check in at school', 'Today at a glance', 'Nothing slips', "Your school's calendar"]) {
+      for (final point in [
+        'Check in at school',
+        'Today at a glance',
+        'Register and reports',
+        "Your school's calendar",
+      ]) {
         expect(find.text(point), findsOneWidget, reason: point);
       }
 

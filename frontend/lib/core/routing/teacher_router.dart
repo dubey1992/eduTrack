@@ -15,6 +15,11 @@ import '../../features/my_leave/presentation/apply_leave_screen.dart';
 import '../../features/my_pay/presentation/my_payslip_detail_screen.dart';
 import '../../features/my_pay/presentation/my_payslips_phone_screen.dart';
 import '../../features/my_register/presentation/register_screen.dart';
+import '../../features/my_teaching/presentation/file_report_screen.dart';
+import '../../features/my_teaching/presentation/report_detail_screen.dart';
+import '../../features/my_teaching/presentation/syllabus_class_screen.dart';
+import '../../features/my_teaching/presentation/teaching_screen.dart';
+import '../../features/syllabus/application/syllabus_checklist_notifier.dart';
 import '../../features/my_leave/presentation/my_leave_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/today/presentation/staff_home_screen.dart';
@@ -36,13 +41,26 @@ import '../widgets/teacher_frame.dart';
 /// routes for the reason the driver router keeps one: a redirect written as
 /// "anything else goes home" bounced screens that were pushed from home,
 /// and their tests passed because they never went through the router.
-const teacherPaths = {'/today', '/leave', '/leave/apply', '/pay', '/inbox', '/profile'};
+const teacherPaths = {
+  '/today',
+  '/teaching',
+  '/teaching/report',
+  '/leave',
+  '/leave/apply',
+  '/pay',
+  '/inbox',
+  '/profile',
+};
 
 /// A payslip's own screen, `/pay/<id>`.
 final _payslipPath = RegExp(r'^/pay/\d+$');
 
 /// A class register, `/register/<class section id>?date=yyyy-MM-dd&label=...`.
 final _registerPath = RegExp(r'^/register/\d+$');
+
+/// A filed report, `/teaching/reports/<id>`, and one class's syllabus,
+/// `/teaching/syllabus/<class section id>/<subject id>?label=...`.
+final _teachingPaths = [RegExp(r'^/teaching/reports/\d+$'), RegExp(r'^/teaching/syllabus/\d+/\d+$')];
 
 /// Those who teach a timetable: their home is Today, with periods and
 /// registers. An HOD teaches too, and gets a Department tab in T7.
@@ -96,6 +114,41 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
           child: teacherRoles.contains(ref.read(authNotifierProvider).value?.role)
               ? const TodayScreen()
               : const StaffHomeScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/teaching',
+        builder: (context, state) => const TeacherFrame(place: TeacherPlace.teaching, child: TeachingScreen()),
+      ),
+      // Over the frame, from a period on Today, which knows the period.
+      GoRoute(
+        path: '/teaching/report',
+        builder: (context, state) {
+          final query = state.uri.queryParameters;
+          return FileReportScreen(
+            period: ReportPeriod(
+              timetableEntryId: int.parse(query['entry'] ?? '0'),
+              date: query['date'] ?? apiDate(DateTime.now()),
+              classSection: query['class'] ?? '',
+              subject: query['subject'] ?? 'Period',
+              periodNumber: int.tryParse(query['period'] ?? '') ?? 0,
+              subjectId: int.tryParse(query['subject_id'] ?? ''),
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/teaching/reports/:id',
+        builder: (context, state) => ReportDetailScreen(reportId: int.parse(state.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/teaching/syllabus/:sectionId/:subjectId',
+        builder: (context, state) => SyllabusClassScreen(
+          params: SyllabusChecklistParams(
+            classSectionId: int.parse(state.pathParameters['sectionId']!),
+            subjectId: int.parse(state.pathParameters['subjectId']!),
+          ),
+          label: state.uri.queryParameters['label'] ?? 'Syllabus',
         ),
       ),
       GoRoute(
@@ -167,7 +220,10 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
       }
 
       final known =
-          teacherPaths.contains(location) || _payslipPath.hasMatch(location) || _registerPath.hasMatch(location);
+          teacherPaths.contains(location) ||
+          _payslipPath.hasMatch(location) ||
+          _registerPath.hasMatch(location) ||
+          _teachingPaths.any((path) => path.hasMatch(location));
       return known ? null : '/today';
     },
   );

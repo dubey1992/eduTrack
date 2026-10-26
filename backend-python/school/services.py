@@ -1550,7 +1550,14 @@ class DailyTeachingReportService:
             filters.get("school_id"),
         )
 
-        if filters.get("teacher_id"):
+        if filters.get("mine"):
+            # Your own, whatever else you may see. An HOD's view is narrowed
+            # to the departments they head, which leaves out their own
+            # reports when their own profile sits in another department.
+            reports = SchoolScope.for_actor(actor).apply_to(
+                DailyTeachingReport.objects.select_related(*cls.WITH), filters.get("school_id")
+            ).filter(teacher_id=actor.id)
+        elif filters.get("teacher_id"):
             reports = reports.filter(teacher_id=filters["teacher_id"])
 
         if filters.get("report_date"):
@@ -1702,6 +1709,56 @@ def percent_of(part: int, whole: int) -> int:
 
 
 class SyllabusProgressService:
+    @staticmethod
+    def mine(teacher: User) -> list[dict]:
+        """Every class and subject this teacher is timetabled for this year,
+        each with how far its syllabus has got (docs/teacher-app.md, T3).
+
+        Read from the live timetable, the same rule that lets them tick a
+        topic (SyllabusTopicPolicy.mark), so the list is exactly what they
+        may mark. Three queries whatever the size: the pairs, the topic
+        counts, the ticks.
+        """
+        pairs = {}
+        for entry in TimetableService.for_teacher(teacher).select_related(
+            "class_section__school_class", "subject"
+        ):
+            key = (entry.class_section_id, entry.subject_id)
+            if key not in pairs:
+                section = entry.class_section
+                pairs[key] = {
+                    "class_section_id": section.id,
+                    "class_section": f"{section.school_class.name} {section.name}".strip(),
+                    "subject_id": entry.subject_id,
+                    "subject_name": entry.subject.name,
+                }
+
+        subject_ids = {subject_id for _, subject_id in pairs}
+        totals = dict(
+            SyllabusTopic.objects.filter(subject_id__in=subject_ids)
+            .values("subject_id")
+            .annotate(n=Count("id"))
+            .values_list("subject_id", "n")
+        )
+        ticked = {
+            (row["class_section_id"], row["syllabus_topic__subject_id"]): row["n"]
+            for row in SyllabusTopicProgress.objects.filter(
+                class_section_id__in={section_id for section_id, _ in pairs},
+                syllabus_topic__subject_id__in=subject_ids,
+            )
+            .values("class_section_id", "syllabus_topic__subject_id")
+            .annotate(n=Count("id"))
+        }
+
+        rows = []
+        for key, row in pairs.items():
+            total = totals.get(row["subject_id"], 0)
+            done = ticked.get(key, 0)
+            rows.append({**row, "total_topics": total, "completed_topics": done,
+                         "progress_percent": percent_of(done, total)})
+
+        return sorted(rows, key=lambda row: (row["class_section"], row["subject_name"]))
+
     @staticmethod
     def checklist(subject, section) -> dict:
         """A subject's topics in order, each with this section's completion

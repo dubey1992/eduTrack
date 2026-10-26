@@ -66,6 +66,7 @@ const samplePeriods = [
     classSectionId: 81,
     classSection: 'Grade 8 A',
     subject: 'Mathematics',
+    subjectId: 31,
     reportFiled: false,
     reportId: null,
   ),

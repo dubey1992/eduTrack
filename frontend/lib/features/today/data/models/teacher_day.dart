@@ -91,6 +91,7 @@ class TodayPeriod {
     required this.classSectionId,
     required this.classSection,
     required this.subject,
+    this.subjectId,
     required this.reportFiled,
     required this.reportId,
   });
@@ -107,6 +108,7 @@ class TodayPeriod {
       classSectionId: json['class_section_id'] as int,
       classSection: json['class_section'] as String,
       subject: json['subject'] as String,
+      subjectId: json['subject_id'] as int?,
       reportFiled: report['filed'] as bool,
       reportId: report['id'] as int?,
     );
@@ -122,6 +124,10 @@ class TodayPeriod {
   final int classSectionId;
   final String classSection;
   final String subject;
+
+  /// For the report's syllabus topics. Optional so an older server's answer
+  /// still reads; without it the report form offers no topic.
+  final int? subjectId;
   final bool reportFiled;
   final int? reportId;
 

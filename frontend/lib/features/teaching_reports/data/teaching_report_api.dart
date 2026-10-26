@@ -39,6 +39,7 @@ class TeachingReportApi {
     int? schoolId,
     int? teacherId,
     String? reportDate,
+    bool mine = false,
     int? page,
     int? perPage,
   }) async {
@@ -48,11 +49,17 @@ class TeachingReportApi {
         'school_id': ?schoolId,
         'teacher_id': ?teacherId,
         'report_date': ?reportDate,
+        if (mine) 'mine': 1,
         'page': ?page,
         'per_page': ?perPage,
       },
     );
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, TeachingReport.fromJson);
+  }
+
+  Future<TeachingReport> get(int reportId) async {
+    final response = await _dio.get('/teaching-reports/$reportId');
+    return TeachingReport.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<TeachingReportSummary> summary({int? schoolId, required String date}) async {

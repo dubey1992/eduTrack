@@ -22,9 +22,9 @@ import '../data/models/teacher_day.dart';
 /// if they are a class teacher, and what is still owed. Pull down to ask
 /// again - the period under way moves on through the day.
 ///
-/// The class register opens from its card (T2, features/my_register). The
-/// report is shown as a state only: writing one is T3, and a button that
-/// went nowhere until then would be a promise the app cannot keep.
+/// The class register opens from its card (T2, features/my_register). A
+/// period opens its report form once it has begun, or its report once
+/// filed (T3, features/my_teaching).
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
@@ -89,7 +89,10 @@ class _DayView extends StatelessWidget {
           if (day.periods.isEmpty)
             const _EmptyPeriods()
           else
-            for (final period in day.periods) ...[_PeriodCard(period: period), const SizedBox(height: 8)],
+            for (final period in day.periods) ...[
+              _PeriodCard(period: period, date: day.date),
+              const SizedBox(height: 8),
+            ],
         ],
         if (day.otherLeaveThisWeek.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -319,15 +322,18 @@ class _RegisterCard extends ConsumerWidget {
 }
 
 class _PeriodCard extends StatelessWidget {
-  const _PeriodCard({required this.period});
+  const _PeriodCard({required this.period, required this.date});
 
   final TodayPeriod period;
+  final DateTime date;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.appColors;
     final isNow = period.state == PeriodState.current;
+
+    final onTap = _openFor(context, period, date);
 
     return Card(
       key: Key('today-period-${period.timetableEntryId}'),
@@ -337,41 +343,69 @@ class _PeriodCard extends StatelessWidget {
               side: BorderSide(color: theme.colorScheme.primary, width: 2),
             )
           : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 76,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_time(period.startTime), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Text(_time(period.endTime), style: TextStyle(fontSize: 12, color: colors.muted)),
-                ],
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 76,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_time(period.startTime), style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text(_time(period.endTime), style: TextStyle(fontSize: 12, color: colors.muted)),
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(period.subject, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                  Text(
-                    '${period.classSection} · Period ${period.periodNumber}',
-                    style: TextStyle(fontSize: 13, color: colors.muted),
-                  ),
-                  // Under the class rather than in a column of their own: on a
-                  // phone a third column left the subject a word's width.
-                  _PeriodStatus(period: period),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(period.subject, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      '${period.classSection} · Period ${period.periodNumber}',
+                      style: TextStyle(fontSize: 13, color: colors.muted),
+                    ),
+                    // Under the class rather than in a column of their own: on a
+                    // phone a third column left the subject a word's width.
+                    _PeriodStatus(period: period),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// Where a period's card goes: its report once filed, the form once the
+/// period has begun, nowhere before. A report about a lesson not yet given
+/// is not one to write.
+VoidCallback? _openFor(BuildContext context, TodayPeriod period, DateTime date) {
+  if (period.reportFiled && period.reportId != null) {
+    return () => context.push('/teaching/reports/${period.reportId}');
+  }
+  if (!period.reportOwed) return null;
+
+  return () => context.push(
+    Uri(
+      path: '/teaching/report',
+      queryParameters: {
+        'entry': '${period.timetableEntryId}',
+        'date': apiDate(date),
+        'class': period.classSection,
+        'subject': period.subject,
+        'period': '${period.periodNumber}',
+        if (period.subjectId != null) 'subject_id': '${period.subjectId}',
+      },
+    ).toString(),
+  );
 }
 
 class _PeriodStatus extends StatelessWidget {
@@ -386,7 +420,7 @@ class _PeriodStatus extends StatelessWidget {
       if (period.reportFiled)
         const StatusBadge(label: 'Report filed', tone: BadgeTone.success)
       else if (period.reportOwed)
-        const StatusBadge(label: 'Report owed', tone: BadgeTone.warning),
+        const StatusBadge(label: 'Report owed - tap to file', tone: BadgeTone.warning),
     ];
 
     if (badges.isEmpty) return const SizedBox.shrink();
