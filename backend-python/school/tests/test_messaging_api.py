@@ -455,6 +455,21 @@ class TestingAGateway(MessagingTest):
             403, self.as_user(self.stranger).post(f"{self.URL}?school_id={self.school.id}", {}, format="json").status_code
         )
 
+    def test_ten_tests_an_hour_and_no_more(self):
+        # Each test goes to a typed-in number on the school's paid account;
+        # a compromised admin login must not be a free SMS cannon.
+        self.settings(provider="twilio",
+                      credentials=crypto.encrypt_json({"twilio": {"account_sid": "AC1", "auth_token": "s", "sms_from": "+1"}}))
+        cache.clear()
+
+        with mock.patch("school.gateways.twilio.post", return_value={"_status": 201, "sid": "SM1"}) as post:
+            answers = [
+                self.as_user(self.admin).post(self.URL, {"channel": "sms", "to": "+91 9000000000"}, format="json").status_code
+                for _ in range(11)
+            ]
+
+        self.assertEqual([200] * 10 + [429], answers)
+        self.assertEqual(10, post.call_count, "the eleventh never reached the provider")
 
 # -- WhatsApp templates -------------------------------------------------------
 

@@ -78,6 +78,7 @@ from .errors import (
     MaxMarksLocked,
     ApiError,
     DeviceNotRegistered,
+    SetupCodeRejected,
     GatewayTestFailed,
     KeptBySchoolOffice,
     NotAnAttendant,
@@ -108,6 +109,7 @@ from .errors import (
     Unauthenticated,
 )
 from .models import (
+    AuditLog,
     BusStop,
     AttendantCredential,
     AttendantDevice,
@@ -316,12 +318,15 @@ class EarlyAccessService:
 
     @classmethod
     def record(cls, data: dict) -> None:
-        """A signup - or a correction to one still open.
+        """A signup - or the same address asking again.
 
-        The same address asking again, while its request is new or being
-        followed up, updates that request rather than queueing a second: their
-        latest answers win, and the request keeps its place and whatever
-        status somebody has already given it.
+        Asking again while the request is new or being followed up does not
+        queue a second one: the request keeps its place and its status. It
+        fills in only what was left blank, and never overwrites an answer -
+        nobody proves they own the address on a public form, so letting the
+        latest submission win would let anybody rewrite somebody else's
+        request. What the repeat said is kept in the audit trail instead, for
+        whoever follows the request up (decided 2026-10-26).
         """
         now = timezone.now()
         existing = (
@@ -341,14 +346,23 @@ class EarlyAccessService:
 
             return
 
-        changed = [field for field in cls.FIELDS if field in data and getattr(existing, field) != data[field]]
+        audit.record(
+            actor=None, action="early_access.asked_again", module="schools", entity_type="early_access_request",
+            entity_id=existing.pk, school_id=None,
+            new={field: data.get(field) for field in cls.FIELDS if data.get(field) not in (None, "")},
+        )
 
-        if changed:
-            for field in changed:
+        blanks = [
+            field for field in cls.FIELDS
+            if data.get(field) not in (None, "") and getattr(existing, field) in (None, "")
+        ]
+
+        if blanks:
+            for field in blanks:
                 setattr(existing, field, data[field])
 
             existing.updated_at = now
-            existing.save(update_fields=[*changed, "updated_at"])
+            existing.save(update_fields=[*blanks, "updated_at"])
 
     @staticmethod
     def visible_to(filters: dict):
@@ -6467,24 +6481,57 @@ class AttendantService:
         return attempts
 
     @classmethod
+    def count_setup_failure(cls, credential) -> None:
+        """One more wrong setup code. Kept apart from the passcode count, and
+        at the limit it cancels the code rather than locking anything.
+
+        Counted from the audit trail - wrong guesses since this code was
+        issued - so the count lives in the database beside the code itself
+        and goes when the code does."""
+        user = credential.user
+        audit.record(actor=user, action="attendant.setup_failed", module=cls.MODULE, entity_type="user",
+                     entity_id=user.id, school_id=user.school_id)
+
+        issued_at = as_utc(credential.setup_code_expires_at) - dt.timedelta(hours=attendants.SETUP_CODE_HOURS)
+        attempts = AuditLog.objects.filter(
+            action="attendant.setup_failed", entity_type="user", entity_id=user.id, created_at__gte=issued_at
+        ).count()
+
+        if attempts >= attendants.MAX_SETUP_ATTEMPTS:
+            AttendantCredential.objects.filter(pk=credential.pk).update(
+                setup_code=None, setup_code_expires_at=None, updated_at=timezone.now()
+            )
+            audit.record(actor=user, action="attendant.setup_code_cancelled", module=cls.MODULE, entity_type="user",
+                         entity_id=user.id, school_id=user.school_id, new={"attempts": attempts})
+
+    @classmethod
     def setup(cls, mobile: str, setup_code: str, passcode: str, device_name: str | None, user_agent: str | None):
         """Registers this phone with the setup code and sets the passcode.
         Returns (user, token, device secret) - the secret, once."""
         credential = cls.credential_for_mobile(mobile)
+        fresh = (
+            credential is not None
+            and credential.setup_code
+            and credential.setup_code_expires_at
+            and as_utc(credential.setup_code_expires_at) > timezone.now()
+        )
 
-        if credential is None:
-            # Checked against a hash of nothing, so an unknown number does
-            # not answer measurably faster than a wrong code.
+        if not fresh:
+            # A number nobody signs in with, or nobody waiting to set up:
+            # checked against a hash of nothing, so it does not answer
+            # measurably faster than a wrong code, and counted nowhere -
+            # nobody can lock a driver out of the phone they already use by
+            # knowing their number (docs/maps.md, "Bus crew sign-in").
             hashing.check(setup_code, hashing.NO_SUCH_ACCOUNT)
-            raise DeviceNotRegistered()
+            raise SetupCodeRejected()
 
+        if not hashing.check(setup_code, credential.setup_code):
+            cls.count_setup_failure(credential)
+            raise SetupCodeRejected()
+
+        # Only past the code: a locked account says so to somebody holding a
+        # code the office just issued, and to nobody else.
         cls.assert_not_locked(credential)
-
-        fresh = credential.setup_code and credential.setup_code_expires_at and as_utc(credential.setup_code_expires_at) > timezone.now()
-
-        if not fresh or not hashing.check(setup_code, credential.setup_code):
-            cls.count_failure(credential)
-            raise WrongPasscode("That setup code is wrong or has expired. Ask your school office for a new one.")
 
         user = credential.user
 

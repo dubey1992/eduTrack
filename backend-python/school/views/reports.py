@@ -138,7 +138,8 @@ def respond(request, report, name: str, roles):
         return Response(built)
 
     if form.validated_data["format"] == "pdf":
-        return pdf_response(report, name, built, actor, school_id, filter_labels(form.validated_data))
+        covered = [school_id] if school_id is not None else scope.ids()
+        return pdf_response(report, name, built, actor, school_id, filter_labels(form.validated_data, covered))
 
     is_group = built.get("group", False)
     start, end = built["range"]["from"], built["range"]["to"]
@@ -161,25 +162,33 @@ def respond(request, report, name: str, roles):
     )
 
 
-def filter_labels(validated: dict) -> list[tuple[str, str]]:
+def filter_labels(validated: dict, school_ids: list[int] | None) -> list[tuple[str, str]]:
     """What was asked for, in the words the screen uses for it.
 
     Printed across the top of the PDF, because a sheet narrowed to one
     class or to the students under 40% is otherwise indistinguishable from
     the whole school's - and it is the whole school's that somebody will
     take it for.
+
+    Looked up only among the schools the report covers ([school_ids]; None
+    for a Super Admin, who covers all): a class of another school named in
+    the filter matches no rows, and must not lend the sheet its name either.
     """
     labels = []
+    sections = ClassSection.objects.select_related("school_class")
+    departments = Department.objects.all()
+
+    if school_ids is not None:
+        sections = sections.filter(school_class__school_id__in=school_ids)
+        departments = departments.filter(school_id__in=school_ids)
 
     if validated.get("class_section_id"):
-        section = ClassSection.objects.select_related("school_class").filter(
-            pk=validated["class_section_id"]
-        ).first()
+        section = sections.filter(pk=validated["class_section_id"]).first()
         if section is not None:
             labels.append(("Class", f"{section.school_class.name} {section.name}"))
 
     if validated.get("department_id"):
-        department = Department.objects.filter(pk=validated["department_id"]).first()
+        department = departments.filter(pk=validated["department_id"]).first()
         if department is not None:
             labels.append(("Department", department.name))
 

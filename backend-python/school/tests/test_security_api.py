@@ -312,6 +312,35 @@ class Sessions(SecurityTest):
                                       self.client_with(other).get("/api/v1/me").status_code))
 
 
+    def test_guessing_the_current_password_from_a_session_is_slowed_to_five_a_minute(self):
+        # A stolen session must not be a free run at the password, which
+        # once guessed and changed would sign the owner out everywhere.
+        client = self.client_with(self.sign_in().data["token"])
+        cache.clear()
+
+        answers = [
+            client.post("/api/v1/auth/change-password", {
+                "current_password": f"Wrong-guess-{n}", "password": "Blue-kettle-42",
+                "password_confirmation": "Blue-kettle-42",
+            }, format="json").status_code
+            for n in range(6)
+        ]
+
+        self.assertEqual([422] * 5 + [429], answers)
+
+    def test_and_so_is_guessing_it_to_change_the_email(self):
+        client = self.client_with(self.sign_in().data["token"])
+        cache.clear()
+
+        answers = [
+            client.post("/api/v1/profile/email", {
+                "email": f"new{n}@example.invalid", "current_password": f"Wrong-guess-{n}",
+            }, format="json").status_code
+            for n in range(6)
+        ]
+
+        self.assertEqual(429, answers[-1], answers)
+
 class AdministratorChanges(SecurityTest):
     def test_a_new_password_or_role_signs_the_account_out_everywhere(self):
         for change in ({"password": "Blue-kettle-42"}, {"role": UserRole.HOD}):

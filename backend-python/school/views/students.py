@@ -11,7 +11,7 @@ from __future__ import annotations
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -26,6 +26,7 @@ from ..policies import StudentPolicy, authorize, permitted
 from ..requests import StoreStudentRequest, StudentPerformanceRequest, UpdateStudentRequest
 from ..resources import student_enrollment_resource, student_resource
 from ..services import StudentEnrollmentService, StudentService
+from ..throttling import SendDocumentThrottle
 
 # What a student is rendered with - the same list Laravel's StudentController
 # eager-loads. Named once so the list and the four single-record endpoints
@@ -199,6 +200,7 @@ def progress_report(request, student_id: int) -> HttpResponse:
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([SendDocumentThrottle])
 def send_progress_report(request, student_id: int) -> Response:
     """Sends the progress report to the student's guardian.
 

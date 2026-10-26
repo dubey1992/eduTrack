@@ -135,6 +135,14 @@ class AnUnknownDevice(PushTest):
         entry = AuditLog.objects.get(action="biometric.unknown_device")
         self.assertEqual("ZK-9999", entry.new_values["serial_number"])
 
+    def test_guessing_many_serials_writes_one_audit_entry_per_window(self):
+        # The throttle is per serial, so a guesser rotating serials would
+        # otherwise write a row for every request.
+        for n in range(30):
+            self.client.get(f"{CDATA}?SN=ZK-GUESS-{n}")
+
+        self.assertEqual(1, AuditLog.objects.filter(action="biometric.unknown_device").count())
+
     def test_no_serial_at_all_is_refused(self):
         self.assertEqual(401, self.client.get(CDATA).status_code)
 

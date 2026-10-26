@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -24,6 +24,7 @@ from .. import photos
 from ..enums import UserRole
 from ..errors import KeptBySchoolOffice
 from ..models import User
+from ..throttling import CurrentPasswordThrottle
 from ..policies import administers, in_scope
 from ..requests import ChangeEmailRequest, UpdateProfileRequest
 from ..resources import profile_resource
@@ -51,6 +52,7 @@ def detail(request) -> Response:
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([CurrentPasswordThrottle])
 def email(request) -> Response:
     # An attendant has no password to confirm this with, and does not sign
     # in with an email: their school office keeps their address.

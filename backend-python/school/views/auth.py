@@ -22,6 +22,7 @@ from .. import tokens
 from ..clock import DATE_TIME, SchoolClock
 from ..services import AuthService, PasswordResetService
 from ..throttling import (
+    CurrentPasswordThrottle,
     LoginAddressThrottle,
     LoginThrottle,
     PasswordResetAddressThrottle,
@@ -53,6 +54,7 @@ def me(request) -> Response:
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([CurrentPasswordThrottle])
 def change_password(request) -> Response:
     form = ChangePasswordRequest(data=request.data, actor=request.user)
     form.is_valid(raise_exception=True)

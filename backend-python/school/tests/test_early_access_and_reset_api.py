@@ -23,7 +23,7 @@ from rest_framework.test import APIClient
 
 from school import factories, hashing, queue, tokens
 from school.enums import UserRole
-from school.models import EarlyAccessRequest, PasswordResetToken, PersonalAccessToken
+from school.models import AuditLog, EarlyAccessRequest, PasswordResetToken, PersonalAccessToken
 
 SIGNUP = {
     "school_name": "Greenfield Academy",
@@ -87,16 +87,26 @@ class SignupTest(PublicTestCase):
     def test_the_size_is_optional(self):
         self.assertEqual(201, self.sign_up(expected_students=None).status_code)
 
-    def test_asking_again_updates_the_open_request_and_keeps_its_place(self):
-        self.sign_up()
+    def test_asking_again_keeps_the_open_request_its_place_and_its_answers(self):
+        # Nobody proves they own the address on a public form, so a repeat
+        # must not rewrite the request - somebody else could be sending it.
+        self.sign_up(current_software=None)
         request = EarlyAccessRequest.objects.get()
         EarlyAccessRequest.objects.filter(pk=request.pk).update(status="contacted")
+        cache.clear()
 
-        self.sign_up(contact_name="Nneka O.", city="Abuja")
+        self.sign_up(contact_name="Someone Else", city="Abuja", current_software="Spreadsheets")
 
         request.refresh_from_db()
         self.assertEqual(1, EarlyAccessRequest.objects.count())
-        self.assertEqual(("Nneka O.", "Abuja", "contacted"), (request.contact_name, request.city, request.status))
+        self.assertEqual(
+            ("Nneka Okafor", "Lagos", "contacted", "Spreadsheets"),
+            (request.contact_name, request.city, request.status, request.current_software),
+            "answers kept; only the blank was filled",
+        )
+
+        repeat = AuditLog.objects.get(action="early_access.asked_again")
+        self.assertEqual(("Someone Else", "Abuja"), (repeat.new_values["contact_name"], repeat.new_values["city"]))
 
     def test_a_school_turned_down_before_can_ask_again(self):
         self.sign_up()

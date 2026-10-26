@@ -26,6 +26,7 @@ from ..requests import StoreBiometricDeviceRequest, UpdateBiometricDeviceRequest
 from ..resources import biometric_device_resource, biometric_punch_resource
 from ..scope import SchoolScope
 from ..services import BiometricDeviceService, BiometricPunchService
+from .imports import MAX_UPLOAD_BYTES
 
 
 @api_view(["GET", "POST"])
@@ -147,6 +148,18 @@ def punch_upload(request) -> Response:
             "VALIDATION_ERROR",
             "No file was uploaded.",
             {"errors": {"file": ["A file is required."]}},
+        )
+
+    # The same ceiling and the same file types as every other import: read
+    # whole into memory to be parsed, so the size is checked first.
+    if upload.size > MAX_UPLOAD_BYTES or not str(upload.name).lower().endswith((".csv", ".txt")):
+        message = (
+            "The file field must not be greater than 2048 kilobytes."
+            if upload.size > MAX_UPLOAD_BYTES
+            else "Upload a CSV file. In Excel, choose File - Save As - CSV."
+        )
+        return envelope(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "VALIDATION_ERROR", message, {"errors": {"file": [message]}}
         )
 
     rows, problems = punches.parse_csv(upload)

@@ -10,7 +10,7 @@ and the answer is the mail server's own words.
 
 from __future__ import annotations
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -19,6 +19,7 @@ from ..policies import MailSettingPolicy, authorize
 from ..requests import SendTestEmailRequest, UpdateMailSettingRequest
 from ..resources import mail_setting_resource
 from ..services import MailSettingService
+from ..throttling import TestMessageThrottle
 
 
 @api_view(["GET", "PUT"])
@@ -37,6 +38,7 @@ def settings(request) -> Response:
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([TestMessageThrottle])
 def test(request) -> Response:
     authorize(MailSettingPolicy.manage(request.user))
 

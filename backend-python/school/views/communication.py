@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from django.http import Http404
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -60,6 +60,7 @@ from ..services import (
     WhatsappTemplateService,
 )
 from ..validation import normalise
+from ..throttling import TestMessageThrottle
 
 
 def filters_from(request) -> dict:
@@ -228,6 +229,7 @@ def save_settings(request) -> Response:
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([TestMessageThrottle])
 def test_gateway(request) -> Response:
     """One message through the school's own provider, now - so an
     administrator finds out whether the account works before a parent does."""

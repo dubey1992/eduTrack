@@ -387,6 +387,21 @@ class WhoSeesWhat(PunchTest):
         self.assertEqual(1, rows["meta"]["total"])
         self.assertEqual(self.school.id, rows["data"][0]["school_id"])
 
+    def test_a_file_over_two_megabytes_or_not_a_csv_is_refused_before_it_is_read(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        too_big = SimpleUploadedFile("punches.csv", b"17,10/20/2026 09:02\n" * 120_000, content_type="text/csv")
+        not_csv = SimpleUploadedFile("punches.xlsx", b"PK\x03\x04", content_type="application/octet-stream")
+
+        for upload, words in ((too_big, "2048 kilobytes"), (not_csv, "CSV file")):
+            with self.subTest(file=upload.name):
+                response = self.client_as(self.admin).post(UPLOAD, {"file": upload}, format="multipart")
+
+                self.assertEqual(422, response.status_code, response.data)
+                self.assertIn(words, response.data["message"])
+
+        self.assertEqual(0, BiometricPunch.objects.count())
+
     def test_a_teacher_may_not_upload(self):
         teacher = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
 

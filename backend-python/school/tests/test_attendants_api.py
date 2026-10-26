@@ -17,6 +17,7 @@ What this file guards that a quick read would not:
 
 import datetime as dt
 
+from django.core.cache import cache
 from django.test import TestCase
 
 from school import attendants, factories, hashing, tokens
@@ -219,7 +220,7 @@ class SettingUp(AttendantTest):
 
         response = self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": code, "passcode": "4827"}, format="json")
 
-        self.assertEqual(401, response.status_code)
+        self.assertEqual((401, "SETUP_CODE_REJECTED"), (response.status_code, response.data["code"]))
         self.assertIn("expired", response.data["message"])
 
     def test_obvious_passcodes_are_refused(self):
@@ -232,22 +233,57 @@ class SettingUp(AttendantTest):
                 self.assertEqual(422, response.status_code)
                 self.assertIn(sentence, response.data["details"]["errors"]["passcode"][0])
 
-    def test_an_unknown_number_gets_the_same_answer_as_an_unregistered_phone(self):
-        response = self.anon().post(SETUP, {"mobile": "+91 99999 99999", "setup_code": "12345678", "passcode": "4827"}, format="json")
-
-        self.assertEqual((401, "DEVICE_NOT_REGISTERED"), (response.status_code, response.data["code"]))
-
-    def test_five_wrong_codes_lock_the_account(self):
+    def test_an_unknown_number_a_crew_number_and_a_wrong_code_are_one_answer(self):
+        # Otherwise the form tells a stranger which numbers are bus crew.
+        unknown = self.anon().post(SETUP, {"mobile": "+91 99999 99999", "setup_code": "12345678", "passcode": "4827"}, format="json")
+        no_code_waiting = self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": "12345678", "passcode": "4827"}, format="json")
         self.code_for()
+        wrong_code = self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": "12345678", "passcode": "4827"}, format="json")
 
-        for _ in range(4):
+        answers = {(r.status_code, r.data["code"], r.data["message"]) for r in (unknown, no_code_waiting, wrong_code)}
+        self.assertEqual(1, len(answers), answers)
+        self.assertEqual((401, "SETUP_CODE_REJECTED"), next(iter(answers))[:2])
+
+    def test_guessing_with_no_code_waiting_never_locks_the_driver_out(self):
+        # Their registered phone must keep working whoever knows their number.
+        _, secret = self.register()
+        cache.clear()  # the guesses below come from somewhere else, past the throttle
+
+        for _ in range(8):
             self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": "00000000", "passcode": "4827"}, format="json")
 
-        fifth = self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": "00000000", "passcode": "4827"}, format="json")
-        self.assertEqual(401, fifth.status_code)
+        credential = AttendantCredential.objects.get(user=self.attendant)
+        self.assertEqual((None, 0), (credential.locked_at, credential.failed_attempts))
+        cache.clear()
+        self.assertEqual(200, self.login(secret=secret).status_code)
 
-        locked = self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": self.code_for(), "passcode": "4827"}, format="json")
-        self.assertEqual((423, "ACCOUNT_LOCKED"), (locked.status_code, locked.data["code"]))
+    def test_five_wrong_codes_cancel_the_code_and_lock_nothing(self):
+        code = self.code_for()
+
+        for _ in range(5):
+            self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": "00000000", "passcode": "4827"}, format="json")
+
+        credential = AttendantCredential.objects.get(user=self.attendant)
+        self.assertIsNone(credential.setup_code, "the code is cancelled")
+        self.assertIsNone(credential.locked_at, "and nothing is locked")
+        self.assertTrue(AuditLog.objects.filter(action="attendant.setup_code_cancelled").exists())
+
+        cache.clear()
+        late = self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": code, "passcode": "4827"}, format="json")
+        self.assertEqual(401, late.status_code, "even the right code is no good once cancelled")
+
+        cache.clear()
+        fresh = self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": self.code_for(), "passcode": "4827"}, format="json")
+        self.assertEqual(201, fresh.status_code, "a new code from the office works")
+
+    def test_a_locked_account_says_so_only_to_somebody_holding_a_good_code(self):
+        AttendantCredential.objects.filter(user=self.attendant).update(locked_at=WEDNESDAY)
+
+        stranger = self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": "00000000", "passcode": "4827"}, format="json")
+        self.assertEqual((401, "SETUP_CODE_REJECTED"), (stranger.status_code, stranger.data["code"]))
+
+        holder = self.anon().post(SETUP, {"mobile": MOBILE, "setup_code": self.code_for(), "passcode": "4827"}, format="json")
+        self.assertEqual((423, "ACCOUNT_LOCKED"), (holder.status_code, holder.data["code"]))
 
     def test_who_may_issue_a_code(self):
         url = f"/api/v1/staff/{self.attendant_profile.id}/attendant/setup-code"
@@ -386,6 +422,16 @@ class Reach(AttendantTest):
 
         listed = self.as_user(self.attendant).get(TRIPS).data["data"]
         self.assertNotIn(other_trip, [trip["id"] for trip in listed])
+
+    def test_they_see_the_riders_of_their_own_route_only(self):
+        # Another bus's children - and their guardians' numbers - are not theirs.
+        token, _ = self.register()
+        crew = self.phone(token)
+
+        own = crew.get(f"/api/v1/transport/routes/{self.f['route'].id}/students")
+        other = crew.get(f"/api/v1/transport/routes/{self.other['route'].id}/students")
+
+        self.assertEqual((200, 403), (own.status_code, other.status_code), other.data)
 
     def test_they_do_not_browse_the_fleet_or_the_roll(self):
         client = self.as_user(self.attendant)

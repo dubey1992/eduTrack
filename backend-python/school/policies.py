@@ -685,9 +685,14 @@ class TransportRoutePolicy(TransportMasterPolicy):
     @staticmethod
     def view_students(actor: User, route) -> bool:
         """Who rides a route - guardians' numbers included - is for those who
-        run transport, not every teacher who may look at the fleet."""
-        return permitted(actor, "transport", write=True, school_id=route.school_id) and in_scope(
-            actor, route.school_id
+        run transport, not every teacher who may look at the fleet. Bus crew
+        hold the same permission for running their own trips, so they see
+        only the routes they are on: an attendant on one bus has no business
+        with the children and parents' numbers of another."""
+        return (
+            permitted(actor, "transport", write=True, school_id=route.school_id)
+            and in_scope(actor, route.school_id)
+            and runs_route(actor, route)
         )
 
 

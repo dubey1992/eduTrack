@@ -417,6 +417,22 @@ class WrongPasscode(ApiError):
     error_code = "WRONG_PASSCODE"
 
 
+class SetupCodeRejected(ApiError):
+    """Any setup attempt that does not register the phone: a number nobody
+    signs in with, a crew member with no code waiting, a wrong code or an
+    expired one. One answer for all four, so the form tells a stranger
+    nothing about which numbers belong to the bus crew."""
+
+    status_code = status.HTTP_401_UNAUTHORIZED
+    error_code = "SETUP_CODE_REJECTED"
+
+    def __init__(self) -> None:
+        super().__init__(
+            "That setup code does not match this mobile number, or it has expired. "
+            "Ask your school office for a new one."
+        )
+
+
 class PasscodeLocked(ApiError):
     """Five wrong guesses. Unlike a password lock this does not run out: a
     four-digit code gets no second round of guessing until a person at the

@@ -530,14 +530,33 @@ class ThePrintedSheet(PerformanceReportTestCase):
 
         labels = filter_labels({
             "class_section_id": self.section.id, "department_id": self.science.id, "below": 40.0,
-        })
+        }, [self.section.school_class.school_id])
 
         self.assertEqual([("Class", "Grade 8 A"), ("Department", "Science"), ("Below", "40%")], labels)
 
     def test_a_filter_naming_nothing_real_is_left_off_rather_than_printed_blank(self):
         from school.views.reports import filter_labels
 
-        self.assertEqual([], filter_labels({"class_section_id": 9_999_999}))
+        self.assertEqual([], filter_labels({"class_section_id": 9_999_999}, None))
+
+    def test_another_schools_class_or_department_lends_the_sheet_no_name(self):
+        # Its rows were already empty; its name must not head the PDF either.
+        from school.views.reports import filter_labels
+
+        own_school = self.section.school_class.school_id
+        other = factories.SchoolFactory()
+        other_section = factories.ClassSectionFactory(
+            school_class=factories.SchoolClassFactory(
+                school=other, academic_year=factories.AcademicYearFactory(school=other)
+            )
+        )
+        other_department = factories.DepartmentFactory(school=other, name="Their Department")
+
+        labels = filter_labels(
+            {"class_section_id": other_section.id, "department_id": other_department.id}, [own_school]
+        )
+
+        self.assertEqual([], labels)
 
     def test_a_download_carries_its_filters_to_the_page(self):
         """The seam the other tests miss: they hand filters to document()

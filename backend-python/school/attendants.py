@@ -9,8 +9,13 @@ device the school registered, it is useless without the phone it was set on.
   the device. The device gets a long random secret, kept on the phone; only
   its SHA-256 is stored here.
 - From then on, mobile + passcode + that device's secret signs in.
-- **5 wrong guesses lock the account** - setup codes and passcodes count
-  alike - until an administrator unlocks it. There is no timeout.
+- **5 wrong passcodes lock the account** until an administrator unlocks it.
+  There is no timeout.
+- **5 wrong setup codes cancel the code**, and the office issues another.
+  They never lock the account: setting up needs no registered phone, so
+  counting them against the passcode would let anybody who knows a driver's
+  number lock them out of the phone they already use (decided 2026-10-26).
+  With no code waiting, a setup attempt counts nothing at all.
 
 Attendants often have no email address. One created without one is given a
 placeholder in a reserved domain (`.invalid` can never receive mail), so the
@@ -26,6 +31,7 @@ import secrets
 import uuid
 
 MAX_ATTEMPTS = 5
+MAX_SETUP_ATTEMPTS = 5
 SETUP_CODE_HOURS = 24
 SETUP_CODE_LENGTH = 8
 PASSCODE_PATTERN = re.compile(r"^\d{4}$")

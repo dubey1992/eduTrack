@@ -16,11 +16,14 @@ evidence for fixing it is already in the database rather than lost in a 400.
 the clear, so anybody who learns one can post punches for that school. What
 limits the damage, in order of how much work each does:
 
-- **A punch can only ever write a time.** Never a status, never a day's
-  presence, and nothing payroll reads directly. Even a successful forgery
-  moves somebody's check-in.
-- **An unknown serial is refused**, and the attempt is audited. A device is
-  registered by a person before it is trusted.
+- **A punch writes times, and marks an unmarked working day Present** -
+  the rule the school asked for (docs/biometric.md) - but never Absent,
+  never Late, and never over a mark a person made. So a forgery can give
+  somebody a day they were not in, which is exactly why a device should
+  have a `push_key` wherever its firmware can send one.
+- **An unknown serial is refused**, and the attempt is audited - once per
+  sender per ten minutes, so somebody guessing serials cannot fill the
+  audit log. A device is registered by a person before it is trusted.
 - **A shared secret where the firmware can send one** (`push_key`). Null
   means none is required, which is the only workable answer for older boxes.
 - **A rate limit per serial**, so a leaked serial cannot be used to flood.
@@ -33,6 +36,9 @@ endpoint like this becomes the weak point of an otherwise careful system.
 from __future__ import annotations
 
 import datetime as dt
+import hmac
+
+from django.core.cache import cache
 
 from django.http import HttpResponse
 from django.utils import timezone
@@ -49,6 +55,9 @@ SEPARATORS = ("\t", ",")
 # The device's own stamp, which is wall clock at the school and carries no
 # zone - the same fact the CSV upload deals with, handled the same way.
 DEVICE_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M")
+
+# How long one sender's unknown-serial attempts share a single audit entry.
+UNKNOWN_AUDIT_WINDOW_S = 600
 
 
 def _text(body: str, status: int = 200) -> HttpResponse:
@@ -74,21 +83,28 @@ def _device(request) -> BiometricDevice | None:
     if device is None:
         # Worth an audit entry rather than a silent 401: a device somebody
         # installed and forgot to register looks exactly like this, and so
-        # does somebody guessing serials.
-        audit.record(
-            actor=None,
-            action="biometric.unknown_device",
-            module="staff_attendance",
-            entity_type="biometric_device",
-            entity_id=None,
-            school_id=None,
-            new={"serial_number": serial[:64]},
-            request=request,
-        )
+        # does somebody guessing serials. One entry per sender per window:
+        # the throttle is per serial, so a guesser rotating serials would
+        # otherwise write a row per request.
+        if cache.add(f"iclock-unknown:{audit.ip_of(request)}", True, timeout=UNKNOWN_AUDIT_WINDOW_S):
+            audit.record(
+                actor=None,
+                action="biometric.unknown_device",
+                module="staff_attendance",
+                entity_type="biometric_device",
+                entity_id=None,
+                school_id=None,
+                new={"serial_number": serial[:64]},
+                request=request,
+            )
 
         return None
 
-    if device.push_key and device.push_key != (request.GET.get("key") or "").strip():
+    # Compared in constant time, so the answer's timing says nothing about
+    # how much of a guessed key was right.
+    if device.push_key and not hmac.compare_digest(
+        device.push_key.encode(), (request.GET.get("key") or "").strip().encode()
+    ):
         return None
 
     # A school that has switched biometric off is not collecting punches,

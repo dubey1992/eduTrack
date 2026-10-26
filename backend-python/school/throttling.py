@@ -165,3 +165,46 @@ class DevicePushThrottle(SimpleRateThrottle):
             return None
 
         return self.cache_format % {"scope": self.scope, "ident": serial[:64]}
+
+
+class PerAccountThrottle(SimpleRateThrottle):
+    """Counted per signed-in account. For actions only a signed-in person can
+    take, where the address says nothing and the account says everything."""
+
+    def get_cache_key(self, request, view) -> str | None:
+        if not request.user or not request.user.is_authenticated:
+            return None
+
+        return self.cache_format % {"scope": self.scope, "ident": request.user.pk}
+
+
+class CurrentPasswordThrottle(PerAccountThrottle):
+    """Anything that asks for the current password while already signed in:
+    changing the password, changing the email.
+
+    Without it, somebody holding a stolen session could guess the password
+    as fast as they liked, then change it - and changing it signs every
+    other device out, so a borrowed session became the account for good.
+    Per account, not per address: the attacker already has the session.
+    """
+
+    scope = "current-password"
+    rate = "5/min"
+
+
+class TestMessageThrottle(PerAccountThrottle):
+    """Sending a test SMS, WhatsApp message or email. Each one goes to
+    whatever number or address was typed in, on the school's own paid
+    account, so an hourly ceiling is what stands between a compromised admin
+    login and a spam run billed to the school."""
+
+    scope = "test-message"
+    rate = "10/hour"
+
+
+class SendDocumentThrottle(PerAccountThrottle):
+    """Emailing a progress report or a payslip. Generous - an accountant may
+    send a whole staff's payslips one by one - but not unlimited."""
+
+    scope = "send-document"
+    rate = "120/hour"

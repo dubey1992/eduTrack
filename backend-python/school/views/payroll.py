@@ -17,7 +17,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -30,6 +30,7 @@ from ..payroll.requests import AdjustmentRequest, GeneratePayrollRunRequest, Pay
 from ..payroll.resources import employee_salary_resource, payslip_resource, run_resource
 from ..payroll.service import PayrollRunService, PayslipService, SalaryService, period_label, school_today
 from ..policies import PayrollPolicy, authorize
+from ..throttling import SendDocumentThrottle
 
 
 def filters_from(request, *names) -> dict:
@@ -250,6 +251,7 @@ def payslip_pdf(request, payslip_id: int):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([SendDocumentThrottle])
 def email_payslip(request, payslip_id: int) -> Response:
     slip = load_payslip(payslip_id)
     authorize(PayrollPolicy.manage(request.user, slip.school_id))
@@ -277,6 +279,7 @@ EMAIL_ME_AGAIN_AFTER = dt.timedelta(minutes=2)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([SendDocumentThrottle])
 def email_my_payslip(request, payslip_id: int) -> Response:
     """Sends an employee their own payslip PDF, from the School365ai app
     (docs/teacher-app.md, T4) - the phone has no file to save, the inbox
