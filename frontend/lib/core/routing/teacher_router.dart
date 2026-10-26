@@ -14,6 +14,7 @@ import '../../features/my_inbox/presentation/my_inbox_screen.dart';
 import '../../features/my_leave/presentation/apply_leave_screen.dart';
 import '../../features/my_pay/presentation/my_payslip_detail_screen.dart';
 import '../../features/my_pay/presentation/my_payslips_phone_screen.dart';
+import '../../features/my_department/presentation/department_screen.dart';
 import '../../features/my_register/presentation/register_screen.dart';
 import '../../features/my_teaching/presentation/file_report_screen.dart';
 import '../../features/my_teaching/presentation/marks_entry_screen.dart';
@@ -46,6 +47,7 @@ import '../widgets/teacher_frame.dart';
 const teacherPaths = {
   '/today',
   '/teaching',
+  '/department',
   '/teaching/report',
   '/teaching/tests/new',
   '/leave',
@@ -122,6 +124,10 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
               ? const TodayScreen()
               : const StaffHomeScreen(),
         ),
+      ),
+      GoRoute(
+        path: '/department',
+        builder: (context, state) => const TeacherFrame(place: TeacherPlace.department, child: DepartmentScreen()),
       ),
       GoRoute(
         path: '/teaching',

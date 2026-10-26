@@ -6,6 +6,7 @@ import 'package:edutrack_app/features/teaching_reports/data/models/teaching_repo
 /// Meera Joshi's teaching: Mathematics in Grade 3 A on Monday 26 October.
 TeachingReport report({
   int id = 1,
+  int teacherId = 7,
   String date = '2026-10-26',
   String topic = 'Fractions: adding unlike denominators',
   bool reviewed = false,
@@ -18,7 +19,7 @@ TeachingReport report({
   classSectionName: 'Grade 3 A',
   periodNumber: 1,
   subjectName: 'Mathematics',
-  teacherId: 7,
+  teacherId: teacherId,
   teacherName: 'Meera Joshi',
   reportDate: date,
   topicTaught: topic,

@@ -709,3 +709,59 @@ class NotBeforeTheLessonBegins(TeachingReportCase):
     def test_an_earlier_day_is_never_too_early(self):
         with self.at(8, 0):
             self.assertEqual(201, self.file(report_date="2026-10-19").status_code)
+
+
+class ToReview(TeachingReportCase):
+    """`GET teaching-reports?to_review=1` - the HOD's queue in the app's
+    Department tab (docs/teacher-app.md, T7): their department's reports
+    nobody has reviewed yet, never their own."""
+
+    def ids(self, user):
+        response = self.as_user(user).get("/api/v1/teaching-reports", {"to_review": 1})
+        self.assertEqual(200, response.status_code)
+        return [row["id"] for row in response.data["data"]]
+
+    def test_an_hod_sees_their_departments_unreviewed_reports(self):
+        waiting = self.file().data["id"]
+
+        self.assertEqual([waiting], self.ids(self.hod))
+
+    def test_a_reviewed_report_leaves_the_queue(self):
+        report = self.file().data["id"]
+        self.assertEqual(200, self.as_user(self.hod).patch(f"/api/v1/teaching-reports/{report}/review").status_code)
+
+        self.assertEqual([], self.ids(self.hod))
+
+    def test_the_hods_own_report_is_never_in_their_queue(self):
+        entry = self.period_for(self.hod, self.second)
+        self.assertEqual(201, self.file(self.hod, timetable_entry_id=entry.id).status_code)
+
+        self.assertEqual([], self.ids(self.hod))
+
+    def test_another_departments_reports_are_not_in_it(self):
+        outsider = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+        self.employee(outsider, self.arts)
+        entry = self.period_for(outsider, self.second)
+        self.assertEqual(201, self.file(outsider, timetable_entry_id=entry.id).status_code)
+
+        self.assertEqual([], self.ids(self.hod))
+
+    def test_a_teacher_has_nothing_to_review(self):
+        self.assertEqual(201, self.file().status_code)
+
+        self.assertEqual([], self.ids(self.teacher))
+
+    def test_a_teacher_may_not_review_even_by_asking_directly(self):
+        colleague = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+        self.employee(colleague, self.science)
+        report = self.file().data["id"]
+
+        self.assertEqual(403, self.as_user(colleague).patch(f"/api/v1/teaching-reports/{report}/review").status_code)
+
+    def test_an_hod_of_another_school_may_not_review(self):
+        stranger = factories.UserFactory(school=factories.SchoolFactory(), role=UserRole.HOD)
+        report = self.file().data["id"]
+
+        self.assertIn(
+            self.as_user(stranger).patch(f"/api/v1/teaching-reports/{report}/review").status_code, (403, 404)
+        )

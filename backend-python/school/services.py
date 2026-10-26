@@ -1604,6 +1604,11 @@ class DailyTeachingReportService:
         if filters.get("report_date"):
             reports = reports.filter(report_date=filters["report_date"])
 
+        if filters.get("to_review"):
+            # What the caller could review: not yet reviewed, and never their
+            # own - nobody reviews their own report (DailyTeachingReportPolicy).
+            reports = reports.filter(reviewed_by__isnull=True).exclude(teacher_id=actor.id)
+
         # One teacher files a report per period, so a teacher and a date are
         # nowhere near unique - id breaks the tie, or paging repeats a report
         # and skips another.

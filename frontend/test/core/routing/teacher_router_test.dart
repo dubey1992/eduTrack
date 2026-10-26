@@ -1,5 +1,10 @@
 import 'package:edutrack_app/core/models/permission_level.dart';
 import 'package:edutrack_app/features/assessments/data/assessment_repository.dart';
+import 'package:edutrack_app/features/hod/data/hod_report_repository.dart';
+import 'package:edutrack_app/features/hod/data/models/hod_department_report.dart';
+import 'package:edutrack_app/features/my_department/presentation/department_screen.dart';
+import 'package:edutrack_app/features/staff_attendance/data/models/staff_attendance_register.dart';
+import 'package:edutrack_app/features/staff_attendance/data/staff_attendance_repository.dart';
 import 'package:edutrack_app/features/my_teaching/presentation/file_report_screen.dart';
 import 'package:edutrack_app/features/my_teaching/presentation/marks_entry_screen.dart';
 import 'package:edutrack_app/features/my_teaching/presentation/new_test_screen.dart';
@@ -38,6 +43,8 @@ import '../../support/fake_attendance_repository.dart';
 import '../../features/my_teaching/teaching_fixtures.dart';
 import '../../support/fake_assessment_repository.dart';
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_hod_report_repository.dart';
+import '../../support/fake_staff_attendance_repository.dart';
 import '../../support/fake_syllabus_progress_repository.dart';
 import '../../support/fake_teaching_report_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
@@ -72,6 +79,35 @@ void main() {
         attendanceRepositoryProvider.overrideWithValue(FakeAttendanceRepository(register: _grade8A)),
         assessmentRepositoryProvider.overrideWithValue(
           FakeAssessmentRepository(assessments: [fakeAssessment(id: 41)], sheetEntries: const []),
+        ),
+        staffAttendanceRepositoryProvider.overrideWithValue(
+          FakeStaffAttendanceRepository(
+            register: const StaffAttendanceRegister(
+              schoolId: 1,
+              attendanceDate: '2026-10-26',
+              submitted: false,
+              staff: [],
+            ),
+          ),
+        ),
+        hodReportRepositoryProvider.overrideWithValue(
+          FakeHodReportRepository(
+            report: const HodDepartmentReport(
+              month: '2026-10',
+              schoolId: 1,
+              departments: [],
+              workingDays: 20,
+              teacherCount: 0,
+              avgAttendancePercent: 0,
+              leaveDays: 0,
+              lateMarks: 0,
+              teachers: [],
+              currentPage: 1,
+              lastPage: 1,
+              total: 0,
+              perPage: 100,
+            ),
+          ),
         ),
         teachingReportRepositoryProvider.overrideWithValue(FakeTeachingReportRepository(reports: [report(id: 501)])),
         syllabusProgressRepositoryProvider.overrideWithValue(
@@ -190,6 +226,30 @@ void main() {
       await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.hod)));
 
       expect(find.byType(TodayScreen), findsOneWidget);
+    });
+
+    testWidgets('an HOD also has Department, and Me moves to the top bar to make room', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.hod)));
+
+      expect(find.byKey(const Key('teacher-nav-department')), findsOneWidget);
+      expect(find.byKey(const Key('teacher-nav-profile')), findsNothing);
+      expect(find.byKey(const Key('teacher-profile')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('teacher-nav-department')));
+      await tester.pumpAndSettle();
+      expect(find.byType(DepartmentScreen), findsOneWidget, reason: 'not bounced back to Today');
+
+      await tester.tap(find.byKey(const Key('teacher-profile')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ProfileScreen), findsOneWidget);
+    });
+
+    testWidgets('a teacher never has Department, and Me stays in the bar', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher)));
+
+      expect(find.byKey(const Key('teacher-nav-department')), findsNothing);
+      expect(find.byKey(const Key('teacher-nav-profile')), findsOneWidget);
+      expect(find.byKey(const Key('teacher-profile')), findsNothing);
     });
 
     testWidgets('opens the class register from Today, and comes back', (tester) async {

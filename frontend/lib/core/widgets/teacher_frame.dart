@@ -21,6 +21,7 @@ import 'teacher_mark.dart';
 enum TeacherPlace {
   today('/today', 'Today', Icons.today_outlined, Icons.today),
   teaching('/teaching', 'Teaching', Icons.menu_book_outlined, Icons.menu_book),
+  department('/department', 'Department', Icons.groups_outlined, Icons.groups),
   leave('/leave', 'Leave', Icons.event_note_outlined, Icons.event_note),
   pay('/pay', 'Pay', Icons.receipt_long_outlined, Icons.receipt_long),
   profile('/profile', 'Me', Icons.person_outline, Icons.person);
@@ -37,6 +38,8 @@ enum TeacherPlace {
 /// where it runs payroll - every employee reads their own payslips there,
 /// whatever their role's matrix says about the office's payroll screen.
 bool _shows(TeacherPlace place, AuthenticatedUser? user) => switch (place) {
+  // An HOD's own department (docs/teacher-app.md, T7). Never a teacher's.
+  TeacherPlace.department => user?.role == UserRole.hod && user!.canView(AppModules.teachingReports),
   // Those who teach a timetable, where the school uses reports, the
   // syllabus or class tests. Staff, accountants and the office have no periods to report.
   TeacherPlace.teaching =>
@@ -50,6 +53,9 @@ bool _shows(TeacherPlace place, AuthenticatedUser? user) => switch (place) {
   _ => true,
 };
 
+/// How many places the bottom bar shows before "Me" moves to the top bar.
+const maxBarPlaces = 5;
+
 class TeacherFrame extends ConsumerWidget {
   const TeacherFrame({super.key, required this.child, required this.place});
 
@@ -61,10 +67,19 @@ class TeacherFrame extends ConsumerWidget {
     final user = ref.watch(authNotifierProvider).value;
     // A school that switched leave off has no Leave tab, rather than one
     // that opens on "switched off".
-    final places = [
+    final shown = [
       for (final candidate in TeacherPlace.values)
         if (_shows(candidate, user)) candidate,
     ];
+    // A phone's bar holds five. With more - an HOD's Department - "Me"
+    // moves up to the top bar rather than squeezing every label.
+    final meUpTop = shown.length > maxBarPlaces;
+    final places = meUpTop
+        ? [
+            for (final p in shown)
+              if (p != TeacherPlace.profile) p,
+          ]
+        : shown;
 
     return Scaffold(
       appBar: AppBar(
@@ -78,6 +93,15 @@ class TeacherFrame extends ConsumerWidget {
         ),
         actions: [
           const _InboxBell(),
+          if (meUpTop)
+            IconButton(
+              key: const Key('teacher-profile'),
+              tooltip: 'Me',
+              isSelected: place == TeacherPlace.profile,
+              icon: const Icon(Icons.person_outline),
+              selectedIcon: const Icon(Icons.person),
+              onPressed: place == TeacherPlace.profile ? null : () => context.go(TeacherPlace.profile.path),
+            ),
           IconButton(
             key: const Key('teacher-logout'),
             icon: const Icon(Icons.logout),
@@ -96,7 +120,8 @@ class TeacherFrame extends ConsumerWidget {
       ),
       bottomNavigationBar: NavigationBar(
         key: const Key('teacher-nav'),
-        selectedIndex: places.indexOf(place).clamp(0, places.length - 1),
+        // On Me, when Me is up top, the bar keeps Today lit rather than nothing.
+        selectedIndex: places.contains(place) ? places.indexOf(place) : 0,
         onDestinationSelected: (index) {
           final chosen = places[index];
           if (chosen != place) context.go(chosen.path);

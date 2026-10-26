@@ -31,12 +31,16 @@ class FakeStaffAttendanceRepository implements StaffAttendanceRepository {
   Failure? failRegisterWith;
 
   int registerCallCount = 0;
+
+  /// The day the last register was asked for.
+  String? lastRegisterDate;
   Map<String, dynamic>? lastSubmitPayload;
   Map<String, dynamic>? lastUpdatePayload;
 
   @override
   Future<StaffAttendanceRegister> register({int? schoolId, int? departmentId, required String date}) async {
     registerCallCount++;
+    lastRegisterDate = date;
     if (failRegisterWith != null) throw failRegisterWith!;
     return _register!;
   }

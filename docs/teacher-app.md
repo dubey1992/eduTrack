@@ -552,7 +552,38 @@ Flutter `push_registrar_test.dart` (14).
 - Tests: adapter unit tests with a fake sender, the muted rule, token
   lifecycle; widget test that a tap routes.
 
-### Phase T7 — HOD *(decision 4)*
+### Phase T7 — HOD *(built 2026-10-26)*
+
+**As built.** A **Department** tab for an HOD only (a teacher never sees
+it). With six places the bottom bar would be crowded, so whenever there are
+more than five, **Me** moves to a person button in the top bar.
+
+- **To review:** the department's reports nobody has reviewed yet, never
+  the HOD's own (`teaching-reports?to_review=1`, the one server change).
+  A report opens with who wrote it and **Mark reviewed**, which sends the
+  teacher their "report reviewed" message (T6). Already reviewed, not in
+  the department and no signal are each said plainly.
+- **Staff today:** the department's staff register for the school's
+  today, read-only - "1 of 2 in", each person's status, arrival time, and
+  whether they checked in from the app. The register is marked on the
+  website.
+- **This month:** each teacher's month from the web's HOD report - reports
+  filed against periods taught, reports waiting for review, syllabus %,
+  attendance %, On track or Needs a look.
+- **Gap filled:** a report opened by somebody other than its author now
+  says who wrote it.
+
+**Not built - needs your decision:** the plan said "approve / return with
+a note". The product's review is a single "reviewed" mark with no note and
+no "returned" state, on the web too. Returning a report with a note would
+need a database change (a note and a status on the report) and a new step
+for the teacher (edit and resubmit, which reports cannot do today).
+
+**Tests:** backend `ToReview` (7, including a teacher and another school's
+HOD refused). Flutter: Department tab (15), router (2 new: the HOD's tab
+and Me moving up; a teacher never sees Department).
+
+**The plan, as written before building:**
 - Same app, one more tab for `HOD`: **Department** - teaching reports
   awaiting review (approve / return with a note), the department's staff
   register for today, the syllabus coverage the web shows. All existing

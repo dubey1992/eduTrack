@@ -17,6 +17,7 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
   Failure? failListWith;
   Failure? failGetWith;
   bool? lastListMine;
+  bool? lastListToReview;
 
   Map<String, dynamic>? lastStorePayload;
   int? lastReviewedId;
@@ -66,10 +67,12 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
     int? teacherId,
     String? reportDate,
     bool mine = false,
+    bool toReview = false,
     required int page,
     required int perPage,
   }) async {
     lastListMine = mine;
+    lastListToReview = toReview;
     if (failListWith != null) throw failListWith!;
     final filtered = reports.where((r) {
       if (schoolId != null && r.schoolId != schoolId) return false;

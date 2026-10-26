@@ -44,6 +44,7 @@ def collection(request) -> Response:
             "teacher_id": request.query_params.get("teacher_id"),
             "report_date": request.query_params.get("report_date"),
             "mine": request.query_params.get("mine") in ("1", "true"),
+            "to_review": request.query_params.get("to_review") in ("1", "true"),
         },
     )
 

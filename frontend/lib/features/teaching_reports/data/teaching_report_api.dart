@@ -40,6 +40,7 @@ class TeachingReportApi {
     int? teacherId,
     String? reportDate,
     bool mine = false,
+    bool toReview = false,
     int? page,
     int? perPage,
   }) async {
@@ -50,6 +51,7 @@ class TeachingReportApi {
         'teacher_id': ?teacherId,
         'report_date': ?reportDate,
         if (mine) 'mine': 1,
+        if (toReview) 'to_review': 1,
         'page': ?page,
         'per_page': ?perPage,
       },
