@@ -24,7 +24,13 @@ from ..clock import SchoolClock
 from ..models import DailyTeachingReport, TimetableEntry
 from ..pagination import LaravelPagination
 from ..policies import DailyTeachingReportPolicy, authorize
-from ..requests import StoreDailyTeachingReportRequest, TeachingReportSummaryRequest
+from ..requests import (
+    ResubmitTeachingReportRequest,
+    ReturnTeachingReportRequest,
+    ReviewTeachingReportRequest,
+    StoreDailyTeachingReportRequest,
+    TeachingReportSummaryRequest,
+)
 from ..resources import daily_teaching_report_resource
 from ..services import DailyTeachingReportService
 
@@ -104,14 +110,57 @@ def review(request, report_id: int) -> Response:
 
     authorize(DailyTeachingReportPolicy.review(request.user, report))
 
+    form = ReviewTeachingReportRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
     return Response(
-        daily_teaching_report_resource(DailyTeachingReportService.review(report, request.user))
+        daily_teaching_report_resource(
+            DailyTeachingReportService.review(report, request.user, form.validated_data.get("note") or None)
+        )
     )
 
 
-@api_view(["GET"])
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def send_back(request, report_id: int) -> Response:
+    """Back to its teacher with a note (docs/teacher-app.md, T7). The same
+    people who may review it may send it back."""
+    report = get_object_or_404(DailyTeachingReport.objects.select_related("teacher"), pk=report_id)
+
+    authorize(DailyTeachingReportPolicy.review(request.user, report))
+
+    form = ReturnTeachingReportRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
+    return Response(
+        daily_teaching_report_resource(
+            DailyTeachingReportService.send_back(report, request.user, form.validated_data["note"].strip())
+        )
+    )
+
+
+@api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
 def detail(request, report_id: int) -> Response:
+    if request.method == "PATCH":
+        return resubmit(request, report_id)
+
+    return read_one(request, report_id)
+
+
+def resubmit(request, report_id: int) -> Response:
+    """The author's changes to a report sent back to them."""
+    report = get_object_or_404(DailyTeachingReport, pk=report_id)
+
+    authorize(DailyTeachingReportPolicy.update(request.user, report))
+
+    form = ResubmitTeachingReportRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+
+    return Response(daily_teaching_report_resource(DailyTeachingReportService.resubmit(report, form.validated_data)))
+
+
+def read_one(request, report_id: int) -> Response:
     """One report, for whoever may see it in the list - or its own author,
     whom an HOD's department view can leave out. Anything else is a 404,
     so an id from another school or teacher says nothing about whether it

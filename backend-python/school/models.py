@@ -260,10 +260,18 @@ class DailyTeachingReport(models.Model):
     syllabus_topic = models.ForeignKey('SyllabusTopic', models.DO_NOTHING, blank=True, null=True)
     homework = models.CharField(max_length=500, blank=True, null=True)
     remarks = models.CharField(max_length=500, blank=True, null=True)
+    # The HOD's note: required when a report is sent back, optional when it
+    # is reviewed (docs/teacher-app.md, T7).
+    review_note = models.CharField(max_length=500, blank=True, null=True)
     reviewed_by = models.ForeignKey('User', models.DO_NOTHING, db_column='reviewed_by', related_name='dailyteachingreports_reviewed_by_set', blank=True, null=True)
     reviewed_at = UtcDateTimeField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
+
+    # Sent back to the teacher for changes and not yet sent again; cleared
+    # when they resubmit. Read with reviewed_by for the report's state.
+    returned_at = UtcDateTimeField(blank=True, null=True)
+    returned_by = models.ForeignKey('User', models.DO_NOTHING, db_column='returned_by', related_name='dailyteachingreports_returned_by_set', blank=True, null=True)
 
     class Meta:
         managed = False

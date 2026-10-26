@@ -157,6 +157,8 @@ class ReviewBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => report.isReviewed
       ? const StatusBadge(label: 'Reviewed', tone: BadgeTone.success)
+      : report.isReturned
+      ? const StatusBadge(label: 'Sent back', tone: BadgeTone.warning)
       : const StatusBadge(label: 'Awaiting review', tone: BadgeTone.neutral);
 }
 

@@ -242,6 +242,7 @@ class MessageEvent(models.TextChoices):
     EMERGENCY_ALERT = "emergency.alert", "Emergency alert"
     FEE_REMINDER = "fee.reminder", "Fee reminder"
     REPORT_REVIEWED = "teaching.report_reviewed", "Teaching report reviewed"
+    REPORT_RETURNED = "teaching.report_returned", "Teaching report returned"
 
     @classmethod
     def category(cls, event: str) -> str:
@@ -343,6 +344,9 @@ DEFAULT_BODIES = {
     MessageEvent.REPORT_REVIEWED: (
         "{reviewer_name} reviewed your report for {subject_name}, {class_name}, period {period} on {date}."
     ),
+    MessageEvent.REPORT_RETURNED: (
+        "{reviewer_name} sent back your report for {subject_name}, {class_name}, period {period} on {date}: {note}"
+    ),
     MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
     MessageEvent.GENERAL_MESSAGE: "{school_name}: {subject} - {body}",
     MessageEvent.EMERGENCY_ALERT: "EMERGENCY - {school_name}: {body}",
@@ -372,7 +376,7 @@ TOKENS = {
     MessageCategory.EMERGENCY: ["subject", "body", "school_name"],
     MessageCategory.FEE: ["student_name", "guardian_name", "amount", "due_date", "school_name"],
     MessageCategory.TEACHING: [
-        "staff_name", "reviewer_name", "subject_name", "class_name", "period", "date", "school_name",
+        "staff_name", "reviewer_name", "subject_name", "class_name", "period", "date", "note", "school_name",
     ],
 }
 

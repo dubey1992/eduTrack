@@ -18,6 +18,10 @@ class TeachingReport {
     required this.reviewedByName,
     required this.reviewedAt,
     this.syllabusTopicName,
+    this.status,
+    this.reviewNote,
+    this.returnedAt,
+    this.returnedByName,
   });
 
   factory TeachingReport.fromJson(Map<String, dynamic> json) {
@@ -38,6 +42,10 @@ class TeachingReport {
       reviewedByName: json['reviewed_by_name'] as String?,
       reviewedAt: json['reviewed_at'] as String?,
       syllabusTopicName: json['syllabus_topic_name'] as String?,
+      status: json['status'] == null ? null : ReportStatus.fromApiValue(json['status'] as String),
+      reviewNote: json['review_note'] as String?,
+      returnedAt: json['returned_at'] as String?,
+      returnedByName: json['returned_by_name'] as String?,
     );
   }
 
@@ -62,5 +70,31 @@ class TeachingReport {
   /// The syllabus topic the report ticked off, if it named one.
   final String? syllabusTopicName;
 
+  /// Awaiting review, sent back to its teacher, or reviewed. Read from the
+  /// server where it says; an older answer without it is reviewed or not.
+  final ReportStatus? status;
+
+  /// The HOD's note - why it was sent back, or a word with the review.
+  final String? reviewNote;
+  final String? returnedAt;
+  final String? returnedByName;
+
   bool get isReviewed => reviewedBy != null;
+
+  /// Sent back by the HOD and not yet sent again (docs/teacher-app.md, T7).
+  bool get isReturned => !isReviewed && status == ReportStatus.returned;
+}
+
+/// Where a report stands with the HOD.
+enum ReportStatus {
+  awaitingReview('awaiting_review'),
+  returned('returned'),
+  reviewed('reviewed');
+
+  const ReportStatus(this.apiValue);
+
+  final String apiValue;
+
+  static ReportStatus fromApiValue(String value) =>
+      values.firstWhere((status) => status.apiValue == value, orElse: () => ReportStatus.awaitingReview);
 }

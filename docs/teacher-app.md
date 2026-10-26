@@ -590,7 +590,31 @@ and Me moving up; a teacher never sees Department).
   endpoints.
 - Tests: role gate (a teacher never sees the tab), review ALLOW/DENY.
 
-### Phase T8 — Release
+### Phase T8 — Release *(prepared 2026-10-27; the Play Console steps are yours)*
+
+**As built.** Everything for the internal testing track is ready and listed
+in [teacher-app-release.md](teacher-app-release.md): the signed app bundle,
+the 512 icon, the feature graphic, eight screenshots fitted to Play's 2:1
+limit, the store text, the data safety answers and the console steps. The
+name stays **School365ai** (decided 2026-10-25), not "School365ai Teacher".
+
+- **Privacy policy:** a "What the School365ai app collects" section - the
+  check-in position compared and discarded (only the distance kept), the
+  register kept on the phone without signal, the notification address,
+  Firebase as a service provider, no microphone or camera - and the
+  children and choices paragraphs widened to both apps.
+- **Gaps fixed:** the notification permission was being removed from the
+  staff app (push would never have shown on Android 13+), and the
+  Navigation SDK's storage permission was reaching it.
+- **Also in this release:** an HOD may **send a report back with a note**
+  (decided 2026-10-27; migration `2026_10_27_090000`): `PATCH
+  teaching-reports/{id}/return`, an optional note on a review, the
+  teacher's `PATCH teaching-reports/{id}` to change and resend, a
+  `teaching.report_returned` inbox message, a returned report out of the
+  HOD's queue until resent, "Sent back - tap to change" on Today, and
+  "Sent back" on the website's report list.
+
+**The plan, as written before building:**
 - Second listing: name ("School365ai Teacher" proposed), icon, screenshots,
   the privacy policy (`/privacy` already covers the driver app; the teacher
   app collects less - no location, no microphone - so it needs a section,

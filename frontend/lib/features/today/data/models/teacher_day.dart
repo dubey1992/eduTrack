@@ -94,6 +94,7 @@ class TodayPeriod {
     this.subjectId,
     required this.reportFiled,
     required this.reportId,
+    this.reportReturned = false,
   });
 
   factory TodayPeriod.fromJson(Map<String, dynamic> json) {
@@ -111,6 +112,7 @@ class TodayPeriod {
       subjectId: json['subject_id'] as int?,
       reportFiled: report['filed'] as bool,
       reportId: report['id'] as int?,
+      reportReturned: report['returned'] as bool? ?? false,
     );
   }
 
@@ -130,6 +132,9 @@ class TodayPeriod {
   final int? subjectId;
   final bool reportFiled;
   final int? reportId;
+
+  /// Sent back by the HOD with a note, waiting on this teacher (T7).
+  final bool reportReturned;
 
   /// A report is owed once the period has begun, not before.
   bool get reportOwed => !reportFiled && state != PeriodState.upcoming;

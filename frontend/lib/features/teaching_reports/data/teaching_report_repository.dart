@@ -79,9 +79,32 @@ class TeachingReportRepository {
     }
   }
 
-  Future<TeachingReport> review(int reportId) async {
+  Future<TeachingReport> review(int reportId, {String? note}) async {
     try {
-      return await _api.review(reportId);
+      return await _api.review(reportId, note: note);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  /// Back to its teacher with a note saying what to change.
+  Future<TeachingReport> sendBack(int reportId, {required String note}) async {
+    try {
+      return await _api.sendBack(reportId, note: note);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  /// The teacher's changes to a report sent back to them.
+  Future<TeachingReport> resubmit(
+    int reportId, {
+    required String topicTaught,
+    String? homework,
+    String? remarks,
+  }) async {
+    try {
+      return await _api.resubmit(reportId, topicTaught: topicTaught, homework: homework, remarks: remarks);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

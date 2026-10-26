@@ -242,4 +242,34 @@ void main() {
     expect(find.byKey(const Key('today-period-13')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a report the HOD sent back says so, to be changed', (tester) async {
+    await pump(
+      tester,
+      FakeTodayRepository(
+        days: [
+          teacherDay(
+            periods: const [
+              TodayPeriod(
+                timetableEntryId: 11,
+                periodNumber: 1,
+                startTime: '09:00',
+                endTime: '09:45',
+                state: PeriodState.done,
+                classSectionId: 81,
+                classSection: 'Grade 8 A',
+                subject: 'Mathematics',
+                reportFiled: true,
+                reportId: 501,
+                reportReturned: true,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('Sent back - tap to change'), findsOneWidget);
+    expect(find.text('Report filed'), findsNothing);
+  });
 }

@@ -17,7 +17,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
   /// Changed whenever the substance changes, not whenever a word does.
-  static const lastUpdated = 'October 23, 2026';
+  static const lastUpdated = 'October 26, 2026';
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +37,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
               const SizedBox(height: 24),
               const _Paragraph(
                 'School365ai is school management software. Schools use it to run their own records: '
-                'students, staff, attendance, timetables and school transport. The School365ai Driver '
-                'app is the part of it carried on a school bus.',
+                'students, staff, attendance, timetables and school transport. The School365ai app is '
+                'what a school\'s own staff carry - teachers, heads of department and office staff - and '
+                'the School365ai Driver app is the part of it carried on a school bus.',
               ),
               const _Paragraph(
                 'The school is the owner of the information in its account. We hold and process that '
@@ -77,6 +78,33 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 'Name, mobile number, and the phone the account was set up on, so a passcode cannot be '
                     'used from anywhere else.',
               ),
+
+              const _Heading('What the School365ai app collects'),
+              const _Bullet(
+                'Where you are, once, when you check in or out.',
+                'Checking in and out asks the phone for its position once, to confirm you are at school. '
+                    'The position is compared with the school\'s pin and then thrown away: what is kept is '
+                    'the time, and how far from school you were. The app never follows a phone, never asks '
+                    'for background location, and asks nothing at all where a school marks staff in the office.',
+              ),
+              const _Bullet(
+                'What you record as part of your work.',
+                'The class register, teaching reports, marks and syllabus progress you enter, and your '
+                    'own leave requests - the same records as on the school\'s website.',
+              ),
+              const _Bullet(
+                'A register taken without signal.',
+                'Kept on the phone until there is signal, then sent and removed. The phone also keeps '
+                    'the names and roll numbers of your classes, so a register can be opened without '
+                    'signal - never anybody\'s marks.',
+              ),
+              const _Bullet(
+                'Notifications.',
+                'Where your school uses notifications, the phone\'s notification address is registered '
+                    'to your account when you sign in and removed when you sign out. Nothing else about '
+                    'the phone is recorded.',
+              ),
+              const _Bullet('No microphone, no camera, no contacts.', 'The School365ai app does not ask for them.'),
 
               const _Heading('How long it is kept'),
               const _Paragraph(
@@ -119,15 +147,21 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     'so that it can be delivered.',
               ),
               const _Bullet(
+                'Google Firebase Cloud Messaging.',
+                'Where a school uses notifications, Firebase delivers them to staff phones. It receives '
+                    'the phone\'s notification address and the text of the notification.',
+              ),
+              const _Bullet(
                 'Hosting.',
                 'The service and its database run on the hosting the school\'s operator has arranged.',
               ),
 
               const _Heading('Children'),
               const _Paragraph(
-                'The app holds information about children because that is what a school bus run is. '
-                'Children do not have accounts and do not use this app. Information about a child is '
-                'entered by their school and is visible to that school\'s staff.',
+                'The apps hold information about children because that is what a school register, a '
+                'class test and a bus run are about. Children do not have accounts and do not use these '
+                'apps. Information about a child is entered by their school and is visible to that '
+                'school\'s staff, each only as far as their role allows.',
               ),
 
               const _Heading('Keeping it safe'),
@@ -143,6 +177,11 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 'A crew member can switch location sharing off at any time from the trip screen. The '
                 'trip, and marking children on and off, keeps working; the school simply will not see '
                 'where the bus is.',
+              ),
+              const _Paragraph(
+                'In the School365ai app, location is asked only when you tap Check in or Check out, and '
+                'notifications can be switched off in the phone\'s settings at any time. The app keeps '
+                'working, and messages still arrive in its inbox.',
               ),
               const _Paragraph(
                 'To see, correct or delete what is held about you, ask your school. If your school '

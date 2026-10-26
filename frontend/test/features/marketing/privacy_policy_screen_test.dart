@@ -56,4 +56,13 @@ void main() {
 
     expect(find.text('Last updated ${PrivacyPolicyScreen.lastUpdated}'), findsOneWidget);
   });
+
+  testWidgets('says what the staff app collects, and that a check-in position is not kept', (tester) async {
+    await pumpScreen(tester);
+
+    expect(find.text('What the School365ai app collects'), findsOneWidget);
+    expect(find.textContaining("compared with the school's pin and then thrown away"), findsOneWidget);
+    expect(find.textContaining("never anybody's marks"), findsOneWidget);
+    expect(find.textContaining('Firebase delivers them'), findsOneWidget);
+  });
 }

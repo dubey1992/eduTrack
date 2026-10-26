@@ -189,6 +189,15 @@ def daily_teaching_report_resource(report) -> dict:
         "syllabus_topic_name": report.syllabus_topic.title if report.syllabus_topic_id else None,
         "homework": report.homework,
         "remarks": report.remarks,
+        # awaiting_review, returned (back with its teacher) or reviewed.
+        "status": (
+            "reviewed" if report.reviewed_by_id
+            else "returned" if report.returned_at is not None
+            else "awaiting_review"
+        ),
+        "review_note": report.review_note,
+        "returned_at": timestamp(report.returned_at),
+        "returned_by_name": report.returned_by.name if report.returned_by_id else None,
         "reviewed_by": report.reviewed_by_id,
         "reviewed_by_name": report.reviewed_by.name if report.reviewed_by_id else None,
         "reviewed_at": timestamp(report.reviewed_at),

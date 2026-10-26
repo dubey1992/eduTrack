@@ -10,6 +10,7 @@ import 'package:edutrack_app/features/my_teaching/presentation/report_detail_scr
 import 'package:edutrack_app/features/staff_attendance/data/models/staff_attendance_register.dart';
 import 'package:edutrack_app/features/staff_attendance/data/models/staff_attendance_status.dart';
 import 'package:edutrack_app/features/staff_attendance/data/staff_attendance_repository.dart';
+import 'package:edutrack_app/features/teaching_reports/data/models/teaching_report.dart';
 import 'package:edutrack_app/features/teaching_reports/data/teaching_report_repository.dart';
 import 'package:edutrack_app/features/today/data/today_repository.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +44,31 @@ StaffRosterEntry person(int id, String name, StaffAttendanceStatus? status, {Str
 
 StaffAttendanceRegister registerOf(List<StaffRosterEntry> staff, {HolidaySummary? holiday}) =>
     StaffAttendanceRegister(schoolId: 1, attendanceDate: '2026-10-26', submitted: true, staff: staff, holiday: holiday);
+
+TeachingReport returnedReport({required String note, int teacherId = hodId}) {
+  final base = report(id: 1);
+  return TeachingReport(
+    id: base.id,
+    schoolId: base.schoolId,
+    timetableEntryId: base.timetableEntryId,
+    classSectionName: base.classSectionName,
+    periodNumber: base.periodNumber,
+    subjectName: base.subjectName,
+    teacherId: teacherId,
+    teacherName: 'Meera Joshi',
+    reportDate: base.reportDate,
+    topicTaught: base.topicTaught,
+    homework: null,
+    remarks: null,
+    reviewedBy: null,
+    reviewedByName: null,
+    reviewedAt: null,
+    status: ReportStatus.returned,
+    reviewNote: note,
+    returnedAt: '2026-10-26T06:00:00Z',
+    returnedByName: 'Rohit Verma',
+  );
+}
 
 HodTeacherRow teacherRow(int id, String name, {HodTeacherStatus status = HodTeacherStatus.onTrack}) => HodTeacherRow(
   staffProfileId: id,
@@ -299,5 +325,101 @@ void main() {
     await openTab(tester, 'month');
 
     expect(tester.takeException(), isNull);
+  });
+
+  group('Sending a report back', () {
+    Future<void> openFirst(WidgetTester tester) async {
+      await pump(tester);
+      await tester.tap(find.byKey(const Key('review-1')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('needs a note saying what should change', (tester) async {
+      await openFirst(tester);
+
+      await tester.tap(find.byKey(const Key('report-send-back')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send-back-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Say what should change.'), findsOneWidget);
+      expect(reports.lastSendBackNote, isNull);
+    });
+
+    testWidgets('goes back with the note, and the report says so', (tester) async {
+      await openFirst(tester);
+
+      await tester.tap(find.byKey(const Key('report-send-back')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('send-back-note')), '  Please add what the class practised. ');
+      await tester.tap(find.byKey(const Key('send-back-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(reports.lastSendBackNote, 'Please add what the class practised.');
+      expect(find.text('Sent back to the teacher.'), findsOneWidget);
+      expect(find.text('Sent back'), findsOneWidget);
+      expect(find.byKey(const Key('report-hod-note')), findsOneWidget);
+      expect(find.byKey(const Key('report-returned-waiting')), findsOneWidget);
+      expect(find.byKey(const Key('report-send-back')), findsNothing, reason: 'it is with the teacher now');
+      expect(find.byKey(const Key('report-review')), findsOneWidget, reason: 'it may still be passed as fine');
+    });
+
+    testWidgets('a report already back with its teacher is said plainly', (tester) async {
+      reports.failSendBackWith = const Failure(
+        code: 'TEACHING_REPORT_RETURNED',
+        message: 'This report is already back with its teacher.',
+      );
+      await openFirst(tester);
+
+      await tester.tap(find.byKey(const Key('report-send-back')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('send-back-note')), 'More detail please.');
+      await tester.tap(find.byKey(const Key('send-back-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('This report is already back with its teacher.'), findsOneWidget);
+    });
+
+    testWidgets('a review may carry a note too, and the teacher reads it', (tester) async {
+      reports = FakeTeachingReportRepository(reports: [returnedReport(note: 'Please add what the class practised.')]);
+      await pump(tester, at: '/teaching/reports/1', role: UserRole.teacher);
+
+      expect(find.text('Sent back by Rohit Verma'), findsOneWidget);
+      expect(find.text('Please add what the class practised.'), findsOneWidget);
+    });
+  });
+
+  group('The teacher changes it and sends it again', () {
+    testWidgets('opens prefilled, sends the changes, and it waits for review again', (tester) async {
+      reports = FakeTeachingReportRepository(reports: [returnedReport(note: 'Add the homework.')]);
+      await pump(tester, at: '/teaching/reports/1', role: UserRole.teacher);
+
+      await tester.tap(find.byKey(const Key('report-change')));
+      await tester.pumpAndSettle();
+      expect(find.text('Change the report'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Fractions: adding unlike denominators'), findsOneWidget);
+      expect(find.byKey(const Key('report-hod-note')), findsOneWidget, reason: 'what was asked, while answering it');
+
+      await tester.enterText(find.byKey(const Key('report-homework')), 'Exercise 4.3');
+      await tester.ensureVisible(find.byKey(const Key('report-submit')));
+      await tester.tap(find.byKey(const Key('report-submit')));
+      await tester.pumpAndSettle();
+
+      expect(reports.lastResubmit, {
+        'topic_taught': 'Fractions: adding unlike denominators',
+        'homework': 'Exercise 4.3',
+        'remarks': null,
+      });
+      expect(find.text('Sent again for review.'), findsOneWidget);
+      expect(find.text('Awaiting review'), findsOneWidget);
+      expect(find.byKey(const Key('report-change')), findsNothing);
+    });
+
+    testWidgets('nobody else gets Change', (tester) async {
+      reports = FakeTeachingReportRepository(reports: [returnedReport(note: 'Add the homework.', teacherId: 7)]);
+      await pump(tester, at: '/teaching/reports/1');
+
+      expect(find.byKey(const Key('report-change')), findsNothing);
+    });
   });
 }

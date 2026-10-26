@@ -4,10 +4,11 @@
   Its job is subtraction. The main manifest is the driver app's and asks for
   what a bus needs: location, a foreground service to keep reporting with
   the screen off, notifications for that service, a microphone for the trip
-  sheet's search. A teacher's app needs none of it, and a school reading
-  the permission list on Play should see none of it - so each is removed
-  here, along with the service and the plugin manifests' own copies, which
-  tools:node="remove" takes out of the merged result too.
+  sheet's search. A teacher's app needs only foreground location (check-in)
+  and notifications (push), and a school reading the permission list on
+  Play should see nothing else - so the rest is removed here, along with the
+  service and the plugin manifests' own copies, which tools:node="remove"
+  takes out of the merged result too.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -18,7 +19,10 @@
          is below and stays. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" tools:node="remove"/>
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove"/>
+    <!-- Notifications stay: the school's messages arrive as push
+         notifications (docs/teacher-app.md, T6). Removing this permission,
+         as T0 did, would silently drop every one on Android 13 and later -
+         the app asks for it after sign-in, and only when push is set up. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
     <!-- And what the bus's plugins bring in on their own: the Navigation
          SDK's Bluetooth and Wi-Fi state, the foreground service's start on
@@ -32,6 +36,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove"/>
     <uses-permission android:name="android.permission.VIBRATE" tools:node="remove"/>
+    <!-- The Navigation SDK's storage permission. Nothing in this app writes
+         to shared storage; payslips are emailed, not saved (T8). -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
 
     <application>
         <!-- The bus's position service has no business in this app. -->

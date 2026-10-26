@@ -202,8 +202,16 @@ class _MyScheduleToday extends ConsumerWidget {
                             child: const Text('Submit Report'),
                           )
                         : StatusBadge(
-                            label: report.isReviewed ? 'Reviewed' : 'Submitted',
-                            tone: report.isReviewed ? BadgeTone.success : BadgeTone.info,
+                            label: report.isReviewed
+                                ? 'Reviewed'
+                                : report.isReturned
+                                ? 'Sent back'
+                                : 'Submitted',
+                            tone: report.isReviewed
+                                ? BadgeTone.success
+                                : report.isReturned
+                                ? BadgeTone.warning
+                                : BadgeTone.info,
                           ),
                   );
                 },
@@ -296,6 +304,15 @@ class _ReviewStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sent back from the phone app (docs/teacher-app.md, T7): with the
+    // teacher, not waiting on the reviewer. The note shows on hover.
+    if (report.isReturned) {
+      return Tooltip(
+        message: report.reviewNote ?? '',
+        child: const StatusBadge(label: 'Sent Back', tone: BadgeTone.info),
+      );
+    }
+
     return StatusBadge(
       label: report.isReviewed ? 'Reviewed' : 'Pending Review',
       tone: report.isReviewed ? BadgeTone.success : BadgeTone.warning,

@@ -81,6 +81,23 @@ class ReviewReport {
   }
 }
 
+/// Sends a report back to its teacher with a note. Throws the server's
+/// Failure - already reviewed, already sent back, not the department's.
+final sendBackReportProvider = Provider<SendBackReport>(SendBackReport.new);
+
+class SendBackReport {
+  SendBackReport(this._ref);
+
+  final Ref _ref;
+
+  Future<TeachingReport> call(int reportId, String note) async {
+    final returned = await _ref.read(teachingReportRepositoryProvider).sendBack(reportId, note: note);
+    _ref.invalidate(reviewQueueProvider);
+    _ref.invalidate(myReportProvider(reportId));
+    return returned;
+  }
+}
+
 /// The department's staff register for the school's today - the date Today
 /// has from the server, not the phone's.
 final staffTodayProvider = FutureProvider.autoDispose<StaffAttendanceRegister>((ref) async {

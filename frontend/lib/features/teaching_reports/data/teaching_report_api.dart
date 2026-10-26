@@ -72,8 +72,29 @@ class TeachingReportApi {
     return TeachingReportSummary.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<TeachingReport> review(int reportId) async {
-    final response = await _dio.patch('/teaching-reports/$reportId/review');
+  Future<TeachingReport> review(int reportId, {String? note}) async {
+    final response = await _dio.patch(
+      '/teaching-reports/$reportId/review',
+      data: note == null || note.isEmpty ? null : {'note': note},
+    );
+    return TeachingReport.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TeachingReport> sendBack(int reportId, {required String note}) async {
+    final response = await _dio.patch('/teaching-reports/$reportId/return', data: {'note': note});
+    return TeachingReport.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TeachingReport> resubmit(
+    int reportId, {
+    required String topicTaught,
+    String? homework,
+    String? remarks,
+  }) async {
+    final response = await _dio.patch(
+      '/teaching-reports/$reportId',
+      data: {'topic_taught': topicTaught, 'homework': homework, 'remarks': remarks},
+    );
     return TeachingReport.fromJson(response.data as Map<String, dynamic>);
   }
 }

@@ -16,6 +16,12 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
   Failure? failStoreWith;
   Failure? failListWith;
   Failure? failGetWith;
+  Failure? failReviewWith;
+  Failure? failSendBackWith;
+  Failure? failResubmitWith;
+  String? lastReviewNote;
+  String? lastSendBackNote;
+  Map<String, String?>? lastResubmit;
   bool? lastListMine;
   bool? lastListToReview;
 
@@ -96,8 +102,10 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
   }
 
   @override
-  Future<TeachingReport> review(int reportId) async {
+  Future<TeachingReport> review(int reportId, {String? note}) async {
+    if (failReviewWith != null) throw failReviewWith!;
     lastReviewedId = reportId;
+    lastReviewNote = note;
     final existing = reports.firstWhere((r) => r.id == reportId);
     final updated = TeachingReport(
       id: existing.id,
@@ -115,8 +123,64 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
       reviewedBy: 99,
       reviewedByName: 'Rohit HOD',
       reviewedAt: '2026-09-09T10:00:00Z',
+      status: ReportStatus.reviewed,
+      reviewNote: note ?? existing.reviewNote,
     );
     reports = [for (final r in reports) r.id == reportId ? updated : r];
+    return updated;
+  }
+
+  @override
+  Future<TeachingReport> sendBack(int reportId, {required String note}) async {
+    if (failSendBackWith != null) throw failSendBackWith!;
+    lastSendBackNote = note;
+    return _replace(reportId, status: ReportStatus.returned, note: note, returnedBy: 'Rohit HOD');
+  }
+
+  @override
+  Future<TeachingReport> resubmit(
+    int reportId, {
+    required String topicTaught,
+    String? homework,
+    String? remarks,
+  }) async {
+    if (failResubmitWith != null) throw failResubmitWith!;
+    lastResubmit = {'topic_taught': topicTaught, 'homework': homework, 'remarks': remarks};
+    return _replace(reportId, status: ReportStatus.awaitingReview, topic: topicTaught, homework: homework);
+  }
+
+  TeachingReport _replace(
+    int id, {
+    ReportStatus? status,
+    String? note,
+    String? returnedBy,
+    String? topic,
+    String? homework,
+  }) {
+    final existing = reports.firstWhere((r) => r.id == id);
+    final updated = TeachingReport(
+      id: existing.id,
+      schoolId: existing.schoolId,
+      timetableEntryId: existing.timetableEntryId,
+      classSectionName: existing.classSectionName,
+      periodNumber: existing.periodNumber,
+      subjectName: existing.subjectName,
+      teacherId: existing.teacherId,
+      teacherName: existing.teacherName,
+      reportDate: existing.reportDate,
+      topicTaught: topic ?? existing.topicTaught,
+      homework: homework ?? existing.homework,
+      remarks: existing.remarks,
+      reviewedBy: existing.reviewedBy,
+      reviewedByName: existing.reviewedByName,
+      reviewedAt: existing.reviewedAt,
+      syllabusTopicName: existing.syllabusTopicName,
+      status: status ?? existing.status,
+      reviewNote: note ?? existing.reviewNote,
+      returnedAt: status == ReportStatus.returned ? '2026-10-26T06:00:00Z' : null,
+      returnedByName: returnedBy ?? existing.returnedByName,
+    );
+    reports = [for (final r in reports) r.id == id ? updated : r];
     return updated;
   }
 }

@@ -417,7 +417,9 @@ class _PeriodStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final badges = <Widget>[
       if (period.state == PeriodState.current) const StatusBadge(label: 'Now', tone: BadgeTone.info),
-      if (period.reportFiled)
+      if (period.reportReturned)
+        const StatusBadge(label: 'Sent back - tap to change', tone: BadgeTone.warning)
+      else if (period.reportFiled)
         const StatusBadge(label: 'Report filed', tone: BadgeTone.success)
       else if (period.reportOwed)
         const StatusBadge(label: 'Report owed - tap to file', tone: BadgeTone.warning),

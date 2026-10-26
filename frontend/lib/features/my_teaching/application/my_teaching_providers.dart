@@ -100,6 +100,26 @@ class FileReport {
   }
 }
 
+/// Sends a report changed after the HOD sent it back. Throws the server's
+/// Failure.
+final resubmitReportProvider = Provider<ResubmitReport>(ResubmitReport.new);
+
+class ResubmitReport {
+  ResubmitReport(this._ref);
+
+  final Ref _ref;
+
+  Future<TeachingReport> call(int reportId, {required String topicTaught, String? homework, String? remarks}) async {
+    final report = await _ref
+        .read(teachingReportRepositoryProvider)
+        .resubmit(reportId, topicTaught: topicTaught, homework: homework, remarks: remarks);
+    _ref.invalidate(todayProvider);
+    _ref.invalidate(myReportsProvider);
+    _ref.invalidate(myReportProvider(reportId));
+    return report;
+  }
+}
+
 /// One report, opened from its period on Today or from the list.
 final myReportProvider = FutureProvider.autoDispose.family<TeachingReport, int>(
   (ref, id) => ref.read(teachingReportRepositoryProvider).get(id),

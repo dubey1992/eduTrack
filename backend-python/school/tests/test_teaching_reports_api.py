@@ -25,9 +25,9 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from school import factories, tokens
-from school.enums import UserRole
+from school.enums import MessageChannel, MessageEvent, UserRole
 from school.services import SyllabusProgressService
-from school.models import AuditLog, DailyTeachingReport, Holiday, SyllabusTopicProgress
+from school.models import AuditLog, DailyTeachingReport, Holiday, Message, SyllabusTopicProgress
 
 # A Monday already in the past, so "not in the future" never interferes with
 # the rule a test is actually about.
@@ -427,6 +427,8 @@ class TeachingReportTest(TeachingReportCase):
                 "period_number", "subject_name", "teacher_id", "teacher_name",
                 "report_date", "topic_taught", "syllabus_topic_id", "syllabus_topic_name",
                 "homework", "remarks", "reviewed_by", "reviewed_by_name", "reviewed_at",
+                # Sending a report back (docs/teacher-app.md, T7).
+                "status", "review_note", "returned_at", "returned_by_name",
             },
             set(response.data),
         )
@@ -765,3 +767,148 @@ class ToReview(TeachingReportCase):
         self.assertIn(
             self.as_user(stranger).patch(f"/api/v1/teaching-reports/{report}/review").status_code, (403, 404)
         )
+
+
+class SendingAReportBack(TeachingReportCase):
+    """An HOD may send a report back with a note, and the teacher may change
+    it and send it again (docs/teacher-app.md, T7)."""
+
+    def setUp(self):
+        super().setUp()
+        self.report_id = self.file(homework="Exercise 4.2").data["id"]
+
+    def send_back(self, user=None, note="Please add what the class practised."):
+        return self.as_user(user or self.hod).patch(
+            f"/api/v1/teaching-reports/{self.report_id}/return", {"note": note}, format="json"
+        )
+
+    def resubmit(self, user=None, **body):
+        payload = {"topic_taught": "Linear equations: two-step problems", "homework": "Exercise 4.3"}
+        payload.update(body)
+        return self.as_user(user or self.teacher).patch(
+            f"/api/v1/teaching-reports/{self.report_id}", payload, format="json"
+        )
+
+    def queue(self):
+        response = self.as_user(self.hod).get("/api/v1/teaching-reports", {"to_review": 1})
+        return [row["id"] for row in response.data["data"]]
+
+    # -- sending back ----------------------------------------------------------
+
+    def test_the_hod_sends_it_back_with_a_note(self):
+        response = self.send_back()
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("returned", response.data["status"])
+        self.assertEqual("Please add what the class practised.", response.data["review_note"])
+        self.assertEqual(self.hod.name, response.data["returned_by_name"])
+        self.assertIsNotNone(response.data["returned_at"])
+
+    def test_the_teacher_is_told_with_the_note_in_the_inbox_only(self):
+        self.send_back()
+
+        [message] = Message.objects.filter(user_id=self.teacher.id, event=MessageEvent.REPORT_RETURNED)
+        self.assertIn("Please add what the class practised.", message.body)
+        self.assertEqual(MessageChannel.IN_APP, message.channel)
+
+    def test_it_leaves_the_hods_queue_while_it_is_with_the_teacher(self):
+        self.assertEqual([self.report_id], self.queue())
+
+        self.send_back()
+
+        self.assertEqual([], self.queue())
+
+    def test_a_note_is_required(self):
+        response = self.send_back(note="")
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("note", self.errors(response))
+
+    def test_a_note_over_500_characters_is_refused(self):
+        self.assertEqual(422, self.send_back(note="x" * 501).status_code)
+
+    def test_it_cannot_be_sent_back_twice(self):
+        self.send_back()
+
+        response = self.send_back()
+
+        self.assertEqual(409, response.status_code)
+        self.assertEqual("TEACHING_REPORT_RETURNED", response.data["code"])
+
+    def test_a_reviewed_report_cannot_be_sent_back(self):
+        self.as_user(self.hod).patch(f"/api/v1/teaching-reports/{self.report_id}/review")
+
+        response = self.send_back()
+
+        self.assertEqual(409, response.status_code)
+        self.assertEqual("TEACHING_REPORT_ALREADY_REVIEWED", response.data["code"])
+
+    def test_a_teacher_cannot_send_a_colleagues_report_back(self):
+        colleague = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+        self.employee(colleague, self.science)
+
+        self.assertEqual(403, self.send_back(colleague).status_code)
+
+    def test_an_hod_of_another_department_cannot(self):
+        other = factories.UserFactory(school=self.school, role=UserRole.HOD)
+        self.arts.hod_user = other
+        self.arts.save()
+        self.employee(other, self.arts)
+
+        self.assertEqual(403, self.send_back(other).status_code)
+
+    def test_a_school_admin_may(self):
+        self.assertEqual(200, self.send_back(self.admin).status_code)
+
+    # -- the teacher sends it again --------------------------------------------
+
+    def test_the_teacher_changes_it_and_it_is_back_in_the_queue(self):
+        self.send_back()
+
+        response = self.resubmit()
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("awaiting_review", response.data["status"])
+        self.assertEqual("Linear equations: two-step problems", response.data["topic_taught"])
+        self.assertEqual("Exercise 4.3", response.data["homework"])
+        self.assertEqual(
+            "Please add what the class practised.", response.data["review_note"], "what was asked stays readable"
+        )
+        self.assertEqual([self.report_id], self.queue())
+
+    def test_a_report_not_sent_back_cannot_be_changed(self):
+        response = self.resubmit()
+
+        self.assertEqual(409, response.status_code)
+        self.assertEqual("TEACHING_REPORT_NOT_RETURNED", response.data["code"])
+
+    def test_nobody_but_its_author_may_change_it(self):
+        self.send_back()
+
+        self.assertEqual(403, self.resubmit(self.hod).status_code)
+
+    def test_what_was_taught_is_still_required(self):
+        self.send_back()
+
+        self.assertEqual(422, self.resubmit(topic_taught="").status_code)
+
+    # -- reviewing ---------------------------------------------------------------
+
+    def test_a_review_may_carry_a_note(self):
+        response = self.as_user(self.hod).patch(
+            f"/api/v1/teaching-reports/{self.report_id}/review", {"note": "Good pacing."}, format="json"
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("reviewed", response.data["status"])
+        self.assertEqual("Good pacing.", response.data["review_note"])
+
+    def test_a_report_sent_back_may_still_be_reviewed_and_leaves_the_teachers_hands(self):
+        self.send_back()
+
+        response = self.as_user(self.hod).patch(f"/api/v1/teaching-reports/{self.report_id}/review")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("reviewed", response.data["status"])
+        self.assertIsNone(response.data["returned_at"])
+        self.assertEqual(409, self.resubmit().status_code)

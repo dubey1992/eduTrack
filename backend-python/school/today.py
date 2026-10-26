@@ -100,7 +100,7 @@ def periods_for(teacher: User, today: dt.date, shape: str, now: dt.time) -> list
     entries = list(entries)
 
     reports = {
-        report.timetable_entry_id: report.id
+        report.timetable_entry_id: report
         for report in DailyTeachingReport.objects.filter(
             teacher_id=teacher.id, report_date=today, timetable_entry_id__in=[entry.id for entry in entries]
         )
@@ -118,7 +118,14 @@ def periods_for(teacher: User, today: dt.date, shape: str, now: dt.time) -> list
             "class_section": section_label(entry.class_section),
             "subject_id": entry.subject_id,
             "subject": entry.subject.name,
-            "report": {"filed": entry.id in reports, "id": reports.get(entry.id)},
+            "report": {
+                "filed": entry.id in reports,
+                "id": reports[entry.id].id if entry.id in reports else None,
+                # Sent back by the HOD and waiting on this teacher (T7).
+                "returned": entry.id in reports
+                and reports[entry.id].returned_at is not None
+                and reports[entry.id].reviewed_by_id is None,
+            },
         }
         for entry in entries
     ]

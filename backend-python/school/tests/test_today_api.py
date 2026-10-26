@@ -106,8 +106,20 @@ class TheDay(TodayTestCase):
 
         data = self.today()
 
-        self.assertEqual({"filed": True, "id": report.id}, data["periods"][0]["report"])
+        self.assertEqual({"filed": True, "id": report.id, "returned": False}, data["periods"][0]["report"])
         self.assertEqual(0, data["owed"]["reports"])
+
+    def test_a_report_sent_back_says_so(self):
+        """Sent back by the HOD (docs/teacher-app.md, T7): filed, and waiting
+        on the teacher to change it."""
+        report = factories.DailyTeachingReportFactory(
+            timetable_entry=self.first, teacher=self.teacher, report_date=dt.date(2026, 10, 26),
+            returned_at=dt.datetime(2026, 10, 26, 6, 0, tzinfo=UTC),
+        )
+
+        data = self.today()
+
+        self.assertEqual({"filed": True, "id": report.id, "returned": True}, data["periods"][0]["report"])
 
     def test_a_report_for_another_day_does_not_count(self):
         factories.DailyTeachingReportFactory(

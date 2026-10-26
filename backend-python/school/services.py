@@ -101,6 +101,8 @@ from .errors import (
     RouteCapacityFull,
     TripRule,
     TeachingReportAlreadyReviewed,
+    TeachingReportNotReturned,
+    TeachingReportReturned,
     TeachingReportAlreadySubmitted,
     TeachingReportOnHoliday,
     Unauthenticated,
@@ -1442,6 +1444,7 @@ class DailyTeachingReportService:
         "timetable_entry__subject",
         "teacher",
         "reviewed_by",
+        "returned_by",
         # The topic rides along, or every row in the list costs a query.
         "syllabus_topic",
     )
@@ -1541,7 +1544,10 @@ class DailyTeachingReportService:
             )
 
     @classmethod
-    def review(cls, report, actor: User):
+    def review(cls, report, actor: User, note: str | None = None):
+        """Final. A report sent back and not yet resent may still be
+        reviewed - the HOD may decide it was fine after all - which takes
+        it off the teacher's list."""
         before = audit.fields_of(report)
 
         if report.reviewed_by_id is not None:
@@ -1550,26 +1556,76 @@ class DailyTeachingReportService:
         now = timezone.now()
         report.reviewed_by_id = actor.id
         report.reviewed_at = now
+        report.returned_at = None
+        if note:
+            report.review_note = note
         report.updated_at = now
-        report.save(update_fields=["reviewed_by", "reviewed_at", "updated_at"])
+        report.save(update_fields=["reviewed_by", "reviewed_at", "returned_at", "review_note", "updated_at"])
         audit.updated("teaching", report, before, action="daily_teaching_report.reviewed")
 
         reviewed = cls.fresh(report)
-        cls.tell_the_teacher(reviewed, actor)
+        cls.tell_the_teacher(reviewed, actor, MessageEvent.REPORT_REVIEWED)
 
         return reviewed
 
+    @classmethod
+    def send_back(cls, report, actor: User, note: str):
+        """Back to its teacher with a note saying what to change
+        (docs/teacher-app.md, T7). It leaves the HOD's queue until they
+        send it again."""
+        before = audit.fields_of(report)
+
+        if report.reviewed_by_id is not None:
+            raise TeachingReportAlreadyReviewed("This report has already been reviewed.")
+
+        if report.returned_at is not None:
+            raise TeachingReportReturned("This report is already back with its teacher.")
+
+        now = timezone.now()
+        report.returned_at = now
+        report.returned_by_id = actor.id
+        report.review_note = note
+        report.updated_at = now
+        report.save(update_fields=["returned_at", "returned_by", "review_note", "updated_at"])
+        audit.updated("teaching", report, before, action="daily_teaching_report.returned")
+
+        returned = cls.fresh(report)
+        cls.tell_the_teacher(returned, actor, MessageEvent.REPORT_RETURNED, note)
+
+        return returned
+
+    @classmethod
+    def resubmit(cls, report, data: dict):
+        """The teacher's changes to a report sent back to them, which puts
+        it in the HOD's queue again. The note stays, so what was asked can
+        still be read."""
+        before = audit.fields_of(report)
+
+        if report.reviewed_by_id is not None or report.returned_at is None:
+            raise TeachingReportNotReturned("Only a report sent back for changes can be changed.")
+
+        report.topic_taught = data["topic_taught"]
+        report.homework = data.get("homework") or None
+        report.remarks = data.get("remarks") or None
+        report.returned_at = None
+        report.updated_at = timezone.now()
+        report.save(update_fields=["topic_taught", "homework", "remarks", "returned_at", "updated_at"])
+        audit.updated("teaching", report, before, action="daily_teaching_report.resubmitted")
+
+        return cls.fresh(report)
+
     @staticmethod
-    def tell_the_teacher(report, actor: User) -> None:
-        """The teacher hears that their report was read - in the inbox, and
-        on their phone where push is set up (docs/teacher-app.md, T6)."""
+    def tell_the_teacher(report, actor: User, event: str, note: str | None = None) -> None:
+        """The teacher hears that their report was read, or sent back - in
+        the inbox, and on their phone where push is set up (T6, T7)."""
         entry = report.timetable_entry
         section = entry.class_section if entry else None
 
         notifications.notify_staff(
-            MessageEvent.REPORT_REVIEWED,
+            event,
             report.teacher,
             {
+                "note": note or "",
                 "reviewer_name": actor.name,
                 "subject_name": entry.subject.name if entry else "",
                 "class_name": f"{section.school_class.name} {section.name}".strip() if section else "",
@@ -1605,9 +1661,10 @@ class DailyTeachingReportService:
             reports = reports.filter(report_date=filters["report_date"])
 
         if filters.get("to_review"):
-            # What the caller could review: not yet reviewed, and never their
-            # own - nobody reviews their own report (DailyTeachingReportPolicy).
-            reports = reports.filter(reviewed_by__isnull=True).exclude(teacher_id=actor.id)
+            # What the caller could review: not yet reviewed, not waiting on
+            # its teacher, and never their own - nobody reviews their own
+            # report (DailyTeachingReportPolicy).
+            reports = reports.filter(reviewed_by__isnull=True, returned_at__isnull=True).exclude(teacher_id=actor.id)
 
         # One teacher files a report per period, so a teacher and a date are
         # nowhere near unique - id breaks the tie, or paging repeats a report

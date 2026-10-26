@@ -1171,6 +1171,28 @@ class StoreDailyTeachingReportRequest(ScopedSerializer):
         return value
 
 
+class ReviewTeachingReportRequest(serializers.Serializer):
+    """An optional note with a review."""
+
+    note = optional_text("note", 500)
+
+
+class ReturnTeachingReportRequest(serializers.Serializer):
+    """Sending a report back needs a note: the teacher has to know what to
+    change."""
+
+    note = LaravelCharField("note", max_length=500)
+
+
+class ResubmitTeachingReportRequest(serializers.Serializer):
+    """What the teacher may change in a report sent back to them. The
+    period and the day stay what they were."""
+
+    topic_taught = LaravelCharField("topic_taught", max_length=255)
+    homework = optional_text("homework", 500)
+    remarks = optional_text("remarks", 500)
+
+
 class TeachingReportSummaryRequest(serializers.Serializer):
     """The day the KPI row is about."""
 

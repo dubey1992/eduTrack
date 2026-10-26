@@ -336,6 +336,14 @@ class DailyTeachingReportPolicy:
         return entry.teacher_id == actor.id
 
     @staticmethod
+    def update(actor: User, report) -> bool:
+        """Changing a report sent back: its author, and nobody else."""
+        if not permitted(actor, "teaching_reports", write=True, school_id=report.school_id):
+            return False
+
+        return report.teacher_id == actor.id
+
+    @staticmethod
     def review(actor: User, report) -> bool:
         if not permitted(actor, "teaching_reports", write=True, school_id=report.school_id):
             return False

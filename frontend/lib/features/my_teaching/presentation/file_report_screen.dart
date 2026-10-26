@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
+import '../../teaching_reports/data/models/teaching_report.dart';
 import '../application/my_teaching_providers.dart';
+import 'report_detail_screen.dart' show HodNote;
 
 /// Which period a report is for. Everything comes from Today, which has it
 /// from the server, so the form asks nothing it already knows.
@@ -34,9 +36,21 @@ class ReportPeriod {
 /// same rules as the web, kept by the server: one report per period and
 /// day, nothing dated ahead, and only the teacher's own periods.
 class FileReportScreen extends ConsumerStatefulWidget {
-  const FileReportScreen({super.key, required this.period});
+  const FileReportScreen({super.key, required this.period, this.changing});
+
+  /// Changing a report the HOD sent back, with its note (T7): what was
+  /// taught, homework and remarks, sent again for review.
+  FileReportScreen.change({super.key, required TeachingReport this.changing})
+    : period = ReportPeriod(
+        timetableEntryId: changing.timetableEntryId,
+        date: changing.reportDate,
+        classSection: changing.classSectionName ?? '',
+        subject: changing.subjectName ?? 'Report',
+        periodNumber: changing.periodNumber ?? 0,
+      );
 
   final ReportPeriod period;
+  final TeachingReport? changing;
 
   @override
   ConsumerState<FileReportScreen> createState() => _FileReportScreenState();
@@ -57,6 +71,17 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
   /// After the first Submit, a field's message clears as soon as it is fixed.
   bool _tried = false;
   String? _problem;
+
+  @override
+  void initState() {
+    super.initState();
+    final changing = widget.changing;
+    if (changing != null) {
+      _topic.text = changing.topicTaught;
+      _homework.text = changing.homework ?? '';
+      _remarks.text = changing.remarks ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -83,6 +108,22 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
     });
 
     try {
+      final changing = widget.changing;
+      if (changing != null) {
+        await ref
+            .read(resubmitReportProvider)
+            .call(
+              changing.id,
+              topicTaught: _topic.text.trim(),
+              homework: _trimmedOrNull(_homework),
+              remarks: _trimmedOrNull(_remarks),
+            );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent again for review.')));
+        Navigator.of(context).pop(true);
+        return;
+      }
+
       await ref
           .read(fileReportProvider)
           .call(
@@ -111,6 +152,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
           'Pull down on Today to see it.',
     'NETWORK_ERROR' => 'No connection. Nothing was sent - try again when you have signal.',
     'FORBIDDEN' => 'This period is no longer yours on the timetable, so it cannot be reported from here.',
+    'TEACHING_REPORT_NOT_RETURNED' => 'This report is no longer waiting for changes - it may have been reviewed.',
     _ => failure.message,
   };
 
@@ -124,7 +166,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Teaching report'),
+            Text(widget.changing == null ? 'Teaching report' : 'Change the report'),
             Text(
               '${period.subject} · ${period.classSection} · Period ${period.periodNumber}',
               style: TextStyle(fontSize: 13, color: colors.muted, fontWeight: FontWeight.w400),
@@ -169,7 +211,11 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                         (value == null || value.trim().isEmpty) ? 'Say what was taught in this period.' : null,
                   ),
                   const SizedBox(height: 8),
-                  if (period.subjectId != null)
+                  if (widget.changing?.reviewNote != null) ...[
+                    HodNote(report: widget.changing!),
+                    const SizedBox(height: 12),
+                  ],
+                  if (period.subjectId != null && widget.changing == null)
                     _SyllabusTopicChoice(
                       subjectId: period.subjectId!,
                       value: _syllabusTopicId,
@@ -205,7 +251,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                       onPressed: _sending ? null : _submit,
                       child: _sending
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('File report'),
+                          : Text(widget.changing == null ? 'File report' : 'Send again'),
                     ),
                   ),
                 ],

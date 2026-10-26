@@ -375,6 +375,20 @@ class TeachingReportAlreadyReviewed(ApiError):
     error_code = "TEACHING_REPORT_ALREADY_REVIEWED"
 
 
+class TeachingReportReturned(ApiError):
+    """Already sent back to its teacher, who has not sent it again yet."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "TEACHING_REPORT_RETURNED"
+
+
+class TeachingReportNotReturned(ApiError):
+    """Only a report sent back for changes can be changed."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "TEACHING_REPORT_NOT_RETURNED"
+
+
 class MessageNotRetryable(ApiError):
     """Only a failed message goes back on the queue. Re-sending anything else
     would either duplicate what was delivered or race the worker already
