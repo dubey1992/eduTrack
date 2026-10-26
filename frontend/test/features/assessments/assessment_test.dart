@@ -1,3 +1,5 @@
+import 'package:edutrack_app/features/auth/application/school_clock_provider.dart';
+import 'package:edutrack_app/core/utils/date_period.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/permission_level.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
@@ -52,6 +54,14 @@ void useDesktop(WidgetTester tester) {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+}
+
+/// The range a period stands for on the school clock the screen reads.
+(String?, String?) rangeOn(WidgetTester tester, Type screen, DatePeriod period) {
+  final today = ProviderScope.containerOf(tester.element(find.byType(screen))).read(schoolClockProvider).today;
+  final range = period.rangeFrom(today);
+
+  return (range?.from, range?.to);
 }
 
 void main() {
@@ -343,6 +353,46 @@ void main() {
       expect(find.text('Fractions - unit test'), findsOneWidget);
       expect(find.text('New Test'), findsNothing);
       expect(find.byTooltip('Edit test'), findsNothing);
+    });
+  });
+
+  group('the screen by period', () {
+    testWidgets('starts on All and asks for the tests held today', (tester) async {
+      useDesktop(tester);
+      final fake = FakeAssessmentRepository(assessments: [fakeAssessment()]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      expect(fake.lastRange, (null, null));
+
+      await tester.tap(find.byKey(const Key('period-day')));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastRange, rangeOn(tester, AssessmentListScreen, DatePeriod.day));
+    });
+
+    testWidgets('going back to All drops the range', (tester) async {
+      useDesktop(tester);
+      final fake = FakeAssessmentRepository(assessments: [fakeAssessment()]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('period-month')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-all')));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastRange, (null, null));
+    });
+
+    testWidgets('an empty period says which period it is about', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeAssessmentRepository()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('period-week')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No class tests this week.'), findsOneWidget);
     });
   });
 }

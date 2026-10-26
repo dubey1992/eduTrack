@@ -1,3 +1,5 @@
+import 'package:edutrack_app/features/auth/application/school_clock_provider.dart';
+import 'package:edutrack_app/core/utils/date_period.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
@@ -46,6 +48,14 @@ Widget wrap(AuthenticatedUser actor, {FakeStaffLeaveRepository? staffLeave}) {
       home: const Scaffold(body: StaffLeaveScreen()),
     ),
   );
+}
+
+/// The range a period stands for on the school clock the screen reads.
+(String?, String?) rangeOn(WidgetTester tester, Type screen, DatePeriod period) {
+  final today = ProviderScope.containerOf(tester.element(find.byType(screen))).read(schoolClockProvider).today;
+  final range = period.rangeFrom(today);
+
+  return (range?.from, range?.to);
 }
 
 void main() {
@@ -158,5 +168,43 @@ void main() {
     await tester.pumpAndSettle();
 
     await expectLastRowScrollsAbovePagination(tester, find.text('Staff Member 20'));
+  });
+
+  group('by period', () {
+    testWidgets('starts on All and narrows to leave touching today', (tester) async {
+      final fake = FakeStaffLeaveRepository(leaves: [_pendingLeave]);
+      await tester.pumpWidget(wrap(_schoolAdmin, staffLeave: fake));
+      await tester.pumpAndSettle();
+      expect(fake.lastListRange, (null, null));
+
+      await tester.tap(find.byKey(const Key('period-day')));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastListRange, rangeOn(tester, StaffLeaveScreen, DatePeriod.day));
+    });
+
+    testWidgets('a period keeps the status filter beside it', (tester) async {
+      final fake = FakeStaffLeaveRepository(leaves: [_pendingLeave]);
+      await tester.pumpWidget(wrap(_schoolAdmin, staffLeave: fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Pending'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-month')));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastListRange, rangeOn(tester, StaffLeaveScreen, DatePeriod.month));
+      expect(fake.lastListStatus, 'pending');
+    });
+
+    testWidgets('an empty period says which period it is about', (tester) async {
+      await tester.pumpWidget(wrap(_teacher, staffLeave: FakeStaffLeaveRepository()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('period-week')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No leave requests this week.'), findsOneWidget);
+    });
   });
 }

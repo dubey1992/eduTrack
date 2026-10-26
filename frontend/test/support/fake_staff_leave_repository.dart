@@ -36,6 +36,9 @@ class FakeStaffLeaveRepository implements StaffLeaveRepository {
   /// The date range the last list asked for.
   (String?, String?)? lastListRange;
 
+  /// The status the last list asked for.
+  String? lastListStatus;
+
   @override
   Future<StaffLeave> apply({
     required LeaveType leaveType,
@@ -85,6 +88,7 @@ class FakeStaffLeaveRepository implements StaffLeaveRepository {
   }) async {
     lastListMine = mine;
     lastListRange = (dateFrom, dateTo);
+    lastListStatus = status;
     if (failListWith != null) throw failListWith!;
     return PaginatedResponse(items: leaves, currentPage: page, lastPage: 1, total: leaves.length, perPage: perPage);
   }

@@ -63,7 +63,11 @@ void main() {
     expect(find.text('Submit Attendance'), findsNothing);
 
     expect(find.text('EMP-001 · Priya Sharma'), findsOneWidget);
-    for (final chip in tester.widgetList<ChoiceChip>(find.byType(ChoiceChip))) {
+    // Every status chip on the register - the period chips above it still
+    // switch to a week or a month.
+    final statusChips = find.descendant(of: find.byType(Card), matching: find.byType(ChoiceChip));
+    expect(statusChips, findsWidgets);
+    for (final chip in tester.widgetList<ChoiceChip>(statusChips)) {
       expect(chip.onSelected, isNull);
     }
     expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Check In')).onPressed, isNull);

@@ -1,3 +1,8 @@
+import 'package:intl/intl.dart';
+import 'package:edutrack_app/features/reports/data/report_repository.dart';
+import 'package:edutrack_app/features/reports/data/models/report.dart';
+import 'package:edutrack_app/features/auth/application/school_clock_provider.dart';
+import 'package:edutrack_app/core/utils/date_period.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
@@ -14,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_auth_repository.dart';
+import '../../support/fake_report_repository.dart';
 import '../../support/fake_department_repository.dart';
 import '../../support/fake_staff_attendance_repository.dart';
 
@@ -148,9 +154,10 @@ const _submittedRegister = StaffAttendanceRegister(
   ],
 );
 
-Widget wrap({FakeStaffAttendanceRepository? staffAttendance}) {
+Widget wrap({FakeStaffAttendanceRepository? staffAttendance, FakeReportRepository? report}) {
   return ProviderScope(
     overrides: [
+      reportRepositoryProvider.overrideWithValue(report ?? FakeReportRepository(result: _weekReport)),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _schoolAdmin)),
       departmentRepositoryProvider.overrideWithValue(FakeDepartmentRepository()),
       staffAttendanceRepositoryProvider.overrideWithValue(
@@ -163,6 +170,24 @@ Widget wrap({FakeStaffAttendanceRepository? staffAttendance}) {
     ),
   );
 }
+
+final _weekReport = ReportResult.fromJson({
+  'range': {'from': '2026-10-26', 'to': '2026-10-28', 'working_days': 3},
+  'rows': [
+    {
+      'staff_profile_id': 1,
+      'name': 'Meera Joshi',
+      'department': 'Mathematics',
+      'present': 2,
+      'half_day': 1,
+      'absent': 0,
+      'leave': 0,
+      'not_marked': 0,
+      'attendance_rate': 83.3,
+    },
+  ],
+  'totals': {'working_days': 3},
+});
 
 const _registerCheckedInFromApp = StaffAttendanceRegister(
   schoolId: 1,
@@ -399,5 +424,78 @@ void main() {
     final records = fake.lastUpdatePayload!['records'] as List<Map<String, dynamic>>;
     expect(records.firstWhere((r) => r['staff_profile_id'] == 1)['status'], 'absent');
     expect(records.firstWhere((r) => r['staff_profile_id'] == 2)['status'], 'present');
+  });
+
+  group('by period', () {
+    testWidgets('starts on Today - the register for one day, with its date picker', (tester) async {
+      final report = FakeReportRepository(result: _weekReport);
+      await tester.pumpWidget(wrap(report: report));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('period-day')), findsOneWidget);
+      expect(find.byKey(const Key('period-all')), findsNothing, reason: 'a register is always about days');
+      expect(find.byIcon(Icons.calendar_today_outlined), findsOneWidget);
+      expect(report.lastKind, isNull, reason: 'a day reads the register, not the report');
+    });
+
+    testWidgets('This week shows each person totals, from Monday to the school today', (tester) async {
+      final report = FakeReportRepository(result: _weekReport);
+      await tester.pumpWidget(wrap(report: report));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('period-week')));
+      await tester.pumpAndSettle();
+
+      final today = ProviderScope.containerOf(tester.element(find.byType(StaffAttendanceScreen)))
+          .read(schoolClockProvider)
+          .today;
+      expect(report.lastKind, ReportKind.staffAttendance);
+      expect(report.lastFrom, DatePeriod.week.rangeFrom(today)!.from);
+      expect(report.lastTo, DateFormat('yyyy-MM-dd').format(today), reason: 'never past today');
+
+      expect(find.text('This week: 3 school days so far'), findsOneWidget);
+      expect(find.text('Meera Joshi'), findsOneWidget);
+      expect(find.text('83.3%'), findsOneWidget);
+      expect(find.byIcon(Icons.calendar_today_outlined), findsNothing, reason: 'the period picks the days');
+      expect(find.byKey(const Key('check-in-log')), findsNothing);
+    });
+
+    testWidgets('This month starts on the 1st', (tester) async {
+      final report = FakeReportRepository(result: _weekReport);
+      await tester.pumpWidget(wrap(report: report));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('period-month')));
+      await tester.pumpAndSettle();
+
+      expect(report.lastFrom, endsWith('-01'));
+      expect(find.text('This month: 3 school days so far'), findsOneWidget);
+    });
+
+    testWidgets('a report that fails offers a retry', (tester) async {
+      final report = FakeReportRepository(
+        failWith: const Failure(code: 'SERVER_ERROR', message: 'Down.'),
+      );
+      await tester.pumpWidget(wrap(report: report));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('period-week')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry'), findsOneWidget);
+    });
+
+    testWidgets('back to Today brings the register back', (tester) async {
+      await tester.pumpWidget(wrap());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('period-week')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('period-day')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('staff-period-summary')), findsNothing);
+      expect(find.byKey(const Key('check-in-log')), findsOneWidget);
+    });
   });
 }

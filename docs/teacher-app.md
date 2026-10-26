@@ -645,6 +645,17 @@ month**, with chips above the list:
   not an error, and the usual school and department scoping still applies.
 - An empty list says which period it is about ("No reports this week.").
 
+The website has the same chips (on the school's own clock, not the
+browser's):
+
+| Screen | Periods |
+|---|---|
+| Teaching Reports > Reports to Review | All / Today / This week / This month |
+| Staff Leave | the same, beside the status chips; leave that touches the period |
+| Class Tests | the same, beside the class and status filters |
+| Staff Attendance | Today is the register with its date picker; This week / This month is a table of each person's present, half day, absent, leave and unmarked days, from the 1st (or Monday) to today |
+
+
 ## Order and size
 
 T0 → T1 → T2 → T3 → T4 → T5, then T6 / T7 in either order, T8 last. T1 and

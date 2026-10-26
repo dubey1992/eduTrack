@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/date_period.dart';
+import '../../../core/widgets/period_filter.dart';
+import '../../reports/data/models/report.dart';
+import '../application/staff_attendance_period_provider.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
@@ -40,6 +44,9 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
   /// is first mounted.
   DateTime? _pickedDate;
 
+  /// A day is the register; a week or a month is each person's totals.
+  DatePeriod _period = DatePeriod.day;
+
   DateTime get _date => _pickedDate ?? ref.read(schoolClockProvider).today;
 
   String get _formattedDate => DateFormat('yyyy-MM-dd').format(_date);
@@ -76,6 +83,12 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
             'Daily teacher and staff attendance register.',
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
+          const SizedBox(height: 16),
+          PeriodFilter(
+            value: _period,
+            periods: const [DatePeriod.day, DatePeriod.week, DatePeriod.month],
+            onChanged: (period) => setState(() => _period = period),
+          ),
           const SizedBox(height: 20),
           Card(
             child: Padding(
@@ -106,17 +119,19 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
                         onChanged: (value) => setState(() => _departmentId = value),
                       ),
                     ),
-                  OutlinedButton.icon(
-                    onPressed: _pickDate,
-                    icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                    label: Text(formatDate(_date)),
-                  ),
+                  if (_period == DatePeriod.day)
+                    OutlinedButton.icon(
+                      onPressed: _pickDate,
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                      label: Text(formatDate(_date)),
+                    ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 20),
-          if (ready) ...[
+          if (ready && _period != DatePeriod.day) _periodSummary(),
+          if (ready && _period == DatePeriod.day) ...[
             _RegisterView(
               key: ValueKey('$_schoolId-$_departmentId-$_formattedDate'),
               params: StaffAttendanceRegisterParams(
@@ -136,6 +151,96 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  /// The week or month so far: from its first day to the school's today,
+  /// since the report refuses days still to come.
+  Widget _periodSummary() {
+    final today = ref.read(schoolClockProvider).today;
+    final range = _period.rangeFrom(today)!;
+
+    return _PeriodSummary(
+      period: _period,
+      params: (
+        schoolId: _schoolId,
+        departmentId: _departmentId,
+        from: range.from,
+        to: DateFormat('yyyy-MM-dd').format(today),
+      ),
+    );
+  }
+}
+
+/// Each person's present / half day / absent / leave / unmarked days over
+/// a week or a month, out of the school days so far.
+class _PeriodSummary extends ConsumerWidget {
+  const _PeriodSummary({required this.period, required this.params});
+
+  final DatePeriod period;
+  final StaffAttendancePeriodParams params;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AsyncValueView<ReportResult>(
+      value: ref.watch(staffAttendancePeriodProvider(params)),
+      onRetry: () => ref.invalidate(staffAttendancePeriodProvider(params)),
+      isEmpty: (summary) => summary.rows.isEmpty,
+      emptyBuilder: (context) => const Card(
+        key: Key('staff-period-empty'),
+        child: Padding(padding: EdgeInsets.all(20), child: Text('No staff to show.')),
+      ),
+      data: (context, summary) {
+        final days = summary.totals['working_days'] ?? 0;
+
+        return Card(
+          key: const Key('staff-period-summary'),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${period.label}: ${days == 1 ? '1 school day' : '$days school days'} so far',
+                  key: const Key('staff-period-days'),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                HorizontalScrollTable(
+                  child: DataTable(
+                    columns: const [
+                      DataColumn(label: Text('Name')),
+                      DataColumn(label: Text('Department')),
+                      DataColumn(label: Text('Present'), numeric: true),
+                      DataColumn(label: Text('Half day'), numeric: true),
+                      DataColumn(label: Text('Absent'), numeric: true),
+                      DataColumn(label: Text('Leave'), numeric: true),
+                      DataColumn(label: Text('Unmarked'), numeric: true),
+                      DataColumn(label: Text('Attendance'), numeric: true),
+                    ],
+                    rows: [
+                      for (final row in summary.rows)
+                        DataRow(
+                          key: ValueKey('staff-period-${row['staff_profile_id']}'),
+                          cells: [
+                            DataCell(Text('${row['name']}')),
+                            DataCell(Text('${row['department'] ?? '-'}')),
+                            DataCell(Text('${row['present'] ?? 0}')),
+                            DataCell(Text('${row['half_day'] ?? 0}')),
+                            DataCell(Text('${row['absent'] ?? 0}')),
+                            DataCell(Text('${row['leave'] ?? 0}')),
+                            DataCell(Text('${row['not_marked'] ?? 0}')),
+                            DataCell(Text('${row['attendance_rate']}%')),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -12,21 +12,28 @@ import 'teaching_report_summary_notifier.dart';
 /// pagination state never leaks between two differently-filtered views on
 /// the same screen.
 class TeachingReportListParams {
-  const TeachingReportListParams({this.schoolId, this.teacherId, this.reportDate});
+  const TeachingReportListParams({this.schoolId, this.teacherId, this.reportDate, this.dateFrom, this.dateTo});
 
   final int? schoolId;
   final int? teacherId;
   final String? reportDate;
+
+  /// The review feed's period (All / Today / This week / This month), both
+  /// inclusive school dates; null for All.
+  final String? dateFrom;
+  final String? dateTo;
 
   @override
   bool operator ==(Object other) =>
       other is TeachingReportListParams &&
       other.schoolId == schoolId &&
       other.teacherId == teacherId &&
-      other.reportDate == reportDate;
+      other.reportDate == reportDate &&
+      other.dateFrom == dateFrom &&
+      other.dateTo == dateTo;
 
   @override
-  int get hashCode => Object.hash(schoolId, teacherId, reportDate);
+  int get hashCode => Object.hash(schoolId, teacherId, reportDate, dateFrom, dateTo);
 }
 
 final teachingReportListNotifierProvider = AsyncNotifierProvider.autoDispose
@@ -51,6 +58,8 @@ class TeachingReportListNotifier extends AsyncNotifier<PagedList<TeachingReport>
           schoolId: params.schoolId,
           teacherId: params.teacherId,
           reportDate: params.reportDate,
+          dateFrom: params.dateFrom,
+          dateTo: params.dateTo,
           page: _page,
           perPage: _perPage,
         );

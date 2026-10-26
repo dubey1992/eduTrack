@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/application/school_clock_provider.dart';
+import '../../../core/widgets/period_filter.dart';
+import '../../../core/utils/date_period.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
@@ -35,6 +38,7 @@ class StaffLeaveScreen extends ConsumerStatefulWidget {
 class _StaffLeaveScreenState extends ConsumerState<StaffLeaveScreen> {
   int? _schoolFilter;
   String? _statusFilter;
+  DatePeriod _period = DatePeriod.all;
 
   static const _reviewerRoles = {UserRole.hod, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.superAdmin};
   // A school admin both applies for their own leave (they get a minimal
@@ -103,12 +107,18 @@ class _StaffLeaveScreenState extends ConsumerState<StaffLeaveScreen> {
           ),
         ),
         const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: PeriodFilter(value: _period, onChanged: _setPeriod),
+        ),
+        const SizedBox(height: 8),
         Expanded(
           child: AsyncValueView<PagedList<StaffLeave>>(
             value: leavesState,
             onRetry: () => ref.read(staffLeaveListNotifierProvider.notifier).refresh(),
             isEmpty: (page) => page.items.isEmpty,
-            emptyBuilder: (context) => const Center(child: Text('No leave requests found.')),
+            emptyBuilder: (context) =>
+                Center(key: const Key('staff-leave-empty'), child: Text(_period.emptyPhrase('leave requests'))),
             data: (context, page) {
               return Column(
                 children: [
@@ -133,6 +143,12 @@ class _StaffLeaveScreenState extends ConsumerState<StaffLeaveScreen> {
         ),
       ],
     );
+  }
+
+  void _setPeriod(DatePeriod period) {
+    setState(() => _period = period);
+    final range = period.rangeFrom(ref.read(schoolClockProvider).today);
+    ref.read(staffLeaveListNotifierProvider.notifier).setDateRange(range?.from, range?.to);
   }
 
   void _setStatusFilter(String? status) {

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/application/school_clock_provider.dart';
+import '../../../core/widgets/period_filter.dart';
+import '../../../core/utils/date_period.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
@@ -37,6 +40,7 @@ class AssessmentListScreen extends ConsumerStatefulWidget {
 class _AssessmentListScreenState extends ConsumerState<AssessmentListScreen> {
   int? _sectionFilter;
   String? _statusFilter;
+  DatePeriod _period = DatePeriod.all;
 
   @override
   Widget build(BuildContext context) {
@@ -108,15 +112,27 @@ class _AssessmentListScreenState extends ConsumerState<AssessmentListScreen> {
             ),
           ],
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: PeriodFilter(
+            value: _period,
+            onChanged: (period) {
+              setState(() => _period = period);
+              final range = period.rangeFrom(ref.read(schoolClockProvider).today);
+              ref.read(assessmentListNotifierProvider.notifier).setDateRange(range?.from, range?.to);
+            },
+          ),
+        ),
         Expanded(
           child: AsyncValueView<PagedList<Assessment>>(
             value: state,
             onRetry: () => ref.read(assessmentListNotifierProvider.notifier).refresh(),
             isEmpty: (page) => page.items.isEmpty,
-            emptyBuilder: (context) => const Center(
+            emptyBuilder: (context) => Center(
+              key: const Key('assessments-empty'),
               child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('No class tests yet.', textAlign: TextAlign.center),
+                padding: const EdgeInsets.all(24),
+                child: Text(_period.emptyPhrase('class tests'), textAlign: TextAlign.center),
               ),
             ),
             data: (context, page) {

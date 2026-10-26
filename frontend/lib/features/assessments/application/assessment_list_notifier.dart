@@ -19,6 +19,8 @@ class AssessmentListNotifier extends AsyncNotifier<PagedList<Assessment>> {
   int? _subjectId;
   String? _status;
   String? _type;
+  String? _dateFrom;
+  String? _dateTo;
   int _page = 1;
   int _perPage = 20;
 
@@ -35,6 +37,8 @@ class AssessmentListNotifier extends AsyncNotifier<PagedList<Assessment>> {
           subjectId: _subjectId,
           status: _status,
           type: _type,
+          dateFrom: _dateFrom,
+          dateTo: _dateTo,
           page: _page,
           perPage: _perPage,
         );
@@ -72,6 +76,12 @@ class AssessmentListNotifier extends AsyncNotifier<PagedList<Assessment>> {
   Future<void> setStatusFilter(String? status) => _refilter(() => _status = status);
 
   Future<void> setTypeFilter(String? type) => _refilter(() => _type = type);
+
+  /// Tests held in the range (both inclusive school dates); nulls for any time.
+  Future<void> setDateRange(String? from, String? to) => _refilter(() {
+    _dateFrom = from;
+    _dateTo = to;
+  });
 
   Future<void> goToPage(int page) async {
     _page = page;

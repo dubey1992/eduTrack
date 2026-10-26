@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/period_filter.dart';
+import '../../../core/utils/date_period.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
@@ -263,17 +265,31 @@ class _ReportsToReview extends ConsumerStatefulWidget {
 }
 
 class _ReportsToReviewState extends ConsumerState<_ReportsToReview> {
+  DatePeriod _period = DatePeriod.all;
+
   @override
   Widget build(BuildContext context) {
-    final params = TeachingReportListParams(schoolId: widget.schoolId);
-    final reportsState = ref.watch(teachingReportListNotifierProvider(params));
+    final range = _period.rangeFrom(ref.read(schoolClockProvider).today);
+    final params = TeachingReportListParams(schoolId: widget.schoolId, dateFrom: range?.from, dateTo: range?.to);
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PeriodFilter(value: _period, onChanged: (period) => setState(() => _period = period)),
+        const SizedBox(height: 12),
+        _reports(params),
+      ],
+    );
+  }
+
+  Widget _reports(TeachingReportListParams params) {
     return AsyncValueView<PagedList<TeachingReport>>(
-      value: reportsState,
+      value: ref.watch(teachingReportListNotifierProvider(params)),
       onRetry: () => ref.invalidate(teachingReportListNotifierProvider(params)),
       isEmpty: (page) => page.items.isEmpty,
-      emptyBuilder: (context) => const Card(
-        child: Padding(padding: EdgeInsets.all(20), child: Text('No teaching reports found.')),
+      emptyBuilder: (context) => Card(
+        key: const Key('reports-to-review-empty'),
+        child: Padding(padding: const EdgeInsets.all(20), child: Text(_period.emptyPhrase('teaching reports'))),
       ),
       data: (context, page) {
         return Column(

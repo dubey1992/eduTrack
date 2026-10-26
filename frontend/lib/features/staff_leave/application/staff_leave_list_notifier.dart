@@ -14,6 +14,8 @@ class StaffLeaveListNotifier extends AsyncNotifier<PagedList<StaffLeave>> {
   int? _schoolId;
   int? _departmentId;
   String? _status;
+  String? _dateFrom;
+  String? _dateTo;
   int _page = 1;
   int _perPage = 20;
 
@@ -23,7 +25,15 @@ class StaffLeaveListNotifier extends AsyncNotifier<PagedList<StaffLeave>> {
   Future<PagedList<StaffLeave>> _fetch() async {
     final response = await ref
         .read(staffLeaveRepositoryProvider)
-        .list(schoolId: _schoolId, departmentId: _departmentId, status: _status, page: _page, perPage: _perPage);
+        .list(
+          schoolId: _schoolId,
+          departmentId: _departmentId,
+          status: _status,
+          dateFrom: _dateFrom,
+          dateTo: _dateTo,
+          page: _page,
+          perPage: _perPage,
+        );
 
     return PagedList(
       items: response.items,
@@ -54,6 +64,15 @@ class StaffLeaveListNotifier extends AsyncNotifier<PagedList<StaffLeave>> {
 
   Future<void> setStatusFilter(String? status) async {
     _status = status;
+    _page = 1;
+    await refresh();
+  }
+
+  /// Leave that touches the range (both inclusive school dates); nulls for
+  /// any time.
+  Future<void> setDateRange(String? from, String? to) async {
+    _dateFrom = from;
+    _dateTo = to;
     _page = 1;
     await refresh();
   }
