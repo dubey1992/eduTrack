@@ -7,13 +7,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../support/marketing_scope.dart';
 
-Widget wrap({MarketingContent content = const MarketingContent.asItShips()}) {
+Widget wrap({MarketingContent content = const MarketingContent.asItShips(), String location = '/'}) {
   return marketingScope(
     content: content,
     MaterialApp.router(
       routerConfig: GoRouter(
+        initialLocation: location,
         routes: [
-          GoRoute(path: '/', builder: (context, state) => const MarketingScreen()),
+          GoRoute(
+            path: '/',
+            builder: (context, state) => MarketingScreen(section: state.uri.queryParameters['section']),
+          ),
           GoRoute(
             path: '/login',
             builder: (context, state) => const Scaffold(body: Text('Login Screen')),
@@ -50,6 +54,14 @@ const rewritten = MarketingContent({}, {
   ],
 });
 
+/// How far the page itself - the vertical scroll that holds every section -
+/// is scrolled.
+double pageScroll(WidgetTester tester) {
+  final page = find.byWidgetPredicate((w) => w is SingleChildScrollView && w.scrollDirection == Axis.vertical);
+
+  return tester.widget<SingleChildScrollView>(page.first).controller!.offset;
+}
+
 void main() {
   testWidgets('shows the hero headline, feature grid and footer', (tester) async {
     await tester.pumpWidget(wrap());
@@ -60,6 +72,31 @@ void main() {
     expect(find.text('Student Management'), findsOneWidget);
     expect(find.text('Be Part of the Future of Education'), findsOneWidget);
     expect(find.text('© 2026 School365ai. All rights reserved.'), findsOneWidget);
+  });
+
+  testWidgets('a plain address for a section opens the page at that section', (tester) async {
+    // school365ai.com/contact is redirected by the host to /#/?section=contact.
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(wrap(location: '/?section=contact'));
+    await tester.pumpAndSettle();
+
+    expect(pageScroll(tester), greaterThan(0), reason: 'the footer, where Contact is, is far below the top');
+  });
+
+  testWidgets('a section nobody has opens at the top', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(wrap(location: '/?section=pricing'));
+    await tester.pumpAndSettle();
+
+    expect(pageScroll(tester), 0);
   });
 
   testWidgets('tapping Login navigates to the login route', (tester) async {

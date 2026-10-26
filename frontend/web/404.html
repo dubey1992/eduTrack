@@ -188,11 +188,8 @@
     <p class="footer">&copy; <span id="year">2026</span> School365ai</p>
   </main>
 
-  <script>
-    // The path is read here rather than written by a server, so this file
-    // stays a plain static asset any host can serve.
-    document.getElementById('asked-for').textContent = window.location.pathname;
-    document.getElementById('year').textContent = new Date().getFullYear();
-  </script>
+  <!-- Its own file, not inline: the site's Content-Security-Policy allows
+       scripts from this origin only, never ones written into the page. -->
+  <script src="/404.js"></script>
 </body>
 </html>

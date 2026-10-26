@@ -163,7 +163,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     // every single launch, including reloads.
     refreshListenable: refreshNotifier,
     routes: [
-      GoRoute(path: '/', builder: (context, state) => const MarketingScreen()),
+      GoRoute(
+        path: '/',
+        builder: (context, state) => MarketingScreen(section: state.uri.queryParameters['section']),
+      ),
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
       // Public, like the homepage: it has to be readable by a parent, a
       // Play reviewer or a school's lawyer, none of whom have an account

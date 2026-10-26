@@ -340,7 +340,14 @@ from us: the HTTP-to-HTTPS redirect and the page's security headers
 (docs/security.md). cPanel adds a block of its own for PHP's error log
 ("cPanel-generated php ini directives"); the site has no PHP, but put that
 block back at the end of the uploaded file rather than let it go missing,
-so cPanel's MultiPHP screens find what they wrote. Check afterwards that
+so cPanel's MultiPHP screens find what they wrote. The file also sends
+plain addresses to the app (2026-10-26): `/privacy`, `/login` and
+`/forgot-password` to their pages, `/features`, `/for-schools`,
+`/mobile-app`, `/about` and `/contact` to the homepage at that section, and
+anything else that is not a file to our own `404.html` rather than the
+host's. The footer's Pricing, Careers, Blog, Help, Terms and Security links
+point at pages that do not exist yet, so they show that 404 until they are
+written or re-pointed from the homepage editor. Check afterwards that
 `http://` still answers 301 and `https://` 200 with a
 `Content-Security-Policy` header.
 

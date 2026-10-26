@@ -15,7 +15,20 @@
   RewriteCond %{HTTP:X-Forwarded-Proto} !=https
   RewriteCond %{REQUEST_URI} !^/\.well-known/
   RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+  # Plain addresses for the pages that exist. The app routes after a '#',
+  # so school365ai.com/privacy - the kind of address a footer, an email or
+  # Google Play holds - would otherwise be a server 404. Each goes to its
+  # page in the app; the homepage ones open at their section. 302, not 301,
+  # so a browser does not remember a target that may change. NE keeps the
+  # '#' as it is.
+  RewriteRule ^privacy/?$ /#/privacy [R=302,NE,L]
+  RewriteRule ^(login|forgot-password)/?$ /#/$1 [R=302,NE,L]
+  RewriteRule ^(features|for-schools|mobile-app|about|contact)/?$ /#/?section=$1 [R=302,NE,L]
 </IfModule>
+
+# Anything else that is not a file: our own "page not found", not the host's.
+ErrorDocument 404 /404.html
 
 <IfModule mod_headers.c>
   # What the page may load and talk to, and nothing else. Each source is here

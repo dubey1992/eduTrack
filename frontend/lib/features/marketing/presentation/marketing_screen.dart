@@ -16,7 +16,13 @@ import 'widgets/web_app_section.dart';
 /// rebranded to School365ai. Visitors reach the actual app via the nav bar's
 /// "Login" button; there is no session/auth involved on this screen itself.
 class MarketingScreen extends StatefulWidget {
-  const MarketingScreen({super.key});
+  const MarketingScreen({super.key, this.section});
+
+  /// A section to open at - `features`, `for-schools`, `mobile-app`, `about`
+  /// or `contact` - so a plain address such as school365ai.com/about lands
+  /// on it (the web host redirects those to `/#/?section=about`; see
+  /// frontend/web/.htaccess). Anything else opens at the top.
+  final String? section;
 
   @override
   State<MarketingScreen> createState() => _MarketingScreenState();
@@ -30,6 +36,21 @@ class _MarketingScreenState extends State<MarketingScreen> {
   final _mobileKey = GlobalKey();
   final _aboutKey = GlobalKey();
   final _contactKey = GlobalKey();
+
+  late final Map<String, GlobalKey> _sections = {
+    'features': _featuresKey,
+    'for-schools': _schoolsKey,
+    'mobile-app': _mobileKey,
+    'about': _aboutKey,
+    'contact': _contactKey,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    final asked = _sections[widget.section];
+    if (asked != null) WidgetsBinding.instance.addPostFrameCallback((_) => _scrollTo(asked));
+  }
 
   @override
   void dispose() {
