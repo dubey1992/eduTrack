@@ -224,15 +224,19 @@ moves, its address in `connect-src` moves with it.
 - The driver app's release command is documented with `--obfuscate`, like
   the staff app's.
 
-**Left open, on purpose**
-- A locked account answers 423 where an unknown address answers 401, which
-  confirms the account exists to somebody who has already failed ten
-  times. The usual lockout trade-off.
-- Payslips and the passcode screen can be screenshotted (no FLAG_SECURE):
-  blocking it everywhere would also block the screenshots staff use to ask
+**Closed the same day, at the owner's request**
+- **New fingerprint readers need a push key** (8+ characters), and a key
+  once set cannot be removed. Older keyless readers keep working and are
+  marked "No key" on the device list (docs/biometric.md).
+- **A locked account says so only to the right password.** A wrong one
+  gets the same 401 as an address nobody has, so the lock no longer
+  confirms that an account exists.
+- **Payslips and the passcode screens are kept out of screenshots** on
+  Android (FLAG_SECURE through `SecureScreen`), only while they are open:
+  everywhere else screenshots stay allowed, because staff use them to ask
   for help.
-- The set-password link carries its token in the address bar, as reset
-  links do; it is one hour and single use, and the page sends no referrer.
+- **The set-password code leaves the address bar** the moment the page
+  has read it, so it is not left in a shared computer's history.
 
 ## Production checklist (Phase 22)
 

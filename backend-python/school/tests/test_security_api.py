@@ -57,6 +57,22 @@ class Lockout(SecurityTest):
         self.assertEqual("ACCOUNT_LOCKED", locked.data["code"])
         self.assertIn("15 minutes", locked.data["message"])
 
+    def test_while_locked_a_wrong_password_is_told_nothing_more_than_for_a_stranger(self):
+        # "Locked" to a wrong password would confirm the account exists.
+        for _ in range(10):
+            self.sign_in(password="Wrong-guess-1")
+        cache.clear()
+
+        wrong = self.sign_in(password="Wrong-guess-2")
+        cache.clear()
+        nobody = self.sign_in(email="nobody@example.invalid", password="Wrong-guess-2")
+        cache.clear()
+        right = self.sign_in()
+
+        self.assertEqual((wrong.status_code, wrong.data["message"]), (nobody.status_code, nobody.data["message"]))
+        self.assertEqual(401, wrong.status_code)
+        self.assertEqual((423, "ACCOUNT_LOCKED"), (right.status_code, right.data["code"]))
+
     def test_the_lock_runs_out_after_fifteen_minutes(self):
         for _ in range(10):
             self.sign_in(password="Wrong-guess-1")

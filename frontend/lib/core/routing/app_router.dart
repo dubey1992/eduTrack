@@ -8,6 +8,7 @@ import '../../features/grade_scales/presentation/grade_scale_list_screen.dart';
 import '../../features/attendance/presentation/attendance_screen.dart';
 import '../../features/audit/presentation/audit_log_screen.dart';
 import '../../features/auth/application/auth_notifier.dart';
+import '../../features/auth/application/reset_code_notifier.dart';
 import '../../features/auth/data/models/authenticated_user.dart';
 import '../../features/auth/presentation/attendant_login_screen.dart';
 import '../../features/announcements/presentation/announcement_screen.dart';
@@ -179,9 +180,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
       GoRoute(
         path: '/reset-password',
+        // The link carries a one-time code. Kept in memory and taken out of
+        // the address before anything is shown, so it is not left in the
+        // browser's history; the same page, without it, is where this lands.
+        redirect: (context, state) {
+          final code = state.uri.queryParameters['token'];
+          if (code == null || code.isEmpty) return null;
+
+          ref.read(resetCodeProvider.notifier).hold(code);
+          final email = state.uri.queryParameters['email'];
+
+          return Uri(path: '/reset-password', queryParameters: email == null ? null : {'email': email}).toString();
+        },
         builder: (context, state) => ResetPasswordScreen(
           email: state.uri.queryParameters['email'] ?? '',
-          token: state.uri.queryParameters['token'] ?? '',
+          token: ref.read(resetCodeProvider) ?? '',
         ),
       ),
       ShellRoute(

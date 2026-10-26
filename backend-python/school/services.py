@@ -194,9 +194,16 @@ class AuthService:
         correct = hashing.check(password, stored)
 
         # A locked account refuses even the right password until the lock
-        # runs out - otherwise the lock would only slow a guesser down.
+        # runs out - otherwise the lock would only slow a guesser down. But
+        # only the right password is told it is locked: a wrong one gets the
+        # same answer as an address nobody has, or "locked" would confirm to
+        # a guesser that the account exists (decided 2026-10-26).
         if user is not None and cls.locked_for(user):
-            raise AccountLocked(cls.locked_for(user))
+            if correct:
+                raise AccountLocked(cls.locked_for(user))
+
+            cls._record(user, "user.sign_in_failed", {"while_locked": True})
+            raise Unauthenticated("These credentials do not match our records.")
 
         if not correct or user is None:
             cls._failed(user, email)

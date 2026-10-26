@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/secure_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -14,8 +15,11 @@ import '../application/my_pay_notifier.dart';
 class MyPayslipsPhoneScreen extends ConsumerWidget {
   const MyPayslipsPhoneScreen({super.key});
 
+  // Pay is nobody else's business - kept out of screenshots (SecureScreen).
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) => SecureScreen(child: _screen(context, ref));
+
+  Widget _screen(BuildContext context, WidgetRef ref) {
     final payslips = ref.watch(myPayslipsProvider);
 
     return RefreshIndicator(

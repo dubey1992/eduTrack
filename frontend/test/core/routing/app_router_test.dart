@@ -10,6 +10,7 @@ import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/auth/presentation/login_screen.dart';
+import 'package:edutrack_app/features/auth/presentation/reset_password_screen.dart';
 import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
 import 'package:edutrack_app/features/students/data/student_repository.dart';
 import 'package:edutrack_app/features/users/data/user_repository.dart';
@@ -227,6 +228,31 @@ void main() {
     );
     // Outside the shell: no sidebar to reach past the screen.
     expect(find.text('Reports'), findsNothing);
+  });
+
+  testWidgets('a set-password link loses its code from the address, and the page still has it', (tester) async {
+    // A one-time code has no business staying in a shared computer's history.
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository())],
+        child: const EduTrackApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(tester.element(find.byType(EduTrackApp)));
+
+    container.read(routerProvider).go('/reset-password?email=asha%40school.test&token=a-one-time-code');
+    await tester.pumpAndSettle();
+
+    final location = container.read(routerProvider).routerDelegate.currentConfiguration.uri.toString();
+    expect(location, isNot(contains('a-one-time-code')));
+    expect(location, contains('email=asha'));
+    expect(tester.widget<ResetPasswordScreen>(find.byType(ResetPasswordScreen)).token, 'a-one-time-code');
   });
 
   testWidgets('an ordinary session is not sent to change its password', (tester) async {

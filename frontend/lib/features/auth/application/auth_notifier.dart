@@ -45,6 +45,7 @@ import '../../transport/application/trip_history_notifier.dart';
 import '../../transport/application/vehicle_page_notifier.dart';
 import '../../users/application/user_list_notifier.dart';
 import '../data/auth_repository.dart';
+import 'reset_code_notifier.dart';
 import '../data/models/authenticated_user.dart';
 
 final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, AuthenticatedUser?>(AuthNotifier.new);
@@ -161,6 +162,8 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     // who took them, and go when they next sign in; only the copy in
     // memory, and its retry timer, end with the session.
     ref.invalidate(registerQueueProvider);
+    // A set-password code held from a link is no business of the next session.
+    ref.invalidate(resetCodeProvider);
     ref.invalidate(schoolListNotifierProvider);
     ref.invalidate(userListNotifierProvider);
     ref.invalidate(studentListNotifierProvider);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/secure_screen.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -21,8 +22,11 @@ class MyPayslipDetailScreen extends ConsumerWidget {
 
   final int payslipId;
 
+  // Pay is nobody else's business - kept out of screenshots (SecureScreen).
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) => SecureScreen(child: _screen(context, ref));
+
+  Widget _screen(BuildContext context, WidgetRef ref) {
     final slip = ref.watch(myPayslipProvider(payslipId));
 
     return Scaffold(

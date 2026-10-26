@@ -1,3 +1,4 @@
+import '../../../core/widgets/secure_screen.dart';
 import '../../../core/network/session_ended_notifier.dart';
 import '../../../core/widgets/driver_mark.dart';
 
@@ -125,8 +126,12 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
     });
   }
 
+  // A passcode or a setup code is typed here - kept out of screenshots
+  // (SecureScreen).
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => SecureScreen(child: _screen(context));
+
+  Widget _screen(BuildContext context) {
     return Scaffold(
       backgroundColor: AuthPalette.of(context).background,
       body: SafeArea(
