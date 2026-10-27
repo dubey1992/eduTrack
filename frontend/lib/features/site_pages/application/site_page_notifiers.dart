@@ -5,17 +5,25 @@ import '../data/site_page_repository.dart';
 
 /// A page as visitors read it. Fails with [SitePageRepository.notFoundCode]
 /// for a page that does not exist or is not published.
+///
+/// No automatic retry, here or below: "not available" is an answer, not a
+/// blip. Riverpod's default retry asked the live server six times in
+/// eighteen seconds for an unpublished page and kept a spinner up the whole
+/// time. A real failure offers its own Try again.
 final publishedSitePageProvider = FutureProvider.autoDispose.family<SitePage, String>(
   (ref, slug) => ref.read(sitePageRepositoryProvider).fetchPublished(slug),
+  retry: (retryCount, error) => null,
 );
 
 /// One page as the editor opens it.
 final sitePageDetailProvider = FutureProvider.autoDispose.family<SitePageDetail, String>(
   (ref, slug) => ref.read(sitePageRepositoryProvider).get(slug),
+  retry: (retryCount, error) => null,
 );
 
 final sitePageListNotifierProvider = AsyncNotifierProvider<SitePageListNotifier, List<SitePageSummary>>(
   SitePageListNotifier.new,
+  retry: (retryCount, error) => null,
 );
 
 /// The Super Admin's list of website pages, and every change made to them.

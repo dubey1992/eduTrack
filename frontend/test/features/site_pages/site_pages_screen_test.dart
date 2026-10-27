@@ -454,6 +454,36 @@ void main() {
       expect(location, '/');
     });
 
+    testWidgets('"not available" is shown at once, with automatic retry left on', (tester) async {
+      // Every other test here switches Riverpod's retry off, which is how a
+      // page asking the live server for an unpublished page again and again
+      // - spinner up the whole time - got past them. This one leaves it on.
+      final fake = FakeSitePageRepository();
+      final router = GoRouter(
+        initialLocation: '/pages/terms',
+        routes: [
+          GoRoute(
+            path: '/pages/:slug',
+            builder: (context, state) => SitePageScreen(slug: state.pathParameters['slug']!),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [sitePageRepositoryProvider.overrideWithValue(fake)],
+          child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('This page is not available'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 30));
+      expect(fake.fetchPublishedCalls, 1);
+    });
+
     testWidgets('a page that could not be loaded can be tried again', (tester) async {
       final fake = FakeSitePageRepository()..failPublishedWith = Failure.network();
 
