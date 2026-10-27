@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:edutrack_app/features/marketing/presentation/privacy_policy_screen.dart';
+import 'package:edutrack_app/features/site_pages/data/site_page_repository.dart';
+import 'package:edutrack_app/features/site_pages/presentation/site_page_screen.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/dio_client.dart';
@@ -24,6 +25,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_auth_token_storage.dart';
+import '../../support/fake_site_page_repository.dart';
 import '../../support/fake_school_class_repository.dart';
 import '../../support/fake_student_repository.dart';
 import '../../support/fake_dashboard_repository.dart';
@@ -429,25 +431,53 @@ void main() {
     expect(find.text('Run Your School Smarter, Together.'), findsOneWidget);
   });
 
-  testWidgets('the privacy policy opens with no account, which is the whole point of it', (tester) async {
-    // Play's reviewer, a parent and a school's lawyer all open this without
-    // signing in. Routing it is not enough - a route the redirect does not
-    // know is public falls through to /login (docs/driver-app.md, D6.1).
-    final fake = FakeAuthRepository();
-    final container = ProviderContainer(
-      overrides: [
-        authRepositoryProvider.overrideWithValue(fake),
-        authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
-      ],
-    );
-    addTearDown(container.dispose);
+  group('website pages open with no account, which is the whole point of them', () {
+    // Play's reviewer, a parent and a school's lawyer all open these without
+    // signing in. Routing them is not enough - a route the redirect does not
+    // know is public falls through to /login (docs/driver-app.md, D6.1;
+    // docs/site-pages.md).
+    Future<void> open(WidgetTester tester, String path) async {
+      final container = ProviderContainer(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+          authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
+          sitePageRepositoryProvider.overrideWithValue(FakeSitePageRepository()),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    container.read(routerProvider).go('/privacy');
-    await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const EduTrackApp()));
-    await tester.pumpAndSettle();
+      container.read(routerProvider).go(path);
+      await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const EduTrackApp()));
+      await tester.pumpAndSettle();
+    }
 
-    expect(find.byType(PrivacyPolicyScreen), findsOneWidget);
-    expect(find.byType(LoginScreen), findsNothing);
+    for (final (path, title) in [
+      ('/privacy', 'Privacy Policy'),
+      ('/about', 'About Us'),
+      ('/pages/privacy', 'Privacy Policy'),
+    ]) {
+      testWidgets('$path shows its page', (tester) async {
+        await open(tester, path);
+
+        expect(find.byType(SitePageScreen), findsOneWidget);
+        expect(find.text(title), findsOneWidget);
+        expect(find.byType(LoginScreen), findsNothing);
+      });
+    }
+
+    testWidgets('a page that is not published says so, rather than asking for a sign-in', (tester) async {
+      await open(tester, '/terms');
+
+      expect(find.text('This page is not available'), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
+    });
+
+    testWidgets('an address that cannot be a page is still not a sign-in', (tester) async {
+      await open(tester, '/pages/Not_A_Page');
+
+      expect(find.text('This page is not available'), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
+    });
   });
 
   testWidgets('a deep-linked route survives session restore instead of bouncing to the dashboard', (tester) async {

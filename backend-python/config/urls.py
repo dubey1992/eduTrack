@@ -45,6 +45,7 @@ from school.views import (
     permissions,
     profile,
     settings_modules,
+    site_pages,
     payments,
     payroll,
     reports,
@@ -307,6 +308,12 @@ urlpatterns = [
     path("api/v1/marketing-content", marketing_content.content),
     path("api/v1/marketing-content/draft", marketing_content.draft),
     path("api/v1/marketing-content/publish", marketing_content.publish),
+    # The website's own pages (docs/site-pages.md). /pages is the public
+    # read of what is published; /site-pages is the Super Admin's editor.
+    path("api/v1/pages/<str:slug>", site_pages.public),
+    path("api/v1/site-pages", site_pages.collection),
+    path("api/v1/site-pages/<str:slug>/publish", site_pages.publish),
+    path("api/v1/site-pages/<str:slug>", site_pages.detail),
     path("api/v1/early-access", early_access.collection),
     path("api/v1/early-access/<int:request_id>", early_access.detail),
     # -- students ----------------------------------------------------------

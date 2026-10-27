@@ -591,6 +591,37 @@ class MarketingContent(models.Model):
         db_table = 'marketing_content'
 
 
+class SitePage(models.Model):
+    """A page of the public website - About Us, a privacy policy, a help
+    centre (docs/site-pages.md).
+
+    Platform-owned like MarketingContent, so no school. `title` and `body`
+    are the draft; the `published_*` pair is what visitors read, and is
+    null until the page is first published. The built-in pages exist
+    without a row (school/site_pages.py) until somebody saves one.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    slug = models.CharField(unique=True, max_length=60)
+    title = models.CharField(max_length=120)
+    body = models.TextField(default='')
+    published_title = models.CharField(max_length=120, blank=True, null=True)
+    published_body = models.TextField(blank=True, null=True)
+    published_at = UtcDateTimeField(blank=True, null=True)
+    published_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='published_by', blank=True, null=True, related_name='+'
+    )
+    created_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='created_by', blank=True, null=True, related_name='+'
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'site_pages'
+
+
 class MessageTemplate(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)

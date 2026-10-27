@@ -20,7 +20,7 @@ import datetime as dt
 import decimal
 import re
 
-from . import attendants, audit, hashing, mailer, marketing, notices, notifications, permissions, sms, whatsapp
+from . import attendants, audit, hashing, mailer, marketing, notices, notifications, permissions, site_pages, sms, whatsapp
 from .enums import (
     UserStatus,
     PromotionOutcome,
@@ -68,6 +68,7 @@ from .models import (
     EarlyAccessRequest,
     School,
     SchoolClass,
+    SitePage,
     StaffProfile,
     Student,
     Subject,
@@ -2152,6 +2153,84 @@ def _marketing_list(declared, raw, problems: list) -> list | None:
     # missing a box it needed, is never stored - the caller raises before
     # either is looked at.
     return items
+
+
+class SitePageRequest(serializers.Serializer):
+    """A website page's address, title and text (docs/site-pages.md).
+
+    Used for both creating a page and saving one, told which by `current`:
+    the address the page has now, or None for a new one. Every field's
+    problems come back together, and the text's bad links all at once, so
+    the editor can mark up everything in one pass.
+
+    The address may be left out of a save, which keeps it. Given, and
+    different, it moves a custom page; a built-in page's address is part of
+    the product (the footer links to it) and never moves.
+    """
+
+    slug = LaravelCharField("slug")
+    title = LaravelCharField("title", max_length=site_pages.MAX_TITLE)
+    # Not trimmed and not normalised to null: an empty draft is a real
+    # state, and leading blank lines are the writer's business.
+    body = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        trim_whitespace=False,
+        error_messages={"invalid": "The page text must be text.", "null": "The page text must be text."},
+    )
+
+    def __init__(self, *args, current: str | None = None, **kwargs) -> None:
+        self.current = current
+
+        data = kwargs.get("data")
+
+        if isinstance(data, dict):
+            data = dict(data)
+            # Trimmed here rather than by normalise(), which would also turn
+            # an empty body into null and trim the page's own whitespace.
+            for key in ("slug", "title"):
+                if isinstance(data.get(key), str):
+                    data[key] = data[key].strip()
+            kwargs["data"] = data
+
+        super().__init__(*args, **kwargs)
+
+        if current is not None:
+            self.fields["slug"].required = False
+
+    def validate_slug(self, value: str) -> str:
+        if self.current is not None and value == self.current:
+            return value
+
+        if self.current in site_pages.BUILT_IN_SLUGS:
+            raise serializers.ValidationError("The address of a built-in page cannot be changed.")
+
+        problem = site_pages.slug_problem(value)
+
+        if problem is not None:
+            raise serializers.ValidationError(problem)
+
+        if value in site_pages.BUILT_IN_SLUGS or SitePage.objects.filter(slug=value).exists():
+            raise serializers.ValidationError("That address is already used by another page.")
+
+        return value
+
+    def validate_body(self, value: str) -> str:
+        # One kind of line ending, so the client's line-based reading and
+        # the length below both count what the writer sees.
+        value = value.replace("\r\n", "\n")
+
+        if len(value) > site_pages.MAX_BODY:
+            raise serializers.ValidationError(
+                f"The page text must be {site_pages.MAX_BODY:,} characters or fewer - it is {len(value):,}."
+            )
+
+        problems = site_pages.link_problems(value)
+
+        if problems:
+            raise serializers.ValidationError(problems)
+
+        return value
 
 
 class UpdateMailSettingRequest(serializers.Serializer):

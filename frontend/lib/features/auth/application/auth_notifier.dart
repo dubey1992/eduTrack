@@ -32,6 +32,7 @@ import '../../transport/application/bus_stop_page_notifier.dart';
 import '../../biometric/application/device_page_notifier.dart';
 import '../../biometric/application/punch_page_notifier.dart';
 import '../../schools/application/school_list_notifier.dart';
+import '../../site_pages/application/site_page_notifiers.dart';
 import '../../staff/application/staff_list_notifier.dart';
 import '../../transport/application/crew_list_notifier.dart';
 import '../../staff_leave/application/staff_leave_list_notifier.dart';
@@ -198,6 +199,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(auditLogNotifierProvider);
     ref.invalidate(mailSettingsNotifierProvider);
     ref.invalidate(marketingDraftNotifierProvider);
+    ref.invalidate(sitePageListNotifierProvider);
     ref.invalidate(mapsConfigProvider);
     ref.invalidate(schoolLocationsProvider);
     ref.invalidate(dashboardNotifierProvider);

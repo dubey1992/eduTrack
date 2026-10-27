@@ -212,6 +212,16 @@ class AppNav {
         pageSubtitle: 'The words visitors read on the public homepage',
       ),
       NavItem(
+        path: '/site-pages',
+        label: 'Website Pages',
+        icon: Icons.article_outlined,
+        // About Us, the privacy policy, the terms - the product's, not a
+        // school's (docs/site-pages.md).
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Website Pages',
+        pageSubtitle: 'About, privacy, terms and other public pages',
+      ),
+      NavItem(
         path: '/mail-settings',
         label: 'Email Settings',
         icon: Icons.outgoing_mail,

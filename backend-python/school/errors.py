@@ -669,6 +669,48 @@ class EmailNotSent(ApiError):
     error_code = "EMAIL_NOT_SENT"
 
 
+class PageNotFound(ApiError):
+    """A website page nobody may read: no such address, deleted, or never
+    published (docs/site-pages.md). One answer for all three, so the public
+    endpoint says nothing about drafts that exist but are not live."""
+
+    status_code = status.HTTP_404_NOT_FOUND
+    error_code = "PAGE_NOT_FOUND"
+
+    def __init__(self) -> None:
+        super().__init__("This page is not available.")
+
+
+class PageBuiltIn(ApiError):
+    """About Us, the privacy policy and the terms are linked from the footer
+    and required by the app stores, so they are edited, never removed."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "PAGE_BUILT_IN"
+
+    def __init__(self) -> None:
+        super().__init__("Built-in pages can be edited but not deleted.")
+
+
+class PageLimitReached(ApiError):
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "PAGE_LIMIT_REACHED"
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(f"There can be at most {limit} website pages. Delete one you no longer need first.")
+
+
+class PageEmpty(ApiError):
+    """A draft may be blank while somebody is still deciding; a published
+    page may not - a visitor would land on a title and nothing under it."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "PAGE_EMPTY"
+
+    def __init__(self) -> None:
+        super().__init__("Write something on this page before publishing it.")
+
+
 
 def envelope(status_code: int, code: str, message: str, details: dict | None = None) -> Response:
     return Response(

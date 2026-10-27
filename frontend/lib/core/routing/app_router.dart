@@ -28,7 +28,6 @@ import '../../features/hod/presentation/hod_report_screen.dart';
 import '../../features/holidays/presentation/holiday_list_screen.dart';
 import '../../features/mail_settings/presentation/mail_settings_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
-import '../../features/marketing/presentation/privacy_policy_screen.dart';
 import '../../features/marketing/presentation/marketing_content_screen.dart';
 import '../../features/marketing/presentation/marketing_screen.dart';
 import '../../features/payments/presentation/payment_list_screen.dart';
@@ -39,6 +38,8 @@ import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/biometric/presentation/device_list_screen.dart';
 import '../../features/schools/presentation/school_detail_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
+import '../../features/site_pages/presentation/site_page_screen.dart';
+import '../../features/site_pages/presentation/site_pages_screen.dart';
 import '../../features/staff/presentation/staff_list_screen.dart';
 import '../../features/staff_attendance/presentation/staff_attendance_screen.dart';
 import '../../features/staff_leave/presentation/staff_leave_screen.dart';
@@ -68,8 +69,26 @@ import 'app_nav.dart';
 /// '/privacy' has to be here rather than merely routed: Play's reviewer, a
 /// parent and a school's lawyer all open it without an account, and a
 /// privacy policy that answers "please sign in" is no policy at all
-/// (docs/driver-app.md, D6.1).
-const _publicPaths = {'/', '/privacy', '/login', '/attendant-login', '/forgot-password', '/reset-password'};
+/// (docs/driver-app.md, D6.1). The same goes for every website page under
+/// /pages/ - see [isPublicPath].
+const _publicPaths = {
+  '/',
+  '/privacy',
+  '/terms',
+  '/about',
+  '/login',
+  '/attendant-login',
+  '/forgot-password',
+  '/reset-password',
+};
+
+/// A website page the Super Admin wrote (docs/site-pages.md). Whether that
+/// page exists is the page's own question: an unknown one says "not
+/// available" rather than being turned into a 404 or a sign-in here.
+final _websitePage = RegExp(r'^/pages/[a-z0-9]+(-[a-z0-9]+)*$');
+
+/// Reachable without an account.
+bool isPublicPath(String location) => _publicPaths.contains(location) || _websitePage.hasMatch(location);
 
 /// The public pages that ask for a password - pointless, and confusing, to
 /// somebody already signed in. Held behind the splash screen until the saved
@@ -94,7 +113,7 @@ String landingPathFor(AuthenticatedUser user) => user.role.isCrew ? '/my-trip' :
 /// missing from both is treated as a mistyped address, and a *private* route
 /// missing from both sends a signed-out visitor to a 404 instead of the
 /// login screen they came for.
-final _appRoutePatterns = [RegExp(r'^/schools/\d+$')];
+final _appRoutePatterns = [RegExp(r'^/schools/\d+$'), _websitePage];
 
 /// Whether this address is a route of this app at all - mistyped or not,
 /// signed in or not.
@@ -106,6 +125,8 @@ const appRoutePaths = {
   '/',
   '/splash',
   '/privacy',
+  '/terms',
+  '/about',
   '/login',
   '/attendant-login',
   '/forgot-password',
@@ -150,6 +171,7 @@ const appRoutePaths = {
   '/audit-log',
   '/mail-settings',
   '/homepage-content',
+  '/site-pages',
   '/profile',
   '/module-settings',
   '/permissions',
@@ -176,7 +198,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Public, like the homepage: it has to be readable by a parent, a
       // Play reviewer or a school's lawyer, none of whom have an account
       // (docs/driver-app.md, D6.1).
-      GoRoute(path: '/privacy', builder: (context, state) => const PrivacyPolicyScreen()),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) => const SitePageScreen(slug: 'privacy'),
+      ),
+      // Short addresses for the other two built-in pages; every page also
+      // has its long one under /pages/ (docs/site-pages.md).
+      GoRoute(
+        path: '/terms',
+        builder: (context, state) => const SitePageScreen(slug: 'terms'),
+      ),
+      GoRoute(
+        path: '/about',
+        builder: (context, state) => const SitePageScreen(slug: 'about'),
+      ),
+      GoRoute(
+        path: '/pages/:slug',
+        builder: (context, state) => SitePageScreen(slug: state.pathParameters['slug']!),
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/attendant-login', builder: (context, state) => const AttendantLoginScreen()),
       // Outside the shell on purpose: an account still holding a temporary
@@ -257,6 +296,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
           GoRoute(path: '/mail-settings', builder: (context, state) => const MailSettingsScreen()),
           GoRoute(path: '/homepage-content', builder: (context, state) => const MarketingContentScreen()),
+          GoRoute(
+            path: '/site-pages',
+            builder: (context, state) => SitePagesScreen(
+              editing: state.uri.queryParameters['page'],
+              creating: state.uri.queryParameters['new'] != null,
+            ),
+          ),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/module-settings', builder: (context, state) => const ModuleSettingsScreen()),
           GoRoute(path: '/permissions', builder: (context, state) => const PermissionsScreen()),
@@ -301,7 +347,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (_signInPaths.contains(location)) {
           return Uri(path: '/splash', queryParameters: {'from': location}).toString();
         }
-        if (_publicPaths.contains(location) || location == '/splash') {
+        if (isPublicPath(location) || location == '/splash') {
           return null;
         }
         // Carry the originally-requested destination through the splash
@@ -329,7 +375,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return from != null && _signInPaths.contains(from) ? from : '/login';
         }
 
-        return _publicPaths.contains(location) ? null : '/login';
+        return isPublicPath(location) ? null : '/login';
       }
 
       // An account created by a bulk import was handed a generated password
@@ -348,7 +394,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (location == '/' || location == '/login' || location == '/attendant-login' || location == '/splash') {
         final from = state.uri.queryParameters['from'];
-        if (from != null && from.isNotEmpty && !_publicPaths.contains(from) && from != '/splash') {
+        if (from != null && from.isNotEmpty && !isPublicPath(from) && from != '/splash') {
           return from;
         }
         return landing;

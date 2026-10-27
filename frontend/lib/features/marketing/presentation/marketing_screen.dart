@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'marketing_colors.dart';
@@ -84,7 +85,10 @@ class _MarketingScreenState extends State<MarketingScreen> {
                 'Features': () => _scrollTo(_featuresKey),
                 'For Schools': () => _scrollTo(_schoolsKey),
                 'Mobile App': () => _scrollTo(_mobileKey),
-                'About': () => _scrollTo(_aboutKey),
+                // Its own page now, written from Website Pages
+                // (docs/site-pages.md); the banner it used to scroll to is
+                // still reachable as ?section=about.
+                'About': () => context.go('/about'),
                 'Contact': () => _scrollTo(_contactKey),
               },
               onJoinEarlyAccess: () => showEarlyAccessDialog(context),

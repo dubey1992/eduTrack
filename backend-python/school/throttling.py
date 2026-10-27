@@ -76,6 +76,19 @@ class MarketingContentThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
 
 
+class SitePageThrottle(SimpleRateThrottle):
+    """The website's own pages - About Us, the privacy policy - read by
+    anybody. The same reasoning as the homepage's words: generous for a
+    classroom behind one address, there to stop a script, with the cache in
+    front doing most of the work (docs/site-pages.md)."""
+
+    scope = "site-page"
+    rate = "120/min"
+
+    def get_cache_key(self, request, view) -> str | None:
+        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
+
+
 class PasswordResetThrottle(SimpleRateThrottle):
     """Tighter than signing in: each attempt can send a real email, so this is
     also a way to fill somebody's inbox."""

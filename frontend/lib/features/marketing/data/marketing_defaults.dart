@@ -100,30 +100,30 @@ const marketingListDefaults = <String, List<Map<String, String>>>{
     {'text': 'Secure and scalable'},
     {'text': 'Access from anywhere'},
   ],
-  // Every line in the three footer columns is a link. Only Web Dashboard
-  // points at something that exists - the rest are placeholders on the
-  // product domain, standing in until those pages are written. A Super
-  // Admin replaces any of them from the editor without a release, which
-  // is the whole point of the Address box (docs/marketing-content.md).
+  // Every line in the three footer columns is a link. Web Dashboard and the
+  // three built-in website pages (About Us, Privacy Policy, Terms - see
+  // docs/site-pages.md) point at something that exists; the rest are
+  // placeholders on the product domain, standing in until those pages are
+  // written in Website Pages. A Super Admin replaces any of them from the
+  // editor without a release, which is the whole point of the Address box
+  // (docs/marketing-content.md).
   'footer.productLinks': [
     {'label': 'Features', 'url': 'https://school365ai.com/features'},
-    // The one line of the twelve that goes somewhere real today.
     {'label': 'Web Dashboard', 'url': '/login'},
     {'label': 'Mobile App', 'url': 'https://school365ai.com/mobile-app'},
     {'label': 'Pricing', 'url': 'https://school365ai.com/pricing'},
   ],
   'footer.companyLinks': [
-    {'label': 'About Us', 'url': 'https://school365ai.com/about'},
+    {'label': 'About Us', 'url': '/about'},
     {'label': 'Careers', 'url': 'https://school365ai.com/careers'},
     {'label': 'Blog', 'url': 'https://school365ai.com/blog'},
     {'label': 'Contact', 'url': 'https://school365ai.com/contact'},
   ],
   'footer.resourceLinks': [
     {'label': 'Help Center', 'url': 'https://school365ai.com/help'},
-    // A page of this site, not a promise about one: it is the only footer
-    // link besides the dashboard that goes somewhere real (D6.1).
+    // A page of this site, not a promise about one (D6.1).
     {'label': 'Privacy Policy', 'url': '/privacy'},
-    {'label': 'Terms', 'url': 'https://school365ai.com/terms'},
+    {'label': 'Terms', 'url': '/terms'},
     {'label': 'Security', 'url': 'https://school365ai.com/security'},
   ],
 };

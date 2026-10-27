@@ -24,7 +24,17 @@
   # '#' as it is.
   RewriteRule ^privacy/?$ /#/privacy [R=302,NE,L]
   RewriteRule ^(login|forgot-password)/?$ /#/$1 [R=302,NE,L]
-  RewriteRule ^(features|for-schools|mobile-app|about|contact)/?$ /#/?section=$1 [R=302,NE,L]
+  RewriteRule ^(features|for-schools|mobile-app|contact)/?$ /#/?section=$1 [R=302,NE,L]
+
+  # Every other single plain word is a website page the Super Admin may have
+  # written - school365ai.com/terms, /about, /careers (docs/site-pages.md).
+  # The app answers "not available" for one that does not exist, so this
+  # needs no list of pages and never goes out of date. Real files and
+  # folders (assets/, icons/, index.html) are left alone, and the server
+  # refuses these words as page addresses for the same reason.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^([a-z0-9]+(-[a-z0-9]+)*)/?$ /#/pages/$1 [R=302,NE,L]
 </IfModule>
 
 # Anything else that is not a file: our own "page not found", not the host's.
