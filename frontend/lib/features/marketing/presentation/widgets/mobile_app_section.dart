@@ -70,7 +70,9 @@ class _MobileCopy extends ConsumerWidget {
           runSpacing: 10,
           children: const [
             _StoreBadge(icon: '▶', line1: 'GET IT ON', line2: 'Google Play'),
-            _StoreBadge(icon: '', line1: 'Download on the', line2: 'App Store'),
+            // No App Store badge until there is an iPhone app to download:
+            // it goes back here, as
+            // _StoreBadge(icon: '', line1: 'Download on the', line2: 'App Store').
           ],
         ),
       ],

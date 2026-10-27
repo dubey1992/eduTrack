@@ -74,6 +74,18 @@ void main() {
     expect(find.text('© 2026 School365ai. All rights reserved.'), findsOneWidget);
   });
 
+  testWidgets('offers the Android app only, with no App Store badge until there is an iPhone app', (tester) async {
+    tester.view.physicalSize = const Size(1600, 4000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Google Play'), findsOneWidget);
+    expect(find.text('App Store'), findsNothing);
+  });
+
   testWidgets('a plain address for a section opens the page at that section', (tester) async {
     // school365ai.com/contact is redirected by the host to /#/?section=contact.
     tester.view.physicalSize = const Size(1400, 900);
