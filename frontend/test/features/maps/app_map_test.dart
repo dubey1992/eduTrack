@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:edutrack_app/core/widgets/brand_loader.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/maps/data/maps_config.dart';
 import 'package:edutrack_app/features/maps/presentation/app_map.dart';
@@ -132,7 +133,7 @@ void main() {
       await tester.pumpWidget(wrap(overrides));
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(BrandLoader), findsOneWidget);
       expect(find.text(MapUnavailable.message), findsNothing);
 
       gate.complete(const MapsConfig.withKey('k'));

@@ -31,8 +31,51 @@
 
   <title>School365ai</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    What a visitor sees while the app itself downloads: the School365ai mark,
+    bouncing, the same as the app's own loader (lib/core/widgets/
+    brand_loader.dart). Plain HTML and CSS, so it shows before a byte of the
+    app has arrived; boot-loader.js takes it away on the app's first frame.
+  -->
+  <style>
+    #boot-loader { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 22px; background: #fff; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    #boot-loader .hop { display: flex; flex-direction: column; align-items: center; }
+    #boot-loader .tile { width: 72px; height: 72px; border-radius: 19px;
+      background: linear-gradient(135deg, #2563EB, #1D4ED8); animation: boot-hop 1.2s ease-in-out infinite; }
+    #boot-loader .tile svg { width: 100%; height: 100%; display: block; animation: boot-tilt 1.2s ease-in-out infinite; }
+    #boot-loader .tassel { transform-origin: 78px 45px; animation: boot-swing 1.2s ease-in-out infinite; }
+    #boot-loader .floor { width: 52px; height: 6px; margin-top: 8px; border-radius: 50%; background: rgba(29, 78, 216, .22);
+      animation: boot-floor 1.2s ease-in-out infinite; }
+    #boot-loader .name { font-size: 22px; font-weight: 800; color: #0F172A; }
+    @keyframes boot-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    @keyframes boot-floor { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(.7); opacity: .5; } }
+    @keyframes boot-tilt { 0%, 50%, 100% { transform: rotate(0); } 25% { transform: rotate(6deg); } 75% { transform: rotate(-6deg); } }
+    @keyframes boot-swing { 0%, 100% { transform: rotate(-26deg); } 50% { transform: rotate(26deg); } }
+    @media (prefers-reduced-motion: reduce) { #boot-loader * { animation: none !important; } }
+  </style>
 </head>
 <body>
+  <div id="boot-loader" role="status" aria-label="Loading School365ai">
+    <div class="hop">
+      <div class="tile">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <path d="M30 50 L30 66 Q50 78 70 66 L70 50 Z" fill="#fff" fill-opacity=".82"/>
+          <path d="M50 24 L86 41 L50 58 L14 41 Z" fill="#fff"/>
+          <line x1="50" y1="41" x2="78" y2="45" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/>
+          <g class="tassel">
+            <line x1="78" y1="45" x2="78" y2="65" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="78" cy="65" r="4.5" fill="#FBBF24"/>
+          </g>
+          <circle cx="50" cy="41" r="3" fill="#FBBF24"/>
+        </svg>
+      </div>
+      <div class="floor"></div>
+    </div>
+    <div class="name">School365ai</div>
+  </div>
+  <script src="boot-loader.js"></script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

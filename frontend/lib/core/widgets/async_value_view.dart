@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../errors/failure.dart';
 import '../theme/app_colors.dart';
+import 'brand_loader.dart';
 
 /// Renders an [AsyncValue] with the app's standard loading / error / data
 /// states, so every API-driven screen behaves consistently (see backend
@@ -27,7 +28,7 @@ class AsyncValueView<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return value.when(
       loading: () => const Center(
-        child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()),
+        child: Padding(padding: EdgeInsets.all(32), child: BrandLoader(size: 44)),
       ),
       error: (error, _) => _ErrorView(failure: _asFailure(error), onRetry: onRetry),
       data: (value) {

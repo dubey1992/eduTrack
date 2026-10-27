@@ -15,6 +15,7 @@ import '../data/passcode_rules.dart';
 import 'widgets/auth_card.dart';
 import 'widgets/auth_palette.dart';
 import 'widgets/primary_button.dart';
+import '../../../core/widgets/brand_loader.dart';
 
 /// Which of the two forms the screen shows.
 enum _Mode { loading, passcode, register }
@@ -142,7 +143,7 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
               child: _mode == _Mode.loading
                   ? const Padding(
                       padding: EdgeInsets.all(32),
-                      child: Center(child: CircularProgressIndicator()),
+                      child: Center(child: BrandLoader(size: 44)),
                     )
                   : _buildForm(),
             ),

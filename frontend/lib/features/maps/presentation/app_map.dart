@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/maps_config.dart';
 import '../data/maps_script.dart';
+import '../../../core/widgets/brand_loader.dart';
 
 /// Where the map starts, and what it holds.
 ///
@@ -96,7 +97,7 @@ class AppMap extends ConsumerWidget {
       height: height,
       width: double.infinity,
       child: config.when(
-        loading: () => const _MapBox(child: Center(child: CircularProgressIndicator())),
+        loading: () => const _MapBox(child: Center(child: BrandLoader(size: 40))),
         error: (_, _) => const MapUnavailable(),
         data: (config) => config.available ? _ReadyMap(config: config, view: view) : const MapUnavailable(),
       ),
@@ -128,7 +129,7 @@ class _ReadyMapState extends ConsumerState<_ReadyMap> {
       future: _ready,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const _MapBox(child: Center(child: CircularProgressIndicator()));
+          return const _MapBox(child: Center(child: BrandLoader(size: 40)));
         }
 
         if (snapshot.hasError) {

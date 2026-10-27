@@ -10,6 +10,7 @@ import '../../application/subject_picker_provider.dart';
 import '../../application/timetable_grid_notifier.dart';
 import '../../data/models/day_of_week.dart';
 import '../../data/models/timetable_entry.dart';
+import '../../../../core/widgets/brand_loader.dart';
 
 /// Assigns (or clears) the subject/teacher for one class section's single
 /// day+period cell - the prototype's "Edit Timetable" interaction, done one
@@ -142,7 +143,7 @@ class _EditEntryDialogState extends ConsumerState<EditEntryDialog> {
     if (subjectsState.isLoading || teachersState.isLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 32),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: BrandLoader(size: 36)),
       );
     }
 

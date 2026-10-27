@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:edutrack_app/core/widgets/brand_loader.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/site_pages/data/site_page_repository.dart';
@@ -436,7 +437,7 @@ void main() {
       await tester.pumpWidget(wrap(fake, at: '/pages/about'));
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(BrandLoader), findsOneWidget);
 
       fake.publishedGate!.complete();
       await tester.pumpAndSettle();

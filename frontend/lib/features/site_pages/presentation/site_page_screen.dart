@@ -9,6 +9,7 @@ import '../application/site_page_notifiers.dart';
 import '../data/models/site_page.dart';
 import '../data/site_page_repository.dart';
 import 'widgets/page_text_view.dart';
+import '../../../core/widgets/brand_loader.dart';
 
 /// A website page - About Us, Privacy Policy, Terms of Use, or one the
 /// Super Admin added (docs/site-pages.md).
@@ -35,7 +36,7 @@ class SitePageScreen extends ConsumerWidget {
         title: const Text('School365ai'),
       ),
       body: page.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: BrandLoader(size: 48)),
         error: (error, _) {
           if (error is Failure && error.code == SitePageRepository.notFoundCode) return const _NotAvailable();
 

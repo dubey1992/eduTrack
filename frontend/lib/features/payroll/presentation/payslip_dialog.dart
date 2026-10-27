@@ -11,6 +11,7 @@ import '../data/models/payroll.dart';
 import '../data/payroll_repository.dart';
 import 'adjustment_dialog.dart';
 import 'pay_dialog.dart';
+import '../../../core/widgets/brand_loader.dart';
 
 /// One payslip, read fresh from the server: the days it pays for, every line,
 /// and - for whoever runs payroll - the draft's adjustments and the payment.
@@ -167,7 +168,7 @@ class _PayslipDialogState extends ConsumerState<PayslipDialog> {
           height: 120,
           child: Center(
             child: _loadFailure == null
-                ? const CircularProgressIndicator()
+                ? const BrandLoader(size: 40)
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

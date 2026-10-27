@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../application/auth_notifier.dart';
+import '../../../core/widgets/brand_loader.dart';
 
 /// The first thing the bus crew sees, while the app works out whether they
 /// are still signed in.
@@ -101,7 +102,7 @@ class _DriverSplashScreenState extends ConsumerState<DriverSplashScreen> {
                     label: const Text('Try again'),
                   )
                 else
-                  const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3)),
+                  const BrandLoader(size: 36),
                 if (_slow) ...[
                   const SizedBox(height: 12),
                   Text(

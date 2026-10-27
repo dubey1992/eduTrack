@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:edutrack_app/core/widgets/brand_loader.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/dio_client.dart';
@@ -104,7 +105,7 @@ void main() {
     await tester.pumpWidget(wrap(fake));
     await tester.pump();
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(BrandLoader), findsOneWidget);
     expect(find.byKey(const Key('profile-first-name')), findsNothing);
 
     fake.getGate!.complete();

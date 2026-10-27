@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/widgets/brand_loader.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/presentation/driver_splash_screen.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +26,7 @@ void main() {
     await pump(tester);
 
     expect(find.text('Getting your trips ready…'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(BrandLoader), findsOneWidget);
     expect(find.byKey(const Key('splash-try-again')), findsNothing);
   });
 
@@ -45,7 +46,7 @@ void main() {
     expect(find.text('Still trying to reach your school.'), findsOneWidget);
     expect(find.byKey(const Key('splash-try-again')), findsOneWidget);
     expect(find.textContaining('signal'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(BrandLoader), findsNothing);
   });
 
   testWidgets('and trying again goes back to waiting', (tester) async {

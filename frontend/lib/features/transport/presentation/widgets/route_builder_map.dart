@@ -11,6 +11,7 @@ import '../bus_stop_form_dialog.dart';
 import '../../data/models/bus_stop.dart';
 import '../../application/transport_pickers.dart';
 import 'submit_button.dart';
+import '../../../../core/widgets/brand_loader.dart';
 
 /// Drawing a route on the school's own map (docs/maps.md).
 ///
@@ -567,7 +568,7 @@ class _PickABusStop extends ConsumerWidget {
         width: 420,
         child: places.when(
           loading: () => const Center(
-            child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()),
+            child: Padding(padding: EdgeInsets.all(24), child: BrandLoader(size: 36)),
           ),
           error: (_, _) => Text('Could not load the bus stops.', style: TextStyle(color: context.appColors.danger)),
           data: (all) {

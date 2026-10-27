@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/map_navigator.dart';
 import '../data/navigation_session.dart';
+import '../../../core/widgets/brand_loader.dart';
 
 /// Where the app is asked to take the bus, so a route can carry it.
 class NavigateTo {
@@ -91,7 +92,7 @@ class _NavigateScreenState extends ConsumerState<NavigateScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.destination.stopName)),
       body: switch (outcome) {
-        null => const Center(child: CircularProgressIndicator()),
+        null => const Center(child: BrandLoader(size: 48)),
         NavigationOutcome.guiding => _session.view(),
         NavigationOutcome.termsRefused => _Fallback(
           key: const Key('nav-terms-refused'),
