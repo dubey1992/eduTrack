@@ -9,12 +9,14 @@ import 'package:edutrack_app/core/routing/app_router.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
+import 'package:edutrack_app/features/auth/presentation/attendant_login_screen.dart';
 import 'package:edutrack_app/features/auth/presentation/login_screen.dart';
 import 'package:edutrack_app/features/auth/presentation/reset_password_screen.dart';
 import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
 import 'package:edutrack_app/features/students/data/student_repository.dart';
 import 'package:edutrack_app/features/users/data/user_repository.dart';
 import 'package:edutrack_app/main.dart';
+import 'package:edutrack_app/core/widgets/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -485,5 +487,88 @@ void main() {
 
     expect(find.text('Student Management'), findsWidgets);
     expect(find.text('Dashboard'), findsNothing);
+  });
+  group('the sign-in screens while the saved session is still being checked', () {
+    /// Opens the app, then follows the homepage's "Login" button (or any
+    /// link) to [path] before the session check has answered.
+    Future<ProviderContainer> openBeforeTheSessionAnswers(
+      WidgetTester tester, {
+      required String path,
+      required Completer<void> gate,
+      AuthenticatedUser? signedIn,
+    }) async {
+      final container = ProviderContainer(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: signedIn, restoreGate: gate)),
+          authTokenStorageProvider.overrideWithValue(FakeAuthTokenStorage()),
+          dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const EduTrackApp()));
+      await tester.pump();
+      container.read(routerProvider).go(path);
+      await tester.pump();
+
+      return container;
+    }
+
+    String currentPath(ProviderContainer container) =>
+        container.read(routerProvider).routerDelegate.currentConfiguration.uri.path;
+
+    testWidgets('a signed-in user who presses Login waits, then lands on the dashboard', (tester) async {
+      final gate = Completer<void>();
+      final container = await openBeforeTheSessionAnswers(tester, path: '/login', gate: gate, signedIn: _teacher);
+
+      // No password form for somebody who is already signed in.
+      expect(find.byType(SplashScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+
+      expect(currentPath(container), '/dashboard');
+      expect(find.byType(LoginScreen), findsNothing);
+    });
+
+    testWidgets('a signed-out visitor who presses Login gets the login screen', (tester) async {
+      final gate = Completer<void>();
+      final container = await openBeforeTheSessionAnswers(tester, path: '/login', gate: gate);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+
+      expect(currentPath(container), '/login');
+      expect(find.byType(LoginScreen), findsOneWidget);
+    });
+
+    testWidgets('a signed-out attendant is returned to the attendant sign-in, not the staff one', (tester) async {
+      final gate = Completer<void>();
+      final container = await openBeforeTheSessionAnswers(tester, path: '/attendant-login', gate: gate);
+
+      expect(find.byType(AttendantLoginScreen), findsNothing);
+
+      gate.complete();
+      // Not pumpAndSettle: the attendant sign-in never settles without its
+      // phone storage, and only where it lands is under test here.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(currentPath(container), '/attendant-login');
+      expect(find.byType(AttendantLoginScreen), findsOneWidget);
+    });
+
+    testWidgets('a signed-out visitor with a hand-made splash address goes to login, wherever it claims', (
+      tester,
+    ) async {
+      final gate = Completer<void>();
+      final container = await openBeforeTheSessionAnswers(tester, path: '/splash?from=/payroll', gate: gate);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+
+      expect(currentPath(container), '/login');
+    });
   });
 }

@@ -71,6 +71,11 @@ import 'app_nav.dart';
 /// (docs/driver-app.md, D6.1).
 const _publicPaths = {'/', '/privacy', '/login', '/attendant-login', '/forgot-password', '/reset-password'};
 
+/// The public pages that ask for a password - pointless, and confusing, to
+/// somebody already signed in. Held behind the splash screen until the saved
+/// session has been checked (see the redirect below).
+const _signInPaths = {'/login', '/attendant-login'};
+
 /// Where a signed-in user lands: a bus attendant on their trip, everybody
 /// else on the dashboard.
 String landingPathFor(AuthenticatedUser user) => user.role.isCrew ? '/my-trip' : '/dashboard';
@@ -286,6 +291,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         // while we find out. (Otherwise a fresh, logged-out visit to '/'
         // would bounce through the non-public '/splash' and land on
         // /login instead of ever showing the marketing homepage.)
+        //
+        // The sign-in screens are the exception: they are only right for
+        // somebody who turns out to be signed out. A signed-in user who
+        // presses "Login" on the homepage while the session is still being
+        // checked would otherwise be asked for a password for a few seconds
+        // and then whisked off to the dashboard - so they wait on the splash
+        // screen too, and go wherever the answer sends them.
+        if (_signInPaths.contains(location)) {
+          return Uri(path: '/splash', queryParameters: {'from': location}).toString();
+        }
         if (_publicPaths.contains(location) || location == '/splash') {
           return null;
         }
@@ -306,6 +321,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         // they need an account, which is both wrong and confusing. Let it
         // fall through to errorBuilder.
         if (!isAppRoute(location)) return null;
+
+        // Back from the splash gate signed out: to the sign-in screen they
+        // asked for (the attendant one included), not always /login.
+        if (location == '/splash') {
+          final from = state.uri.queryParameters['from'];
+          return from != null && _signInPaths.contains(from) ? from : '/login';
+        }
 
         return _publicPaths.contains(location) ? null : '/login';
       }
