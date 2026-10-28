@@ -518,6 +518,8 @@ class FeeReceipt(models.Model):
         'User', models.DO_NOTHING, db_column='cancelled_by', blank=True, null=True, related_name='+'
     )
     cancel_reason = models.CharField(max_length=500, blank=True, null=True)
+    # The part held as credit (F6): the allocations add up to amount less this.
+    credit_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     emailed_at = UtcDateTimeField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
@@ -543,6 +545,39 @@ class FeeReceiptAllocation(models.Model):
         managed = False
         db_table = 'fee_receipt_allocations'
         unique_together = (('fee_receipt', 'student_fee_due'),)
+
+
+class StudentFeeCredit(models.Model):
+    """One movement of a student's fee credit (docs/fees.md, F6): money paid
+    that nothing is owed against yet. `amount` is signed - released,
+    overpaid and returned add to the credit; applied, refunded and reversed
+    take from it - so a student's credit in a currency is the sum of their
+    rows in it. Written only by school/fees/credit.py, never edited or
+    deleted."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='fee_credits')
+    currency_code = models.CharField(max_length=3)
+    kind = models.CharField(max_length=20)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    student_fee_due = models.ForeignKey(
+        'StudentFeeDue', models.DO_NOTHING, blank=True, null=True, related_name='credits'
+    )
+    fee_receipt = models.ForeignKey('FeeReceipt', models.DO_NOTHING, blank=True, null=True, related_name='credits')
+    entry_date = models.DateField()
+    payment_mode = models.CharField(max_length=20, blank=True, null=True)
+    reference = models.CharField(max_length=100, blank=True, null=True)
+    note = models.CharField(max_length=500, blank=True, null=True)
+    created_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='created_by', blank=True, null=True, related_name='+'
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'student_fee_credits'
 
 
 class FeeReceiptSequence(models.Model):

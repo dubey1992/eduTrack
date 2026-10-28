@@ -164,7 +164,7 @@ A feature is not done because the screen works. Required: DB + API + authorizati
 | 20 | Advanced Reporting |
 | 21 | Audit & Security Hardening |
 | 22 | Production Deployment |
-| 23 | Fee Management, in five slices F1–F5 (`docs/fees.md`) |
+| 23 | Fee Management, in slices F1–F6 (`docs/fees.md`); F6 = credit balance |
 
 Core entities appear as their phase is implemented — don't create all tables up front. See the phase-plan PDFs in `docs/specs/` (if present) for full field-by-field detail per phase.
 

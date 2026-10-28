@@ -7,7 +7,9 @@
   on dues that fell due on or before that day, with how long it has been
   overdue (1-30, 31-60, 61+ days past the due date). What is owed is what is
   owed *now* on those dues - a payment made after the day counts - because
-  the ledger keeps balances, not their history.
+  the ledger keeps balances, not their history. Beside it, the credit the
+  school holds for families as at that day (F6) - money paid that nothing
+  is owed against yet, which the school owes back if it is never used.
 - **Discounts & waivers** - discounts given and dues waived in the range,
   each with who, why and how much.
 
@@ -32,7 +34,15 @@ from django.db.models import F, Min, Q, Sum
 from .. import dates, money
 from ..clock import SchoolClock
 from ..enums import FeeConcessionKind, FeeDueKind, FeeDueStatus, FeeReceiptStatus
-from ..models import AcademicYear, FeeConcession, FeeReceipt, Student, StudentEnrollment, StudentFeeDue
+from ..models import (
+    AcademicYear,
+    FeeConcession,
+    FeeReceipt,
+    Student,
+    StudentEnrollment,
+    StudentFeeCredit,
+    StudentFeeDue,
+)
 from ..services import php_number
 from .range import ReportRange
 
@@ -367,8 +377,22 @@ class FeeOutstandingReport:
                 "by_currency": per_currency(
                     [{**row, "students": 1} for row in rows], ["students", *self.TOTAL_MONEY]
                 ),
+                "credit_held": self.credit_held(school_id, as_of),
             },
         }
+
+    @staticmethod
+    def credit_held(school_id: int, as_of: dt.date) -> list[dict]:
+        """The credit families hold at the school as at the day, per
+        currency: every movement up to and including it, added up."""
+        rows = (
+            StudentFeeCredit.objects.filter(school_id=school_id, entry_date__lte=as_of)
+            .order_by()
+            .values("currency_code")
+            .annotate(amount=Sum("amount"))
+        )
+
+        return per_currency([row for row in rows if row["amount"]], ["amount"])
 
     def headings(self) -> list[str]:
         return [
@@ -395,6 +419,9 @@ class FeeOutstandingReport:
                 [entry for totals in branch_totals for entry in totals["by_currency"]],
                 ["students", *self.TOTAL_MONEY],
             ),
+            "credit_held": per_currency(
+                [entry for totals in branch_totals for entry in totals.get("credit_held", [])], ["amount"]
+            ),
         }
 
     def pdf_totals(self, totals: dict, previous: dict | None) -> list[tuple]:
@@ -407,6 +434,12 @@ class FeeOutstandingReport:
             ("overdue_61_plus", "Overdue 61+ days"),
         ):
             lines += money_line(label, totals["by_currency"], key, before)
+
+        if totals.get("credit_held"):
+            lines += money_line(
+                "Credit held for families", totals["credit_held"], "amount",
+                None if previous is None else previous.get("credit_held", []),
+            )
 
         return lines
 

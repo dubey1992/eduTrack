@@ -627,6 +627,21 @@ class FeeConcessionRevoked(ApiError):
         super().__init__("This discount is already removed.")
 
 
+class FeeReceiptCreditRefunded(ApiError):
+    """Part of a receipt's money went to the student's credit and was then
+    refunded to the family (F6): it cannot be taken back off the account,
+    so the receipt cannot be cancelled."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "FEE_RECEIPT_CREDIT_REFUNDED"
+
+    def __init__(self, amount: str) -> None:
+        super().__init__(
+            f"{amount} of this receipt has already been refunded to the family from their credit, "
+            "so the receipt can't be cancelled."
+        )
+
+
 class FeeDueNotWaivable(ApiError):
     """Only a line still owed can be forgiven: a paid one was paid, a
     cancelled one is not owed, and a waived one is already forgiven."""

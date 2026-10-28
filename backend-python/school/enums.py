@@ -489,6 +489,18 @@ class FeeReceiptStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
+class FeeCreditKind(models.TextChoices):
+    """One movement of a student's fee credit (docs/fees.md, F6). The first
+    three add to it; the last three take from it."""
+
+    RELEASED = "released", "Released from an installment that stopped applying"
+    OVERPAID = "overpaid", "Paid more than was owed"
+    RETURNED = "returned", "Taken back off an installment"
+    APPLIED = "applied", "Paid an installment"
+    REFUNDED = "refunded", "Refunded to the family"
+    REVERSED = "reversed", "Receipt cancelled"
+
+
 class FeeDueKind(models.TextChoices):
     """What a due is for (docs/fees.md, F4): one installment of a published
     fee, or the late fine on one such installment."""
@@ -505,8 +517,9 @@ class FeeConcessionKind(models.TextChoices):
 
 
 class FeeDueCancelReason(models.TextChoices):
-    """Why a due stopped applying. Only a due nothing was paid on, falling due
-    after today, is ever cancelled - the rest stay owed."""
+    """Why a due stopped applying. Only a due falling due after today is ever
+    cancelled - the rest stay owed - and whatever had been paid on it goes
+    to the student's credit (F6)."""
 
     CLASS_CHANGED = "class_changed", "Moved to another class"
     ROUTE_CHANGED = "route_changed", "Moved off the bus route"

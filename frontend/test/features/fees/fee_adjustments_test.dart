@@ -125,8 +125,11 @@ void main() {
 
     expect(find.text('Covered by discount'), findsOneWidget);
     expect(find.byTooltip('Waive'), findsNothing);
-    // Nothing on it to pay, so no Record Payment either.
-    expect(find.text('Record Payment'), findsNothing);
+    // Nothing on it to pay - Record Payment stays, since a payment now is
+    // held as credit (F6), but the dialog offers no installment.
+    await tester.tap(find.text('Record Payment'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('A payment now is held as credit'), findsOneWidget);
   });
 
   group('adding a discount', () {

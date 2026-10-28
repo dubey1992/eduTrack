@@ -237,9 +237,24 @@ def document(receipt) -> str:
         for index, line in enumerate(allocations, start=1)
     )
 
+    # F6: the part of the payment held as credit for the student's next fees.
+    credit = money.amount(receipt.credit_amount)
+
+    if credit > 0:
+        rows += (
+            f'<tr class="{"zebra" if (len(allocations) + 1) % 2 == 0 else ""}"><td class="idx">'
+            # One cell across fee type, installment and due date, so the
+            # wording never squeezes the date column.
+            f'{len(allocations) + 1}</td><td colspan="3">Held as credit for the next fees</td>'
+            f'<td class="num">{cash(credit)}</td></tr>'
+        )
+
     before = money.amount(receipt.balance_before)
-    after = before - money.amount(receipt.amount)
+    after = before - (money.amount(receipt.amount) - credit)
     after_class = "settled" if after <= 0 else "after"
+    credit_line = (
+        f'<tr><td>Held as credit for the next fees</td><td class="value">{cash(credit)}</td></tr>' if credit > 0 else ""
+    )
 
     note = ""
 
@@ -294,6 +309,7 @@ def document(receipt) -> str:
     <table class="balances">
         <tr><td>Owed before this payment</td><td class="value">{cash(before)}</td></tr>
         <tr><td>Paid now</td><td class="value">{cash(receipt.amount)}</td></tr>
+        {credit_line}
         <tr class="{after_class}"><td>Still owed after this payment</td><td class="value">{cash(after)}</td></tr>
     </table>
     {note}

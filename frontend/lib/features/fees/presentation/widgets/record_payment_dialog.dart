@@ -13,8 +13,9 @@ import '../../data/money_text.dart';
 import 'receipt_actions.dart';
 
 /// Takes money for one student's fees (docs/fees.md, F3). By default the
-/// payment goes to what is owed oldest first; the office can instead choose
-/// the installments it pays. Shows the receipt once it is recorded.
+/// payment goes to what is owed oldest first, and anything over what is owed
+/// is held as the student's credit (F6); the office can instead choose the
+/// installments it pays. Shows the receipt once it is recorded.
 Future<void> showRecordPaymentDialog(BuildContext context, StudentFeeStatement statement) async {
   final receipt = await showDialog<({FeeReceipt receipt, bool emailQueued})>(
     context: context,
@@ -63,6 +64,12 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
   String _money(String amount) => formatCurrency((centsOf(amount) ?? 0) / 100, widget.statement.currencyCode);
 
   int get _owedCents => widget.statement.payable.fold(0, (sum, due) => sum + (centsOf(due.balance) ?? 0));
+
+  /// What a spread payment would leave over: held as credit (F6).
+  int get _creditCents {
+    final cents = centsOf(_amount.text) ?? 0;
+    return cents > _owedCents ? cents - _owedCents : 0;
+  }
 
   int get _pickedCents => widget.statement.payable.fold(
     0,
@@ -173,7 +180,10 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
                   const SizedBox(height: 12),
                 ],
                 Text(
-                  'Owes ${_money(textOfCents(_owedCents))} for ${statement.academicYearName}.',
+                  _owedCents == 0
+                      ? 'Owes nothing for ${statement.academicYearName}. A payment now is held as credit for the '
+                            'next fees.'
+                      : 'Owes ${_money(textOfCents(_owedCents))} for ${statement.academicYearName}.',
                   style: TextStyle(color: colors.muted),
                 ),
                 const SizedBox(height: 12),
@@ -282,12 +292,21 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
               errorText: _fieldErrors['amount'],
               errorMaxLines: 4,
             ),
+            onChanged: (_) => setState(() {}),
           ),
         ),
         TextButton(
           onPressed: _saving || _owedCents == 0 ? null : () => setState(() => _amount.text = textOfCents(_owedCents)),
           child: const Text('Pay everything owed'),
         ),
+        if (_creditCents > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              '${_money(textOfCents(_creditCents))} more than is owed - it will be held as credit for the next fees.',
+              style: TextStyle(color: context.appColors.info),
+            ),
+          ),
       ],
     );
   }
@@ -385,6 +404,8 @@ class _ReceiptDone extends ConsumerWidget {
             if (receipt.balanceBefore != null)
               _Line(label: 'Owed before this payment', value: money(receipt.balanceBefore!)),
             _Line(label: 'Paid now', value: money(receipt.amount)),
+            if ((centsOf(receipt.creditAmount) ?? 0) > 0)
+              _Line(label: 'Held as credit for the next fees', value: money(receipt.creditAmount)),
             _Line(label: 'Still owed', value: money(receipt.balanceAfter ?? receipt.studentBalance), bold: true),
             if (emailQueued) ...[
               const SizedBox(height: 8),

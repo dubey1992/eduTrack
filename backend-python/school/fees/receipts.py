@@ -9,7 +9,8 @@ transaction:
 2. work out what goes where - spread oldest first (due date, then id), or the
    amounts the office chose per installment - refusing anything that would
    overpay a due, pay one that is not owed, or (with part payments switched
-   off) leave one half paid;
+   off) leave one half paid. Spread, a payment for more than the student owes
+   pays everything and the rest is held as credit (F6, school/fees/credit.py);
 3. take the next number for the school and the academic year the receipt's
    date falls in, from the counter row locked with SELECT ... FOR UPDATE.
    The counter is read and bumped inside the payment's own transaction, so
@@ -19,10 +20,12 @@ transaction:
 4. write the receipt, its allocations, the dues' new paid amounts and
    statuses, and the audit row.
 
-Cancelling takes each allocation back off its due, recomputes the due's
-status, keeps the receipt (number, allocations and all) stamped cancelled,
-and runs the F2 reconcile over the years those dues belong to so the ledger
-is what it would have been had the money never been taken.
+Cancelling takes the receipt's money back - each allocation off its due, as
+far as the due still holds it, and the rest (its credit part, and whatever
+was released from those dues since) off the student's credit (F6) - keeps
+the receipt (number, allocations and all) stamped cancelled, and runs the F2
+reconcile over the years those dues belong to so the ledger is what it would
+have been had the money never been taken.
 
 A due's status after money moves on it: paid when nothing is left to pay,
 partial while something has been paid, pending when nothing has. A due that
@@ -43,7 +46,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from .. import audit, modules, money, queue
-from ..enums import FeeDueStatus, FeeReceiptStatus
+from ..enums import FeeCreditKind, FeeDueStatus, FeeReceiptStatus
 from ..errors import FeeReceiptCancelled
 from ..models import (
     AcademicYear,
@@ -51,8 +54,10 @@ from ..models import (
     FeeReceiptAllocation,
     FeeReceiptSequence,
     Student,
+    StudentFeeCredit,
     StudentFeeDue,
 )
+from .credit import CreditService
 from .dues import OPEN, FeeDueService, today_for
 from .ledger import balance_of
 from .requests import plain
@@ -161,7 +166,10 @@ class FeeReceiptService:
             else:
                 plan = cls.chosen(student, amount, data["allocations"], part_payments)
 
-            currency = plan[0][0].currency_code
+            # Nothing owed at all: the whole payment is credit, in the
+            # school's currency.
+            currency = plan[0][0].currency_code if plan else student.school.currency_code
+            credit = amount - sum((part for _, part in plan), ZERO)
             # As at the receipt, in its currency - what the PDF prints for
             # ever after, however the account moves later.
             before = outstanding(student.id, currency)
@@ -177,6 +185,7 @@ class FeeReceiptService:
                 amount=amount,
                 currency_code=currency,
                 balance_before=before,
+                credit_amount=credit,
                 payment_mode=data["payment_mode"],
                 reference=data["reference"],
                 note=data["note"],
@@ -200,6 +209,14 @@ class FeeReceiptService:
 
             StudentFeeDue.objects.bulk_update([due for due, _ in plan], ["paid_amount", "status", "updated_at"])
 
+            if credit > 0:
+                StudentFeeCredit.objects.create(
+                    school_id=student.school_id, student_id=student.id, currency_code=currency,
+                    kind=FeeCreditKind.OVERPAID, amount=credit, fee_receipt_id=receipt.id,
+                    entry_date=data["receipt_date"], created_by_id=getattr(actor, "id", None),
+                    created_at=now, updated_at=now,
+                )
+
             audit.record(
                 actor=actor, action="fee_receipt.created", module=MODULE, entity_type="fee_receipt",
                 entity_id=receipt.id, school_id=student.school_id,
@@ -209,6 +226,7 @@ class FeeReceiptService:
                     "currency_code": currency,
                     "payment_mode": data["payment_mode"],
                     "allocations": [{"due_id": due.id, "amount": str(part)} for due, part in plan],
+                    "credit_amount": str(credit),
                 },
                 request=request,
             )
@@ -239,12 +257,13 @@ class FeeReceiptService:
 
     @classmethod
     def spread(cls, student: Student, amount: Decimal, part_payments: bool) -> list[tuple[StudentFeeDue, Decimal]]:
-        """The amount over what the student owes, oldest first."""
+        """The amount over what the student owes, oldest first. What is left
+        over is the caller's to hold as credit (F6)."""
         dues = [due for due in cls.payable(student) if balance_of(due) > 0]
-        owed = sum((balance_of(due) for due in dues), ZERO)
 
         if not dues:
-            refuse("amount", f"{student.name} owes nothing right now.")
+            # Every fee paid: all of it is held as credit.
+            return []
 
         currencies = sorted({due.currency_code for due in dues})
 
@@ -254,13 +273,6 @@ class FeeReceiptService:
                 "allocations",
                 f"{student.name} owes in more than one currency ({', '.join(currencies)}). "
                 "Choose the installments to pay, one currency at a time.",
-            )
-
-        if amount > owed:
-            refuse(
-                "amount",
-                f"This is more than {student.name} owes ({money.formatted(owed, currencies[0])}). "
-                "Advance payments are not taken.",
             )
 
         plan: list[tuple[StudentFeeDue, Decimal]] = []
@@ -390,15 +402,22 @@ class FeeReceiptService:
             }
             now = timezone.now()
 
+            # The part of the receipt's money no longer on its dues - its
+            # credit part, and what was released from them since (F6).
+            from_credit = receipt.credit_amount
+
             for row in allocations:
                 due = dues[row.student_fee_due_id]
-                # Never below zero, whatever happened to the due since.
-                due.paid_amount = max(ZERO, due.paid_amount - row.amount)
+                taken = min(row.amount, due.paid_amount)
+                due.paid_amount = due.paid_amount - taken
                 due.status = status_after(due)
                 due.updated_at = now
+                from_credit += row.amount - taken
 
             if dues:
                 StudentFeeDue.objects.bulk_update(list(dues.values()), ["paid_amount", "status", "updated_at"])
+
+            credit = CreditService.take_back(receipt, from_credit, now)
 
             before = {"status": receipt.status}
             receipt.status = FeeReceiptStatus.CANCELLED
@@ -418,11 +437,15 @@ class FeeReceiptService:
                     "allocations": [
                         {"due_id": row.student_fee_due_id, "amount": str(row.amount)} for row in allocations
                     ],
+                    **credit,
                 },
                 request=request,
             )
 
             cls.reconcile_after_cancel(receipt, {due.academic_year_id for due in dues.values()}, actor, request)
+            # Credit the student still holds pays what is owed again - also
+            # when no year the reconcile runs over is still open.
+            CreditService.apply([receipt.student_id])
 
         return receipt
 

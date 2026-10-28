@@ -11,6 +11,7 @@ import '../../data/models/student_fees.dart';
 import '../../data/models/fee_receipt.dart';
 import '../../data/money_text.dart';
 import 'adjustment_actions.dart';
+import 'credit_section.dart';
 import 'receipt_actions.dart';
 import 'record_payment_dialog.dart';
 
@@ -112,12 +113,12 @@ class _Statement extends StatelessWidget {
                       icon: const Icon(Icons.percent),
                       label: const Text('Add Discount'),
                     ),
-                  if (statement.payable.isNotEmpty)
-                    FilledButton.icon(
-                      onPressed: () => showRecordPaymentDialog(context, statement),
-                      icon: const Icon(Icons.payments_outlined),
-                      label: const Text('Record Payment'),
-                    ),
+                  // Also when nothing is owed: the money is held as credit (F6).
+                  FilledButton.icon(
+                    onPressed: () => showRecordPaymentDialog(context, statement),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('Record Payment'),
+                  ),
                 ],
               ],
             ),
@@ -146,6 +147,10 @@ class _Statement extends StatelessWidget {
             _Total(label: 'Overdue', value: _money(totals.overdue), alarming: (centsOf(totals.overdue) ?? 0) > 0),
           ],
         ),
+        if (statement.heldCredit.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          CreditSection(statement: statement, canManage: canManage),
+        ],
         const SizedBox(height: 20),
         if (statement.dues.isEmpty)
           Padding(
@@ -315,6 +320,11 @@ class _DueRow extends ConsumerWidget {
                   Text('Discount ${money(due.discountAmount)}', style: TextStyle(color: colors.info)),
                 if (!due.isCancelled && (centsOf(due.paidAmount) ?? 0) > 0)
                   Text('Paid ${money(due.paidAmount)}', style: TextStyle(color: colors.success)),
+                if (!due.isCancelled && due.isPaidFromCredit)
+                  Tooltip(
+                    message: 'Paid from the student\'s credit',
+                    child: StatusBadge(label: '${money(due.paidFromCredit)} from credit', tone: BadgeTone.info),
+                  ),
                 if (!struck) Text('Balance ${money(due.balance)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                 StatusBadge(label: badge, tone: tone),
                 if (canManage && due.isOpen)

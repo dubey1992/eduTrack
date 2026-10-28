@@ -21,7 +21,7 @@ from django.test import SimpleTestCase, TransactionTestCase
 
 from school import factories, queue
 from school.enums import FeeDueStatus, UserRole
-from school.fees import receipt_pdf
+from school.fees import credit, receipt_pdf
 from school.fees.dues import FeeDueService
 from school.fees.receipts import FeeReceiptService, number_for
 from school.fees.words import amount_in_words
@@ -36,6 +36,7 @@ from school.models import (
     FeeStructure,
     QueuedJob,
     School,
+    StudentFeeCredit,
     StudentFeeDue,
 )
 
@@ -129,7 +130,8 @@ class TheNumber(ReceiptsTestCase):
 
     def test_numbers_are_sequential_and_a_refused_payment_uses_none(self):
         first = self.paid(amount="100.00")
-        self.refused(self.pay(amount="99999.00"))
+        april = self.due("Tuition - April")
+        self.refused(self.pay(amount="99999.00", allocations=[{"due_id": april.id, "amount": "99999.00"}]))
         second = self.paid(amount="100.00")
 
         self.assertEqual(["RCPT-2026-27-00001", "RCPT-2026-27-00002"],
@@ -220,18 +222,24 @@ class Spreading(ReceiptsTestCase):
         self.assertEqual("2700.00", data["student_balance"])
         self.assertEqual("INR", data["currency_code"])
 
-    def test_paying_more_than_is_owed_is_refused(self):
-        errors = self.refused(self.pay(amount="4000.01"))
+    def test_paying_more_than_is_owed_pays_everything_and_holds_the_rest_as_credit(self):
+        data = self.paid(amount="4500.00")
 
+        # F6: no longer refused.
+        self.assertEqual(("4500.00", "500.00", "0.00"),
+                         (data["amount"], data["credit_amount"], data["balance_after"]))
+        self.assertEqual({"paid"}, {status for _, _, status in self.standing()})
         self.assertEqual(
-            ["This is more than Aarav Shah owes (INR 4,000.00). Advance payments are not taken."], errors["amount"]
+            [{"currency_code": "INR", "balance": "500.00"}],
+            self.as_user(self.accountant).get(f"/api/v1/fees/students/{self.aarav.id}").data["credit"],
         )
-        self.assertFalse(FeeReceipt.objects.exists())
 
-    def test_a_student_who_owes_nothing_cannot_pay(self):
+    def test_a_student_who_owes_nothing_can_still_pay_into_credit(self):
         self.paid(amount="4000.00")
 
-        self.assertEqual(["Aarav Shah owes nothing right now."], self.refused(self.pay(amount="1.00"))["amount"])
+        data = self.paid(amount="1.00")
+
+        self.assertEqual(([], "1.00", "INR"), (data["allocations"], data["credit_amount"], data["currency_code"]))
 
     def test_dues_in_two_currencies_are_never_added_together(self):
         StudentFeeDue.objects.filter(student=self.aarav, label="Tuition - January").update(currency_code="USD")
@@ -439,8 +447,8 @@ class TheReceipt(ReceiptsTestCase):
         self.assertEqual(
             {
                 "receipt_number": "RCPT-2026-27-00001", "receipt_date": "2026-07-15", "amount": "1500.00",
-                "currency_code": "INR", "payment_mode": "cash", "payment_mode_label": "Cash", "reference": None,
-                "note": "Paid by father", "status": "valid",
+                "currency_code": "INR", "credit_amount": "0.00", "payment_mode": "cash",
+                "payment_mode_label": "Cash", "reference": None, "note": "Paid by father", "status": "valid",
                 "student": {"id": self.aarav.id, "name": "Aarav Shah", "admission_number": "ADM-1",
                             "class_name": "Class 8", "section_name": "A"},
                 "academic_year": {"id": self.year.id, "name": "2026-27"},
@@ -463,7 +471,8 @@ class TheReceipt(ReceiptsTestCase):
         self.assertEqual(
             {"receipt_number": "RCPT-2026-27-00001", "amount": "1500.00", "currency_code": "INR",
              "payment_mode": "cash",
-             "allocations": [{"due_id": april.id, "amount": "1000.00"}, {"due_id": july.id, "amount": "500.00"}]},
+             "allocations": [{"due_id": april.id, "amount": "1000.00"}, {"due_id": july.id, "amount": "500.00"}],
+             "credit_amount": "0.00"},
             entry.new_values,
         )
 
@@ -562,7 +571,7 @@ class Cancelling(ReceiptsTestCase):
 
 
 class AndTheReconcile(ReceiptsTestCase):
-    def test_a_class_change_keeps_a_part_paid_future_installment(self):
+    def test_a_class_change_moves_a_part_paid_future_installment_to_credit(self):
         october = self.due("Tuition - October")
         self.paid(amount="400.00", allocations=[{"due_id": october.id, "amount": "400.00"}])
         self.published(TUITION_9, school_class=self.class9)
@@ -570,8 +579,17 @@ class AndTheReconcile(ReceiptsTestCase):
         self.patch_student(self.aarav, {"class_section_id": self.section9.id})
 
         october.refresh_from_db()
-        self.assertEqual((Decimal("400.00"), "partial", None), (october.paid_amount, october.status,
-                                                                  october.cancelled_reason))
+        # F6: it was paid ahead, so its money goes to credit...
+        self.assertEqual((Decimal("0.00"), "cancelled", "class_changed"), (october.paid_amount, october.status,
+                                                                             october.cancelled_reason))
+        # ...and the credit pays the oldest line still owed: April.
+        self.assertEqual(("400.00", "partial"), (str(self.due("Tuition - April").paid_amount),
+                                                 self.due("Tuition - April").status))
+        self.assertEqual(
+            [("released", "Tuition - October", "400.00"), ("applied", "Tuition - April", "-400.00")],
+            [(row.kind, row.student_fee_due.label, str(row.amount))
+             for row in StudentFeeCredit.objects.filter(student=self.aarav).order_by("id")],
+        )
         # The untouched January line is cancelled as F2 always did.
         self.assertEqual("cancelled", self.due("Tuition - January").status)
 
@@ -598,7 +616,9 @@ class AndTheReconcile(ReceiptsTestCase):
         ])
         self.published(TUITION_9, school_class=self.class9)
         self.patch_student(self.aarav, {"class_section_id": self.section9.id})
-        self.assertEqual("paid", self.due("Tuition - October").status, "paid, so the move left it alone")
+        # F6: October's 1,000 went to credit, and the credit paid April.
+        self.assertEqual("cancelled", self.due("Tuition - October").status)
+        self.assertEqual("paid", self.due("Tuition - April").status)
 
         self.cancel(receipt["id"])
 
@@ -607,10 +627,14 @@ class AndTheReconcile(ReceiptsTestCase):
         # October falls due after today and is no longer Aarav's class's fee.
         self.assertEqual(("cancelled", "class_changed", Decimal("0.00")),
                          (october.status, october.cancelled_reason, october.paid_amount))
-        # July was due before the move, so it stays owed.
+        # July was due before the move, so it stays owed - and April, which
+        # the receipt's money paid by way of credit, is owed again.
         self.assertEqual(("pending", Decimal("0.00")), (july.status, july.paid_amount))
-        self.assertTrue(AuditLog.objects.filter(action="fee_dues.synced", entity_type="fee_receipt",
-                                                entity_id=receipt["id"]).exists())
+        self.assertEqual(("pending", "0.00"), (self.due("Tuition - April").status,
+                                               str(self.due("Tuition - April").paid_amount)))
+        self.assertEqual(Decimal("0.00"), credit.balance(self.aarav.id, "INR"))
+        entry = AuditLog.objects.get(action="fee_receipt.cancelled", entity_id=receipt["id"])
+        self.assertEqual("1000.00", entry.new_values["credit_reversed"])
 
     def test_a_route_fee_is_paid_like_any_other(self):
         self.published(ROUTE_A, route=self.route_a)

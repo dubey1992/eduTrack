@@ -700,6 +700,72 @@ class CancelFeeReceiptRequest:
         return reason
 
 
+class FeeCreditRefundRequest:
+    """`POST fees/students/{id}/credit/refund`: money handed back to the
+    family out of their credit (F6). Whether the credit holds that much is
+    fees/credit.py's to check under the lock. The currency is the school's
+    unless named - a student's credit is in the currency their fees are."""
+
+    def __init__(self, data, student: Student) -> None:
+        self.data = normalise(data) if isinstance(data, dict) else {}
+        self.student = student
+
+    def validate(self) -> dict:
+        errors: dict[str, list[str]] = {}
+        data = self.data
+
+        amount = money("amount", data.get("amount"), errors)
+        refund_date = self.date(data.get("refund_date"), errors)
+        mode = FeeReceiptRequest.mode(data.get("payment_mode"), errors)
+        reference = text("reference", data.get("reference"), errors, REFERENCE_MAX)
+        reason = data.get("reason")
+        currency = data.get("currency_code") or self.student.school.currency_code
+
+        if not isinstance(currency, str) or len(currency) != 3:
+            errors.setdefault("currency_code", []).append(selected_is_invalid("currency_code"))
+
+        if reason is None:
+            errors.setdefault("reason", []).append(required("reason"))
+        elif not isinstance(reason, str):
+            errors.setdefault("reason", []).append(must_be_a_string("reason"))
+        elif len(reason) < REASON_MIN:
+            errors.setdefault("reason", []).append(too_short("reason", REASON_MIN))
+        elif len(reason) > REASON_MAX:
+            errors.setdefault("reason", []).append(too_long("reason", REASON_MAX))
+
+        if mode == FeePaymentMode.CHEQUE and reference is None and "reference" not in errors:
+            errors.setdefault("reference", []).append("Enter the cheque number.")
+
+        raise_if(errors)
+
+        return {
+            "amount": amount,
+            "currency_code": currency.upper(),
+            "refund_date": refund_date,
+            "payment_mode": mode,
+            "reference": reference,
+            "reason": reason,
+        }
+
+    def date(self, raw, errors: dict) -> dt.date | None:
+        if raw is None:
+            errors.setdefault("refund_date", []).append(required("refund_date"))
+            return None
+
+        day = parse_date(raw)
+
+        if day is None:
+            errors.setdefault("refund_date", []).append(not_a_date("refund_date"))
+            return None
+
+        # The school's today, not the server's (docs/timezones.md).
+        if day > SchoolClock.for_school(self.student.school_id).now().date():
+            errors.setdefault("refund_date", []).append("The refund date can't be in the future.")
+            return None
+
+        return day
+
+
 class FeeReceiptListRequest:
     """`GET fees/receipts`: which school's receipts, and the filters.
 

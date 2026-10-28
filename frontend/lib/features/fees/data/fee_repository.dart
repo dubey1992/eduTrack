@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import '../../../core/utils/date_format.dart';
+import 'models/fee_credit.dart';
 import 'models/fee_head.dart';
 import 'models/fee_receipt.dart';
 import 'models/fee_structure.dart';
@@ -165,6 +166,45 @@ class FeeRepository {
         queryParameters: {'academic_year_id': ?academicYearId},
       );
       return StudentFeeStatement.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  // -- credit (F6) ---------------------------------------------------------------
+
+  /// Every movement of a student's credit, newest first.
+  Future<PaginatedResponse<FeeCreditEntry>> creditHistory(int studentId, {int page = 1, int perPage = 20}) {
+    return _call(() async {
+      final response = await _dio.get(
+        '/fees/students/$studentId/credit',
+        queryParameters: {'page': page, 'per_page': perPage},
+      );
+      return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, FeeCreditEntry.fromJson);
+    });
+  }
+
+  /// Records money handed back to the family out of their credit.
+  Future<FeeCreditEntry> refundCredit(
+    int studentId, {
+    required String amount,
+    required String currencyCode,
+    required DateTime refundDate,
+    required PaymentMode mode,
+    String? reference,
+    required String reason,
+  }) {
+    return _call(() async {
+      final response = await _dio.post(
+        '/fees/students/$studentId/credit/refund',
+        data: {
+          'amount': amount,
+          'currency_code': currencyCode,
+          'refund_date': apiDate(refundDate),
+          'payment_mode': mode.wire,
+          if (reference != null && reference.isNotEmpty) 'reference': reference,
+          'reason': reason,
+        },
+      );
+      return FeeCreditEntry.fromJson(response.data as Map<String, dynamic>);
     });
   }
 

@@ -8,7 +8,7 @@ timestamps in the form every other resource uses.
 
 from __future__ import annotations
 
-from ..enums import FeePaymentMode
+from ..enums import FeeCreditKind, FeePaymentMode
 from ..models import StudentEnrollment
 from ..payroll.resources import cash
 from ..resources import timestamp
@@ -104,6 +104,8 @@ def due_resource(due, today) -> dict:
         "fine_for_due_id": due.fine_for_due_id,
         "waive_reason": due.waive_reason,
         "waived_at": timestamp(due.waived_at),
+        # F6: the part of paid_amount that came from the student's credit.
+        "paid_from_credit": cash(min(due.paid_amount, getattr(due, "paid_from_credit", 0))),
     }
 
 
@@ -131,6 +133,11 @@ def statement_resource(found: dict) -> dict:
         "totals": {
             key: cash(totals[key]) for key in ("charged", "discount", "paid", "balance", "overdue", "waived")
         },
+        # F6: the student's credit now, per currency - every year's.
+        "credit": [
+            {"currency_code": currency, "balance": cash(amount)}
+            for currency, amount in found.get("credit", {}).items()
+        ],
         # F4: the discounts active for this year.
         "concessions": [
             fee_concession_resource(concession, enrollments) for concession in found.get("concessions", [])
@@ -227,6 +234,8 @@ def fee_receipt_resource(receipt, enrollments: dict | None = None) -> dict:
         "receipt_date": receipt.receipt_date.isoformat(),
         "amount": cash(receipt.amount),
         "currency_code": receipt.currency_code,
+        # F6: the part held as credit - the allocations add up to the rest.
+        "credit_amount": cash(receipt.credit_amount),
         "payment_mode": receipt.payment_mode,
         "payment_mode_label": mode_label(receipt.payment_mode),
         "reference": receipt.reference,
@@ -256,10 +265,36 @@ def fee_receipt_resource(receipt, enrollments: dict | None = None) -> dict:
         "emailed_at": timestamp(receipt.emailed_at),
         # As at the receipt, in its currency: frozen when it was recorded.
         "balance_before": cash(receipt.balance_before),
-        "balance_after": cash(receipt.balance_before - receipt.amount),
+        "balance_after": cash(receipt.balance_before - (receipt.amount - receipt.credit_amount)),
         # What the student still owes now, every year (pending and part-paid).
         "student_balance": cash(getattr(receipt, "student_balance", None)),
         "created_at": timestamp(receipt.created_at),
+    }
+
+
+# -- F6: credit -------------------------------------------------------------------
+
+
+def fee_credit_resource(row) -> dict:
+    """One movement of a student's credit, from CreditService.history()."""
+    due = row.student_fee_due if row.student_fee_due_id else None
+    receipt = row.fee_receipt if row.fee_receipt_id else None
+
+    return {
+        "id": row.id,
+        "kind": row.kind,
+        "kind_label": dict(FeeCreditKind.choices).get(row.kind, row.kind),
+        "amount": cash(row.amount),
+        "currency_code": row.currency_code,
+        "entry_date": row.entry_date.isoformat(),
+        "due": None if due is None else {"id": due.id, "label": due.label, "due_date": due.due_date.isoformat()},
+        "receipt": None if receipt is None else {"id": receipt.id, "receipt_number": receipt.receipt_number},
+        "payment_mode": row.payment_mode,
+        "payment_mode_label": None if row.payment_mode is None else mode_label(row.payment_mode),
+        "reference": row.reference,
+        "note": row.note,
+        "created_by": person(row.created_by),
+        "created_at": timestamp(row.created_at),
     }
 
 

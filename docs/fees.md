@@ -188,9 +188,8 @@ everything owed, oldest first, and record a payment:
 - the amount is spread over the dues **oldest first**, and the Accountant
   can untick lines to pay specific ones instead;
 - a part-payment is allowed unless `allow_part_payment` is off;
-- **paying more than is owed is refused.** No advance or credit balance in
-  v1 *(engineering choice)*: a credit balance is a liability the school has
-  to track, and refunds come with it.
+- ~~paying more than is owed is refused~~ - **since F6, the rest is held as
+  the student's credit** and pays their next fees (see "F6 as built").
 
 The receipt number is **sequential per school and academic year, with no
 gaps and no reuse**: `RCPT-2026-00001`. It is taken from a counter row
@@ -306,7 +305,8 @@ the browser, then production.
 
 1. **Not granted by default** - the Super Admin switches it on per school.
 2. **Only Admin and Accountant** see fees out of the box (the matrix can widen it).
-3. **No advance payments or credit balance**, so no refunds in v1.
+3. ~~No advance payments or credit balance~~ - overruled 2026-10-28: credit
+   is held and refunded (F6).
 4. **One late fine per installment**, not per day.
 5. **`admission_date` is added to students** to charge mid-year joiners fairly.
 6. **No phone-app screens** in v1.
@@ -777,4 +777,67 @@ looking at one school, where fees are on; docs/reports.md "The dashboard".
   child's guardian email only.
 - **The hand-sent fill-in** takes the school's current currency only; dues
   in an older currency are not added in.
+
+## F6 as built (2026-11-02) - credit balance
+
+Asked for on 2026-10-28, after "a parent pays 2-3 months in advance - then
+what?": every installment of a published fee is charged when it is
+published, so paying ahead already worked. The gap was afterwards. A paid
+installment was never touched, so a route change, a class change or leaving
+after paying ahead kept the old money on lines that no longer applied, and
+the new route was charged on top. And paying more than was owed was refused.
+Both are now **held as credit**.
+
+Laravel migration `2026_11_02_090000_create_student_fee_credits_table.php`:
+`student_fee_credits` (one signed row per movement - a student's credit in a
+currency is the sum of their rows in it) and `fee_receipts.credit_amount`.
+Code: `school/fees/credit.py`, with hooks in `dues.py` (release, apply) and
+`receipts.py` (overpaid, take back). Tests: `test_fees_credit.py`.
+
+**Where credit comes from**
+
+- *released* - an installment paid ahead (in full or part, falling due
+  after today) that stopped applying: the reconcile cancels it with its
+  usual reason and its money goes to credit. One already due stays paid -
+  that month was the student's. The receipts that paid it still name it.
+- *overpaid* - a spread payment for more than the student owes pays
+  everything and the rest is credit. A student who owes nothing can still
+  pay: all of it is credit, in the school's currency. Chosen installments
+  must still add up to the payment exactly.
+- *returned* - see cancelling, below.
+
+**Where it goes**
+
+- *applied* - automatically, oldest due first, same currency only, at the
+  end of every reconcile (publishing, a class or route change, admitting,
+  leaving, a discount added or ended) and after a receipt is cancelled. So a
+  route change's money pays the oldest line still owed, then the new route.
+  Credit may leave a line part-paid even with part payments switched off:
+  that setting is about money at the counter. No receipt and no number - no
+  money came in - and the line shows "... from credit".
+- *refunded* - `POST fees/students/{id}/credit/refund` (amount, refund date
+  not in the future, mode, reference - required for a cheque - reason, and
+  the currency, the school's by default). Never more than is held. Audited
+  as `fee_credit.refunded`.
+- *reversed* - a cancelled receipt takes back the credit it made.
+
+**Cancelling a receipt** takes all of its money back: off each line it paid,
+as far as the line still holds it, and the rest - its credit part, and what
+was released from those lines since - off the credit. If the credit has
+since paid other lines, those give it back (*returned*, newest first) and
+are owed again. If the money was refunded, it cannot come back:
+`409 FEE_RECEIPT_CREDIT_REFUNDED`, and nothing changes.
+
+**Where it shows**: the statement (`credit` per currency, `paid_from_credit`
+per line), a Credit card on the student's fees page with its History
+(`GET fees/students/{id}/credit`, paginated) and Refund; the receipt
+(`credit_amount`, "Held as credit" on the screen and the PDF; "still owed
+after" counts only the part that paid fees); the statement PDF ("Credit held
+for the next fees"); the Outstanding report's totals (`credit_held` per
+currency as at the end of the period - money the school owes families if it
+is never used). The reconcile's audit row adds `released`,
+`credit_released` and `credit_applied` when credit moved.
+
+Who: as fees - School Admin and Accountant read and refund; anyone who may
+read a student's fees sees the credit; another school's student is a 403.
 

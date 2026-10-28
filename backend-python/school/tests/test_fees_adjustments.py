@@ -264,11 +264,14 @@ class Discounts(AdjustmentsTestCase):
         statement = self.as_user(self.accountant).get(f"/api/v1/fees/students/{self.aarav.id}").data
         self.assertEqual(("0.00", False), (statement["dues"][0]["balance"], statement["dues"][0]["is_overdue"]))
         self.assertEqual("0.00", statement["totals"]["balance"])
-        self.assertEqual(["amount"], list(self.refused(self.pay(amount="10.00")).keys()))
+        # Nothing to pay on it: a payment now is all credit (F6).
+        self.assertEqual([], self.paid(amount="10.00")["allocations"])
 
         self.revoke(concession["id"])
         april.refresh_from_db()
-        self.assertEqual(("0.00", "pending"), (str(april.discount_amount), april.status))
+        # Owed again - and the 10 in credit goes straight onto it.
+        self.assertEqual(("0.00", "partial", "10.00"), (str(april.discount_amount), april.status,
+                                                        str(april.paid_amount)))
 
     def test_cancelling_a_receipt_puts_the_discount_back_on_what_it_paid(self):
         self.conceded("fixed", "500.00")

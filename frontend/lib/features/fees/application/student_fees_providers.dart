@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/paginated_response.dart';
 import '../data/fee_repository.dart';
+import '../data/models/fee_credit.dart';
 import '../data/models/fee_receipt.dart';
 import '../data/models/student_fees.dart';
 
@@ -77,6 +78,8 @@ class FeeReceiptActions {
     _ref.invalidate(studentStatementProvider);
     _ref.invalidate(studentBalancesProvider);
     _ref.invalidate(feeReceiptsProvider);
+    // A payment can add credit, and a cancelled one take it back (F6).
+    _ref.invalidate(studentCreditHistoryProvider);
   }
 
   Future<({FeeReceipt receipt, bool emailQueued})> recordPayment({
@@ -115,6 +118,48 @@ class FeeReceiptActions {
 
   Future<List<int>> statementPdf(int studentId, {int? academicYearId}) =>
       _repository.statementPdf(studentId, academicYearId: academicYearId);
+}
+
+/// One page of a student's credit history (F6).
+final studentCreditHistoryProvider = FutureProvider.autoDispose
+    .family<PaginatedResponse<FeeCreditEntry>, ({int studentId, int page})>(
+      (ref, query) => ref.read(feeRepositoryProvider).creditHistory(query.studentId, page: query.page),
+      retry: (retryCount, error) => null,
+    );
+
+final feeCreditActionsProvider = Provider<FeeCreditActions>(FeeCreditActions.new);
+
+/// Refunding credit. It changes what the statement shows, so it reads the
+/// statement and the history again.
+class FeeCreditActions {
+  FeeCreditActions(this._ref);
+
+  final Ref _ref;
+
+  Future<FeeCreditEntry> refund(
+    int studentId, {
+    required String amount,
+    required String currencyCode,
+    required DateTime refundDate,
+    required PaymentMode mode,
+    String? reference,
+    required String reason,
+  }) async {
+    final entry = await _ref
+        .read(feeRepositoryProvider)
+        .refundCredit(
+          studentId,
+          amount: amount,
+          currencyCode: currencyCode,
+          refundDate: refundDate,
+          mode: mode,
+          reference: reference,
+          reason: reason,
+        );
+    _ref.invalidate(studentStatementProvider);
+    _ref.invalidate(studentCreditHistoryProvider);
+    return entry;
+  }
 }
 
 /// One page of the Discounts list.

@@ -116,8 +116,17 @@ def statement(student: Student, year: AcademicYear, today: dt.date) -> dict:
         .order_by("-created_at", "-id")
     )
 
+    # F6: what credit paid on each due, and the credit the student holds.
+    from .credit import balances as credit_balances, paid_from_credit
+
+    from_credit = paid_from_credit(due.id for due in dues)
+
+    for due in dues:
+        due.paid_from_credit = from_credit.get(due.id, ZERO)
+
     return {"student": student, "enrollment": enrollment, "year": year, "dues": dues, "totals": totals,
-            "currency_code": currency, "today": today, "receipts": receipts, "concessions": concessions}
+            "currency_code": currency, "today": today, "receipts": receipts, "concessions": concessions,
+            "credit": credit_balances(student.id)}
 
 
 # -- the balances list ----------------------------------------------------------

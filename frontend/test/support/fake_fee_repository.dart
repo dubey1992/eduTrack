@@ -1,6 +1,7 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/fees/data/fee_repository.dart';
+import 'package:edutrack_app/features/fees/data/models/fee_credit.dart';
 import 'package:edutrack_app/features/fees/data/models/fee_head.dart';
 import 'package:edutrack_app/features/fees/data/models/fee_receipt.dart';
 import 'package:edutrack_app/features/fees/data/models/fee_structure.dart';
@@ -353,7 +354,10 @@ class FakeFeeRepository implements FeeRepository {
     });
     if (failPaymentWith != null) throw failPaymentWith!;
 
-    return (receipt: fakeReceipt(amount: amount, mode: mode), emailQueued: emailToGuardian);
+    return (
+      receipt: fakeReceipt(amount: amount, mode: mode, creditAmount: paymentCreditAmount),
+      emailQueued: emailToGuardian,
+    );
   }
 
   @override
@@ -482,6 +486,66 @@ class FakeFeeRepository implements FeeRepository {
     _check();
     waived.add((id: dueId, reason: reason));
     return fakeStatement().dues.firstWhere((due) => due.id == dueId);
+  }
+
+  // -- credit (F6) --
+
+  /// What a recorded payment says was held as credit.
+  String paymentCreditAmount = '0.00';
+
+  /// What [creditHistory] answers, newest first.
+  List<FeeCreditEntry> creditEntries = [];
+  final creditHistoryRequests = <({int studentId, int page})>[];
+  final refunds = <Map<String, Object?>>[];
+
+  /// Thrown by [refundCredit] only.
+  Failure? failRefundWith;
+
+  @override
+  Future<PaginatedResponse<FeeCreditEntry>> creditHistory(int studentId, {int page = 1, int perPage = 20}) async {
+    _check();
+    creditHistoryRequests.add((studentId: studentId, page: page));
+    return PaginatedResponse(
+      items: creditEntries,
+      currentPage: page,
+      lastPage: 1,
+      total: creditEntries.length,
+      perPage: perPage,
+    );
+  }
+
+  @override
+  Future<FeeCreditEntry> refundCredit(
+    int studentId, {
+    required String amount,
+    required String currencyCode,
+    required DateTime refundDate,
+    required PaymentMode mode,
+    String? reference,
+    required String reason,
+  }) async {
+    _check();
+    refunds.add({
+      'student_id': studentId,
+      'amount': amount,
+      'currency_code': currencyCode,
+      'refund_date': refundDate,
+      'payment_mode': mode.wire,
+      'reference': reference,
+      'reason': reason,
+    });
+    if (failRefundWith != null) throw failRefundWith!;
+
+    return FeeCreditEntry(
+      id: 400 + refunds.length,
+      kind: 'refunded',
+      kindLabel: 'Refunded to the family',
+      amount: '-$amount',
+      currencyCode: currencyCode,
+      entryDate: refundDate,
+      paymentModeLabel: mode.label,
+      note: reason,
+    );
   }
 
   /// What [statement] answers, by student id.
@@ -628,6 +692,7 @@ FeeReceipt fakeReceipt({
   PaymentMode mode = PaymentMode.cash,
   bool cancelled = false,
   String? cancelReason,
+  String creditAmount = '0.00',
 }) {
   return FeeReceipt(
     id: id,
@@ -645,6 +710,7 @@ FeeReceipt fakeReceipt({
       ReceiptAllocation(dueId: 2, label: 'Tuition - May 2026', dueDate: DateTime(2026, 5, 10), amount: amount),
     ],
     studentBalance: '0.00',
+    creditAmount: creditAmount,
     receivedByName: 'Meena',
     cancelReason: cancelReason,
   );

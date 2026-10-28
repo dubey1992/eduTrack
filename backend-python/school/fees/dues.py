@@ -23,11 +23,12 @@ And how the ledger follows:
 
 - an expected installment with no due gets one; a cancelled due for it is
   revived (the unique key allows one row per student per installment);
-- a due nothing was paid on, no longer expected and falling due *after*
-  today, is cancelled with a reason. Anything due on or before today stays
-  owed, whatever happened since;
+- a due no longer expected and falling due *after* today is cancelled with a
+  reason; whatever had been paid on it - it was paid ahead - goes to the
+  student's credit (F6, school/fees/credit.py). Anything due on or before
+  today stays owed, or paid, whatever happened since;
 - an unpaid due follows its installment's amount, date and label; a part-paid
-  one never drops below what was paid; a paid one is never touched;
+  one never drops below what was paid; a paid one is never re-priced;
 - every due still owed carries the discount its student's active concessions
   for the year give it (F4): each fixed amount, and each percentage of the
   due's amount, of a concession on its fee type or on every fee type, added
@@ -39,6 +40,10 @@ And how the ledger follows:
 Late fines (F4, school/fees/fines.py) are dues of their own kind, with no
 installment behind them: the reconcile never reads, prices, discounts or
 cancels one.
+
+Last, a student holding credit has it applied to what they owe now, oldest
+first (F6) - so money released by a route change pays the new route's
+installments at once.
 
 Running it twice changes nothing the second time. "Today" is the school's
 own date (docs/timezones.md).
@@ -59,6 +64,7 @@ from ..clock import SchoolClock
 from ..enums import (
     EnrollmentStatus,
     FeeConcessionKind,
+    FeeCreditKind,
     FeeDueCancelReason,
     FeeDueKind,
     FeeDueStatus,
@@ -72,6 +78,7 @@ from ..models import (
     FeeStructure,
     Student,
     StudentEnrollment,
+    StudentFeeCredit,
     StudentFeeDue,
     StudentTransportAssignment,
 )
@@ -83,7 +90,7 @@ LABEL_MAX = 130
 OPEN = (FeeDueStatus.PENDING, FeeDueStatus.PARTIAL)
 
 CHANGED_FIELDS = [
-    "amount", "due_date", "label", "status", "discount_amount", "cancelled_reason", "cancelled_at", "updated_at",
+    "amount", "due_date", "paid_amount", "label", "status", "discount_amount", "cancelled_reason", "cancelled_at", "updated_at",
 ]
 
 ZERO = Decimal("0.00")
@@ -99,6 +106,11 @@ class SyncResult:
     revived: int = 0
     cancelled: int = 0
     updated: int = 0
+    # F6: dues paid ahead that stopped applying, the money they gave to
+    # credit, and the credit then used on what the students owe.
+    released: int = 0
+    credit_released: Decimal = ZERO
+    credit_applied: Decimal = ZERO
     charged: set = field(default_factory=set)
 
     def add(self, other: "SyncResult") -> "SyncResult":
@@ -106,16 +118,30 @@ class SyncResult:
         self.revived += other.revived
         self.cancelled += other.cancelled
         self.updated += other.updated
+        self.released += other.released
+        self.credit_released += other.credit_released
+        self.credit_applied += other.credit_applied
         self.charged |= other.charged
 
         return self
 
     @property
     def changed(self) -> bool:
-        return bool(self.created or self.revived or self.cancelled or self.updated)
+        return bool(self.created or self.revived or self.cancelled or self.updated or self.credit_applied)
 
     def counts(self) -> dict:
-        return {"created": self.created, "revived": self.revived, "cancelled": self.cancelled, "updated": self.updated}
+        counts = {"created": self.created, "revived": self.revived, "cancelled": self.cancelled, "updated": self.updated}
+
+        # Only when credit moved, so the audit row of an ordinary run reads
+        # as it always has.
+        if self.released or self.credit_applied:
+            counts.update({
+                "released": self.released,
+                "credit_released": str(self.credit_released),
+                "credit_applied": str(self.credit_applied),
+            })
+
+        return counts
 
     def charged_summary(self) -> dict:
         """What a publish answers with: how many students were charged and
@@ -272,12 +298,13 @@ class FeeDueService:
 
             creates: list[StudentFeeDue] = []
             changes: list[StudentFeeDue] = []
+            credits: list[StudentFeeCredit] = []
 
             for student in students:
                 cls.reconcile(
                     student, academic_year, fees, others, enrollments.get(student.id), assignments.get(student.id),
                     dues.get(student.id, []), clock, today, now, creates, changes, result,
-                    concessions.get(student.id, []),
+                    concessions.get(student.id, []), credits,
                 )
 
             if creates:
@@ -286,11 +313,20 @@ class FeeDueService:
             if changes:
                 StudentFeeDue.objects.bulk_update(changes, CHANGED_FIELDS, batch_size=500)
 
+            if credits:
+                StudentFeeCredit.objects.bulk_create(credits, batch_size=500)
+
+            # Imported here: credit.py reads this module's OPEN and today_for.
+            from .credit import CreditService
+
+            used = CreditService.apply(student_ids)
+            result.credit_applied += sum(used.values(), ZERO)
+
         return result
 
     @classmethod
     def reconcile(cls, student, year, fees, others, enrollment, assignment, dues, clock, today, now,
-                  creates, changes, result, concessions=()) -> None:
+                  creates, changes, result, concessions=(), credits=None) -> None:
         expected = cls.expected(student, fees, enrollment, assignment, clock)
         held = {due.fee_installment_id: due for due in dues}
         # Existing dues this run changed, each written (and counted) once.
@@ -328,6 +364,16 @@ class FeeDueService:
                 due.updated_at = now
                 touched[due.id] = due
                 result.cancelled += 1
+            elif cls.releasable(due, today):
+                row = cls.release(due, student, enrollment, assignment, today, now)
+
+                if credits is not None:
+                    credits.append(row)
+
+                touched[due.id] = due
+                result.cancelled += 1
+                result.released += 1
+                result.credit_released += row.amount
             elif followed:
                 touched[due.id] = due
                 result.updated += 1
@@ -395,6 +441,32 @@ class FeeDueService:
         stays owed; one with money against it is somebody's to sort out by
         hand, never the reconcile's."""
         return due.status == FeeDueStatus.PENDING and due.paid_amount == 0 and due.due_date > today
+
+    @staticmethod
+    def releasable(due: StudentFeeDue, today: dt.date) -> bool:
+        """A due paid ahead, in full or in part, falling due after today: the
+        money on it goes to the student's credit (F6). One already due stays
+        paid - that month was the student's."""
+        return (
+            due.status in (FeeDueStatus.PAID, FeeDueStatus.PARTIAL)
+            and due.paid_amount > 0
+            and due.due_date > today
+        )
+
+    @classmethod
+    def release(cls, due: StudentFeeDue, student, enrollment, assignment, today, now) -> StudentFeeCredit:
+        """Cancels a due paid ahead and returns the credit row for its money.
+        The receipts that paid it still name it: that is what they paid."""
+        from .credit import entry
+
+        row = entry(due, FeeCreditKind.RELEASED, due.paid_amount, today, now)
+        due.paid_amount = ZERO
+        due.status = FeeDueStatus.CANCELLED
+        due.cancelled_reason = cls.reason(due, student, enrollment, assignment)
+        due.cancelled_at = now
+        due.updated_at = now
+
+        return row
 
     @staticmethod
     def reason(due: StudentFeeDue, student, enrollment, assignment) -> str:

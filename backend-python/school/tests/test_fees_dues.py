@@ -390,7 +390,7 @@ class Leaving(DuesTestCase):
              .order_by("id")],
         )
 
-    def test_a_due_with_money_against_it_is_never_cancelled(self):
+    def test_a_future_due_with_money_against_it_goes_to_credit_when_the_student_leaves(self):
         aarav = self.student()
         self.published(TUITION_8, school_class=self.class8)
         StudentFeeDue.objects.filter(student=aarav, label="Tuition - October").update(
@@ -402,8 +402,20 @@ class Leaving(DuesTestCase):
 
         self.as_user(self.admin).patch(f"{STUDENTS}/{aarav.id}/deactivate")
 
-        self.assertEqual(["partial", "paid"], [status for label, _, _, status, _ in self.ledger(aarav)
-                                               if label in ("Tuition - October", "Tuition - January")])
+        # F6: both were paid ahead; their 1,400 is credit, and it pays what
+        # Aarav still owes from before he left - April, then July.
+        self.assertEqual(
+            [("Tuition - April", "paid"), ("Tuition - July", "partial"), ("Tuition - October", "cancelled"),
+             ("Tuition - January", "cancelled")],
+            [(label, status) for label, _, _, status, _ in self.ledger(aarav)],
+        )
+        self.assertEqual(
+            {"Tuition - April": Decimal("1000.00"), "Tuition - July": Decimal("400.00"),
+             "Tuition - October": Decimal("0.00"), "Tuition - January": Decimal("0.00")},
+            {due.label: due.paid_amount for due in StudentFeeDue.objects.filter(student=aarav)},
+        )
+        self.assertEqual({"left"}, {reason for label, _, _, status, reason in self.ledger(aarav)
+                                    if status == "cancelled"})
 
     def test_a_due_falling_due_today_in_the_schools_timezone_stays_owed(self):
         # 20:00 UTC on 9 October is already the 10th in Kolkata: the October

@@ -52,6 +52,7 @@ class FeeReceipt {
     required this.admissionNumber,
     required this.allocations,
     required this.studentBalance,
+    this.creditAmount = '0.00',
     this.balanceBefore,
     this.balanceAfter,
     this.className,
@@ -89,6 +90,7 @@ class FeeReceipt {
           ReceiptAllocation.fromJson(row as Map<String, dynamic>),
       ],
       studentBalance: json['student_balance']?.toString() ?? '0.00',
+      creditAmount: json['credit_amount']?.toString() ?? '0.00',
       balanceBefore: json['balance_before']?.toString(),
       balanceAfter: json['balance_after']?.toString(),
       cancelReason: json['cancel_reason'] as String?,
@@ -124,6 +126,9 @@ class FeeReceipt {
 
   /// What the student owed just before this payment, and just after it -
   /// as at the receipt, so a reprint months later shows the same figures.
+  /// The part held as the student's credit (F6): the allocations add up to
+  /// the amount less this.
+  final String creditAmount;
   final String? balanceBefore;
   final String? balanceAfter;
   final String? cancelReason;

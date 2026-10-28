@@ -189,6 +189,13 @@ def document(found: dict) -> str:
     )
     if totals["overdue"] > 0:
         summary += f'<tr class="overdue"><td>Of which overdue</td><td class="value">{cash(totals["overdue"])}</td></tr>'
+    # F6: money held for the next fees, each currency on its own line.
+    for credit_currency, held in found.get("credit", {}).items():
+        if held > 0:
+            summary += (
+                f'<tr class="settled"><td>Credit held for the next fees</td>'
+                f'<td class="value">{e(money.formatted(held, credit_currency))}</td></tr>'
+            )
 
     # -- every due ----------------------------------------------------------------
     rows = []

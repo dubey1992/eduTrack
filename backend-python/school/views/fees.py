@@ -28,11 +28,13 @@ from rest_framework.response import Response
 
 from ..fees import ledger, plan, receipt_pdf, statement_pdf
 from ..fees.concessions import ConcessionService, WaiverService
+from ..fees.credit import CreditService
 from ..fees.receipts import FeeReceiptService
 from ..fees.dues import today_for
 from ..fees.requests import (
     BalancesRequest,
     CancelFeeReceiptRequest,
+    FeeCreditRefundRequest,
     FeeConcessionListRequest,
     FeeConcessionRequest,
     FeeReceiptListRequest,
@@ -52,6 +54,7 @@ from ..fees.resources import (
     balance_row_resource,
     due_resource,
     enrollments_for,
+    fee_credit_resource,
     fee_concession_resource,
     fee_receipt_resource,
     fee_head_resource,
@@ -278,6 +281,48 @@ def statement_for(request, student_id: int) -> dict:
         raise_if(errors)
 
     return ledger.statement(student, year, today_for(student.school_id))
+
+
+# -- credit (F6) ----------------------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def student_credit(request, student_id: int) -> Response:
+    """Every movement of one student's credit, newest first. Paginated."""
+    student = student_for(request, student_id, manage=False)
+
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(CreditService.history(student.id), request)
+
+    return paginator.get_paginated_response([fee_credit_resource(row) for row in page])
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def student_credit_refund(request, student_id: int) -> Response:
+    """Records money handed back to the family out of their credit."""
+    student = student_for(request, student_id, manage=True)
+
+    data = FeeCreditRefundRequest(request.data, student).validate()
+    row = CreditService.refund(student, data, request.user, request)
+
+    return Response(
+        fee_credit_resource(CreditService.history(student.id).get(pk=row.id)), status=status.HTTP_201_CREATED
+    )
+
+
+def student_for(request, student_id: int, *, manage: bool) -> Student:
+    """A student whose fees the actor may read (or manage): 404 when there
+    is none, 403 when they are another school's."""
+    authorize(FeePolicy.manage_any(request.user) if manage else FeePolicy.view_any(request.user))
+
+    student = get_object_or_404(Student.objects.select_related("school"), pk=student_id)
+    authorize(
+        FeePolicy.manage(request.user, student.school_id) if manage else FeePolicy.view(request.user, student.school_id)
+    )
+
+    return student
 
 
 @api_view(["GET"])

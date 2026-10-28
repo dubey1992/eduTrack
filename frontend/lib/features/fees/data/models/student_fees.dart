@@ -3,6 +3,7 @@
 library;
 
 import '../money_text.dart';
+import 'fee_credit.dart';
 import 'fee_receipt.dart';
 
 enum FeeDueStatus {
@@ -41,6 +42,7 @@ class FeeDue {
     this.fineForDueId,
     this.waiveReason,
     this.waivedAt,
+    this.paidFromCredit = '0.00',
   });
 
   factory FeeDue.fromJson(Map<String, dynamic> json) {
@@ -61,6 +63,7 @@ class FeeDue {
       fineForDueId: json['fine_for_due_id'] as int?,
       waiveReason: json['waive_reason'] as String?,
       waivedAt: json['waived_at'] is String ? DateTime.tryParse(json['waived_at'] as String)?.toLocal() : null,
+      paidFromCredit: json['paid_from_credit']?.toString() ?? '0.00',
     );
   }
 
@@ -90,6 +93,11 @@ class FeeDue {
   final int? fineForDueId;
   final String? waiveReason;
   final DateTime? waivedAt;
+
+  /// The part of [paidAmount] that came from the student's credit (F6).
+  final String paidFromCredit;
+
+  bool get isPaidFromCredit => (centsOf(paidFromCredit) ?? 0) > 0;
 
   bool get isCancelled => status == FeeDueStatus.cancelled;
   bool get isWaived => status == FeeDueStatus.waived;
@@ -181,6 +189,7 @@ class StudentFeeStatement {
     required this.totals,
     this.receipts = const [],
     this.concessions = const [],
+    this.credit = const [],
   });
 
   factory StudentFeeStatement.fromJson(Map<String, dynamic> json) {
@@ -199,6 +208,9 @@ class StudentFeeStatement {
       concessions: [
         for (final row in json['concessions'] as List? ?? const []) FeeConcession.fromJson(row as Map<String, dynamic>),
       ],
+      credit: [
+        for (final row in json['credit'] as List? ?? const []) FeeCreditBalance.fromJson(row as Map<String, dynamic>),
+      ],
     );
   }
 
@@ -214,6 +226,15 @@ class StudentFeeStatement {
 
   /// The discounts in force for this year (F4).
   final List<FeeConcession> concessions;
+
+  /// The credit the student holds now, per currency (F6) - every year's.
+  final List<FeeCreditBalance> credit;
+
+  /// The currencies with credit in them.
+  List<FeeCreditBalance> get heldCredit => [
+    for (final entry in credit)
+      if ((centsOf(entry.balance) ?? 0) > 0) entry,
+  ];
 
   /// The fee types this student is charged this year - what a discount can
   /// be given on.
