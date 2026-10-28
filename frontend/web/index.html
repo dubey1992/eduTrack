@@ -24,10 +24,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="School365ai">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=2">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <!-- Favicon. The ?v= is raised whenever the icon changes (scripts/web_icon.py):
+       the host lets browsers keep images for a week, and a new address is
+       fetched fresh, so nobody is left looking at the old one. -->
+  <link rel="icon" type="image/png" href="favicon.png?v=2"/>
 
   <title>School365ai</title>
   <link rel="manifest" href="manifest.json">
