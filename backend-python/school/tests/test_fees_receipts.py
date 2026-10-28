@@ -19,7 +19,7 @@ from django.core import mail
 from django.db import IntegrityError, connection, transaction
 from django.test import SimpleTestCase, TransactionTestCase
 
-from school import factories, queue
+from school import factories, pdf_design, queue
 from school.enums import FeeDueStatus, UserRole
 from school.fees import credit, receipt_pdf
 from school.fees.dues import FeeDueService
@@ -751,6 +751,11 @@ class ThePdf(ReceiptsTestCase):
             self.assertIn(text, document)
 
         self.assertNotIn("CANCELLED", document)
+        # The shared look (school/pdf_design.py): a page footer on every
+        # page, and no cell left unstyled.
+        self.assertIn("Sunrise Public School - Fee receipt RCPT-2026-27-00001", document)
+        self.assertIn("Page <pdf:pagenumber> of <pdf:pagecount>", document)
+        self.assertEqual(0, pdf_design.style_errors(document))
 
     def test_empty_optional_details_are_left_out_never_printed_as_none(self):
         School.objects.filter(pk=self.school.id).update(
@@ -786,7 +791,7 @@ class ThePdf(ReceiptsTestCase):
         School.objects.filter(pk=self.school.id).update(logo_url="https://logo.invalid/school.png")
         data = self.paid(amount="100.00")
 
-        with mock.patch("urllib.request.urlopen", side_effect=OSError("unreachable")),                 self.assertLogs("school.fees.receipt_pdf", "WARNING"):
+        with mock.patch("urllib.request.urlopen", side_effect=OSError("unreachable")),                 self.assertLogs("school.pdf_design", "WARNING"):
             pdf = receipt_pdf.render(FeeReceiptService.load(data["id"]))
 
         self.assertTrue(pdf.startswith(b"%PDF-"))

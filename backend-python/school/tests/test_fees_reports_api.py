@@ -12,7 +12,7 @@ from unittest import mock
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
-from school import factories
+from school import factories, pdf_design
 from school.enums import UserRole
 from school.fees import ledger, statement_pdf
 from school.fees.dues import FeeDueService
@@ -438,6 +438,9 @@ class StatementPdf(FeeReportsTestCase):
 
         for receipt in FeeReceipt.objects.filter(student=self.aarav):
             self.assertIn(receipt.receipt_number, page)
+        # Every cell keeps its styles (school/pdf_design.py style_errors).
+        self.assertEqual(0, pdf_design.style_errors(page))
+        self.assertIn("Page <pdf:pagenumber> of <pdf:pagecount>", page)
 
         self.assertNotIn("None", page)
 

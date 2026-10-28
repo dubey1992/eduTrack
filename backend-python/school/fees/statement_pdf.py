@@ -16,28 +16,24 @@ nowhere. Every optional detail is printed only when it has a value.
 
 from __future__ import annotations
 
-import io
 import re
 
-from xhtml2pdf import pisa
-
-from .. import dates, money
+from .. import dates, money, pdf_design
 from ..clock import DATE, DATE_TIME, SchoolClock
 from ..enums import FeeDueCancelReason, FeeDueKind, FeeDueStatus, FeeReceiptStatus, StudentStatus
 from ..models import FeeReceipt
 from ..receipts import e
 from .ledger import balance_of, is_overdue
-from .receipt_pdf import STYLESHEET, fact, header, joined
+from .receipt_pdf import fact, header, joined
 from .resources import _class_names, mode_label
 
 STATEMENT_STYLES = f"""
-.items th {{ font-size: 7.5pt; padding: 6px 5px; }}
-.items td {{ font-size: 8.5pt; padding: 4px 5px; }}
+table.compact th {{ font-size: 7.5pt; padding: 6px 5px; }}
+table.compact td {{ font-size: 8.5pt; padding: 4px 5px; }}
 .items .sub {{ font-size: 7.5pt; color: #6b7280; }}
-.items .void td {{ color: #9ca3af; }}
-.items .void .strike {{ text-decoration: line-through; }}
-.items .fine td {{ background-color: #fff7ed; }}
-.items .total td {{ background-color: #eff6ff; font-weight: bold; color: #1e3a8a; border-top: 1px solid #c7d2fe; }}
+.items tr.void td {{ color: #9ca3af; }}
+.items tr.void .strike {{ text-decoration: line-through; }}
+.items tr.fine td {{ background-color: #fff7ed; }}
 
 .summary td {{ padding: 4px 12px; font-size: 9.5pt; border-bottom: 1px solid #e5e7eb; }}
 .summary .value {{ text-align: right; font-weight: bold; }}
@@ -68,13 +64,7 @@ def file_name(student, year) -> str:
 
 
 def render(found: dict) -> bytes:
-    out = io.BytesIO()
-    result = pisa.CreatePDF(document(found), dest=out, encoding="utf-8")
-
-    if result.err:
-        raise RuntimeError(f"Could not render {file_name(found['student'], found['year'])}")
-
-    return out.getvalue()
+    return pdf_design.render(document(found), file_name(found["student"], found["year"]))
 
 
 def item_name(due) -> str:
@@ -125,10 +115,7 @@ def note_under(due) -> str:
 
 
 def section(title: str) -> str:
-    return f"""
-    <table><tr><td style="height: 16px; font-size: 1pt;">&nbsp;</td></tr></table>
-    <div class="section-title">{e(title)}</div>
-    <table><tr><td style="height: 6px; font-size: 1pt;">&nbsp;</td></tr></table>"""
+    return pdf_design.section(title)
 
 
 def document(found: dict) -> str:
@@ -221,25 +208,27 @@ def document(found: dict) -> str:
             f'<td class="num">{cash_in(due.discount_amount, due.currency_code) if due.discount_amount else "-"}</td>'
             f'<td class="num">{cash_in(due.paid_amount, due.currency_code) if due.paid_amount else "-"}</td>'
             f'<td class="num">{cash_in(balance_of(due), due.currency_code)}</td>'
-            f'<td></td><td class="{pill}">{e(words)}</td></tr>'
+            f'<td class="{pill}">{e(words)}</td></tr>'
         )
 
     if rows:
-        rows.append(
-            f'<tr class="total"><td></td><td colspan="3">Total (cancelled lines not counted)</td>'
-            f'<td class="num">{cash_in(totals["charged"], currency)}</td>'
-            f'<td class="num">{cash_in(totals["discount"], currency)}</td>'
-            f'<td class="num">{cash_in(totals["paid"], currency)}</td>'
-            f'<td class="num">{cash_in(totals["balance"], currency)}</td><td></td><td></td></tr>'
-        )
+        dues_total = pdf_design.total_row([
+            ("Total (cancelled lines not counted)", "44%", False),
+            (cash_in(totals["charged"], currency), "11%", True),
+            (cash_in(totals["discount"], currency), "10%", True),
+            (cash_in(totals["paid"], currency), "10%", True),
+            (cash_in(totals["balance"], currency), "10%", True),
+            ("", "15%", False),
+        ], "items compact")
         dues_table = f"""
-    <table class="items" repeat="1">
+    <table class="items compact" repeat="1">
         <tr><th class="idx" width="4%">#</th><th width="11%">Fee type</th><th width="18%">Item</th>
             <th width="11%">Due date</th><th class="num" width="11%">Amount</th>
             <th class="num" width="10%">Discount</th><th class="num" width="10%">Paid</th>
-            <th class="num" width="10%">Balance</th><th width="2%"></th><th width="13%">Status</th></tr>
+            <th class="num" width="10%">Balance</th><th width="15%">Status</th></tr>
         {"".join(rows)}
     </table>
+    {dues_total}
     <div class="legend">Late fines are shaded. A waived line owes nothing; a cancelled one was never charged.</div>"""
     else:
         dues_table = '<div class="empty">Nothing has been charged to this student for this year.</div>'
@@ -257,7 +246,7 @@ def document(found: dict) -> str:
             for index, c in enumerate(concessions, start=1)
         )
         discounts = f"""
-    <table class="items" repeat="1">
+    <table class="items compact" repeat="1">
         <tr><th class="idx" width="4%">#</th><th width="20%">Fee type</th><th width="34%">Discount</th>
             <th width="28%">Reason</th><th width="14%">Since</th></tr>
         {lines}
@@ -287,20 +276,22 @@ def document(found: dict) -> str:
                 f"<td>{dates.us(receipt.receipt_date)}</td><td>{e(paid_by)}</td>"
                 f"<td>{e(receipt.received_by.name if receipt.received_by_id else '')}</td>"
                 f'<td class="num"><span{strike}>{cash_in(receipt.amount, receipt.currency_code)}</span></td>'
-                f'<td></td><td class="{"pill-void" if void else "pill-paid"}">{"Cancelled" if void else "Valid"}</td></tr>'
+                f'<td class="{"pill-void" if void else "pill-paid"}">{"Cancelled" if void else "Valid"}</td></tr>'
             )
         total = " + ".join(cash_in(amount, code) for code, amount in sorted(received.items())) or cash_in(0, currency)
-        lines.append(
-            f'<tr class="total"><td></td><td colspan="4">Received (cancelled receipts not counted)</td>'
-            f'<td class="num">{total}</td><td></td><td></td></tr>'
-        )
+        payments_total = pdf_design.total_row([
+            ("Received (cancelled receipts not counted)", "75%", False),
+            (total, "12%", True),
+            ("", "13%", False),
+        ], "items compact")
         payments = f"""
-    <table class="items" repeat="1">
+    <table class="items compact" repeat="1">
         <tr><th class="idx" width="4%">#</th><th width="24%">Receipt no.</th><th width="12%">Date</th>
             <th width="19%">Paid by</th><th width="16%">Received by</th>
-            <th class="num" width="12%">Amount</th><th width="2%"></th><th width="11%">Status</th></tr>
+            <th class="num" width="12%">Amount</th><th width="13%">Status</th></tr>
         {"".join(lines)}
     </table>
+    {payments_total}
     <div class="legend">Receipts dated in this academic year. A payment can settle a due of another year.</div>"""
     else:
         payments = '<div class="empty">No payments received this year.</div>'
@@ -308,14 +299,7 @@ def document(found: dict) -> str:
     issued = clock.format(clock.now(), DATE_TIME)
     title = f"Fee statement {year.name}"
 
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>{e(title)} - {e(student.name)}</title>
-<style>{STYLESHEET}{STATEMENT_STYLES}</style>
-</head>
-<body>
+    body = f"""
     {header(school, f"Academic year {year.name}", title="FEE STATEMENT")}
 
     <table><tr><td style="height: 18px; font-size: 1pt;">&nbsp;</td></tr></table>
@@ -349,5 +333,9 @@ def document(found: dict) -> str:
         <tr><td>Issued {e(issued)} ({e(school.timezone)})</td></tr>
         <tr><td>Powered by School365ai</td></tr>
     </table>
-</body>
-</html>"""
+"""
+
+    return pdf_design.page(
+        f"{title} - {student.name}", body, footer=f"{school.name} - {title} - {student.name}",
+        extra_styles=STATEMENT_STYLES,
+    )
