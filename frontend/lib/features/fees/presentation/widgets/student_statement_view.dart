@@ -88,10 +88,24 @@ class _Statement extends StatelessWidget {
           runSpacing: 8,
           children: [
             Text(student.name, style: Theme.of(context).textTheme.headlineSmall),
-            if (canManage)
-              Wrap(
-                spacing: 8,
-                children: [
+            Wrap(
+              spacing: 8,
+              children: [
+                // Anyone who can read the statement can hand it over.
+                Consumer(
+                  builder: (context, ref, _) => OutlinedButton.icon(
+                    onPressed: () => downloadStatement(
+                      context,
+                      ref,
+                      studentId: student.id,
+                      academicYearId: statement.academicYearId,
+                      fileName: 'statement-${student.admissionNumber}-${statement.academicYearName}.pdf',
+                    ),
+                    icon: const Icon(Icons.download_outlined),
+                    label: const Text('Statement PDF'),
+                  ),
+                ),
+                if (canManage) ...[
                   if (statement.feeHeads.isNotEmpty)
                     OutlinedButton.icon(
                       onPressed: () => showAddDiscountDialog(context, statement),
@@ -105,7 +119,8 @@ class _Statement extends StatelessWidget {
                       label: const Text('Record Payment'),
                     ),
                 ],
-              ),
+              ],
+            ),
           ],
         ),
         const SizedBox(height: 4),

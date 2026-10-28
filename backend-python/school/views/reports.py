@@ -16,13 +16,17 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import csv_export
+from .. import csv_export, modules, permissions
 from ..clock import DATE_TIME, SchoolClock
 from ..enums import UserRole
 from ..models import ClassSection, Department, School
-from ..policies import PayrollPolicy, authorize, permitted
+from ..errors import ModuleDisabled
+from ..policies import FeePolicy, PayrollPolicy, authorize, permitted
 from ..reports import (
     ClassPerformanceReport,
+    FeeCollectionReport,
+    FeeConcessionsReport,
+    FeeOutstandingReport,
     LeaveUsageReport,
     PayrollSummaryReport,
     StaffAttendanceReport,
@@ -41,6 +45,11 @@ from ..scope import SchoolScope
 from ..services import php_number
 
 ADMINS = (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN)
+
+# The fee reports have no fixed list of roles: whoever the matrix lets read
+# fees reads them (docs/fees.md) - the office out of the box, a clerk a
+# school widens it to - and the Super Admin, who reads every school's fees.
+FEES = None
 
 
 @api_view(["GET"])
@@ -102,7 +111,29 @@ def class_performance(request):
     return respond(request, ClassPerformanceReport(), "class-performance", (*ADMINS, UserRole.HOD))
 
 
-def respond(request, report, name: str, roles):
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def fee_collection(request):
+    return respond(request, FeeCollectionReport(), "fee-collection", FEES, module="fees")
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def fee_outstanding(request):
+    return respond(request, FeeOutstandingReport(), "fee-outstanding", FEES, module="fees")
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def fee_concessions(request):
+    return respond(request, FeeConcessionsReport(), "fee-concessions", FEES, module="fees")
+
+
+def respond(request, report, name: str, roles, module: str | None = None):
+    """`roles` None means the module's own row in the matrix decides who
+    reads it; `module` names a switchable module the report belongs to, so a
+    school without it gets 403 MODULE_DISABLED and a group report covers only
+    the branches that have it on."""
     actor = request.user
     form = ReportRequest(data=request.query_params.dict(), actor=actor)
     form.is_valid(raise_exception=True)
@@ -110,7 +141,11 @@ def respond(request, report, name: str, roles):
     # The matrix says whether the role reads reports at all; which reports
     # a role reads stays per report, since a payroll summary is not a thing
     # every reader of attendance should see.
-    authorize(permitted(actor, "reports", school_id=form.validated_data.get("school_id")) and actor.role in roles)
+    allowed = roles is None or actor.role in roles
+    authorize(permitted(actor, "reports", school_id=form.validated_data.get("school_id")) and allowed)
+
+    if module is not None:
+        authorize(permissions.may_view(actor, module))
 
     filters = filters_for(actor, form.validated_data)
     scope = SchoolScope.for_actor(actor)
@@ -129,9 +164,22 @@ def respond(request, report, name: str, roles):
     # everybody else is reporting on exactly one school.
     if requested is None and scope.covers_a_group():
         schools = list(School.objects.filter(id__in=scope.ids() or []).order_by("name", "id"))
+
+        if module is not None:
+            # Only the branches that use the module; none at all is the
+            # module being off, as for one school.
+            schools = [school for school in schools if modules.is_enabled(school.id, module)]
+
+            if not schools:
+                raise ModuleDisabled(modules.get(module).label)
+
         built = build_group(schools, lambda school: single(school.id, report, filters, compare), report)
     else:
         school_id = scope.writable_school_id(requested)
+
+        if module == "fees":
+            authorize(FeePolicy.view(actor, school_id))
+
         built = single(school_id, report, filters, compare)
 
     if form.validated_data["format"] == "json":

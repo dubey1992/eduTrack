@@ -1,8 +1,9 @@
 # Fee Management (plan)
 
-**Status (2026-10-31): F1 "Fee Set-up", F2 "Dues", F3 "Collection &
-receipts" and F4 "Discounts, waivers and late fines" built (backend); F5
-planned.** See "F1 as built" to "F4 as built" at the end. What a school charges its
+**Status (2026-11-01): all five steps built - F1 "Fee Set-up", F2 "Dues",
+F3 "Collection & receipts", F4 "Discounts, waivers and late fines" and F5
+"Reminders, reports and dashboard". The module is complete.** See "F1 as
+built" to "F5 as built" at the end. What a school charges its
 students, what each student owes, the payments the office takes, receipts,
 discounts, late fines, reminders and reports, behind its own module switch.
 Built on the Python backend only; Laravel's migrations still create the
@@ -92,8 +93,8 @@ that school.
 |---|---|---|---|
 | `late_fine_amount` | int (whole currency units) | 0 = no fines | the nightly fines job |
 | `late_fine_grace_days` | int, 0-90 | 7 | the nightly fines job |
-| `reminder_days_before` | int, 0-30 | 3 (0 = off) | the nightly reminders job |
-| `remind_when_overdue` | bool | true | the nightly reminders job |
+| `reminder_days_before` | int, 0-30 | 3 (0 = off) | the hourly reminders job (F5) |
+| `remind_when_overdue` | bool | true | the hourly reminders job (F5) |
 | `allow_part_payment` | bool | true | Record Payment |
 
 Module settings only hold whole numbers and on/off switches today, which is
@@ -213,7 +214,7 @@ app) and guardian contacts are the ones the school already set up:
   unpaid due that day;
 - once when a due becomes overdue (`remind_when_overdue`).
 
-Both run in the nightly job, one message per guardian per day with every due
+Both run in the hourly job (F5), one message per guardian per day with every due
 listed *(engineering choice: three installments due together are one text,
 not three)*. With Communication switched off, nothing is sent. The hand-sent
 fee reminder stays, and now fills in the amount and due date from the
@@ -680,4 +681,100 @@ Validation: student and year the actor's and one school's (another school's
 the school's and active (Transport allowed); kind `fixed` | `percent`; value
 > 0 with 2 decimals, a percentage at most 100; reason 3-255 characters
 (trimmed). A record of another school by id -> 403.
+
+## F5 as built (2026-11-01)
+
+Backend (Python) and the Laravel migration
+`2026_11_01_090000_create_fee_reminder_logs_table.php` (`fee_reminder_logs`).
+Code: `school/fees/reminders.py` (FeeReminderService), the
+`send_fee_reminders` command, `school/reports/fees.py` (the three reports),
+`school/fees/statement_pdf.py`, `fee_cards()` in `school/dashboard.py`, and
+the fill-in in `SendNoticeRequest`. Tests: `test_fees_reminders.py` and
+`test_fees_reports_api.py`. The whole module is now built; the plan's four
+"reports" became three reports in the Reports screen plus the student
+statement PDF.
+
+**Module settings** `reminder_days_before` (int 0-30, default 3, 0 = off)
+and `remind_when_overdue` (bool, default on).
+
+**Reminders** - hourly `send_fee_reminders [--school ID] [--dry-run]`
+(cron line in docs/deployment.md), every school with fees on:
+
+- On the school's own today: **upcoming** - dues still owed falling due on
+  today + `reminder_days_before` (when above 0); **overdue** - dues still
+  owed that fell due yesterday, the first day they are overdue (when
+  `remind_when_overdue`). Installments and late fines alike. "Still owed":
+  pending or part-paid with something left after discount and payments, of a
+  student who is active and has not left in that due's year. A due a
+  discount covers in full is never mentioned.
+- **One message per guardian per kind per day.** Dues are grouped by
+  guardian key: `m:` + the digits of `guardian_mobile`, else `e:` + the
+  lower-cased `guardian_email` (hashed past 120 characters), else `s:` + the
+  student id - so siblings sharing a mother's number, written any way, get
+  one message. The guardian is reached on the first-named student's contact
+  details (the ones the group shares).
+- **Wording**: the `fee.reminder` template with its new `{fee_details}`
+  token (docs/communication.md): every student, every due label and what is
+  left on it, "Now overdue." first on an overdue one; `{student_name}` names
+  every child, `{amount}` is the total per currency, `{due_date}` the day.
+- **Sending**: `notify_guardian` - the school's channels, providers and
+  message log; rows are recorded and `send_message` jobs queued, so the
+  command never waits on a provider. Communication module off: the school is
+  skipped, nothing recorded anywhere (the switched-off rule). A guardian
+  with no number is a `skipped` message, as for any alert, and still counts
+  as reminded.
+- **Never twice**: a `fee_reminder_logs` row (school, guardian_key, kind,
+  reminder_date = the school's today, student_ids as "1,2", dues_count) is
+  written in the same transaction as the messages, under a unique key on
+  the first four - a second run that day finds the row and sends nothing;
+  two overlapping runs collide on the key and one backs off.
+- **Audit**: `fee_reminders.sent` once per school per run that reminded
+  anybody, no user, `{date, upcoming, upcoming_due_date, overdue,
+  overdue_due_date, students, dues, messages}`.
+
+**The hand-sent fee reminder** (Communication Center): to one student, with
+Fee Management on, a missing `amount` becomes everything the student still
+owes in the school's currency and a missing `due_date` the earliest date
+among those dues. A value typed is kept. A student owing nothing, a group
+audience, or a school without fees: both fields are required, as before.
+
+**Reports** - `reports/fee-collection`, `reports/fee-outstanding`,
+`reports/fee-concessions`; the rows, totals and rules are in
+docs/reports.md "Fee reports". Read by the roles the matrix lets read fees
+(plus "reports"), the Super Admin for a named school, a Group Admin over the
+branches with fees on; fees off -> 403 `MODULE_DISABLED`.
+
+**Student statement PDF** - `GET fees/students/{id}/statement.pdf?academic_year_id=`
+(FeePolicy.view, year resolved exactly as `GET fees/students/{id}`):
+`application/pdf`, attachment `statement-{admission number}-{year token}.pdf`
+(`statement-ADM-1-2026-27.pdf`; anything not a letter or digit in the
+admission number becomes a hyphen). The receipt's look: the blue band with
+logo and contact lines and "FEE STATEMENT / Academic year 2026-27"; the
+student (name, admission no., class - section from that year's enrollment,
+roll no., status when not active, admission date, guardian, mobile, email)
+beside the statement facts (year, its dates, statement date, currency) and
+the account in figures (charged, less discounts, less paid, less waived,
+balance due, of which overdue); every due of the year - fee type, item, due
+date, amount, discount, paid, balance, status ("Paid", "Part paid,
+overdue", "Covered by discount", "Waived" with its reason, "Cancelled" struck
+through with why) - late fines shaded, with a totals line; the discounts in
+force; every receipt dated in the year with mode, reference and who took it,
+cancelled ones struck through; footer with the issue time in the school's
+timezone. Figures in the statement's currency are printed without the code
+(the section titles name it); a line in another currency carries its code.
+
+**Dashboard** - three cards (`fees_collected`, `fees_outstanding`,
+`fees_overdue`) for School Admin, Accountant, Group Admin and a Super Admin
+looking at one school, where fees are on; docs/reports.md "The dashboard".
+
+**Known limits, left on purpose:**
+
+- **"Outstanding as at" a past day counts payments made since**: the ledger
+  keeps balances, not their history. Rebuilding a past balance from receipts
+  is possible but was not asked for.
+- **A guardian group is reached on the first student's details.** Siblings
+  grouped by mobile with different emails get the email copy at the first
+  child's guardian email only.
+- **The hand-sent fill-in** takes the school's current currency only; dues
+  in an older currency are not added in.
 

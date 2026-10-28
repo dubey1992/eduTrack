@@ -388,6 +388,15 @@ class FakeFeeRepository implements FeeRepository {
     return const [37, 80, 68, 70];
   }
 
+  final statementPdfRequests = <int>[];
+
+  @override
+  Future<List<int>> statementPdf(int studentId, {int? academicYearId}) async {
+    _check();
+    statementPdfRequests.add(studentId);
+    return const [37, 80, 68, 70];
+  }
+
   @override
   Future<FeeReceipt> cancelReceipt(int id, {required String reason}) async {
     _check();

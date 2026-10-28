@@ -26,7 +26,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..fees import ledger, plan, receipt_pdf
+from ..fees import ledger, plan, receipt_pdf, statement_pdf
 from ..fees.concessions import ConcessionService, WaiverService
 from ..fees.receipts import FeeReceiptService
 from ..fees.dues import today_for
@@ -226,6 +226,28 @@ def publish_all(request) -> Response:
 def student_fees(request, student_id: int) -> Response:
     """One student's fees statement for a year: every due, cancelled ones
     included (the screen strikes them through), and the totals."""
+    found = statement_for(request, student_id)
+
+    return Response(statement_resource(found))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def student_statement_pdf(request, student_id: int) -> HttpResponse:
+    """The same statement as a PDF to hand the family (F5)."""
+    found = statement_for(request, student_id)
+
+    response = HttpResponse(statement_pdf.render(found), content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{statement_pdf.file_name(found["student"], found["year"])}"'
+    )
+
+    return response
+
+
+def statement_for(request, student_id: int) -> dict:
+    """One student's statement for the year asked for (else the default
+    year), after the access checks both the JSON and the PDF make."""
     authorize(FeePolicy.view_any(request.user))
 
     student = get_object_or_404(Student.objects.select_related("school"), pk=student_id)
@@ -255,9 +277,7 @@ def student_fees(request, student_id: int) -> Response:
 
         raise_if(errors)
 
-    found = ledger.statement(student, year, today_for(student.school_id))
-
-    return Response(statement_resource(found))
+    return ledger.statement(student, year, today_for(student.school_id))
 
 
 @api_view(["GET"])

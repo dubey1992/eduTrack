@@ -248,6 +248,18 @@ class FeeRepository {
     });
   }
 
+  /// One student's fees for a year as a PDF to hand the family (F5).
+  Future<List<int>> statementPdf(int studentId, {int? academicYearId}) {
+    return _call(() async {
+      final response = await _dio.get<List<int>>(
+        '/fees/students/$studentId/statement.pdf',
+        queryParameters: {'academic_year_id': ?academicYearId},
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data ?? const [];
+    });
+  }
+
   /// Cancels a receipt: it keeps its number, and what it paid is owed again.
   Future<FeeReceipt> cancelReceipt(int id, {required String reason}) {
     return _call(() async {

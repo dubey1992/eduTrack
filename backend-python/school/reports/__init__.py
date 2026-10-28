@@ -12,6 +12,7 @@ be taken at all - so a report never contradicts the screen that refused to
 mark a Saturday.
 """
 
+from .fees import FeeCollectionReport, FeeConcessionsReport, FeeOutstandingReport
 from .leave_usage import LeaveUsageReport
 from .performance import ClassPerformanceReport, StudentPerformanceReport
 from .payroll_summary import PayrollSummaryReport
@@ -23,6 +24,9 @@ from .transport_usage import TransportUsageReport
 
 __all__ = [
     "ClassPerformanceReport",
+    "FeeCollectionReport",
+    "FeeConcessionsReport",
+    "FeeOutstandingReport",
     "LeaveUsageReport",
     "PayrollSummaryReport",
     "StaffAttendanceReport",

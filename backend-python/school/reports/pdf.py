@@ -95,7 +95,9 @@ def document(report, built: dict, *, school_label: str, generated_at: str, filte
     if not rows:
         body = f'<tr><td colspan="{len(headings)}" class="muted">Nothing to report for this period.</td></tr>'
 
-    days = "" if working_days is None else f"{text(working_days)} working days"
+    # The fee reports count money, not days the school ran.
+    shows_days = getattr(report, "SHOWS_WORKING_DAYS", True)
+    days = "" if working_days is None or not shows_days else f"{text(working_days)} working days"
 
     return f"""<!DOCTYPE html>
 <html>
@@ -116,7 +118,7 @@ def document(report, built: dict, *, school_label: str, generated_at: str, filte
     {sheet_facts(built, rows, filters, generated_at)}
 
     <h1>Summary</h1>
-    {totals_table(built)}
+    {totals_table(built, report)}
 
     <h1>Detail</h1>
     <table class="grid"><thead><tr>{head_cells}</tr></thead><tbody>{body}</tbody></table>
@@ -171,10 +173,19 @@ def sheet_facts(built: dict, rows: list, filters: list | None, generated_at: str
     return f'<table class="strip">{cells}</table>'
 
 
-def totals_table(built: dict) -> str:
+def totals_table(built: dict, report=None) -> str:
     totals = built["totals"]
     previous = built.get("comparison", {}).get("totals")
     lines = []
+
+    # A report whose totals are lists - money per currency - says how to
+    # print them (the fee reports): (label, value, previous or None) each.
+    if report is not None and hasattr(report, "pdf_totals"):
+        for label, value, before in report.pdf_totals(totals, previous):
+            was = "" if previous is None or before is None else f'<td class="muted">previous: {e(before)}</td>'
+            lines.append(f'<tr><td class="key">{e(label)}</td><td><b>{text(value)}</b></td>{was}</tr>')
+
+        totals = {}
 
     for key, value in totals.items():
         if key == "by_currency":

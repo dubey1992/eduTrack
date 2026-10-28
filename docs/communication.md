@@ -188,7 +188,7 @@ one `notice.sent` entry in the audit trail saying who sent what to whom.
 |---|---|---|
 | message | `general.message` | subject, body |
 | emergency | `emergency.alert` | body; goes to everyone by default and on every channel that is on |
-| fee_reminder | `fee.reminder` | amount and due date; rendered in the school's currency and date format. There is still no fee module - this is a reminder, not a ledger |
+| fee_reminder | `fee.reminder` | amount and due date; rendered in the school's currency and date format. To one student with Fee Management on, either may be left out and is filled from what the student owes: everything still owed in the school's currency, and the earliest date among it (docs/fees.md, F5) |
 
 Audiences: one student, one staff member, a class section, a department,
 all parents, all students, all teachers, all staff, everyone. For an
@@ -219,6 +219,27 @@ environment is what a fresh deployment sends through before anybody has
 opened the Email Settings screen. `POST settings/mail/test` sends one email
 through the saved settings and keeps the outcome on the row, so the screen
 shows the last result beside the settings.
+
+### Automatic fee reminders (docs/fees.md, F5)
+
+The hourly `send_fee_reminders` job reminds guardians of fees
+`reminder_days_before` days before they fall due and once on the first day
+they are overdue - one message per guardian per kind per school-local day,
+however many children and dues. It goes through `notify_guardian` like any
+alert: the school's `fee.reminder` wording, its channels and providers, the
+log, and the queue. The fee category has no on/off switch of its own (the
+fees module's settings decide); with the Communication module off nothing is
+sent and nothing is logged.
+
+The `fee.reminder` template gained one token, **`{fee_details}`**, filled
+only by the automatic reminders: each student, each due and what is left on
+it - "Aarav Shah: Tuition - October INR 1,000.00, Transport - Bus 2 INR
+600.00." - prefixed "Now overdue." on an overdue reminder. In those
+messages `{student_name}` names every child ("Aarav Shah and Diya Shah"),
+`{amount}` is the total (per currency, joined with " + ") and `{due_date}`
+the day the dues fall (or fell) due. A hand-sent reminder leaves it blank,
+and the blank closes up. A school that reworded the template before the
+token existed still sends its own wording, without the list.
 
 ## Adding a provider
 

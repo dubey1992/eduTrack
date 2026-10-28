@@ -153,8 +153,8 @@ MODULES: tuple[Module, ...] = (
         "Fee types, class and bus route fees, what each student owes, and receipts for what they pay.",
         # Off until the Super Admin grants it (docs/fees.md). On by default,
         # every school on the platform would find an empty Fees menu the
-        # morning it shipped, with nothing set up behind it. Reminders arrive
-        # with the slice that reads them (F5), because a setting nothing
+        # morning it shipped, with nothing set up behind it. Each setting
+        # arrived with the slice that reads it, because a setting nothing
         # reads is a lie.
         granted_by_default=False,
         settings=(
@@ -169,6 +169,14 @@ MODULES: tuple[Module, ...] = (
                 help="Added once to an installment unpaid this many days after it is due. 0 means no fines.",
             ),
             Setting("late_fine_grace_days", "Days of grace before the fine", "int", 7, min=0, max=90),
+            # Read by fees/reminders.py, the hourly send_fee_reminders job (F5).
+            Setting(
+                "reminder_days_before", "Remind guardians this many days before a due date", "int", 3,
+                min=0, max=30, help="0 turns these reminders off.",
+            ),
+            Setting(
+                "remind_when_overdue", "Remind guardians once when an installment becomes overdue", "bool", True,
+            ),
         ),
     ),
     Module("reports", "Reports", "Attendance, leave, teaching, transport and payroll reports."),

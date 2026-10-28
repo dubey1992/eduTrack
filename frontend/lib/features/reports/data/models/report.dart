@@ -41,7 +41,23 @@ enum ReportKind {
     'class-performance',
     'Class performance',
     'How each subject went in each class, its best and worst, and who is under the mark.',
+  ),
+
+  // Fee Management (docs/fees.md, F5) - only where the school uses it.
+  feeCollection('fee-collection', 'Fee collection', 'Every fee payment received in the period, by receipt.'),
+  feeOutstanding(
+    'fee-outstanding',
+    'Outstanding fees',
+    'What each student still owes as at the end of the period, and how long it has been overdue.',
+  ),
+  feeConcessions(
+    'fee-concessions',
+    'Discounts & waivers',
+    'Discounts given and installments waived in the period, and why.',
   );
+
+  /// The fee reports, which only a school with Fee Management sees.
+  bool get isFees => this == feeCollection || this == feeOutstanding || this == feeConcessions;
 
   const ReportKind(this.apiPath, this.label, this.description);
 
@@ -292,6 +308,44 @@ const Map<ReportKind, List<ReportColumn>> reportColumns = {
     ReportColumn('class_average_percentage', 'Class average', numeric: true, isRate: true, warnBelow: null),
     ReportColumn('weak_subjects', 'Weak subjects', numeric: true),
     ReportColumn('attendance_rate', 'Attendance', numeric: true, isRate: true),
+  ],
+  ReportKind.feeCollection: [
+    ReportColumn('receipt_date', 'Date', isDate: true),
+    ReportColumn('receipt_number', 'Receipt'),
+    ReportColumn('admission_number', 'Admission No.'),
+    ReportColumn('student', 'Student'),
+    ReportColumn('class_section', 'Class'),
+    ReportColumn('payment_mode', 'Paid by'),
+    ReportColumn('reference', 'Reference'),
+    ReportColumn('received_by', 'Received by'),
+    ReportColumn('amount', 'Amount', numeric: true, isMoney: true),
+  ],
+  ReportKind.feeOutstanding: [
+    ReportColumn('admission_number', 'Admission No.'),
+    ReportColumn('student', 'Student'),
+    ReportColumn('class_section', 'Class'),
+    ReportColumn('guardian', 'Guardian'),
+    ReportColumn('guardian_mobile', 'Guardian mobile'),
+    ReportColumn('charged', 'Charged', numeric: true, isMoney: true),
+    ReportColumn('paid', 'Paid', numeric: true, isMoney: true),
+    ReportColumn('balance', 'Balance', numeric: true, isMoney: true),
+    ReportColumn('overdue_0_30', 'Overdue 1-30 days', numeric: true, isMoney: true),
+    ReportColumn('overdue_31_60', 'Overdue 31-60 days', numeric: true, isMoney: true),
+    ReportColumn('overdue_61_plus', 'Overdue 61+ days', numeric: true, isMoney: true),
+    ReportColumn('oldest_due_date', 'Oldest due', isDate: true),
+  ],
+  ReportKind.feeConcessions: [
+    ReportColumn('date', 'Date', isDate: true),
+    ReportColumn('type', 'Type'),
+    ReportColumn('admission_number', 'Admission No.'),
+    ReportColumn('student', 'Student'),
+    ReportColumn('class_section', 'Class'),
+    ReportColumn('fee_type', 'Fee type'),
+    ReportColumn('detail', 'Detail'),
+    ReportColumn('amount', 'Amount', numeric: true, isMoney: true),
+    ReportColumn('reason', 'Reason'),
+    ReportColumn('by', 'By'),
+    ReportColumn('status', 'Status'),
   ],
   ReportKind.classPerformance: [
     ReportColumn('class_section', 'Class'),

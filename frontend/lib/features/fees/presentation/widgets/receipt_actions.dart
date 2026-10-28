@@ -27,6 +27,24 @@ Future<void> downloadReceipt(BuildContext context, WidgetRef ref, {required int 
   }
 }
 
+/// The student's statement for a year, as a PDF.
+Future<void> downloadStatement(
+  BuildContext context,
+  WidgetRef ref, {
+  required int studentId,
+  required int academicYearId,
+  required String fileName,
+}) async {
+  final messenger = ScaffoldMessenger.of(context);
+
+  try {
+    final bytes = await ref.read(feeReceiptActionsProvider).statementPdf(studentId, academicYearId: academicYearId);
+    saveBytes(fileName: fileName, bytes: bytes, mimeType: 'application/pdf');
+  } catch (error) {
+    _say(messenger, _problem(error, 'The statement could not be downloaded. Try again.'));
+  }
+}
+
 Future<void> emailReceipt(BuildContext context, WidgetRef ref, {required int id}) async {
   final messenger = ScaffoldMessenger.of(context);
 

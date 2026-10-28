@@ -227,6 +227,7 @@ urlpatterns = [
     path("api/v1/fees/installment-plan", fees.installment_plan),
     # Step F2 "Dues": what each student owes.
     path("api/v1/fees/students/<int:student_id>", fees.student_fees),
+    path("api/v1/fees/students/<int:student_id>/statement.pdf", fees.student_statement_pdf),
     path("api/v1/fees/balances", fees.balances),
     # Step F3 "Collection & receipts".
     path("api/v1/fees/receipts", fees.receipts),
@@ -252,6 +253,10 @@ urlpatterns = [
     # The two performance reports (docs/assessments.md, slice 13).
     path("api/v1/reports/student-performance", reports.student_performance),
     path("api/v1/reports/class-performance", reports.class_performance),
+    # Fee Management, F5 (docs/fees.md).
+    path("api/v1/reports/fee-collection", reports.fee_collection),
+    path("api/v1/reports/fee-outstanding", reports.fee_outstanding),
+    path("api/v1/reports/fee-concessions", reports.fee_concessions),
     # -- communication -----------------------------------------------------
     path("api/v1/communication/messages", communication.messages),
     path("api/v1/communication/summary", communication.summary),

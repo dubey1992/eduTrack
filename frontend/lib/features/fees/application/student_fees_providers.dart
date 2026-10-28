@@ -112,6 +112,9 @@ class FeeReceiptActions {
   Future<void> email(int receiptId) => _repository.emailReceipt(receiptId);
 
   Future<List<int>> pdf(int receiptId) => _repository.receiptPdf(receiptId);
+
+  Future<List<int>> statementPdf(int studentId, {int? academicYearId}) =>
+      _repository.statementPdf(studentId, academicYearId: academicYearId);
 }
 
 /// One page of the Discounts list.

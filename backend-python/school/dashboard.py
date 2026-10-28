@@ -12,12 +12,15 @@ from __future__ import annotations
 import datetime as dt
 from decimal import Decimal
 
-from django.db.models import Count, Exists, OuterRef, Sum
+from django.db.models import Count, Exists, F, OuterRef, Sum
 
+from . import modules, money, permissions
 from .clock import SchoolClock
+from .fees import ledger as fee_ledger
 from .reports.performance import term_summary
 from .enums import (
     AttendanceStatus,
+    FeeReceiptStatus,
     LeaveStatus,
     MessageChannel,
     MessageStatus,
@@ -36,6 +39,7 @@ from .models import (
     ClassSection,
     DailyTeachingReport,
     Department,
+    FeeReceipt,
     Message,
     Payment,
     PayrollRun,
@@ -44,6 +48,7 @@ from .models import (
     StaffLeave,
     StaffProfile,
     Student,
+    StudentFeeDue,
     TimetableEntry,
     TransportRoute,
     TransportTrip,
@@ -81,6 +86,12 @@ class DashboardService:
             payload = cls._accountant(actor, today)
         else:
             payload = cls._staff(actor)
+
+        # Fee Management (docs/fees.md, F5): three more cards for whoever
+        # keeps the school's books, where the school uses it.
+        fee_schools = cls._fee_school_ids(actor, school_id)
+        if fee_schools:
+            payload = {**payload, "cards": [*payload["cards"], *fee_cards(fee_schools, today)]}
 
         holiday = None if school_id is None else HolidayService.holiday_on(school_id, today)
 
@@ -324,6 +335,27 @@ class DashboardService:
         }
 
     @staticmethod
+    def _fee_school_ids(actor: User, school_id: int | None) -> list[int]:
+        """The schools whose fee cards this dashboard shows: the one in view
+        for a School Admin, an Accountant or a Super Admin looking at a
+        school; every branch for a Group Admin looking at the whole group -
+        each only with the fees module on, and only for a role the matrix
+        lets read fees. Nobody else's dashboard changes."""
+        if actor.role not in FEE_CARD_ROLES or not permissions.may_view(actor, "fees"):
+            return []
+
+        if school_id is not None:
+            candidates = [school_id]
+        elif actor.role in (UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN):
+            candidates = group_school_ids(actor.school_id) or []
+        else:
+            # A Super Admin across the platform: there is no one school's
+            # money to show.
+            return []
+
+        return [candidate for candidate in candidates if modules.is_enabled(candidate, "fees")]
+
+    @staticmethod
     def _school_id_for(actor: User, school_filter) -> int | None:
         """`(int) $filters['school_id']` when one was sent - an empty value
         was already nothing by the time Laravel's controller saw it."""
@@ -333,6 +365,78 @@ class DashboardService:
 
 
 # -- shared pieces ------------------------------------------------------------
+
+FEE_CARD_ROLES = (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
+
+
+def fee_cards(school_ids: list[int], today: dt.date) -> list[dict]:
+    """Collected this month, outstanding and students overdue, over the
+    given schools (docs/fees.md, F5). Money is per currency, never added
+    across two (CLAUDE.md rule 5). Four aggregate queries, whatever the size
+    of the school.
+
+    - **Collected** - valid receipts dated from the 1st of this month to
+      today, the school's month.
+    - **Outstanding** - what is still owed on dues that have fallen due (on
+      or before today), as the Outstanding fees report has it.
+    - **Overdue** - students owing on a due whose date has passed.
+    """
+    month_start = today.replace(day=1)
+    collected_rows = list(
+        FeeReceipt.objects.filter(
+            school_id__in=school_ids, status=FeeReceiptStatus.VALID,
+            receipt_date__gte=month_start, receipt_date__lte=today,
+        )
+        .order_by()
+        .values("currency_code")
+        .annotate(total=Sum("amount"), receipts=Count("id"))
+        .order_by("currency_code")
+    )
+    owed = fee_ledger.owed(StudentFeeDue.objects.filter(school_id__in=school_ids, due_date__lte=today))
+    outstanding_rows = list(
+        owed.order_by()
+        .values("currency_code")
+        .annotate(total=Sum(F("amount") - F("discount_amount") - F("paid_amount")))
+        .order_by("currency_code")
+    )
+    owing = owed.values("student_id").distinct().count()
+    overdue = owed.filter(due_date__lt=today).values("student_id").distinct().count()
+
+    def amounts(rows) -> str:
+        shown = [money.formatted(row["total"], row["currency_code"]) for row in rows if row["total"]]
+
+        if shown:
+            return " + ".join(shown)
+
+        # Nothing yet: a zero in the school's own currency, not a dash that
+        # would read as "not worked out".
+        codes = sorted(set(School.objects.filter(id__in=school_ids).values_list("currency_code", flat=True)))
+        return " + ".join(money.formatted(Decimal("0.00"), code) for code in codes) or "-"
+
+    receipts = sum(row["receipts"] for row in collected_rows)
+
+    return [
+        card(
+            "fees_collected", "Fees collected this month", amounts(collected_rows),
+            f"{plural(receipts, 'receipt')} in {period_label(today.year, today.month)}",
+        ),
+        card(
+            # "Due and unpaid": only what has fallen due counts, so the name
+            # says so - next term's fees are charged, not yet owed, and a
+            # card reading "outstanding 0" beside a list of balances read as
+            # a mistake.
+            "fees_outstanding", "Fees due and unpaid", amounts(outstanding_rows),
+            f"{plural(owing, 'student')} owing on fees already due", "warning" if owing else "ok",
+        ),
+        card(
+            "fees_overdue", "Students overdue", str(overdue), "past a due date", "warning" if overdue else "ok",
+        ),
+    ]
+
+
+
+def plural(count: int, word: str) -> str:
+    return f"{count} {word}" if count == 1 else f"{count} {word}s"
 
 
 def attendance_rate(marks, date: dt.date) -> float | None:

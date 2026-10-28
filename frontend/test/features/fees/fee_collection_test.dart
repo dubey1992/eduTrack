@@ -218,6 +218,15 @@ void main() {
     });
   });
 
+  testWidgets('the statement can be downloaded as a PDF by anyone who can read it', (tester) async {
+    final fees = await openStatement(tester, role: UserRole.superAdmin);
+
+    await tester.tap(find.text('Statement PDF'));
+    await tester.pumpAndSettle();
+
+    expect(fees.statementPdfRequests, [7]);
+  });
+
   group('the Receipts list', () {
     testWidgets('shows every receipt, and filters reach the server', (tester) async {
       useDesktop(tester);

@@ -353,9 +353,10 @@ class TheModuleSwitch(FeesTestCase):
             {role: permissions.DEFAULTS[role]["fees"] for role in permissions.DEFAULTS},
         )
         # Settings arrive with the slices that read them: part payments with
-        # F3, late fines with F4.
+        # F3, late fines with F4, reminders with F5.
         self.assertEqual(
-            {"allow_part_payment": True, "late_fine_amount": 0, "late_fine_grace_days": 7},
+            {"allow_part_payment": True, "late_fine_amount": 0, "late_fine_grace_days": 7,
+             "reminder_days_before": 3, "remind_when_overdue": True},
             modules.get("fees").defaults(),
         )
 

@@ -298,6 +298,7 @@ Four jobs. None of them is optional.
 30 2 * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py purge_trip_locations >> var/purge.log 2>&1
 0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py close_open_trips >> var/trips.log 2>&1
 0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py apply_late_fines >> var/fines.log 2>&1
+5 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py send_fee_reminders >> var/fee-reminders.log 2>&1
 ```
 
 The first drains the job queue — SMS, WhatsApp, announcement fan-out, emailed
@@ -323,6 +324,15 @@ school's grace period (docs/fees.md, F4). Hourly for the same reason as the
 third: an installment becomes overdue at midnight in the school's own zone.
 It fines only schools with Fee Management on and a late fine above 0, once
 per installment ever, so running it more often than needed changes nothing.
+
+The fifth reminds guardians of fees (docs/fees.md, F5): `reminder_days_before`
+days before a due date, and once on the first day a due is overdue. Hourly
+for the same reason again; five minutes past the hour only so it does not
+start alongside the fines job. It only records the messages and queues them - the first line's worker sends
+them - and it reminds each guardian at most once per kind per school-local
+day (`fee_reminder_logs`), so the other 23 runs of the day send nothing.
+Schools with Fee Management or Communication switched off are skipped.
+`--dry-run` says who would be reminded without sending anything.
 
 Use the **absolute path to the app's python**, and check the version
 directory - cPanel offered 3.12 where this page once said 3.11, and a

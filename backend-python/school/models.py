@@ -562,6 +562,29 @@ class FeeReceiptSequence(models.Model):
         unique_together = (('school', 'academic_year'),)
 
 
+class FeeReminderLog(models.Model):
+    """One automatic fee reminder sent to one guardian (docs/fees.md, F5): of
+    one kind (`upcoming` | `overdue`) on one school-local day. The unique key
+    is what makes the hourly job send each guardian one reminder per kind per
+    day. `guardian_key` groups siblings - `m:<digits of the mobile>`, else
+    `e:<email>`, else `s:<student id>`; `student_ids` is a comma-separated
+    record of whom the message named."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    guardian_key = models.CharField(max_length=120)
+    kind = models.CharField(max_length=20)
+    reminder_date = models.DateField()
+    student_ids = models.TextField(blank=True, null=True)
+    dues_count = models.PositiveIntegerField(default=0)
+    created_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'fee_reminder_logs'
+        unique_together = (('school', 'guardian_key', 'kind', 'reminder_date'),)
+
+
 class GradeScale(models.Model):
     """A school's way of turning a percentage into a grade (docs/assessments.md).
 

@@ -155,7 +155,10 @@ def fact(key: str, value) -> str:
     return f'<tr><td class="key">{e(key)}</td><td class="value">{e(value)}</td></tr>'
 
 
-def header(school, receipt_number: str) -> str:
+def header(school, receipt_number: str, title: str = "FEE RECEIPT") -> str:
+    """The blue band: logo, school and its contact lines, and on the right
+    the document's title and number - shared by the receipt and the
+    statement (statement_pdf.py)."""
     logo = logo_data_uri(school.logo_url)
     logo_cell = f'<td class="logo"><img src="{logo}" width="60" height="60"></td>' if logo else ""
 
@@ -171,7 +174,7 @@ def header(school, receipt_number: str) -> str:
     <table class="band"><tr>
         {logo_cell}
         <td class="school"><div class="school-name">{e(school.name)}</div>{contact}</td>
-        <td class="title"><div class="doc-title">FEE RECEIPT</div>
+        <td class="title"><div class="doc-title">{e(title)}</div>
             <div class="doc-number">{e(receipt_number)}</div></td>
     </tr></table>"""
 

@@ -41,6 +41,17 @@ than by the client asking for whatever it likes.
 | Transport Manager | Active routes, trips running, trips completed |
 | Staff | Leave requests pending, unread messages |
 
+**Fee cards** (docs/fees.md, F5). A School Admin, an Accountant, a Group
+Admin (every branch with fees on, or the one they name) and a Super Admin
+looking at one school also get three cards - only where the school has Fee
+Management on, and only for a role the matrix lets read fees:
+`fees_collected` ("Fees collected this month": valid receipts from the 1st
+to today, the school's month), `fees_outstanding` (what is still owed on
+dues that have fallen due) and `fees_overdue` (students owing on a due whose
+date has passed). Money is "INR 12,000.00", per currency joined with " + ",
+never added across currencies; nothing yet reads "INR 0.00". Four aggregate
+queries, whatever the size of the school.
+
 Two states are easy to misread and are handled explicitly:
 
 - **No register yet today** is `null`, shown as a dash — not 0%.
@@ -170,6 +181,46 @@ or PDF the earlier figures are extra columns headed "(previous period)".
 branches"), the period and working days, the totals (and the previous period
 beside them when compared), then the same rows as the CSV. Rendered with
 xhtml2pdf like receipts and payslips (`school/reports/pdf.py`).
+
+## Fee reports (Fee Management, F5)
+
+Python only, in `school/reports/fees.py`, behind the fees module switch:
+`/reports/fee-collection`, `/reports/fee-outstanding`,
+`/reports/fee-concessions`, with the usual `from`, `to`, `school_id`,
+`compare` and `format=csv|pdf`.
+
+**Who**: whoever the matrix lets read fees (out of the box the School Admin
+and the Accountant; a school can widen it) and also has "reports"; Group
+Admins over their branches; the Super Admin for a school they name. A school
+with Fee Management off is `403 MODULE_DISABLED`; a group report covers only
+the branches that have it on, and is `403 MODULE_DISABLED` when none does.
+
+**Money**, as payroll's report: every row carries `currency_code` and its
+money as two-decimal strings; every money total is a list with one entry per
+currency, never one figure across two. Dates are `YYYY-MM-DD` in JSON and
+US order in the CSV and PDF. No working days are involved, so the PDF does
+not print them. `compare=1` adds the previous period's totals; rows carry no
+`previous` (a receipt or a discount does not exist in two periods).
+
+| Report | Rows (in column order) | Totals |
+|---|---|---|
+| Fee collection | valid receipts dated in the range, oldest first: `receipt_date`, `receipt_number`, `admission_number`, `student`, `class_section`, `payment_mode` (label), `reference`, `received_by`, `amount`, `currency_code` (+ `receipt_id`, `student_id`) | `receipts`, `collected` [{currency_code, amount}], `cancelled_receipts`, `cancelled_amount` [...], `by_mode` [{payment_mode, label, currency_code, receipts, amount}] |
+| Outstanding fees | per student and currency, as at `to` (default today), largest balance first: `admission_number`, `student`, `class_section`, `guardian`, `guardian_mobile`, `charged`, `paid`, `balance`, `overdue_0_30`, `overdue_31_60`, `overdue_61_plus`, `oldest_due_date`, `currency_code` (+ `student_id`) | `students`, `by_currency` [{currency_code, students, balance, overdue_0_30, overdue_31_60, overdue_61_plus}]; `range.as_of` |
+| Discounts & waivers | discounts created and dues waived in the range (school-local days): `date`, `type` (Discount / Waiver), `admission_number`, `student`, `class_section`, `fee_type`, `detail`, `amount`, `reason`, `by`, `status` (Active / Ended / Waived), `currency_code` (+ `id`, `student_id`) | `discounts`, `discounts_active`, `waivers`, `discounted` [...], `waived` [...] |
+
+- **Outstanding** looks at dues that fell due on or before `to` and are
+  still owed now (pending or part-paid, not covered by a discount): a
+  payment made after `to` counts, because the ledger keeps balances, not
+  their history. `charged` is net of discounts over the student's dues due
+  by `to` (waived and cancelled ones left out), so `charged - paid =
+  balance`. Aging is days past the due date as at `to`: `overdue_0_30` is 1
+  to 30 days (a due falling due on `to` is in the balance but no bucket),
+  `overdue_31_60` 31 to 60, `overdue_61_plus` 61 and more. Students who have
+  left still appear while they owe.
+- **A discount's amount** is what it takes off that student's installment
+  dues that year as they stand now - on each due its own share, never more
+  than the discount the due carries. An ended discount's amount is `null`
+  (it takes nothing off any more). A waiver's amount is what was forgiven.
 
 ## Adding a report
 

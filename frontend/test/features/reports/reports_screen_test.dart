@@ -1,4 +1,5 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/models/module_access.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
@@ -127,6 +128,135 @@ void main() {
     expect(find.widgetWithText(ChoiceChip, 'Payroll summary'), findsOneWidget);
     expect(find.widgetWithText(ChoiceChip, 'Student attendance'), findsNothing);
     expect(find.widgetWithText(ChoiceChip, 'Leave usage'), findsNothing);
+  });
+
+  group('the fee reports (docs/fees.md, F5)', () {
+    testWidgets('are offered where the school uses Fee Management', (tester) async {
+      useDesktop(tester);
+      const admin = AuthenticatedUser(
+        id: 2,
+        name: 'Anita Sharma',
+        email: 'anita@example.com',
+        role: UserRole.schoolAdmin,
+        access: ModuleAccess(modules: {AppModules.fees: true}),
+      );
+      await tester.pumpWidget(wrap(FakeReportRepository(), actor: admin));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ChoiceChip, 'Fee collection'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Outstanding fees'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Discounts & waivers'), findsOneWidget);
+    });
+
+    testWidgets('are not offered where it is switched off - each would only say so', (tester) async {
+      useDesktop(tester);
+      const admin = AuthenticatedUser(
+        id: 2,
+        name: 'Anita Sharma',
+        email: 'anita@example.com',
+        role: UserRole.schoolAdmin,
+        access: ModuleAccess(modules: {AppModules.fees: false}),
+      );
+      await tester.pumpWidget(wrap(FakeReportRepository(), actor: admin));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ChoiceChip, 'Fee collection'), findsNothing);
+      expect(find.widgetWithText(ChoiceChip, 'Student attendance'), findsOneWidget);
+    });
+
+    testWidgets('fee collection shows its money per currency and per mode, never as raw data', (tester) async {
+      useDesktop(tester);
+      const accountant = AuthenticatedUser(id: 7, name: 'Meena', email: 'm@example.com', role: UserRole.accountant);
+      final collection = ReportResult.fromJson({
+        'range': {'from': '2026-10-01', 'to': '2026-10-31', 'working_days': null},
+        'rows': [
+          {
+            'receipt_date': '2026-10-28',
+            'receipt_number': 'RCPT-2026-27-00001',
+            'admission_number': 'FEE-DEMO-2',
+            'student': 'Kabir Shah',
+            'class_section': 'Class 8 - A',
+            'payment_mode': 'Cash',
+            'reference': null,
+            'received_by': 'Map Demo Admin',
+            'amount': '3000.00',
+            'currency_code': 'INR',
+          },
+        ],
+        'totals': {
+          'receipts': 1,
+          'collected': [
+            {'currency_code': 'INR', 'amount': '3000.00'},
+          ],
+          'cancelled_receipts': 0,
+          'cancelled_amount': <Object>[],
+          'by_mode': [
+            {'payment_mode': 'cash', 'label': 'Cash', 'currency_code': 'INR', 'receipts': 1, 'amount': '3000.00'},
+          ],
+        },
+      });
+      await tester.pumpWidget(
+        wrap(FakeReportRepository(resultsByKind: {ReportKind.feeCollection: collection}), actor: accountant),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Fee collection'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Collected (INR)'), findsOneWidget);
+      expect(find.text('Cash (1)'), findsOneWidget);
+      expect(find.text('RCPT-2026-27-00001'), findsOneWidget);
+      // Nothing printed as a map.
+      expect(find.textContaining('{'), findsNothing);
+      // And no payroll figure on a fee report.
+      expect(find.textContaining('Net pay'), findsNothing);
+    });
+
+    testWidgets('a group fee report breaks money down per branch, readably, with no working days', (tester) async {
+      useDesktop(tester);
+      final money = [
+        {'currency_code': 'INR', 'amount': '3000.00'},
+      ];
+      final group = ReportResult.fromJson({
+        'range': {'from': '2026-10-01', 'to': '2026-10-31'},
+        'rows': <Object>[],
+        'totals': {'receipts': 1, 'collected': money, 'branches': 1},
+        'branches': [
+          {
+            'school_id': 420,
+            'school_name': 'Map Demo Head Office',
+            'range': {'from': '2026-10-01', 'to': '2026-10-31', 'working_days': 24},
+            'totals': {
+              'receipts': 1,
+              'collected': money,
+              'cancelled_amount': <Object>[],
+              'by_mode': [
+                {'payment_mode': 'cash', 'label': 'Cash', 'currency_code': 'INR', 'receipts': 1, 'amount': '3000.00'},
+              ],
+            },
+          },
+        ],
+      });
+      await tester.pumpWidget(wrap(FakeReportRepository(resultsByKind: {ReportKind.feeCollection: group})));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Fee collection'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('By branch'), findsOneWidget);
+      expect(find.text('Map Demo Head Office'), findsOneWidget);
+      expect(find.textContaining('3,000.00'), findsWidgets);
+      expect(find.textContaining('{'), findsNothing);
+      expect(find.text('Working days'), findsNothing);
+    });
+
+    testWidgets('are offered to an accountant, who takes the money', (tester) async {
+      useDesktop(tester);
+      const accountant = AuthenticatedUser(id: 7, name: 'Meena', email: 'm@example.com', role: UserRole.accountant);
+      await tester.pumpWidget(wrap(FakeReportRepository(), actor: accountant));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ChoiceChip, 'Fee collection'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Outstanding fees'), findsOneWidget);
+    });
   });
 
   testWidgets('offers an admin every report', (tester) async {

@@ -350,9 +350,12 @@ DEFAULT_BODIES = {
     MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
     MessageEvent.GENERAL_MESSAGE: "{school_name}: {subject} - {body}",
     MessageEvent.EMERGENCY_ALERT: "EMERGENCY - {school_name}: {body}",
+    # {fee_details} is filled only by the automatic reminders (docs/fees.md,
+    # F5) - each student, each due and what is left on it; a reminder written
+    # by hand leaves it blank, and the blank closes up.
     MessageEvent.FEE_REMINDER: (
         "Dear {guardian_name}, a fee of {amount} for {student_name} is due on {due_date}. "
-        "Please pay at the school office. - {school_name}"
+        "{fee_details} Please pay at the school office. - {school_name}"
     ),
 }
 
@@ -374,7 +377,7 @@ TOKENS = {
     MessageCategory.ANNOUNCEMENT: ["title", "body", "school_name", "audience"],
     MessageCategory.GENERAL: ["recipient_name", "subject", "body", "school_name"],
     MessageCategory.EMERGENCY: ["subject", "body", "school_name"],
-    MessageCategory.FEE: ["student_name", "guardian_name", "amount", "due_date", "school_name"],
+    MessageCategory.FEE: ["student_name", "guardian_name", "amount", "due_date", "fee_details", "school_name"],
     MessageCategory.TEACHING: [
         "staff_name", "reviewer_name", "subject_name", "class_name", "period", "date", "note", "school_name",
     ],

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/models/module_access.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/models/user_role.dart';
@@ -73,7 +75,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ReportKind.classPerformance,
       ],
       UserRole.transportManager => [ReportKind.transportUsage],
-      UserRole.accountant => [ReportKind.staffAttendance, ReportKind.payrollSummary],
+      UserRole.accountant => [
+        ReportKind.staffAttendance,
+        ReportKind.payrollSummary,
+        ReportKind.feeCollection,
+        ReportKind.feeOutstanding,
+        ReportKind.feeConcessions,
+      ],
       _ => const [],
     };
   }
@@ -150,8 +158,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final role = ref.watch(authNotifierProvider).value?.role;
-    final kinds = _kindsFor(role);
+    final actor = ref.watch(authNotifierProvider).value;
+    final role = actor?.role;
+    // The fee reports only where the school uses Fee Management and this
+    // person may see fees - otherwise every one would answer "switched off".
+    final kinds = [
+      for (final kind in _kindsFor(role))
+        if (!kind.isFees || (actor != null && actor.canView(AppModules.fees))) kind,
+    ];
 
     if (kinds.isEmpty) {
       return const Padding(
@@ -300,7 +314,10 @@ class _ReportBody extends StatelessWidget {
                 if (report.range.workingDays != null)
                   _Fact(label: 'Working days', value: '${report.range.workingDays}'),
                 for (final entry in report.totals.entries)
-                  if (entry.value != null && entry.key != 'working_days' && entry.key != 'by_currency')
+                  if (entry.value != null &&
+                      entry.key != 'working_days' &&
+                      entry.key != 'by_currency' &&
+                      !_isMoneyList(entry.value))
                     _Fact(
                       label: _humanise(entry.key),
                       value: _format(entry.value, _isRateKey(entry.key)),
@@ -308,20 +325,61 @@ class _ReportBody extends StatelessWidget {
                           ? null
                           : _format(comparison.totals[entry.key], _isRateKey(entry.key)),
                     ),
-                // Payroll's money, one figure per currency - never added
-                // across them.
-                for (final entry in _currencyTotals(report.totals))
+                // Money totals that come as one entry per currency - the fee
+                // reports' collected, cancelled, discounted and waived
+                // (docs/fees.md, F5). One figure per currency, never added.
+                for (final entry in report.totals.entries)
+                  if (_isMoneyList(entry.value) && entry.key != 'by_mode')
+                    for (final money in (entry.value as List).cast<Map<String, dynamic>>())
+                      _Fact(
+                        label: '${_humanise(entry.key)} (${money['currency_code']})',
+                        value: _money(money['amount'], money['currency_code'] as String),
+                        previous: comparison == null
+                            ? null
+                            : _previousAmount(comparison.totals[entry.key], money['currency_code']),
+                      ),
+                // Fee collection, by how the money came in.
+                for (final mode in _listOfMaps(report.totals['by_mode']))
                   _Fact(
-                    label: 'Net pay (${entry['currency_code']})',
-                    value: _money(entry['net'], entry['currency_code'] as String),
-                    previous: comparison == null ? null : _previousNet(comparison.totals, entry['currency_code']),
+                    label: '${mode['label']} (${mode['receipts']})',
+                    value: _money(mode['amount'], mode['currency_code'] as String),
                   ),
+                if (kind == ReportKind.feeOutstanding)
+                  // What is owed, and how long it has been overdue - per
+                  // currency, like every other money figure here.
+                  for (final entry in _currencyTotals(report.totals)) ...[
+                    _Fact(
+                      label: 'Owed (${entry['currency_code']})',
+                      value: _money(entry['balance'], entry['currency_code'] as String),
+                    ),
+                    _Fact(
+                      label: 'Overdue 1-30 days',
+                      value: _money(entry['overdue_0_30'], entry['currency_code'] as String),
+                    ),
+                    _Fact(
+                      label: 'Overdue 31-60 days',
+                      value: _money(entry['overdue_31_60'], entry['currency_code'] as String),
+                    ),
+                    _Fact(
+                      label: 'Overdue 61+ days',
+                      value: _money(entry['overdue_61_plus'], entry['currency_code'] as String),
+                    ),
+                  ]
+                else
+                  // Payroll's money, one figure per currency - never added
+                  // across them.
+                  for (final entry in _currencyTotals(report.totals))
+                    _Fact(
+                      label: 'Net pay (${entry['currency_code']})',
+                      value: _money(entry['net'], entry['currency_code'] as String),
+                      previous: comparison == null ? null : _previousNet(comparison.totals, entry['currency_code']),
+                    ),
                 if (comparison != null) _Fact(label: 'Previous period', value: rangeLabel(comparison.range)),
               ],
             ),
           ),
         ),
-        if (report.isGroup) ...[const SizedBox(height: 12), _BranchBreakdown(report: report)],
+        if (report.isGroup) ...[const SizedBox(height: 12), _BranchBreakdown(report: report, kind: kind)],
         const SizedBox(height: 12),
         if (report.isEmpty)
           const Card(
@@ -550,6 +608,30 @@ String _format(Object? value, bool isRate) {
   return isRate ? '${(value as num).toStringAsFixed(1)}%' : '$value';
 }
 
+/// A total that is a list of per-currency (or per-mode) entries rather than
+/// one number - drawn one figure at a time, never as raw data.
+bool _isMoneyList(Object? value) => value is List && value.isNotEmpty && value.first is Map;
+
+List<Map<String, dynamic>> _listOfMaps(Object? value) =>
+    value is List ? value.whereType<Map>().map((entry) => entry.cast<String, dynamic>()).toList() : const [];
+
+/// A per-currency total as one line - "INR 3,000.00 + USD 40.00" - or a dash.
+String _moneyListText(Object? value, String amountKey) {
+  final parts = [
+    for (final entry in _listOfMaps(value))
+      if (entry['currency_code'] is String) _money(entry[amountKey], entry['currency_code'] as String),
+  ];
+  return parts.isEmpty ? '-' : parts.join(' + ');
+}
+
+/// The same currency's figure in the previous period, for a per-currency total.
+String? _previousAmount(Object? previous, Object? currencyCode) {
+  for (final entry in _listOfMaps(previous)) {
+    if (entry['currency_code'] == currencyCode) return _money(entry['amount'], currencyCode as String);
+  }
+  return null;
+}
+
 List<Map<String, dynamic>> _currencyTotals(Map<String, dynamic> totals) {
   return (totals['by_currency'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
 }
@@ -569,17 +651,23 @@ String _previousNet(Map<String, dynamic> previousTotals, Object? currencyCode) {
 /// combined totals above are recomputed from raw counts, never averaged - see
 /// App\Support\Reports\GroupReport.
 class _BranchBreakdown extends StatelessWidget {
-  const _BranchBreakdown({required this.report});
+  const _BranchBreakdown({required this.report, required this.kind});
 
   final ReportResult report;
+  final ReportKind kind;
 
   @override
   Widget build(BuildContext context) {
     final keys = report.branches
         .expand((branch) => branch.totals.keys)
-        .where((key) => key != 'branches')
+        // The by-mode split is in the summary above; a column of it per
+        // branch would be a table inside a cell.
+        .where((key) => key != 'branches' && key != 'by_mode')
         .toSet()
         .toList();
+    // Working days are the denominator of attendance rates; a fee report
+    // has no rate, and the column only invited the question why.
+    final showsWorkingDays = !kind.isFees;
 
     return Card(
       child: Padding(
@@ -595,17 +683,22 @@ class _BranchBreakdown extends StatelessWidget {
                 horizontalMargin: 12,
                 columns: [
                   const DataColumn(label: Text('School')),
-                  const DataColumn(label: Text('Working days'), numeric: true),
-                  for (final key in keys) DataColumn(label: Text(_humanise(key)), numeric: true),
+                  if (showsWorkingDays) const DataColumn(label: Text('Working days'), numeric: true),
+                  for (final key in keys)
+                    DataColumn(label: Text(key == 'by_currency' ? 'Owed' : _humanise(key)), numeric: true),
                 ],
                 rows: [
                   for (final branch in report.branches)
                     DataRow(
                       cells: [
                         DataCell(Text(branch.schoolName)),
-                        DataCell(Text('${branch.range.workingDays ?? '-'}')),
+                        if (showsWorkingDays) DataCell(Text('${branch.range.workingDays ?? '-'}')),
                         for (final key in keys)
-                          DataCell(_Cell(value: branch.totals[key], isRate: key.endsWith('rate'))),
+                          DataCell(
+                            _isMoneyList(branch.totals[key]) || branch.totals[key] is List
+                                ? Text(_moneyListText(branch.totals[key], key == 'by_currency' ? 'balance' : 'amount'))
+                                : _Cell(value: branch.totals[key], isRate: key.endsWith('rate')),
+                          ),
                       ],
                     ),
                 ],

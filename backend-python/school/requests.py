@@ -1806,6 +1806,9 @@ class SendNoticeRequest(ScopedSerializer):
 
         kind = attrs.get("kind")
 
+        if kind == NoticeKind.FEE_REMINDER and not self.preview and not errors:
+            self.fill_from_dues(school_id, audience, target, attrs)
+
         if kind is not None and not self.preview:
             errors.update(self.text_problems(kind, attrs))
 
@@ -1815,6 +1818,44 @@ class SendNoticeRequest(ScopedSerializer):
         attrs["school_id"] = school_id
 
         return attrs
+
+    @staticmethod
+    def fill_from_dues(school_id, audience, target, attrs: dict) -> None:
+        """A fee reminder to one student, sent without an amount or a due
+        date, takes them from what the student really owes (docs/fees.md,
+        F5): everything still owed in the school's currency, and the earliest
+        date among it. Only with Fee Management on for the school; a value the
+        sender typed is always kept, and a student who owes nothing leaves
+        both fields as they were - required, as before."""
+        from django.db.models import F, Min, Sum
+
+        from . import modules
+        from .fees.ledger import owed
+        from .models import StudentFeeDue
+
+        if audience != NoticeAudience.STUDENT or target is None or school_id is None:
+            return
+
+        if attrs.get("amount") is not None and attrs.get("due_date") is not None:
+            return
+
+        if not modules.is_enabled(school_id, "fees"):
+            return
+
+        currency = School.objects.filter(pk=school_id).values_list("currency_code", flat=True).first()
+        dues = StudentFeeDue.objects.filter(school_id=school_id, student_id=target, currency_code=currency)
+        found = owed(dues).aggregate(
+            total=Sum(F("amount") - F("discount_amount") - F("paid_amount")), earliest=Min("due_date"),
+        )
+
+        if not found["total"]:
+            return
+
+        if attrs.get("amount") is None:
+            attrs["amount"] = found["total"]
+
+        if attrs.get("due_date") is None:
+            attrs["due_date"] = found["earliest"]
 
     @staticmethod
     def text_problems(kind: str, attrs: dict) -> dict:
