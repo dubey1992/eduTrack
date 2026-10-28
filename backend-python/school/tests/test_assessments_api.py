@@ -59,7 +59,11 @@ class AssessmentTestCase(TestCase):
 
         self.admin = factories.UserFactory(school=self.school, role=UserRole.SCHOOL_ADMIN)
         self.teacher = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
-        self.period = factories.PeriodFactory(school=self.school)
+        # Pinned to period 1: two tests below add periods 7 and 8 to this
+        # school, and the factory's own number comes from a counter shared
+        # by the whole run - so whether it collided with them depended on
+        # which tests had run first.
+        self.period = factories.PeriodFactory(school=self.school, period_number=1)
         # The timetable is what says who teaches what to whom.
         factories.TimetableEntryFactory(
             school=self.school,
