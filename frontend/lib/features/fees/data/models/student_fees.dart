@@ -2,6 +2,8 @@
 /// and the totals the office reads.
 library;
 
+import 'fee_receipt.dart';
+
 enum FeeDueStatus {
   pending('pending', 'Due'),
   partial('partial', 'Part paid'),
@@ -138,6 +140,7 @@ class StudentFeeStatement {
     required this.currencyCode,
     required this.dues,
     required this.totals,
+    this.receipts = const [],
   });
 
   factory StudentFeeStatement.fromJson(Map<String, dynamic> json) {
@@ -150,6 +153,9 @@ class StudentFeeStatement {
       currencyCode: json['currency_code'] as String,
       dues: [for (final row in json['dues'] as List? ?? const []) FeeDue.fromJson(row as Map<String, dynamic>)],
       totals: FeeTotals.fromJson(json['totals'] as Map<String, dynamic>),
+      receipts: [
+        for (final row in json['receipts'] as List? ?? const []) ReceiptSummary.fromJson(row as Map<String, dynamic>),
+      ],
     );
   }
 
@@ -159,6 +165,15 @@ class StudentFeeStatement {
   final String currencyCode;
   final List<FeeDue> dues;
   final FeeTotals totals;
+
+  /// What was paid against this year, newest first (F3).
+  final List<ReceiptSummary> receipts;
+
+  /// The installments a payment can go to, oldest first.
+  List<FeeDue> get payable => [
+    for (final due in dues)
+      if (due.status == FeeDueStatus.pending || due.status == FeeDueStatus.partial) due,
+  ];
 }
 
 /// One line of the Student Fees list.

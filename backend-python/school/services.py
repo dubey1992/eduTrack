@@ -111,6 +111,7 @@ from .errors import (
 )
 from .models import (
     AuditLog,
+    FeeReceipt,
     FeeStructure,
     BusStop,
     AttendantCredential,
@@ -5108,6 +5109,11 @@ class AcademicYearService:
         # class check above does not cover them.
         if FeeStructure.objects.filter(academic_year_id=year.id).exists():
             raise HasDependentRecords("This academic year has fees set up for it. Delete its fees first.")
+
+        # A receipt belongs to the year its date falls in, whatever year the
+        # dues it paid are from - and money taken is never deleted.
+        if FeeReceipt.objects.filter(academic_year_id=year.id).exists():
+            raise HasDependentRecords("This academic year has fee receipts dated in it, so it can't be deleted.")
 
         audit.deleted("academic", year)
         year.delete()

@@ -575,7 +575,9 @@ class EditingAPublishedFee(DuesTestCase):
         self.assertEqual(
             [
                 ("Tuition - April", "2026-04-10", "1000.00", "paid", None),
-                ("Tuition - July", "2026-07-10", "700.00", "partial", None),
+                # Cut to 500, it stays at the 700 paid - and, nothing being
+                # left to pay, is settled (F3).
+                ("Tuition - July", "2026-07-10", "700.00", "paid", None),
                 ("Tuition - Autumn", "2026-10-20", "1500.00", "pending", None),
                 ("Tuition - January", "2027-01-10", "1500.00", "pending", None),
             ],

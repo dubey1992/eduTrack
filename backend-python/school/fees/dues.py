@@ -394,6 +394,9 @@ class FeeDueService:
                 return False
 
             due.amount = amount
+            # Cut to what was already paid (F3): nothing is left to pay.
+            if due.amount - due.discount_amount - due.paid_amount <= 0:
+                due.status = FeeDueStatus.PAID
             due.updated_at = now
 
             return True

@@ -8,16 +8,29 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../application/student_fees_providers.dart';
 import '../../data/models/student_fees.dart';
+import '../../data/models/fee_receipt.dart';
 import '../../data/money_text.dart';
+import 'receipt_actions.dart';
+import 'record_payment_dialog.dart';
 
-/// One student's fees for a year: the totals, and every installment charged
-/// to them in date order (docs/fees.md, F2).
+/// One student's fees for a year: the totals, every installment charged to
+/// them in date order (docs/fees.md, F2), and the payments made (F3) - with
+/// Record Payment for those who take money.
 class StudentStatementView extends ConsumerWidget {
-  const StudentStatementView({super.key, required this.studentId, this.academicYearId, required this.onBack});
+  const StudentStatementView({
+    super.key,
+    required this.studentId,
+    this.academicYearId,
+    required this.onBack,
+    this.canManage = false,
+  });
 
   final int studentId;
   final int? academicYearId;
   final VoidCallback onBack;
+
+  /// Whether this person records and cancels payments.
+  final bool canManage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,7 +54,7 @@ class StudentStatementView extends ConsumerWidget {
           child: AsyncValueView<StudentFeeStatement>(
             value: ref.watch(studentStatementProvider(query)),
             onRetry: () => ref.invalidate(studentStatementProvider(query)),
-            data: (context, statement) => _Statement(statement: statement),
+            data: (context, statement) => _Statement(statement: statement, canManage: canManage),
           ),
         ),
       ],
@@ -50,9 +63,10 @@ class StudentStatementView extends ConsumerWidget {
 }
 
 class _Statement extends StatelessWidget {
-  const _Statement({required this.statement});
+  const _Statement({required this.statement, required this.canManage});
 
   final StudentFeeStatement statement;
+  final bool canManage;
 
   String _money(String amount) => formatCurrency((centsOf(amount) ?? 0) / 100, statement.currencyCode);
 
@@ -66,7 +80,21 @@ class _Statement extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Text(student.name, style: Theme.of(context).textTheme.headlineSmall),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            Text(student.name, style: Theme.of(context).textTheme.headlineSmall),
+            if (canManage && statement.payable.isNotEmpty)
+              FilledButton.icon(
+                onPressed: () => showRecordPaymentDialog(context, statement),
+                icon: const Icon(Icons.payments_outlined),
+                label: const Text('Record Payment'),
+              ),
+          ],
+        ),
         const SizedBox(height: 4),
         Text(
           [
@@ -112,6 +140,22 @@ class _Statement extends StatelessWidget {
               ],
             ),
           ),
+        if (statement.receipts.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text('Payments', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final receipt in statement.receipts) ...[
+                  _ReceiptRow(receipt: receipt, money: _money, canManage: canManage),
+                  if (receipt != statement.receipts.last) const Divider(height: 1),
+                ],
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -212,6 +256,64 @@ class _DueRow extends StatelessWidget {
                 if (!cancelled)
                   Text('Balance ${money(due.balance)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                 StatusBadge(label: badge, tone: tone),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReceiptRow extends ConsumerWidget {
+  const _ReceiptRow({required this.receipt, required this.money, required this.canManage});
+
+  final ReceiptSummary receipt;
+  final String Function(String) money;
+  final bool canManage;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.appColors;
+    final strike = receipt.isCancelled ? const TextStyle(decoration: TextDecoration.lineThrough) : null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: SizedBox(
+        width: double.infinity,
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 6,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(receipt.receiptNumber, style: const TextStyle(fontWeight: FontWeight.w600).merge(strike)),
+                Text(
+                  '${formatDate(receipt.receiptDate)} · ${receipt.paymentModeLabel}',
+                  style: TextStyle(color: colors.muted, fontSize: 13),
+                ),
+              ],
+            ),
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(money(receipt.amount), style: strike),
+                if (receipt.isCancelled) const StatusBadge(label: 'Cancelled', tone: BadgeTone.neutral),
+                IconButton(
+                  tooltip: 'Download receipt',
+                  icon: const Icon(Icons.download_outlined),
+                  onPressed: () => downloadReceipt(context, ref, id: receipt.id, number: receipt.receiptNumber),
+                ),
+                if (canManage && !receipt.isCancelled)
+                  IconButton(
+                    tooltip: 'Cancel receipt',
+                    icon: Icon(Icons.block, color: colors.danger),
+                    onPressed: () => cancelReceipt(context, ref, id: receipt.id, number: receipt.receiptNumber),
+                  ),
               ],
             ),
           ],

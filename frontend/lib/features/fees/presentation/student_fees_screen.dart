@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paginated_response.dart';
 import '../../../core/theme/app_colors.dart';
@@ -72,10 +73,13 @@ class _StudentFeesScreenState extends ConsumerState<StudentFeesScreen> {
   Widget build(BuildContext context) {
     final studentId = widget.studentId;
     if (studentId != null) {
+      final actor = ref.watch(authNotifierProvider).value;
       return StudentStatementView(
         studentId: studentId,
         academicYearId: _yearId,
         onBack: () => context.go('/student-fees'),
+        // The matrix decides who takes money; a Super Admin only reads.
+        canManage: actor != null && actor.role != UserRole.superAdmin && actor.canManage(AppModules.fees),
       );
     }
 

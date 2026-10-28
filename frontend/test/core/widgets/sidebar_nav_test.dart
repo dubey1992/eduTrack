@@ -37,9 +37,11 @@ Widget wrap(UserRole role) {
 /// extent (true of every Sliver-based scrollable, not just .builder ones) -
 /// the default 800x600 test surface is too short to fit every group as the
 /// nav grows, which would silently make find.text() miss items further down
-/// without this. Tall enough for the sidebar to render in full.
+/// without this. Tall enough for the sidebar to render in full - raised from
+/// 1800 when the Fees group (docs/fees.md) pushed Audit Log past the edge,
+/// with headroom for the groups still to come.
 void _useTallViewport(WidgetTester tester) {
-  tester.view.physicalSize = const Size(800, 1800);
+  tester.view.physicalSize = const Size(800, 2600);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

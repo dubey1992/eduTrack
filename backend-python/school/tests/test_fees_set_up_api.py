@@ -352,7 +352,8 @@ class TheModuleSwitch(FeesTestCase):
              "TRANSPORT_MANAGER": "none", "DRIVER": "none", "BUS_ATTENDANT": "none"},
             {role: permissions.DEFAULTS[role]["fees"] for role in permissions.DEFAULTS},
         )
-        self.assertEqual({}, modules.get("fees").defaults(), "no settings until a slice reads one")
+        # Settings arrive with the slices that read them: part payments with F3.
+        self.assertEqual({"allow_part_payment": True}, modules.get("fees").defaults())
 
 
 class CrossSchool(FeesTestCase):

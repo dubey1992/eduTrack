@@ -17,7 +17,7 @@ from django.db.models import DecimalField, Exists, F, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce, Concat, Lower
 
 from ..enums import FeeDueStatus, StudentStatus
-from ..models import AcademicYear, Student, StudentEnrollment, StudentFeeDue
+from ..models import AcademicYear, FeeReceipt, Student, StudentEnrollment, StudentFeeDue
 from .dues import OPEN
 
 ZERO = Decimal("0.00")
@@ -78,8 +78,14 @@ def statement(student: Student, year: AcademicYear, today: dt.date) -> dict:
         (due.currency_code for due in dues), None
     ) or student.school.currency_code
 
+    # The receipts numbered in this year (their date falls in it), newest
+    # first, cancelled ones included - F3.
+    receipts = list(
+        FeeReceipt.objects.filter(student_id=student.id, academic_year_id=year.id).order_by("-receipt_date", "-id")
+    )
+
     return {"student": student, "enrollment": enrollment, "year": year, "dues": dues, "totals": totals,
-            "currency_code": currency, "today": today}
+            "currency_code": currency, "today": today, "receipts": receipts}
 
 
 # -- the balances list ----------------------------------------------------------

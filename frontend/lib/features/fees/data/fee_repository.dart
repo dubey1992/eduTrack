@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import '../../../core/utils/date_format.dart';
 import 'models/fee_head.dart';
+import 'models/fee_receipt.dart';
 import 'models/fee_structure.dart';
 import 'models/student_fees.dart';
 
@@ -166,6 +167,97 @@ class FeeRepository {
       return StudentFeeStatement.fromJson(response.data as Map<String, dynamic>);
     });
   }
+
+  // -- payments and receipts (F3) ---------------------------------------------
+
+  /// Records money received. Without [allocations] the server spreads it
+  /// over what the student owes, oldest first.
+  Future<({FeeReceipt receipt, bool emailQueued})> recordPayment({
+    required int studentId,
+    required DateTime receiptDate,
+    required String amount,
+    required PaymentMode mode,
+    String? reference,
+    String? note,
+    List<PaymentAllocation>? allocations,
+    bool emailToGuardian = false,
+  }) {
+    return _call(() async {
+      final response = await _dio.post(
+        '/fees/receipts',
+        data: {
+          'student_id': studentId,
+          'receipt_date': apiDate(receiptDate),
+          'amount': amount,
+          'payment_mode': mode.wire,
+          if (reference != null && reference.isNotEmpty) 'reference': reference,
+          if (note != null && note.isNotEmpty) 'note': note,
+          if (allocations != null)
+            'allocations': [
+              for (final allocation in allocations) {'due_id': allocation.dueId, 'amount': allocation.amount},
+            ],
+          'email_to_guardian': emailToGuardian,
+        },
+      );
+      final json = response.data as Map<String, dynamic>;
+      return (receipt: FeeReceipt.fromJson(json), emailQueued: json['email_queued'] as bool? ?? false);
+    });
+  }
+
+  Future<PaginatedResponse<FeeReceipt>> receipts({
+    int? schoolId,
+    int? studentId,
+    String? search,
+    PaymentMode? mode,
+    bool? cancelled,
+    int page = 1,
+    int perPage = 20,
+  }) {
+    return _call(() async {
+      final response = await _dio.get(
+        '/fees/receipts',
+        queryParameters: {
+          'school_id': ?schoolId,
+          'student_id': ?studentId,
+          if (search != null && search.isNotEmpty) 'search': search,
+          'payment_mode': ?mode?.wire,
+          if (cancelled != null) 'status': cancelled ? 'cancelled' : 'valid',
+          'page': page,
+          'per_page': perPage,
+        },
+      );
+      return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, FeeReceipt.fromJson);
+    });
+  }
+
+  Future<FeeReceipt> receipt(int id) {
+    return _call(() async {
+      final response = await _dio.get('/fees/receipts/$id');
+      return FeeReceipt.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  /// The receipt as the PDF the school hands the family.
+  Future<List<int>> receiptPdf(int id) {
+    return _call(() async {
+      final response = await _dio.get<List<int>>(
+        '/fees/receipts/$id/pdf',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data ?? const [];
+    });
+  }
+
+  /// Cancels a receipt: it keeps its number, and what it paid is owed again.
+  Future<FeeReceipt> cancelReceipt(int id, {required String reason}) {
+    return _call(() async {
+      final response = await _dio.post('/fees/receipts/$id/cancel', data: {'reason': reason});
+      return FeeReceipt.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  /// Sends the receipt to the student's guardian, in the background.
+  Future<void> emailReceipt(int id) => _call(() => _dio.post('/fees/receipts/$id/email'));
 
   /// What each student owes for a year, a page at a time.
   Future<PaginatedResponse<StudentBalance>> balances({

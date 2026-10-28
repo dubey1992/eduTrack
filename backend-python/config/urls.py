@@ -228,6 +228,12 @@ urlpatterns = [
     # Step F2 "Dues": what each student owes.
     path("api/v1/fees/students/<int:student_id>", fees.student_fees),
     path("api/v1/fees/balances", fees.balances),
+    # Step F3 "Collection & receipts".
+    path("api/v1/fees/receipts", fees.receipts),
+    path("api/v1/fees/receipts/<int:receipt_id>", fees.receipt),
+    path("api/v1/fees/receipts/<int:receipt_id>/pdf", fees.receipt_pdf_download),
+    path("api/v1/fees/receipts/<int:receipt_id>/cancel", fees.receipt_cancel),
+    path("api/v1/fees/receipts/<int:receipt_id>/email", fees.receipt_email),
     path("api/v1/reports/student-attendance", reports.student_attendance),
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),

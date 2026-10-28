@@ -17,16 +17,23 @@ POST), resolved through SchoolScope exactly as payroll resolves it.
 
 from __future__ import annotations
 
+from django.db.models import Q, Value
+from django.db.models.functions import Concat
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..fees import ledger, plan
+from ..fees import ledger, plan, receipt_pdf
+from ..fees.receipts import FeeReceiptService
 from ..fees.dues import today_for
 from ..fees.requests import (
     BalancesRequest,
+    CancelFeeReceiptRequest,
+    FeeReceiptListRequest,
+    FeeReceiptRequest,
     FeeStructureRequest,
     InstallmentPlanRequest,
     StoreFeeHeadRequest,
@@ -38,13 +45,15 @@ from ..fees.requests import (
 )
 from ..fees.resources import (
     balance_row_resource,
+    enrollments_for,
+    fee_receipt_resource,
     fee_head_resource,
     fee_structure_resource,
     plan_resource,
     statement_resource,
 )
 from ..fees.service import FeeHeadService, FeeStructureService
-from ..models import AcademicYear, FeeHead, FeeStructure, School, Student
+from ..models import AcademicYear, FeeHead, FeeReceipt, FeeStructure, School, Student
 from ..pagination import LaravelPagination
 from ..policies import FeePolicy, authorize
 from ..scope import SchoolScope
@@ -261,6 +270,138 @@ def balances(request) -> Response:
     page = paginator.paginate_queryset(rows, request)
 
     return paginator.get_paginated_response([balance_row_resource(row) for row in page])
+
+
+# -- receipts (F3) --------------------------------------------------------------
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def receipts(request) -> Response:
+    if request.method == "POST":
+        authorize(FeePolicy.manage_any(request.user))
+
+        data = FeeReceiptRequest(request.data, request.user).validate()
+        authorize(FeePolicy.manage(request.user, data["student"].school_id))
+
+        receipt, queued = FeeReceiptService.create(data, request.user, request)
+
+        return Response(
+            {**fee_receipt_resource(FeeReceiptService.load(receipt.id)), "email_queued": queued},
+            status=status.HTTP_201_CREATED,
+        )
+
+    authorize(FeePolicy.view_any(request.user))
+
+    filters = FeeReceiptListRequest(request.query_params, request.user).validate()
+    rows = FeeReceiptService.query()
+
+    year = filters["academic_year"]
+
+    if year is not None:
+        authorize(FeePolicy.view(request.user, year.school_id))
+        rows = rows.filter(school_id=year.school_id, academic_year_id=year.id)
+    else:
+        school_id = single_school(request.user, filters["school_id"])
+
+        if school_id is not None:
+            get_object_or_404(School, pk=school_id)
+            authorize(FeePolicy.view(request.user, school_id))
+            rows = rows.filter(school_id=school_id)
+        else:
+            # Every school in the actor's scope with fees on, as the fee
+            # types list does.
+            rows = rows.filter(school_id__in=FeeHeadService.schools_with_fees(request.user, None))
+
+    rows = filter_receipts(rows, filters).order_by("-receipt_date", "-id")
+
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(rows, request)
+    enrollments = enrollments_for(page)
+
+    return paginator.get_paginated_response([fee_receipt_resource(row, enrollments) for row in page])
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def receipt(request, receipt_id: int) -> Response:
+    found = load_receipt(request, receipt_id)
+
+    return Response(fee_receipt_resource(found))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def receipt_pdf_download(request, receipt_id: int) -> HttpResponse:
+    found = load_receipt(request, receipt_id)
+
+    response = HttpResponse(receipt_pdf.render(found), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{receipt_pdf.file_name(found)}"'
+
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def receipt_cancel(request, receipt_id: int) -> Response:
+    found = get_object_or_404(FeeReceipt, pk=receipt_id)
+    authorize(FeePolicy.manage(request.user, found.school_id))
+
+    reason = CancelFeeReceiptRequest(request.data).validate()
+    FeeReceiptService.cancel(found, reason, request.user, request)
+
+    return Response(fee_receipt_resource(FeeReceiptService.load(found.id)))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def receipt_email(request, receipt_id: int) -> Response:
+    found = get_object_or_404(FeeReceipt.objects.select_related("student"), pk=receipt_id)
+    authorize(FeePolicy.manage(request.user, found.school_id))
+
+    FeeReceiptService.queue_email(found)
+
+    return Response({"queued": True}, status=status.HTTP_202_ACCEPTED)
+
+
+def load_receipt(request, receipt_id: int) -> FeeReceipt:
+    """A receipt the actor may read: 404 when there is none, 403 when it is
+    another school's."""
+    found = get_object_or_404(FeeReceipt.objects.only("id", "school_id"), pk=receipt_id)
+    authorize(FeePolicy.view(request.user, found.school_id))
+
+    return FeeReceiptService.load(found.id)
+
+
+def filter_receipts(rows, filters: dict):
+    if filters["student"] is not None:
+        rows = rows.filter(student_id=filters["student"].id)
+
+    if filters["payment_mode"] is not None:
+        rows = rows.filter(payment_mode=filters["payment_mode"])
+
+    if filters["status"] is not None:
+        rows = rows.filter(status=filters["status"])
+
+    if filters["from"] is not None:
+        rows = rows.filter(receipt_date__gte=filters["from"])
+
+    if filters["to"] is not None:
+        rows = rows.filter(receipt_date__lte=filters["to"])
+
+    search = filters["search"]
+
+    if search:
+        # icontains: PostgreSQL compares case-sensitively, MySQL did not.
+        rows = rows.annotate(
+            student_full_name=Concat("student__first_name", Value(" "), "student__last_name")
+        ).filter(
+            Q(receipt_number__icontains=search)
+            | Q(student_full_name__icontains=search)
+            | Q(student__admission_number__icontains=search)
+        )
+
+    return rows
 
 
 # -- the installment-plan helper ------------------------------------------------

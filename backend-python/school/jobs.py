@@ -22,7 +22,7 @@ from . import route_paths  # noqa: F401
 from .enums import MessageChannel, MessageStatus, UserRole, UserStatus
 from .gateways import Result, Template
 from .clock import DATE_TIME, SchoolClock
-from .models import Message, Payment, Student, User
+from .models import FeeReceipt, Message, Payment, Student, User
 from .queue import handler
 
 logger = logging.getLogger(__name__)
@@ -458,6 +458,43 @@ def send_payslip(payslip_id: int) -> None:
     message.send()
 
     Payslip.objects.filter(pk=slip.id).update(emailed_at=timezone.now())
+
+
+@handler("fee_receipt_email")
+def send_fee_receipt(receipt_id: int) -> None:
+    """Emails a fee receipt's PDF to the student's guardian (docs/fees.md,
+    F3), queued when a payment is recorded with "email the guardian" ticked
+    or when somebody asks for it from the receipt."""
+    from .fees import receipt_pdf
+    from .fees.receipts import FeeReceiptService
+
+    receipt = FeeReceiptService.query().filter(pk=receipt_id).first()
+
+    if receipt is None:
+        return
+
+    address = receipt.student.guardian_email
+
+    if not address:
+        # Removed from the student since it was queued: nothing to send to,
+        # and nothing a retry would fix.
+        logger.info("No guardian email to send fee receipt %s to", receipt.id)
+
+        return
+
+    message = mailer.message(
+        subject=f"Fee receipt {receipt.receipt_number} - {receipt.school.name}",
+        body=(
+            f"Dear {receipt.student.guardian_name or 'Parent'},\n\n"
+            f"Please find attached receipt {receipt.receipt_number} for the fees paid for "
+            f"{receipt.student.name}.\n\n{receipt.school.name}"
+        ),
+        to=[address],
+    )
+    message.attach(receipt_pdf.file_name(receipt), receipt_pdf.render(receipt), "application/pdf")
+    message.send()
+
+    FeeReceipt.objects.filter(pk=receipt.id).update(emailed_at=timezone.now())
 
 
 @handler(EMAIL_CHANGED_NOTICE)

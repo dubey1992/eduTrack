@@ -16,8 +16,9 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from ..enums import FeeFrequency
-from ..models import AcademicYear, ClassSection, FeeHead, FeeStructure, SchoolClass, TransportRoute
+from ..clock import SchoolClock
+from ..enums import FeeFrequency, FeePaymentMode, FeeReceiptStatus
+from ..models import AcademicYear, ClassSection, FeeHead, FeeStructure, SchoolClass, Student, TransportRoute
 from ..requests import MoneyField, ScopedSerializer
 from ..scope import SchoolScope
 from ..validation import (
@@ -26,11 +27,16 @@ from ..validation import (
     LaravelIntegerField,
     at_most,
     does_not_exist,
+    must_be_a_string,
+    must_be_after,
     normalise,
+    not_a_date,
     prohibits,
     required,
     required_without,
     selected_is_invalid,
+    too_long,
+    too_short,
 )
 from . import plan
 
@@ -472,4 +478,287 @@ class BalancesRequest:
             "search": search.strip() if isinstance(search, str) and search.strip() else None,
             "owing": str(params["owing"]).lower() in TRUTHY,
             "overdue": str(params["overdue"]).lower() in TRUTHY,
+        }
+
+
+# -- receipts (F3) --------------------------------------------------------------
+
+REFERENCE_MAX = 100
+NOTE_MAX = 500
+REASON_MIN = 3
+REASON_MAX = 500
+MAX_ALLOCATIONS = 200
+
+
+def text(field: str, raw, errors: dict, maximum: int) -> str | None:
+    """An optional free-text field: a string no longer than `maximum`."""
+    if raw is None:
+        return None
+
+    if not isinstance(raw, str):
+        errors.setdefault(field, []).append(must_be_a_string(field))
+        return None
+
+    if len(raw) > maximum:
+        errors.setdefault(field, []).append(too_long(field, maximum))
+        return None
+
+    return raw
+
+
+def student_in_scope(actor, raw, errors: dict, requested_school=None) -> Student | None:
+    """The student named by `student_id`, if the actor can reach them.
+    Another school's student reads as invalid, like one that does not exist."""
+    student_id = integer("student_id", raw, errors)
+
+    if student_id is None:
+        return None
+
+    students = SchoolScope.for_actor(actor).apply_to(Student.objects.select_related("school"), requested_school)
+    student = students.filter(pk=student_id).first()
+
+    if student is None:
+        errors.setdefault("student_id", []).append(does_not_exist("student_id"))
+
+    return student
+
+
+def year_covering(school_id: int, day: dt.date) -> AcademicYear | None:
+    """The school's academic year whose dates contain `day` - the year a
+    receipt dated that day is numbered in. Should two ever overlap, the one
+    that started later wins."""
+    return (
+        AcademicYear.objects.filter(school_id=school_id, start_date__lte=day, end_date__gte=day)
+        .order_by("-start_date", "-id")
+        .first()
+    )
+
+
+class FeeReceiptRequest:
+    """`POST fees/receipts`: everything that can be checked without the
+    student's dues in hand. What the dues allow - how much is owed, whether a
+    part payment leaves an installment half paid - is checked by
+    fees/receipts.py under the lock, where the answer cannot change before the
+    payment is written."""
+
+    def __init__(self, data, actor) -> None:
+        self.raw = data if isinstance(data, dict) else {}
+        self.data = normalise(self.raw)
+        self.actor = actor
+
+    def validate(self) -> dict:
+        errors: dict[str, list[str]] = {}
+        data = self.data
+
+        student = student_in_scope(self.actor, data.get("student_id"), errors)
+        amount = money("amount", data.get("amount"), errors)
+        receipt_date = self.date(data.get("receipt_date"), student, errors)
+        mode = self.mode(data.get("payment_mode"), errors)
+        reference = text("reference", data.get("reference"), errors, REFERENCE_MAX)
+        note = text("note", data.get("note"), errors, NOTE_MAX)
+        allocations = self.allocations(data.get("allocations"), errors)
+
+        if mode == FeePaymentMode.CHEQUE and reference is None and "reference" not in errors:
+            errors.setdefault("reference", []).append("Enter the cheque number.")
+
+        email = False
+
+        if data.get("email_to_guardian") is not None:
+            try:
+                email = LaravelBooleanField("email_to_guardian").to_internal_value(data["email_to_guardian"])
+            except serializers.ValidationError as failure:
+                errors.setdefault("email_to_guardian", []).extend(str(message) for message in failure.detail)
+
+        year = None
+
+        if student is not None and receipt_date is not None:
+            year = year_covering(student.school_id, receipt_date)
+
+            if year is None:
+                errors.setdefault("receipt_date", []).append(
+                    "No academic year covers this date. Add one under Academic Years first."
+                )
+
+        raise_if(errors)
+
+        return {
+            "student": student,
+            "academic_year": year,
+            "receipt_date": receipt_date,
+            "amount": amount,
+            "payment_mode": mode,
+            "reference": reference,
+            "note": note,
+            "allocations": allocations,
+            "email_to_guardian": email,
+        }
+
+    @staticmethod
+    def date(raw, student, errors: dict) -> dt.date | None:
+        if raw is None:
+            errors.setdefault("receipt_date", []).append(required("receipt_date"))
+            return None
+
+        day = parse_date(raw)
+
+        if day is None:
+            errors.setdefault("receipt_date", []).append(not_a_date("receipt_date"))
+            return None
+
+        # The school's today, not the server's (docs/timezones.md).
+        if student is not None and day > SchoolClock.for_school(student.school_id).now().date():
+            errors.setdefault("receipt_date", []).append("The receipt date can't be in the future.")
+            return None
+
+        return day
+
+    @staticmethod
+    def mode(raw, errors: dict) -> str | None:
+        if raw is None:
+            errors.setdefault("payment_mode", []).append(required("payment_mode"))
+            return None
+
+        if raw not in FeePaymentMode.values:
+            errors.setdefault("payment_mode", []).append(selected_is_invalid("payment_mode"))
+            return None
+
+        return raw
+
+    @staticmethod
+    def allocations(raw, errors: dict) -> list[tuple[int, Decimal]] | None:
+        """[(due id, amount)], or None when the payment is to be spread
+        oldest first. Shape only: whose dues they are, and what is left on
+        them, is the service's to check under the lock."""
+        if raw is None:
+            return None
+
+        if not isinstance(raw, list) or not raw:
+            errors.setdefault("allocations", []).append(
+                "Choose at least one installment to pay, or leave the list out."
+            )
+            return None
+
+        if len(raw) > MAX_ALLOCATIONS:
+            errors.setdefault("allocations", []).append(f"A receipt can pay at most {MAX_ALLOCATIONS} installments.")
+            return None
+
+        cleaned: list[tuple[int, Decimal]] = []
+        problems: list[str] = []
+
+        for index, item in enumerate(raw, start=1):
+            item = item if isinstance(item, dict) else {}
+            local: dict[str, list[str]] = {}
+            due_id = integer("due_id", item.get("due_id"), local)
+            part = money("amount", item.get("amount"), local)
+
+            if local:
+                problems.append(f"Line {index} needs an installment (due_id) and an amount more than zero.")
+                continue
+
+            cleaned.append((due_id, part))
+
+        if problems:
+            errors.setdefault("allocations", []).extend(problems)
+            return None
+
+        # Duplicates are named by the service, which knows the installment's
+        # label.
+        return cleaned
+
+
+class CancelFeeReceiptRequest:
+    """`POST fees/receipts/{id}/cancel`: a reason, 3 to 500 characters."""
+
+    def __init__(self, data) -> None:
+        self.data = normalise(data) if isinstance(data, dict) else {}
+
+    def validate(self) -> str:
+        reason = self.data.get("reason")
+        errors: dict[str, list[str]] = {}
+
+        if reason is None:
+            errors["reason"] = [required("reason")]
+        elif not isinstance(reason, str):
+            errors["reason"] = [must_be_a_string("reason")]
+        elif len(reason) < REASON_MIN:
+            errors["reason"] = [too_short("reason", REASON_MIN)]
+        elif len(reason) > REASON_MAX:
+            errors["reason"] = [too_long("reason", REASON_MAX)]
+
+        raise_if(errors)
+
+        return reason
+
+
+class FeeReceiptListRequest:
+    """`GET fees/receipts`: which school's receipts, and the filters.
+
+    The school: a school-bound actor's own. A Super Admin or Group Admin
+    reaches one through `academic_year_id` when given (as the balances list
+    does), else `school_id`; naming neither lists every school in their
+    scope that has fees on, as the fee types list does. Another school's
+    year or student is "invalid"."""
+
+    KEYS = ("academic_year_id", "school_id", "student_id", "search", "payment_mode", "status", "from", "to")
+
+    def __init__(self, params, actor) -> None:
+        self.params = params
+        self.actor = actor
+
+    def validate(self) -> dict:
+        errors: dict[str, list[str]] = {}
+        params = normalise({key: self.params.get(key) for key in self.KEYS})
+
+        year = None
+
+        if params["academic_year_id"] is not None:
+            year = year_in_scope(self.actor, params["academic_year_id"], errors, params["school_id"])
+
+        student = None
+
+        if params["student_id"] is not None:
+            narrowed = year.school_id if year is not None else params["school_id"]
+            student = student_in_scope(self.actor, params["student_id"], errors, narrowed)
+
+        mode = params["payment_mode"]
+
+        if mode is not None and mode not in FeePaymentMode.values:
+            errors.setdefault("payment_mode", []).append(selected_is_invalid("payment_mode"))
+
+        state = params["status"]
+
+        if state is not None and state not in FeeReceiptStatus.values:
+            errors.setdefault("status", []).append(selected_is_invalid("status"))
+
+        start = end = None
+
+        for key in ("from", "to"):
+            if params[key] is None:
+                continue
+
+            day = parse_date(params[key])
+
+            if day is None:
+                errors.setdefault(key, []).append(not_a_date(key))
+            elif key == "from":
+                start = day
+            else:
+                end = day
+
+        if start is not None and end is not None and end < start:
+            errors.setdefault("to", []).append(must_be_after("to", "from"))
+
+        raise_if(errors)
+
+        search = params["search"]
+
+        return {
+            "academic_year": year,
+            "school_id": params["school_id"],
+            "student": student,
+            "payment_mode": mode,
+            "status": state,
+            "from": start,
+            "to": end,
+            "search": search if isinstance(search, str) and search else None,
         }

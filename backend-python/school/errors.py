@@ -605,6 +605,17 @@ class FeeStructurePublished(ApiError):
         super().__init__("A published fee can't be deleted.")
 
 
+class FeeReceiptCancelled(ApiError):
+    """A cancelled receipt stays cancelled: its dues have already gone back
+    to owing, and cancelling again would take the money off them twice."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "FEE_RECEIPT_CANCELLED"
+
+    def __init__(self) -> None:
+        super().__init__("This receipt is already cancelled.")
+
+
 class UnprocessableRequest(ApiError):
     """Laravel's bare `abort(422)`: no validator involved, so no field
     errors - just the framework's generic sentence under a generic code."""

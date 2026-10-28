@@ -590,6 +590,17 @@ class AppNav {
         pageTitle: 'Student Fees',
         pageSubtitle: 'What each student has been charged, has paid and still owes',
       ),
+      NavItem(
+        path: '/fee-receipts',
+        module: AppModules.fees,
+        requiredLevel: PermissionLevel.view,
+        label: 'Receipts',
+        icon: Icons.receipt_outlined,
+        // Every receipt the school has issued - the same people as Fee Setup.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Receipts',
+        pageSubtitle: 'Every fee payment recorded, with its receipt',
+      ),
     ],
   );
 

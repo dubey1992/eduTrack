@@ -414,8 +414,9 @@ class FeeInstallment(models.Model):
 class StudentFeeDue(models.Model):
     """One line on a student's fee account: one installment of one published
     fee (docs/fees.md, F2). Created, revived, re-priced and cancelled only by
-    school/fees/dues.py - never typed - and never deleted. `paid_amount` and
-    `discount_amount` stay 0 until payments (F3) and discounts (F4)."""
+    school/fees/dues.py - never typed - and never deleted. `paid_amount` moves
+    with receipts (F3, school/fees/receipts.py); `discount_amount` stays 0
+    until discounts (F4)."""
 
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
@@ -440,6 +441,79 @@ class StudentFeeDue(models.Model):
         managed = False
         db_table = 'student_fee_dues'
         unique_together = (('student', 'fee_installment'),)
+
+
+class FeeReceipt(models.Model):
+    """Money taken from one student at the office (docs/fees.md, F3), with
+    its number - sequential per school and academic year, never reused. A
+    wrong one is cancelled with a reason, never deleted; its allocations stay
+    so the record shows what it had paid."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='fee_receipts')
+    # The year whose dates contain receipt_date: the number belongs to it.
+    academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING, related_name='+')
+    receipt_number = models.CharField(max_length=40)
+    receipt_date = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency_code = models.CharField(max_length=3)
+    # Owed in this currency just before the payment, frozen for reprints.
+    balance_before = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    payment_mode = models.CharField(max_length=20)
+    reference = models.CharField(max_length=100, blank=True, null=True)
+    note = models.CharField(max_length=500, blank=True, null=True)
+    received_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='received_by', blank=True, null=True, related_name='+'
+    )
+    status = models.CharField(max_length=20, default='valid')
+    cancelled_at = UtcDateTimeField(blank=True, null=True)
+    cancelled_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='cancelled_by', blank=True, null=True, related_name='+'
+    )
+    cancel_reason = models.CharField(max_length=500, blank=True, null=True)
+    emailed_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'fee_receipts'
+        unique_together = (('school', 'receipt_number'),)
+
+
+class FeeReceiptAllocation(models.Model):
+    """How much of a receipt went to which due. A receipt's allocations add
+    up to its amount."""
+
+    id = models.BigAutoField(primary_key=True)
+    fee_receipt = models.ForeignKey('FeeReceipt', models.DO_NOTHING, related_name='allocations')
+    student_fee_due = models.ForeignKey('StudentFeeDue', models.DO_NOTHING, related_name='allocations')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'fee_receipt_allocations'
+        unique_together = (('fee_receipt', 'student_fee_due'),)
+
+
+class FeeReceiptSequence(models.Model):
+    """The last receipt number used per school and academic year - the row
+    locked inside a payment's transaction so numbers never collide or skip."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING, related_name='+')
+    last_number = models.PositiveIntegerField(default=0)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'fee_receipt_sequences'
+        unique_together = (('school', 'academic_year'),)
 
 
 class GradeScale(models.Model):

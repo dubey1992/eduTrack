@@ -1,7 +1,8 @@
 # Fee Management (plan)
 
-**Status (2026-10-29): F1 "Fee Set-up" and F2 "Dues" built (backend); F3-F5
-planned.** See "F1 as built" and "F2 as built" at the end. What a school charges its
+**Status (2026-10-30): F1 "Fee Set-up", F2 "Dues" and F3 "Collection &
+receipts" built (backend); F4-F5 planned.** See "F1 as built", "F2 as built"
+and "F3 as built" at the end. What a school charges its
 students, what each student owes, the payments the office takes, receipts,
 discounts, late fines, reminders and reports, behind its own module switch.
 Built on the Python backend only; Laravel's migrations still create the
@@ -474,3 +475,109 @@ replaced wholesale.
 - `waived` dues keep `balance = amount - discount - paid` until F4 decides
   how a waiver is recorded.
 - Overdue and "after today" use the school's own date (docs/timezones.md).
+
+## F3 as built (2026-10-30)
+
+Backend (Python) and the Laravel migration
+`2026_10_30_090000_create_fee_receipts_tables.php` (`fee_receipts` with a
+frozen `balance_before`, `fee_receipt_allocations`, `fee_receipt_sequences`).
+Code: `school/fees/receipts.py` (FeeReceiptService), `school/fees/receipt_pdf.py`,
+`school/fees/words.py` (amount in words), the request classes and resources
+beside F1/F2's, five views in `school/views/fees.py`, the
+`fee_receipt_email` job in `school/jobs.py`. Tests: `test_fees_receipts.py`
+(rules, numbering, concurrency, cancelling, the reconcile, email, PDF, words)
+and `test_fees_receipts_api.py` (list, access).
+
+**Module setting** `fees.allow_part_payment` (bool, default on) - the first
+fees setting. Off: a payment must settle every installment it touches.
+
+**Endpoints** (all `/api/v1/`, FeePolicy and the module switch as F1/F2: view
+for reads, manage for writes; Super Admin reads only):
+
+| Endpoint | Does |
+|---|---|
+| `POST fees/receipts` | `{student_id, receipt_date, amount, payment_mode, reference?, note?, allocations?: [{due_id, amount}], email_to_guardian?}` -> 201 receipt + `email_queued` |
+| `GET fees/receipts` | paginated; `school_id, academic_year_id, student_id, search, payment_mode, status, from, to`; newest `receipt_date` then id first |
+| `GET fees/receipts/{id}` | the receipt |
+| `GET fees/receipts/{id}/pdf` | `application/pdf`, attachment `RCPT-....pdf` |
+| `POST fees/receipts/{id}/cancel` | `{reason}` 3-500 chars -> 200 receipt; again -> 409 `FEE_RECEIPT_CANCELLED` |
+| `POST fees/receipts/{id}/email` | 202 `{"queued": true}`; no guardian email -> 422 on `guardian_email` |
+| `GET fees/students/{id}` | gains `receipts` - the student's receipts numbered in the statement's year, newest first, cancelled included |
+
+The receipt resource: id, receipt_number, receipt_date, amount, currency_code,
+payment_mode(+_label), reference, note, status (`valid`/`cancelled`), student
+{id, name, admission_number, class_name, section_name} (class from the
+enrollment in the receipt's year), academic_year {id, name}, received_by,
+allocations [{due_id, label, due_date, amount}] oldest first, cancelled_at/by,
+cancel_reason, emailed_at, `balance_before` / `balance_after` (as at the
+receipt, in its currency, frozen), `student_balance` (owed now, every year),
+created_at.
+
+**Rules as built:**
+
+- **Numbers**: `RCPT-{year token}-{n:05d}`, the token being the academic
+  year's name with every run of non-alphanumerics made one hyphen
+  (`2026-27` -> `RCPT-2026-27-00001`). The year is the school's year whose
+  dates contain `receipt_date` - not necessarily the year of the dues paid;
+  none -> 422 on `receipt_date`. Sequential per (school, that year).
+- **No race, no gap**: the counter row is read with `SELECT ... FOR UPDATE`
+  inside the payment's transaction (created race-safely: insert in a
+  savepoint, on a unique-key clash re-read the other payment's row and wait
+  on its lock). A second clerk blocks until the first commits and takes the
+  next number; a payment that fails rolls its number back. Unique key
+  (school, receipt_number) behind it. Tested with two real threads.
+- **Locks**: the student row first (the same row the F2 reconcile locks, so
+  payments and reconciles of one student take turns), then the dues, then
+  the counter.
+- **Spreading** (no `allocations`): open dues (pending/partial), oldest due
+  date then id, across every year. More than owed -> 422 on `amount`
+  ("This is more than {student} owes (INR 4,000.00). Advance payments are
+  not taken."). Dues in two currencies are never spread over -> 422 on
+  `allocations`, choose the installments.
+- **Chosen** (`allocations`): each due must be the student's (else "The
+  selected installment is invalid."), pending or partial (paid / waived /
+  cancelled named), not listed twice, amount > 0 and <= its balance, one
+  currency, and the lines must add up to `amount`. All problems under
+  `allocations`.
+- After paying: `paid` when nothing is left, else `partial`. The receipt's
+  currency is the dues' (fee) currency.
+- `receipt_date` ISO, not after the school's today; mode one of cash,
+  bank_transfer, upi, cheque, card, online_transfer; a cheque needs
+  `reference`.
+- **Cancelling** takes each allocation back off its due (never below 0) and
+  recomputes pending/partial/paid; a due that is `cancelled` or `waived`
+  keeps that status and only its paid amount moves (the reconcile never
+  cancels a due with money on it, so a cancelled due holds money only from a
+  receipt that has itself since been cancelled; a waiver is F4's to undo).
+  Then the F2 reconcile runs for the student over the affected years that
+  have not ended - so a due that is unpaid again, no longer expected (the
+  student moved class or route) and falling due after today is cancelled as
+  F2 would have; one already due stays owed. Audited as `fee_dues.synced`
+  with `entity_type` `fee_receipt` when it changes anything.
+- **F2 change**: a part-paid due whose fee is cut to (or below) what was
+  paid now becomes `paid` (amount = paid), instead of staying `partial` with
+  nothing left to pay.
+- **Email**: the `fee_receipt_email` job (database queue, cron-drained) sends
+  the PDF to `students.guardian_email` and sets `emailed_at`; an address
+  removed since queueing is logged and skipped.
+- **Audit**: `fee_receipt.created` (number, amount, currency, mode,
+  allocations), `fee_receipt.cancelled` (old status; new status, number,
+  reason, allocations).
+- Deleting an academic year that has receipts dated in it -> 409
+  `HAS_DEPENDENT_RECORDS`.
+
+**The PDF** (product owner, 2026-10-28: "high level and attractive, no
+information missed"): A4; a blue (#2563EB) header band with the school's logo
+(fetched with a 3 s timeout, at most 2 MB, png/jpeg/gif, any failure logged
+and the logo left out), name, address line, phone, email, registration
+number; "FEE RECEIPT" and the number on the right. A red CANCELLED box with
+reason, who and when on a cancelled one. Receipt details (number, date,
+academic year, mode + reference, received by) beside the student (name,
+admission no., class - section, roll no., guardian, guardian mobile). Items
+table (#, fee type, installment, due date, amount) with zebra rows; total
+received and the amount in words ("Indian Rupees Two Thousand and Fifty Paise
+Only"; unknown currency codes print as the code with "Hundredths"); owed
+before / paid now / still owed after, as frozen on the receipt; the note;
+footer with "computer-generated", issued date-time in the school's timezone,
+"Powered by School365ai". Empty optional fields are left out, never "None".
+

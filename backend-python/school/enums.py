@@ -459,13 +459,30 @@ class FeeStructureStatus(models.TextChoices):
 
 class FeeDueStatus(models.TextChoices):
     """One line on a student's fee account (docs/fees.md, F2). PARTIAL and
-    PAID arrive with payments (F3), WAIVED with waivers (F4); F2 writes only
-    PENDING and CANCELLED, but reads all five."""
+    PAID are written by receipts (F3), WAIVED by waivers (F4); the reconcile
+    (F2) writes only PENDING and CANCELLED, but reads all five."""
 
     PENDING = "pending", "Pending"
     PARTIAL = "partial", "Partly paid"
     PAID = "paid", "Paid"
     WAIVED = "waived", "Waived"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class FeePaymentMode(models.TextChoices):
+    """How a family paid at the office (docs/fees.md, F3). No gateway: these
+    are records of money already received."""
+
+    CASH = "cash", "Cash"
+    BANK_TRANSFER = "bank_transfer", "Bank Transfer"
+    UPI = "upi", "UPI"
+    CHEQUE = "cheque", "Cheque"
+    CARD = "card", "Card"
+    ONLINE_TRANSFER = "online_transfer", "Online Transfer"
+
+
+class FeeReceiptStatus(models.TextChoices):
+    VALID = "valid", "Valid"
     CANCELLED = "cancelled", "Cancelled"
 
 
