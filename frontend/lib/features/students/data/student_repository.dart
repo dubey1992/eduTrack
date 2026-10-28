@@ -60,6 +60,7 @@ class StudentRepository {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    DateTime? admissionDate,
     String? address,
   }) async {
     try {
@@ -75,6 +76,7 @@ class StudentRepository {
         guardianEmail: guardianEmail,
         studentMobile: studentMobile,
         studentEmail: studentEmail,
+        admissionDate: admissionDate,
         address: address,
       );
     } on DioException catch (e) {
@@ -94,6 +96,7 @@ class StudentRepository {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    DateTime? admissionDate,
     String? address,
   }) async {
     try {
@@ -109,6 +112,7 @@ class StudentRepository {
         guardianEmail: guardianEmail,
         studentMobile: studentMobile,
         studentEmail: studentEmail,
+        admissionDate: admissionDate,
         address: address,
       );
     } on DioException catch (e) {

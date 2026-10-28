@@ -9,6 +9,7 @@ import '../../classes/application/class_section_picker_provider.dart';
 import '../application/student_list_notifier.dart';
 import '../data/models/student.dart';
 import 'widgets/student_transport_picker.dart';
+import 'widgets/admission_date_field.dart';
 
 class EditStudentDialog extends ConsumerStatefulWidget {
   const EditStudentDialog({super.key, required this.student});
@@ -27,6 +28,9 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
   late final _guardianEmailController = TextEditingController(text: widget.student.guardianEmail ?? '');
   late final _studentMobileController = TextEditingController(text: widget.student.studentMobile ?? '');
   late final _studentEmailController = TextEditingController(text: widget.student.studentEmail ?? '');
+
+  /// The day the student joined; fees are charged from it (docs/fees.md).
+  late DateTime? _admissionDate = widget.student.admissionDate;
   late final _addressController = TextEditingController(text: widget.student.address ?? '');
 
   late int? _classSectionId = widget.student.classSectionId;
@@ -70,6 +74,7 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
             guardianEmail: _optionalText(_guardianEmailController),
             studentMobile: _optionalText(_studentMobileController),
             studentEmail: _optionalText(_studentEmailController),
+            admissionDate: _admissionDate,
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
             routeId: _routeId,
             stopId: _stopId,
@@ -136,6 +141,8 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
                   decoration: const InputDecoration(labelText: 'Student email (optional)'),
                   validator: _optionalEmailProblem,
                 ),
+                const SizedBox(height: 10),
+                AdmissionDateField(value: _admissionDate, onChanged: (date) => setState(() => _admissionDate = date)),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _addressController,

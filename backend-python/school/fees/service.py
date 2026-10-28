@@ -1,23 +1,25 @@
 """Fee heads and fee structures: step F1, "Fee Set-up" (docs/fees.md).
 
 Views decide who may ask; this decides what happens, and writes every change
-to the audit log in the same transaction as the change itself. Nobody is
-charged anything yet - dues arrive with F2.
+to the audit log in the same transaction as the change itself. From F2,
+publishing a fee and editing a published one also charge the students it
+reaches (fees/dues.py), in that same transaction.
 """
 
 from __future__ import annotations
 
 from django.db import IntegrityError, transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import serializers
 
 from .. import audit
-from ..enums import FeeStructureStatus
+from ..enums import FeeDueStatus, FeeStructureStatus
 from ..errors import FeeHeadInUse, FeeHeadLimitReached, FeeHeadProtected, FeeStructurePublished
-from ..models import FeeHead, FeeInstallment, FeeStructure, ModuleSetting, School
+from ..models import FeeHead, FeeInstallment, FeeStructure, ModuleSetting, School, StudentFeeDue
 from ..scope import SchoolScope
 from ..validation import already_taken
+from .dues import FeeDueService, SyncResult
 from .requests import duplicate_message
 
 MODULE = "fees"
@@ -214,9 +216,7 @@ class FeeStructureService:
         name, each with its heads by name. Sorted here rather than in SQL
         because NULLs (a route has no class) sort differently on MySQL and
         PostgreSQL."""
-        structures = FeeStructure.objects.select_related(*cls.WITH).prefetch_related("installments").filter(
-            academic_year_id=year.id
-        )
+        structures = cls.with_students().filter(academic_year_id=year.id)
 
         if kind == "class":
             structures = structures.filter(school_class__isnull=False)
@@ -226,8 +226,21 @@ class FeeStructureService:
         return sorted(structures, key=structure_order)
 
     @classmethod
+    def with_students(cls):
+        """Fees with `students_count`: the students each one charges now -
+        distinct students with a due of it that is not cancelled. Always 0
+        for a draft, which charges nobody."""
+        return (
+            FeeStructure.objects.select_related(*cls.WITH)
+            .prefetch_related("installments")
+            .annotate(students_count=Count(
+                "dues__student", filter=~Q(dues__status=FeeDueStatus.CANCELLED), distinct=True
+            ))
+        )
+
+    @classmethod
     def load(cls, structure_id: int) -> FeeStructure:
-        return FeeStructure.objects.select_related(*cls.WITH).prefetch_related("installments").get(pk=structure_id)
+        return cls.with_students().get(pk=structure_id)
 
     @classmethod
     def create(cls, data: dict, actor, request=None) -> FeeStructure:
@@ -274,25 +287,36 @@ class FeeStructureService:
 
     @classmethod
     def update(cls, structure: FeeStructure, data: dict, actor, request=None) -> FeeStructure:
-        """Replaces the amount, the frequency and every installment at once.
+        """Replaces the amount, the frequency and the installments.
 
-        Allowed on a published fee too while nothing is charged against it.
-        F2 makes this also update students' unpaid dues - and only those -
-        when the fee is published (docs/fees.md, "Changes never rewrite
-        history").
+        A draft's installments are replaced wholesale. A published fee's are
+        edited in place, by position, because students' dues point at them:
+        the first N keep their rows and take the new label, date and amount,
+        extra ones are added, and one dropped from the end goes only if no
+        student is still charged it. Then everybody the fee reaches is
+        reconciled - unpaid dues follow, part-paid ones never drop below
+        what was paid, paid ones are untouched (docs/fees.md, "Changes never
+        rewrite history").
         """
         with transaction.atomic():
             structure = FeeStructure.objects.select_for_update().get(pk=structure.pk)
             before = cls.snapshot(structure)
             now = timezone.now()
+            published = structure.status == FeeStructureStatus.PUBLISHED
+
+            if published:
+                cls.assert_removable(structure, len(data["installments"]))
 
             structure.amount = data["amount"]
             structure.frequency = data["frequency"]
             structure.updated_at = now
             structure.save(update_fields=["amount", "frequency", "updated_at"])
 
-            FeeInstallment.objects.filter(fee_structure_id=structure.id).delete()
-            cls.write_installments(structure, data["installments"], now)
+            if published:
+                cls.edit_installments_in_place(structure, data["installments"], now)
+            else:
+                FeeInstallment.objects.filter(fee_structure_id=structure.id).delete()
+                cls.write_installments(structure, data["installments"], now)
 
             audit.record(
                 actor=actor, action="fee_structure.updated", module=MODULE, entity_type="fee_structure",
@@ -300,7 +324,62 @@ class FeeStructureService:
                 request=request,
             )
 
+            if published:
+                charged = FeeDueService.sync_structures([structure], structure.academic_year)
+                FeeDueService.audit(charged, entity_type="fee_structure", entity_id=structure.id,
+                                    school_id=structure.school_id, actor=actor, request=request)
+
         return structure
+
+    @staticmethod
+    def assert_removable(structure: FeeStructure, keeping: int) -> None:
+        """A published fee may lose installments from the end only where no
+        student is charged them any more."""
+        charged = sorted(set(
+            StudentFeeDue.objects.filter(fee_structure_id=structure.id, fee_installment__sequence__gt=keeping)
+            .exclude(status=FeeDueStatus.CANCELLED)
+            .values_list("fee_installment__sequence", flat=True)
+        ))
+
+        if charged:
+            raise serializers.ValidationError({
+                "installments": [
+                    f"Installment {sequence} already has students charged. "
+                    "Change its amount or date instead of removing it."
+                    for sequence in charged
+                ]
+            })
+
+    @classmethod
+    def edit_installments_in_place(cls, structure: FeeStructure, installments: list[dict], now) -> None:
+        existing = {row.sequence: row for row in FeeInstallment.objects.filter(fee_structure_id=structure.id)}
+        changed, added = [], []
+
+        for row in installments:
+            current = existing.get(row["sequence"])
+
+            if current is None:
+                added.append(row)
+                continue
+
+            current.label, current.due_date, current.amount = row["label"], row["due_date"], row["amount"]
+            current.updated_at = now
+            changed.append(current)
+
+        if changed:
+            FeeInstallment.objects.bulk_update(changed, ["label", "due_date", "amount", "updated_at"])
+
+        if added:
+            cls.write_installments(structure, added, now)
+
+        removed = [row.id for sequence, row in existing.items() if sequence > len(installments)]
+
+        if removed:
+            # Only cancelled dues can still point at these (assert_removable
+            # saw to that): the record of a fee that never applied, cleared so
+            # the installment can go.
+            StudentFeeDue.objects.filter(fee_installment_id__in=removed, status=FeeDueStatus.CANCELLED).delete()
+            FeeInstallment.objects.filter(pk__in=removed).delete()
 
     @classmethod
     def delete(cls, structure: FeeStructure, actor, request=None) -> None:
@@ -324,19 +403,25 @@ class FeeStructureService:
             )
 
     @classmethod
-    def publish(cls, structure: FeeStructure, actor, request=None) -> FeeStructure:
-        """Draft to published, one way. Publishing a published fee changes
-        nothing and says nothing to the audit log. From F2 this is also where
-        students are charged."""
+    def publish(cls, structure: FeeStructure, actor, request=None) -> tuple[FeeStructure, SyncResult]:
+        """Draft to published, one way, charging every student the fee
+        reaches in the same transaction. Publishing a published fee again
+        writes nothing to the audit log, and its reconcile finds nothing to
+        do - so nobody is ever charged twice."""
         with transaction.atomic():
             structure = FeeStructure.objects.select_for_update().get(pk=structure.pk)
             cls.mark_published(structure, actor, request)
 
-        return structure
+            charged = FeeDueService.sync_structures([structure], structure.academic_year)
+            FeeDueService.audit(charged, entity_type="fee_structure", entity_id=structure.id,
+                                school_id=structure.school_id, actor=actor, request=request)
+
+        return structure, charged
 
     @classmethod
-    def publish_all(cls, year, actor, request=None) -> int:
-        """Every draft of one academic year, in one transaction."""
+    def publish_all(cls, year, actor, request=None) -> tuple[int, SyncResult]:
+        """Every draft of one academic year, in one transaction, each student
+        reconciled once however many of the fees reach them."""
         with transaction.atomic():
             drafts = list(
                 FeeStructure.objects.select_for_update()
@@ -347,7 +432,13 @@ class FeeStructureService:
             for structure in drafts:
                 cls.mark_published(structure, actor, request)
 
-        return len(drafts)
+            charged = FeeDueService.sync_structures(drafts, year)
+            # One row for the whole action, on the year it published: the
+            # counts are the action's, not any one fee's.
+            FeeDueService.audit(charged, entity_type="academic_year", entity_id=year.id,
+                                school_id=year.school_id, actor=actor, request=request)
+
+        return len(drafts), charged
 
     @classmethod
     def mark_published(cls, structure: FeeStructure, actor, request) -> None:

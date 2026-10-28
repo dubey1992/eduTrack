@@ -1548,6 +1548,8 @@ def student_resource(student: Student) -> dict:
         "student_email": student.student_email,
         "address": student.address,
         "status": student.status,
+        # The day they joined (docs/fees.md, F2), or null.
+        "admission_date": None if student.admission_date is None else student.admission_date.isoformat(),
         "created_at": timestamp(student.created_at),
     }
 

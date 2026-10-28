@@ -225,6 +225,9 @@ urlpatterns = [
     path("api/v1/fees/structures/<int:structure_id>", fees.structure),
     path("api/v1/fees/structures/<int:structure_id>/publish", fees.publish),
     path("api/v1/fees/installment-plan", fees.installment_plan),
+    # Step F2 "Dues": what each student owes.
+    path("api/v1/fees/students/<int:student_id>", fees.student_fees),
+    path("api/v1/fees/balances", fees.balances),
     path("api/v1/reports/student-attendance", reports.student_attendance),
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),

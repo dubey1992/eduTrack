@@ -10,6 +10,7 @@ import '../../classes/application/class_section_picker_provider.dart';
 import '../application/student_list_notifier.dart';
 import 'widgets/student_transport_picker.dart';
 import '../../../core/widgets/school_picker.dart';
+import 'widgets/admission_date_field.dart';
 
 class AddStudentDialog extends ConsumerStatefulWidget {
   const AddStudentDialog({super.key});
@@ -29,6 +30,9 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
   final _guardianEmailController = TextEditingController();
   final _studentMobileController = TextEditingController();
   final _studentEmailController = TextEditingController();
+
+  /// The day the student joined; fees are charged from it (docs/fees.md).
+  DateTime? _admissionDate;
   final _addressController = TextEditingController();
 
   int? _schoolId;
@@ -79,6 +83,7 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
             guardianEmail: _optionalText(_guardianEmailController),
             studentMobile: _optionalText(_studentMobileController),
             studentEmail: _optionalText(_studentEmailController),
+            admissionDate: _admissionDate,
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
             routeId: _routeId,
             stopId: _stopId,
@@ -193,6 +198,8 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
                   decoration: const InputDecoration(labelText: 'Student email (optional)'),
                   validator: _optionalEmailProblem,
                 ),
+                const SizedBox(height: 10),
+                AdmissionDateField(value: _admissionDate, onChanged: (date) => setState(() => _admissionDate = date)),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _addressController,

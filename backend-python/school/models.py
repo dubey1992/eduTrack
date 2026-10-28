@@ -411,6 +411,37 @@ class FeeInstallment(models.Model):
         unique_together = (('fee_structure', 'sequence'),)
 
 
+class StudentFeeDue(models.Model):
+    """One line on a student's fee account: one installment of one published
+    fee (docs/fees.md, F2). Created, revived, re-priced and cancelled only by
+    school/fees/dues.py - never typed - and never deleted. `paid_amount` and
+    `discount_amount` stay 0 until payments (F3) and discounts (F4)."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='fee_dues')
+    academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING, related_name='+')
+    fee_structure = models.ForeignKey('FeeStructure', models.DO_NOTHING, related_name='dues')
+    fee_installment = models.ForeignKey('FeeInstallment', models.DO_NOTHING, related_name='dues')
+    fee_head = models.ForeignKey('FeeHead', models.DO_NOTHING, related_name='+')
+    label = models.CharField(max_length=130)
+    due_date = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    currency_code = models.CharField(max_length=3)
+    status = models.CharField(max_length=20, default='pending')
+    cancelled_reason = models.CharField(max_length=30, blank=True, null=True)
+    cancelled_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'student_fee_dues'
+        unique_together = (('student', 'fee_installment'),)
+
+
 class GradeScale(models.Model):
     """A school's way of turning a percentage into a grade (docs/assessments.md).
 
@@ -1134,6 +1165,9 @@ class Student(models.Model):
     student_email = models.CharField(max_length=255, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=255)
+    # The day the student joined (docs/fees.md, F2): fees due before it are
+    # not charged. Null means the day the record was created.
+    admission_date = models.DateField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -1169,6 +1203,9 @@ class StudentEnrollment(models.Model):
     # promotion created - the year it came from (docs/promotion.md).
     promotion_batch = models.ForeignKey('PromotionBatch', models.DO_NOTHING, blank=True, null=True)
     promoted_from_enrollment = models.ForeignKey('self', models.DO_NOTHING, blank=True, null=True)
+    # The school-local day the student moved into this class mid-year; null
+    # when the enrollment began with the year (docs/fees.md, F2).
+    class_since = models.DateField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -1215,6 +1252,9 @@ class StudentTransportAssignment(models.Model):
     student = models.OneToOneField('Student', models.DO_NOTHING)
     route = models.ForeignKey('TransportRoute', models.DO_NOTHING)
     transport_stop = models.ForeignKey('TransportStop', models.DO_NOTHING)
+    # The school-local day the student changed to this route; null for their
+    # first route (docs/fees.md, F2).
+    route_since = models.DateField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 

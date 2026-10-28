@@ -142,6 +142,9 @@ STUDENT = {
     "guardian_mobile": "str?",
     "address": "str?",
     "status": "str",
+    # Fee Management F2 (docs/fees.md): the day the student joined, or null.
+    # Python backend only - the Laravel backend never sends it.
+    "admission_date": "str?",
 }
 
 SCHOOL = {

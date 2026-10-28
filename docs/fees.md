@@ -1,7 +1,7 @@
 # Fee Management (plan)
 
-**Status (2026-10-28): F1 "Fee Set-up" built (backend); F2-F5 planned.**
-See "F1 as built" at the end. What a school charges its
+**Status (2026-10-29): F1 "Fee Set-up" and F2 "Dues" built (backend); F3-F5
+planned.** See "F1 as built" and "F2 as built" at the end. What a school charges its
 students, what each student owes, the payments the office takes, receipts,
 discounts, late fines, reminders and reports, behind its own module switch.
 Built on the Python backend only; Laravel's migrations still create the
@@ -367,3 +367,110 @@ What differs from, or was settled beyond, the plan above:
 - **Plan details**: quarterly installments use `due_day` like monthly ones;
   every suggested due date is kept inside the academic year; an amount too
   small to give each installment a cent is a 422.
+
+## F2 as built (2026-10-29)
+
+Backend (Python) and the Laravel migration
+`2026_10_29_090000_create_student_fee_dues_table.php` (`student_fee_dues`,
+`students.admission_date`). Code: `school/fees/dues.py` (the reconcile),
+`school/fees/ledger.py` (statement and balances), resources and the two views
+in `school/views/fees.py`, the `sync_fee_dues` command. Tests:
+`test_fees_dues.py` (charging), `test_fees_dues_api.py` (reading, access,
+admission date).
+
+**One reconcile.** `FeeDueService.sync_student(student, year)` (bulk:
+`sync_many`) works out what a student should be paying for a year and brings
+the ledger in line. It is idempotent and runs in the triggering write's
+transaction. Expected = nothing unless the student is `active` and their
+enrollment that year is not `left`; otherwise every installment of every
+published fee of their **enrollment's** class that year, plus the published
+Transport fee of the route they ride **now** (if enrolled that year), each due
+on or after the day they joined (`admission_date`, else the school-local date
+the record was created). Then: missing dues are created; a cancelled due for
+an expected installment is revived (same row - the unique key is one per
+student per installment); a `pending` due with nothing paid, no longer
+expected and due **after** the school's today is cancelled with a reason
+(`left`, `class_changed`, `route_changed`, else `fee_changed`); a `pending`
+due follows its installment's amount, date and label; a `partial` one takes
+max(new amount, paid); `paid` and `waived` are never touched.
+
+**Where it is called** (each inside the triggering transaction):
+
+| Trigger | Students | Years | Audit `entity_type` |
+|---|---|---|---|
+| Publish one fee | enrolled in its class that year, or riding its route and enrolled that year, plus anyone it already charges | the fee's | `fee_structure` |
+| Publish all of a year | the union over the drafts, each once | that year | `academic_year` |
+| PUT a published fee | as publish | the fee's | `fee_structure` |
+| Student create / PATCH (only when `class_section_id`, `status` or `admission_date` changed) / activate / deactivate | that student | every year they are enrolled in or owe in that has not ended | `student` |
+| Promotion run | everyone in the batch | the year closing (all), the year opening (promoted and retained) | `promotion` |
+| Bus route assign (only when the route changed) / unassign | that student | years with a published fee for the old or new route that have not ended | `transport_assignment` |
+| `sync_fee_dues --school ID [--year ID]` | everyone enrolled in the year | the given year, or every year with a published fee | `academic_year` (no user) |
+
+One `fee_dues.synced` audit row per action that changed something, with
+`new_values` = `{created, revived, cancelled, updated}`; a no-op writes none.
+The bulk paths read the published installments once per year and the
+students, enrollments, routes and dues in one query each, then write with one
+bulk insert and one bulk update.
+
+**Moving mid-year: from the day of the move (decided 2026-10-28, the
+product owner's choice).** A student who moves class or bus route mid-year
+is charged the *new* one's installments only from the day of the move
+onward - never two classes, or two routes, for the same month. Migration
+`2026_10_29_100000_add_since_dates_for_fees.php` adds
+`student_enrollments.class_since` and
+`student_transport_assignments.route_since` (nullable dates), set to the
+school-local today by `StudentEnrollmentService.sync_current_year` when an
+existing enrollment's class changes within the year, and by
+`StudentTransportService.assign` when the route changes. A new enrollment
+(admission, promotion into the next year) and a student's first route leave
+them null, so the joining date counts. A class installment is expected only
+if due on or after max(joining date, `class_since`); a route installment
+likewise with `route_since`. The old class's or route's dues falling due
+after today are cancelled as before; anything already due stays owed. Moving
+back sets the date again, so the original class's lines that fell due while
+the student was away stay cancelled rather than revived.
+
+**Editing a published fee: installments in place.** The dues point at the
+installments (foreign key, restrict), so a PUT on a *published* fee no longer
+replaces them wholesale: installment N keeps its row and takes the new label,
+date and amount; extra rows are added (and charged); dropping an installment
+from the end is refused while any student holds a non-cancelled due for it -
+422 on `installments`, "Installment N already has students charged. Change
+its amount or date instead of removing it." - and allowed once only
+cancelled dues point at it (those are deleted with it). Drafts are still
+replaced wholesale.
+
+**API** (all `/api/v1/`, FeePolicy.view, module switch as F1):
+
+- `POST fees/structures/{id}/publish` -> the structure plus
+  `"charged": {"students", "dues_created"}` (students who gained a due; dues
+  created + revived). `POST fees/structures/publish` -> `{"published",
+  "students", "dues_created"}`. Every structure resource gains
+  `students_count` - distinct students holding a non-cancelled due of it (a
+  student who left still counts while they owe it); 0 for drafts.
+- `GET fees/students/{id}?academic_year_id=` -> the statement: student (class
+  and section from that year's enrollment), year, currency, every due
+  (cancelled ones included, ordered by due date then head name) with
+  `balance` and `is_overdue`, and totals that leave cancelled dues out. Year
+  defaults to the school's current year, else the latest the student owes in,
+  else the school's latest. 404 unknown student, 403 another school's, 422 a
+  year that is not the student's school's.
+- `GET fees/balances?academic_year_id=&school_id=&school_class_id=&class_section_id=&search=&owing=1&overdue=1&page=&per_page=`
+  -> the usual paginated envelope. Rows are enrollments of the year whose
+  student is active or holds a non-cancelled due; totals are correlated
+  subqueries (query count does not grow with the page). `next_due_date` is
+  the earliest still-owed due on or after today. Ordered by class level,
+  class name, section name, roll number (the enrollment's, compared as text),
+  name.
+- Students: `admission_date` on create and PATCH (ISO date, 1950-01-01 to
+  the school's today + 365 days, null clears) and in the student resource
+  (and in `contract/shapes.py`).
+
+**Known limits, left on purpose:**
+
+- **The bus fee follows the route ridden now**, in every running year. A
+  past year is never touched by a route change, but the repair command run
+  over an ended year would use today's route.
+- `waived` dues keep `balance = amount - discount - paid` until F4 decides
+  how a waiver is recorded.
+- Overdue and "after today" use the school's own date (docs/timezones.md).

@@ -235,12 +235,16 @@ void main() {
       expect(find.widgetWithText(DropdownButtonFormField<int>, 'Stop'), findsNothing);
 
       await tester.ensureVisible(find.text('No Transport'));
+      await tester.ensureVisible(find.text('No Transport'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('No Transport'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Bus 04 - Green Park').last);
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(DropdownButtonFormField<int>, 'Stop'), findsOneWidget);
+      await tester.ensureVisible(find.widgetWithText(DropdownButtonFormField<int>, 'Stop'));
+      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Stop'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('1. Lake View').last);
@@ -250,9 +254,13 @@ void main() {
       await tester.enterText(find.widgetWithText(TextFormField, 'Last name'), 'Ali');
       await tester.enterText(find.widgetWithText(TextFormField, 'Admission ID'), 'STU-9');
       await tester.enterText(find.widgetWithText(TextFormField, 'Parent / Guardian'), 'Ali');
+      await tester.ensureVisible(find.widgetWithText(DropdownButtonFormField<int>, 'Class'));
+      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Class'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Grade 8 A').last);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Save Student'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save Student'));
       await tester.pumpAndSettle();
@@ -271,9 +279,13 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(find.text('No Transport'));
+      await tester.ensureVisible(find.text('No Transport'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('No Transport'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Bus 04 - Green Park').last);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Save Student'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save Student'));
       await tester.pumpAndSettle();
@@ -299,6 +311,8 @@ void main() {
       expect(find.text('1. Lake View'), findsOneWidget);
 
       await tester.ensureVisible(find.text('Bus 04 - Green Park'));
+      await tester.ensureVisible(find.text('Bus 04 - Green Park'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Bus 04 - Green Park'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('No Transport').last);

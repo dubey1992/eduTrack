@@ -37,6 +37,7 @@ from . import (
     whatsapp,
     working_hours,
 )
+from .fees.dues import FeeDueService
 from .gateways import Template
 from .clock import DATE_TIME, TIME, SchoolClock
 from .fields import as_utc
@@ -3519,10 +3520,19 @@ class StudentTransportService:
             now = timezone.now()
             existing = StudentTransportAssignment.objects.filter(student_id=student.pk).first()
             before = audit.fields_of(existing) if existing is not None else None
+            old_route_id = existing.route_id if existing is not None else None
+
+            defaults = {"school_id": student.school_id, "route_id": route.pk, "transport_stop_id": stop.pk, "updated_at": now}
+
+            if old_route_id is not None and old_route_id != route.pk:
+                # A change of route: its fees are charged from today, the
+                # school's today. A first route leaves it null - the joining
+                # date counts (docs/fees.md, F2).
+                defaults["route_since"] = SchoolClock.for_school(student.school_id).now().date()
 
             assignment, _ = StudentTransportAssignment.objects.update_or_create(
                 student_id=student.pk,
-                defaults={"school_id": student.school_id, "route_id": route.pk, "transport_stop_id": stop.pk, "updated_at": now},
+                defaults=defaults,
                 create_defaults={
                     "school_id": student.school_id, "route_id": route.pk, "transport_stop_id": stop.pk,
                     "created_at": now, "updated_at": now,
@@ -3534,13 +3544,31 @@ class StudentTransportService:
             else:
                 audit.updated("transport", assignment, before)
 
+            # A new route, or a first one, changes the bus fee (docs/fees.md,
+            # F2). Moving between the same route's stops does not.
+            if old_route_id != route.pk:
+                StudentTransportService.sync_fees(student, assignment.id, [old_route_id, route.pk])
+
     @staticmethod
     def unassign(student) -> None:
-        assignment = StudentTransportAssignment.objects.filter(student_id=student.pk).first()
+        with transaction.atomic():
+            assignment = StudentTransportAssignment.objects.filter(student_id=student.pk).first()
 
-        if assignment is not None:
-            audit.deleted("transport", assignment)
-            assignment.delete()
+            if assignment is not None:
+                audit.deleted("transport", assignment)
+                assignment_id, route_id = assignment.id, assignment.route_id
+                assignment.delete()
+                StudentTransportService.sync_fees(student, assignment_id, [route_id])
+
+    @staticmethod
+    def sync_fees(student, assignment_id: int, route_ids) -> None:
+        """Reconciles the student in every running year with a published fee
+        for the old or the new route, and audits it when that changed
+        anything."""
+        charged = FeeDueService.sync_route_change(student, route_ids)
+        FeeDueService.audit(
+            charged, entity_type="transport_assignment", entity_id=assignment_id, school_id=student.school_id
+        )
 
     @staticmethod
     def students_on(route):
@@ -6033,17 +6061,24 @@ class StudentEnrollmentService:
             return None
 
         now = timezone.now()
+        defaults = {
+            "school_id": student.school_id,
+            "school_class_id": section.school_class_id,
+            "class_section_id": section.id,
+            "roll_number": student.roll_number,
+            "status": EnrollmentStatus.STUDYING,
+            "updated_at": now,
+        }
+        existing = StudentEnrollment.objects.filter(student_id=student.id, academic_year_id=year.id).first()
+
+        if existing is not None and existing.school_class_id != section.school_class_id:
+            # A move to another class mid-year: the new class's fees are
+            # charged from today, the school's today (docs/fees.md, F2). A
+            # new enrollment leaves it null - the joining date counts.
+            defaults["class_since"] = SchoolClock.for_school(student.school_id).now().date()
+
         enrollment, created = StudentEnrollment.objects.update_or_create(
-            student_id=student.id,
-            academic_year_id=year.id,
-            defaults={
-                "school_id": student.school_id,
-                "school_class_id": section.school_class_id,
-                "class_section_id": section.id,
-                "roll_number": student.roll_number,
-                "status": EnrollmentStatus.STUDYING,
-                "updated_at": now,
-            },
+            student_id=student.id, academic_year_id=year.id, defaults=defaults,
         )
 
         if created:
@@ -6138,46 +6173,64 @@ class StudentService:
         school_id = SchoolScope.for_actor(actor).writable_school_id(data.get("school_id"))
         now = timezone.now()
 
-        student = Student.objects.create(
-            school_id=school_id,
-            class_section_id=data.get("class_section_id"),
-            admission_number=data["admission_number"],
-            first_name=data["first_name"],
-            last_name=data["last_name"],
-            roll_number=data.get("roll_number"),
-            guardian_name=data["guardian_name"],
-            guardian_mobile=data.get("guardian_mobile"),
-            guardian_email=data.get("guardian_email"),
-            student_mobile=data.get("student_mobile"),
-            student_email=data.get("student_email"),
-            address=data.get("address"),
-            status=StudentStatus.ACTIVE,
-            created_at=now,
-            updated_at=now,
-        )
+        with transaction.atomic():
+            student = Student.objects.create(
+                school_id=school_id,
+                class_section_id=data.get("class_section_id"),
+                admission_number=data["admission_number"],
+                first_name=data["first_name"],
+                last_name=data["last_name"],
+                roll_number=data.get("roll_number"),
+                guardian_name=data["guardian_name"],
+                guardian_mobile=data.get("guardian_mobile"),
+                guardian_email=data.get("guardian_email"),
+                student_mobile=data.get("student_mobile"),
+                student_email=data.get("student_email"),
+                address=data.get("address"),
+                admission_date=data.get("admission_date"),
+                status=StudentStatus.ACTIVE,
+                created_at=now,
+                updated_at=now,
+            )
 
-        audit.created("students", student)
-        # The history follows the student row, always through one service
-        # (docs/promotion.md).
-        StudentEnrollmentService.sync_current_year(student)
+            audit.created("students", student)
+            # The history follows the student row, always through one service
+            # (docs/promotion.md).
+            StudentEnrollmentService.sync_current_year(student)
+            # And the fees follow the history (docs/fees.md, F2).
+            StudentService.sync_fees(student)
 
         return student
+
+    # A change to any of these can change what the student is charged.
+    FEE_FIELDS = ("class_section_id", "status", "admission_date")
 
     @staticmethod
     def update(student: Student, data: dict) -> Student:
         before = audit.fields_of(student)
 
-        for field, value in data.items():
-            setattr(student, field, value)
+        with transaction.atomic():
+            for field, value in data.items():
+                setattr(student, field, value)
 
-        student.updated_at = timezone.now()
-        student.save()
-        audit.updated("students", student, before)
-        # Moving a student between sections, or renumbering them, changes
-        # what this year's row should say.
-        StudentEnrollmentService.sync_current_year(student)
+            student.updated_at = timezone.now()
+            student.save()
+            audit.updated("students", student, before)
+            # Moving a student between sections, or renumbering them, changes
+            # what this year's row should say.
+            StudentEnrollmentService.sync_current_year(student)
+
+            if any(before.get(field) != getattr(student, field) for field in StudentService.FEE_FIELDS):
+                StudentService.sync_fees(student)
 
         return student
+
+    @staticmethod
+    def sync_fees(student: Student) -> None:
+        """Reconciles the student's dues in every year still running, and
+        audits it when that changed anything (docs/fees.md, F2)."""
+        charged = FeeDueService.sync_student_everywhere(student)
+        FeeDueService.audit(charged, entity_type="student", entity_id=student.id, school_id=student.school_id)
 
     @classmethod
     def activate(cls, student: Student) -> Student:
@@ -6191,11 +6244,17 @@ class StudentService:
     def set_status(student: Student, status: str) -> Student:
         before = audit.fields_of(student)
 
-        student.status = status
-        student.updated_at = timezone.now()
-        student.save(update_fields=["status", "updated_at"])
-        action = "student.activated" if status == StudentStatus.ACTIVE else "student.deactivated"
-        audit.updated("students", student, before, action=action)
+        with transaction.atomic():
+            student.status = status
+            student.updated_at = timezone.now()
+            student.save(update_fields=["status", "updated_at"])
+            action = "student.activated" if status == StudentStatus.ACTIVE else "student.deactivated"
+            audit.updated("students", student, before, action=action)
+
+            if before.get("status") != status:
+                # Leaving cancels what falls due after today; coming back
+                # charges it again (docs/fees.md, F2).
+                StudentService.sync_fees(student)
 
         return student
 

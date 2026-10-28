@@ -1,6 +1,7 @@
-"""Fee Management, step F1 "Fee Set-up": fee heads, fee structures for a class
+"""Fee Management: step F1 "Fee Set-up" - fee heads, fee structures for a class
 or a bus route with their installments, publishing, and the installment-plan
-helper. See docs/fees.md.
+helper - and step F2 "Dues" - a student's fees statement and the balances
+list. See docs/fees.md.
 
 Python only - there is no Laravel twin. Each endpoint asks FeePolicy, then
 validates, then hands over to the fee services, which write the change and its
@@ -22,22 +23,32 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..fees import plan
+from ..fees import ledger, plan
+from ..fees.dues import today_for
 from ..fees.requests import (
+    BalancesRequest,
     FeeStructureRequest,
     InstallmentPlanRequest,
     StoreFeeHeadRequest,
     UpdateFeeHeadRequest,
+    integer,
     raise_if,
     terms_of,
     year_in_scope,
 )
-from ..fees.resources import fee_head_resource, fee_structure_resource, plan_resource
+from ..fees.resources import (
+    balance_row_resource,
+    fee_head_resource,
+    fee_structure_resource,
+    plan_resource,
+    statement_resource,
+)
 from ..fees.service import FeeHeadService, FeeStructureService
-from ..models import FeeHead, FeeStructure, School
+from ..models import AcademicYear, FeeHead, FeeStructure, School, Student
+from ..pagination import LaravelPagination
 from ..policies import FeePolicy, authorize
 from ..scope import SchoolScope
-from ..validation import normalise, selected_is_invalid
+from ..validation import does_not_exist, normalise, selected_is_invalid
 
 KINDS = ("class", "route")
 
@@ -162,9 +173,14 @@ def publish(request, structure_id: int) -> Response:
     found = load_structure(structure_id)
     authorize(FeePolicy.manage(request.user, found.school_id))
 
-    FeeStructureService.publish(found, request.user, request)
+    _, charged = FeeStructureService.publish(found, request.user, request)
 
-    return Response(fee_structure_resource(FeeStructureService.load(found.id)))
+    # The structure, plus what publishing charged (F2) - an addition, so a
+    # client reading only the structure is unaffected.
+    return Response({
+        **fee_structure_resource(FeeStructureService.load(found.id)),
+        "charged": charged.charged_summary(),
+    })
 
 
 @api_view(["POST"])
@@ -180,7 +196,71 @@ def publish_all(request) -> Response:
 
     authorize(FeePolicy.manage(request.user, year.school_id))
 
-    return Response({"published": FeeStructureService.publish_all(year, request.user, request)})
+    published, charged = FeeStructureService.publish_all(year, request.user, request)
+    summary = charged.charged_summary()
+
+    return Response({"published": published, "students": summary["students"], "dues_created": summary["dues_created"]})
+
+
+# -- what students owe (F2) -----------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def student_fees(request, student_id: int) -> Response:
+    """One student's fees statement for a year: every due, cancelled ones
+    included (the screen strikes them through), and the totals."""
+    authorize(FeePolicy.view_any(request.user))
+
+    student = get_object_or_404(Student.objects.select_related("school"), pk=student_id)
+    authorize(FeePolicy.view(request.user, student.school_id))
+
+    raw = normalise({"academic_year_id": request.query_params.get("academic_year_id")})["academic_year_id"]
+
+    if raw is None:
+        year = ledger.default_year(student)
+
+        if year is None:
+            raise serializers.ValidationError({
+                "academic_year_id": ["This school has no academic years yet."]
+            })
+    else:
+        errors: dict[str, list[str]] = {}
+        year_id = integer("academic_year_id", raw, errors)
+        year = None
+
+        if year_id is not None:
+            # Another school's year reads as invalid, like one that does not
+            # exist.
+            year = AcademicYear.objects.filter(pk=year_id, school_id=student.school_id).first()
+
+            if year is None:
+                errors["academic_year_id"] = [does_not_exist("academic_year_id")]
+
+        raise_if(errors)
+
+    found = ledger.statement(student, year, today_for(student.school_id))
+
+    return Response(statement_resource(found))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def balances(request) -> Response:
+    """Every student of a year with what they were charged, paid and still
+    owe. Paginated; totals worked out in SQL, one statement per page."""
+    authorize(FeePolicy.view_any(request.user))
+
+    filters = BalancesRequest(request.query_params, request.user).validate()
+    year = filters["academic_year"]
+    authorize(FeePolicy.view(request.user, year.school_id))
+
+    rows = ledger.balances(year, filters, today_for(year.school_id))
+
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(rows, request)
+
+    return paginator.get_paginated_response([balance_row_resource(row) for row in page])
 
 
 # -- the installment-plan helper ------------------------------------------------

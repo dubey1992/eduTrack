@@ -378,6 +378,7 @@ void main() {
 
       expect(fees.published, [50]);
       expect(find.text('Published'), findsOneWidget);
+      expect(find.text('Tuition for Class 8 published. 32 students charged.'), findsOneWidget);
       expect(find.byTooltip('Delete draft'), findsNothing);
     });
 
@@ -409,7 +410,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(fees.publishAllCalls, 1);
-      expect(find.text('1 fee published.'), findsOneWidget);
+      expect(find.text('1 fee published. 32 students charged.'), findsOneWidget);
     });
   });
 

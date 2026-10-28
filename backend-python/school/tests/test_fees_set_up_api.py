@@ -566,6 +566,8 @@ class CreatingFees(FeesTestCase):
                 "frequency": "yearly",
                 "status": "draft",
                 "published_at": None,
+                # F2: a draft charges nobody.
+                "students_count": 0,
             },
             {key: value for key, value in data.items() if key not in ("id", "installments", "updated_at")},
         )
@@ -837,14 +839,16 @@ class Publishing(FeesTestCase):
         response = client.post(PUBLISH_ALL, {"academic_year_id": self.year.id}, format="json")
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual({"published": 2}, response.data)
+        # F2 added what publishing charged; nobody is enrolled here.
+        self.assertEqual({"published": 2, "students": 0, "dues_created": 0}, response.data)
         self.assertEqual(
             {one["id"]: "published", two["id"]: "published", already["id"]: "published", later["id"]: "draft",
              theirs.id: "draft"},
             dict(FeeStructure.objects.values_list("id", "status")),
         )
         self.assertEqual(3, AuditLog.objects.filter(action="fee_structure.published").count())
-        self.assertEqual({"published": 0}, client.post(PUBLISH_ALL, {"academic_year_id": self.year.id}, format="json").data)
+        self.assertEqual({"published": 0, "students": 0, "dues_created": 0},
+                         client.post(PUBLISH_ALL, {"academic_year_id": self.year.id}, format="json").data)
 
     def test_publishing_a_year_needs_one(self):
         errors = self.errors(self.as_user(self.accountant).post(PUBLISH_ALL, {}, format="json"))

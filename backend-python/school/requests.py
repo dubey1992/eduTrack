@@ -249,6 +249,7 @@ class StoreStudentRequest(ScopedSerializer):
     student_mobile = MobileField("student_mobile")
     student_email = OptionalEmailField("student_email")
     address = optional_text("address", 500)
+    admission_date = LaravelDateField("admission_date", required=False, allow_null=True)
 
     def validate(self, attrs):
         self.validate_school_id_field()
@@ -258,6 +259,8 @@ class StoreStudentRequest(ScopedSerializer):
 
         if not section_belongs_to(attrs["class_section_id"], school_id):
             errors["class_section_id"] = [does_not_exist("class_section_id")]
+
+        admission_date_problem(attrs.get("admission_date"), school_id, errors)
 
         if admission_number_taken(attrs["admission_number"], school_id):
             errors["admission_number"] = [already_taken("admission_number")]
@@ -289,6 +292,7 @@ class UpdateStudentRequest(ScopedSerializer):
     student_mobile = MobileField("student_mobile")
     student_email = OptionalEmailField("student_email")
     address = optional_text("address", 500)
+    admission_date = LaravelDateField("admission_date", required=False, allow_null=True)
 
     def __init__(self, *args, student: Student = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -297,6 +301,8 @@ class UpdateStudentRequest(ScopedSerializer):
     def validate(self, attrs):
         school_id = self.student.school_id
         errors = {}
+
+        admission_date_problem(attrs.get("admission_date"), school_id, errors)
 
         if "class_section_id" in attrs and not section_belongs_to(attrs["class_section_id"], school_id):
             errors["class_section_id"] = [does_not_exist("class_section_id")]
@@ -310,6 +316,28 @@ class UpdateStudentRequest(ScopedSerializer):
             raise serializers.ValidationError(errors)
 
         return attrs
+
+
+EARLIEST_ADMISSION = dt.date(1950, 1, 1)
+
+
+def admission_date_problem(value, school_id, errors: dict) -> None:
+    """The day a student joined (docs/fees.md, F2): optional, from 1950 to a
+    year after the school's today - a family may enrol a child for next year
+    well ahead. Null clears it."""
+    if value is None:
+        return
+
+    if value < EARLIEST_ADMISSION:
+        errors["admission_date"] = [
+            f"The admission date field must be a date after or equal to {EARLIEST_ADMISSION.isoformat()}."
+        ]
+        return
+
+    latest = SchoolClock.for_school(school_id).now().date() + dt.timedelta(days=365)
+
+    if value > latest:
+        errors["admission_date"] = [f"The admission date field must be a date before or equal to {latest.isoformat()}."]
 
 
 def section_belongs_to(class_section_id, school_id) -> bool:

@@ -1,4 +1,7 @@
 import 'package:dio/dio.dart';
+
+import '../../../core/utils/date_format.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
@@ -48,6 +51,7 @@ class StudentApi {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    DateTime? admissionDate,
     String? address,
   }) async {
     final response = await _dio.post(
@@ -64,6 +68,8 @@ class StudentApi {
         'guardian_email': guardianEmail,
         'student_mobile': studentMobile,
         'student_email': studentEmail,
+        // Null clears it; the server then uses the day the record was added.
+        'admission_date': admissionDate == null ? null : apiDate(admissionDate),
         'address': address,
       },
     );
@@ -83,6 +89,7 @@ class StudentApi {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    DateTime? admissionDate,
     String? address,
   }) async {
     final response = await _dio.patch(
@@ -98,6 +105,8 @@ class StudentApi {
         'guardian_email': guardianEmail,
         'student_mobile': studentMobile,
         'student_email': studentEmail,
+        // Null clears it; the server then uses the day the record was added.
+        'admission_date': admissionDate == null ? null : apiDate(admissionDate),
         'address': address,
       },
     );

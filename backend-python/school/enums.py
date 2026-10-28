@@ -457,6 +457,28 @@ class FeeStructureStatus(models.TextChoices):
     PUBLISHED = "published", "Published"
 
 
+class FeeDueStatus(models.TextChoices):
+    """One line on a student's fee account (docs/fees.md, F2). PARTIAL and
+    PAID arrive with payments (F3), WAIVED with waivers (F4); F2 writes only
+    PENDING and CANCELLED, but reads all five."""
+
+    PENDING = "pending", "Pending"
+    PARTIAL = "partial", "Partly paid"
+    PAID = "paid", "Paid"
+    WAIVED = "waived", "Waived"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class FeeDueCancelReason(models.TextChoices):
+    """Why a due stopped applying. Only a due nothing was paid on, falling due
+    after today, is ever cancelled - the rest stay owed."""
+
+    CLASS_CHANGED = "class_changed", "Moved to another class"
+    ROUTE_CHANGED = "route_changed", "Moved off the bus route"
+    LEFT = "left", "Left the school"
+    FEE_CHANGED = "fee_changed", "The fee changed"
+
+
 class PayslipStatus(models.TextChoices):
     UNPAID = "unpaid", "Unpaid"
     PAID = "paid", "Paid"

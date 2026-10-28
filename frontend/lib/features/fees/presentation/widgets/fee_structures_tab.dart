@@ -9,6 +9,7 @@ import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../academic_years/data/models/academic_year.dart';
 import '../../application/fee_setup_providers.dart';
+import '../../data/fee_repository.dart';
 import '../../data/models/fee_structure.dart';
 import '../../data/money_text.dart';
 import 'fee_structure_dialog.dart';
@@ -118,8 +119,8 @@ class _ListState extends ConsumerState<_List> {
       context,
       title: 'Publish all $drafts draft fee${drafts == 1 ? '' : 's'}?',
       message:
-          'Every class and bus route fee still in draft for ${widget.year.name} becomes final. Students are '
-          'charged from published fees.',
+          'Every class and bus route fee still in draft for ${widget.year.name} becomes final, and the students '
+          'in those classes and on those routes are charged their installments.',
       confirmLabel: 'Publish all',
     );
     if (!confirmed || !mounted) return;
@@ -128,12 +129,15 @@ class _ListState extends ConsumerState<_List> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      final count = await ref
+      final result = await ref
           .read(feeSetupActionsProvider)
           .publishAll(academicYearId: widget.year.id, schoolId: widget.schoolId);
+      final count = result.published;
       messenger
         ..clearSnackBars()
-        ..showSnackBar(SnackBar(content: Text('$count fee${count == 1 ? '' : 's'} published.')));
+        ..showSnackBar(
+          SnackBar(content: Text('$count fee${count == 1 ? '' : 's'} published. ${_chargedText(result.charged)}')),
+        );
     } catch (error) {
       messenger
         ..clearSnackBars()
@@ -284,12 +288,13 @@ class _FeeRow extends ConsumerStatefulWidget {
 class _FeeRowState extends ConsumerState<_FeeRow> {
   bool _busy = false;
 
-  Future<void> _run(Future<void> Function() action, String done) async {
+  /// Runs [action], then shows the message it returns.
+  Future<void> _run(Future<String> Function() action) async {
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      await action();
+      final done = await action();
       messenger
         ..clearSnackBars()
         ..showSnackBar(SnackBar(content: Text(done)));
@@ -307,15 +312,19 @@ class _FeeRowState extends ConsumerState<_FeeRow> {
     final confirmed = await confirmDialog(
       context,
       title: 'Publish ${fee.feeHeadName} for ${widget.group.name}?',
-      message: 'It becomes final for ${widget.year.name}. Students are charged from published fees.',
+      message: widget.kind == FeeStructureKind.classFee
+          ? 'It becomes final for ${widget.year.name}, and every student in ${widget.group.name} is charged its '
+                'installments.'
+          : 'It becomes final for ${widget.year.name}, and every student on ${widget.group.name} is charged its '
+                'installments.',
       confirmLabel: 'Publish',
     );
     if (!confirmed || !mounted) return;
 
-    await _run(
-      () => ref.read(feeSetupActionsProvider).publishStructure(fee.id),
-      '${fee.feeHeadName} for ${widget.group.name} published.',
-    );
+    await _run(() async {
+      final result = await ref.read(feeSetupActionsProvider).publishStructure(fee.id);
+      return '${fee.feeHeadName} for ${widget.group.name} published. ${_chargedText(result.charged)}';
+    });
   }
 
   Future<void> _delete() async {
@@ -329,7 +338,10 @@ class _FeeRowState extends ConsumerState<_FeeRow> {
     );
     if (!confirmed || !mounted) return;
 
-    await _run(() => ref.read(feeSetupActionsProvider).deleteStructure(fee.id), 'Draft deleted.');
+    await _run(() async {
+      await ref.read(feeSetupActionsProvider).deleteStructure(fee.id);
+      return 'Draft deleted.';
+    });
   }
 
   @override
@@ -358,7 +370,8 @@ class _FeeRowState extends ConsumerState<_FeeRow> {
             const SizedBox(height: 2),
             Text(
               '${formatCurrency(double.parse(fee.amount), fee.currencyCode)} · ${fee.frequency.label} · '
-              '$count installment${count == 1 ? '' : 's'}',
+              '$count installment${count == 1 ? '' : 's'}'
+              '${fee.isDraft ? '' : ' · ${fee.studentsCount} student${fee.studentsCount == 1 ? '' : 's'} charged'}',
               style: TextStyle(color: muted, fontSize: 13),
             ),
           ],
@@ -429,3 +442,8 @@ class _Empty extends StatelessWidget {
     );
   }
 }
+
+/// "32 students charged.", or why nobody was.
+String _chargedText(FeeCharge charged) => charged.students == 0
+    ? 'Nobody was charged - no student is enrolled there yet.'
+    : '${charged.students} student${charged.students == 1 ? '' : 's'} charged.';

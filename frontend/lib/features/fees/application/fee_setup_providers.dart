@@ -126,16 +126,16 @@ class FeeSetupActions {
     _refresh();
   }
 
-  Future<FeeStructure> publishStructure(int id) async {
-    final structure = await _repository.publishStructure(id);
+  Future<({FeeStructure structure, FeeCharge charged})> publishStructure(int id) async {
+    final result = await _repository.publishStructure(id);
     _refresh();
-    return structure;
+    return result;
   }
 
-  Future<int> publishAll({required int academicYearId, int? schoolId}) async {
-    final count = await _repository.publishAll(academicYearId: academicYearId, schoolId: schoolId);
+  Future<({int published, FeeCharge charged})> publishAll({required int academicYearId, int? schoolId}) async {
+    final result = await _repository.publishAll(academicYearId: academicYearId, schoolId: schoolId);
     _refresh();
-    return count;
+    return result;
   }
 
   Future<List<InstallmentDraft>> installmentPlan({

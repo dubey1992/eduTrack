@@ -579,6 +579,17 @@ class AppNav {
         pageTitle: 'Fee Setup',
         pageSubtitle: 'Fee types, class and bus route fees, and installments',
       ),
+      NavItem(
+        path: '/student-fees',
+        module: AppModules.fees,
+        requiredLevel: PermissionLevel.view,
+        label: 'Student Fees',
+        icon: Icons.receipt_long_outlined,
+        // What each student owes - the same people as Fee Setup.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Student Fees',
+        pageSubtitle: 'What each student has been charged, has paid and still owes',
+      ),
     ],
   );
 

@@ -47,7 +47,7 @@ const _student = Student(
   studentEmail: 'arjun@example.com',
 );
 
-Widget wrap(FakeStudentRepository fake) {
+Widget wrap(FakeStudentRepository fake, {Student student = _student}) {
   return ProviderScope(
     overrides: [
       schoolClassRepositoryProvider.overrideWithValue(FakeSchoolClassRepository(classes: [_schoolClass])),
@@ -61,7 +61,7 @@ Widget wrap(FakeStudentRepository fake) {
           builder: (context) => ElevatedButton(
             onPressed: () => showDialog(
               context: context,
-              builder: (_) => const EditStudentDialog(student: _student),
+              builder: (_) => EditStudentDialog(student: student),
             ),
             child: const Text('Open'),
           ),
@@ -71,7 +71,58 @@ Widget wrap(FakeStudentRepository fake) {
   );
 }
 
+/// Arjun again, with the day he joined - fees are charged from it.
+final _joined = Student(
+  id: 1,
+  schoolId: 1,
+  schoolName: 'Sunrise Public School',
+  classSectionId: 1,
+  classSectionName: 'Grade 8 A',
+  admissionNumber: 'STU-0042',
+  firstName: 'Arjun',
+  lastName: 'Kumar',
+  name: 'Arjun Kumar',
+  rollNumber: '12',
+  guardianName: 'Raj Kumar',
+  guardianMobile: '9876543210',
+  address: null,
+  status: StudentStatus.active,
+  admissionDate: DateTime(2026, 6, 1),
+);
+
 void main() {
+  group('the admission date (docs/fees.md, F2)', () {
+    testWidgets('shows the date the student joined, and keeps it on an unrelated save', (tester) async {
+      final fake = FakeStudentRepository(students: [_joined]);
+      await tester.pumpWidget(wrap(fake, student: _joined));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('06/01/2026'), findsOneWidget);
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(fake.lastUpdate!['admission_date'], DateTime(2026, 6, 1));
+    });
+
+    testWidgets('can be cleared, which is sent as nothing', (tester) async {
+      final fake = FakeStudentRepository(students: [_joined]);
+      await tester.pumpWidget(wrap(fake, student: _joined));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byTooltip('Clear admission date'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Clear admission date'));
+      await tester.pump();
+      expect(find.text('Not set'), findsOneWidget);
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(fake.lastUpdate!['admission_date'], isNull);
+    });
+  });
+
   testWidgets('shows a validation error when guardian name is cleared', (tester) async {
     await tester.pumpWidget(wrap(FakeStudentRepository(students: [_student])));
     await tester.tap(find.text('Open'));

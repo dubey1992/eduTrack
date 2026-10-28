@@ -41,6 +41,7 @@ from .enums import (
     StudentStatus,
     UserRole,
 )
+from .fees.dues import FeeDueService
 from .errors import (
     AlreadyEnrolled,
     NothingToPromote,
@@ -461,6 +462,15 @@ class PromotionRun:
 
                 cls.apply(student, outcome, section, to_year, target, batch, from_year, now)
                 counted[outcome].append(student.id)
+
+            # The fees follow (docs/fees.md, F2): the year closing keeps what
+            # is already due and drops what a leaver or graduate would have
+            # owed later; the year opening charges its class's published fees.
+            moved = [student_id for ids in counted.values() for student_id in ids]
+            charged = FeeDueService.sync_many(moved, from_year)
+            charged.add(FeeDueService.sync_many(counted[PROMOTE] + counted[RETAIN], to_year))
+            FeeDueService.audit(charged, entity_type="promotion", entity_id=batch.id,
+                                school_id=batch.school_id, actor=actor)
 
             PromotionBatch.objects.filter(pk=batch.id).update(
                 promoted_count=len(counted[PROMOTE]),

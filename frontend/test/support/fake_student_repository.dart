@@ -105,6 +105,7 @@ class FakeStudentRepository implements StudentRepository {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    DateTime? admissionDate,
     String? address,
   }) async {
     if (failCreateWith != null) throw failCreateWith!;
@@ -125,6 +126,7 @@ class FakeStudentRepository implements StudentRepository {
       guardianEmail: guardianEmail,
       studentMobile: studentMobile,
       studentEmail: studentEmail,
+      admissionDate: admissionDate,
       address: address,
       status: StudentStatus.active,
     );
@@ -149,6 +151,7 @@ class FakeStudentRepository implements StudentRepository {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    DateTime? admissionDate,
     String? address,
   }) async {
     lastUpdate = {
@@ -160,6 +163,7 @@ class FakeStudentRepository implements StudentRepository {
       'guardian_email': guardianEmail,
       'student_mobile': studentMobile,
       'student_email': studentEmail,
+      'admission_date': admissionDate,
       'address': address,
     };
     if (failUpdateWith != null) throw failUpdateWith!;
@@ -182,6 +186,8 @@ class FakeStudentRepository implements StudentRepository {
       guardianEmail: guardianEmail ?? existing.guardianEmail,
       studentMobile: studentMobile ?? existing.studentMobile,
       studentEmail: studentEmail ?? existing.studentEmail,
+      // Sent on every save, null meaning cleared - as the API treats it.
+      admissionDate: admissionDate,
       address: address ?? existing.address,
       status: existing.status,
       transport: existing.transport,

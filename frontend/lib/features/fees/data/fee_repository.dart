@@ -2,9 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/paginated_response.dart';
 import '../../../core/utils/date_format.dart';
 import 'models/fee_head.dart';
 import 'models/fee_structure.dart';
+import 'models/student_fees.dart';
+
+/// What publishing did: the students it charged and the dues it created.
+typedef FeeCharge = ({int students, int duesCreated});
 
 final feeRepositoryProvider = Provider<FeeRepository>((ref) => FeeRepository(ref.watch(dioClientProvider)));
 
@@ -117,21 +122,77 @@ class FeeRepository {
   /// Drafts only - the server refuses a published fee.
   Future<void> deleteStructure(int id) => _call(() => _dio.delete('/fees/structures/$id'));
 
-  Future<FeeStructure> publishStructure(int id) {
+  /// Publishes one fee, which charges every student it applies to.
+  Future<({FeeStructure structure, FeeCharge charged})> publishStructure(int id) {
     return _call(() async {
       final response = await _dio.post('/fees/structures/$id/publish');
-      return FeeStructure.fromJson(response.data as Map<String, dynamic>);
+      final json = response.data as Map<String, dynamic>;
+      final charged = json['charged'] as Map<String, dynamic>? ?? const {};
+
+      return (
+        structure: FeeStructure.fromJson(json),
+        charged: (students: charged['students'] as int? ?? 0, duesCreated: charged['dues_created'] as int? ?? 0),
+      );
     });
   }
 
-  /// Publishes every draft of the year. Returns how many were published.
-  Future<int> publishAll({required int academicYearId, int? schoolId}) {
+  /// Publishes every draft of the year: how many were published, and the
+  /// students they charged.
+  Future<({int published, FeeCharge charged})> publishAll({required int academicYearId, int? schoolId}) {
     return _call(() async {
       final response = await _dio.post(
         '/fees/structures/publish',
         data: {'academic_year_id': academicYearId, 'school_id': ?schoolId},
       );
-      return (response.data as Map<String, dynamic>)['published'] as int? ?? 0;
+      final json = response.data as Map<String, dynamic>;
+
+      return (
+        published: json['published'] as int? ?? 0,
+        charged: (students: json['students'] as int? ?? 0, duesCreated: json['dues_created'] as int? ?? 0),
+      );
+    });
+  }
+
+  // -- what students owe (F2) -------------------------------------------------
+
+  /// One student's fees for a year - the current one when [academicYearId]
+  /// is null.
+  Future<StudentFeeStatement> statement(int studentId, {int? academicYearId}) {
+    return _call(() async {
+      final response = await _dio.get(
+        '/fees/students/$studentId',
+        queryParameters: {'academic_year_id': ?academicYearId},
+      );
+      return StudentFeeStatement.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  /// What each student owes for a year, a page at a time.
+  Future<PaginatedResponse<StudentBalance>> balances({
+    required int academicYearId,
+    int? schoolId,
+    int? schoolClassId,
+    String? search,
+    bool owingOnly = false,
+    bool overdueOnly = false,
+    int page = 1,
+    int perPage = 20,
+  }) {
+    return _call(() async {
+      final response = await _dio.get(
+        '/fees/balances',
+        queryParameters: {
+          'academic_year_id': academicYearId,
+          'school_id': ?schoolId,
+          'school_class_id': ?schoolClassId,
+          if (search != null && search.isNotEmpty) 'search': search,
+          if (owingOnly) 'owing': 1,
+          if (overdueOnly) 'overdue': 1,
+          'page': page,
+          'per_page': perPage,
+        },
+      );
+      return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, StudentBalance.fromJson);
     });
   }
 

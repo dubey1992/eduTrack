@@ -76,6 +76,7 @@ class FeeStructure {
     this.transportRouteId,
     this.transportRouteName,
     this.publishedAt,
+    this.studentsCount = 0,
   });
 
   factory FeeStructure.fromJson(Map<String, dynamic> json) {
@@ -97,6 +98,7 @@ class FeeStructure {
       currencyCode: json['currency_code'] as String,
       frequency: FeeFrequency.fromWire(json['frequency'] as String),
       status: FeeStructureStatus.fromWire(json['status'] as String),
+      studentsCount: json['students_count'] as int? ?? 0,
       publishedAt: json['published_at'] is String ? DateTime.tryParse(json['published_at'] as String)?.toLocal() : null,
       installments: [
         for (final row in json['installments'] as List? ?? const [])
@@ -125,6 +127,9 @@ class FeeStructure {
   final FeeStructureStatus status;
   final DateTime? publishedAt;
   final List<FeeInstallment> installments;
+
+  /// How many students this fee charges now (F2). 0 for a draft.
+  final int studentsCount;
 
   bool get isRouteFee => transportRouteId != null;
   bool get isDraft => status == FeeStructureStatus.draft;

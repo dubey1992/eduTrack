@@ -1,7 +1,9 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/fees/data/fee_repository.dart';
 import 'package:edutrack_app/features/fees/data/models/fee_head.dart';
 import 'package:edutrack_app/features/fees/data/models/fee_structure.dart';
+import 'package:edutrack_app/features/fees/data/models/student_fees.dart';
 import 'package:edutrack_app/features/fees/data/money_text.dart';
 
 /// Test double for [FeeRepository] - keeps heads and fees the way the server
@@ -249,17 +251,20 @@ class FakeFeeRepository implements FeeRepository {
     status: FeeStructureStatus.published,
   );
 
+  /// What publishing reports it charged.
+  FeeCharge charge = (students: 32, duesCreated: 384);
+
   @override
-  Future<FeeStructure> publishStructure(int id) async {
+  Future<({FeeStructure structure, FeeCharge charged})> publishStructure(int id) async {
     _check();
     published.add(id);
     final index = structures_.indexWhere((s) => s.id == id);
     structures_[index] = _published(structures_[index]);
-    return structures_[index];
+    return (structure: structures_[index], charged: charge);
   }
 
   @override
-  Future<int> publishAll({required int academicYearId, int? schoolId}) async {
+  Future<({int published, FeeCharge charged})> publishAll({required int academicYearId, int? schoolId}) async {
     _check();
     publishAllCalls++;
     var count = 0;
@@ -269,7 +274,52 @@ class FakeFeeRepository implements FeeRepository {
         count++;
       }
     }
-    return count;
+    return (published: count, charged: charge);
+  }
+
+  // -- what students owe ------------------------------------------------------
+
+  /// What [balances] answers - filtered here only by "owing", which is what
+  /// the tests need to see reach the server.
+  List<StudentBalance> balanceRows = [];
+  final balanceQueries = <Map<String, Object?>>[];
+
+  @override
+  Future<PaginatedResponse<StudentBalance>> balances({
+    required int academicYearId,
+    int? schoolId,
+    int? schoolClassId,
+    String? search,
+    bool owingOnly = false,
+    bool overdueOnly = false,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    _check();
+    balanceQueries.add({
+      'academic_year_id': academicYearId,
+      'school_class_id': schoolClassId,
+      'search': search,
+      'owing': owingOnly,
+      'overdue': overdueOnly,
+      'page': page,
+    });
+    final rows = [
+      for (final row in balanceRows)
+        if (!owingOnly || (centsOf(row.balance) ?? 0) > 0) row,
+    ];
+    return PaginatedResponse(items: rows, currentPage: page, lastPage: 1, total: rows.length, perPage: perPage);
+  }
+
+  /// What [statement] answers, by student id.
+  Map<int, StudentFeeStatement> statements = {};
+
+  @override
+  Future<StudentFeeStatement> statement(int studentId, {int? academicYearId}) async {
+    _check();
+    final found = statements[studentId];
+    if (found == null) throw const Failure(code: 'NOT_FOUND', message: 'The requested resource was not found.');
+    return found;
   }
 
   @override
@@ -312,3 +362,85 @@ FeeStructure fakeClassFee({
     ],
   );
 }
+
+const _asha = FeeStudent(
+  id: 7,
+  name: 'Asha Rao',
+  admissionNumber: 'ADM-007',
+  status: 'active',
+  className: 'Class 8',
+  sectionName: 'A',
+);
+
+/// Asha owes 4,000, of which 2,000 is overdue.
+StudentBalance fakeBalance({String balance = '4000.00', String overdue = '2000.00'}) => StudentBalance(
+  student: _asha,
+  charged: '24000.00',
+  paid: '20000.00',
+  balance: balance,
+  overdue: overdue,
+  currencyCode: 'INR',
+  nextDueDate: DateTime(2026, 11, 10),
+);
+
+/// Asha's statement: one installment paid, one overdue, one to come, and one
+/// no longer charged because she changed class.
+StudentFeeStatement fakeStatement() => StudentFeeStatement(
+  student: const FeeStudent(
+    id: 7,
+    name: 'Asha Rao',
+    admissionNumber: 'ADM-007',
+    status: 'active',
+    className: 'Class 8',
+    sectionName: 'A',
+  ),
+  academicYearId: 1,
+  academicYearName: '2026-27',
+  currencyCode: 'INR',
+  dues: [
+    FeeDue(
+      id: 1,
+      feeHeadName: 'Tuition',
+      label: 'Tuition - April 2026',
+      dueDate: DateTime(2026, 4, 10),
+      amount: '2000.00',
+      discountAmount: '0.00',
+      paidAmount: '2000.00',
+      balance: '0.00',
+      status: FeeDueStatus.paid,
+      isOverdue: false,
+    ),
+    FeeDue(
+      id: 2,
+      feeHeadName: 'Tuition',
+      label: 'Tuition - May 2026',
+      dueDate: DateTime(2026, 5, 10),
+      amount: '2000.00',
+      discountAmount: '0.00',
+      paidAmount: '0.00',
+      balance: '2000.00',
+      status: FeeDueStatus.pending,
+      isOverdue: true,
+    ),
+    FeeDue(
+      id: 3,
+      feeHeadName: 'Transport',
+      label: 'Transport - Term 2',
+      dueDate: DateTime(2026, 11, 10),
+      amount: '1500.00',
+      discountAmount: '0.00',
+      paidAmount: '0.00',
+      balance: '1500.00',
+      status: FeeDueStatus.cancelled,
+      isOverdue: false,
+      cancelledReason: 'route_changed',
+    ),
+  ],
+  totals: const FeeTotals(
+    charged: '4000.00',
+    discount: '0.00',
+    paid: '2000.00',
+    balance: '2000.00',
+    overdue: '2000.00',
+  ),
+);

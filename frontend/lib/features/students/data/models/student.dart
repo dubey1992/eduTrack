@@ -70,6 +70,7 @@ class Student {
     this.guardianEmail,
     this.studentMobile,
     this.studentEmail,
+    this.admissionDate,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -94,6 +95,7 @@ class Student {
       guardianEmail: json['guardian_email'] as String?,
       studentMobile: json['student_mobile'] as String?,
       studentEmail: json['student_email'] as String?,
+      admissionDate: json['admission_date'] is String ? DateTime.tryParse(json['admission_date'] as String) : null,
     );
   }
 
@@ -119,6 +121,11 @@ class Student {
   final String? studentMobile;
   final String? studentEmail;
 
+  /// The day the student joined - fees are charged from it (docs/fees.md).
+  /// Null means "the day the record was added", which the server applies.
+  /// A date in the school's calendar, never converted.
+  final DateTime? admissionDate;
+
   Student copyWith({StudentStatus? status}) {
     return Student(
       id: id,
@@ -139,6 +146,7 @@ class Student {
       guardianEmail: guardianEmail,
       studentMobile: studentMobile,
       studentEmail: studentEmail,
+      admissionDate: admissionDate,
     );
   }
 }

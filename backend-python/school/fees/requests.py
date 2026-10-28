@@ -17,7 +17,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from ..enums import FeeFrequency
-from ..models import AcademicYear, FeeHead, FeeStructure, SchoolClass, TransportRoute
+from ..models import AcademicYear, ClassSection, FeeHead, FeeStructure, SchoolClass, TransportRoute
 from ..requests import MoneyField, ScopedSerializer
 from ..scope import SchoolScope
 from ..validation import (
@@ -426,3 +426,50 @@ def terms_of(year) -> list[plan.Term]:
         plan.Term(term.name, term.start_date)
         for term in year.terms.order_by("sequence_number", "id")
     ]
+
+
+# -- the balances list (F2) ---------------------------------------------------
+
+TRUTHY = ("1", "true", "yes", "on")
+
+
+class BalancesRequest:
+    """`GET fees/balances`: a year (required), and optionally a class and a
+    section of that year, a search, and `owing` / `overdue` switches. A Super
+    Admin or Group Admin reaches the school through the year, as the
+    structures list does. Another school's class or section is "invalid"."""
+
+    def __init__(self, params, actor) -> None:
+        self.params = params
+        self.actor = actor
+
+    def validate(self) -> dict:
+        errors: dict[str, list[str]] = {}
+        keys = ("academic_year_id", "school_id", "school_class_id", "class_section_id", "search", "owing", "overdue")
+        params = normalise({key: self.params.get(key) for key in keys})
+
+        year = year_in_scope(self.actor, params["academic_year_id"], errors, params["school_id"])
+        class_id = integer("school_class_id", params["school_class_id"], errors, optional=True)
+        section_id = integer("class_section_id", params["class_section_id"], errors, optional=True)
+
+        if year is not None:
+            if class_id is not None and not SchoolClass.objects.filter(pk=class_id, academic_year_id=year.id).exists():
+                errors.setdefault("school_class_id", []).append(does_not_exist("school_class_id"))
+
+            if section_id is not None and not ClassSection.objects.filter(
+                pk=section_id, school_class__academic_year_id=year.id
+            ).exists():
+                errors.setdefault("class_section_id", []).append(does_not_exist("class_section_id"))
+
+        raise_if(errors)
+
+        search = params["search"]
+
+        return {
+            "academic_year": year,
+            "school_class_id": class_id,
+            "class_section_id": section_id,
+            "search": search.strip() if isinstance(search, str) and search.strip() else None,
+            "owing": str(params["owing"]).lower() in TRUTHY,
+            "overdue": str(params["overdue"]).lower() in TRUTHY,
+        }
