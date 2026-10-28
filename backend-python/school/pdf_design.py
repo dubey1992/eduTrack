@@ -93,7 +93,7 @@ td, th {{ vertical-align: top; }}
 .band td {{ background-color: {BRAND}; color: #ffffff; }}
 .band .logo {{ width: 70px; padding: 14px 0 14px 16px; vertical-align: middle; }}
 .band .school {{ padding: 14px 16px; vertical-align: middle; }}
-.band .title {{ width: 230px; padding: 14px 16px; text-align: right; vertical-align: middle; }}
+.band .title {{ width: 260px; padding: 14px 16px; text-align: right; vertical-align: middle; }}
 .school-name {{ font-size: 17pt; font-weight: bold; }}
 .school-line {{ font-size: 8.5pt; color: #dbeafe; line-height: 1.5; padding-top: 4px; }}
 .doc-title {{ font-size: 14pt; font-weight: bold; }}
@@ -166,7 +166,8 @@ def fact(key: str, value) -> str:
     if value is None or str(value).strip() == "":
         return ""
 
-    return f'<tr><td class="key">{e(key)}</td><td class="value">{e(value)}</td></tr>'
+    # str() first: the shared escape reads 0 as nothing, and "Missed 0" is a fact.
+    return f'<tr><td class="key">{e(key)}</td><td class="value">{e(str(value))}</td></tr>'
 
 
 def facts(pairs) -> str:
@@ -285,7 +286,8 @@ def tiles(items: list[dict], per_row: int = 4) -> str:
     if not items:
         return ""
 
-    width = f"{100 // per_row}%"
+    # Exact shares: 100 // 6 leaves the row 4% short of the edge.
+    width = f"{100 / per_row:.2f}%"
     rows = []
 
     for start in range(0, len(items), per_row):
@@ -364,7 +366,7 @@ def signatures(names: list[str]) -> str:
     if not names:
         return ""
 
-    width = f"{100 // len(names)}%"
+    width = f"{100 / len(names):.2f}%"
     cells = "".join(
         f'<td class="sign" width="{width}"><div class="sign-line">{e(name)}</div></td>' for name in names
     )

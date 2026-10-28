@@ -37,8 +37,10 @@ class ProgressReportTestCase(PerformanceTestCase):
     def page(self, student=None, term_id=None, school_name="Sunrise Public School") -> str:
         """The document's HTML, which is what the assertions read."""
         payload = for_student(student or self.student, term_id)
+        school = (student or self.student).school
+        school.name = school_name
 
-        return progress_reports.document(payload, school_name=school_name, generated_at="09/14/2026 12:00 PM")
+        return progress_reports.document(payload, school=school, generated_at="09/14/2026 12:00 PM")
 
 
 class WhatItSays(ProgressReportTestCase):
@@ -112,7 +114,7 @@ class WhatItSays(ProgressReportTestCase):
     def test_attendance_is_reported_beside_the_marks(self):
         self.mark(self.published(), marks="18")
 
-        self.assertIn("Attendance", self.page())
+        self.assertIn("ATTENDANCE", self.page())
 
     def test_the_page_is_numbered_and_carries_the_child_in_its_footer(self):
         self.mark(self.published(), marks="18")
@@ -321,7 +323,7 @@ class TheSameFiguresAsTheScreen(ProgressReportTestCase):
         self.mark(self.published(subject=self.science), marks="10")
 
         payload = for_student(self.student, None)
-        page = progress_reports.document(payload, school_name="Sunrise", generated_at="now")
+        page = progress_reports.document(payload, school=self.school, generated_at="now")
 
         for subject in payload["subjects"]:
             self.assertIn(subject["subject_name"], page)
@@ -337,7 +339,7 @@ class TheSameFiguresAsTheScreen(ProgressReportTestCase):
         self.mark(self.published(), marks=Decimal("5"))
 
         payload = for_student(self.student, None)
-        page = progress_reports.document(payload, school_name="Sunrise", generated_at="now")
+        page = progress_reports.document(payload, school=self.school, generated_at="now")
 
         self.assertTrue(payload["insights"], "the rules should have something to say about 22.5%")
         for insight in payload["insights"]:
@@ -368,7 +370,7 @@ class TheTopicsOnThePage(ProgressReportTestCase):
 
         page = self.page()
 
-        self.assertIn("Inside each subject", page)
+        self.assertIn("INSIDE EACH SUBJECT", page)
         self.assertIn("Vectors", page)
         self.assertIn("Trigonometry", page)
         self.assertIn("90%", page)
@@ -400,7 +402,7 @@ class TheTopicsOnThePage(ProgressReportTestCase):
     def test_a_school_that_names_no_topics_gets_no_section_rather_than_an_empty_one(self):
         self.mark(self.published(), marks="18")
 
-        self.assertNotIn("Inside each subject", self.page())
+        self.assertNotIn("INSIDE EACH SUBJECT", self.page())
 
 
 class WhatToDoNextOnThePage(ProgressReportTestCase):
@@ -420,7 +422,7 @@ class WhatToDoNextOnThePage(ProgressReportTestCase):
 
         page = self.page()
 
-        self.assertIn("What to do next", page)
+        self.assertIn("WHAT TO DO NEXT", page)
         self.assertIn("Set extra practice in Mathematics", page)
 
     def test_it_names_the_chapters_where_the_tests_named_them(self):
@@ -442,5 +444,5 @@ class WhatToDoNextOnThePage(ProgressReportTestCase):
         self.mark(self.published(), marks="19")
         self.mark(self.published(), marks="20")
 
-        self.assertNotIn("What to do next", self.page())
+        self.assertNotIn("WHAT TO DO NEXT", self.page())
 

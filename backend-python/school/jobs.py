@@ -210,7 +210,7 @@ def send_progress_report(message_id: int, student_id: int, academic_term_id: int
             progress_reports.file_name(payload),
             progress_reports.render(
                 payload,
-                school_name=student.school.name,
+                school=student.school,
                 generated_at=clock.format(clock.now(), DATE_TIME),
             ),
             "application/pdf",

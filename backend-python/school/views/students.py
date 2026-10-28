@@ -189,7 +189,7 @@ def progress_report(request, student_id: int) -> HttpResponse:
     payload = performance_of(student, form.validated_data.get("academic_term_id"))
     clock = SchoolClock.for_school(student.school_id)
     document = progress_reports.render(
-        payload, school_name=student.school.name, generated_at=clock.format(clock.now(), DATE_TIME)
+        payload, school=student.school, generated_at=clock.format(clock.now(), DATE_TIME)
     )
 
     response = HttpResponse(document, content_type="application/pdf")

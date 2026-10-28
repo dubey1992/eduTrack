@@ -25,7 +25,7 @@ class SmallPieces(SimpleTestCase):
             with self.subTest(value=value):
                 self.assertEqual("", pdf_design.fact("Roll no.", value))
 
-        self.assertIn("Roll no.", pdf_design.fact("Roll no.", 0))
+        self.assertIn('<td class="value">0</td>', pdf_design.fact("Missed", 0))
 
     def test_facts_keep_only_the_lines_with_values(self):
         html = pdf_design.facts([("Name", "Asha"), ("Roll no.", None), ("Class", "8 - A")])
@@ -114,7 +114,7 @@ class Blocks(SimpleTestCase):
         html = pdf_design.tiles([{"label": f"L{n}", "value": n} for n in range(5)], per_row=4)
 
         self.assertEqual(2, html.count("<tr>"))
-        self.assertEqual(8, html.count('width="25%"'))
+        self.assertEqual(8, html.count('width="25.00%"'))
         self.assertEqual("", pdf_design.tiles([]))
 
     def test_a_tile_shows_nought_rather_than_nothing(self):
@@ -146,7 +146,7 @@ class Blocks(SimpleTestCase):
     def test_signatures_share_the_width(self):
         html = pdf_design.signatures(["Class teacher", "Principal", "Parent"])
 
-        self.assertEqual(3, html.count('width="33%"'))
+        self.assertEqual(3, html.count('width="33.33%"'))
         self.assertEqual("", pdf_design.signatures([]))
 
     def test_the_totals_panel_prints_words_only_when_given(self):

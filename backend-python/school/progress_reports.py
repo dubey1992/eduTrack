@@ -5,50 +5,45 @@ figures: the payload school/performance.py builds is what this lays out.
 Nothing here re-derives an average, so a report a guardian files and the
 screen a teacher reads cannot disagree.
 
-It adds one thing the screen does not show - every test inside each
-subject, with the mark and **the grade frozen onto it at publish**. A
-subject average is worked out when somebody asks; a test's grade was
-decided the day the result went out, and that is the one a guardian
-questioning a report is entitled to see, whatever the school has done to
-its grade bands since.
+It adds what the screen does not show - every test inside each subject, with
+the mark and **the grade frozen onto it at publish** (a subject average is
+worked out when somebody asks; a test's grade was decided the day the result
+went out, and that is the one a guardian questioning a report is entitled to
+see) - and what a report card carries: the school's band, the child's roll
+number, guardian and class teacher, the academic year, the grade scale the
+grades were read against, and lines for the class teacher, the principal
+and the parent to sign.
 
-Rendered with xhtml2pdf like the receipt and the payslip, for the same
-reason: shared hosting has no cairo or pango. Portrait, because this is a
-document about a person rather than a table of a school.
+Wears the platform's shared PDF look (school/pdf_design.py,
+docs/pdf-design.md). Portrait, because this is a document about a person
+rather than a table of a school.
 """
 
 from __future__ import annotations
 
+import datetime as dt
 import html
-import io
 
-from xhtml2pdf import pisa
-
-from . import dates
+from . import dates, pdf_design
 from .enums import AssessmentStatus
-from .models import AssessmentMark
-from .receipts import STYLESHEET, e
+from .models import AcademicTerm, AssessmentMark, Student
 
-STYLES = """
-@page {
-    size: a4 portrait;
-    margin: 16mm 14mm 18mm 14mm;
-    @frame footer { -pdf-frame-content: page-footer; bottom: 9mm; height: 8mm; margin-left: 14mm; margin-right: 14mm; }
-}
-.sheet { padding: 0; }
-h1 { font-size: 15px; margin: 18px 0 8px; }
-.facts td { padding: 3px 14px 3px 0; font-size: 11px; vertical-align: top; }
-.facts .key { color: #6b7280; width: 120px; }
-.grid { margin-top: 6px; border: 1px solid #d7dbe3; }
-.grid th { background: #f3f4f6; text-align: left; font-size: 10px; padding: 5px 7px; border-bottom: 1px solid #d7dbe3; }
-.grid td { font-size: 10px; padding: 4px 7px; border-bottom: 1px solid #eceef2; }
-.grid th.num, .grid td.num { text-align: right; }
-.tests th { font-size: 9px; }
-.tests td { font-size: 9px; color: #4b5563; }
-.subject-name { font-weight: bold; }
-.says li { font-size: 11px; margin-bottom: 3px; }
-.foot { font-size: 9px; color: #6b7280; }
-.foot .right { text-align: right; }
+REPORT_STYLES = """
+table.marks th { font-size: 7.5pt; padding: 6px 5px; }
+table.marks td { font-size: 8.5pt; padding: 5px 5px; }
+.marks .subject-name { font-weight: bold; }
+.marks .weak { font-size: 7pt; color: #b91c1c; }
+.marks .grade { font-weight: bold; color: #1e3a8a; }
+.marks .grade-fail { font-weight: bold; color: #b91c1c; }
+.marks .absent { color: #b91c1c; }
+.marks .up { color: #047857; font-weight: bold; }
+.marks .down { color: #b91c1c; font-weight: bold; }
+.says td { font-size: 9.5pt; padding: 4px 10px; border-left: 3px solid #2563eb; background-color: #f8fafc; }
+.steps td { font-size: 9.5pt; padding: 4px 10px; border-left: 3px solid #059669; background-color: #ecfdf5; }
+.scale td.band-cell { border: 1px solid #e5e7eb; padding: 5px 6px; text-align: center; font-size: 10pt; }
+.scale .band-range { font-size: 7.5pt; color: #6b7280; padding-top: 2px; }
+.legend { font-size: 7.5pt; color: #6b7280; padding-top: 4px; }
+.empty { font-size: 9.5pt; color: #6b7280; padding: 8px 10px; background-color: #f8fafc; }
 """
 
 
@@ -71,92 +66,191 @@ def slug(value) -> str:
     return "".join(kept).strip("-").lower() or "report"
 
 
-def render(payload: dict, *, school_name: str, generated_at: str) -> bytes:
-    out = io.BytesIO()
-    result = pisa.CreatePDF(
-        document(payload, school_name=school_name, generated_at=generated_at), dest=out, encoding="utf-8"
-    )
-
-    if result.err:
-        raise RuntimeError(f"Could not render {file_name(payload)}")
-
-    return out.getvalue()
+def render(payload: dict, *, school, generated_at: str) -> bytes:
+    return pdf_design.render(document(payload, school=school, generated_at=generated_at), file_name(payload))
 
 
-def document(payload: dict, *, school_name: str, generated_at: str) -> str:
+def document(payload: dict, *, school, generated_at: str) -> str:
     """The report as HTML. Separate from render() so a test can read it."""
     student = payload["student"]
     term = payload["term"]
     subjects = payload["subjects"]
+    record = (
+        Student.objects.select_related("class_section__class_teacher").filter(pk=student["id"]).first()
+    )
+    marks = tests_of(payload)
 
-    period = "-" if term is None else f"{dates.us_from_iso(term['start_date'])} to {dates.us_from_iso(term['end_date'])}"
+    period = None if term is None else dates.range_label(
+        dt.date.fromisoformat(term["start_date"]), dt.date.fromisoformat(term["end_date"])
+    )
     term_name = "No term" if term is None else term["name"]
+    year = None
+    if term is not None:
+        found = AcademicTerm.objects.select_related("academic_year").filter(pk=term["id"]).first()
+        year = found.academic_year.name if found is not None else None
 
-    return f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><style>{STYLESHEET}{STYLES}</style></head>
-<body>
-<div id="page-footer">
-    <table class="foot"><tr>
-        <td>{e(school_name)} &#183; Progress report &#183; {e(student["name"])}</td>
-        <td class="right">Page <pdf:pagenumber> of <pdf:pagecount></td>
-    </tr></table>
-</div>
-<div class="sheet">
-    <table class="head"><tr>
-        <td><div class="brand">{e(school_name)}</div><div class="muted">Progress report</div></td>
-        <td class="right"><div>{text(term_name)}</div><div class="muted">{text(period)}</div></td>
-    </tr></table>
+    section = record.class_section if record is not None and record.class_section_id else None
+    teacher = section.class_teacher if section is not None and section.class_teacher_id else None
 
-    <h1>Student</h1>
-    <table class="facts">
-        <tr><td class="key">Name</td><td>{text(student["name"])}</td></tr>
-        <tr><td class="key">Admission No.</td><td>{text(student["admission_number"] or "-")}</td></tr>
-        <tr><td class="key">Class</td><td>{text(student["class_section_name"] or "-")}</td></tr>
-        <tr><td class="key">Term</td><td>{text(term_name)}</td></tr>
-    </table>
+    who = pdf_design.facts([
+        ("Name", student["name"]),
+        ("Admission no.", student["admission_number"]),
+        ("Roll no.", record.roll_number if record is not None else None),
+        ("Class", student["class_section_name"]),
+        ("Guardian", record.guardian_name if record is not None else None),
+        ("Class teacher", teacher.name if teacher is not None else None),
+    ])
+    when = pdf_design.facts([
+        ("Academic year", year),
+        ("Term", term_name),
+        ("Period", period),
+        ("Generated", generated_at),
+    ])
 
-    {body(payload, subjects)}
+    closing = [
+        "Only published results are counted. A test the student missed is left out of the average rather than "
+        "counted as nought, and each subject weighs the same in the overall figure.",
+        f"Generated {generated_at}." if generated_at else "",
+        "Powered by School365ai",
+    ]
 
-    <h1>Attendance</h1>
-    {attendance_table(payload["attendance"])}
+    body = f"""
+    {pdf_design.school_band(school, "PROGRESS REPORT", term_name, period)}
+    {pdf_design.spacer(16)}
+    {pdf_design.side_by_side(who, when, "Student", "Report")}
+
+    {results(payload, subjects, marks)}
+
+    {pdf_design.section("Attendance")}
+    {attendance_block(payload["attendance"])}
 
     {says(payload["insights"])}
-
     {next_steps(payload.get("recommendations") or [])}
 
-    <div class="note muted">
-        Only published results are counted. A test the student missed is left out of the average rather than
-        counted as nought, and each subject weighs the same in the overall figure.
-        Generated {text(generated_at)}.
-    </div>
-</div>
-</body>
-</html>"""
+    {pdf_design.spacer(10)}
+    {pdf_design.signatures(["Class teacher", "Principal", "Parent / Guardian"])}
+    {pdf_design.closing([line for line in closing if line])}
+"""
+
+    return pdf_design.page(
+        f"Progress report - {student['name']}", body,
+        footer=f"{school.name} - Progress report - {student['name']} - {term_name}",
+        extra_styles=REPORT_STYLES,
+    )
 
 
-def body(payload: dict, subjects: list) -> str:
+# -- the results ------------------------------------------------------------------
+
+
+def results(payload: dict, subjects: list, marks: list) -> str:
     """The marks, or a plain sentence where there are none.
 
     A term nobody has published a result in is not a term the child failed,
     so it says so in words rather than printing a table of dashes.
     """
     if payload["term"] is None:
-        return '<h1>Results</h1><p class="muted">This school has not set its terms out yet.</p>'
+        return f'{pdf_design.section("Results")}<div class="empty">This school has not set its terms out yet.</div>'
 
     if not subjects:
-        return '<h1>Results</h1><p class="muted">No result has been published for this term yet.</p>'
+        return (
+            f'{pdf_design.section("Results")}'
+            '<div class="empty">No result has been published for this term yet.</div>'
+        )
 
-    return f"""<h1>Summary</h1>
-    {summary_table(payload)}
+    # Imported here: performance reaches school/services.py, which imports
+    # this module while it loads.
+    from .performance import StudentPerformance
 
-    <h1>Subjects</h1>
-    {subject_table(payload, subjects)}
+    scale = StudentPerformance.grade_scale_for(marks)
+
+    return f"""
+    {pdf_design.section("Summary")}
+    {summary_tiles(payload)}
+
+    {pdf_design.section("Subjects")}
+    {subject_table(payload, subjects, scale)}
 
     {topic_section(payload, subjects)}
 
-    <h1>Tests</h1>
-    {test_table(payload, subjects)}"""
+    {pdf_design.section("Every test this term")}
+    {test_table(marks, scale)}
+
+    {grade_scale(scale)}"""
+
+
+def summary_tiles(payload: dict) -> str:
+    overall = payload["overall"]
+    weak = payload.get("weak_below_percentage")
+    average = overall["average_percentage"]
+    moved = overall["change"]
+    tests = overall["assessments"]
+    missed = overall["absent"]
+
+    def tone_of_average():
+        if average is None:
+            return "neutral"
+        if weak is not None and float(average) < float(weak):
+            return "danger"
+        return "success"
+
+    def tone_of_change():
+        if moved is None or float(moved) == 0:
+            return "neutral"
+        return "success" if float(moved) > 0 else "danger"
+
+    return pdf_design.tiles([
+        {"label": "Average", "value": percent(average), "tone": tone_of_average(),
+         "hint": f"{text(overall['subjects'])} subject{'s' if overall['subjects'] != 1 else ''}"},
+        {"label": "Class average", "value": percent(overall["class_average_percentage"]), "tone": "info"},
+        {"label": "Change", "value": change(moved), "tone": tone_of_change(),
+         "hint": f"Previous term {percent(overall['previous_average_percentage'])}"},
+        {"label": "Tests", "value": text(tests), "tone": "danger" if missed else "neutral",
+         "hint": f"{text(missed)} missed"},
+    ])
+
+
+def failing_grades(scale) -> set[str]:
+    if scale is None:
+        return set()
+
+    return {band.label for band in scale.bands.all() if band.is_failing}
+
+
+def grade_cell(grade, scale) -> str:
+    if not grade:
+        return "-"
+
+    css = "grade-fail" if grade in failing_grades(scale) else "grade"
+
+    return f'<span class="{css}">{text(grade)}</span>'
+
+
+def subject_table(payload: dict, subjects: list, scale) -> str:
+    weak = payload.get("weak_below_percentage")
+    rows = []
+
+    for subject in subjects:
+        average = subject["average_percentage"]
+        flag = ""
+        if weak is not None and average is not None and float(average) < float(weak):
+            flag = f'<div class="weak">below {text(weak)}%</div>'
+
+        rows.append([
+            f'<span class="subject-name">{text(subject["subject_name"])}</span>{flag}',
+            text(subject["assessments"]),
+            text(subject["absent"]),
+            percent(average),
+            grade_cell(subject["grade"], scale),
+            percent(subject["class_average_percentage"]),
+            percent(subject["previous_average_percentage"]),
+            change_cell(subject["change"]),
+        ])
+
+    return pdf_design.table(
+        [("Subject", "24%", False), ("Tests", "8%", True), ("Missed", "9%", True), ("Average", "16%", True),
+         ("Grade", "9%", False), ("Class average", "12%", True), ("Previous", "11%", True), ("Change", "11%", True)],
+        rows, table_class="items marks",
+    )
 
 
 def topic_section(payload: dict, subjects: list) -> str:
@@ -171,10 +265,6 @@ def topic_section(payload: dict, subjects: list) -> str:
         return ""
 
     weak = payload.get("weak_below_percentage")
-    head = (
-        "<tr><th>Subject</th><th>Topic</th><th class='num'>Tests</th>"
-        "<th class='num'>Missed</th><th class='num'>Average</th></tr>"
-    )
     rows = []
 
     for subject in with_topics:
@@ -182,96 +272,88 @@ def topic_section(payload: dict, subjects: list) -> str:
             average = topic["average_percentage"]
             flag = ""
             if weak is not None and average is not None and float(average) < float(weak):
-                flag = f' <span class="muted">(below {text(weak)}%)</span>'
+                flag = f'<div class="weak">below {text(weak)}%</div>'
 
-            rows.append(
-                f'<tr><td>{text(subject["subject_name"])}</td>'
-                f'<td>{text(topic["topic_name"])}{flag}</td>'
-                f'<td class="num">{text(topic["assessments"])}</td>'
-                f'<td class="num">{text(topic["absent"])}</td>'
-                f'<td class="num">{percent(average)}</td></tr>'
-            )
+            rows.append([
+                text(subject["subject_name"]),
+                f"{text(topic['topic_name'])}{flag}",
+                text(topic["assessments"]),
+                text(topic["absent"]),
+                percent(average),
+            ])
 
-    return f'<h1>Inside each subject</h1><table class="grid"><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table>'
-
-
-def summary_table(payload: dict) -> str:
-    overall = payload["overall"]
-    lines = [
-        ("Average", percent(overall["average_percentage"])),
-        ("Class average", percent(overall["class_average_percentage"])),
-        ("Previous term", percent(overall["previous_average_percentage"])),
-        ("Change", change(overall["change"])),
-        ("Subjects", text(overall["subjects"])),
-        ("Tests", text(overall["assessments"])),
-        ("Missed", text(overall["absent"])),
-    ]
-
-    return facts(lines)
-
-
-def subject_table(payload: dict, subjects: list) -> str:
-    weak = payload.get("weak_below_percentage")
-    head = (
-        "<tr><th>Subject</th><th class='num'>Tests</th><th class='num'>Missed</th><th class='num'>Average</th>"
-        "<th>Grade</th><th class='num'>Class average</th><th class='num'>Previous</th><th class='num'>Change</th></tr>"
+    table = pdf_design.table(
+        [("Subject", "24%", False), ("Topic", "40%", False), ("Tests", "12%", True), ("Missed", "12%", True),
+         ("Average", "12%", True)],
+        rows, table_class="items marks",
     )
-    rows = []
 
-    for subject in subjects:
-        average = subject["average_percentage"]
-        flag = ""
-        if weak is not None and average is not None and float(average) < float(weak):
-            flag = f' <span class="muted">(below {text(weak)}%)</span>'
-
-        rows.append(
-            f'<tr><td class="subject-name">{text(subject["subject_name"])}{flag}</td>'
-            f'<td class="num">{text(subject["assessments"])}</td>'
-            f'<td class="num">{text(subject["absent"])}</td>'
-            f'<td class="num">{percent(average)}</td>'
-            f'<td>{text(subject["grade"] or "-")}</td>'
-            f'<td class="num">{percent(subject["class_average_percentage"])}</td>'
-            f'<td class="num">{percent(subject["previous_average_percentage"])}</td>'
-            f'<td class="num">{change(subject["change"])}</td></tr>'
-        )
-
-    return f'<table class="grid"><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table>'
+    return f'{pdf_design.section("Inside each subject")}{table}'
 
 
-def test_table(payload: dict, subjects: list) -> str:
+def test_table(marks: list, scale) -> str:
     """Every test behind the averages above, with the grade frozen on it.
 
     Read from the same published marks the payload was built from, so this
     adds detail rather than a second opinion.
     """
-    marks = tests_of(payload)
-
-    if not marks:
-        return '<p class="muted">-</p>'
-
-    head = (
-        "<tr><th>Subject</th><th>Test</th><th>Date</th><th class='num'>Marks</th>"
-        "<th class='num'>Out of</th><th class='num'>%</th><th>Grade</th></tr>"
-    )
     rows = []
 
     for mark in marks:
         assessment = mark.assessment
         absent = mark.is_absent
 
-        rows.append(
-            f"<tr><td>{text(assessment.subject.name)}</td>"
-            f"<td>{text(assessment.title)}</td>"
-            f"<td>{text(dates.us(assessment.assessment_date))}</td>"
+        rows.append([
+            text(assessment.subject.name),
+            text(assessment.title),
+            text(dates.us(assessment.assessment_date)),
             # Absent is said in words. A blank would read as a nought, and a
             # nought would be a lie about a child who was not there.
-            f'<td class="num">{"Absent" if absent else text(number(mark.marks_obtained))}</td>'
-            f'<td class="num">{text(number(assessment.max_marks))}</td>'
-            f'<td class="num">{"-" if absent else percent(share(mark, assessment))}</td>'
-            f'<td>{text(mark.grade or "-")}</td></tr>'
-        )
+            '<span class="absent">Absent</span>' if absent else text(number(mark.marks_obtained)),
+            text(number(assessment.max_marks)),
+            "-" if absent else percent(share(mark, assessment)),
+            grade_cell(mark.grade, scale),
+        ])
 
-    return f'<table class="grid tests"><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table>'
+    return pdf_design.table(
+        [("Subject", "20%", False), ("Test", "28%", False), ("Date", "13%", False), ("Marks", "10%", True),
+         ("Out of", "10%", True), ("%", "10%", True), ("Grade", "9%", False)],
+        rows, empty="No published test this term.", table_class="items marks",
+    )
+
+
+def grade_scale(scale) -> str:
+    """The bands the grades above were read against, so a guardian can see
+    what a B means at this school: one strip, best grade first, a failing
+    grade in red."""
+    if scale is None:
+        return ""
+
+    bands = sorted(scale.bands.all(), key=lambda band: band.min_percentage, reverse=True)
+
+    if not bands:
+        return ""
+
+    per_row = 8
+    width = f"{100 / per_row:.2f}%"
+    rows = []
+
+    for start in range(0, len(bands), per_row):
+        cells = [
+            f'<td class="band-cell" width="{width}">{grade_cell(band.label, scale)}'
+            f'<div class="band-range">{text(number(band.min_percentage))}-{text(number(band.max_percentage))}%</div></td>'
+            for band in bands[start:start + per_row]
+        ]
+        cells += [f'<td width="{width}"></td>'] * (per_row - len(cells))
+        rows.append(f"<tr>{''.join(cells)}</tr>")
+
+    failing = " A grade in red is below the pass mark." if failing_grades(scale) else ""
+
+    return (
+        f'{pdf_design.section(f"Grade scale - {scale.name}")}'
+        f'<table class="marks scale">{"".join(rows)}</table>'
+        f'<div class="legend">Each subject average and test above is graded on this scale.{failing}</div>'
+    )
 
 
 def tests_of(payload: dict):
@@ -299,7 +381,10 @@ def share(mark, assessment):
     return mark.marks_obtained / assessment.max_marks * 100
 
 
-def attendance_table(attendance: dict) -> str:
+# -- attendance and what the figures say ----------------------------------------------
+
+
+def attendance_block(attendance: dict) -> str:
     """The register for the same period.
 
     Two things are deliberately not printed as 0%. A period the school
@@ -310,25 +395,25 @@ def attendance_table(attendance: dict) -> str:
     that same blank, and this refuses to print from it.
     """
     if not attendance["working_days"]:
-        return '<p class="muted">The school ran on no day of this period, so there is no attendance to report.</p>'
+        return '<div class="empty">The school ran on no day of this period, so there is no attendance to report.</div>'
 
     marked = attendance["present"] + attendance["absent"] + attendance["leave"]
 
     if not marked:
-        return facts([
-            ("Attendance", "The register was not taken in this period."),
-            ("School days", text(attendance["working_days"])),
-            ("Not marked", text(attendance["not_marked"])),
-        ])
+        return (
+            f'<div class="empty">The register was not taken in this period. The school ran '
+            f'{text(attendance["working_days"])} days and {text(attendance["not_marked"])} were not marked.</div>'
+        )
 
-    return facts([
-        ("Attendance", percent(attendance["attendance_rate"])),
-        ("Present", text(attendance["present"])),
-        ("Absent", text(attendance["absent"])),
-        ("Leave", text(attendance["leave"])),
-        ("School days", text(attendance["working_days"])),
-        ("Not marked", text(attendance["not_marked"])),
-    ])
+    return pdf_design.tiles([
+        {"label": "Attendance", "value": percent(attendance["attendance_rate"]), "tone": "info"},
+        {"label": "Present", "value": text(attendance["present"]), "tone": "success"},
+        {"label": "Absent", "value": text(attendance["absent"]),
+         "tone": "danger" if attendance["absent"] else "neutral"},
+        {"label": "Leave", "value": text(attendance["leave"])},
+        {"label": "School days", "value": text(attendance["working_days"])},
+        {"label": "Not marked", "value": text(attendance["not_marked"])},
+    ], per_row=6)
 
 
 def says(insights: list) -> str:
@@ -336,9 +421,9 @@ def says(insights: list) -> str:
     if not insights:
         return ""
 
-    items = "".join(f'<li>{text(insight["message"])}</li>' for insight in insights)
+    rows = "".join(f'<tr><td>{text(insight["message"])}</td></tr>' for insight in insights)
 
-    return f'<h1>What this looks like</h1><ul class="says">{items}</ul>'
+    return f'{pdf_design.section("What this looks like")}<table class="says">{rows}</table>'
 
 
 def next_steps(recommendations: list) -> str:
@@ -351,15 +436,12 @@ def next_steps(recommendations: list) -> str:
     if not recommendations:
         return ""
 
-    items = "".join(f'<li>{text(step["message"])}</li>' for step in recommendations)
+    rows = "".join(f'<tr><td>{text(step["message"])}</td></tr>' for step in recommendations)
 
-    return f'<h1>What to do next</h1><ul class="says">{items}</ul>'
+    return f'{pdf_design.section("What to do next")}<table class="steps">{rows}</table>'
 
 
-def facts(lines: list) -> str:
-    cells = "".join(f'<tr><td class="key">{text(key)}</td><td><b>{value}</b></td></tr>' for key, value in lines)
-
-    return f'<table class="facts">{cells}</table>'
+# -- figures ----------------------------------------------------------------------------
 
 
 def percent(value) -> str:
@@ -375,6 +457,13 @@ def change(value) -> str:
     sign = "+" if figure > 0 else ""
 
     return f"{sign}{text(number(value))}"
+
+
+def change_cell(value) -> str:
+    if value is None or float(value) == 0:
+        return change(value)
+
+    return f'<span class="{"up" if float(value) > 0 else "down"}">{change(value)}</span>'
 
 
 def number(value) -> str:
