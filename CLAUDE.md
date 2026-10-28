@@ -26,9 +26,9 @@ Do not invent business rules when a requirement is unclear. If genuinely missing
 
 ## 3. Scope
 
-**In scope:** Auth, user/role management, school management, Super Admin, simple payment tracking, academic year, departments, subjects, classes, sections, teachers, staff, students, parents/guardians, student attendance, staff attendance, leave management, timetable, daily teaching reports, HOD monitoring, syllabus tracking, transport (vehicles/drivers/routes/stops/assignment/trips/boarding events), communication (SMS/push/announcements), dashboards, reports, audit logs, payroll.
+**In scope:** Auth, user/role management, school management, Super Admin, simple payment tracking, academic year, departments, subjects, classes, sections, teachers, staff, students, parents/guardians, student attendance, staff attendance, leave management, timetable, daily teaching reports, HOD monitoring, syllabus tracking, transport (vehicles/drivers/routes/stops/assignment/trips/boarding events), communication (SMS/push/announcements), dashboards, reports, audit logs, payroll, fee management (requested 2026-10-28; plan and rules in `docs/fees.md`).
 
-**Future/optional — do NOT implement unless explicitly requested:** Parent app, Student app, Examination system, Fee management, Library, Inventory.
+**Future/optional — do NOT implement unless explicitly requested:** Parent app, Student app, Examination system, Library, Inventory.
 
 ## 4. No Subscription System
 
@@ -164,6 +164,7 @@ A feature is not done because the screen works. Required: DB + API + authorizati
 | 20 | Advanced Reporting |
 | 21 | Audit & Security Hardening |
 | 22 | Production Deployment |
+| 23 | Fee Management, in five slices F1–F5 (`docs/fees.md`) |
 
 Core entities appear as their phase is implemented — don't create all tables up front. See the phase-plan PDFs in `docs/specs/` (if present) for full field-by-field detail per phase.
 

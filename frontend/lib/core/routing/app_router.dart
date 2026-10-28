@@ -21,6 +21,7 @@ import '../../features/communication/presentation/communication_screen.dart';
 import '../../features/communication/presentation/inbox_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/early_access/presentation/early_access_screen.dart';
+import '../../features/fees/presentation/fee_setup_screen.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/errors/presentation/not_found_screen.dart';
 import '../../features/departments/presentation/department_list_screen.dart';
@@ -167,6 +168,7 @@ const appRoutePaths = {
   '/inbox',
   '/reports',
   '/payroll',
+  '/fee-setup',
   '/my-payslips',
   '/audit-log',
   '/mail-settings',
@@ -292,6 +294,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/inbox', builder: (context, state) => const InboxScreen()),
           GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
           GoRoute(path: '/payroll', builder: (context, state) => const PayrollScreen()),
+          GoRoute(path: '/fee-setup', builder: (context, state) => const FeeSetupScreen()),
           GoRoute(path: '/my-payslips', builder: (context, state) => const MyPayslipsScreen()),
           GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
           GoRoute(path: '/mail-settings', builder: (context, state) => const MailSettingsScreen()),

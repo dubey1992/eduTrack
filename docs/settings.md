@@ -36,10 +36,13 @@ changed.
 | Teaching Reports | yes | days allowed to file a report (default 0 = no limit) |
 | Communication | yes | - (Alert Settings hold the rest) |
 | Payroll | yes | email payslips when a run is finalized (default on) |
+| Fee Management | yes, **and off until asked for** | - (settings arrive with F3-F5, docs/fees.md) |
 
-**One module arrives off.** Every other module is on for a school that has
+**Two modules arrive off.** Every other module is on for a school that has
 never touched its settings, because a school should see the product it
-bought. Biometric Attendance is the exception: it needs fingerprint readers
+bought. Fee Management is one exception: every existing school would
+otherwise find an empty Fees menu the morning it shipped, so the Super Admin
+grants it per school (docs/fees.md). Biometric Attendance is the other: it needs fingerprint readers
 on the wall, and a school without them would find screens that can only ever
 be empty. A module declares this with `granted_by_default=False`, and the
 Super Admin grants it when a customer asks (docs/biometric.md). Switching it
@@ -100,6 +103,7 @@ read it, so a School Admin can see what their staff may do.
 | Communication | manage | none | none | none | none | none |
 | Announcements | manage | manage | none | none | none | none |
 | Payroll | manage | none | none | none | none | manage |
+| Fee Management | manage | none | none | none | none | manage |
 | Reports | view | view | none | none | view | view |
 
 These defaults are exactly what the policies allowed before the matrix

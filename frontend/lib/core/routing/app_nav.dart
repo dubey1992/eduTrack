@@ -560,6 +560,28 @@ class AppNav {
   /// The prototype's Operations group sits next to Transport. The message
   /// log holds guardians' numbers, so only admins see it; the inbox is every
   /// user's own mail and is open to all.
+  /// Fee Management (docs/fees.md). Each slice adds its screen here - F1 is
+  /// the set-up.
+  static const fees = NavGroup(
+    label: 'Fees',
+    items: [
+      NavItem(
+        path: '/fee-setup',
+        module: AppModules.fees,
+        requiredLevel: PermissionLevel.view,
+        label: 'Fee Setup',
+        icon: Icons.request_quote_outlined,
+        // The roles with fees in the default matrix - only consulted when
+        // the session carries no matrix at all; otherwise the matrix decides,
+        // so a school that gives its front desk fees sees them here. A Super
+        // Admin reads; the screen offers changes only at "manage".
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Fee Setup',
+        pageSubtitle: 'Fee types, class and bus route fees, and installments',
+      ),
+    ],
+  );
+
   static const operations = NavGroup(
     label: 'Operations',
     items: [
@@ -593,7 +615,7 @@ class AppNav {
     ],
   );
 
-  static const groups = [overview, people, attendanceHr, academics, transport, operations, administration];
+  static const groups = [overview, people, attendanceHr, academics, transport, operations, fees, administration];
 
   static List<NavItem> get allItems => groups.expand((g) => g.items).toList();
 

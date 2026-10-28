@@ -68,6 +68,10 @@ _DEFAULT_ROWS = {
     "communication":    (MANAGE, NONE,   NONE,   NONE,   NONE,   NONE, NONE, NONE),
     "announcements":    (MANAGE, MANAGE, NONE,   NONE,   NONE,   NONE, NONE, NONE),
     "payroll":          (MANAGE, NONE,   NONE,   NONE,   NONE,   MANAGE, NONE, NONE),
+    # A family's money is not every teacher's business (docs/fees.md). Only
+    # the office sees fees out of the box; the matrix can widen it - a
+    # front-desk clerk given "manage", say.
+    "fees":             (MANAGE, NONE,   NONE,   NONE,   NONE,   MANAGE, NONE, NONE),
     "reports":          (VIEW,   VIEW,   NONE,   NONE,   VIEW,   VIEW, NONE, NONE),}
 
 DEFAULTS: dict[str, dict[str, str]] = {

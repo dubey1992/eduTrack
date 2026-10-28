@@ -51,6 +51,9 @@ from school.models import (
     TransportTripLocation,
     AcademicYear,
     AuditLog,
+    FeeHead,
+    FeeInstallment,
+    FeeStructure,
     Announcement,
     Attendance,
     ClassSection,
@@ -290,6 +293,13 @@ def clean() -> None:
     SalaryComponent.objects.filter(salary_profile__school_id__in=schools).delete()
     SalaryProfile.objects.filter(in_school).delete()
     AuditLog.objects.filter(Q(school_id__in=schools) | Q(user_id__in=users)).delete()
+
+    # Fees (docs/fees.md) point at classes, routes, years and users, so they
+    # go before any of those.
+    fees = FeeStructure.objects.filter(Q(school_id__in=schools) | Q(created_by_id__in=users) | Q(published_by_id__in=users))
+    FeeInstallment.objects.filter(fee_structure__in=fees).delete()
+    fees.delete()
+    FeeHead.objects.filter(in_school).delete()
 
     TransportTripLocation.objects.filter(Q(trip__in=trips) | Q(school_id__in=schools)).delete()
     TransportTripEvent.objects.filter(Q(trip__in=trips) | Q(school_id__in=schools)).delete()

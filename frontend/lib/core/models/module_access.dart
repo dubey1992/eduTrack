@@ -27,6 +27,11 @@ abstract final class AppModules {
   static const communication = 'communication';
   static const announcements = 'announcements';
   static const payroll = 'payroll';
+
+  /// Fee Management (docs/fees.md). Off until the Super Admin grants it to a
+  /// school - every school would otherwise find an empty Fees menu the
+  /// morning it shipped.
+  static const fees = 'fees';
   static const reports = 'reports';
 }
 
@@ -138,6 +143,8 @@ class ModuleAccess {
     AppModules.communication: [_manage, _none, _none, _none, _none, _none, _none],
     AppModules.announcements: [_manage, _manage, _none, _none, _none, _none, _none],
     AppModules.payroll: [_manage, _none, _none, _none, _none, _manage, _none],
+    // A family's money is not every teacher's business; the matrix can widen it.
+    AppModules.fees: [_manage, _none, _none, _none, _none, _manage, _none],
     AppModules.reports: [_view, _view, _none, _none, _view, _view, _none],
   };
 }

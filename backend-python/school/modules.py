@@ -148,6 +148,15 @@ MODULES: tuple[Module, ...] = (
             ),
         ),
     ),
+    Module(
+        "fees", "Fee Management", "Fee types, class and bus route fees, and their installments.",
+        # Off until the Super Admin grants it (docs/fees.md). On by default,
+        # every school on the platform would find an empty Fees menu the
+        # morning it shipped, with nothing set up behind it. No settings yet:
+        # late fines, reminders and part-payments arrive with the slices that
+        # read them (F3-F5), because a setting nothing reads is a lie.
+        granted_by_default=False,
+    ),
     Module("reports", "Reports", "Attendance, leave, teaching, transport and payroll reports."),
 )
 

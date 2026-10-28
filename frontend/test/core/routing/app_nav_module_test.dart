@@ -46,6 +46,45 @@ void _useDesktopViewport(WidgetTester tester) {
 }
 
 void main() {
+  group('Fee Setup (docs/fees.md)', () {
+    test('needs the module switched on for the school', () {
+      final accountant = sessionUser(UserRole.accountant, modules: {AppModules.fees: false});
+
+      expect(_item('/fee-setup').allows(accountant), isFalse);
+    });
+
+    test('belongs to the admin and the accountant out of the box, and nobody else', () {
+      final on = {AppModules.fees: true};
+
+      expect(_item('/fee-setup').allows(sessionUser(UserRole.schoolAdmin, modules: on)), isTrue);
+      expect(_item('/fee-setup').allows(sessionUser(UserRole.accountant, modules: on)), isTrue);
+      expect(_item('/fee-setup').allows(sessionUser(UserRole.teacher, modules: on)), isFalse);
+      expect(_item('/fee-setup').allows(sessionUser(UserRole.hod, modules: on)), isFalse);
+    });
+
+    test('without a matrix in the session, falls back to the same two roles', () {
+      expect(
+        _item('/fee-setup').allows(const AuthenticatedUser(id: 1, name: 'T', email: 't@x.com', role: UserRole.teacher)),
+        isFalse,
+      );
+      expect(
+        _item('/fee-setup')
+            .allows(const AuthenticatedUser(id: 1, name: 'A', email: 'a@x.com', role: UserRole.accountant)),
+        isTrue,
+      );
+    });
+
+    test('follows the matrix when a school widens it', () {
+      final clerk = sessionUser(
+        UserRole.staff,
+        permissions: {AppModules.fees: PermissionLevel.manage},
+        modules: {AppModules.fees: true},
+      );
+
+      expect(_item('/fee-setup').allows(clerk), isTrue);
+    });
+  });
+
   group('a module item', () {
     test('is hidden when the school has the module switched off, whatever the level', () {
       final teacher = sessionUser(

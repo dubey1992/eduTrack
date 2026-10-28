@@ -338,6 +338,79 @@ class EarlyAccessRequest(models.Model):
         managed = False
         db_table = 'early_access_requests'
 
+
+class FeeHead(models.Model):
+    """A school's fee type - Tuition, Exam, Library... (docs/fees.md, F1).
+
+    One head per school is Transport (`is_transport`): bus route fees hang
+    off it, so it is created by the application and never renamed, retired
+    or deleted. Names are unique per school without regard to case, which the
+    application checks - the unique key is case-sensitive on PostgreSQL.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    name = models.CharField(max_length=100)
+    is_transport = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'fee_heads'
+        unique_together = (('school', 'name'),)
+
+
+class FeeStructure(models.Model):
+    """One fee for one academic year: a class's fee for one head, or a bus
+    route's Transport fee - exactly one of the two. A draft until published
+    (docs/fees.md, F1)."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING)
+    school_class = models.ForeignKey('SchoolClass', models.DO_NOTHING, blank=True, null=True)
+    transport_route = models.ForeignKey('TransportRoute', models.DO_NOTHING, blank=True, null=True)
+    fee_head = models.ForeignKey('FeeHead', models.DO_NOTHING, related_name='structures')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency_code = models.CharField(max_length=3)
+    frequency = models.CharField(max_length=20)
+    status = models.CharField(max_length=20, default='draft')
+    published_at = UtcDateTimeField(blank=True, null=True)
+    published_by = models.ForeignKey('User', models.DO_NOTHING, db_column='published_by', blank=True, null=True, related_name='+')
+    created_by = models.ForeignKey('User', models.DO_NOTHING, db_column='created_by', blank=True, null=True, related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'fee_structures'
+        unique_together = (
+            ('academic_year', 'school_class', 'fee_head'),
+            ('academic_year', 'transport_route', 'fee_head'),
+        )
+
+
+class FeeInstallment(models.Model):
+    """One slice of a fee structure, with its own due date. A structure's
+    installments add up to its amount exactly."""
+
+    id = models.BigAutoField(primary_key=True)
+    fee_structure = models.ForeignKey('FeeStructure', models.DO_NOTHING, related_name='installments')
+    sequence = models.SmallIntegerField()
+    label = models.CharField(max_length=60)
+    due_date = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'fee_installments'
+        unique_together = (('fee_structure', 'sequence'),)
+
+
 class GradeScale(models.Model):
     """A school's way of turning a percentage into a grade (docs/assessments.md).
 

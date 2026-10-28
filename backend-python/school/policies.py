@@ -832,6 +832,35 @@ class PayrollPolicy:
         )
 
 
+class FeePolicy:
+    """Fee Management (docs/fees.md): set up by an Accountant or School Admin
+    for their own school, and by a Group Admin across their scope. A Super
+    Admin reads any school's fees and changes none of them - like payroll.
+
+    A family's money: a role not granted "fees" in the matrix has none of
+    it, and the module itself is off until the Super Admin grants it.
+    """
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return permitted(actor, "fees")
+
+    @staticmethod
+    def manage_any(actor: User) -> bool:
+        return actor.role != UserRole.SUPER_ADMIN and permitted(actor, "fees", write=True)
+
+    @staticmethod
+    def view(actor: User, school_id: int) -> bool:
+        return permitted(actor, "fees", school_id=school_id) and in_scope(actor, school_id)
+
+    @staticmethod
+    def manage(actor: User, school_id: int) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN:
+            return False
+
+        return permitted(actor, "fees", write=True, school_id=school_id) and in_scope(actor, school_id)
+
+
 class PaymentPolicy:
     """Platform business, and nobody else's.
 

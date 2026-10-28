@@ -442,6 +442,21 @@ class PayrollRunStatus(models.TextChoices):
     PAID = "paid", "Paid"
 
 
+class FeeFrequency(models.TextChoices):
+    """How a fee is split into installments (docs/fees.md)."""
+
+    MONTHLY = "monthly", "Monthly"
+    QUARTERLY = "quarterly", "Quarterly"
+    TERM = "term", "Per term"
+    YEARLY = "yearly", "Yearly"
+    ONE_TIME = "one_time", "One-time"
+
+
+class FeeStructureStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    PUBLISHED = "published", "Published"
+
+
 class PayslipStatus(models.TextChoices):
     UNPAID = "unpaid", "Unpaid"
     PAID = "paid", "Paid"

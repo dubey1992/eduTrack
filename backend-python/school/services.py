@@ -110,6 +110,7 @@ from .errors import (
 )
 from .models import (
     AuditLog,
+    FeeStructure,
     BusStop,
     AttendantCredential,
     AttendantDevice,
@@ -3418,6 +3419,9 @@ class TransportRouteService:
         if TransportTrip.objects.filter(route_id=route.pk).exists():
             raise HasDependentRecords("This route has trip history and cannot be deleted. Deactivate it instead.")
 
+        if FeeStructure.objects.filter(transport_route_id=route.pk).exists():
+            raise HasDependentRecords("This route has a bus fee set up for it. Delete its fees first.")
+
         # Its stops go with it. The real schema cascades this on its own; it
         # is spelled out anyway, in one transaction, because the test database
         # is built from the models and has no ON DELETE CASCADE to lean on -
@@ -4812,6 +4816,10 @@ class SchoolClassService:
         if ClassSection.objects.filter(school_class_id=school_class.id).exists():
             raise HasDependentRecords("This class still has sections under it. Remove them first.")
 
+        # A school's fee book does not disappear with a class (docs/fees.md).
+        if FeeStructure.objects.filter(school_class_id=school_class.id).exists():
+            raise HasDependentRecords("This class has fees set up for it. Delete its fees first.")
+
         audit.deleted("academic", school_class)
         school_class.delete()
 
@@ -5067,6 +5075,11 @@ class AcademicYearService:
             raise HasDependentRecords(
                 "This academic year still has terms set up under it. Remove them first."
             )
+
+        # Route fees belong to a year without belonging to any class, so the
+        # class check above does not cover them.
+        if FeeStructure.objects.filter(academic_year_id=year.id).exists():
+            raise HasDependentRecords("This academic year has fees set up for it. Delete its fees first.")
 
         audit.deleted("academic", year)
         year.delete()

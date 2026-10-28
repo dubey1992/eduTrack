@@ -566,6 +566,45 @@ class PayslipAlreadyPaid(ApiError):
     error_code = "PAYSLIP_ALREADY_PAID"
 
 
+# -- fees (docs/fees.md) ---------------------------------------------------
+
+
+class FeeHeadLimitReached(ApiError):
+    """Fifty fee types per school, Transport included. A school with more is
+    almost certainly typing one per class; the cap keeps the set-up screen and
+    its unpaginated list honest."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "FEE_HEAD_LIMIT_REACHED"
+
+
+class FeeHeadProtected(ApiError):
+    """The Transport fee type carries every bus route's fee, so it stays."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "FEE_HEAD_PROTECTED"
+
+    def __init__(self) -> None:
+        super().__init__("The Transport fee type is used for bus route fees, so it can't be renamed or retired.")
+
+
+class FeeHeadInUse(ApiError):
+    """A fee type that fees are set up with is retired, not deleted."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "FEE_HEAD_IN_USE"
+
+
+class FeeStructurePublished(ApiError):
+    """A published fee is what students are (from F2) charged against."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "FEE_STRUCTURE_PUBLISHED"
+
+    def __init__(self) -> None:
+        super().__init__("A published fee can't be deleted.")
+
+
 class UnprocessableRequest(ApiError):
     """Laravel's bare `abort(422)`: no validator involved, so no field
     errors - just the framework's generic sentence under a generic code."""
