@@ -15,7 +15,7 @@ document can wear it.
 | 2 | Fee statement | `school/fees/statement_pdf.py` | shared kit (phase 1) |
 | 3 | Payslip | `school/payroll/payslips.py` | shared kit (phase 2) |
 | 4 | Student progress report | `school/progress_reports.py` | shared kit (phase 3) |
-| 5-16 | The 12 reports (attendance, leave, teaching, syllabus, transport, payroll, performance, fees) | `school/reports/pdf.py` | old - phase 4 |
+| 5-16 | The 12 reports (attendance, leave, teaching, syllabus, transport, payroll, performance, fees) | `school/reports/pdf.py` | shared kit (phase 4) |
 | 17 | Payment receipt (school pays School365ai) | `school/receipts.py` | old - phase 5 |
 
 ## What every document has
@@ -84,7 +84,15 @@ web fonts; spacing by spacer rows.
    what to do next, and lines for the class teacher, principal and parent to
    sign. Typed teacher remarks are not on it: they need a new field, not yet
    approved.
-4. The 12 reports.
+4. **The 12 reports** - done 2026-10-28, one template for all. Landscape;
+   the school's band (logo, address) with the report's name, period and
+   working days - a group report carries the group's label instead; what
+   the sheet is (filters, branches, rows) beside when it was run and what
+   it was compared with; the totals as headline tiles, each with the
+   previous period's figure; every row, the heading repeated on each page
+   and each column as wide as what it holds (xhtml2pdf otherwise makes them
+   equal, and a receipt number runs into the next column); how the figures
+   are worked out.
 5. The School365ai payment receipt.
 
 Open decisions (asked 2026-10-28): bank account and tax ID on the payslip

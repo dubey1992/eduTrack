@@ -248,15 +248,19 @@ def filter_labels(validated: dict, school_ids: list[int] | None) -> list[tuple[s
 
 def pdf_response(report, name: str, built: dict, actor, school_id: int | None,
                  filters: list | None = None) -> HttpResponse:
+    school = None
+
     if school_id is None:
         school_label = f"All {len(built['branches'])} branches"
         clock = SchoolClock.for_user(actor)
     else:
-        school_label = School.objects.get(pk=school_id).name
+        school = School.objects.get(pk=school_id)
+        school_label = school.name
         clock = SchoolClock.for_school(school_id)
 
     document = pdf.render(
-        report, built, school_label=school_label, generated_at=clock.format(clock.now(), DATE_TIME), filters=filters
+        report, built, school_label=school_label, generated_at=clock.format(clock.now(), DATE_TIME), filters=filters,
+        school=school,
     )
 
     response = HttpResponse(document, content_type="application/pdf")

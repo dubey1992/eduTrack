@@ -1,59 +1,42 @@
-"""Any report as a printable PDF (Phase 20).
+"""Any report as a printable PDF (Phase 20; docs/pdf-design.md, phase 4).
 
 The same figures as the screen and the CSV - the rows are the report's own
-csv_rows(), so the three can never disagree - laid out for a printer:
-landscape A4, the school and period at the top, the totals (with the previous
-period beside them when a comparison was asked for), then the table.
+csv_rows(), so the three can never disagree - laid out for a printer in the
+platform's shared look (school/pdf_design.py): landscape A4; the school's
+blue band with the report's name, its period and working days; what this
+sheet is (filters, branches, rows, when it was run) beside the period it was
+compared with; the totals as headline tiles, each with the previous period's
+figure under it when a comparison was asked for; then every row, the heading
+repeated on each page; and how the figures are worked out.
 
-Rendered with xhtml2pdf like receipts and payslips, for the same reason:
-shared hosting has no cairo or pango. That also means simple tables and the
-receipt's stylesheet, nothing cleverer.
+A group report (every branch at once) carries the group's label in the band
+instead of one school's address.
 """
 
 from __future__ import annotations
 
 import html
-import io
 from decimal import Decimal
 
-from xhtml2pdf import pisa
-
-from .. import dates, money
-from ..receipts import STYLESHEET, e
+from .. import dates, money, pdf_design
 from . import comparison
 
 DEFAULT_NOTE = "Every rate is out of the days the school actually ran: its days off and its holidays are not counted."
 
 REPORT_STYLES = """
-@page {
-    size: a4 landscape;
-    margin: 14mm 12mm 16mm 12mm;
-    @frame footer { -pdf-frame-content: page-footer; bottom: 7mm; height: 7mm; margin-left: 12mm; margin-right: 12mm; }
-}
-.sheet { padding: 0; }
-.grid { margin-top: 10px; border: 1px solid #d7dbe3; }
-.grid th { background: #f3f4f6; text-align: left; font-size: 9px; padding: 5px 6px; border-bottom: 1px solid #d7dbe3; }
-.grid td { font-size: 9px; padding: 4px 6px; border-bottom: 1px solid #eceef2; }
-.facts td { padding: 3px 12px 3px 0; font-size: 11px; }
-.facts .key { color: #6b7280; width: 160px; }
-.grid th.num, .grid td.num { text-align: right; }
-.strip { margin-top: 10px; border-top: 1px solid #eceef2; border-bottom: 1px solid #eceef2; }
-.strip td { padding: 5px 12px 5px 0; font-size: 10px; }
-.strip .key { color: #6b7280; width: 90px; }
-.foot { font-size: 9px; color: #6b7280; }
-.foot .right { text-align: right; }
+table.report th { font-size: 7.5pt; padding: 6px 5px; }
+table.report td { font-size: 8pt; padding: 4px 5px; }
+table.band td.school { padding: 10px 16px; }
+table.band td.title { width: 420px; padding: 10px 16px; }
 """
 
 
-def render(report, built: dict, *, school_label: str, generated_at: str, filters: list | None = None) -> bytes:
-    out = io.BytesIO()
-    page = document(report, built, school_label=school_label, generated_at=generated_at, filters=filters)
-    result = pisa.CreatePDF(page, dest=out, encoding="utf-8")
+def render(report, built: dict, *, school_label: str, generated_at: str, filters: list | None = None,
+           school=None) -> bytes:
+    page = document(report, built, school_label=school_label, generated_at=generated_at, filters=filters,
+                    school=school)
 
-    if result.err:
-        raise RuntimeError(f"Could not render the {report.TITLE} report")
-
-    return out.getvalue()
+    return pdf_design.render(page, f"the {report.TITLE} report")
 
 
 def file_name(slug: str, built: dict) -> str:
@@ -61,13 +44,16 @@ def file_name(slug: str, built: dict) -> str:
     return f"{slug}-group-{start}-to-{end}.pdf" if built.get("group") else f"{slug}-{start}-to-{end}.pdf"
 
 
-def document(report, built: dict, *, school_label: str, generated_at: str, filters: list | None = None) -> str:
+def document(report, built: dict, *, school_label: str, generated_at: str, filters: list | None = None,
+             school=None) -> str:
     """The report as HTML. Separate from render() so a test can read it.
 
     `filters` is what was asked for, already turned into labels by the view
     - the one thing a printed report cannot leave out. A sheet narrowed to
       one class, or to the students under 40%, looks exactly like the whole
       school's on paper, and somebody will read it as the whole school's.
+    `school` is the one school the report is about, for its logo and
+    contact lines; a group report has none.
     """
     is_group = built.get("group", False)
     compared = "comparison" in built
@@ -83,56 +69,45 @@ def document(report, built: dict, *, school_label: str, generated_at: str, filte
         rows = [[*line, *comparison.cells(report, row)] for row, line in zip(built["rows"], rows)]
 
     numeric = numeric_columns(rows, len(headings))
-    head_cells = "".join(
-        f"<th{align(numeric[index])}>{e(heading)}</th>" for index, heading in enumerate(headings)
+    widths = column_widths(headings, rows)
+    table = pdf_design.table(
+        [(heading, widths[index], numeric[index]) for index, heading in enumerate(headings)],
+        [[cell(value) for value in line] for line in rows],
+        empty="Nothing to report for this period.",
+        table_class="items report",
     )
-    body = "".join(
-        "<tr>"
-        + "".join(f"<td{align(numeric[index])}>{cell(value)}</td>" for index, value in enumerate(line))
-        + "</tr>"
-        for line in rows
-    )
-    if not rows:
-        body = f'<tr><td colspan="{len(headings)}" class="muted">Nothing to report for this period.</td></tr>'
 
     # The fee reports count money, not days the school ran.
     shows_days = getattr(report, "SHOWS_WORKING_DAYS", True)
-    days = "" if working_days is None or not shows_days else f"{text(working_days)} working days"
+    days = None if working_days is None or not shows_days else f"{text(working_days)} working days"
+    span = dates.range_label_iso(period["from"], period["to"])
 
-    return f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><style>{STYLESHEET}{REPORT_STYLES}</style></head>
-<body>
-<div id="page-footer">
-    <table class="foot"><tr>
-        <td>{e(school_label)} &#183; {e(report.TITLE)}</td>
-        <td class="right">Page <pdf:pagenumber> of <pdf:pagecount></td>
-    </tr></table>
-</div>
-<div class="sheet">
-    <table class="head"><tr>
-        <td><div class="brand">{e(school_label)}</div><div class="muted">{e(report.TITLE)}</div></td>
-        <td class="right"><div>{e(dates.range_label_iso(period["from"], period["to"]))}</div><div class="muted">{days}</div></td>
-    </tr></table>
+    if school is not None and not is_group:
+        band = pdf_design.school_band(school, report.TITLE.upper(), span, days)
+    else:
+        band = pdf_design.band(school_label, [], report.TITLE.upper(), span, days)
 
-    {sheet_facts(built, rows, filters, generated_at)}
+    # When it was run is in the facts above; the period is in the band.
+    closing = [getattr(report, "PDF_NOTE", DEFAULT_NOTE), "Powered by School365ai"]
 
-    <h1>Summary</h1>
-    {totals_table(built, report)}
+    body = f"""
+    {band}
+    {pdf_design.spacer(14)}
+    {pdf_design.side_by_side(sheet_facts(built, rows, filters), run_facts(built, generated_at),
+                             "This sheet", "Run")}
 
-    <h1>Detail</h1>
-    <table class="grid"><thead><tr>{head_cells}</tr></thead><tbody>{body}</tbody></table>
+    {pdf_design.section("Summary")}
+    {summary(built, report)}
 
-    <div class="note muted">
-        {e(getattr(report, "PDF_NOTE", DEFAULT_NOTE))}
-    </div>
-</div>
-</body>
-</html>"""
+    {pdf_design.section("Detail", keep=False)}
+    {table}
+    {pdf_design.closing([line for line in closing if line])}
+"""
 
-
-def align(is_numeric: bool) -> str:
-    return ' class="num"' if is_numeric else ""
+    return pdf_design.page(
+        f"{report.TITLE} - {school_label}", body, footer=f"{school_label} - {report.TITLE} - {span}",
+        landscape=True, extra_styles=REPORT_STYLES,
+    )
 
 
 def numeric_columns(rows: list, width: int) -> list[bool]:
@@ -151,7 +126,29 @@ def numeric_columns(rows: list, width: int) -> list[bool]:
     return numeric
 
 
-def sheet_facts(built: dict, rows: list, filters: list | None, generated_at: str) -> str:
+def column_widths(headings: list, rows: list) -> list[str]:
+    """Each column's share of the page, from what it holds: its longest
+    value, or the longest word of its heading (a heading wraps between
+    words, a value like a receipt number cannot). Left to itself xhtml2pdf
+    gives every column the same width, and a long receipt number runs into
+    the column beside it."""
+    def longest_word(value) -> int:
+        return max((len(word) for word in str(value).split()), default=1)
+
+    sizes = []
+
+    for index, heading in enumerate(headings):
+        values = [len(str(line[index])) for line in rows[:500] if index < len(line) and line[index] is not None]
+        size = max([longest_word(heading), *values, 3])
+        # Long free text (a reason, a note) wraps; it should not starve the rest.
+        sizes.append(min(size, 28))
+
+    total = sum(sizes) or 1
+
+    return [f"{size / total * 100:.2f}%" for size in sizes]
+
+
+def sheet_facts(built: dict, rows: list, filters: list | None) -> str:
     """What this particular sheet is, above the figures.
 
     Every line here answers a question somebody holding the paper will ask:
@@ -166,73 +163,90 @@ def sheet_facts(built: dict, rows: list, filters: list | None, generated_at: str
         lines.append(("Branches", ", ".join(branch["school_name"] for branch in branches) or "None"))
 
     lines.append(("Rows", str(len(rows))))
-    lines.append(("Generated", generated_at))
 
-    cells = "".join(f'<tr><td class="key">{e(label)}</td><td>{e(value)}</td></tr>' for label, value in lines)
-
-    return f'<table class="strip">{cells}</table>'
+    return pdf_design.facts(lines)
 
 
-def totals_table(built: dict, report=None) -> str:
+def run_facts(built: dict, generated_at: str) -> str:
+    """When the sheet was run, and the period its figures were set beside.
+    The period itself and its working days are in the band."""
+    lines = [("Generated", generated_at)]
+
+    if "comparison" in built:
+        earlier = built["comparison"]["range"]
+        lines.append(("Compared with", dates.range_label_iso(earlier["from"], earlier["to"])))
+
+    return pdf_design.facts(lines)
+
+
+def summary(built: dict, report=None) -> str:
+    """The totals as headline tiles, the previous period's figure under each
+    when a comparison was asked for."""
     totals = built["totals"]
     previous = built.get("comparison", {}).get("totals")
-    lines = []
+    items = []
 
     # A report whose totals are lists - money per currency - says how to
     # print them (the fee reports): (label, value, previous or None) each.
     if report is not None and hasattr(report, "pdf_totals"):
         for label, value, before in report.pdf_totals(totals, previous):
-            was = "" if previous is None or before is None else f'<td class="muted">previous: {e(before)}</td>'
-            lines.append(f'<tr><td class="key">{e(label)}</td><td><b>{text(value)}</b></td>{was}</tr>')
+            items.append(tile(label, value, None if previous is None or before is None else before))
 
         totals = {}
 
     for key, value in totals.items():
         if key == "by_currency":
-            lines += currency_lines(value, None if previous is None else previous.get(key))
+            items += currency_tiles(value, None if previous is None else previous.get(key))
             continue
 
-        before = "" if previous is None else f'<td class="muted">previous: {figure(key, previous.get(key))}</td>'
-        lines.append(f'<tr><td class="key">{e(humanise(key))}</td><td><b>{figure(key, value)}</b></td>{before}</tr>')
+        before = None if previous is None else figure(key, previous.get(key), escape=False)
+        items.append(tile(humanise(key), figure(key, value, escape=False), before, key=key))
 
-    if previous is not None:
-        period = built["comparison"]["range"]
-        lines.append(
-            f'<tr><td class="key">Previous period</td>'
-            f'<td>{e(dates.range_label_iso(period["from"], period["to"]))}</td></tr>'
-        )
+    if not items:
+        return '<div class="note">No totals for this period.</div>'
 
-    return f'<table class="facts">{"".join(lines)}</table>'
+    return pdf_design.tiles(items, per_row=5)
 
 
-def currency_lines(entries: list[dict], previous: list[dict] | None) -> list[str]:
-    """Payroll's money, one line per currency - never added across them."""
+def tile(label: str, value, before=None, key: str = "") -> dict:
+    """One headline figure. A rate is blue; the rest stay quiet."""
+    return {
+        "label": label,
+        "value": value,
+        "hint": None if before is None else f"previous: {before}",
+        "tone": "info" if key.endswith(("rate", "completion")) else "neutral",
+    }
+
+
+def currency_tiles(entries: list[dict], previous: list[dict] | None) -> list[dict]:
+    """Payroll's money, one tile per currency - never added across them."""
     before = {entry["currency_code"]: entry for entry in previous or []}
-    lines = []
+    tiles = []
 
     for entry in entries:
         code = entry["currency_code"]
         earlier = before.get(code)
-        was = "" if previous is None else (
-            f'<td class="muted">previous: {cash(earlier["net"], code) if earlier else "-"}</td>'
-        )
-        lines.append(
-            f'<tr><td class="key">Net pay ({e(code)})</td><td><b>{cash(entry["net"], code)}</b>'
-            f' <span class="muted">gross {cash(entry["gross"], code)}, unpaid {cash(entry["unpaid"], code)}</span>'
-            f'</td>{was}</tr>'
-        )
+        hint = f"gross {cash(entry['gross'], code)}, unpaid {cash(entry['unpaid'], code)}"
+        if previous is not None:
+            hint += f" - previous: {cash(earlier['net'], code) if earlier else '-'}"
+        tiles.append({"label": f"Net pay ({code})", "value": cash(entry["net"], code), "hint": hint,
+                      "tone": "success"})
 
-    return lines
+    return tiles
 
 
-def figure(key: str, value) -> str:
+def figure(key: str, value, escape: bool = True) -> str:
+    """A total as a person reads it: a rate with its % sign, a list joined,
+    nothing as a dash. Escaped unless it goes into a tile, which escapes."""
+    show = text if escape else str
+
     if value is None:
         return "-"
     if isinstance(value, list):
-        return text(", ".join(str(item) for item in value)) or "-"
+        return show(", ".join(str(item) for item in value)) or "-"
     if key.endswith(("rate", "completion")):
-        return f"{text(value)}%"
-    return text(value)
+        return f"{show(value)}%"
+    return show(value)
 
 
 def cell(value) -> str:
@@ -245,8 +259,9 @@ def text(value) -> str:
 
 
 def cash(amount: str, code: str) -> str:
-    return e(money.formatted(Decimal(amount), code))
+    return money.formatted(Decimal(amount), code)
 
 
 def humanise(key: str) -> str:
     return key.replace("_", " ").capitalize()
+

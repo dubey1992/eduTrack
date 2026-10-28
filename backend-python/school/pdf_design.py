@@ -175,9 +175,16 @@ def facts(pairs) -> str:
     return f'<table class="facts">{"".join(fact(key, value) for key, value in pairs)}</table>'
 
 
-def section(title: str, top: int = 16) -> str:
-    """A small grey heading with a rule under it, and a little room after."""
-    # Kept with what follows it: a heading never ends a page on its own.
+def section(title: str, top: int = 16, keep: bool = True) -> str:
+    """A small grey heading with a rule under it, and a little room after.
+
+    Kept with what follows it, so a heading never ends a page on its own -
+    unless `keep` is off, for a table long enough to run over pages anyway:
+    kept, the whole table would jump to the next page and leave this one
+    half empty."""
+    if not keep:
+        return f'{spacer(top)}<div class="section-title">{e(title.upper())}</div>{spacer(6)}'
+
     return (
         f'{spacer(top)}<div class="section-title" style="-pdf-keep-with-next: true;">{e(title.upper())}</div>'
         f'<div style="-pdf-keep-with-next: true;">{spacer(6)}</div>'
@@ -296,10 +303,14 @@ def tiles(items: list[dict], per_row: int = 4) -> str:
         for item in items[start:start + per_row]:
             text, background, _ = TONES[item.get("tone") or "neutral"]
             hint = f'<div class="tile-hint">{e(item["hint"])}</div>' if item.get("hint") else ""
+            value = str(item["value"])
+            # A long figure ("INR 10,000.00 - 2 receipts") in a smaller face
+            # rather than across two big lines.
+            size = " font-size: 11pt;" if len(value) > 16 else ""
             cells.append(
                 f'<td class="tile" width="{width}" style="background-color: {background};">'
                 f'<div class="tile-label">{e(item["label"])}</div>'
-                f'<div class="tile-value" style="color: {text};">{e(str(item["value"]))}</div>{hint}</td>'
+                f'<div class="tile-value" style="color: {text};{size}">{e(value)}</div>{hint}</td>'
             )
 
         cells += [f'<td width="{width}"></td>'] * (per_row - len(cells))
@@ -335,7 +346,10 @@ def table(headings: list[tuple[str, str | None, bool]], rows: list[list[str]], t
     body = "".join(row(cells, "zebra" if index % 2 else "") for index, cells in enumerate(rows))
     foot = row(total, "total") if total else ""
 
-    return f'<table class="{table_class}" repeat="1"><tr>{head}</tr>{body}{foot}</table>'
+    return (
+        f'<table class="{table_class}" repeat="1"><thead><tr>{head}</tr></thead>'
+        f"<tbody>{body}{foot}</tbody></table>"
+    )
 
 
 def total_row(cells: list[tuple[str, str, bool]], table_class: str = "items") -> str:

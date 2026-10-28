@@ -501,7 +501,7 @@ class ThePrintedSheet(PerformanceReportTestCase):
     def test_it_states_how_many_lines_to_expect_and_when_it_was_run(self):
         document = self.document()
 
-        self.assertIn("<td>1</td>", document, "one student, one row")
+        self.assertIn('<td class="key">Rows</td><td class="value">1</td>', document, "one student, one row")
         self.assertIn("09/14/2026 12:00 PM", document)
 
     def test_the_footer_numbers_the_pages(self):

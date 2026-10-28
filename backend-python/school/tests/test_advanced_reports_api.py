@@ -13,7 +13,7 @@ from unittest import mock
 from django.core.cache import cache
 from django.test import TestCase
 
-from school import factories
+from school import factories, pdf_design
 from school.enums import UserRole
 from school.models import PayrollRun, Payslip, SyllabusTopicProgress
 from school.reports import StudentAttendanceReport, pdf
@@ -462,6 +462,26 @@ class AsPdf(ReportTestCase):
         # A zero is written as 0, never as a blank cell. Figures carry the
         # class that lines the column up.
         self.assertIn('<td class="num">0</td>', document)
+        # The shared look (school/pdf_design.py): landscape, every page
+        # numbered, no cell left unstyled.
+        self.assertIn("a4 landscape", document)
+        self.assertIn("<pdf:pagecount>", document)
+        self.assertEqual(0, pdf_design.style_errors(document))
+
+    def test_a_single_schools_report_carries_its_band_and_a_group_report_its_label(self):
+        report = StudentAttendanceReport()
+        built = self.get(self.admin, "student-attendance").data
+
+        one = pdf.document(report, built, school_label=self.school.name, generated_at="now", school=self.school)
+        group = pdf.document(report, {**built, "group": True, "branches": [], "rows": []},
+                             school_label="All 2 branches", generated_at="now")
+
+        self.assertIn(self.school.name, one)
+        self.assertIn(self.school.email, one)
+        self.assertIn("STUDENT ATTENDANCE", one)
+        self.assertIn("All 2 branches", group)
+        self.assertNotIn(self.school.email, group)
+        self.assertIn("Nothing to report for this period.", group)
 
     def test_a_name_with_markup_in_it_is_printed_not_obeyed(self):
         self.student.first_name = "<b>Arjun</b>"
