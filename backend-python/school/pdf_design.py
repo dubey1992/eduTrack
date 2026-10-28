@@ -297,7 +297,7 @@ def tiles(items: list[dict], per_row: int = 4) -> str:
             cells.append(
                 f'<td class="tile" width="{width}" style="background-color: {background};">'
                 f'<div class="tile-label">{e(item["label"])}</div>'
-                f'<div class="tile-value" style="color: {text};">{e(item["value"])}</div>{hint}</td>'
+                f'<div class="tile-value" style="color: {text};">{e(str(item["value"]))}</div>{hint}</td>'
             )
 
         cells += [f'<td width="{width}"></td>'] * (per_row - len(cells))
@@ -307,9 +307,11 @@ def tiles(items: list[dict], per_row: int = 4) -> str:
 
 
 def table(headings: list[tuple[str, str | None, bool]], rows: list[list[str]], total: list[str] | None = None,
-          empty: str = "Nothing to show.") -> str:
+          empty: str = "Nothing to show.", table_class: str = "items") -> str:
     """A striped table. `headings` are (text, width or None, numeric);
-    `rows` cells are already-escaped HTML; `total` is an optional last row.
+    `rows` cells are already-escaped HTML; `total` is an optional last row
+    (only for tables without set widths - see `total_row`). `table_class`
+    adds a document's own class beside "items" ("items pay").
     The heading repeats on every page the table runs over."""
     if not rows:
         return f'<div class="note">{e(empty)}</div>'
@@ -331,7 +333,7 @@ def table(headings: list[tuple[str, str | None, bool]], rows: list[list[str]], t
     body = "".join(row(cells, "zebra" if index % 2 else "") for index, cells in enumerate(rows))
     foot = row(total, "total") if total else ""
 
-    return f'<table class="items" repeat="1"><tr>{head}</tr>{body}{foot}</table>'
+    return f'<table class="{table_class}" repeat="1"><tr>{head}</tr>{body}{foot}</table>'
 
 
 def total_row(cells: list[tuple[str, str, bool]], table_class: str = "items") -> str:
@@ -384,8 +386,8 @@ def running_footer(left: str) -> str:
     return f"""
 <div id="page-footer">
     <table class="page-foot"><tr>
-        <td>{e(left)}</td>
-        <td class="right">Page <pdf:pagenumber> of <pdf:pagecount></td>
+        <td width="82%">{e(left)}</td>
+        <td class="right" width="18%">Page <pdf:pagenumber> of <pdf:pagecount></td>
     </tr></table>
 </div>"""
 

@@ -117,6 +117,11 @@ class Blocks(SimpleTestCase):
         self.assertEqual(8, html.count('width="25%"'))
         self.assertEqual("", pdf_design.tiles([]))
 
+    def test_a_tile_shows_nought_rather_than_nothing(self):
+        html = pdf_design.tiles([{"label": "Half days", "value": 0}])
+
+        self.assertIn('style="color: #374151;">0</div>', html)
+
     def test_a_tile_takes_its_tone(self):
         self.assertIn(pdf_design.TONES["danger"][0], pdf_design.tiles([{"label": "Overdue", "value": 3,
                                                                          "tone": "danger"}]))

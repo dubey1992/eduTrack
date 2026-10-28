@@ -13,7 +13,7 @@ document can wear it.
 |---|---|---|---|
 | 1 | Fee receipt | `school/fees/receipt_pdf.py` | shared kit (phase 1) |
 | 2 | Fee statement | `school/fees/statement_pdf.py` | shared kit (phase 1) |
-| 3 | Payslip | `school/payroll/payslips.py` | old - phase 2 |
+| 3 | Payslip | `school/payroll/payslips.py` | shared kit (phase 2) |
 | 4 | Student progress report | `school/progress_reports.py` | old - phase 3 |
 | 5-16 | The 12 reports (attendance, leave, teaching, syllabus, transport, payroll, performance, fees) | `school/reports/pdf.py` | old - phase 4 |
 | 17 | Payment receipt (school pays School365ai) | `school/receipts.py` | old - phase 5 |
@@ -60,7 +60,15 @@ web fonts; spacing by spacer rows.
 ## Phases
 
 1. **The shared kit**, worn by the fee receipt and statement - done 2026-10-28.
-2. Payslip.
+2. **Payslip** - done 2026-10-28. One A4 page: the band (number, pay
+   period), a DRAFT stamp while the run can change, the employee (name, ID,
+   designation, department, joining date, email, mobile) beside the pay
+   period and payment (period dates, status, paid on, paid by, reference,
+   currency), the month's attendance as five tiles, earnings beside
+   deductions with "of X for the full month" under each pro-rated line,
+   deductions beyond earnings said plainly, net pay in figures and in words.
+   Bank account and tax ID are not on it: they need new staff fields, which
+   the user has not yet approved.
 3. Progress report.
 4. The 12 reports.
 5. The School365ai payment receipt.

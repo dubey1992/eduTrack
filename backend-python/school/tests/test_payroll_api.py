@@ -471,6 +471,7 @@ class FinalizingAndPaying(PayrollTestCase):
 
 class PayslipDocument(PayrollTestCase):
     def test_the_pdf_downloads_and_says_what_it_pays(self):
+        from school import pdf_design
         from school.payroll import payslips
 
         run = self.draft()
@@ -483,8 +484,63 @@ class PayslipDocument(PayrollTestCase):
         self.assertEqual("application/pdf", response["Content-Type"])
         self.assertIn(f'filename="PSL-{slip.id:06d}-2026-09.pdf"', response["Content-Disposition"])
         self.assertTrue(response.content.startswith(b"%PDF"))
-        for text in ("DRAFT", "Rahul Verma", "INR 31,757.14", "INR 27,857.14", "(of INR 30,000.00)", "Payslip for September 2026"):
+        # Days as a person writes them: 21, not 21.0; 19.5 stays.
+        self.assertIn(">21<", html)
+        self.assertIn(">19.5<", html)
+        for text in ("DRAFT", "Rahul Verma", "INR 31,757.14", "INR 27,857.14", "of INR 30,000.00 for the full month",
+                     "Pay period September 2026", "PAYSLIP", self.school.name, "09/01/2026 to 09/30/2026",
+                     "Gross earnings", "Total deductions", "Net pay", "Only", "Page <pdf:pagenumber> of <pdf:pagecount>"):
             self.assertIn(text, html)
+        # Every cell keeps its styles (school/pdf_design.py style_errors).
+        self.assertEqual(0, pdf_design.style_errors(html))
+
+    def test_a_paid_payslip_says_when_how_and_with_what_reference_and_carries_no_draft_stamp(self):
+        from school import pdf_design
+        from school.payroll import payslips
+
+        run = self.draft()
+        self.finalize(run["id"])
+        slip = self.payslip_of(run["id"], self.teacher_profile)
+        FinalizingAndPaying.pay(self, f"/api/v1/payroll/payslips/{slip.id}/pay")
+
+        html = payslips.document(self.payslip_of(run["id"], self.teacher_profile))
+
+        for text in (f"PSL-{slip.id:06d}", "Paid", "09/30/2026", "Bank Transfer", "NEFT-1",
+                     "This payslip is computer-generated and is valid without a signature.", "Issued 09/30/2026",
+                     "Powered by School365ai", self.teacher.email):
+            self.assertIn(text, html)
+        self.assertNotIn("DRAFT", html)
+        self.assertEqual(0, pdf_design.style_errors(html))
+        self.assertTrue(payslips.render(self.payslip_of(run["id"], self.teacher_profile)).startswith(b"%PDF"))
+
+    def test_details_it_does_not_have_are_left_out(self):
+        from school.payroll import payslips
+
+        run = self.draft()
+        slip = self.payslip_of(run["id"], self.teacher_profile)
+        slip.department_name = None
+        slip.designation = ""
+        slip.save(update_fields=["department_name", "designation"])
+
+        html = payslips.document(self.payslip_of(run["id"], self.teacher_profile))
+
+        self.assertNotIn(">Department<", html)
+        self.assertNotIn(">Designation<", html)
+        self.assertNotIn(">Paid on<", html)
+        self.assertNotIn("None", html.replace('<span class="muted">None</span>', ""))
+
+    def test_deductions_beyond_earnings_are_said_not_hidden(self):
+        from school.payroll import payslips
+
+        run = self.draft()
+        slip = self.payslip_of(run["id"], self.teacher_profile)
+        slip.shortfall = Decimal("1250.00")
+        slip.save(update_fields=["shortfall"])
+
+        html = payslips.document(self.payslip_of(run["id"], self.teacher_profile))
+
+        self.assertIn("Deductions beyond earnings, not taken this month", html)
+        self.assertIn("INR 1,250.00", html)
 
     def test_names_are_escaped(self):
         from school.payroll import payslips

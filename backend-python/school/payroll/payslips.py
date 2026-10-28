@@ -1,20 +1,39 @@
 """The payslip as a PDF: what an employee files, and what their email carries.
 
-Rendered the way payment receipts are (school/receipts.py): xhtml2pdf, which
-is pure Python because shared hosting has no cairo or pango, so the layout is
-simple tables and the stylesheet is the receipt's.
+Wears the platform's shared PDF look (school/pdf_design.py, docs/pdf-design.md)
+on one A4 page: the school's blue band with its logo and contact lines and
+the payslip's number and pay period; a DRAFT stamp while the run can still
+change; the employee and the payment side by side; the month's attendance as
+headline tiles; earnings and deductions side by side, each line showing what
+it would have been for a full month when it was pro-rated; net pay in figures
+and in words; and closing lines saying how pay is worked out and when the
+document was issued, in the school's own timezone.
+
+Every figure is the payslip's own snapshot - name, designation, department
+and amounts were copied onto it when the run was generated - so a reprint
+months later says what the employee was told. Only the joining date, email
+and mobile are read live, and each is printed only when it has a value.
 """
 
 from __future__ import annotations
 
-import io
+import calendar
+import datetime as dt
+from decimal import Decimal
 
-from xhtml2pdf import pisa
-
-from .. import dates, money
+from .. import dates, money, pdf_design
+from ..clock import DATE_TIME, SchoolClock
 from ..enums import PayComponentType, PaymentMode, PayrollRunStatus
-from ..receipts import STYLESHEET, e, label, row
+from ..fees.words import amount_in_words
+from ..receipts import e, label
 from .service import period_label
+
+PAYSLIP_STYLES = """
+table.pay th { font-size: 8pt; padding: 6px 8px; }
+table.pay td { font-size: 9pt; padding: 5px 8px; }
+.pay .sub { font-size: 7.5pt; color: #6b7280; }
+.short td { background-color: #fff7ed; color: #9a3412; padding: 6px 12px; font-size: 9pt; }
+"""
 
 
 def payslip_number(slip) -> str:
@@ -27,97 +46,155 @@ def file_name(slip) -> str:
 
 
 def render(slip) -> bytes:
-    out = io.BytesIO()
-    result = pisa.CreatePDF(document(slip), dest=out, encoding="utf-8")
+    return pdf_design.render(document(slip), file_name(slip))
 
-    if result.err:
-        raise RuntimeError(f"Could not render {file_name(slip)}")
 
-    return out.getvalue()
+def days(value) -> str:
+    """26.0 -> "26", 25.5 -> "25.5": days as a person writes them."""
+    if value is None:
+        return "0"
+
+    return f"{Decimal(value).normalize():f}"
+
+
+def period_range(year: int, month: int) -> str:
+    last = calendar.monthrange(year, month)[1]
+
+    return dates.range_label(dt.date(year, month, 1), dt.date(year, month, last))
+
+
+def component_table(slip, type_, heading: str, total_label: str, total) -> str:
+    """One side - earnings or deductions - as a table with its total under it."""
+    def cash(value) -> str:
+        return e(money.formatted(value, slip.currency_code))
+
+    rows = []
+
+    for line in slip.lines.order_by("sort_order", "id"):
+        if line.type != type_:
+            continue
+
+        notes = []
+        if line.full_amount is not None and line.full_amount != line.amount:
+            notes.append(f"of {money.formatted(line.full_amount, slip.currency_code)} for the full month")
+        if line.note:
+            notes.append(line.note)
+        sub = "".join(f'<div class="sub">{e(note)}</div>' for note in notes)
+        rows.append([f"{e(line.name)}{sub}", cash(line.amount)])
+
+    if not rows:
+        rows.append(['<span class="muted">None</span>', "-"])
+
+    body = pdf_design.table([(heading, "62%", False), ("Amount", "38%", True)], rows, table_class="items pay")
+    total_line = pdf_design.total_row([(e(total_label), "62%", False), (cash(total), "38%", True)], "items pay")
+
+    return body + total_line
 
 
 def document(slip) -> str:
     """The payslip as HTML. Separate from render() so a test can read it."""
     run = slip.payroll_run
     school = slip.school
+    clock = SchoolClock.for_school(school)
+    profile = slip.staff_profile
+    user = profile.user if profile is not None and profile.user_id else None
+    period = period_label(run.year, run.month)
+    number = payslip_number(slip)
+    draft = run.status == PayrollRunStatus.DRAFT
 
     def cash(value) -> str:
-        return e(money.formatted(value, slip.currency_code))
+        return money.formatted(value, slip.currency_code)
 
-    def lines_of(type_) -> str:
-        cells = []
-        for line in slip.lines.order_by("sort_order", "id"):
-            if line.type != type_:
-                continue
-            detail = ""
-            if line.full_amount is not None and line.full_amount != line.amount:
-                detail = f' <span class="muted">(of {cash(line.full_amount)})</span>'
-            if line.note:
-                detail += f'<br><span class="muted">{e(line.note)}</span>'
-            cells.append(f'<tr><td class="label">{e(line.name)}{detail}</td><td class="value">{cash(line.amount)}</td></tr>')
-        return "".join(cells) or '<tr><td class="label muted">None</td><td class="value">-</td></tr>'
+    employee = pdf_design.facts([
+        ("Name", slip.employee_name),
+        ("Employee ID", slip.employee_code),
+        ("Designation", slip.designation),
+        ("Department", slip.department_name),
+        ("Joined", dates.us(profile.joining_date) if profile is not None and profile.joining_date else None),
+        ("Email", user.email if user else None),
+        ("Mobile", user.mobile if user else None),
+    ])
 
-    draft = run.status == PayrollRunStatus.DRAFT
-    paid = ""
     if slip.paid_on:
-        paid = row("Paid on", e(f"{dates.us(slip.paid_on)} by {label(PaymentMode, slip.payment_mode)}"))
-        if slip.payment_reference:
-            paid += row("Reference", e(slip.payment_reference))
+        status = "Paid"
+    elif draft:
+        status = "Draft"
+    else:
+        status = "Not paid yet"
+
+    payment = pdf_design.facts([
+        ("Payslip no.", number),
+        ("Pay period", period),
+        ("Period", period_range(run.year, run.month)),
+        ("Status", status),
+        ("Paid on", dates.us(slip.paid_on) if slip.paid_on else None),
+        ("Paid by", label(PaymentMode, slip.payment_mode) if slip.payment_mode else None),
+        ("Reference", slip.payment_reference),
+        ("Currency", slip.currency_code),
+    ])
+
+    stamp = ""
+    if draft:
+        stamp = pdf_design.stamp(
+            "DRAFT", ["This payslip is a draft: the payroll for the month is not final and may still change."],
+            tone="warning",
+        )
+
+    attendance = pdf_design.tiles([
+        {"label": "Working days", "value": days(slip.working_days), "tone": "info"},
+        {"label": "Paid days", "value": days(slip.paid_days), "tone": "success"},
+        {"label": "Absent", "value": days(slip.absent_days),
+         "tone": "danger" if slip.absent_days else "neutral"},
+        {"label": "Half days", "value": slip.half_days or 0},
+        {"label": "Not marked (paid)", "value": slip.unmarked_days or 0},
+    ], per_row=5)
+
+    earnings = component_table(slip, PayComponentType.EARNING, "Earnings", "Gross earnings", slip.gross_earnings)
+    deductions = component_table(
+        slip, PayComponentType.DEDUCTION, "Deductions", "Total deductions", slip.total_deductions
+    )
 
     shortfall = ""
     if slip.shortfall and slip.shortfall > 0:
         shortfall = (
-            f'<tr class="due"><td class="label">Deductions beyond earnings, not taken</td>'
-            f'<td class="value">{cash(slip.shortfall)}</td></tr>'
+            f'{pdf_design.spacer(8)}<table class="short"><tr><td>Deductions beyond earnings, not taken this month: '
+            f"<b>{e(cash(slip.shortfall))}</b></td></tr></table>"
         )
 
-    return f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><style>{STYLESHEET}</style></head>
-<body>
-<div class="sheet">
-    <table class="head"><tr>
-        <td><div class="brand">{e(school.name)}</div><div class="muted">Payslip for {e(period_label(run.year, run.month))}</div></td>
-        <td class="right"><div class="brand">{"DRAFT" if draft else e(payslip_number(slip))}</div></td>
-    </tr></table>
+    try:
+        words = amount_in_words(slip.net_pay, slip.currency_code)
+    except ValueError:
+        words = None
 
-    <h1>Employee</h1>
-    <table class="meta">
-        {row("Name", e(slip.employee_name))}
-        {row("Employee ID", e(slip.employee_code))}
-        {row("Designation", e(slip.designation or "-"))}
-        {row("Department", e(slip.department_name or "-"))}
-        {paid}
-    </table>
+    issued = clock.format(clock.now(), DATE_TIME)
+    closing = [
+        "Pay is pro-rated by paid days over the month's working days. A working day nobody marked counts as paid.",
+        "This is a draft and may still change." if draft
+        else "This payslip is computer-generated and is valid without a signature.",
+        f"Issued {issued} ({school.timezone})" if issued else "",
+        "Powered by School365ai",
+    ]
 
-    <h1>Attendance</h1>
-    <table class="meta">
-        {row("Working days", e(slip.working_days))}
-        {row("Paid days", e(slip.paid_days))}
-        {row("Absent", e(slip.absent_days))}
-        {row("Half days", e(slip.half_days))}
-        {row("Not marked (paid)", e(slip.unmarked_days))}
-    </table>
+    body = f"""
+    {pdf_design.school_band(school, "PAYSLIP", "DRAFT" if draft else number, f"Pay period {period}")}
+    {stamp}
+    {pdf_design.spacer(16)}
+    {pdf_design.side_by_side(employee, payment, "Employee", "Pay period and payment")}
 
-    <h1>Earnings</h1>
-    <table class="amounts">{lines_of(PayComponentType.EARNING)}
-        <tr><td class="label">Gross earnings</td><td class="value">{cash(slip.gross_earnings)}</td></tr>
-    </table>
+    {pdf_design.section("Attendance this month")}
+    {attendance}
 
-    <h1>Deductions</h1>
-    <table class="amounts">{lines_of(PayComponentType.DEDUCTION)}
-        <tr><td class="label">Total deductions</td><td class="value">{cash(slip.total_deductions)}</td></tr>
-    </table>
+    {pdf_design.section("Pay")}
+    {pdf_design.side_by_side(earnings, deductions)}
+    {shortfall}
 
-    <table class="amounts" style="margin-top: 16px;">
-        <tr class="settled"><td class="label">Net pay</td><td class="value">{cash(slip.net_pay)}</td></tr>
-        {shortfall}
-    </table>
+    {pdf_design.spacer(14)}
+    {pdf_design.totals_panel("Net pay", cash(slip.net_pay), words)}
+    {pdf_design.closing([line for line in closing if line])}
+"""
 
-    <div class="note muted">
-        Pay is pro-rated by paid days over the month's working days. A working day nobody marked counts as paid.
-        {"This is a draft and may still change." if draft else "This payslip is issued electronically and is valid without a signature."}
-    </div>
-</div>
-</body>
-</html>"""
+    return pdf_design.page(
+        f"{number} - {slip.employee_name}", body,
+        footer=f"{school.name} - Payslip {number} - {slip.employee_name} - {period}",
+        extra_styles=PAYSLIP_STYLES,
+    )
