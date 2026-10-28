@@ -133,6 +133,7 @@ from .models import (
     Announcement,
     Attendance,
     ClassSection,
+    CompanyProfile,
     MessageTemplate,
     Message,
     CommunicationSetting,
@@ -154,6 +155,7 @@ from .models import (
     Student,
     Subject,
     Driver,
+    StudentTermRemark,
     StudentTransportAssignment,
     TransportRoute,
     TransportStop,
@@ -2644,6 +2646,47 @@ class WhatsappTemplateService:
         for row in WhatsappTemplate.objects.filter(school_id=school_id, event=event):
             audit.deleted("communication", row)
             row.delete()
+
+
+class CompanyProfileService:
+    """School365ai as a business (docs/pdf-design.md, phase 5). One row,
+    Super Admin only, saved whole from the Company details screen."""
+
+    FIELDS = (
+        "legal_name", "trading_name", "address", "city", "state", "postal_code", "country", "phone", "email",
+        "website", "tax_number", "registration_number", "logo_url",
+    )
+
+    @staticmethod
+    def current():
+        return CompanyProfile.objects.select_related("updated_by").order_by("id").first()
+
+    @classmethod
+    def save(cls, data: dict, actor: User):
+        with transaction.atomic():
+            row = CompanyProfile.objects.select_for_update().order_by("id").first()
+            now = timezone.now()
+            creating = row is None
+
+            if creating:
+                row = CompanyProfile(created_at=now)
+
+            before = audit.fields_of(row)
+
+            for field in cls.FIELDS:
+                if field in data:
+                    setattr(row, field, data[field] or None)
+
+            row.updated_by_id = actor.id
+            row.updated_at = now
+            row.save()
+
+            if creating:
+                audit.created("company", row)
+            else:
+                audit.updated("company", row, before)
+
+        return cls.current()
 
 
 class MailSettingService:
@@ -5186,6 +5229,45 @@ class AcademicTermService:
     def delete(term: AcademicTerm) -> None:
         audit.deleted("academic", term)
         term.delete()
+
+
+class TermRemarkService:
+    """The class teacher's term remark (docs/pdf-design.md). One row per
+    student per term: saved over, or deleted when the text is cleared.
+    Audited, because it goes home on the progress report."""
+
+    @staticmethod
+    def save(student, term_id: int, text: str, actor, request=None) -> None:
+        with transaction.atomic():
+            found = StudentTermRemark.objects.select_for_update().filter(
+                student_id=student.id, academic_term_id=term_id
+            ).first()
+            before = None if found is None else {"remark": found.remark}
+            now = timezone.now()
+
+            if not text:
+                if found is None:
+                    return
+                found.delete()
+                after = None
+            elif found is None:
+                found = StudentTermRemark.objects.create(
+                    school_id=student.school_id, student_id=student.id, academic_term_id=term_id, remark=text,
+                    written_by_id=getattr(actor, "id", None), created_at=now, updated_at=now,
+                )
+                after = {"remark": text}
+            else:
+                found.remark = text
+                found.written_by_id = getattr(actor, "id", None)
+                found.updated_at = now
+                found.save(update_fields=["remark", "written_by", "updated_at"])
+                after = {"remark": text}
+
+            audit.record(
+                actor=actor, action="student_remark.saved" if after else "student_remark.removed",
+                module="assessments", entity_type="student", entity_id=student.id, school_id=student.school_id,
+                old=before, new={**(after or {}), "academic_term_id": term_id}, request=request,
+            )
 
 
 class GradeScaleService:

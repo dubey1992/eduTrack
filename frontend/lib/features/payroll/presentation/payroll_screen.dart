@@ -238,8 +238,9 @@ class _SalariesTabState extends ConsumerState<_SalariesTab> {
       builder: (_) => SalaryDialog(
         employee: employee,
         readOnly: !widget.canManage,
-        onSave: (basic, components) =>
-            ref.read(salaryListNotifierProvider.notifier).save(employee, basicSalary: basic, components: components),
+        onSave: (basic, components, bank) => ref
+            .read(salaryListNotifierProvider.notifier)
+            .save(employee, basicSalary: basic, components: components, bank: bank),
       ),
     );
 

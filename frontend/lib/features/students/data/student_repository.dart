@@ -163,6 +163,14 @@ class StudentRepository {
     }
   }
 
+  Future<void> saveRemark(int studentId, {required int academicTermId, required String remark}) async {
+    try {
+      await _api.saveRemark(studentId, academicTermId: academicTermId, remark: remark);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     try {
       return await _api.enrollments(studentId);

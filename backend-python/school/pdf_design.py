@@ -39,13 +39,12 @@ own (`total_row`).
 from __future__ import annotations
 
 import base64
+import html
 import io
 import logging
 import urllib.request
 
 from xhtml2pdf import pisa
-
-from .receipts import e
 
 logger = logging.getLogger(__name__)
 
@@ -151,9 +150,25 @@ td, th {{ vertical-align: top; }}
 # -- small pieces ---------------------------------------------------------------
 
 
+def e(value) -> str:
+    """Escapes a value for HTML.
+
+    A school's name and a payment's notes are typed by people, and an
+    ampersand or an angle bracket in either would otherwise break the
+    document - or, worse, be rendered as markup. None and an empty value
+    read as nothing; pass str(0) for a zero that should show.
+    """
+    return html.escape(str(value or ""))
+
+
+
 def joined(*parts, separator: str = ", ") -> str:
-    """The parts that have a value, joined."""
-    return separator.join(str(part).strip() for part in parts if part is not None and str(part).strip())
+    """The parts that have a value, joined - each with the commas and spaces
+    a person typed at its ends taken off, so "77, IAS Colony," and "Patna"
+    read "77, IAS Colony, Patna", never "Colony,, Patna"."""
+    cleaned = (str(part).strip().strip(",;").strip() for part in parts if part is not None)
+
+    return separator.join(part for part in cleaned if part)
 
 
 def spacer(height: int) -> str:

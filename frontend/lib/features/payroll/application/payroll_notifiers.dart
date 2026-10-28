@@ -74,10 +74,11 @@ class SalaryListNotifier extends AsyncNotifier<PagedList<EmployeeSalary>> {
     EmployeeSalary employee, {
     required String basicSalary,
     required List<SalaryComponent> components,
+    BankDetails? bank,
   }) async {
     final updated = await ref
         .read(payrollRepositoryProvider)
-        .saveSalary(employee.staffProfileId, basicSalary: basicSalary, components: components);
+        .saveSalary(employee.staffProfileId, basicSalary: basicSalary, components: components, bank: bank);
 
     if (_missingOnly) {
       await refresh();

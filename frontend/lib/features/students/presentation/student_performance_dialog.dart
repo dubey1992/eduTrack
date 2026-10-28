@@ -143,6 +143,10 @@ class _StudentPerformanceDialogState extends ConsumerState<StudentPerformanceDia
                 ],
                 const SizedBox(height: 20),
                 _Attendance(performance: performance),
+                if (performance.term != null) ...[
+                  const SizedBox(height: 20),
+                  _Remark(studentId: student.id, performance: performance),
+                ],
               ],
             ),
           ),
@@ -166,6 +170,171 @@ class _StudentPerformanceDialogState extends ConsumerState<StudentPerformanceDia
             label: const Text('Download PDF'),
           ),
         FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
+      ],
+    );
+  }
+}
+
+/// The class teacher's remark for the term, as the report will print it -
+/// with Write or Edit for whoever may.
+class _Remark extends ConsumerWidget {
+  const _Remark({required this.studentId, required this.performance});
+
+  final int studentId;
+  final StudentPerformance performance;
+
+  Future<void> _edit(BuildContext context, WidgetRef ref) async {
+    final term = performance.term!;
+    final messenger = ScaffoldMessenger.of(context);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => _RemarkDialog(
+        termName: term.name,
+        initial: performance.remark?.text ?? '',
+        onSave: (text) => ref.read(studentPerformanceProvider(studentId).notifier).saveRemark(term.id, text),
+      ),
+    );
+
+    if (saved == true) {
+      messenger
+        ..clearSnackBars()
+        ..showSnackBar(const SnackBar(content: Text('Remark saved. It prints on the progress report.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final remark = performance.remark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text("Class teacher's remark", style: Theme.of(context).textTheme.titleSmall)),
+            if (performance.canEditRemark)
+              TextButton.icon(
+                onPressed: () => _edit(context, ref),
+                icon: Icon(remark == null ? Icons.edit_note : Icons.edit_outlined, size: 18),
+                label: Text(remark == null ? 'Write remark' : 'Edit remark'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        if (remark == null)
+          Text(
+            performance.canEditRemark
+                ? 'No remark for ${performance.term!.name} yet. It prints on the progress report.'
+                : 'No remark for ${performance.term!.name}.',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          )
+        else
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              border: Border(left: BorderSide(color: scheme.primary, width: 3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(remark.text),
+                if (remark.writtenBy != null) ...[
+                  const SizedBox(height: 4),
+                  Text(remark.writtenBy!, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _RemarkDialog extends StatefulWidget {
+  const _RemarkDialog({required this.termName, required this.initial, required this.onSave});
+
+  final String termName;
+  final String initial;
+  final Future<void> Function(String text) onSave;
+
+  @override
+  State<_RemarkDialog> createState() => _RemarkDialogState();
+}
+
+class _RemarkDialogState extends State<_RemarkDialog> {
+  static const _max = 1000;
+
+  late final _text = TextEditingController(text: widget.initial);
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      await widget.onSave(_text.text.trim());
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      if (mounted) {
+        setState(() => _error = failure.validationErrors['remark']?.first ?? failure.message);
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Remark for ${widget.termName}'),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Printed on the progress report above the signatures. Leave it empty to remove it.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _text,
+              enabled: !_saving,
+              autofocus: true,
+              maxLength: _max,
+              minLines: 4,
+              maxLines: 8,
+              decoration: InputDecoration(
+                labelText: 'Remark',
+                hintText: 'e.g. Works hard and asks good questions; should read more at home.',
+                errorText: _error,
+                errorMaxLines: 3,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Save remark'),
+        ),
       ],
     );
   }

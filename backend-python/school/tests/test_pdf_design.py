@@ -38,6 +38,10 @@ class SmallPieces(SimpleTestCase):
         self.assertEqual("Pune, India", pdf_design.joined(None, "Pune", "", "  ", "India"))
         self.assertEqual("a · b", pdf_design.joined("a", None, "b", separator=" · "))
 
+    def test_joined_drops_the_commas_people_type_at_the_ends(self):
+        self.assertEqual("77, IAS Colony, Patna, Bihar",
+                         pdf_design.joined("77, IAS Colony,, ", " Patna,", ",", "Bihar"))
+
     def test_typed_text_is_escaped_everywhere(self):
         for html in (
             pdf_design.fact("Note", "<b>bold</b> & co"),

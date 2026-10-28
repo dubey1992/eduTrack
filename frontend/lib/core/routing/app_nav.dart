@@ -222,6 +222,15 @@ class AppNav {
         pageSubtitle: 'About, privacy, terms and other public pages',
       ),
       NavItem(
+        path: '/company-details',
+        label: 'Company Details',
+        icon: Icons.business_outlined,
+        // School365ai as a business - the issuer on its own receipts.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Company Details',
+        pageSubtitle: 'Who issues the receipts schools get for paying the platform',
+      ),
+      NavItem(
         path: '/mail-settings',
         label: 'Email Settings',
         icon: Icons.outgoing_mail,

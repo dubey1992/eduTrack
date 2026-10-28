@@ -9,6 +9,7 @@ import '../../promotion/application/promotion_notifier.dart';
 import '../../grade_scales/application/grade_scale_notifier.dart';
 import '../../announcements/application/announcement_page_notifier.dart';
 import '../../audit/application/audit_log_notifier.dart';
+import '../../company_details/application/company_details_notifier.dart';
 import '../../mail_settings/application/mail_settings_notifier.dart';
 import '../../maps/data/maps_config.dart';
 import '../../schools/data/school_locations_repository.dart';
@@ -198,6 +199,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(announcementPageNotifierProvider);
     ref.invalidate(auditLogNotifierProvider);
     ref.invalidate(mailSettingsNotifierProvider);
+    ref.invalidate(companyDetailsNotifierProvider);
     ref.invalidate(marketingDraftNotifierProvider);
     ref.invalidate(sitePageListNotifierProvider);
     ref.invalidate(mapsConfigProvider);

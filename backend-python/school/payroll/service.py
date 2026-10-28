@@ -31,7 +31,7 @@ from ..models import (
 )
 from ..scope import SchoolScope
 from ..services import HolidayService
-from . import calculator
+from . import bank, calculator
 
 MODULE = "payroll"
 SEND_PAYSLIP = "payslip_email"
@@ -102,7 +102,7 @@ class SalaryService:
             before = cls.snapshot(salary)
 
             if salary is None:
-                salary = SalaryProfile.objects.create(
+                salary = SalaryProfile(
                     school_id=profile.school_id,
                     staff_profile=profile,
                     basic_salary=data["basic_salary"],
@@ -111,6 +111,8 @@ class SalaryService:
                     created_at=now,
                     updated_at=now,
                 )
+                bank.apply(salary, data)
+                salary.save()
             else:
                 salary.basic_salary = data["basic_salary"]
                 # Saving again adopts the school's currency, which is how a
@@ -118,6 +120,7 @@ class SalaryService:
                 salary.currency_code = school.currency_code
                 salary.updated_by = actor
                 salary.updated_at = now
+                bank.apply(salary, data)
                 salary.save()
                 salary.components.all().delete()
 
@@ -152,6 +155,8 @@ class SalaryService:
             "components": [
                 {"type": c.type, "name": c.name, "amount": c.amount} for c in cls.components_of(salary)
             ],
+            # The account number masked: an audit row is read by people too.
+            **bank.details(salary),
         }
 
 

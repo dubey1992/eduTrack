@@ -173,6 +173,14 @@ class StudentApi {
     await _dio.post<dynamic>('/students/$studentId/progress-report/send', data: {'academic_term_id': ?academicTermId});
   }
 
+  /// Saves the class teacher's remark for a term. Empty text removes it.
+  Future<void> saveRemark(int studentId, {required int academicTermId, required String remark}) async {
+    await _dio.put<dynamic>(
+      '/students/$studentId/remark',
+      data: {'academic_term_id': academicTermId, 'remark': remark},
+    );
+  }
+
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     final response = await _dio.get('/students/$studentId/enrollments');
 

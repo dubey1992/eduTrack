@@ -30,6 +30,7 @@ import '../../features/errors/presentation/not_found_screen.dart';
 import '../../features/departments/presentation/department_list_screen.dart';
 import '../../features/hod/presentation/hod_report_screen.dart';
 import '../../features/holidays/presentation/holiday_list_screen.dart';
+import '../../features/company_details/presentation/company_details_screen.dart';
 import '../../features/mail_settings/presentation/mail_settings_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
 import '../../features/marketing/presentation/marketing_content_screen.dart';
@@ -177,6 +178,7 @@ const appRoutePaths = {
   '/fee-discounts',
   '/my-payslips',
   '/audit-log',
+  '/company-details',
   '/mail-settings',
   '/homepage-content',
   '/site-pages',
@@ -310,6 +312,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/my-payslips', builder: (context, state) => const MyPayslipsScreen()),
           GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
+          GoRoute(path: '/company-details', builder: (context, state) => const CompanyDetailsScreen()),
           GoRoute(path: '/mail-settings', builder: (context, state) => const MailSettingsScreen()),
           GoRoute(path: '/homepage-content', builder: (context, state) => const MarketingContentScreen()),
           GoRoute(

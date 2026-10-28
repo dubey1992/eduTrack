@@ -32,7 +32,7 @@ from . import insights, modules
 from .marks import CENT, average_of, change_between, percentage_of
 from .clock import SchoolClock
 from .enums import AssessmentStatus, AttendanceStatus
-from .models import AcademicTerm, Assessment, AssessmentMark, Attendance, GradeScale, Student
+from .models import AcademicTerm, Assessment, AssessmentMark, Attendance, GradeScale, Student, StudentTermRemark
 from .reports.range import ReportRange
 from .services import GradeScaleService, HolidayService, php_number
 
@@ -129,6 +129,8 @@ class StudentPerformance:
             "weak_below_percentage": php_number(
                 modules.setting(student.school_id, MODULE, "weak_below_percentage")
             ),
+            # The class teacher's remark for the term, printed on the report.
+            "remark": cls.remark(student, term),
         }
 
         # Read from the figures above rather than from the database: the
@@ -337,6 +339,26 @@ class StudentPerformance:
             averages[row["assessment_id"]] = (mean / maximum * 100).quantize(CENT)
 
         return averages
+
+    @staticmethod
+    def remark(student: Student, term: AcademicTerm | None) -> dict | None:
+        if term is None:
+            return None
+
+        found = (
+            StudentTermRemark.objects.select_related("written_by")
+            .filter(student_id=student.id, academic_term_id=term.id)
+            .first()
+        )
+
+        if found is None:
+            return None
+
+        return {
+            "text": found.remark,
+            "written_by": found.written_by.name if found.written_by_id else None,
+            "updated_at": found.updated_at.isoformat() if found.updated_at else None,
+        }
 
     @staticmethod
     def grade_scale_for(rows) -> GradeScale | None:

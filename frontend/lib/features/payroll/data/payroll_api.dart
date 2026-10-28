@@ -42,12 +42,14 @@ class PayrollApi {
     int staffProfileId, {
     required String basicSalary,
     required List<SalaryComponent> components,
+    BankDetails? bank,
   }) async {
     final response = await _dio.put(
       '/payroll/salaries/$staffProfileId',
       data: {
         'basic_salary': basicSalary,
         'components': [for (final component in components) component.toJson()],
+        ...?bank?.toJson(),
       },
     );
 

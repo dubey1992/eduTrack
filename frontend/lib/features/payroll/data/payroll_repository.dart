@@ -43,8 +43,9 @@ class PayrollRepository {
     int staffProfileId, {
     required String basicSalary,
     required List<SalaryComponent> components,
+    BankDetails? bank,
   }) {
-    return _call(() => _api.saveSalary(staffProfileId, basicSalary: basicSalary, components: components));
+    return _call(() => _api.saveSalary(staffProfileId, basicSalary: basicSalary, components: components, bank: bank));
   }
 
   Future<PaginatedResponse<PayrollRun>> runs({int? schoolId, required int page, required int perPage}) {

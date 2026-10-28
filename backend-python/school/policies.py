@@ -495,6 +495,15 @@ class MessagePolicy:
         return school_id is not None and SchoolScope.for_actor(actor).allows(school_id)
 
 
+class CompanyProfilePolicy:
+    """School365ai's own business details are the platform's: only the
+    SUPER_ADMIN reads or changes them."""
+
+    @staticmethod
+    def manage(actor: User) -> bool:
+        return actor.role == UserRole.SUPER_ADMIN
+
+
 class MailSettingPolicy:
     """The SMTP server is the platform's, not a school's: only SUPER_ADMIN
     reads or changes it. The password is never readable by anybody."""
@@ -1282,6 +1291,25 @@ class StudentPolicy:
         return permitted(actor, "students", write=True, school_id=student.school_id) and cls._reaches(
             actor, student
         )
+
+    @classmethod
+    def write_remark(cls, actor: User, student: Student) -> bool:
+        """The term remark on the progress report (docs/pdf-design.md): the
+        student's class teacher, or a School or Group Admin - and only where
+        the matrix lets them manage class tests. Anybody else who may read
+        the student's performance reads the remark too."""
+        if not cls.view(actor, student):
+            return False
+
+        if not permitted(actor, "assessments", write=True, school_id=student.school_id):
+            return False
+
+        if actor.role in (UserRole.SCHOOL_ADMIN, UserRole.GROUP_ADMIN):
+            return True
+
+        section = student.class_section
+
+        return section is not None and section.class_teacher_id == actor.id
 
     @staticmethod
     def _reaches(actor: User, student: Student) -> bool:

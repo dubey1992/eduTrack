@@ -23,9 +23,9 @@ from ..models import Student
 from ..pagination import LaravelPagination
 from ..performance import for_student as performance_of
 from ..policies import StudentPolicy, authorize, permitted
-from ..requests import StoreStudentRequest, StudentPerformanceRequest, UpdateStudentRequest
+from ..requests import StoreStudentRequest, StudentPerformanceRequest, StudentRemarkRequest, UpdateStudentRequest
 from ..resources import student_enrollment_resource, student_resource
-from ..services import StudentEnrollmentService, StudentService
+from ..services import StudentEnrollmentService, StudentService, TermRemarkService
 from ..throttling import SendDocumentThrottle
 
 # What a student is rendered with - the same list Laravel's StudentController
@@ -163,7 +163,35 @@ def performance(request, student_id: int) -> Response:
     form = StudentPerformanceRequest(data=request.query_params, student=student)
     form.is_valid(raise_exception=True)
 
-    return Response(performance_of(student, form.validated_data.get("academic_term_id")))
+    payload = performance_of(student, form.validated_data.get("academic_term_id"))
+    # Whether this person may write the term's remark - the screen offers
+    # the button only then; the endpoint checks again.
+    payload["can_edit_remark"] = payload["term"] is not None and StudentPolicy.write_remark(request.user, student)
+
+    return Response(payload)
+
+
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def remark(request, student_id: int) -> Response:
+    """The class teacher's remark on the student for a term, printed on the
+    progress report. Empty text removes it."""
+    student = get_object_or_404(
+        Student.objects.select_related("school", "class_section__school_class"), pk=student_id
+    )
+
+    authorize(StudentPolicy.write_remark(request.user, student))
+
+    form = StudentRemarkRequest(data=request.data, student=student)
+    form.is_valid(raise_exception=True)
+
+    TermRemarkService.save(
+        student, form.validated_data["academic_term_id"], form.validated_data.get("remark") or "", request.user,
+        request,
+    )
+    payload = performance_of(student, form.validated_data["academic_term_id"])
+
+    return Response({"remark": payload["remark"]})
 
 
 @api_view(["GET"])

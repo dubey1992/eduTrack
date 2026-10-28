@@ -26,6 +26,7 @@ from ..clock import DATE_TIME, SchoolClock
 from ..enums import PayComponentType, PaymentMode, PayrollRunStatus
 from ..fees.words import amount_in_words
 from ..receipts import e, label
+from . import bank
 from .service import period_label
 
 PAYSLIP_STYLES = """
@@ -105,6 +106,7 @@ def document(slip) -> str:
     def cash(value) -> str:
         return money.formatted(value, slip.currency_code)
 
+    salary = getattr(profile, "salary", None) if profile is not None else None
     employee = pdf_design.facts([
         ("Name", slip.employee_name),
         ("Employee ID", slip.employee_code),
@@ -113,6 +115,11 @@ def document(slip) -> str:
         ("Joined", dates.us(profile.joining_date) if profile is not None and profile.joining_date else None),
         ("Email", user.email if user else None),
         ("Mobile", user.mobile if user else None),
+        # Read from the salary as it stands - masked, never in full.
+        ("Tax ID", salary.tax_id if salary else None),
+        ("Bank", salary.bank_name if salary else None),
+        ("Account", bank.masked_of(salary) if salary else None),
+        ("Branch code", salary.bank_branch_code if salary else None),
     ])
 
     if slip.paid_on:

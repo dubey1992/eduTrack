@@ -43,6 +43,9 @@ table.marks td { font-size: 8.5pt; padding: 5px 5px; }
 .scale td.band-cell { border: 1px solid #e5e7eb; padding: 5px 6px; text-align: center; font-size: 10pt; }
 .scale .band-range { font-size: 7.5pt; color: #6b7280; padding-top: 2px; }
 .legend { font-size: 7.5pt; color: #6b7280; padding-top: 4px; }
+.remark td { font-size: 10pt; padding: 8px 12px; border-left: 3px solid #7c3aed; background-color: #f5f3ff;
+    line-height: 1.5; }
+.remark-by { font-size: 8pt; color: #6b7280; padding-top: 4px; }
 .empty { font-size: 9.5pt; color: #6b7280; padding: 8px 10px; background-color: #f8fafc; }
 """
 
@@ -126,6 +129,7 @@ def document(payload: dict, *, school, generated_at: str) -> str:
 
     {says(payload["insights"])}
     {next_steps(payload.get("recommendations") or [])}
+    {remark_block(payload.get("remark"))}
 
     {pdf_design.spacer(10)}
     {pdf_design.signatures(["Class teacher", "Principal", "Parent / Guardian"])}
@@ -424,6 +428,20 @@ def says(insights: list) -> str:
     rows = "".join(f'<tr><td>{text(insight["message"])}</td></tr>' for insight in insights)
 
     return f'{pdf_design.section("What this looks like")}<table class="says">{rows}</table>'
+
+
+def remark_block(remark: dict | None) -> str:
+    """The class teacher's remark for the term, in their words - left out
+    entirely when nobody has written one."""
+    if not remark or not remark.get("text"):
+        return ""
+
+    by = f'<div class="remark-by">{text(remark["written_by"])}</div>' if remark.get("written_by") else ""
+    body = "<br/>".join(text(line) for line in str(remark["text"]).splitlines())
+
+    heading = pdf_design.section("Class teacher's remark")
+
+    return f'{heading}<table class="remark"><tr><td>{body}{by}</td></tr></table>'
 
 
 def next_steps(recommendations: list) -> str:

@@ -8,6 +8,7 @@ and never more than the DECIMAL(12,2) column holds.
 from __future__ import annotations
 
 import decimal
+import re
 
 from rest_framework import serializers
 
@@ -106,12 +107,59 @@ class SaveSalaryRequest(serializers.Serializer):
             check_amount(f"{prefix}.amount", amount, errors)
             components.append({"type": type_, "name": name, "amount": amount})
 
+        bank = self.bank_details(errors)
+
         if errors:
             raise serializers.ValidationError(errors)
 
         attrs["components"] = components
+        attrs.update(bank)
 
         return attrs
+
+    def bank_details(self, errors: dict) -> dict:
+        """The four optional bank fields - only those the form sent, so an
+        older client that sends none changes none. Empty text means "remove"."""
+        found = {}
+
+        for field, label, maximum, pattern, message in BANK_FIELDS:
+            if field not in self.initial_data:
+                continue
+
+            raw = self.initial_data.get(field)
+
+            if raw is None or (isinstance(raw, str) and not raw.strip()):
+                found[field] = None
+                continue
+
+            if not isinstance(raw, str):
+                errors[field] = [f"The {label} must be text."]
+                continue
+
+            value = " ".join(raw.split())
+
+            if len(value) > maximum:
+                errors[field] = [f"The {label} must not be greater than {maximum} characters."]
+            elif pattern is not None and not re.fullmatch(pattern, value):
+                errors[field] = [message]
+            else:
+                found[field] = value.upper() if field in ("bank_branch_code", "tax_id") else value
+
+        return found
+
+
+# (field, label, max length, pattern or None, message when it does not match)
+BANK_FIELDS = (
+    ("bank_name", "bank name", 100, None, ""),
+    # Digits and letters (an IBAN has both), with the spaces and hyphens
+    # people type between groups: 4 to 34 of them.
+    ("bank_account_number", "account number", 40, r"[A-Za-z0-9][A-Za-z0-9 -]{2,38}[A-Za-z0-9]",
+     "Enter the account number: 4 to 34 letters or digits."),
+    ("bank_branch_code", "branch code", 30, r"[A-Za-z0-9][A-Za-z0-9 -]{0,28}[A-Za-z0-9]?",
+     "Enter the branch code (IFSC, sort code or routing number): letters and digits only."),
+    ("tax_id", "tax ID", 30, r"[A-Za-z0-9][A-Za-z0-9 /-]{0,28}[A-Za-z0-9]?",
+     "Enter the tax ID (PAN or equivalent): letters and digits only."),
+)
 
 
 class GeneratePayrollRunRequest(ScopedSerializer):

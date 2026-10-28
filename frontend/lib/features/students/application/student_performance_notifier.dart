@@ -35,6 +35,13 @@ class StudentPerformanceNotifier extends AsyncNotifier<StudentPerformance> {
     state = await AsyncValue.guard(_fetch);
   }
 
+  /// Saves the term's remark, then reads the page again so the screen shows
+  /// what the report will print. Failures go to the caller.
+  Future<void> saveRemark(int termId, String remark) async {
+    await ref.read(studentRepositoryProvider).saveRemark(studentId, academicTermId: termId, remark: remark);
+    state = await AsyncValue.guard(_fetch);
+  }
+
   Future<void> setTerm(int? termId) async {
     if (termId == _termId) return;
 

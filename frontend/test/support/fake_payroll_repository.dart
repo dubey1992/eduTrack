@@ -14,6 +14,7 @@ EmployeeSalary fakeEmployee({
   UserRole role = UserRole.teacher,
   String? basic,
   List<SalaryComponent> components = const [],
+  BankDetails bank = const BankDetails(),
 }) {
   return EmployeeSalary(
     staffProfileId: id,
@@ -25,11 +26,11 @@ EmployeeSalary fakeEmployee({
     schoolCurrencyCode: 'INR',
     designation: 'Teacher',
     departmentName: 'Science',
-    salary: basic == null ? null : fakeSalary(basic, components),
+    salary: basic == null ? null : fakeSalary(basic, components, bank: bank),
   );
 }
 
-Salary fakeSalary(String basic, List<SalaryComponent> components) {
+Salary fakeSalary(String basic, List<SalaryComponent> components, {BankDetails bank = const BankDetails()}) {
   double sum(PayComponentType type) =>
       components.where((c) => c.type == type).fold(0, (total, c) => total + double.parse(c.amount));
   final gross = double.parse(basic) + sum(PayComponentType.earning);
@@ -43,6 +44,7 @@ Salary fakeSalary(String basic, List<SalaryComponent> components) {
     totalDeductions: deductions.toStringAsFixed(2),
     grossMonthly: gross.toStringAsFixed(2),
     netMonthly: (gross - deductions).toStringAsFixed(2),
+    bank: bank,
   );
 }
 
@@ -84,13 +86,18 @@ class FakePayrollRepository implements PayrollRepository {
     return paginateFake(filtered, page: page, perPage: perPage);
   }
 
+  /// What the last salary save sent for the bank.
+  BankDetails? lastBank;
+
   @override
   Future<EmployeeSalary> saveSalary(
     int staffProfileId, {
     required String basicSalary,
     required List<SalaryComponent> components,
+    BankDetails? bank,
   }) async {
     _enter('saveSalary');
+    lastBank = bank;
     final index = employees.indexWhere((e) => e.staffProfileId == staffProfileId);
     final old = employees[index];
     final updated = fakeEmployee(

@@ -1,12 +1,13 @@
-"""The PDF receipt for a payment.
+"""The receipt a school gets for paying School365ai (Super Admin payments).
 
-Port of PaymentReceiptService and resources/views/receipts/payment.blade.php.
-
-Rendered by `xhtml2pdf`, which is pure Python - shared hosting has no cairo or
-pango, so WeasyPrint is not an option (docs/python-migration.md, M0). Like
-dompdf on the Laravel side it understands only simple CSS, which is why the
-layout is tables and there is no flexbox. The stylesheet came across unchanged
-so the document a school files looks the same after the cutover as before it.
+Wears the platform's shared PDF look (school/pdf_design.py, docs/pdf-design.md,
+phase 5). The issuer in the blue band is School365ai as a business - legal or
+trading name, address, contacts, tax and company registration numbers, logo -
+from the Company details the Super Admin keeps (CompanyProfile); until those
+are saved the band says "School365ai" and nothing more. Then the school billed
+beside the payment, the amount in figures and in words, what was agreed,
+received and is still owed, any notes, a CANCELLED stamp for a cancelled
+payment, and when it was issued in the school's own timezone.
 
 The receipt states what was agreed, what has been received and what is still
 owed, so a part-payment produces an honest document rather than one that reads
@@ -15,47 +16,12 @@ as though the account is settled.
 
 from __future__ import annotations
 
-import html
-import io
-
-from xhtml2pdf import pisa
-
-from . import dates, money
-from .clock import SchoolClock
+from . import dates, money, pdf_design
+from .clock import DATE_TIME, SchoolClock
 from .enums import PaymentMode, PaymentStatus, PaymentType
-
-BADGES = {
-    PaymentStatus.PAID: "paid",
-    PaymentStatus.PARTIAL: "part",
-    PaymentStatus.PENDING: "pending",
-    PaymentStatus.CANCELLED: "cancelled",
-}
-
-STYLESHEET = """
-body { font-family: Helvetica, sans-serif; font-size: 12px; color: #1f2430; margin: 0; }
-.sheet { padding: 36px 40px; }
-.head { border-bottom: 2px solid #1f2430; padding-bottom: 14px; }
-.brand { font-size: 20px; font-weight: bold; }
-.muted { color: #6b7280; }
-.right { text-align: right; }
-h1 { font-size: 16px; margin: 22px 0 10px; }
-table { width: 100%; border-collapse: collapse; }
-.meta td { padding: 4px 0; vertical-align: top; }
-.meta .key { color: #6b7280; width: 130px; }
-.amounts { margin-top: 8px; border: 1px solid #d7dbe3; }
-.amounts td { padding: 9px 12px; border-bottom: 1px solid #eceef2; }
-.amounts .label { color: #4b5563; }
-.amounts .value { text-align: right; font-weight: bold; }
-.due td { background: #fdecec; color: #8a1c1c; }
-.settled td { background: #eaf7ee; color: #155e2e; }
-.badge { padding: 4px 10px; font-weight: bold; font-size: 11px; }
-.badge-paid { background: #eaf7ee; color: #155e2e; }
-.badge-part { background: #fff4e5; color: #8a5300; }
-.badge-pending { background: #fdecec; color: #8a1c1c; }
-.badge-cancelled { background: #eceef2; color: #4b5563; }
-.note { margin-top: 26px; padding-top: 12px; border-top: 1px solid #eceef2; font-size: 11px; }
-"""
-
+# The escape lives with the shared PDF look; imported here too because the
+# documents written before it (fee receipts, payslips) import it from here.
+from .pdf_design import e  # noqa: F401
 
 def receipt_number(payment) -> str:
     """"RCPT-000042" - stable for a payment, so a school re-sent the same
@@ -69,19 +35,41 @@ def file_name(payment) -> str:
 
 def render(payment) -> bytes:
     """The rendered PDF, ready to download or attach to an email."""
-    source = document(payment)
-    out = io.BytesIO()
+    return pdf_design.render(document(payment), file_name(payment))
 
-    result = pisa.CreatePDF(source, dest=out, encoding="utf-8")
 
-    if result.err:
-        raise RuntimeError(f"Could not render {file_name(payment)}")
+def issuer_band(receipt_no: str, issued_on: str) -> str:
+    """School365ai's band: the business as the Super Admin has described it,
+    or just the name until they have."""
+    from .services import CompanyProfileService
 
-    return out.getvalue()
+    company = CompanyProfileService.current()
+
+    if company is None:
+        return pdf_design.band("School365ai", [], "PAYMENT RECEIPT", receipt_no, f"Issued {issued_on}")
+
+    name = company.trading_name or company.legal_name
+    lines = [
+        company.legal_name if company.trading_name and company.legal_name != company.trading_name else "",
+        pdf_design.joined(company.address, company.city, company.state, company.postal_code, company.country),
+        pdf_design.joined(f"Phone {company.phone}" if company.phone else None, company.email, company.website),
+        pdf_design.joined(
+            f"Tax no. {company.tax_number}" if company.tax_number else None,
+            f"Reg. no. {company.registration_number}" if company.registration_number else None,
+            separator="  |  ",
+        ),
+    ]
+
+    return pdf_design.band(
+        name, [line for line in lines if line], "PAYMENT RECEIPT", receipt_no, f"Issued {issued_on}",
+        logo_url=company.logo_url,
+    )
 
 
 def document(payment) -> str:
     """The receipt as HTML. Separate from render() so a test can read it."""
+    from .fees.words import amount_in_words
+
     total = money.amount(payment.amount)
     paid = money.amount(payment.paid_amount)
     owed = money.remaining(total, paid, payment.status)
@@ -90,125 +78,100 @@ def document(payment) -> str:
     cancelled = payment.status == PaymentStatus.CANCELLED
 
     def cash(value) -> str:
-        return e(money.formatted(value, payment.currency_code))
+        return money.formatted(value, payment.currency_code)
 
     school = payment.school
+    clock = SchoolClock.for_school(school)
     # Dates on the receipt are read at the school, not on the server.
-    issued_on = dates.us(SchoolClock.for_school(school).now())
+    issued_on = dates.us(clock.now())
+    number = receipt_number(payment)
+    kind = label(PaymentType, payment.payment_type)
 
-    rows = [
-        row("School", e(school.name) if school else "-"),
-    ]
+    billed = pdf_design.facts([
+        ("School", school.name if school else "-"),
+        ("Address", pdf_design.joined(school.address, school.city, school.state, school.postal_code, school.country)
+         if school else None),
+        ("Phone", school.phone if school else None),
+        ("Email", school.email if school else None),
+        ("Reg. no.", school.registration_number if school else None),
+    ])
+    details = pdf_design.facts([
+        ("Receipt no.", number),
+        ("For", kind),
+        ("Date", dates.us(payment.payment_date)),
+        ("Method", label(PaymentMode, payment.payment_mode)),
+        ("Reference", payment.reference_number),
+        ("Status", label(PaymentStatus, payment.status)),
+        ("Recorded by", payment.created_by.name if payment.created_by_id else "the platform team"),
+    ])
 
-    if school and school.address:
-        rows.append(
-            row("Address", e(f"{school.address}, {school.city}, {school.country}"))
-        )
+    stamp = ""
+    if cancelled:
+        stamp = pdf_design.stamp("CANCELLED", ["This payment has been cancelled. Nothing is owed against it."])
 
-    rows.append(row("Email", e(school.email) if school else "-"))
-
-    payment_rows = [
-        row("For", e(label(PaymentType, payment.payment_type))),
-        row("Date", dates.us(payment.payment_date)),
-        row("Method", e(label(PaymentMode, payment.payment_mode))),
-    ]
-
-    if payment.reference_number:
-        payment_rows.append(row("Reference", e(payment.reference_number)))
-
-    badge = BADGES.get(payment.status, "cancelled")
-    payment_rows.append(
-        row(
-            "Status",
-            f'<span class="badge badge-{badge}">{e(label(PaymentStatus, payment.status))}</span>',
-        )
+    items = pdf_design.table(
+        [("#", "6%", False), ("Description", "64%", False), ("Amount", "30%", True)],
+        [["1", e(f"{kind} - {school.name}" if school else kind), e(cash(total))]],
     )
 
-    balance_label = "Cancelled" if cancelled else ("Balance" if settled else "Balance due")
-    balance_class = "settled" if settled or cancelled else "due"
+    try:
+        words = amount_in_words(paid, payment.currency_code)
+    except ValueError:
+        words = None
 
-    # Escaped in every branch, so the template can drop it in without having
-    # to know which branch produced it.
+    balance_label = "Cancelled" if cancelled else ("Balance" if settled else "Balance due")
+    balance_class = "settled" if settled or cancelled else "after"
+    balances = f"""
+    <table class="balances">
+        <tr><td>Amount</td><td class="value">{e(cash(total))}</td></tr>
+        <tr><td>Amount received</td><td class="value">{e(cash(paid))}</td></tr>
+        <tr class="{balance_class}"><td>{balance_label}</td><td class="value">{e(cash(owed))}</td></tr>
+    </table>"""
+
     if cancelled:
-        note = e("This payment has been cancelled. Nothing is owed against it.")
+        note = "This payment has been cancelled. Nothing is owed against it."
     elif settled:
-        note = e("Paid in full. Thank you.")
+        note = "Paid in full. Thank you."
     else:
         note = f"{cash(owed)} remains outstanding on this payment."
 
-    recorded_by = payment.created_by.name if payment.created_by_id else "the platform team"
+    issued_at = clock.format(clock.now(), DATE_TIME)
+    closing = [
+        note,
+        "This receipt is issued electronically and is valid without a signature.",
+        f"Issued {issued_at} ({school.timezone})" if school and issued_at else "",
+        "Thank you for choosing School365ai.",
+    ]
 
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>{e(receipt_number(payment))}</title>
-<style>{STYLESHEET}</style>
-</head>
-<body>
-<div class="sheet">
-    <table class="head">
-        <tr>
-            <td>
-                <div class="brand">School365ai</div>
-                <div class="muted">Payment receipt</div>
-            </td>
-            <td class="right">
-                <div><strong>{e(receipt_number(payment))}</strong></div>
-                <div class="muted">Issued {issued_on}</div>
-            </td>
-        </tr>
-    </table>
+    body = f"""
+    {issuer_band(number, issued_on)}
+    {stamp}
+    {pdf_design.spacer(16)}
+    {pdf_design.side_by_side(billed, details, "Billed to", "Payment")}
 
-    <h1>Billed to</h1>
-    <table class="meta">{"".join(rows)}</table>
+    {pdf_design.section("Details")}
+    {items}
 
-    <h1>Payment</h1>
-    <table class="meta">{"".join(payment_rows)}</table>
-
-    <table class="amounts">
-        <tr><td class="label">Amount</td><td class="value">{cash(total)}</td></tr>
-        <tr><td class="label">Amount received</td><td class="value">{cash(paid)}</td></tr>
-        <tr class="{balance_class}">
-            <td class="label">{balance_label}</td>
-            <td class="value">{cash(owed)}</td>
-        </tr>
-    </table>
-
+    {pdf_design.spacer(12)}
+    {pdf_design.totals_panel("Amount received", cash(paid), words)}
+    {pdf_design.spacer(10)}
+    {balances}
     {notes_block(payment)}
+    {pdf_design.closing([line for line in closing if line])}
+"""
 
-    <div class="note muted">
-        {note}
-        <br>
-        Recorded by {e(recorded_by)}.
-        This receipt is issued electronically and is valid without a signature.
-    </div>
-</div>
-</body>
-</html>"""
+    return pdf_design.page(
+        number, body, footer=f"School365ai - Payment receipt {number} - {school.name if school else ''}",
+    )
 
 
 def notes_block(payment) -> str:
     if not payment.notes:
         return ""
 
-    return f"<h1>Notes</h1>\n    <div>{e(payment.notes)}</div>"
-
-
-def row(key: str, value: str) -> str:
-    return f'<tr><td class="key">{key}</td><td>{value}</td></tr>'
+    return f'{pdf_design.section("Notes")}<div class="note">{e(payment.notes)}</div>'
 
 
 def label(choices, value: str) -> str:
     """The human name for a stored value - "Partially Paid" for "partial"."""
     return dict(choices.choices).get(value, value)
-
-
-def e(value) -> str:
-    """Escapes a value for HTML.
-
-    A school's name and a payment's notes are typed by people, and an
-    ampersand or an angle bracket in either would otherwise break the
-    document - or, worse, be rendered as markup.
-    """
-    return html.escape(str(value or ""))

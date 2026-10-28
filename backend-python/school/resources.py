@@ -367,6 +367,26 @@ def communication_setting_resource(setting) -> dict:
     }
 
 
+COMPANY_FIELDS = (
+    "legal_name", "trading_name", "address", "city", "state", "postal_code", "country", "phone", "email",
+    "website", "tax_number", "registration_number", "logo_url",
+)
+
+
+def company_profile_resource(row) -> dict:
+    """School365ai's business details, or empty ones before the first save."""
+    if row is None:
+        return {"is_saved": False, **{field: None for field in COMPANY_FIELDS}, "updated_by_name": None,
+                "updated_at": None}
+
+    return {
+        "is_saved": True,
+        **{field: getattr(row, field) for field in COMPANY_FIELDS},
+        "updated_by_name": row.updated_by.name if row.updated_by_id else None,
+        "updated_at": timestamp(row.updated_at),
+    }
+
+
 def mail_setting_resource(row) -> dict:
     """The SMTP settings without the password - only whether one is set."""
     from django.conf import settings

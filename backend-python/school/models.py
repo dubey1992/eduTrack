@@ -580,6 +580,58 @@ class StudentFeeCredit(models.Model):
         db_table = 'student_fee_credits'
 
 
+class StudentTermRemark(models.Model):
+    """The class teacher's remark on a student for one term, printed on the
+    progress report (docs/pdf-design.md). One per student per term; written
+    by the class teacher or a School / Group Admin."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='term_remarks')
+    academic_term = models.ForeignKey('AcademicTerm', models.DO_NOTHING, related_name='+')
+    remark = models.CharField(max_length=1000)
+    written_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='written_by', blank=True, null=True, related_name='+'
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'student_term_remarks'
+        unique_together = (('student', 'academic_term'),)
+
+
+class CompanyProfile(models.Model):
+    """School365ai as a business - the issuer on the receipt a school gets
+    for paying the platform (docs/pdf-design.md, phase 5). One row at most;
+    Super Admin only."""
+
+    id = models.BigAutoField(primary_key=True)
+    legal_name = models.CharField(max_length=150)
+    trading_name = models.CharField(max_length=100, blank=True, null=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    state = models.CharField(max_length=100, blank=True, null=True)
+    postal_code = models.CharField(max_length=20, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
+    phone = models.CharField(max_length=30, blank=True, null=True)
+    email = models.CharField(max_length=150, blank=True, null=True)
+    website = models.CharField(max_length=150, blank=True, null=True)
+    tax_number = models.CharField(max_length=30, blank=True, null=True)
+    registration_number = models.CharField(max_length=30, blank=True, null=True)
+    logo_url = models.CharField(max_length=255, blank=True, null=True)
+    updated_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True, related_name='+'
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'company_profiles'
+
+
 class FeeReceiptSequence(models.Model):
     """The last receipt number used per school and academic year - the row
     locked inside a payment's transaction so numbers never collide or skip."""
@@ -1151,6 +1203,13 @@ class SalaryProfile(models.Model):
     staff_profile = models.OneToOneField('StaffProfile', models.DO_NOTHING, related_name='salary')
     basic_salary = models.DecimalField(max_digits=12, decimal_places=2)
     currency_code = models.CharField(max_length=3)
+    # Where the pay goes, for the payslip (docs/pdf-design.md). The account
+    # number is encrypted (school/crypto.py); only its last four digits are
+    # ever shown - school/payroll/bank.py.
+    bank_name = models.CharField(max_length=100, blank=True, null=True)
+    bank_account_number = models.TextField(blank=True, null=True)
+    bank_branch_code = models.CharField(max_length=30, blank=True, null=True)
+    tax_id = models.CharField(max_length=30, blank=True, null=True)
     updated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True, related_name='+')
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)

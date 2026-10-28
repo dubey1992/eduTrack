@@ -183,6 +183,104 @@ class Salaries(PayrollTestCase):
         self.assertNotIn(stranger.id, [row["staff_profile_id"] for row in rows])
 
 
+class BankDetails(PayrollTestCase):
+    """Where an employee's pay goes (docs/pdf-design.md): optional, kept
+    encrypted, and never shown in full."""
+
+    URL = None
+
+    def save(self, user=None, **bank):
+        body = {"basic_salary": "30000.00", "components": [], **bank}
+
+        return self.as_user(user or self.accountant).put(
+            f"/api/v1/payroll/salaries/{self.teacher_profile.id}", body, format="json"
+        )
+
+    def test_they_are_saved_and_the_account_number_comes_back_masked(self):
+        response = self.save(bank_name="State Bank of India", bank_account_number="3012 4567 8901",
+                             bank_branch_code="sbin0001234", tax_id="abcde1234f")
+
+        self.assertEqual(200, response.status_code, response.data)
+        salary = response.data["salary"]
+        self.assertEqual(("State Bank of India", "XXXXXXXX8901", "SBIN0001234", "ABCDE1234F"),
+                         (salary["bank_name"], salary["bank_account_masked"], salary["bank_branch_code"],
+                          salary["tax_id"]))
+        self.assertNotIn("bank_account_number", salary)
+
+    def test_the_account_number_is_encrypted_at_rest(self):
+        self.save(bank_account_number="301245678901")
+
+        stored = SalaryProfile.objects.get(staff_profile=self.teacher_profile).bank_account_number
+
+        self.assertNotIn("301245678901", stored)
+        from school import crypto
+        self.assertEqual("301245678901", crypto.decrypt(stored))
+
+    def test_a_field_left_out_keeps_its_value_and_an_empty_one_removes_it(self):
+        self.save(bank_name="HDFC", bank_account_number="12345678", tax_id="PAN1")
+
+        kept = self.save().data["salary"]
+        self.assertEqual(("HDFC", "XXXX5678", "PAN1"), (kept["bank_name"], kept["bank_account_masked"], kept["tax_id"]))
+
+        cleared = self.save(bank_name="", bank_account_number=None, tax_id="  ").data["salary"]
+        self.assertEqual((None, None, None), (cleared["bank_name"], cleared["bank_account_masked"], cleared["tax_id"]))
+
+    def test_what_is_not_an_account_number_branch_code_or_tax_id_is_refused(self):
+        for field, value in (
+            ("bank_account_number", "12"),
+            ("bank_account_number", "12$4567"),
+            ("bank_account_number", "1" * 41),
+            ("bank_branch_code", "SBIN@001"),
+            ("tax_id", "PAN<1>"),
+            ("bank_name", "B" * 101),
+            ("bank_name", 42),
+        ):
+            with self.subTest(field=field, value=value):
+                response = self.save(**{field: value})
+
+                self.assertEqual(422, response.status_code)
+                self.assertIn(field, response.data["details"]["errors"])
+
+    def test_the_audit_trail_never_holds_the_full_number(self):
+        self.save(bank_account_number="301245678901")
+
+        entry = AuditLog.objects.filter(action="salary.saved").order_by("-id").first()
+
+        self.assertNotIn("301245678901", str(entry.new_values))
+        self.assertEqual("XXXXXXXX8901", entry.new_values["bank_account_masked"])
+
+    def test_the_payslip_prints_them_masked(self):
+        from school.payroll import payslips
+
+        self.set_salaries()
+        self.save(bank_name="State Bank of India", bank_account_number="301245678901", bank_branch_code="SBIN0001234",
+                  tax_id="ABCDE1234F")
+        run = self.generate().data
+
+        html = payslips.document(self.payslip_of(run["id"], self.teacher_profile))
+
+        for text in ("State Bank of India", "XXXXXXXX8901", "SBIN0001234", "ABCDE1234F"):
+            self.assertIn(text, html)
+        self.assertNotIn("301245678901", html)
+
+    def test_a_number_written_under_another_key_does_not_break_the_payslip(self):
+        from school.payroll import payslips
+
+        self.set_salaries()
+        SalaryProfile.objects.filter(staff_profile=self.teacher_profile).update(
+            bank_account_number="enc:not-a-real-token"
+        )
+        run = self.generate().data
+
+        html = payslips.document(self.payslip_of(run["id"], self.teacher_profile))
+
+        self.assertNotIn(">Account<", html)
+        self.assertIn("Net pay", html)
+
+    def test_only_payroll_managers_may_set_them(self):
+        self.assertEqual(403, self.save(user=self.teacher, bank_account_number="12345678").status_code)
+
+
 class GeneratingARun(PayrollTestCase):
     def test_pay_is_pro_rated_by_paid_days_over_working_days(self):
         run = self.draft()

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from ..enums import PayslipLineSource, PayslipStatus
 from ..resources import timestamp
+from . import bank
 from .calculator import ZERO
 from .service import SalaryService, period_label
 
@@ -62,6 +63,8 @@ def salary_resource(salary) -> dict:
         "net_monthly": cash(gross - deductions),
         "updated_by_name": salary.updated_by.name if salary.updated_by_id else None,
         "updated_at": timestamp(salary.updated_at),
+        # Where the pay goes - the account number only ever masked.
+        **bank.details(salary),
     }
 
 

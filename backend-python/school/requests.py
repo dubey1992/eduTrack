@@ -673,6 +673,37 @@ class PromotionPreviewRequest(serializers.Serializer):
         return value
 
 
+class StudentRemarkRequest(serializers.Serializer):
+    """`PUT students/{id}/remark`: the term, from the student's own school,
+    and the remark - up to 1,000 characters; empty removes it."""
+
+    REMARK_MAX = 1000
+
+    academic_term_id = LaravelIntegerField("academic_term_id")
+    remark = serializers.CharField(required=False, allow_blank=True, allow_null=True, trim_whitespace=True)
+
+    def __init__(self, *args, student=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.student = student
+
+    def validate_academic_term_id(self, value):
+        if not AcademicTerm.objects.filter(pk=value, school_id=self.student.school_id).exists():
+            raise serializers.ValidationError(does_not_exist("academic_term_id"))
+
+        return value
+
+    def validate_remark(self, value):
+        value = (value or "").strip()
+
+        if len(value) > self.REMARK_MAX:
+            raise serializers.ValidationError(f"The remark must not be greater than {self.REMARK_MAX} characters.")
+
+        return value
+
+
 class StudentPerformanceRequest(serializers.Serializer):
     """Which term to read. Left out, the service picks the one being lived.
 
@@ -2332,6 +2363,55 @@ class UpdateMailSettingRequest(serializers.Serializer):
             raise serializers.ValidationError("Encryption is none, tls or ssl.")
 
         return value
+
+
+class UpdateCompanyProfileRequest(serializers.Serializer):
+    """School365ai's business details for its own receipts. The legal name
+    is required; everything else is optional and empty clears it."""
+
+    legal_name = LaravelCharField("legal_name", max_length=150)
+    trading_name = optional_text("trading_name", 100)
+    address = optional_text("address", 255)
+    city = optional_text("city", 100)
+    state = optional_text("state", 100)
+    postal_code = optional_text("postal_code", 20)
+    country = optional_text("country", 100)
+    phone = optional_text("phone", 30)
+    email = optional_text("email", 150)
+    website = optional_text("website", 150)
+    tax_number = optional_text("tax_number", 30)
+    registration_number = optional_text("registration_number", 30)
+    logo_url = optional_text("logo_url", 255)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_email(self, value):
+        if value and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value):
+            raise serializers.ValidationError("Enter a valid email address.")
+
+        return value
+
+    def validate_website(self, value):
+        if value and not re.fullmatch(r"(https?://)?[A-Za-z0-9.-]+\.[A-Za-z]{2,}(/\S*)?", value):
+            raise serializers.ValidationError("Enter a web address, such as school365ai.com.")
+
+        return value
+
+    def validate_logo_url(self, value):
+        if value and not value.lower().startswith(("http://", "https://")):
+            raise serializers.ValidationError("The logo must be an http(s) address of an image.")
+
+        return value
+
+    def validate_tax_number(self, value):
+        return value.upper() if value else value
+
+    def validate_registration_number(self, value):
+        return value.upper() if value else value
 
 
 class SendTestEmailRequest(serializers.Serializer):

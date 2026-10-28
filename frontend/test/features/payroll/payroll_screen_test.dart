@@ -300,6 +300,80 @@ void main() {
       expect(fake.employees.single.salary!.components.map((c) => c.name), ['HRA', 'PF']);
     });
 
+    testWidgets('bank and tax details are sent with the salary', (tester) async {
+      useDesktop(tester);
+      final fake = FakePayrollRepository(employees: [fakeEmployee()]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await openSalaries(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Set Salary'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bank and tax'), findsOneWidget);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Basic salary (monthly, INR)'), '30000');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Bank name'), 'State Bank of India');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Account number'), '3012 4567 8901');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Branch code'), 'SBIN0001234');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Tax ID'), 'ABCDE1234F');
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Salary'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Salary'));
+      await tester.pumpAndSettle();
+
+      final bank = fake.lastBank!;
+      expect(
+        [bank.bankName, bank.accountNumber, bank.branchCode, bank.taxId],
+        ['State Bank of India', '3012 4567 8901', 'SBIN0001234', 'ABCDE1234F'],
+      );
+    });
+
+    testWidgets('a saved account is shown masked and kept when the box is left empty', (tester) async {
+      useDesktop(tester);
+      final fake = FakePayrollRepository(
+        employees: [
+          fakeEmployee(
+            basic: '30000',
+            bank: const BankDetails(bankName: 'HDFC', accountMasked: 'XXXX5678', taxId: 'PAN1'),
+          ),
+        ],
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await openSalaries(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Edit Salary'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Saved: XXXX5678. Leave empty to keep it.'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'HDFC'), findsOneWidget);
+
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Salary'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Salary'));
+      await tester.pumpAndSettle();
+
+      // Nothing typed: the account number is not sent, so the server keeps it.
+      expect(fake.lastBank!.toJson().containsKey('bank_account_number'), isFalse);
+      expect(fake.lastBank!.toJson()['bank_name'], 'HDFC');
+    });
+
+    testWidgets('an account number that cannot be one is caught before saving', (tester) async {
+      useDesktop(tester);
+      final fake = FakePayrollRepository(employees: [fakeEmployee(basic: '30000')]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await openSalaries(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Edit Salary'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Account number'), '12');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Tax ID'), 'PAN<1>');
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Salary'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Salary'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('4 to 34 letters or digits'), findsOneWidget);
+      expect(find.text('Letters and digits only'), findsOneWidget);
+      expect(fake.lastBank, isNull);
+    });
+
     testWidgets("the server's field errors land on the right component", (tester) async {
       useDesktop(tester);
       final fake = FakePayrollRepository(

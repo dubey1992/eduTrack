@@ -241,6 +241,22 @@ class PerformanceAttendance {
   bool get wasTaken => present + absent + leave > 0;
 }
 
+/// The class teacher's remark on the student for the term, printed on the
+/// progress report.
+class TermRemark {
+  const TermRemark({required this.text, this.writtenBy, this.updatedAt});
+
+  factory TermRemark.fromJson(Map<String, dynamic> json) => TermRemark(
+    text: json['text'] as String? ?? '',
+    writtenBy: json['written_by'] as String?,
+    updatedAt: json['updated_at'] is String ? DateTime.tryParse(json['updated_at'] as String)?.toLocal() : null,
+  );
+
+  final String text;
+  final String? writtenBy;
+  final DateTime? updatedAt;
+}
+
 class StudentPerformance {
   const StudentPerformance({
     required this.studentName,
@@ -254,6 +270,8 @@ class StudentPerformance {
     required this.insights,
     this.recommendations = const [],
     this.weakBelowPercentage,
+    this.remark,
+    this.canEditRemark = false,
   });
 
   factory StudentPerformance.fromJson(Map<String, dynamic> json) {
@@ -285,8 +303,19 @@ class StudentPerformance {
           PerformanceInsight.fromJson(row as Map<String, dynamic>),
       ],
       weakBelowPercentage: (json['weak_below_percentage'] as num?)?.toDouble(),
+      remark: json['remark'] is Map<String, dynamic>
+          ? TermRemark.fromJson(json['remark'] as Map<String, dynamic>)
+          : null,
+      canEditRemark: json['can_edit_remark'] as bool? ?? false,
     );
   }
+
+  /// The class teacher's remark for the term, if anyone has written one.
+  final TermRemark? remark;
+
+  /// Whether this person may write it - the student's class teacher, or a
+  /// School / Group Admin. The server checks again on save.
+  final bool canEditRemark;
 
   final String studentName;
   final String? classSectionName;

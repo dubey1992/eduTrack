@@ -66,6 +66,38 @@ class SalaryComponent {
   Map<String, dynamic> toJson() => {'type': type.apiValue, 'name': name, 'amount': amount};
 }
 
+/// Where an employee's pay goes, printed on their payslip. The account
+/// number never comes back from the server in full - only [accountMasked].
+class BankDetails {
+  const BankDetails({this.bankName, this.accountNumber, this.accountMasked, this.branchCode, this.taxId});
+
+  factory BankDetails.fromJson(Map<String, dynamic> json) => BankDetails(
+    bankName: json['bank_name'] as String?,
+    accountMasked: json['bank_account_masked'] as String?,
+    branchCode: json['bank_branch_code'] as String?,
+    taxId: json['tax_id'] as String?,
+  );
+
+  final String? bankName;
+
+  /// A new account number typed in the form, or null to keep the one saved.
+  final String? accountNumber;
+
+  /// The saved account number as the server shows it: "XXXXXX1234".
+  final String? accountMasked;
+  final String? branchCode;
+  final String? taxId;
+
+  /// What the form sends. Empty text removes a value; the account number is
+  /// only sent when a new one was typed, so leaving the box empty keeps it.
+  Map<String, dynamic> toJson() => {
+    'bank_name': bankName ?? '',
+    if (accountNumber != null && accountNumber!.isNotEmpty) 'bank_account_number': accountNumber,
+    'bank_branch_code': branchCode ?? '',
+    'tax_id': taxId ?? '',
+  };
+}
+
 class Salary {
   const Salary({
     required this.basicSalary,
@@ -77,10 +109,12 @@ class Salary {
     required this.netMonthly,
     this.updatedByName,
     this.updatedAt,
+    this.bank = const BankDetails(),
   });
 
   factory Salary.fromJson(Map<String, dynamic> json) {
     return Salary(
+      bank: BankDetails.fromJson(json),
       basicSalary: json['basic_salary'] as String,
       currencyCode: json['currency_code'] as String,
       components: [
@@ -104,6 +138,7 @@ class Salary {
   final String netMonthly;
   final String? updatedByName;
   final String? updatedAt;
+  final BankDetails bank;
 }
 
 /// One row of the salary screen: an employee, and what they are paid if it

@@ -627,4 +627,88 @@ void main() {
       expect(find.widgetWithText(TextButton, 'Send to guardian'), findsNothing);
     });
   });
+
+  group('the class teacher remark', () {
+    testWidgets('one who may write it writes it, and it is saved for the term on screen', (tester) async {
+      useDesktop(tester);
+      final fake = FakeStudentRepository(students: [_student], performance: fakePerformance(canEditRemark: true));
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Class teacher's remark"), findsOneWidget);
+      expect(find.text('No remark for Term 2 yet. It prints on the progress report.'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Write remark'));
+      await tester.tap(find.text('Write remark'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Remark'), '  Works hard; reads more at home.  ');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save remark'));
+      await tester.pumpAndSettle();
+
+      expect(fake.remarkCalls.single, (termId: 2, remark: 'Works hard; reads more at home.'));
+      expect(find.text('Remark saved. It prints on the progress report.'), findsOneWidget);
+    });
+
+    testWidgets('a saved remark is shown with who wrote it, and is offered for editing', (tester) async {
+      useDesktop(tester);
+      final fake = FakeStudentRepository(
+        students: [_student],
+        performance: fakePerformance(
+          canEditRemark: true,
+          remark: const TermRemark(text: 'Asks good questions.', writtenBy: 'Meena Iyer'),
+        ),
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Asks good questions.'), findsOneWidget);
+      expect(find.text('Meena Iyer'), findsOneWidget);
+      expect(find.text('Edit remark'), findsOneWidget);
+    });
+
+    testWidgets('one who may only read it is offered nothing to change', (tester) async {
+      useDesktop(tester);
+      final fake = FakeStudentRepository(
+        students: [_student],
+        performance: fakePerformance(remark: const TermRemark(text: 'Asks good questions.')),
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Asks good questions.'), findsOneWidget);
+      expect(find.text('Edit remark'), findsNothing);
+      expect(find.text('Write remark'), findsNothing);
+    });
+
+    testWidgets('a refusal stays in the dialog with the reason', (tester) async {
+      useDesktop(tester);
+      final fake = FakeStudentRepository(
+        students: [_student],
+        performance: fakePerformance(canEditRemark: true),
+        failWith: {
+          'saveRemark': const Failure(
+            code: 'VALIDATION_ERROR',
+            message: 'The given data was invalid.',
+            details: {
+              'errors': {
+                'remark': ['The remark must not be greater than 1000 characters.'],
+              },
+            },
+          ),
+        },
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Write remark'));
+      await tester.tap(find.text('Write remark'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Remark'), 'Too long');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save remark'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The remark must not be greater than 1000 characters.'), findsOneWidget);
+      expect(find.text('Remark for Term 2'), findsOneWidget);
+    });
+  });
 }

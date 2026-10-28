@@ -285,6 +285,17 @@ class FakeStudentRepository implements StudentRepository {
     if (failure != null) throw failure;
   }
 
+  /// Each remark saved: (term id, text).
+  final List<({int termId, String remark})> remarkCalls = [];
+
+  @override
+  Future<void> saveRemark(int studentId, {required int academicTermId, required String remark}) async {
+    calls.add('saveRemark');
+    remarkCalls.add((termId: academicTermId, remark: remark));
+    final failure = failWith['saveRemark'];
+    if (failure != null) throw failure;
+  }
+
   @override
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     calls.add('enrollments');
@@ -312,8 +323,12 @@ StudentPerformance fakePerformance({
   /// way to ask for a school that has no term at all.
   bool withoutTerm = false,
   bool withoutPreviousTerm = false,
+  TermRemark? remark,
+  bool canEditRemark = false,
 }) {
   return StudentPerformance(
+    remark: remark,
+    canEditRemark: canEditRemark,
     studentName: 'Arjun Kumar',
     classSectionName: 'Grade 8 A',
     term: withoutTerm ? null : (term ?? const PerformanceTerm(id: 2, name: 'Term 2', sequenceNumber: 2)),

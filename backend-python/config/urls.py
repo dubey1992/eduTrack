@@ -39,6 +39,7 @@ from school.views import (
     devices,
     inbox,
     leave,
+    company_profile,
     mail_settings,
     maps,
     marketing_content,
@@ -89,6 +90,7 @@ urlpatterns = [
     path("api/v1/assessments/<int:assessment_id>/reopen", assessments.reopen),
     # -- class promotion, on this backend only. docs/promotion.md ----------
     path("api/v1/students/<int:student_id>/performance", students.performance),
+    path("api/v1/students/<int:student_id>/remark", students.remark),
     path("api/v1/students/<int:student_id>/progress-report", students.progress_report),
     path("api/v1/students/<int:student_id>/progress-report/send", students.send_progress_report),
     path("api/v1/promotions/preview", promotions.preview),
@@ -273,6 +275,7 @@ urlpatterns = [
     path("api/v1/communication/templates/<str:event>/whatsapp", communication.whatsapp_template),
     path("api/v1/communication/notices", communication.notices),
     path("api/v1/communication/notices/preview", communication.notice_preview),
+    path("api/v1/settings/company", company_profile.profile),
     path("api/v1/settings/mail", mail_settings.settings),
     path("api/v1/settings/mail/test", mail_settings.test),
     # Module settings and the permissions matrix - Python only (docs/settings.md).

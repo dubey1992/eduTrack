@@ -11,12 +11,13 @@ import '../data/models/payroll.dart';
 ///
 /// Amounts are fixed monthly figures in the school's currency. Pay each month
 /// is pro-rated from them by attendance, so the totals here are what a full
-/// month pays.
+/// month pays. Below them, where the pay goes - bank, account, branch code
+/// and tax ID - printed on the payslip, the account number only masked.
 class SalaryDialog extends StatefulWidget {
   const SalaryDialog({super.key, required this.employee, required this.onSave, this.readOnly = false});
 
   final EmployeeSalary employee;
-  final Future<void> Function(String basicSalary, List<SalaryComponent> components) onSave;
+  final Future<void> Function(String basicSalary, List<SalaryComponent> components, BankDetails bank) onSave;
   final bool readOnly;
 
   @override
@@ -45,6 +46,11 @@ class _SalaryDialogState extends State<SalaryDialog> {
     for (final component in widget.employee.salary?.components ?? const <SalaryComponent>[])
       _ComponentRow(type: component.type, name: component.name, amount: component.amount),
   ];
+  late final BankDetails _savedBank = widget.employee.salary?.bank ?? const BankDetails();
+  late final _bankName = TextEditingController(text: _savedBank.bankName ?? '');
+  final _account = TextEditingController();
+  late final _branchCode = TextEditingController(text: _savedBank.branchCode ?? '');
+  late final _taxId = TextEditingController(text: _savedBank.taxId ?? '');
   bool _saving = false;
   String? _error;
   Map<String, List<String>> _fieldErrors = const {};
@@ -60,6 +66,10 @@ class _SalaryDialogState extends State<SalaryDialog> {
 
   @override
   void dispose() {
+    _bankName.dispose();
+    _account.dispose();
+    _branchCode.dispose();
+    _taxId.dispose();
     _basic.dispose();
     for (final row in _rows) {
       row.dispose();
@@ -92,10 +102,19 @@ class _SalaryDialogState extends State<SalaryDialog> {
     });
 
     try {
-      await widget.onSave(_basic.text.trim(), [
-        for (final row in _rows)
-          SalaryComponent(type: row.type, name: row.name.text.trim(), amount: row.amount.text.trim()),
-      ]);
+      await widget.onSave(
+        _basic.text.trim(),
+        [
+          for (final row in _rows)
+            SalaryComponent(type: row.type, name: row.name.text.trim(), amount: row.amount.text.trim()),
+        ],
+        BankDetails(
+          bankName: _bankName.text.trim(),
+          accountNumber: _account.text.trim(),
+          branchCode: _branchCode.text.trim(),
+          taxId: _taxId.text.trim(),
+        ),
+      );
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
@@ -192,6 +211,14 @@ class _SalaryDialogState extends State<SalaryDialog> {
                   "A month's pay is pro-rated from these by the days paid.",
                   style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                 ),
+                const SizedBox(height: 16),
+                Text('Bank and tax', style: Theme.of(context).textTheme.titleSmall),
+                Text(
+                  'Printed on the payslip. Optional.',
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                _bankFields(),
               ],
             ),
           ),
@@ -209,6 +236,76 @@ class _SalaryDialogState extends State<SalaryDialog> {
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Save Salary'),
           ),
+      ],
+    );
+  }
+
+  Widget _bankFields() {
+    final saved = _savedBank.accountMasked;
+
+    Widget field(
+      TextEditingController controller,
+      String label,
+      String key, {
+      String? hint,
+      String? helper,
+      int maxLength = 30,
+      String? Function(String)? check,
+    }) {
+      return TextFormField(
+        controller: controller,
+        readOnly: widget.readOnly,
+        maxLength: maxLength,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          helperText: helper,
+          helperMaxLines: 2,
+          counterText: '',
+          errorText: _serverError(key),
+          errorMaxLines: 3,
+        ),
+        validator: (value) => (value ?? '').trim().isEmpty || check == null ? null : check(value!.trim()),
+      );
+    }
+
+    final account = field(
+      _account,
+      saved == null ? 'Account number' : 'New account number',
+      'bank_account_number',
+      hint: saved,
+      helper: saved == null ? null : 'Saved: $saved. Leave empty to keep it.',
+      maxLength: 40,
+      check: (value) =>
+          RegExp(r'^[A-Za-z0-9][A-Za-z0-9 -]{2,38}[A-Za-z0-9]$').hasMatch(value) ? null : '4 to 34 letters or digits',
+    );
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      children: [
+        SizedBox(width: 260, child: field(_bankName, 'Bank name', 'bank_name', maxLength: 100)),
+        SizedBox(width: 260, child: account),
+        SizedBox(
+          width: 260,
+          child: field(
+            _branchCode,
+            'Branch code',
+            'bank_branch_code',
+            hint: 'IFSC, sort code or routing number',
+            check: (value) => RegExp(r'^[A-Za-z0-9 -]+$').hasMatch(value) ? null : 'Letters and digits only',
+          ),
+        ),
+        SizedBox(
+          width: 260,
+          child: field(
+            _taxId,
+            'Tax ID',
+            'tax_id',
+            hint: 'PAN or equivalent',
+            check: (value) => RegExp(r'^[A-Za-z0-9 /-]+$').hasMatch(value) ? null : 'Letters and digits only',
+          ),
+        ),
       ],
     );
   }
