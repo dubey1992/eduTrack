@@ -234,6 +234,10 @@ urlpatterns = [
     path("api/v1/fees/receipts/<int:receipt_id>/pdf", fees.receipt_pdf_download),
     path("api/v1/fees/receipts/<int:receipt_id>/cancel", fees.receipt_cancel),
     path("api/v1/fees/receipts/<int:receipt_id>/email", fees.receipt_email),
+    # F4: discounts, waivers.
+    path("api/v1/fees/concessions", fees.concessions),
+    path("api/v1/fees/concessions/<int:concession_id>", fees.concession),
+    path("api/v1/fees/dues/<int:due_id>/waive", fees.due_waive),
     path("api/v1/reports/student-attendance", reports.student_attendance),
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),

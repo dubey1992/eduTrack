@@ -2,10 +2,14 @@
 for a year, and the balances list - every student of a year with what they
 were charged, what they paid and what they still owe.
 
-Arithmetic, everywhere: balance = amount - discount - paid, per due. A
-cancelled due is shown on a statement (struck through) and counted nowhere.
-A due is overdue while something is still owed on it (pending or part-paid)
-and its date is before the school's today.
+Arithmetic, everywhere: balance = amount - discount - paid, per due, except
+that a waived or cancelled due owes nothing (F4). A cancelled due is shown on
+a statement (struck through) and counted nowhere. A waived one counts in what
+was charged, and what was forgiven on it - amount - discount - paid, since a
+waived due takes no more money - is the statement's `waived` total. A due is
+overdue while something is still owed on it (pending or part-paid, with a
+balance above zero - a discount can take one to nothing) and its date is
+before the school's today.
 """
 
 from __future__ import annotations
@@ -20,16 +24,35 @@ from ..enums import FeeDueStatus, StudentStatus
 from ..models import AcademicYear, FeeReceipt, Student, StudentEnrollment, StudentFeeDue
 from .dues import OPEN
 
+# A waived or cancelled due owes nothing.
+SETTLED = (FeeDueStatus.WAIVED, FeeDueStatus.CANCELLED)
+
 ZERO = Decimal("0.00")
 MONEY = DecimalField(max_digits=14, decimal_places=2)
 
 
 def balance_of(due: StudentFeeDue) -> Decimal:
+    if due.status in SETTLED:
+        return ZERO
+
     return due.amount - due.discount_amount - due.paid_amount
 
 
+def forgiven(due: StudentFeeDue) -> Decimal:
+    """What a waiver let go of: whatever was still owed on the due."""
+    if due.status != FeeDueStatus.WAIVED:
+        return ZERO
+
+    return max(ZERO, due.amount - due.discount_amount - due.paid_amount)
+
+
 def is_overdue(due: StudentFeeDue, today: dt.date) -> bool:
-    return due.status in OPEN and due.due_date < today
+    return due.status in OPEN and due.due_date < today and balance_of(due) > 0
+
+
+def owed(dues):
+    """The dues of a queryset with something still to pay on them."""
+    return dues.filter(status__in=OPEN, amount__gt=F("discount_amount") + F("paid_amount"))
 
 
 # -- one student's statement ----------------------------------------------------
@@ -73,6 +96,7 @@ def statement(student: Student, year: AcademicYear, today: dt.date) -> dict:
         "paid": sum((due.paid_amount for due in counted), ZERO),
         "balance": sum((balance_of(due) for due in counted), ZERO),
         "overdue": sum((balance_of(due) for due in counted if is_overdue(due, today)), ZERO),
+        "waived": sum((forgiven(due) for due in counted), ZERO),
     }
     currency = next((due.currency_code for due in counted), None) or next(
         (due.currency_code for due in dues), None
@@ -84,8 +108,16 @@ def statement(student: Student, year: AcademicYear, today: dt.date) -> dict:
         FeeReceipt.objects.filter(student_id=student.id, academic_year_id=year.id).order_by("-receipt_date", "-id")
     )
 
+    # The discounts active for this year (F4), newest first.
+    from .concessions import ConcessionService
+
+    concessions = list(
+        ConcessionService.query().filter(student_id=student.id, academic_year_id=year.id, revoked_at__isnull=True)
+        .order_by("-created_at", "-id")
+    )
+
     return {"student": student, "enrollment": enrollment, "year": year, "dues": dues, "totals": totals,
-            "currency_code": currency, "today": today, "receipts": receipts}
+            "currency_code": currency, "today": today, "receipts": receipts, "concessions": concessions}
 
 
 # -- the balances list ----------------------------------------------------------
@@ -107,7 +139,9 @@ def balances(year: AcademicYear, filters: dict, today: dt.date):
     counted = StudentFeeDue.objects.filter(
         student_id=OuterRef("student_id"), academic_year_id=year.id
     ).exclude(status=FeeDueStatus.CANCELLED)
-    still_owed = counted.filter(status__in=OPEN)
+    # Waived and cancelled dues owe nothing; nor does a due a discount took
+    # to zero (F4).
+    still_owed = owed(counted)
     owing = F("amount") - F("discount_amount") - F("paid_amount")
 
     rows = (
@@ -117,7 +151,7 @@ def balances(year: AcademicYear, filters: dict, today: dt.date):
         .annotate(
             charged=_sum(counted, F("amount")),
             paid=_sum(counted, F("paid_amount")),
-            balance=_sum(counted, owing),
+            balance=_sum(still_owed, owing),
             overdue=_sum(still_owed.filter(due_date__lt=today), owing),
             next_due_date=Subquery(
                 still_owed.filter(due_date__gte=today).order_by("due_date").values("due_date")[:1]

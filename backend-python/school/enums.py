@@ -486,6 +486,21 @@ class FeeReceiptStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
+class FeeDueKind(models.TextChoices):
+    """What a due is for (docs/fees.md, F4): one installment of a published
+    fee, or the late fine on one such installment."""
+
+    INSTALLMENT = "installment", "Installment"
+    LATE_FINE = "late_fine", "Late fine"
+
+
+class FeeConcessionKind(models.TextChoices):
+    """A discount: a fixed amount or a percentage off each installment."""
+
+    FIXED = "fixed", "Fixed amount"
+    PERCENT = "percent", "Percentage"
+
+
 class FeeDueCancelReason(models.TextChoices):
     """Why a due stopped applying. Only a due nothing was paid on, falling due
     after today, is ever cancelled - the rest stay owed."""

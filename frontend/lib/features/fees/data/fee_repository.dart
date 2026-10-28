@@ -259,6 +259,74 @@ class FeeRepository {
   /// Sends the receipt to the student's guardian, in the background.
   Future<void> emailReceipt(int id) => _call(() => _dio.post('/fees/receipts/$id/email'));
 
+  // -- discounts and waivers (F4) ---------------------------------------------
+
+  Future<PaginatedResponse<FeeConcession>> concessions({
+    int? schoolId,
+    int? academicYearId,
+    int? studentId,
+    bool includeRevoked = false,
+    int page = 1,
+    int perPage = 20,
+  }) {
+    return _call(() async {
+      final response = await _dio.get(
+        '/fees/concessions',
+        queryParameters: {
+          'school_id': ?schoolId,
+          'academic_year_id': ?academicYearId,
+          'student_id': ?studentId,
+          if (includeRevoked) 'include_revoked': 1,
+          'page': page,
+          'per_page': perPage,
+        },
+      );
+      return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, FeeConcession.fromJson);
+    });
+  }
+
+  /// A discount off each installment of [feeHeadId] - every fee type when
+  /// null - for one student and year. Applies at once.
+  Future<FeeConcession> createConcession({
+    required int studentId,
+    required int academicYearId,
+    int? feeHeadId,
+    required bool percent,
+    required String value,
+    required String reason,
+  }) {
+    return _call(() async {
+      final response = await _dio.post(
+        '/fees/concessions',
+        data: {
+          'student_id': studentId,
+          'academic_year_id': academicYearId,
+          'fee_head_id': feeHeadId,
+          'kind': percent ? 'percent' : 'fixed',
+          'value': value,
+          'reason': reason,
+        },
+      );
+      return FeeConcession.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  /// Ends a discount. It stays on record; the dues it lowered are restored.
+  Future<FeeConcession> revokeConcession(int id) {
+    return _call(() async {
+      final response = await _dio.delete('/fees/concessions/$id');
+      return FeeConcession.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  /// Forgives one installment or fine still owed.
+  Future<FeeDue> waiveDue(int dueId, {required String reason}) {
+    return _call(() async {
+      final response = await _dio.post('/fees/dues/$dueId/waive', data: {'reason': reason});
+      return FeeDue.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
   /// What each student owes for a year, a page at a time.
   Future<PaginatedResponse<StudentBalance>> balances({
     required int academicYearId,

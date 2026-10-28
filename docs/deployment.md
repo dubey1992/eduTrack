@@ -291,12 +291,13 @@ block the script adds and the app is served properly.
 
 ## 5. Cron
 
-Three jobs. None of them is optional.
+Four jobs. None of them is optional.
 
 ```
 * * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py work_queue >> var/queue.log 2>&1
 30 2 * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py purge_trip_locations >> var/purge.log 2>&1
 0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py close_open_trips >> var/trips.log 2>&1
+0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py apply_late_fines >> var/fines.log 2>&1
 ```
 
 The first drains the job queue — SMS, WhatsApp, announcement fan-out, emailed
@@ -316,6 +317,12 @@ morning's run, and the driver finds that out in a yard at six
 The second deletes bus positions older than thirty days. Positions say where
 a named attendant was, minute by minute; nobody needs that a month later, so
 it is not kept — see [maps.md](maps.md).
+
+The fourth adds the late fine to fee installments still unpaid past each
+school's grace period (docs/fees.md, F4). Hourly for the same reason as the
+third: an installment becomes overdue at midnight in the school's own zone.
+It fines only schools with Fee Management on and a late fine above 0, once
+per installment ever, so running it more often than needed changes nothing.
 
 Use the **absolute path to the app's python**, and check the version
 directory - cPanel offered 3.12 where this page once said 3.11, and a

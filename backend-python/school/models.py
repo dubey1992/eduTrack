@@ -415,16 +415,27 @@ class StudentFeeDue(models.Model):
     """One line on a student's fee account: one installment of one published
     fee (docs/fees.md, F2). Created, revived, re-priced and cancelled only by
     school/fees/dues.py - never typed - and never deleted. `paid_amount` moves
-    with receipts (F3, school/fees/receipts.py); `discount_amount` stays 0
-    until discounts (F4)."""
+    with receipts (F3, school/fees/receipts.py); `discount_amount` follows the
+    student's active concessions (F4).
+
+    `kind` is `installment`, or `late_fine` for a fine added by
+    school/fees/fines.py: a fine has no structure or installment, and points
+    at the installment due it is for (`fine_for_due`, unique - one fine per
+    installment, ever)."""
 
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey('School', models.DO_NOTHING)
     student = models.ForeignKey('Student', models.DO_NOTHING, related_name='fee_dues')
     academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING, related_name='+')
-    fee_structure = models.ForeignKey('FeeStructure', models.DO_NOTHING, related_name='dues')
-    fee_installment = models.ForeignKey('FeeInstallment', models.DO_NOTHING, related_name='dues')
+    fee_structure = models.ForeignKey('FeeStructure', models.DO_NOTHING, blank=True, null=True, related_name='dues')
+    fee_installment = models.ForeignKey(
+        'FeeInstallment', models.DO_NOTHING, blank=True, null=True, related_name='dues'
+    )
     fee_head = models.ForeignKey('FeeHead', models.DO_NOTHING, related_name='+')
+    kind = models.CharField(max_length=20, default='installment')
+    fine_for_due = models.OneToOneField(
+        'self', models.DO_NOTHING, blank=True, null=True, related_name='late_fine'
+    )
     label = models.CharField(max_length=130)
     due_date = models.DateField()
     amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -434,6 +445,11 @@ class StudentFeeDue(models.Model):
     status = models.CharField(max_length=20, default='pending')
     cancelled_reason = models.CharField(max_length=30, blank=True, null=True)
     cancelled_at = UtcDateTimeField(blank=True, null=True)
+    waived_at = UtcDateTimeField(blank=True, null=True)
+    waived_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='waived_by', blank=True, null=True, related_name='+'
+    )
+    waive_reason = models.CharField(max_length=255, blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -441,6 +457,36 @@ class StudentFeeDue(models.Model):
         managed = False
         db_table = 'student_fee_dues'
         unique_together = (('student', 'fee_installment'),)
+
+
+class FeeConcession(models.Model):
+    """A discount one student gets for one academic year (docs/fees.md, F4):
+    a fixed amount or a percentage off each installment of one fee type, or
+    of every fee type when `fee_head` is null - late fines never. Revoked,
+    never deleted; school/fees/dues.py keeps the dues in line with the active
+    ones."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='fee_concessions')
+    academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING, related_name='+')
+    fee_head = models.ForeignKey('FeeHead', models.DO_NOTHING, blank=True, null=True, related_name='+')
+    kind = models.CharField(max_length=10)
+    value = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='created_by', blank=True, null=True, related_name='+'
+    )
+    revoked_at = UtcDateTimeField(blank=True, null=True)
+    revoked_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='revoked_by', blank=True, null=True, related_name='+'
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'fee_concessions'
 
 
 class FeeReceipt(models.Model):

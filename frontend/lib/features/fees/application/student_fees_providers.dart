@@ -113,3 +113,69 @@ class FeeReceiptActions {
 
   Future<List<int>> pdf(int receiptId) => _repository.receiptPdf(receiptId);
 }
+
+/// One page of the Discounts list.
+typedef ConcessionQuery = ({int? schoolId, int? academicYearId, bool includeRevoked, int page, int perPage});
+
+final feeConcessionsProvider = FutureProvider.autoDispose.family<PaginatedResponse<FeeConcession>, ConcessionQuery>(
+  (ref, query) => ref
+      .read(feeRepositoryProvider)
+      .concessions(
+        schoolId: query.schoolId,
+        academicYearId: query.academicYearId,
+        includeRevoked: query.includeRevoked,
+        page: query.page,
+        perPage: query.perPage,
+      ),
+  retry: (retryCount, error) => null,
+);
+
+final feeAdjustmentActionsProvider = Provider<FeeAdjustmentActions>(FeeAdjustmentActions.new);
+
+/// Discounts and waivers (F4). Each changes what students owe, so it reads
+/// the statement, the balances and the discounts list again.
+class FeeAdjustmentActions {
+  FeeAdjustmentActions(this._ref);
+
+  final Ref _ref;
+
+  FeeRepository get _repository => _ref.read(feeRepositoryProvider);
+
+  void _refresh() {
+    _ref.invalidate(studentStatementProvider);
+    _ref.invalidate(studentBalancesProvider);
+    _ref.invalidate(feeConcessionsProvider);
+  }
+
+  Future<FeeConcession> addDiscount({
+    required int studentId,
+    required int academicYearId,
+    int? feeHeadId,
+    required bool percent,
+    required String value,
+    required String reason,
+  }) async {
+    final concession = await _repository.createConcession(
+      studentId: studentId,
+      academicYearId: academicYearId,
+      feeHeadId: feeHeadId,
+      percent: percent,
+      value: value,
+      reason: reason,
+    );
+    _refresh();
+    return concession;
+  }
+
+  Future<FeeConcession> revokeDiscount(int id) async {
+    final concession = await _repository.revokeConcession(id);
+    _refresh();
+    return concession;
+  }
+
+  Future<FeeDue> waive(int dueId, {required String reason}) async {
+    final due = await _repository.waiveDue(dueId, reason: reason);
+    _refresh();
+    return due;
+  }
+}

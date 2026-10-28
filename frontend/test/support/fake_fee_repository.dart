@@ -405,6 +405,76 @@ class FakeFeeRepository implements FeeRepository {
     emailed.add(id);
   }
 
+  // -- discounts and waivers --------------------------------------------------
+
+  /// Thrown by [createConcession] while set.
+  Failure? failDiscountWith;
+
+  final discounts = <Map<String, Object?>>[];
+  final revoked = <int>[];
+  final waived = <({int id, String reason})>[];
+
+  /// What [concessions] answers.
+  List<FeeConcession> concessionRows = [];
+  final concessionQueries = <Map<String, Object?>>[];
+
+  @override
+  Future<PaginatedResponse<FeeConcession>> concessions({
+    int? schoolId,
+    int? academicYearId,
+    int? studentId,
+    bool includeRevoked = false,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    _check();
+    concessionQueries.add({'include_revoked': includeRevoked, 'page': page});
+    final rows = [
+      for (final row in concessionRows)
+        if (includeRevoked || !row.isRevoked) row,
+    ];
+    return PaginatedResponse(items: rows, currentPage: page, lastPage: 1, total: rows.length, perPage: perPage);
+  }
+
+  @override
+  Future<FeeConcession> createConcession({
+    required int studentId,
+    required int academicYearId,
+    int? feeHeadId,
+    required bool percent,
+    required String value,
+    required String reason,
+  }) async {
+    _check();
+    discounts.add({
+      'student_id': studentId,
+      'academic_year_id': academicYearId,
+      'fee_head_id': feeHeadId,
+      'kind': percent ? 'percent' : 'fixed',
+      'value': value,
+      'reason': reason,
+    });
+    if (failDiscountWith != null) throw failDiscountWith!;
+    return fakeConcession(percent: percent, value: value, reason: reason);
+  }
+
+  @override
+  Future<FeeConcession> revokeConcession(int id) async {
+    _check();
+    revoked.add(id);
+    final ended = fakeConcession(id: id, revoked: true);
+    final index = concessionRows.indexWhere((row) => row.id == id);
+    if (index >= 0) concessionRows[index] = ended;
+    return ended;
+  }
+
+  @override
+  Future<FeeDue> waiveDue(int dueId, {required String reason}) async {
+    _check();
+    waived.add((id: dueId, reason: reason));
+    return fakeStatement().dues.firstWhere((due) => due.id == dueId);
+  }
+
   /// What [statement] answers, by student id.
   Map<int, StudentFeeStatement> statements = {};
 
@@ -495,6 +565,7 @@ StudentFeeStatement fakeStatement() => StudentFeeStatement(
     FeeDue(
       id: 1,
       feeHeadName: 'Tuition',
+      feeHeadId: 2,
       label: 'Tuition - April 2026',
       dueDate: DateTime(2026, 4, 10),
       amount: '2000.00',
@@ -507,6 +578,7 @@ StudentFeeStatement fakeStatement() => StudentFeeStatement(
     FeeDue(
       id: 2,
       feeHeadName: 'Tuition',
+      feeHeadId: 2,
       label: 'Tuition - May 2026',
       dueDate: DateTime(2026, 5, 10),
       amount: '2000.00',
@@ -519,6 +591,7 @@ StudentFeeStatement fakeStatement() => StudentFeeStatement(
     FeeDue(
       id: 3,
       feeHeadName: 'Transport',
+      feeHeadId: 1,
       label: 'Transport - Term 2',
       dueDate: DateTime(2026, 11, 10),
       amount: '1500.00',
@@ -565,5 +638,97 @@ FeeReceipt fakeReceipt({
     studentBalance: '0.00',
     receivedByName: 'Meena',
     cancelReason: cancelReason,
+  );
+}
+
+/// 500 off each Tuition installment for Asha, for a sibling.
+FeeConcession fakeConcession({
+  int id = 90,
+  bool percent = false,
+  String value = '500.00',
+  String reason = 'Sibling discount',
+  bool revoked = false,
+}) {
+  return FeeConcession(
+    id: id,
+    studentId: 7,
+    studentName: 'Asha Rao',
+    admissionNumber: 'ADM-007',
+    className: 'Class 8',
+    academicYearName: '2026-27',
+    feeHeadName: 'Tuition',
+    isPercent: percent,
+    value: value,
+    reason: reason,
+    createdByName: 'Meena',
+    createdAt: DateTime(2026, 10, 28),
+    revokedAt: revoked ? DateTime(2026, 10, 29) : null,
+    currencyCode: 'INR',
+    duesAffected: 5,
+  );
+}
+
+/// Asha's statement with F4 in it: a discounted installment, a late fine and
+/// a waived one, and the discount behind the first.
+StudentFeeStatement fakeAdjustedStatement() {
+  final base = fakeStatement();
+  return StudentFeeStatement(
+    student: base.student,
+    academicYearId: base.academicYearId,
+    academicYearName: base.academicYearName,
+    currencyCode: base.currencyCode,
+    dues: [
+      FeeDue(
+        id: 2,
+        feeHeadName: 'Tuition',
+        feeHeadId: 2,
+        label: 'Tuition - May 2026',
+        dueDate: DateTime(2026, 5, 10),
+        amount: '2000.00',
+        discountAmount: '500.00',
+        paidAmount: '0.00',
+        balance: '1500.00',
+        status: FeeDueStatus.pending,
+        isOverdue: true,
+      ),
+      FeeDue(
+        id: 5,
+        feeHeadName: 'Tuition',
+        feeHeadId: 2,
+        label: 'Late fine - Tuition - May 2026',
+        dueDate: DateTime(2026, 5, 18),
+        amount: '100.00',
+        discountAmount: '0.00',
+        paidAmount: '0.00',
+        balance: '100.00',
+        status: FeeDueStatus.pending,
+        isOverdue: true,
+        isLateFine: true,
+        fineForDueId: 2,
+      ),
+      FeeDue(
+        id: 6,
+        feeHeadName: 'Tuition',
+        feeHeadId: 2,
+        label: 'Tuition - June 2026',
+        dueDate: DateTime(2026, 6, 10),
+        amount: '2000.00',
+        discountAmount: '500.00',
+        paidAmount: '0.00',
+        balance: '0.00',
+        status: FeeDueStatus.waived,
+        isOverdue: false,
+        waiveReason: 'Hardship',
+      ),
+    ],
+    totals: const FeeTotals(
+      charged: '4100.00',
+      discount: '1000.00',
+      paid: '0.00',
+      balance: '1600.00',
+      overdue: '1600.00',
+      waived: '1500.00',
+    ),
+    concessions: [fakeConcession()],
   );
 }

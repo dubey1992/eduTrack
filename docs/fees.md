@@ -1,8 +1,8 @@
 # Fee Management (plan)
 
-**Status (2026-10-30): F1 "Fee Set-up", F2 "Dues" and F3 "Collection &
-receipts" built (backend); F4-F5 planned.** See "F1 as built", "F2 as built"
-and "F3 as built" at the end. What a school charges its
+**Status (2026-10-31): F1 "Fee Set-up", F2 "Dues", F3 "Collection &
+receipts" and F4 "Discounts, waivers and late fines" built (backend); F5
+planned.** See "F1 as built" to "F4 as built" at the end. What a school charges its
 students, what each student owes, the payments the office takes, receipts,
 discounts, late fines, reminders and reports, behind its own module switch.
 Built on the Python backend only; Laravel's migrations still create the
@@ -472,8 +472,8 @@ replaced wholesale.
 - **The bus fee follows the route ridden now**, in every running year. A
   past year is never touched by a route change, but the repair command run
   over an ended year would use today's route.
-- `waived` dues keep `balance = amount - discount - paid` until F4 decides
-  how a waiver is recorded.
+- ~~`waived` dues keep `balance = amount - discount - paid` until F4 decides
+  how a waiver is recorded.~~ F4: a waived or cancelled due owes 0.
 - Overdue and "after today" use the school's own date (docs/timezones.md).
 
 ## F3 as built (2026-10-30)
@@ -580,4 +580,104 @@ Only"; unknown currency codes print as the code with "Hundredths"); owed
 before / paid now / still owed after, as frozen on the receipt; the note;
 footer with "computer-generated", issued date-time in the school's timezone,
 "Powered by School365ai". Empty optional fields are left out, never "None".
+
+## F4 as built (2026-10-31)
+
+Backend (Python) and the Laravel migration
+`2026_10_31_090000_add_fee_adjustments.php`: `fee_concessions`, and on
+`student_fee_dues` the columns `kind` (`installment` | `late_fine`),
+`fine_for_due_id` (unique, nullOnDelete), `waived_at`, `waived_by`,
+`waive_reason`, with `fee_structure_id` and `fee_installment_id` made
+nullable (a fine has neither; `->change()`, native in Laravel 11+, on both
+engines - NULLs never collide in the (student, installment) unique key).
+Code: `school/fees/concessions.py` (ConcessionService, WaiverService),
+`school/fees/fines.py` (LateFineService), the discount step in
+`school/fees/dues.py`, the `apply_late_fines` command. Tests:
+`test_fees_adjustments.py` (rules, fines job) and
+`test_fees_adjustments_api.py` (list, form, statement, access).
+
+**Decisions (product owner, 2026-10-28):**
+
+- **A discount** is per student per academic year, fixed or a percentage,
+  on one fee type or all of them (`fee_head_id` null), with a reason. **A
+  fixed amount comes off each installment** of the matching fee types (500 on
+  a 12-installment Tuition = 500 off each); a percentage is of each
+  installment's amount (rounded half-up to the cent). Several on one
+  installment add up, never beyond `amount - paid`.
+- **Part of the reconcile.** The F2 reconcile works every owed due's
+  `discount_amount` out afresh from the student's active concessions for the
+  year, after pricing and cancelling. So a new discount reaches the dues at
+  once (same transaction), dues created later that year arrive discounted,
+  and revoking gives the dues back. Paid, waived and cancelled dues keep the
+  discount they had (a paid one is never reopened, either way). Late fines
+  are never discounted.
+- **A waiver** forgives one pending or part-paid due (installment or fine)
+  outright: status `waived`, balance 0, who/when/why kept; a part-paid one
+  keeps its paid amount.
+- **Late fines**: module settings `late_fine_amount` (whole units, 0 = off,
+  max 1,000,000) and `late_fine_grace_days` (0-90, default 7). Hourly
+  `apply_late_fines [--school ID]`: each installment still owed whose
+  `due_date + grace < the school's today` gets **one** fine due, once ever.
+
+**Rules as built, and what was settled beyond the decisions:**
+
+- **Balance** = amount - discount - paid, except **waived and cancelled owe
+  0** (the F2 statement showed a cancelled line's full amount as its
+  balance; it now shows 0.00). Statement totals: `charged` (not cancelled),
+  `discount`, `paid`, `balance`, `overdue`, and new `waived` = sum of
+  amount - discount - paid over waived dues (a waived due takes no more
+  money, so this is what was forgiven). The balances list sums only dues
+  still owed.
+- **A due a discount takes to nothing stays `pending` (or `partial`) with
+  balance 0.00** rather than becoming `paid`: it was not paid, and only an
+  open due follows the concessions - so revoking a 100% scholarship charges
+  the installments again. Such a due is never overdue, never fined, never
+  waivable (nothing owed) and skipped when a payment is spread. A part-paid
+  due whose remainder a discount covers likewise stays `partial`. (The F3
+  rule "fee cut to what was paid -> paid" now looks at amount - paid only.)
+- **Fines**: `kind` `late_fine`, `fine_for_due_id` = the installment due,
+  fee type and year and currency the installment's, label `Late fine -
+  {installment label}` (cut to 130), due date = the school-local day it was
+  added, amount = the setting at that moment. Fined only: installments
+  pending/partial with something left to pay; students `active` whose
+  enrollment in that year is not `left`; schools with the module on. The
+  database's unique key on `fine_for_due_id` backs "once"; the job also
+  locks the students' rows (as payments do) and skips installments already
+  fined. Paying the installment later keeps the fine; waiving the fine
+  forgives it; a waived fine is never re-added. The reconcile ignores fines
+  entirely, so a class or route change, leaving, or `sync_fee_dues` never
+  cancels one. A fine is paid like any due, oldest first by its own date.
+- **Editing a published fee** that drops installments deletes their
+  cancelled dues as before; a fine pointing at one is unlinked
+  (`fine_for_due_id` null, as the migration's nullOnDelete does) and stays
+  owed.
+- **Audit**: `fee_concession.created` (kind, value, reason, fee type, dues
+  updated), `fee_concession.revoked` (with the optional reason),
+  `fee_due.waived` (old status and balance; forgiven, reason) and the usual
+  `fee_dues.synced` with `entity_type` `fee_concession`;
+  `fee_late_fines.applied` once per school per run that added fines
+  (`{fines, students, amount_each, grace_days, date}`, no user).
+
+**Endpoints** (all `/api/v1/`, FeePolicy and the module switch as before):
+
+| Endpoint | Does |
+|---|---|
+| `GET fees/concessions` | paginated, newest first; `academic_year_id, student_id, school_id, include_revoked`; active only by default |
+| `POST fees/concessions` | `{student_id, academic_year_id, fee_head_id?, kind, value, reason}` -> 201 discount |
+| `DELETE fees/concessions/{id}` | optional `{reason}` (3-255) -> 200 discount, revoked; again -> 409 `FEE_CONCESSION_REVOKED` |
+| `POST fees/dues/{id}/waive` | `{reason}` 3-255 -> 200 due (as in the statement); not owed -> 409 `FEE_DUE_NOT_WAIVABLE` |
+| `GET fees/students/{id}` | each due gains `kind`, `fine_for_due_id`, `waive_reason`, `waived_at`; totals gain `waived`; top level gains `concessions` (active, that year) |
+
+The discount resource: id, student {id, name, admission_number, class_name
+(that year's)}, academic_year {id, name}, fee_head {id, name} or null, kind,
+value, reason, created_by, created_at, revoked_at, revoked_by, currency_code
+(the school's), `dues_affected` - the student's installment dues that year of
+its fee type (any, for all types), not cancelled, carrying a discount now; 0
+once revoked.
+
+Validation: student and year the actor's and one school's (another school's
+-> "invalid", 422); the student enrolled in the year or owing in it; fee type
+the school's and active (Transport allowed); kind `fixed` | `percent`; value
+> 0 with 2 decimals, a percentage at most 100; reason 3-255 characters
+(trimmed). A record of another school by id -> 403.
 

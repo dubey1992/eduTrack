@@ -352,8 +352,12 @@ class TheModuleSwitch(FeesTestCase):
              "TRANSPORT_MANAGER": "none", "DRIVER": "none", "BUS_ATTENDANT": "none"},
             {role: permissions.DEFAULTS[role]["fees"] for role in permissions.DEFAULTS},
         )
-        # Settings arrive with the slices that read them: part payments with F3.
-        self.assertEqual({"allow_part_payment": True}, modules.get("fees").defaults())
+        # Settings arrive with the slices that read them: part payments with
+        # F3, late fines with F4.
+        self.assertEqual(
+            {"allow_part_payment": True, "late_fine_amount": 0, "late_fine_grace_days": 7},
+            modules.get("fees").defaults(),
+        )
 
 
 class CrossSchool(FeesTestCase):

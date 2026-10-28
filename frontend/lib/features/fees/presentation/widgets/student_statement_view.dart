@@ -10,6 +10,7 @@ import '../../application/student_fees_providers.dart';
 import '../../data/models/student_fees.dart';
 import '../../data/models/fee_receipt.dart';
 import '../../data/money_text.dart';
+import 'adjustment_actions.dart';
 import 'receipt_actions.dart';
 import 'record_payment_dialog.dart';
 
@@ -87,11 +88,23 @@ class _Statement extends StatelessWidget {
           runSpacing: 8,
           children: [
             Text(student.name, style: Theme.of(context).textTheme.headlineSmall),
-            if (canManage && statement.payable.isNotEmpty)
-              FilledButton.icon(
-                onPressed: () => showRecordPaymentDialog(context, statement),
-                icon: const Icon(Icons.payments_outlined),
-                label: const Text('Record Payment'),
+            if (canManage)
+              Wrap(
+                spacing: 8,
+                children: [
+                  if (statement.feeHeads.isNotEmpty)
+                    OutlinedButton.icon(
+                      onPressed: () => showAddDiscountDialog(context, statement),
+                      icon: const Icon(Icons.percent),
+                      label: const Text('Add Discount'),
+                    ),
+                  if (statement.payable.isNotEmpty)
+                    FilledButton.icon(
+                      onPressed: () => showRecordPaymentDialog(context, statement),
+                      icon: const Icon(Icons.payments_outlined),
+                      label: const Text('Record Payment'),
+                    ),
+                ],
               ),
           ],
         ),
@@ -113,6 +126,7 @@ class _Statement extends StatelessWidget {
             _Total(label: 'Charged', value: _money(totals.charged)),
             if ((centsOf(totals.discount) ?? 0) > 0) _Total(label: 'Discount', value: _money(totals.discount)),
             _Total(label: 'Paid', value: _money(totals.paid)),
+            if ((centsOf(totals.waived) ?? 0) > 0) _Total(label: 'Waived', value: _money(totals.waived)),
             _Total(label: 'Balance', value: _money(totals.balance)),
             _Total(label: 'Overdue', value: _money(totals.overdue), alarming: (centsOf(totals.overdue) ?? 0) > 0),
           ],
@@ -134,12 +148,28 @@ class _Statement extends StatelessWidget {
             child: Column(
               children: [
                 for (final due in statement.dues) ...[
-                  _DueRow(due: due, money: _money),
+                  _DueRow(due: due, money: _money, canManage: canManage),
                   if (due != statement.dues.last) const Divider(height: 1),
                 ],
               ],
             ),
           ),
+        if (statement.concessions.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text('Discounts', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final concession in statement.concessions) ...[
+                  _DiscountRow(concession: concession, money: _money, canManage: canManage),
+                  if (concession != statement.concessions.last) const Divider(height: 1),
+                ],
+              ],
+            ),
+          ),
+        ],
         if (statement.receipts.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text('Payments', style: Theme.of(context).textTheme.titleMedium),
@@ -194,11 +224,12 @@ class _Total extends StatelessWidget {
   }
 }
 
-class _DueRow extends StatelessWidget {
-  const _DueRow({required this.due, required this.money});
+class _DueRow extends ConsumerWidget {
+  const _DueRow({required this.due, required this.money, required this.canManage});
 
   final FeeDue due;
   final String Function(String) money;
+  final bool canManage;
 
   static const _reasons = {
     'class_changed': 'moved to another class',
@@ -207,18 +238,30 @@ class _DueRow extends StatelessWidget {
     'fee_changed': 'the fee was changed',
   };
 
+  String _subtitle() {
+    if (due.isCancelled && due.cancelledReason != null) {
+      return 'Was due ${formatDate(due.dueDate)} - not charged: ${_reasons[due.cancelledReason] ?? due.cancelledReason}';
+    }
+    if (due.isWaived) {
+      return 'Was due ${formatDate(due.dueDate)} - waived${due.waiveReason == null ? '' : ': ${due.waiveReason}'}';
+    }
+    return due.isLateFine ? 'Added ${formatDate(due.dueDate)}' : 'Due ${formatDate(due.dueDate)}';
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
-    final cancelled = due.isCancelled;
-    final strike = cancelled ? const TextStyle(decoration: TextDecoration.lineThrough) : null;
+    final struck = due.isCancelled || due.isWaived;
+    final strike = struck ? const TextStyle(decoration: TextDecoration.lineThrough) : null;
+    final discounted = (centsOf(due.discountAmount) ?? 0) > 0;
 
     final (badge, tone) = switch (due) {
       FeeDue(isCancelled: true) => ('Cancelled', BadgeTone.neutral),
+      FeeDue(isWaived: true) => ('Waived', BadgeTone.neutral),
+      FeeDue(isCoveredByDiscount: true) => ('Covered by discount', BadgeTone.info),
       FeeDue(isOverdue: true) => ('Overdue', BadgeTone.danger),
       FeeDue(status: FeeDueStatus.paid) => ('Paid', BadgeTone.success),
       FeeDue(status: FeeDueStatus.partial) => ('Part paid', BadgeTone.info),
-      FeeDue(status: FeeDueStatus.waived) => ('Waived', BadgeTone.neutral),
       _ => ('Due', BadgeTone.warning),
     };
 
@@ -237,13 +280,15 @@ class _DueRow extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(due.label, style: const TextStyle(fontWeight: FontWeight.w600).merge(strike)),
-                Text(
-                  cancelled && due.cancelledReason != null
-                      ? 'Was due ${formatDate(due.dueDate)} - not charged: ${_reasons[due.cancelledReason] ?? due.cancelledReason}'
-                      : 'Due ${formatDate(due.dueDate)}',
-                  style: TextStyle(color: colors.muted, fontSize: 13),
+                Wrap(
+                  spacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(due.label, style: const TextStyle(fontWeight: FontWeight.w600).merge(strike)),
+                    if (due.isLateFine) const StatusBadge(label: 'Late fine', tone: BadgeTone.danger),
+                  ],
                 ),
+                Text(_subtitle(), style: TextStyle(color: colors.muted, fontSize: 13)),
               ],
             ),
             Wrap(
@@ -251,13 +296,67 @@ class _DueRow extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(money(due.amount), style: strike),
-                if (!cancelled && (centsOf(due.paidAmount) ?? 0) > 0)
+                if (!due.isCancelled && discounted)
+                  Text('Discount ${money(due.discountAmount)}', style: TextStyle(color: colors.info)),
+                if (!due.isCancelled && (centsOf(due.paidAmount) ?? 0) > 0)
                   Text('Paid ${money(due.paidAmount)}', style: TextStyle(color: colors.success)),
-                if (!cancelled)
-                  Text('Balance ${money(due.balance)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                if (!struck) Text('Balance ${money(due.balance)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                 StatusBadge(label: badge, tone: tone),
+                if (canManage && due.isOpen)
+                  IconButton(
+                    tooltip: 'Waive',
+                    icon: const Icon(Icons.volunteer_activism_outlined),
+                    onPressed: () => waiveDue(context, ref, due),
+                  ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscountRow extends ConsumerWidget {
+  const _DiscountRow({required this.concession, required this.money, required this.canManage});
+
+  final FeeConcession concession;
+  final String Function(String) money;
+  final bool canManage;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.appColors;
+    final amount = concession.isPercent ? '${concession.value}%' : money(concession.value);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: SizedBox(
+        width: double.infinity,
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 6,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$amount off each ${concession.feeHeadName ?? 'fee'} installment',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  [
+                    concession.reason,
+                    if (concession.createdByName != null) 'by ${concession.createdByName}',
+                  ].join(' · '),
+                  style: TextStyle(color: colors.muted, fontSize: 13),
+                ),
+              ],
+            ),
+            if (canManage)
+              TextButton(onPressed: () => revokeDiscount(context, ref, concession), child: const Text('End discount')),
           ],
         ),
       ),

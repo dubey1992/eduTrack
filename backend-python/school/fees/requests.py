@@ -17,8 +17,18 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from ..clock import SchoolClock
-from ..enums import FeeFrequency, FeePaymentMode, FeeReceiptStatus
-from ..models import AcademicYear, ClassSection, FeeHead, FeeStructure, SchoolClass, Student, TransportRoute
+from ..enums import FeeConcessionKind, FeeFrequency, FeePaymentMode, FeeReceiptStatus
+from ..models import (
+    AcademicYear,
+    ClassSection,
+    FeeHead,
+    FeeStructure,
+    SchoolClass,
+    Student,
+    StudentEnrollment,
+    StudentFeeDue,
+    TransportRoute,
+)
 from ..requests import MoneyField, ScopedSerializer
 from ..scope import SchoolScope
 from ..validation import (
@@ -761,4 +771,179 @@ class FeeReceiptListRequest:
             "from": start,
             "to": end,
             "search": search if isinstance(search, str) and search else None,
+        }
+
+
+# -- discounts and waivers (F4) ---------------------------------------------------
+
+ADJUSTMENT_REASON_MAX = 255
+
+
+def reason_of(raw, errors: dict, *, optional: bool = False) -> str | None:
+    """A reason: 3 to 255 characters once trimmed. Optional on a revoke."""
+    if raw is None:
+        if not optional:
+            errors.setdefault("reason", []).append(required("reason"))
+        return None
+
+    if not isinstance(raw, str):
+        errors.setdefault("reason", []).append(must_be_a_string("reason"))
+        return None
+
+    reason = raw.strip()
+
+    if optional and reason == "":
+        return None
+
+    if len(reason) < REASON_MIN:
+        errors.setdefault("reason", []).append(too_short("reason", REASON_MIN))
+        return None
+
+    if len(reason) > ADJUSTMENT_REASON_MAX:
+        errors.setdefault("reason", []).append(too_long("reason", ADJUSTMENT_REASON_MAX))
+        return None
+
+    return reason
+
+
+class FeeConcessionRequest:
+    """`POST fees/concessions`: a discount for one student and one academic
+    year, off one fee type (or every one, `fee_head_id` null), fixed or a
+    percentage, with a reason.
+
+    The student and the year must be the actor's to reach and belong to one
+    school; another school's student, year or fee type is "invalid", as if
+    it did not exist. The student must be enrolled in the year or owe
+    something in it - a discount on nothing would be a lie on a screen."""
+
+    def __init__(self, data, actor) -> None:
+        self.data = normalise(data) if isinstance(data, dict) else {}
+        self.actor = actor
+
+    def validate(self) -> dict:
+        errors: dict[str, list[str]] = {}
+        data = self.data
+
+        student = student_in_scope(self.actor, data.get("student_id"), errors)
+        year_id = integer("academic_year_id", data.get("academic_year_id"), errors)
+        head_id = integer("fee_head_id", data.get("fee_head_id"), errors, optional=True)
+        kind = data.get("kind")
+        reason = reason_of(data.get("reason"), errors)
+
+        if kind is None:
+            errors.setdefault("kind", []).append(required("kind"))
+        elif kind not in FeeConcessionKind.values:
+            errors.setdefault("kind", []).append(selected_is_invalid("kind"))
+            kind = None
+
+        value = money("value", data.get("value"), errors)
+
+        if value is not None and kind == FeeConcessionKind.PERCENT and value > 100:
+            errors.setdefault("value", []).append("A percentage can't be more than 100.")
+
+        year = head = None
+
+        if student is not None and year_id is not None:
+            year = AcademicYear.objects.filter(pk=year_id, school_id=student.school_id).first()
+
+            if year is None:
+                errors.setdefault("academic_year_id", []).append(does_not_exist("academic_year_id"))
+        elif year_id is not None:
+            # No student to check it against: still never say whether another
+            # school's year exists.
+            year = year_in_scope(self.actor, year_id, errors)
+
+        if student is not None and head_id is not None:
+            head = FeeHead.objects.filter(pk=head_id, school_id=student.school_id).first()
+
+            if head is None:
+                errors.setdefault("fee_head_id", []).append(does_not_exist("fee_head_id"))
+            elif not head.is_active:
+                errors.setdefault("fee_head_id", []).append(
+                    f"The {head.name} fee type is retired. Bring it back before giving a discount on it."
+                )
+
+        if student is not None and year is not None and "academic_year_id" not in errors:
+            enrolled = StudentEnrollment.objects.filter(student_id=student.id, academic_year_id=year.id).exists()
+            owes = StudentFeeDue.objects.filter(student_id=student.id, academic_year_id=year.id).exists()
+
+            if not enrolled and not owes:
+                errors.setdefault("student_id", []).append(
+                    f"{student.name} is not enrolled in {year.name} and has no fees in it."
+                )
+
+        raise_if(errors)
+
+        return {
+            "student": student,
+            "academic_year": year,
+            "fee_head": head,
+            "kind": kind,
+            "value": value,
+            "reason": reason,
+        }
+
+
+class RevokeFeeConcessionRequest:
+    """`DELETE fees/concessions/{id}`: an optional reason, kept in the audit
+    trail."""
+
+    def __init__(self, data) -> None:
+        self.data = normalise(data) if isinstance(data, dict) else {}
+
+    def validate(self) -> str | None:
+        errors: dict[str, list[str]] = {}
+        reason = reason_of(self.data.get("reason"), errors, optional=True)
+        raise_if(errors)
+
+        return reason
+
+
+class WaiveFeeDueRequest:
+    """`POST fees/dues/{id}/waive`: a reason, 3 to 255 characters."""
+
+    def __init__(self, data) -> None:
+        self.data = normalise(data) if isinstance(data, dict) else {}
+
+    def validate(self) -> str:
+        errors: dict[str, list[str]] = {}
+        reason = reason_of(self.data.get("reason"), errors)
+        raise_if(errors)
+
+        return reason
+
+
+class FeeConcessionListRequest:
+    """`GET fees/concessions`: which school's discounts, and the filters -
+    the school found as the receipts list finds it (through the year, else
+    `school_id`, else every school in the actor's scope with fees on)."""
+
+    KEYS = ("academic_year_id", "school_id", "student_id", "include_revoked")
+
+    def __init__(self, params, actor) -> None:
+        self.params = params
+        self.actor = actor
+
+    def validate(self) -> dict:
+        errors: dict[str, list[str]] = {}
+        params = normalise({key: self.params.get(key) for key in self.KEYS})
+
+        year = None
+
+        if params["academic_year_id"] is not None:
+            year = year_in_scope(self.actor, params["academic_year_id"], errors, params["school_id"])
+
+        student = None
+
+        if params["student_id"] is not None:
+            narrowed = year.school_id if year is not None else params["school_id"]
+            student = student_in_scope(self.actor, params["student_id"], errors, narrowed)
+
+        raise_if(errors)
+
+        return {
+            "academic_year": year,
+            "school_id": params["school_id"],
+            "student": student,
+            "include_revoked": str(params["include_revoked"]).lower() in TRUTHY,
         }

@@ -21,6 +21,7 @@ import '../../features/communication/presentation/communication_screen.dart';
 import '../../features/communication/presentation/inbox_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/early_access/presentation/early_access_screen.dart';
+import '../../features/fees/presentation/fee_discounts_screen.dart';
 import '../../features/fees/presentation/fee_receipts_screen.dart';
 import '../../features/fees/presentation/fee_setup_screen.dart';
 import '../../features/fees/presentation/student_fees_screen.dart';
@@ -173,6 +174,7 @@ const appRoutePaths = {
   '/fee-setup',
   '/student-fees',
   '/fee-receipts',
+  '/fee-discounts',
   '/my-payslips',
   '/audit-log',
   '/mail-settings',
@@ -300,6 +302,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/payroll', builder: (context, state) => const PayrollScreen()),
           GoRoute(path: '/fee-setup', builder: (context, state) => const FeeSetupScreen()),
           GoRoute(path: '/fee-receipts', builder: (context, state) => const FeeReceiptsScreen()),
+          GoRoute(path: '/fee-discounts', builder: (context, state) => const FeeDiscountsScreen()),
           GoRoute(
             path: '/student-fees',
             builder: (context, state) =>

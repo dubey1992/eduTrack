@@ -601,6 +601,17 @@ class AppNav {
         pageTitle: 'Receipts',
         pageSubtitle: 'Every fee payment recorded, with its receipt',
       ),
+      NavItem(
+        path: '/fee-discounts',
+        module: AppModules.fees,
+        requiredLevel: PermissionLevel.view,
+        label: 'Discounts',
+        icon: Icons.percent,
+        // Every discount the school has given - the same people as Fee Setup.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Discounts',
+        pageSubtitle: 'Discounts given on student fees, and why',
+      ),
     ],
   );
 

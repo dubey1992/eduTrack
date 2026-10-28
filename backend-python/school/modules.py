@@ -153,9 +153,9 @@ MODULES: tuple[Module, ...] = (
         "Fee types, class and bus route fees, what each student owes, and receipts for what they pay.",
         # Off until the Super Admin grants it (docs/fees.md). On by default,
         # every school on the platform would find an empty Fees menu the
-        # morning it shipped, with nothing set up behind it. Late fines and
-        # reminders arrive with the slices that read them (F4, F5), because a
-        # setting nothing reads is a lie.
+        # morning it shipped, with nothing set up behind it. Reminders arrive
+        # with the slice that reads them (F5), because a setting nothing
+        # reads is a lie.
         granted_by_default=False,
         settings=(
             # Read by fees/receipts.py when a payment is recorded (F3).
@@ -163,6 +163,12 @@ MODULES: tuple[Module, ...] = (
                 "allow_part_payment", "Allow part payments", "bool", True,
                 help="Off: every installment a payment touches must be paid in full.",
             ),
+            # Read by fees/fines.py, the hourly apply_late_fines job (F4).
+            Setting(
+                "late_fine_amount", "Late fine (whole currency units)", "int", 0, min=0, max=1000000,
+                help="Added once to an installment unpaid this many days after it is due. 0 means no fines.",
+            ),
+            Setting("late_fine_grace_days", "Days of grace before the fine", "int", 7, min=0, max=90),
         ),
     ),
     Module("reports", "Reports", "Attendance, leave, teaching, transport and payroll reports."),

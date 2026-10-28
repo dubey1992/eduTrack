@@ -66,10 +66,11 @@ class TheStatement(StatementTestCase):
             [
                 ("Tuition - April", "2026-04-10", "1000.00", "250.00", "750.00", "partial", True, None),
                 ("Tuition - July", "2026-07-10", "1000.00", "0.00", "1000.00", "pending", True, None),
-                ("Tuition - October", "2026-10-10", "1000.00", "0.00", "1000.00", "cancelled", False,
+                # A cancelled due owes nothing (F4).
+                ("Tuition - October", "2026-10-10", "1000.00", "0.00", "0.00", "cancelled", False,
                  "class_changed"),
                 ("Tuition - Term 2", "2026-10-10", "1500.00", "0.00", "1500.00", "pending", False, None),
-                ("Tuition - January", "2027-01-10", "1000.00", "0.00", "1000.00", "cancelled", False,
+                ("Tuition - January", "2027-01-10", "1000.00", "0.00", "0.00", "cancelled", False,
                  "class_changed"),
                 ("Tuition - Term 3", "2027-01-10", "1500.00", "0.00", "1500.00", "pending", False, None),
             ],
@@ -84,7 +85,8 @@ class TheStatement(StatementTestCase):
         self.assertEqual("0.00", first["discount_amount"])
         self.assertIsInstance(first["id"], int)
         self.assertEqual(
-            {"charged": "5000.00", "discount": "0.00", "paid": "250.00", "balance": "4750.00", "overdue": "1750.00"},
+            {"charged": "5000.00", "discount": "0.00", "paid": "250.00", "balance": "4750.00", "overdue": "1750.00",
+             "waived": "0.00"},
             data["totals"],
         )
 
@@ -128,7 +130,8 @@ class TheStatement(StatementTestCase):
         self.assertEqual([], data["dues"])
         self.assertIsNone(data["student"]["admission_date"])
         self.assertEqual("INR", data["currency_code"])
-        self.assertEqual({key: "0.00" for key in ("charged", "discount", "paid", "balance", "overdue")}, data["totals"])
+        self.assertEqual({key: "0.00" for key in ("charged", "discount", "paid", "balance", "overdue", "waived")},
+                         data["totals"])
 
     def test_the_year_defaults_to_the_current_one_then_the_latest_with_dues_then_the_latest(self):
         aarav = self.student()

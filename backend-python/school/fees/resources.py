@@ -84,12 +84,36 @@ def _class_names(enrollment) -> tuple[str | None, str | None]:
     return enrollment.school_class.name, None if section is None else section.name
 
 
+def due_resource(due, today) -> dict:
+    """One line of a statement - and what a waiver answers with."""
+    return {
+        "id": due.id,
+        "fee_head": {"id": due.fee_head_id, "name": due.fee_head.name},
+        "label": due.label,
+        "due_date": due.due_date.isoformat(),
+        "amount": cash(due.amount),
+        "discount_amount": cash(due.discount_amount),
+        "paid_amount": cash(due.paid_amount),
+        "balance": cash(balance_of(due)),
+        "status": due.status,
+        "is_overdue": is_overdue(due, today),
+        "cancelled_reason": due.cancelled_reason,
+        # F4: an installment or a late fine (and the installment it is for),
+        # and a waiver's reason and moment.
+        "kind": due.kind,
+        "fine_for_due_id": due.fine_for_due_id,
+        "waive_reason": due.waive_reason,
+        "waived_at": timestamp(due.waived_at),
+    }
+
+
 def statement_resource(found: dict) -> dict:
     """`GET fees/students/{id}`: one student's dues for one year."""
     student = found["student"]
     class_name, section_name = _class_names(found["enrollment"])
     today = found["today"]
     totals = found["totals"]
+    enrollments = {(student.id, found["year"].id): found["enrollment"]}
 
     return {
         "student": {
@@ -103,23 +127,14 @@ def statement_resource(found: dict) -> dict:
         },
         "academic_year": {"id": found["year"].id, "name": found["year"].name},
         "currency_code": found["currency_code"],
-        "dues": [
-            {
-                "id": due.id,
-                "fee_head": {"id": due.fee_head_id, "name": due.fee_head.name},
-                "label": due.label,
-                "due_date": due.due_date.isoformat(),
-                "amount": cash(due.amount),
-                "discount_amount": cash(due.discount_amount),
-                "paid_amount": cash(due.paid_amount),
-                "balance": cash(balance_of(due)),
-                "status": due.status,
-                "is_overdue": is_overdue(due, today),
-                "cancelled_reason": due.cancelled_reason,
-            }
-            for due in found["dues"]
+        "dues": [due_resource(due, today) for due in found["dues"]],
+        "totals": {
+            key: cash(totals[key]) for key in ("charged", "discount", "paid", "balance", "overdue", "waived")
+        },
+        # F4: the discounts active for this year.
+        "concessions": [
+            fee_concession_resource(concession, enrollments) for concession in found.get("concessions", [])
         ],
-        "totals": {key: cash(totals[key]) for key in ("charged", "discount", "paid", "balance", "overdue")},
         # F3: the student's receipts dated in this year, newest first.
         "receipts": [
             {
@@ -245,4 +260,37 @@ def fee_receipt_resource(receipt, enrollments: dict | None = None) -> dict:
         # What the student still owes now, every year (pending and part-paid).
         "student_balance": cash(getattr(receipt, "student_balance", None)),
         "created_at": timestamp(receipt.created_at),
+    }
+
+
+# -- F4: discounts ----------------------------------------------------------------
+
+
+def fee_concession_resource(concession, enrollments: dict | None = None) -> dict:
+    """A discount loaded by ConcessionService.query(): `dues_affected`
+    annotated. The class is the student's in the discount's year."""
+    student = concession.student
+    class_name, _ = receipt_class(concession, enrollments)
+    head = concession.fee_head if concession.fee_head_id else None
+
+    return {
+        "id": concession.id,
+        "student": {
+            "id": student.id,
+            "name": student.name,
+            "admission_number": student.admission_number,
+            "class_name": class_name,
+        },
+        "academic_year": {"id": concession.academic_year.id, "name": concession.academic_year.name},
+        "fee_head": None if head is None else {"id": head.id, "name": head.name},
+        "kind": concession.kind,
+        "value": cash(concession.value),
+        "reason": concession.reason,
+        "created_by": person(concession.created_by),
+        "created_at": timestamp(concession.created_at),
+        "revoked_at": timestamp(concession.revoked_at),
+        "revoked_by": person(concession.revoked_by),
+        # The school's currency: a fixed discount is in it, as its dues are.
+        "currency_code": concession.school.currency_code,
+        "dues_affected": getattr(concession, "dues_affected", 0),
     }

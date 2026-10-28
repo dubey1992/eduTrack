@@ -616,6 +616,28 @@ class FeeReceiptCancelled(ApiError):
         super().__init__("This receipt is already cancelled.")
 
 
+class FeeConcessionRevoked(ApiError):
+    """A revoked discount stays revoked: its dues are already back to what
+    they were."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "FEE_CONCESSION_REVOKED"
+
+    def __init__(self) -> None:
+        super().__init__("This discount is already removed.")
+
+
+class FeeDueNotWaivable(ApiError):
+    """Only a line still owed can be forgiven: a paid one was paid, a
+    cancelled one is not owed, and a waived one is already forgiven."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "FEE_DUE_NOT_WAIVABLE"
+
+    def __init__(self) -> None:
+        super().__init__("Only an installment or fine still owed can be waived.")
+
+
 class UnprocessableRequest(ApiError):
     """Laravel's bare `abort(422)`: no validator involved, so no field
     errors - just the framework's generic sentence under a generic code."""

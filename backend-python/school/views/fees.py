@@ -27,17 +27,22 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..fees import ledger, plan, receipt_pdf
+from ..fees.concessions import ConcessionService, WaiverService
 from ..fees.receipts import FeeReceiptService
 from ..fees.dues import today_for
 from ..fees.requests import (
     BalancesRequest,
     CancelFeeReceiptRequest,
+    FeeConcessionListRequest,
+    FeeConcessionRequest,
     FeeReceiptListRequest,
     FeeReceiptRequest,
     FeeStructureRequest,
     InstallmentPlanRequest,
+    RevokeFeeConcessionRequest,
     StoreFeeHeadRequest,
     UpdateFeeHeadRequest,
+    WaiveFeeDueRequest,
     integer,
     raise_if,
     terms_of,
@@ -45,7 +50,9 @@ from ..fees.requests import (
 )
 from ..fees.resources import (
     balance_row_resource,
+    due_resource,
     enrollments_for,
+    fee_concession_resource,
     fee_receipt_resource,
     fee_head_resource,
     fee_structure_resource,
@@ -53,7 +60,7 @@ from ..fees.resources import (
     statement_resource,
 )
 from ..fees.service import FeeHeadService, FeeStructureService
-from ..models import AcademicYear, FeeHead, FeeReceipt, FeeStructure, School, Student
+from ..models import AcademicYear, FeeConcession, FeeHead, FeeReceipt, FeeStructure, School, Student, StudentFeeDue
 from ..pagination import LaravelPagination
 from ..policies import FeePolicy, authorize
 from ..scope import SchoolScope
@@ -402,6 +409,87 @@ def filter_receipts(rows, filters: dict):
         )
 
     return rows
+
+
+# -- discounts and waivers (F4) ---------------------------------------------------
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def concessions(request) -> Response:
+    if request.method == "POST":
+        authorize(FeePolicy.manage_any(request.user))
+
+        data = FeeConcessionRequest(request.data, request.user).validate()
+        authorize(FeePolicy.manage(request.user, data["student"].school_id))
+
+        concession = ConcessionService.create(data, request.user, request)
+
+        return Response(
+            fee_concession_resource(ConcessionService.load(concession.id)), status=status.HTTP_201_CREATED
+        )
+
+    authorize(FeePolicy.view_any(request.user))
+
+    filters = FeeConcessionListRequest(request.query_params, request.user).validate()
+    rows = ConcessionService.query()
+    year = filters["academic_year"]
+
+    if year is not None:
+        authorize(FeePolicy.view(request.user, year.school_id))
+        rows = rows.filter(school_id=year.school_id, academic_year_id=year.id)
+    else:
+        school_id = single_school(request.user, filters["school_id"])
+
+        if school_id is not None:
+            get_object_or_404(School, pk=school_id)
+            authorize(FeePolicy.view(request.user, school_id))
+            rows = rows.filter(school_id=school_id)
+        else:
+            rows = rows.filter(school_id__in=FeeHeadService.schools_with_fees(request.user, None))
+
+    if filters["student"] is not None:
+        rows = rows.filter(student_id=filters["student"].id)
+
+    if not filters["include_revoked"]:
+        rows = rows.filter(revoked_at__isnull=True)
+
+    rows = rows.order_by("-created_at", "-id")
+
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(rows, request)
+    enrollments = enrollments_for(page)
+
+    return paginator.get_paginated_response([fee_concession_resource(row, enrollments) for row in page])
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def concession(request, concession_id: int) -> Response:
+    """Revokes a discount. The row stays, stamped revoked; the dues go back
+    to what they were."""
+    found = get_object_or_404(FeeConcession, pk=concession_id)
+    authorize(FeePolicy.manage(request.user, found.school_id))
+
+    reason = RevokeFeeConcessionRequest(request.data).validate()
+    ConcessionService.revoke(found, reason, request.user, request)
+
+    return Response(fee_concession_resource(ConcessionService.load(found.id)))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def due_waive(request, due_id: int) -> Response:
+    """Forgives one installment or late fine outright."""
+    found = get_object_or_404(StudentFeeDue, pk=due_id)
+    authorize(FeePolicy.manage(request.user, found.school_id))
+
+    reason = WaiveFeeDueRequest(request.data).validate()
+    WaiverService.waive(found, reason, request.user, request)
+
+    due = StudentFeeDue.objects.select_related("fee_head").get(pk=found.id)
+
+    return Response(due_resource(due, today_for(due.school_id)))
 
 
 # -- the installment-plan helper ------------------------------------------------

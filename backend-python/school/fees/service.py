@@ -378,7 +378,13 @@ class FeeStructureService:
             # Only cancelled dues can still point at these (assert_removable
             # saw to that): the record of a fee that never applied, cleared so
             # the installment can go.
-            StudentFeeDue.objects.filter(fee_installment_id__in=removed, status=FeeDueStatus.CANCELLED).delete()
+            cleared = StudentFeeDue.objects.filter(fee_installment_id__in=removed, status=FeeDueStatus.CANCELLED)
+            # A late fine on one of them stays owed in its own right (F4); it
+            # just stops pointing at a line that is gone - the migration's
+            # nullOnDelete, spelled out for the test database that has none.
+            cleared_ids = list(cleared.values_list("id", flat=True))
+            StudentFeeDue.objects.filter(fine_for_due_id__in=cleared_ids).update(fine_for_due_id=None)
+            cleared.delete()
             FeeInstallment.objects.filter(pk__in=removed).delete()
 
     @classmethod

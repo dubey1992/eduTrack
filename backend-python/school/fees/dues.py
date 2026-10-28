@@ -27,7 +27,18 @@ And how the ledger follows:
   today, is cancelled with a reason. Anything due on or before today stays
   owed, whatever happened since;
 - an unpaid due follows its installment's amount, date and label; a part-paid
-  one never drops below what was paid; a paid one is never touched.
+  one never drops below what was paid; a paid one is never touched;
+- every due still owed carries the discount its student's active concessions
+  for the year give it (F4): each fixed amount, and each percentage of the
+  due's amount, of a concession on its fee type or on every fee type, added
+  up - never more than the amount less what has been paid. Worked out afresh
+  on every run, so a new concession reaches the dues at once (and dues
+  created later that year), and a revoked one gives the dues back. A paid,
+  waived or cancelled due keeps the discount it had.
+
+Late fines (F4, school/fees/fines.py) are dues of their own kind, with no
+installment behind them: the reconcile never reads, prices, discounts or
+cancels one.
 
 Running it twice changes nothing the second time. "Today" is the school's
 own date (docs/timezones.md).
@@ -38,15 +49,25 @@ from __future__ import annotations
 import datetime as dt
 from collections import defaultdict
 from dataclasses import dataclass, field
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
 from django.utils import timezone
 
 from .. import audit
 from ..clock import SchoolClock
-from ..enums import EnrollmentStatus, FeeDueCancelReason, FeeDueStatus, FeeStructureStatus, StudentStatus
+from ..enums import (
+    EnrollmentStatus,
+    FeeConcessionKind,
+    FeeDueCancelReason,
+    FeeDueKind,
+    FeeDueStatus,
+    FeeStructureStatus,
+    StudentStatus,
+)
 from ..models import (
     AcademicYear,
+    FeeConcession,
     FeeInstallment,
     FeeStructure,
     Student,
@@ -62,8 +83,11 @@ LABEL_MAX = 130
 OPEN = (FeeDueStatus.PENDING, FeeDueStatus.PARTIAL)
 
 CHANGED_FIELDS = [
-    "amount", "due_date", "label", "status", "cancelled_reason", "cancelled_at", "updated_at",
+    "amount", "due_date", "label", "status", "discount_amount", "cancelled_reason", "cancelled_at", "updated_at",
 ]
+
+ZERO = Decimal("0.00")
+CENT = Decimal("0.01")
 
 
 @dataclass
@@ -129,6 +153,26 @@ def due_from(installment: FeeInstallment, start: dt.date | None) -> bool:
 
 def today_for(school_id: int) -> dt.date:
     return SchoolClock.for_school(school_id).now().date()
+
+
+def discount_for(due: StudentFeeDue, concessions) -> Decimal:
+    """What a student's active concessions take off one installment due: a
+    fixed amount off each installment (decided 2026-10-28), a percentage of
+    the due's amount, added up across concessions of its fee type or of every
+    fee type - never more than the amount less what has been paid, so the
+    balance never goes below zero."""
+    total = ZERO
+
+    for concession in concessions:
+        if concession.fee_head_id is not None and concession.fee_head_id != due.fee_head_id:
+            continue
+
+        if concession.kind == FeeConcessionKind.PERCENT:
+            total += (due.amount * concession.value / 100).quantize(CENT, rounding=ROUND_HALF_UP)
+        else:
+            total += concession.value
+
+    return max(ZERO, min(total, due.amount - due.paid_amount))
 
 
 class PublishedFees:
@@ -200,10 +244,18 @@ class FeeDueService:
             }
             dues: dict[int, list[StudentFeeDue]] = defaultdict(list)
 
+            # Installments only: a late fine is not the reconcile's (F4).
             for due in StudentFeeDue.objects.filter(
-                academic_year_id=academic_year.id, student_id__in=student_ids
+                academic_year_id=academic_year.id, student_id__in=student_ids, kind=FeeDueKind.INSTALLMENT
             ).select_related("fee_structure"):
                 dues[due.student_id].append(due)
+
+            concessions: dict[int, list[FeeConcession]] = defaultdict(list)
+
+            for concession in FeeConcession.objects.filter(
+                academic_year_id=academic_year.id, student_id__in=student_ids, revoked_at__isnull=True
+            ):
+                concessions[concession.student_id].append(concession)
 
             # The installment behind a due that is no longer published (or
             # is in no fee the year has) - read once, for all of them.
@@ -225,6 +277,7 @@ class FeeDueService:
                 cls.reconcile(
                     student, academic_year, fees, others, enrollments.get(student.id), assignments.get(student.id),
                     dues.get(student.id, []), clock, today, now, creates, changes, result,
+                    concessions.get(student.id, []),
                 )
 
             if creates:
@@ -237,24 +290,28 @@ class FeeDueService:
 
     @classmethod
     def reconcile(cls, student, year, fees, others, enrollment, assignment, dues, clock, today, now,
-                  creates, changes, result) -> None:
+                  creates, changes, result, concessions=()) -> None:
         expected = cls.expected(student, fees, enrollment, assignment, clock)
         held = {due.fee_installment_id: due for due in dues}
+        # Existing dues this run changed, each written (and counted) once.
+        touched: dict[int, StudentFeeDue] = {}
 
         for installment in expected.values():
             due = held.get(installment.id)
 
             if due is None:
-                creates.append(cls.new_due(student, year, installment, now))
+                new = cls.new_due(student, year, installment, now)
+                new.discount_amount = discount_for(new, concessions)
+                creates.append(new)
                 result.created += 1
                 result.charged.add(student.id)
             elif due.status == FeeDueStatus.CANCELLED:
                 cls.revive(due, installment, now)
-                changes.append(due)
+                touched[due.id] = due
                 result.revived += 1
                 result.charged.add(student.id)
             elif cls.follow(due, installment, now):
-                changes.append(due)
+                touched[due.id] = due
                 result.updated += 1
 
         for due in dues:
@@ -269,11 +326,41 @@ class FeeDueService:
                 due.cancelled_reason = cls.reason(due, student, enrollment, assignment)
                 due.cancelled_at = now
                 due.updated_at = now
-                changes.append(due)
+                touched[due.id] = due
                 result.cancelled += 1
             elif followed:
-                changes.append(due)
+                touched[due.id] = due
                 result.updated += 1
+
+        # The discounts last, on the amounts as they now stand (F4).
+        for due in dues:
+            if cls.discount(due, concessions, now) and due.id not in touched:
+                touched[due.id] = due
+                result.updated += 1
+
+        changes.extend(touched.values())
+
+    @staticmethod
+    def discount(due: StudentFeeDue, concessions, now) -> bool:
+        """Brings a due's discount in line with the active concessions. Only
+        a due still owed follows them; a paid one keeps its discount (only
+        ever trimmed to what its amount less its payments leaves room for,
+        should its fee have been cut), and a waived or cancelled one is left
+        as it is. True when something changed."""
+        if due.status in OPEN:
+            wanted = discount_for(due, concessions)
+        elif due.status == FeeDueStatus.PAID:
+            wanted = max(ZERO, min(due.discount_amount, due.amount - due.paid_amount))
+        else:
+            return False
+
+        if wanted == due.discount_amount:
+            return False
+
+        due.discount_amount = wanted
+        due.updated_at = now
+
+        return True
 
     @staticmethod
     def expected(student, fees: PublishedFees, enrollment, assignment, clock) -> dict[int, FeeInstallment]:
@@ -394,8 +481,10 @@ class FeeDueService:
                 return False
 
             due.amount = amount
-            # Cut to what was already paid (F3): nothing is left to pay.
-            if due.amount - due.discount_amount - due.paid_amount <= 0:
+            # Cut to what was already paid (F3): nothing is left to pay. A
+            # discount that covers the rest is not a payment - the due stays
+            # part-paid, so revoking the discount gives it back (F4).
+            if due.amount - due.paid_amount <= 0:
                 due.status = FeeDueStatus.PAID
             due.updated_at = now
 
