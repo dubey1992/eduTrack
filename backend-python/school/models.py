@@ -1243,6 +1243,10 @@ class School(models.Model):
     latitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
     parent_school = models.ForeignKey('self', models.DO_NOTHING, blank=True, null=True)
+    # Demo, trial, live or testing (docs/school-categories.md); a trial
+    # carries the day it ends, which only ever warns.
+    category = models.CharField(max_length=20, default="live")
+    trial_ends_on = models.DateField(blank=True, null=True)
 
     class Meta:
         managed = False

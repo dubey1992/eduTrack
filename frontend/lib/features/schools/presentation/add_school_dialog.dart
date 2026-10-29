@@ -8,10 +8,12 @@ import '../../../core/widgets/password_field.dart';
 import '../../maps/presentation/location_picker.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
+import '../data/models/school.dart';
 import '../data/models/working_week.dart';
 import 'widgets/coordinates_fields.dart';
 import '../../early_access/data/models/early_access_request.dart';
 import 'widgets/parent_school_field.dart';
+import 'widgets/school_category_field.dart';
 import 'widgets/timezone_field.dart';
 import 'widgets/working_days_field.dart';
 
@@ -50,6 +52,9 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
   // arrived; a new school keeps it unless somebody says otherwise.
   WorkingWeek _workingDays = WorkingWeek.mondayToFriday();
   int? _parentSchoolId;
+  // Picked on purpose for every new school (docs/school-categories.md).
+  SchoolCategory? _category;
+  DateTime? _trialEndsOn;
 
   // The school's first School Admin, created in the same save so a new
   // school is never left with nobody who can sign in to it. On unless
@@ -129,6 +134,8 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
             workingDays: _workingDays,
             latitude: _latitudeController.text.trim().isEmpty ? null : _latitudeController.text.trim(),
             longitude: _longitudeController.text.trim().isEmpty ? null : _longitudeController.text.trim(),
+            category: _category!,
+            trialEndsOn: _category == SchoolCategory.trial ? _trialEndsOn : null,
             adminFirstName: _createAdmin ? _adminFirstNameController.text.trim() : null,
             adminLastName: _createAdmin ? _adminLastNameController.text.trim() : null,
             adminEmail: _createAdmin && _adminEmailController.text.trim().isNotEmpty
@@ -265,6 +272,15 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: 'School name'),
                   validator: (v) => _required(v, 'School name'),
+                ),
+                const SizedBox(height: 10),
+                SchoolCategoryField(
+                  category: _category,
+                  trialEndsOn: _trialEndsOn,
+                  onCategoryChanged: (value) => setState(() => _category = value),
+                  onTrialEndsOnChanged: (value) => setState(() => _trialEndsOn = value),
+                  categoryError: _serverError('category'),
+                  trialEndsOnError: _serverError('trial_ends_on'),
                 ),
                 const SizedBox(height: 10),
                 TextFormField(

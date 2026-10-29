@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/paginated_response.dart';
 import '../data/analytics_repository.dart';
 import '../data/models/academic_overview.dart';
 import '../data/models/finance_overview.dart';
@@ -131,3 +132,9 @@ final transportOverviewProvider = FutureProvider.autoDispose.family<TransportOve
 final platformOverviewProvider = FutureProvider.autoDispose<PlatformOverview>((ref) {
   return ref.watch(analyticsRepositoryProvider).platform();
 }, retry: (retryCount, error) => null);
+
+/// A page of the per-school list on Platform analytics (A7).
+final platformSchoolsProvider = FutureProvider.autoDispose
+    .family<PaginatedResponse<PlatformSchool>, PlatformSchoolsQuery>((ref, query) {
+      return ref.watch(analyticsRepositoryProvider).platformSchools(query);
+    }, retry: (retryCount, error) => null);

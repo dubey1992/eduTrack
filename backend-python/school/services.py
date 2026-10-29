@@ -544,6 +544,9 @@ class SchoolService:
         if filters.get("status"):
             schools = schools.filter(status=filters["status"])
 
+        if filters.get("category"):
+            schools = schools.filter(category=filters["category"])
+
         if filters.get("q"):
             # The four things somebody actually knows about a school they
             # are looking for. Case-insensitive, and the term's own % and _

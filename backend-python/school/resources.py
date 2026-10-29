@@ -19,7 +19,7 @@ from django.utils import timezone
 
 from . import dates, mailer, modules, money, permissions, sms, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
-from .enums import DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
+from .enums import SchoolCategory, DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
 from .scope import SchoolScope
@@ -1446,6 +1446,22 @@ def assessment_sheet_resource(sheet: dict) -> dict:
     }
 
 
+def school_category(school: School) -> dict:
+    """What kind of account a school is, and for a trial how long it has
+    left (docs/school-categories.md). Days left is negative once the trial
+    has ended; the school keeps working either way."""
+    ends_on = school.trial_ends_on if school.category == SchoolCategory.TRIAL else None
+    days_left = None if ends_on is None else (ends_on - SchoolClock.platform().now().date()).days
+
+    return {
+        "category": school.category,
+        "category_label": SchoolCategory(school.category).label,
+        "trial_ends_on": None if ends_on is None else ends_on.isoformat(),
+        "trial_ends_label": None if ends_on is None else dates.us(ends_on),
+        "trial_days_left": days_left,
+    }
+
+
 def school_resource(school: School, branch_count: int | None = None) -> dict:
     """A school, or a branch of one.
 
@@ -1480,6 +1496,7 @@ def school_resource(school: School, branch_count: int | None = None) -> dict:
         "working_day_names": WorkingWeek(school.working_days).names,
         "logo_url": school.logo_url,
         "status": school.status,
+        **school_category(school),
         "created_at": timestamp(school.created_at),
     }
 

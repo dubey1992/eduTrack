@@ -18,6 +18,7 @@ import '../data/models/school.dart';
 import 'add_school_dialog.dart';
 import 'edit_school_dialog.dart';
 import 'schools_map_view.dart';
+import 'widgets/school_category_badge.dart';
 
 class SchoolListScreen extends ConsumerStatefulWidget {
   const SchoolListScreen({super.key});
@@ -34,6 +35,7 @@ class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
 
   final _searchController = TextEditingController();
   String? _status;
+  String? _category;
   Timer? _typing;
 
   @override
@@ -80,7 +82,10 @@ class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Row(
+          // Wraps on a phone rather than running off the edge.
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
               SizedBox(
                 width: 320,
@@ -105,7 +110,6 @@ class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
                   onChanged: _search,
                 ),
               ),
-              const SizedBox(width: 12),
               SizedBox(
                 width: 180,
                 child: DropdownButtonFormField<String?>(
@@ -120,6 +124,24 @@ class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
                   onChanged: (chosen) {
                     setState(() => _status = chosen);
                     ref.read(schoolPageNotifierProvider.notifier).setFilters(status: chosen, changeStatus: true);
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 180,
+                child: DropdownButtonFormField<String?>(
+                  key: const Key('school-category-filter'),
+                  initialValue: _category,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Category', isDense: true),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('All')),
+                    for (final category in SchoolCategory.values)
+                      DropdownMenuItem(value: category.apiValue, child: Text(category.label)),
+                  ],
+                  onChanged: (chosen) {
+                    setState(() => _category = chosen);
+                    ref.read(schoolPageNotifierProvider.notifier).setFilters(category: chosen, changeCategory: true);
                   },
                 ),
               ),
@@ -197,6 +219,8 @@ class _SchoolListMobile extends StatelessWidget {
                   Flexible(child: Text(school.name, overflow: TextOverflow.ellipsis)),
                   const SizedBox(width: 8),
                   _SchoolStatusBadge(status: school.status),
+                  const SizedBox(width: 6),
+                  SchoolCategoryBadge(school: school),
                 ],
               ),
               subtitle: Text('${school.city}, ${school.country}\n${school.email} · ${school.currencyCode}'),
@@ -224,6 +248,7 @@ class _SchoolListDesktop extends StatelessWidget {
           child: DataTable(
             columns: const [
               DataColumn(label: Text('Name')),
+              DataColumn(label: Text('Category')),
               DataColumn(label: Text('Group')),
               DataColumn(label: Text('Email')),
               DataColumn(label: Text('City')),
@@ -237,6 +262,7 @@ class _SchoolListDesktop extends StatelessWidget {
                 DataRow(
                   cells: [
                     DataCell(Text(school.name)),
+                    DataCell(SchoolCategoryBadge(school: school)),
                     DataCell(_GroupCell(school: school)),
                     DataCell(Text(school.email)),
                     DataCell(Text(school.city)),

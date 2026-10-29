@@ -105,4 +105,67 @@ void main() {
     expect(find.text('That email is already registered.'), findsOneWidget);
     expect(find.byType(EditSchoolDialog), findsOneWidget);
   });
+
+  testWidgets('moving a school to Live sends the new category', (tester) async {
+    final fake = FakeSchoolRepository(schools: [_school]);
+    await tester.pumpWidget(wrap(fake));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('school-category')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Demo').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(fake.lastUpdateCategory, SchoolCategory.demo);
+    expect(find.byType(EditSchoolDialog), findsNothing);
+  });
+
+  testWidgets("the server's refusal of a trial date shows on the date", (tester) async {
+    final fake = FakeSchoolRepository(
+      schools: [_school],
+      failUpdateWith: const Failure(
+        code: 'VALIDATION_ERROR',
+        message: 'The given data was invalid.',
+        details: {
+          'errors': {
+            'trial_ends_on': ['The trial cannot end before today.'],
+          },
+        },
+      ),
+    );
+    final trial = School(
+      id: _school.id,
+      name: _school.name,
+      registrationNumber: null,
+      email: _school.email,
+      phone: _school.phone,
+      address: _school.address,
+      city: _school.city,
+      state: _school.state,
+      country: _school.country,
+      postalCode: _school.postalCode,
+      currencyCode: _school.currencyCode,
+      timezone: _school.timezone,
+      logoUrl: null,
+      status: SchoolStatus.active,
+      category: SchoolCategory.trial,
+      trialEndsOn: '2026-09-01',
+    );
+    tester.view.physicalSize = const Size(1400, 2600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(wrap(fake, school: trial));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('The trial cannot end before today.'), findsOneWidget);
+    expect(find.byType(EditSchoolDialog), findsOneWidget);
+  });
 }

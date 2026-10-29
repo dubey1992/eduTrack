@@ -50,6 +50,12 @@ class FakeSchoolRepository implements SchoolRepository {
   /// asked the server rather than filtering rows it already had.
   String? lastQuery;
   String? lastStatus;
+  String? lastCategory;
+
+  /// What the last create and update sent as the school's category.
+  SchoolCategory? lastCreateCategory;
+  DateTime? lastCreateTrialEndsOn;
+  SchoolCategory? lastUpdateCategory;
 
   @override
   Future<PaginatedResponse<School>> listPage({
@@ -57,11 +63,13 @@ class FakeSchoolRepository implements SchoolRepository {
     required int perPage,
     String? q,
     String? status,
+    String? category,
   }) async {
     if (failListPageWith != null) throw failListPageWith!;
 
     lastQuery = q;
     lastStatus = status;
+    lastCategory = category;
 
     // Narrowed here only so a screen test can see fewer rows come back.
     // The real one is a query; see SchoolService.scoped.
@@ -73,6 +81,10 @@ class FakeSchoolRepository implements SchoolRepository {
 
     if (status != null) {
       rows = rows.where((school) => school.status.apiValue == status).toList();
+    }
+
+    if (category != null) {
+      rows = rows.where((school) => school.category.apiValue == category).toList();
     }
 
     return paginateFake(rows, page: page, perPage: perPage);
@@ -111,11 +123,15 @@ class FakeSchoolRepository implements SchoolRepository {
     required WorkingWeek workingDays,
     String? latitude,
     String? longitude,
+    required SchoolCategory category,
+    DateTime? trialEndsOn,
     String? adminFirstName,
     String? adminLastName,
     String? adminEmail,
     String? adminPassword,
   }) async {
+    lastCreateCategory = category;
+    lastCreateTrialEndsOn = trialEndsOn;
     lastCreateAdmin = adminFirstName == null
         ? null
         : {'first_name': adminFirstName, 'last_name': adminLastName, 'email': adminEmail, 'password': adminPassword};
@@ -138,6 +154,7 @@ class FakeSchoolRepository implements SchoolRepository {
       longitude: longitude,
       logoUrl: null,
       status: SchoolStatus.active,
+      category: category,
     );
     _schools.add(school);
     return school;
@@ -162,7 +179,10 @@ class FakeSchoolRepository implements SchoolRepository {
     String? longitude,
     bool changeParent = false,
     int? parentSchoolId,
+    SchoolCategory? category,
+    DateTime? trialEndsOn,
   }) async {
+    lastUpdateCategory = category;
     if (failUpdateWith != null) throw failUpdateWith!;
 
     final index = _schools.indexWhere((s) => s.id == schoolId);
@@ -184,6 +204,7 @@ class FakeSchoolRepository implements SchoolRepository {
       longitude: longitude ?? existing.longitude,
       logoUrl: existing.logoUrl,
       status: existing.status,
+      category: category ?? existing.category,
     );
     _schools[index] = updated;
     return updated;

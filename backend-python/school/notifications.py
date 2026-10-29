@@ -74,6 +74,7 @@ TOKEN = re.compile(r"\{([a-z_]+)\}")
 NO_MOBILE = "No mobile number on record."
 NO_EMAIL = "No email address on record."
 NO_WHATSAPP_TEMPLATE = "No WhatsApp template is mapped for this message."
+TESTING_SCHOOL = "Not sent: this is a testing school."
 
 
 @dataclass(frozen=True)

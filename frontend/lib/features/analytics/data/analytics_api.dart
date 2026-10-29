@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/paginated_response.dart';
 import 'models/academic_overview.dart';
 import 'models/finance_overview.dart';
 import 'models/platform_overview.dart';
@@ -91,6 +92,20 @@ class AnalyticsApi {
     final response = await _dio.get('/analytics/transport', queryParameters: {'school_id': ?schoolId});
 
     return TransportOverview.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<PaginatedResponse<PlatformSchool>> platformSchools({
+    int? page,
+    int? perPage,
+    String? q,
+    String? category,
+  }) async {
+    final response = await _dio.get(
+      '/analytics/platform/schools',
+      queryParameters: {'page': ?page, 'per_page': ?perPage, 'q': ?q, 'category': ?category},
+    );
+
+    return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, PlatformSchool.fromJson);
   }
 
   Future<PlatformOverview> platform() async {

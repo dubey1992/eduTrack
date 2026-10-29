@@ -11,6 +11,26 @@ enum SchoolStatus {
   static SchoolStatus fromApiValue(String value) => SchoolStatus.values.firstWhere((s) => s.apiValue == value);
 }
 
+/// What kind of account a school is (docs/school-categories.md). Beside its
+/// status, never instead of it.
+enum SchoolCategory {
+  live('live', 'Live'),
+  trial('trial', 'In Trial'),
+  demo('demo', 'Demo'),
+  testing('testing', 'Testing');
+
+  const SchoolCategory(this.apiValue, this.label);
+
+  final String apiValue;
+  final String label;
+
+  /// Live and trial schools are customers; the platform's figures are theirs.
+  bool get isCounted => this == live || this == trial;
+
+  static SchoolCategory fromApiValue(String? value) =>
+      SchoolCategory.values.firstWhere((c) => c.apiValue == value, orElse: () => SchoolCategory.live);
+}
+
 class School {
   const School({
     required this.id,
@@ -33,6 +53,10 @@ class School {
     this.workingDays = const WorkingWeek.mondayToFriday(),
     required this.logoUrl,
     required this.status,
+    this.category = SchoolCategory.live,
+    this.trialEndsOn,
+    this.trialEndsLabel,
+    this.trialDaysLeft,
   });
 
   factory School.fromJson(Map<String, dynamic> json) {
@@ -57,6 +81,10 @@ class School {
       workingDays: WorkingWeek.fromApiValue(json['working_days']),
       logoUrl: json['logo_url'] as String?,
       status: SchoolStatus.fromApiValue(json['status'] as String),
+      category: SchoolCategory.fromApiValue(json['category'] as String?),
+      trialEndsOn: json['trial_ends_on'] as String?,
+      trialEndsLabel: json['trial_ends_label'] as String?,
+      trialDaysLeft: json['trial_days_left'] as int?,
     );
   }
 
@@ -100,6 +128,26 @@ class School {
   final WorkingWeek workingDays;
   final String? logoUrl;
   final SchoolStatus status;
+  final SchoolCategory category;
+
+  /// The day a trial ends, as the API sent it (yyyy-mm-dd); null for
+  /// anything but a trial.
+  final String? trialEndsOn;
+  final String? trialEndsLabel;
+
+  /// Negative once the trial has ended. The school keeps working.
+  final int? trialDaysLeft;
+
+  /// "Trial ends in 5 days", "Trial ends today", "Trial ended 09/01/2026" -
+  /// or null for a school that is not in trial.
+  String? get trialNote {
+    final days = trialDaysLeft;
+    if (category != SchoolCategory.trial || days == null) return null;
+    if (days < 0) return 'Trial ended $trialEndsLabel';
+    if (days == 0) return 'Trial ends today';
+
+    return 'Trial ends in $days day${days == 1 ? '' : 's'}';
+  }
 
   School copyWith({SchoolStatus? status}) {
     return School(
@@ -120,6 +168,10 @@ class School {
       workingDays: workingDays,
       logoUrl: logoUrl,
       status: status ?? this.status,
+      category: category,
+      trialEndsOn: trialEndsOn,
+      trialEndsLabel: trialEndsLabel,
+      trialDaysLeft: trialDaysLeft,
     );
   }
 }

@@ -31,11 +31,13 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
   int _perPage = 20;
   String _q = '';
   String? _status;
+  String? _category;
 
   /// What the list is currently narrowed by, so the screen can show it
   /// back and the map beside it can be narrowed the same way.
   String get search => _q;
   String? get status => _status;
+  String? get category => _category;
 
   @override
   Future<PagedList<School>> build() => _fetch();
@@ -43,7 +45,7 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
   Future<PagedList<School>> _fetch() async {
     final response = await ref
         .read(schoolRepositoryProvider)
-        .listPage(page: _page, perPage: _perPage, q: _q.isEmpty ? null : _q, status: _status);
+        .listPage(page: _page, perPage: _perPage, q: _q.isEmpty ? null : _q, status: _status, category: _category);
 
     return PagedList(
       items: response.items,
@@ -72,9 +74,16 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
 
   /// Back to page one, always: narrowing the list while sitting on page
   /// four asks for a page that may no longer exist.
-  Future<void> setFilters({String? q, String? status, bool changeStatus = false}) async {
+  Future<void> setFilters({
+    String? q,
+    String? status,
+    bool changeStatus = false,
+    String? category,
+    bool changeCategory = false,
+  }) async {
     if (q != null) _q = q.trim();
     if (changeStatus) _status = status;
+    if (changeCategory) _category = category;
     _page = 1;
     await refresh();
   }
@@ -96,6 +105,8 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
     required WorkingWeek workingDays,
     String? latitude,
     String? longitude,
+    required SchoolCategory category,
+    DateTime? trialEndsOn,
     String? adminFirstName,
     String? adminLastName,
     String? adminEmail,
@@ -120,6 +131,8 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
           workingDays: workingDays,
           latitude: latitude,
           longitude: longitude,
+          category: category,
+          trialEndsOn: trialEndsOn,
           adminFirstName: adminFirstName,
           adminLastName: adminLastName,
           adminEmail: adminEmail,
@@ -150,6 +163,8 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
     String? longitude,
     bool changeParent = false,
     int? parentSchoolId,
+    SchoolCategory? category,
+    DateTime? trialEndsOn,
   }) async {
     final updated = await ref
         .read(schoolRepositoryProvider)
@@ -171,6 +186,8 @@ class SchoolPageNotifier extends AsyncNotifier<PagedList<School>> {
           workingDays: workingDays,
           latitude: latitude,
           longitude: longitude,
+          category: category,
+          trialEndsOn: trialEndsOn,
         );
 
     this.state = this.state.whenData(

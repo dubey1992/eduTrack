@@ -52,8 +52,15 @@ void main() {
     expect((september.signIns, september.activeUsers), (75, 18));
     expect(september.messages['sms'], (sent: 120, failed: 4));
     expect(september.payments.map((p) => p.currencyCode), ['INR', 'NGN']);
-    expect(overview.schools.last.lastSignInLabel, isNull);
+    expect(overview.totals.schoolsNotCounted, 4);
     expect(overview.modules.single.schoolsOn, 1);
+  });
+
+  test('a school row says its category, and how a trial stands', () {
+    final rows = fakePlatformSchools().map(PlatformSchool.fromJson).toList();
+
+    expect(rows.map((row) => row.categoryText), ['Live', 'In Trial - ended 09/01/2026', 'Demo']);
+    expect(rows[1].lastSignInLabel, isNull);
   });
 
   group('the view', () {
@@ -70,10 +77,44 @@ void main() {
       expect(find.text('120 (4 failed)'), findsOneWidget);
       expect(find.text('30'), findsWidgets);
 
+      expect(find.text('Demo & testing (not counted)'), findsOneWidget);
       expect(find.text('Sunrise School, Pune'), findsOneWidget);
       expect(find.text('09/12/2026'), findsOneWidget);
-      expect(find.text('Never'), findsOneWidget);
+      expect(find.text('Never'), findsNWidgets(2));
+      expect(find.text('In Trial - ended 09/01/2026'), findsOneWidget);
+      expect(find.text('Show School'), findsOneWidget);
       expect(find.text('1 of 2'), findsOneWidget);
+    });
+
+    testWidgets('the school list asks for one category, from page one', (tester) async {
+      _wide(tester);
+      final fake = FakeAnalyticsRepository();
+      await tester.pumpWidget(_view(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('platform-schools-category')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Demo').last);
+      await tester.pumpAndSettle();
+
+      expect((fake.platformSchoolsAsked.last.category, fake.platformSchoolsAsked.last.page), ('demo', 1));
+      expect(find.text('Sunrise School, Pune'), findsNothing);
+      expect(find.text('Show School'), findsOneWidget);
+    });
+
+    testWidgets('a search is sent once typing stops', (tester) async {
+      _wide(tester);
+      final fake = FakeAnalyticsRepository();
+      await tester.pumpWidget(_view(fake));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('platform-schools-search')), 'lagos');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(fake.platformSchoolsAsked.last.q, 'lagos');
+      expect(find.text('Lagos Academy, Lagos'), findsOneWidget);
+      expect(find.text('Sunrise School, Pune'), findsNothing);
     });
 
     testWidgets('payments stay apart, one line per currency', (tester) async {
@@ -90,7 +131,7 @@ void main() {
 
     testWidgets('a platform with no schools says so', (tester) async {
       _wide(tester);
-      await tester.pumpWidget(_view(FakeAnalyticsRepository(platformJson: fakePlatformJson(schools: []))));
+      await tester.pumpWidget(_view(FakeAnalyticsRepository(platformSchoolRows: [])));
       await tester.pumpAndSettle();
 
       expect(find.text('There are no schools yet.'), findsOneWidget);

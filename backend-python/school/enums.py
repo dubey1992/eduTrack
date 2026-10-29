@@ -139,6 +139,22 @@ class SchoolStatus(models.TextChoices):
     INACTIVE = "inactive"
 
 
+class SchoolCategory(models.TextChoices):
+    """What kind of account a school is (docs/school-categories.md) - beside
+    its status, never instead of it."""
+
+    DEMO = "demo", "Demo"
+    TRIAL = "trial", "In Trial"
+    LIVE = "live", "Live"
+    TESTING = "testing", "Testing"
+
+    @classmethod
+    def counted(cls) -> tuple[str, ...]:
+        """The schools platform figures are made of: real customers, paying
+        or about to. Demo and testing schools would only inflate them."""
+        return (cls.LIVE, cls.TRIAL)
+
+
 class AttendanceStatus(models.TextChoices):
     PRESENT = "present"
     ABSENT = "absent"

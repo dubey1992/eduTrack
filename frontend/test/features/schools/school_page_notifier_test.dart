@@ -73,6 +73,7 @@ void main() {
           country: 'Nigeria',
           postalCode: '100001',
           currencyCode: 'NGN',
+          category: SchoolCategory.live,
           timezone: 'UTC',
           workingDays: const WorkingWeek.mondayToFriday(),
         );
@@ -137,6 +138,7 @@ void main() {
           country: 'Nigeria',
           postalCode: '100001',
           currencyCode: 'NGN',
+          category: SchoolCategory.live,
           timezone: 'UTC',
           workingDays: const WorkingWeek.mondayToFriday(),
         );

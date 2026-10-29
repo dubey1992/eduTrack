@@ -9,6 +9,7 @@ import '../../../core/widgets/phone_number_field.dart';
 import '../application/school_list_notifier.dart';
 import 'widgets/coordinates_fields.dart';
 import 'widgets/parent_school_field.dart';
+import 'widgets/school_category_field.dart';
 import 'widgets/timezone_field.dart';
 import 'widgets/working_days_field.dart';
 import '../data/models/school.dart';
@@ -40,9 +41,12 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
   late String _timezone = widget.school.timezone;
   late WorkingWeek _workingDays = widget.school.workingDays;
   late int? _parentSchoolId = widget.school.parentSchoolId;
+  late SchoolCategory _category = widget.school.category;
+  late DateTime? _trialEndsOn = widget.school.trialEndsOn == null ? null : DateTime.parse(widget.school.trialEndsOn!);
 
   bool _isSubmitting = false;
   String? _errorMessage;
+  Map<String, List<String>> _fieldErrors = const {};
 
   @override
   void dispose() {
@@ -66,6 +70,7 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
+      _fieldErrors = const {};
     });
 
     try {
@@ -93,6 +98,8 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
             parentSchoolId: _parentSchoolId,
             latitude: _latitudeController.text.trim(),
             longitude: _longitudeController.text.trim(),
+            category: _category,
+            trialEndsOn: _trialEndsOn,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School updated.')));
@@ -100,7 +107,12 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _errorMessage = failure.message);
+      if (mounted) {
+        setState(() {
+          _errorMessage = failure.message;
+          _fieldErrors = failure.validationErrors;
+        });
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -129,6 +141,15 @@ class _EditSchoolDialogState extends ConsumerState<EditSchoolDialog> {
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: 'School name'),
                   validator: (v) => _required(v, 'School name'),
+                ),
+                const SizedBox(height: 10),
+                SchoolCategoryField(
+                  category: _category,
+                  trialEndsOn: _trialEndsOn,
+                  onCategoryChanged: (value) => setState(() => _category = value),
+                  onTrialEndsOnChanged: (value) => setState(() => _trialEndsOn = value),
+                  categoryError: _fieldErrors['category']?.first,
+                  trialEndsOnError: _fieldErrors['trial_ends_on']?.first,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(

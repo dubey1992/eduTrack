@@ -1,5 +1,6 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/features/schools/data/models/school.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:edutrack_app/features/schools/presentation/add_school_dialog.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +39,7 @@ Widget wrap(FakeSchoolRepository fake) {
 /// (or omission) is the only thing under test.
 Future<void> _fillValidForm(WidgetTester tester) async {
   await tester.enterText(find.widgetWithText(TextFormField, 'School name'), 'Bright Future School');
+  await _pickCategory(tester, 'Live');
   await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'admin@brightfuture.edu');
   await tester.enterText(find.widgetWithText(TextFormField, 'Phone'), '9876543210');
   await tester.enterText(find.widgetWithText(TextFormField, 'Address'), '45 Park Avenue');
@@ -47,6 +49,13 @@ Future<void> _fillValidForm(WidgetTester tester) async {
   await tester.enterText(find.widgetWithText(TextFormField, 'Postal code'), '411001');
   await tester.enterText(find.byKey(const Key('school-admin-first-name')), 'Meena');
   await tester.enterText(find.byKey(const Key('school-admin-last-name')), 'Iyer');
+}
+
+Future<void> _pickCategory(WidgetTester tester, String label) async {
+  await tester.tap(find.byKey(const Key('school-category')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _open(WidgetTester tester) async {
@@ -211,6 +220,72 @@ void main() {
       expect(find.textContaining('An account already signs in with this email'), findsOneWidget);
       expect(find.text('Check the School Admin details below.'), findsOneWidget);
       expect(find.byType(AddSchoolDialog), findsOneWidget);
+    });
+  });
+
+  group('category', () {
+    testWidgets('a new school must be given one', (tester) async {
+      final fake = FakeSchoolRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _open(tester);
+
+      await _fillValidForm(tester);
+      // Back to nothing picked: reopen the dialog without choosing.
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pick a category'), findsOneWidget);
+      expect(fake.lastCreateCategory, isNull);
+    });
+
+    testWidgets('each category says what it means', (tester) async {
+      await tester.pumpWidget(wrap(FakeSchoolRepository()));
+      await _open(tester);
+
+      await _pickCategory(tester, 'Testing');
+
+      expect(find.textContaining('never sends SMS or WhatsApp'), findsOneWidget);
+    });
+
+    testWidgets('a trial asks for the day it ends, and sends it', (tester) async {
+      final fake = FakeSchoolRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _open(tester);
+
+      await _fillValidForm(tester);
+      await _pickCategory(tester, 'In Trial');
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pick the day the trial ends'), findsOneWidget);
+      expect(fake.lastCreateCategory, isNull);
+
+      await tester.tap(find.byKey(const Key('school-trial-ends-on')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCreateCategory, SchoolCategory.trial);
+      expect(fake.lastCreateTrialEndsOn, isNotNull);
+    });
+
+    testWidgets('a demo school is sent as one, with no end date', (tester) async {
+      final fake = FakeSchoolRepository();
+      await tester.pumpWidget(wrap(fake));
+      await _open(tester);
+
+      await _fillValidForm(tester);
+      await _pickCategory(tester, 'Demo');
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect((fake.lastCreateCategory, fake.lastCreateTrialEndsOn), (SchoolCategory.demo, null));
     });
   });
 }

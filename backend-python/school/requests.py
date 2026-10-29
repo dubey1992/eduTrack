@@ -50,6 +50,7 @@ from .enums import (
     PaymentMode,
     PaymentStatus,
     PaymentType,
+    SchoolCategory,
     StaffAttendanceStatus,
     StudentStatus,
     UserRole,
@@ -398,6 +399,10 @@ class SchoolForm(serializers.Serializer):
     parent_school_id = LaravelIntegerField(
         "parent_school_id", required=False, allow_null=True
     )
+    # Demo, trial, live or testing (docs/school-categories.md). Left out on a
+    # create, a school is live - the API's callers before categories existed.
+    category = LaravelCharField("category", max_length=20, required=False)
+    trial_ends_on = LaravelDateField("trial_ends_on", required=False, allow_null=True)
 
     def __init__(self, *args, school: School = None, **kwargs) -> None:
         if "data" in kwargs:
@@ -420,6 +425,12 @@ class SchoolForm(serializers.Serializer):
         # guessing here would put a guess in a ledger (CLAUDE.md rule 5).
         if not CURRENCY_PATTERN.match(value):
             raise serializers.ValidationError(bad_format("currency_code"))
+
+        return value
+
+    def validate_category(self, value: str) -> str:
+        if value not in SchoolCategory.values:
+            raise serializers.ValidationError(selected_is_invalid("category"))
 
         return value
 
@@ -459,10 +470,53 @@ class SchoolForm(serializers.Serializer):
         if parent_error:
             errors["parent_school_id"] = [parent_error]
 
+        trial_error = self.check_trial(attrs)
+
+        if trial_error:
+            errors["trial_ends_on"] = [trial_error]
+
         if errors:
             raise serializers.ValidationError(errors)
 
         return attrs
+
+    def check_trial(self, attrs: dict) -> str | None:
+        """A trial has an end date; nothing else has one.
+
+        On an edit the category and the date may each be left out, so both
+        are read as they will be after the save. A school that stops being a
+        trial loses its end date in the same save, so a Live school never
+        carries a stale "trial ended" warning.
+        """
+        current = self.school
+        category = attrs.get("category", current.category if current else SchoolCategory.LIVE)
+
+        if category != SchoolCategory.TRIAL:
+            if "category" in attrs or current is None:
+                attrs["trial_ends_on"] = None
+            else:
+                attrs.pop("trial_ends_on", None)
+
+            return None
+
+        ends_on = attrs["trial_ends_on"] if "trial_ends_on" in attrs else (current.trial_ends_on if current else None)
+
+        if ends_on is None:
+            return "Enter the day the trial ends."
+
+        # Starting a trial that has already ended is a typing mistake. An
+        # existing trial may keep a past date: that is the warning showing.
+        # The edit form sends every field, so an unchanged past date is not a
+        # new one.
+        changed = (
+            current is None
+            or current.category != SchoolCategory.TRIAL
+            or ends_on != current.trial_ends_on
+        )
+        if changed and ends_on < SchoolClock.platform().now().date():
+            return "The trial cannot end before today."
+
+        return None
 
     def check_parent(self, parent_id) -> str | None:
         """Keeps a school group exactly one level deep.
@@ -5501,6 +5555,26 @@ class TransportAnalyticsRequest(FinanceAnalyticsRequest):
             if "from" in errors:
                 errors["from"] = ["Transport analytics covers at most 24 months. Pick a shorter range."]
             raise serializers.ValidationError(errors)
+
+
+class PlatformSchoolsRequest(serializers.Serializer):
+    """The per-school list on Platform analytics: a search over name and
+    city, and one category or all of them."""
+
+    q = optional_text("q", 100)
+    category = optional_text("category", 20)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_category(self, value: str) -> str:
+        if value and value not in SchoolCategory.values:
+            raise serializers.ValidationError(selected_is_invalid("category"))
+
+        return value
 
 
 class PlatformAnalyticsRequest(serializers.Serializer):

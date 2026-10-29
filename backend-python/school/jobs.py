@@ -19,7 +19,7 @@ from . import dates, mailer, notifications, platform_messaging, progress_reports
 # finds handlers by importing this module, so one that lives elsewhere has
 # to be reached from here or the queue grows rows nothing can run.
 from . import route_paths  # noqa: F401
-from .enums import MessageChannel, MessageStatus, UserRole, UserStatus
+from .enums import MessageChannel, MessageStatus, SchoolCategory, UserRole, UserStatus
 from .gateways import Result, Template
 from .clock import DATE_TIME, SchoolClock
 from .models import FeeReceipt, Message, Payment, Student, User
@@ -62,6 +62,21 @@ def send_message(message_id: int) -> None:
 
         if message.user_id and push.configured():
             queue.push(SEND_PUSH, {"message_id": message.id})
+
+        return
+
+    # A testing school's texts would go out on School365ai's own account to
+    # whatever numbers its made-up records hold (docs/school-categories.md).
+    # Email still goes, and so does a demo school's SMS - a prospect is shown
+    # the real thing.
+    if (
+        message.channel in (MessageChannel.SMS, MessageChannel.WHATSAPP)
+        and message.school is not None
+        and message.school.category == SchoolCategory.TESTING
+    ):
+        Message.objects.filter(pk=message.pk).update(
+            status=MessageStatus.SKIPPED, failure_reason=notifications.TESTING_SCHOOL, updated_at=now
+        )
 
         return
 

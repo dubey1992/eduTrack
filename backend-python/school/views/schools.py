@@ -42,7 +42,7 @@ def collection(request) -> Response:
 
 def _filters(request) -> dict:
     """What the list and the map are both narrowed by."""
-    return {key: (request.query_params.get(key) or "").strip() for key in ("q", "status")}
+    return {key: (request.query_params.get(key) or "").strip() for key in ("q", "status", "category")}
 
 
 def index(request) -> Response:

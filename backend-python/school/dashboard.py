@@ -14,7 +14,7 @@ from decimal import Decimal
 
 from django.db.models import Count, Exists, F, OuterRef, Sum
 
-from . import modules, money, permissions
+from . import dates, modules, money, permissions
 from .clock import SchoolClock
 from .fees import ledger as fee_ledger
 from .reports.performance import term_summary
@@ -27,6 +27,7 @@ from .enums import (
     PaymentStatus,
     PayrollRunStatus,
     PayslipStatus,
+    SchoolCategory,
     SchoolStatus,
     StudentStatus,
     TransportStatus,
@@ -109,25 +110,38 @@ class DashboardService:
     @classmethod
     def _platform(cls) -> dict:
         """The Super Admin across every school. Money is grouped by currency
-        and never blended - CLAUDE.md rule 5."""
+        and never blended - CLAUDE.md rule 5.
+
+        Live and trial schools only (docs/school-categories.md): demo and
+        testing schools are not customers, and would only inflate the figures.
+        """
+        counted = School.objects.filter(category__in=SchoolCategory.counted())
+        not_counted = School.objects.exclude(category__in=SchoolCategory.counted()).count()
+        payments = Payment.objects.filter(school__category__in=SchoolCategory.counted())
+
         collected = " + ".join(
             f"{row['currency_code']} {number_format(row['total'])}"
-            for row in Payment.objects.exclude(status=PaymentStatus.CANCELLED)
+            for row in payments.exclude(status=PaymentStatus.CANCELLED)
             .values("currency_code")
             .annotate(total=Sum("paid_amount"))
             .filter(total__gt=0)
             .order_by("currency_code")
         )
 
-        outstanding = Payment.objects.filter(status__in=(PaymentStatus.PENDING, PaymentStatus.PARTIAL)).count()
+        outstanding = payments.filter(status__in=(PaymentStatus.PENDING, PaymentStatus.PARTIAL)).count()
+        active = counted.filter(status=SchoolStatus.ACTIVE).count()
 
         return {
             "cards": [
                 card(
-                    "schools", "Schools", str(School.objects.count()),
-                    f"{School.objects.filter(status=SchoolStatus.ACTIVE).count()} active",
+                    "schools", "Schools", str(counted.count()),
+                    f"{active} active" + (f", {not_counted} demo or testing not counted" if not_counted else ""),
                 ),
-                card("users", "User accounts", str(User.objects.filter(status=UserStatus.ACTIVE).count()), "active"),
+                card(
+                    "users", "User accounts",
+                    str(User.objects.filter(status=UserStatus.ACTIVE, school__category__in=SchoolCategory.counted()).count()),
+                    "active",
+                ),
                 card("collected", "Collected", collected or "-", "money received"),
                 card(
                     "outstanding", "Payments owing", str(outstanding), "pending or part paid",
@@ -135,7 +149,7 @@ class DashboardService:
                 ),
             ],
             "attendance_trend": [],
-            "attention": [],
+            "attention": trial_notes(),
         }
 
     @classmethod
@@ -554,3 +568,31 @@ def card(key: str, label: str, value: str, hint: str | None = None, tone: str = 
 
 def note(key: str, message: str) -> dict:
     return {"key": key, "message": message}
+
+
+TRIAL_WARNING_DAYS = 14
+
+
+def trial_notes() -> list[dict]:
+    """Active trials that have ended or end within two weeks, soonest first.
+    A warning only: the school keeps working (CLAUDE.md rule 4)."""
+    today = SchoolClock.platform().now().date()
+    trials = School.objects.filter(
+        category=SchoolCategory.TRIAL,
+        status=SchoolStatus.ACTIVE,
+        trial_ends_on__lte=today + dt.timedelta(days=TRIAL_WARNING_DAYS),
+    ).order_by("trial_ends_on", "name")
+
+    notes = []
+    for school in trials:
+        days = (school.trial_ends_on - today).days
+        if days < 0:
+            message = f"{school.name}'s trial ended on {dates.us(school.trial_ends_on)}. Move it to Live, or make it inactive."
+        elif days == 0:
+            message = f"{school.name}'s trial ends today."
+        else:
+            message = f"{school.name}'s trial ends in {days} day{'' if days == 1 else 's'}, on {dates.us(school.trial_ends_on)}."
+        notes.append(note(f"trial-{school.id}", message))
+
+    return notes
+

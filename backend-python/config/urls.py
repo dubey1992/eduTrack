@@ -255,6 +255,7 @@ urlpatterns = [
     path("api/v1/analytics/finance", analytics.finance),
     path("api/v1/analytics/transport", analytics.transport),
     path("api/v1/analytics/platform", analytics.platform),
+    path("api/v1/analytics/platform/schools", analytics.platform_schools),
     path("api/v1/reports/student-attendance", reports.student_attendance),
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),

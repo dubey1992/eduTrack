@@ -203,9 +203,61 @@ void main() {
       expect(fake.lastStatus, isNull);
     });
   });
+
+  group('category', () {
+    testWidgets('each school shows its category, and how long a trial has left', (tester) async {
+      tester.view.physicalSize = const Size(1800, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final fake = FakeSchoolRepository(
+        schools: [
+          _aSchool(1, 'Abbey Road'),
+          _aSchool(2, 'Trying Out', category: SchoolCategory.trial, trialEndsLabel: '09/20/2026', trialDaysLeft: 6),
+          _aSchool(3, 'Ran Out', category: SchoolCategory.trial, trialEndsLabel: '09/01/2026', trialDaysLeft: -13),
+          _aSchool(4, 'Our Sandbox', category: SchoolCategory.testing),
+        ],
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Live'), findsOneWidget);
+      expect(find.text('In Trial'), findsNWidgets(2));
+      expect(find.text('Trial ends in 6 days'), findsOneWidget);
+      expect(find.text('Trial ended 09/01/2026'), findsOneWidget);
+      expect(find.text('Testing'), findsOneWidget);
+    });
+
+    testWidgets('the category filter asks the server for one kind', (tester) async {
+      final fake = FakeSchoolRepository(
+        schools: [
+          _aSchool(1, 'Abbey Road'),
+          _aSchool(2, 'Show School', category: SchoolCategory.demo),
+        ],
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('school-category-filter')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Demo').last);
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCategory, 'demo');
+      expect(find.text('Show School'), findsOneWidget);
+      expect(find.text('Abbey Road'), findsNothing);
+    });
+  });
 }
 
-School _aSchool(int id, String name, {SchoolStatus status = SchoolStatus.active}) {
+School _aSchool(
+  int id,
+  String name, {
+  SchoolStatus status = SchoolStatus.active,
+  SchoolCategory category = SchoolCategory.live,
+  String? trialEndsLabel,
+  int? trialDaysLeft,
+}) {
   return School(
     id: id,
     name: name,
@@ -221,5 +273,8 @@ School _aSchool(int id, String name, {SchoolStatus status = SchoolStatus.active}
     timezone: 'Asia/Kolkata',
     logoUrl: null,
     status: status,
+    category: category,
+    trialEndsLabel: trialEndsLabel,
+    trialDaysLeft: trialDaysLeft,
   );
 }

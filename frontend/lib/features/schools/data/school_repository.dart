@@ -29,9 +29,10 @@ class SchoolRepository {
     required int perPage,
     String? q,
     String? status,
+    String? category,
   }) async {
     try {
-      return await _api.list(page: page, perPage: perPage, q: q, status: status);
+      return await _api.list(page: page, perPage: perPage, q: q, status: status, category: category);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }
@@ -74,6 +75,8 @@ class SchoolRepository {
     required WorkingWeek workingDays,
     String? latitude,
     String? longitude,
+    required SchoolCategory category,
+    DateTime? trialEndsOn,
     String? adminFirstName,
     String? adminLastName,
     String? adminEmail,
@@ -97,6 +100,8 @@ class SchoolRepository {
         'working_days': workingDays.apiValue,
         'latitude': latitude,
         'longitude': longitude,
+        'category': category.apiValue,
+        'trial_ends_on': _isoDate(trialEndsOn),
         // The first School Admin, created in the same save. Left out, only
         // the school is created; no password means a set-password email.
         'admin_first_name': ?adminFirstName,
@@ -129,9 +134,14 @@ class SchoolRepository {
     // silently pull a branch out of its group.
     bool changeParent = false,
     int? parentSchoolId,
+    SchoolCategory? category,
+    DateTime? trialEndsOn,
   }) async {
     try {
       return await _api.update(schoolId, {
+        'category': ?category?.apiValue,
+        // Only a trial has an end date; the server clears it for the rest.
+        if (category == SchoolCategory.trial) 'trial_ends_on': _isoDate(trialEndsOn),
         if (changeParent) 'parent_school_id': parentSchoolId,
         'name': ?name,
         'registration_number': registrationNumber,
@@ -161,4 +171,8 @@ class SchoolRepository {
       throw failureFromDioException(e);
     }
   }
+
+  static String? _isoDate(DateTime? date) => date == null
+      ? null
+      : '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }

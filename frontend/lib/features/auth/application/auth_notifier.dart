@@ -217,6 +217,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(financeOverviewProvider);
     ref.invalidate(transportOverviewProvider);
     ref.invalidate(platformOverviewProvider);
+    ref.invalidate(platformSchoolsProvider);
     ref.invalidate(departmentPageNotifierProvider);
     ref.invalidate(driverPageNotifierProvider);
     ref.invalidate(earlyAccessNotifierProvider);

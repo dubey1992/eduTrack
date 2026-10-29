@@ -1,11 +1,15 @@
 /// Platform analytics, A7 (docs/analytics.md), as `GET /analytics/platform`
-/// sends it: the whole of School365ai, for the Super Admin.
+/// sends it: the whole of School365ai, for the Super Admin. Every figure is
+/// live and trial schools only (docs/school-categories.md).
 library;
+
+import '../../../schools/data/models/school.dart' show SchoolCategory;
 
 class PlatformTotals {
   const PlatformTotals({
     required this.schoolsActive,
     required this.schoolsInactive,
+    this.schoolsNotCounted = 0,
     required this.students,
     required this.staff,
     required this.users,
@@ -15,6 +19,7 @@ class PlatformTotals {
     return PlatformTotals(
       schoolsActive: json['schools_active'] as int,
       schoolsInactive: json['schools_inactive'] as int,
+      schoolsNotCounted: json['schools_not_counted'] as int? ?? 0,
       students: json['students'] as int,
       staff: json['staff'] as int,
       users: json['users'] as int,
@@ -23,6 +28,9 @@ class PlatformTotals {
 
   final int schoolsActive;
   final int schoolsInactive;
+
+  /// Demo and testing schools: left out of every other figure here.
+  final int schoolsNotCounted;
   final int students;
   final int staff;
   final int users;
@@ -96,6 +104,9 @@ class PlatformSchool {
     required this.name,
     required this.city,
     required this.status,
+    this.category = SchoolCategory.live,
+    this.trialEndsLabel,
+    this.trialDaysLeft,
     required this.students,
     required this.staff,
     required this.lastSignInLabel,
@@ -108,6 +119,9 @@ class PlatformSchool {
       name: json['name'] as String,
       city: json['city'] as String?,
       status: json['status'] as String,
+      category: SchoolCategory.fromApiValue(json['category'] as String?),
+      trialEndsLabel: json['trial_ends_label'] as String?,
+      trialDaysLeft: json['trial_days_left'] as int?,
       students: json['students'] as int,
       staff: json['staff'] as int,
       lastSignInLabel: json['last_sign_in_label'] as String?,
@@ -119,8 +133,22 @@ class PlatformSchool {
   final String name;
   final String? city;
   final String status;
+  final SchoolCategory category;
+  final String? trialEndsLabel;
+  final int? trialDaysLeft;
   final int students;
   final int staff;
+
+  /// "In Trial - ends in 5 days", "In Trial - ended 09/01/2026", or the
+  /// category alone.
+  String get categoryText {
+    final days = trialDaysLeft;
+    if (category != SchoolCategory.trial || days == null) return category.label;
+    if (days < 0) return 'In Trial - ended $trialEndsLabel';
+    if (days == 0) return 'In Trial - ends today';
+
+    return 'In Trial - ends in $days day${days == 1 ? '' : 's'}';
+  }
 
   /// When anyone at the school last signed in; null if nobody ever has.
   final String? lastSignInLabel;
@@ -147,22 +175,13 @@ class PlatformModule {
 }
 
 class PlatformOverview {
-  const PlatformOverview({
-    required this.totals,
-    required this.months,
-    required this.schools,
-    required this.modules,
-    required this.recentDays,
-  });
+  const PlatformOverview({required this.totals, required this.months, required this.modules, required this.recentDays});
 
   factory PlatformOverview.fromJson(Map<String, dynamic> json) {
     return PlatformOverview(
       totals: PlatformTotals.fromJson(json['totals'] as Map<String, dynamic>),
       months: (json['months'] as List<dynamic>)
           .map((row) => PlatformMonth.fromJson(row as Map<String, dynamic>))
-          .toList(),
-      schools: (json['schools'] as List<dynamic>)
-          .map((row) => PlatformSchool.fromJson(row as Map<String, dynamic>))
           .toList(),
       modules: (json['modules'] as List<dynamic>)
           .map((row) => PlatformModule.fromJson(row as Map<String, dynamic>))
@@ -173,7 +192,6 @@ class PlatformOverview {
 
   final PlatformTotals totals;
   final List<PlatformMonth> months;
-  final List<PlatformSchool> schools;
   final List<PlatformModule> modules;
 
   /// "Recent" in the per-school table: the last this many days.

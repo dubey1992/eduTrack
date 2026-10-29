@@ -19,6 +19,7 @@ from ..models import ClassSection, Department
 from ..pagination import LaravelPagination
 from ..policies import FeePolicy, PayrollPolicy, authorize, in_scope, permitted
 from ..requests import (
+    PlatformSchoolsRequest,
     AcademicAnalyticsRequest,
     AnalyticsSeriesRequest,
     EarlyWarningRequest,
@@ -240,6 +241,22 @@ def platform(request):
     form.is_valid(raise_exception=True)
 
     return Response(platform_analytics.platform(form.validated_data["from"], form.validated_data["to"]))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def platform_schools(request):
+    """Each school's recent activity, busiest first, a page at a time - the
+    Super Admin's alone (docs/analytics.md, A7)."""
+    authorize(request.user.role == UserRole.SUPER_ADMIN)
+
+    form = PlatformSchoolsRequest(data=request.query_params.dict())
+    form.is_valid(raise_exception=True)
+
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(platform_analytics.school_rows(form.validated_data), request)
+
+    return paginator.get_paginated_response(page)
 
 
 def _school_for(actor, form, missing: str) -> int:

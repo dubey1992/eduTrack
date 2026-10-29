@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/features/analytics/data/analytics_api.dart';
 import 'package:edutrack_app/features/analytics/data/analytics_repository.dart';
@@ -217,9 +218,16 @@ Map<String, dynamic> fakeFinanceJson({bool withPayroll = true}) => {
 /// as the stop most often late.
 /// Two months of the whole platform: Sunrise (INR) busy, Lagos (NGN) quiet,
 /// one school closed. September's payments come in two currencies.
-Map<String, dynamic> fakePlatformJson({List<dynamic>? schools}) => {
+Map<String, dynamic> fakePlatformJson() => {
   'as_of': '2026-09-14',
-  'totals': {'schools_active': 2, 'schools_inactive': 1, 'students': 420, 'staff': 35, 'users': 61},
+  'totals': {
+    'schools_active': 2,
+    'schools_inactive': 1,
+    'schools_not_counted': 4,
+    'students': 420,
+    'staff': 35,
+    'users': 61,
+  },
   'months': [
     {
       'from': '2026-08-01',
@@ -255,41 +263,64 @@ Map<String, dynamic> fakePlatformJson({List<dynamic>? schools}) => {
       'demo_requests': 2,
     },
   ],
-  'schools':
-      schools ??
-      [
-        {
-          'school_id': 1,
-          'name': 'Sunrise School',
-          'city': 'Pune',
-          'country': 'IN',
-          'status': 'active',
-          'students': 400,
-          'staff': 30,
-          'last_sign_in': '2026-09-12T09:00:00+00:00',
-          'last_sign_in_label': '09/12/2026',
-          'recent_sign_ins': 70,
-          'recent_messages': 150,
-        },
-        {
-          'school_id': 2,
-          'name': 'Lagos Academy',
-          'city': 'Lagos',
-          'country': 'NG',
-          'status': 'active',
-          'students': 20,
-          'staff': 5,
-          'last_sign_in': null,
-          'last_sign_in_label': null,
-          'recent_sign_ins': 0,
-          'recent_messages': 0,
-        },
-      ],
   'modules': [
     {'module': 'transport', 'label': 'Transport', 'schools_on': 1, 'schools': 2},
   ],
   'recent_days': 30,
 };
+
+/// Sunrise (live, busy), Lagos (a trial that has ended, quiet) and a demo
+/// school - one page of the Platform per-school list.
+List<Map<String, dynamic>> fakePlatformSchools() => [
+  {
+    'school_id': 1,
+    'name': 'Sunrise School',
+    'city': 'Pune',
+    'country': 'IN',
+    'status': 'active',
+    'category': 'live',
+    'trial_ends_label': null,
+    'trial_days_left': null,
+    'students': 400,
+    'staff': 30,
+    'last_sign_in': '2026-09-12T09:00:00+00:00',
+    'last_sign_in_label': '09/12/2026',
+    'recent_sign_ins': 70,
+    'recent_messages': 150,
+  },
+  {
+    'school_id': 2,
+    'name': 'Lagos Academy',
+    'city': 'Lagos',
+    'country': 'NG',
+    'status': 'active',
+    'category': 'trial',
+    'trial_ends_label': '09/01/2026',
+    'trial_days_left': -13,
+    'students': 20,
+    'staff': 5,
+    'last_sign_in': null,
+    'last_sign_in_label': null,
+    'recent_sign_ins': 0,
+    'recent_messages': 0,
+  },
+  {
+    'school_id': 3,
+    'name': 'Show School',
+    'city': null,
+    'country': 'IN',
+    'status': 'active',
+    'category': 'demo',
+    'trial_ends_label': null,
+    'trial_days_left': null,
+    'students': 3,
+    'staff': 1,
+    'last_sign_in': null,
+    'last_sign_in_label': null,
+    'recent_sign_ins': 0,
+    'recent_messages': 0,
+  },
+];
 
 Map<String, dynamic> fakeTransportJson({bool withRoutes = true}) => {
   'as_of': '2026-09-14',
@@ -406,10 +437,36 @@ class FakeAnalyticsRepository extends AnalyticsRepository {
     this.financeJson,
     this.transportJson,
     this.platformJson,
+    this.platformSchoolRows,
   }) : super(AnalyticsApi(Dio()));
 
   /// What the Platform view gets; [fakePlatformJson] if null.
   final Map<String, dynamic>? platformJson;
+
+  /// The per-school list; [fakePlatformSchools] if null.
+  final List<Map<String, dynamic>>? platformSchoolRows;
+
+  final platformSchoolsAsked = <PlatformSchoolsQuery>[];
+
+  @override
+  Future<PaginatedResponse<PlatformSchool>> platformSchools(PlatformSchoolsQuery query) async {
+    platformSchoolsAsked.add(query);
+    if (failure != null) throw failure!;
+
+    var rows = (platformSchoolRows ?? fakePlatformSchools()).map(PlatformSchool.fromJson).toList();
+    if (query.category != null) rows = rows.where((row) => row.category.apiValue == query.category).toList();
+    if (query.q.isNotEmpty) {
+      rows = rows.where((row) => row.name.toLowerCase().contains(query.q.toLowerCase())).toList();
+    }
+
+    return PaginatedResponse(
+      items: rows,
+      currentPage: query.page,
+      lastPage: 1,
+      total: rows.length,
+      perPage: query.perPage,
+    );
+  }
 
   var platformAsked = 0;
 

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/paginated_response.dart';
 import 'analytics_api.dart';
 import 'models/academic_overview.dart';
 import 'models/finance_overview.dart';
@@ -95,6 +96,19 @@ class AnalyticsRepository {
     }
   }
 
+  Future<PaginatedResponse<PlatformSchool>> platformSchools(PlatformSchoolsQuery query) async {
+    try {
+      return await _api.platformSchools(
+        page: query.page,
+        perPage: query.perPage,
+        q: query.q.isEmpty ? null : query.q,
+        category: query.category,
+      );
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<PlatformOverview> platform() async {
     try {
       return await _api.platform();
@@ -102,4 +116,36 @@ class AnalyticsRepository {
       throw failureFromDioException(e);
     }
   }
+}
+
+/// One page of the per-school list on Platform analytics.
+class PlatformSchoolsQuery {
+  const PlatformSchoolsQuery({this.page = 1, this.perPage = 20, this.q = '', this.category});
+
+  final int page;
+  final int perPage;
+  final String q;
+
+  /// A [SchoolCategory] api value, or null for every category.
+  final String? category;
+
+  PlatformSchoolsQuery copyWith({int? page, int? perPage, String? q, String? category, bool changeCategory = false}) {
+    return PlatformSchoolsQuery(
+      page: page ?? this.page,
+      perPage: perPage ?? this.perPage,
+      q: q ?? this.q,
+      category: changeCategory ? category : this.category,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is PlatformSchoolsQuery &&
+      other.page == page &&
+      other.perPage == perPage &&
+      other.q == q &&
+      other.category == category;
+
+  @override
+  int get hashCode => Object.hash(page, perPage, q, category);
 }

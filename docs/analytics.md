@@ -342,11 +342,16 @@ since the months belong to no school. It is built in
 |---|---|
 | Now | active and inactive schools; students on roll, staff and accounts that can sign in, across every school |
 | Month by month | new schools, sign-ins and the distinct people signing in, SMS / WhatsApp / email sent and failed, payments received from schools per currency (paid and part-paid), early access and demo requests |
-| Each school | its roll, its last sign-in, and its sign-ins and messages sent over the last 30 days; active schools first, busiest first, so a school that has gone quiet sits low |
+| Each school | its category, roll, last sign-in, and sign-ins and messages sent over the last 30 days; active customers first, busiest first, so a school that has gone quiet sits low. A list of its own, `GET /api/v1/analytics/platform/schools?q=&category=&page=&per_page=`, searchable by name or city and filterable by category |
 | Modules | how many active schools have each switchable module on |
 
 Payments are never added across currencies. A school nobody has signed in
 to shows "Never" for its last sign-in.
+
+Every figure is made of live and trial schools only
+(docs/school-categories.md). Demo and testing schools are counted once, as
+"not counted", and are listed, labelled, below the customers in the
+per-school table.
 
 ## The phases
 

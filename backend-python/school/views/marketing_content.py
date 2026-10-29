@@ -21,7 +21,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .. import audit, marketing
-from ..enums import SchoolStatus, StudentStatus, UserRole
+from ..enums import SchoolCategory, SchoolStatus, StudentStatus, UserRole
 from ..models import MarketingContent, School, Student
 from ..policies import authorize
 from ..requests import UpdateMarketingContentRequest
@@ -73,9 +73,11 @@ def figures() -> dict[str, int]:
     four buildings running the product are four schools by any ordinary
     reading - whatever they are on an invoice.
 
-    Students of a school that has been switched off are nobody's students.
+    Students of a school that has been switched off are nobody's students,
+    and a demo or testing school is nobody's school
+    (docs/school-categories.md).
     """
-    active_schools = School.objects.filter(status=SchoolStatus.ACTIVE)
+    active_schools = School.objects.filter(status=SchoolStatus.ACTIVE, category__in=SchoolCategory.counted())
 
     return {
         marketing.SCHOOLS: active_schools.count(),

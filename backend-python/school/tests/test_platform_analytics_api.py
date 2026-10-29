@@ -20,6 +20,7 @@ from school.enums import UserRole
 from school.models import AuditLog, DemoRequest, EarlyAccessRequest, Payment, School
 
 URL = "/api/v1/analytics/platform"
+SCHOOLS_URL = "/api/v1/analytics/platform/schools"
 NOW = dt.datetime(2026, 9, 14, 12, 0, tzinfo=dt.timezone.utc)
 SPAN = {"from": "2026-08-01", "to": "2026-09-14"}
 
@@ -151,6 +152,12 @@ class MonthByMonth(PlatformTestCase):
 
 
 class EachSchool(PlatformTestCase):
+    def rows(self, **params):
+        response = client_for(self.root).get(SCHOOLS_URL, params)
+        self.assertEqual(200, response.status_code, getattr(response, "data", response))
+
+        return response.data
+
     def test_busiest_first_with_the_school_that_has_gone_quiet_below(self):
         other = factories.UserFactory(school=self.lagos, role=UserRole.SCHOOL_ADMIN)
         self.signed_in(self.admin, at("2026-09-10"))
@@ -158,7 +165,7 @@ class EachSchool(PlatformTestCase):
         self.signed_in(other, at("2026-07-01"))  # long before the last 30 days
         factories.MessageFactory(school=self.sunrise, channel="sms", status="sent", created_at=at("2026-09-12"))
 
-        schools = self.look()["schools"]
+        schools = self.rows()["data"]
 
         self.assertEqual(["Sunrise School", "Lagos Academy", "Closed School"], [s["name"] for s in schools])
         sunrise, lagos = schools[0], schools[1]
@@ -167,6 +174,61 @@ class EachSchool(PlatformTestCase):
         self.assertEqual("09/12/2026", sunrise["last_sign_in_label"])
         self.assertEqual((0, "07/01/2026"), (lagos["recent_sign_ins"], lagos["last_sign_in_label"]))
         self.assertIsNone(schools[2]["last_sign_in"])
+
+    def test_demo_and_testing_schools_sit_below_the_customers_labelled(self):
+        demo = factories.SchoolFactory(name="Aaa Demo", timezone="UTC", category="demo")
+        self.signed_in(factories.UserFactory(school=demo, role=UserRole.SCHOOL_ADMIN), at("2026-09-13"))
+
+        schools = self.rows()["data"]
+
+        self.assertEqual(["Lagos Academy", "Sunrise School", "Aaa Demo", "Closed School"], [s["name"] for s in schools])
+        self.assertEqual("Demo", schools[2]["category_label"])
+
+    def test_a_page_at_a_time_searched_and_filtered(self):
+        factories.SchoolFactory(name="Trial Prep", city="Delhi", timezone="UTC", category="trial",
+                                trial_ends_on=dt.date(2026, 9, 20))
+
+        page = self.rows(per_page=2)
+        trials = self.rows(category="trial")["data"]
+        searched = self.rows(q="lagos")["data"]
+
+        self.assertEqual((2, 4), (len(page["data"]), page["meta"]["total"]))
+        self.assertEqual([("Trial Prep", "09/20/2026", 6)],
+                         [(s["name"], s["trial_ends_label"], s["trial_days_left"]) for s in trials])
+        self.assertEqual(["Lagos Academy"], [s["name"] for s in searched])
+
+    def test_an_unknown_category_is_refused(self):
+        response = client_for(self.root).get(SCHOOLS_URL, {"category": "vip"})
+
+        self.assertEqual({"category": ["The selected category is invalid."]}, response.data["details"]["errors"])
+
+
+class OnlyCustomersCount(PlatformTestCase):
+    """Live and trial schools make the figures; demo and testing schools are
+    only counted as how many there are (docs/school-categories.md)."""
+
+    def test_demo_and_testing_schools_stay_out_of_every_figure(self):
+        for category in ("demo", "testing"):
+            school = factories.SchoolFactory(timezone="UTC", category=category)
+            School.objects.filter(pk=school.pk).update(created_at=at("2026-09-03"))
+            user = factories.UserFactory(school=school, role=UserRole.SCHOOL_ADMIN)
+            self.signed_in(user, at("2026-09-04"))
+            factories.MessageFactory(school=school, channel="sms", status="sent", created_at=at("2026-09-04"))
+            self.paid(school, "777.00", "INR", "2026-09-05")
+
+        data = self.look()
+        september = self.month(data, "2026-09-01")
+
+        self.assertEqual((2, 1, 2), (data["totals"]["schools_active"], data["totals"]["schools_inactive"],
+                                     data["totals"]["schools_not_counted"]))
+        self.assertEqual((1, 0, 0), (september["new_schools"], september["sign_ins"],
+                                     september["messages"]["sms"]["sent"]))
+        self.assertEqual([], september["payments"])
+
+    def test_a_trial_school_counts(self):
+        School.objects.filter(pk=self.lagos.pk).update(category="trial", trial_ends_on=dt.date(2026, 10, 1))
+
+        self.assertEqual(2, self.look()["totals"]["schools_active"])
 
 
 class Modules(PlatformTestCase):
@@ -186,7 +248,9 @@ class WhoSees(PlatformTestCase):
         for user in (self.admin, group):
             with self.subTest(role=user.role):
                 self.assertEqual(403, client_for(user).get(URL, SPAN).status_code)
+                self.assertEqual(403, client_for(user).get(SCHOOLS_URL).status_code)
         self.assertEqual(401, APIClient().get(URL).status_code)
+        self.assertEqual(401, APIClient().get(SCHOOLS_URL).status_code)
 
     def test_the_range_is_checked(self):
         future = client_for(self.root).get(URL, {"to": "2026-12-01"})
