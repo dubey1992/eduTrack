@@ -53,7 +53,9 @@ return new class extends Migration
             $table->decimal('overdue', 12, 2);
             $table->timestamps();
 
-            $table->unique(['school_id', 'snapshot_date', 'currency_code']);
+            // Named, because the generated name is 70 characters and MySQL
+            // refuses any over 64 (PostgreSQL silently cuts it to 63).
+            $table->unique(['school_id', 'snapshot_date', 'currency_code'], 'analytics_fee_days_school_date_currency_unique');
         });
     }
 
