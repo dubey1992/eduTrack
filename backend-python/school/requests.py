@@ -5297,6 +5297,69 @@ class ReportRequest(serializers.Serializer):
         return clock.now().date()
 
 
+class AnalyticsSeriesRequest(ReportRequest):
+    """One measure over a range, week by week or month by month
+    (docs/analytics.md, A1).
+
+    The report form's checks, unchanged - the school, the dates and their
+    "not in the future", the class and department - plus which measure, how
+    it is cut, and a cap on how many periods: each period runs a report.
+    With no range given, the chart shows the last twelve periods.
+    """
+
+    def to_internal_value(self, data):
+        # Here, not at the top: analytics runs the reports, and they import
+        # services, which imports this module.
+        from . import analytics
+
+        errors: dict[str, list[str]] = {}
+        values: dict = {}
+
+        try:
+            values = super().to_internal_value(data)
+        except serializers.ValidationError as failure:
+            errors = dict(failure.detail)
+
+        # The report's own format and comparison mean nothing on a chart.
+        for key in ("format", "wants_csv", "compare", "below"):
+            values.pop(key, None)
+        errors.pop("format", None)
+        errors.pop("compare", None)
+        errors.pop("below", None)
+
+        measure = data.get("measure")
+        if measure is None or measure == "":
+            errors["measure"] = ["Pick what to chart."]
+        elif measure not in analytics.MEASURES:
+            errors["measure"] = [selected_is_invalid("measure")]
+        else:
+            values["measure"] = analytics.MEASURES[measure]
+
+        interval = data.get("interval") or analytics.MONTH
+        if interval not in analytics.INTERVALS:
+            errors["interval"] = ["Chart by week or by month."]
+        else:
+            values["interval"] = interval
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        today = self._school_today(data.get("school_id"))
+        values["to"] = values.get("to") or today
+        values["from"] = values.get("from") or min(analytics.default_from(today, interval), values["to"])
+
+        if values["from"] > values["to"]:
+            raise serializers.ValidationError({"to": ["The end of the range must not be before its start."]})
+
+        limit = analytics.MAX_PERIODS[interval]
+        if analytics.period_count(values["from"], values["to"], interval) > limit:
+            raise serializers.ValidationError(
+                {"from": [f"A chart by {interval} covers at most {limit} {interval}s. Pick a shorter range."]}
+            )
+
+        return values
+
+
 # -- audit log (Phase 21) ------------------------------------------------------
 
 

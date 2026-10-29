@@ -18,6 +18,7 @@ from django.urls import path
 
 from school.views import (
     academic_config,
+    analytics,
     academic_terms,
     academic_years,
     assessments,
@@ -244,6 +245,9 @@ urlpatterns = [
     path("api/v1/fees/concessions", fees.concessions),
     path("api/v1/fees/concessions/<int:concession_id>", fees.concession),
     path("api/v1/fees/dues/<int:due_id>/waive", fees.due_waive),
+    # Analytics, A1 (docs/analytics.md).
+    path("api/v1/analytics/measures", analytics.measures),
+    path("api/v1/analytics/series", analytics.series),
     path("api/v1/reports/student-attendance", reports.student_attendance),
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),

@@ -121,9 +121,12 @@ class EveryWriteIsRecorded(TestCase):
         # Known writers that record elsewhere or write nothing about a
         # school: the audit log itself, the queue, the notification pipeline
         # (whose rows *are* the record), sign-in security, and the fixtures.
+        # Analytics writes only its nightly snapshots: figures counted from
+        # the school's records, nobody's change to them.
         exempt = {
             "audit", "queue", "jobs", "notifications", "security", "attendants",
             "tokens", "notices", "receipts", "photos", "dashboard", "modules", "permissions",
+            "analytics",
         }
 
         self.assertEqual(set(), writes - swept - exempt, "add these to SWEPT, or say why they are exempt")

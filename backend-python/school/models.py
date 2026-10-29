@@ -1826,3 +1826,43 @@ class DeviceToken(models.Model):
     class Meta:
         managed = False
         db_table = 'device_tokens'
+
+
+class AnalyticsSchoolDay(models.Model):
+    """One school's roll on one of its own days, recorded nightly by
+    `record_analytics_snapshots` (docs/analytics.md, A1): the figures the
+    database cannot count again for a past day, since nobody's leaving date
+    is kept."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    snapshot_date = models.DateField()
+    active_students = models.IntegerField()
+    active_staff = models.IntegerField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'analytics_school_days'
+        unique_together = (('school', 'snapshot_date'),)
+
+
+class AnalyticsSchoolFeeDay(models.Model):
+    """What one school was owed on one of its days, in one currency
+    (docs/analytics.md, A1). Recorded because each due keeps only what has
+    been paid so far, which cannot be wound back to a past day."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    snapshot_date = models.DateField()
+    currency_code = models.CharField(max_length=3)
+    outstanding = models.DecimalField(max_digits=12, decimal_places=2)
+    overdue = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'analytics_school_fee_days'
+        unique_together = (('school', 'snapshot_date', 'currency_code'),)

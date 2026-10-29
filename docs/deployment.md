@@ -291,7 +291,7 @@ block the script adds and the app is served properly.
 
 ## 5. Cron
 
-Four jobs. None of them is optional.
+Six jobs. None of them is optional.
 
 ```
 * * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py work_queue >> var/queue.log 2>&1
@@ -299,6 +299,7 @@ Four jobs. None of them is optional.
 0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py close_open_trips >> var/trips.log 2>&1
 0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py apply_late_fines >> var/fines.log 2>&1
 5 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py send_fee_reminders >> var/fee-reminders.log 2>&1
+50 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py record_analytics_snapshots >> var/analytics.log 2>&1
 ```
 
 The first drains the job queue — SMS, WhatsApp, announcement fan-out, emailed
@@ -333,6 +334,14 @@ them - and it reminds each guardian at most once per kind per school-local
 day (`fee_reminder_logs`), so the other 23 runs of the day send nothing.
 Schools with Fee Management or Communication switched off are skipped.
 `--dry-run` says who would be reminded without sending anything.
+
+The sixth writes down each school's roll and what it is owed, for the
+analytics charts (docs/analytics.md, A1) - the figures that cannot be counted
+again for a past day. Hourly so each school's day is its own; the last run
+of a school's day is the one that stands, and a run replaces that day's row
+rather than adding one. Ten to the hour, so the day's last run is close to
+midnight at the school. A day it misses is a day those charts have no point
+for, never a wrong one.
 
 Use the **absolute path to the app's python**, and check the version
 directory - cPanel offered 3.12 where this page once said 3.11, and a
