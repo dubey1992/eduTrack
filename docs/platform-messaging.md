@@ -51,10 +51,12 @@ counted from our own message log, which already records every message.
 | M4 | Statements | A monthly statement per school: counts, parts and amount, in its own currency, as a PDF in the shared design. The Super Admin sees every school's usage and, from a statement, records the payment as an "Additional Service". A School Admin sees their own usage and this month so far. |
 | M5 | Guard rails | Optional monthly caps per school with warnings at 80% and 100%. A cap only warns and never stops sending, matching "never stops for non-payment". |
 
-## Still to decide, when their phase comes
+## Answered 2026-10-29
 
-- M2: charge when Twilio **accepts** a message (recommended, since that is
-  when Twilio charges School365ai) or only when it is **delivered**.
-- M4: whether the statement goes out by email automatically on the 1st, or
-  only when the Super Admin sends it.
-- M5: whether caps are wanted at all.
+- **M2:** a message is charged **only once Twilio reports it delivered**.
+  Accepted, failed and undelivered messages cost the school nothing, so
+  the delivery callbacks are what billing rests on.
+- **M4:** each school's statement is **emailed automatically** when the
+  month closes.
+- **M5:** the Super Admin can set a limit per school, **per month or per
+  year**. Reaching it warns and never stops sending.
