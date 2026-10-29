@@ -95,7 +95,8 @@ class StudentAttendance(AnalyticsTestCase):
         )
         self.assertEqual(
             [
-                {"from": "2026-08-31", "to": "2026-09-06", "working_days": 5, "value": 0},
+                # No register taken that week: a gap, not 0%.
+                {"from": "2026-08-31", "to": "2026-09-06", "working_days": 5, "value": None},
                 {"from": "2026-09-07", "to": "2026-09-11", "working_days": 5, "value": 60},
             ],
             response.data["points"],
@@ -112,6 +113,13 @@ class StudentAttendance(AnalyticsTestCase):
         points = self.points(self.admin, "student_attendance_rate", interval="week", **{"from": "2026-08-31", "to": "2026-09-06"})
 
         self.assertEqual([{"from": "2026-08-31", "to": "2026-09-06", "working_days": 0, "value": None}], points)
+
+    def test_a_register_of_absences_is_zero_not_a_gap(self):
+        self.mark("2026-09-07", "absent")
+
+        points = self.points(self.admin, "student_attendance_rate", **{"from": "2026-09-07", "to": "2026-09-11"})
+
+        self.assertEqual(0, points[0]["value"])
 
     def test_months_are_cut_to_the_range(self):
         self.mark("2026-09-07", "present")
@@ -155,6 +163,13 @@ class OtherMeasures(AnalyticsTestCase):
         # Three and a half days of five. Unrounded across the school: a
         # day's rounding is one person's, not a staff room's.
         self.assertEqual(70, points[0]["value"])
+
+    def test_staff_attendance_never_taken_is_a_gap(self):
+        factories.StaffProfileFactory(user=self.teacher)
+
+        points = self.points(self.admin, "staff_attendance_rate", **{"from": "2026-09-07", "to": "2026-09-11"})
+
+        self.assertIsNone(points[0]["value"])
 
     def test_a_school_with_no_timetable_has_no_coverage_rather_than_none_filed(self):
         points = self.points(self.admin, "teaching_coverage_rate", **{"from": "2026-09-07", "to": "2026-09-11"})

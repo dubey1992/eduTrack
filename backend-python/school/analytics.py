@@ -76,13 +76,27 @@ class Measure:
 
 
 def _student_attendance(period: ReportRange, filters: dict):
-    return StudentAttendanceReport().build(period, filters)["totals"]["attendance_rate"]
+    totals = StudentAttendanceReport().build(period, filters)["totals"]
+
+    # No register taken at all is a gap, as on the dashboard's trend: nobody
+    # was absent, nobody was counted. The report says 0% with every day "not
+    # marked" beside it; a chart has no room for that, and 0% alone reads as
+    # an empty school.
+    if totals["present"] + totals["absent"] + totals["leave"] == 0:
+        return None
+
+    return totals["attendance_rate"]
 
 
 def _staff_attendance(period: ReportRange, filters: dict):
     """Worked out from the rows, the way each person's own rate is: a half
     day is half a day present. The report has no school-wide rate."""
     rows = StaffAttendanceReport().build(period, filters)["rows"]
+
+    # As for students: no attendance taken at all is a gap, not 0%.
+    if not any(row["present"] + row["half_day"] + row["absent"] + row["leave"] for row in rows):
+        return None
+
     attended = sum(row["present"] + row["half_day"] / 2 for row in rows)
 
     return php_number(rate_of(attended, len(rows) * period.working_day_count()))

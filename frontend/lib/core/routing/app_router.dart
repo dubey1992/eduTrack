@@ -40,6 +40,7 @@ import '../../features/payroll/presentation/my_payslips_screen.dart';
 import '../../features/payroll/presentation/payroll_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
+import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/biometric/presentation/device_list_screen.dart';
 import '../../features/schools/presentation/school_detail_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
@@ -171,6 +172,7 @@ const appRoutePaths = {
   '/announcements',
   '/inbox',
   '/reports',
+  '/analytics',
   '/payroll',
   '/fee-setup',
   '/student-fees',
@@ -301,6 +303,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/announcements', builder: (context, state) => const AnnouncementScreen()),
           GoRoute(path: '/inbox', builder: (context, state) => const InboxScreen()),
           GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
+          GoRoute(path: '/analytics', builder: (context, state) => const AnalyticsScreen()),
           GoRoute(path: '/payroll', builder: (context, state) => const PayrollScreen()),
           GoRoute(path: '/fee-setup', builder: (context, state) => const FeeSetupScreen()),
           GoRoute(path: '/fee-receipts', builder: (context, state) => const FeeReceiptsScreen()),

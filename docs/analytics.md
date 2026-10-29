@@ -2,7 +2,8 @@
 
 How a school's figures move over time: attendance, teaching, test scores,
 fees and the roll, week by week or month by month. Planned in seven phases
-(below); **A1, the foundation, is built** (2026-10-29). Python backend only.
+(below). **A1, the foundation, and A2, the screen, are built** (2026-10-29).
+Python backend only.
 
 Phase 20 ruled trend charts out of the reports. Starting this plan
 (2026-10-29) is the decision to have them.
@@ -19,7 +20,12 @@ that period and reads one total. So:
 - every rate keeps the reports' denominator, the days the school actually ran
   (docs/reports.md);
 - a period with no working day, such as a week of holidays, has **no value**
-  and is drawn as a gap, never as 0%.
+  and is drawn as a gap, never as 0%;
+- so does an attendance period in which no register was taken at all. The
+  report says 0% with every day "not marked" beside it; a chart has no room
+  for that, and 0% alone reads as an empty school. This is the dashboard
+  trend's rule too: nobody was absent, nobody was counted. A register of
+  nothing but absences is still 0%.
 
 ## The measures
 
@@ -105,17 +111,38 @@ the school has Fee Management on.
 The errors are the reports' own, and a switched-off fees module gives 403
 `MODULE_DISABLED`.
 
-Flutter has the data layer only so far, under
-`lib/features/analytics/data/`: models, API and repository. No screen yet;
-that is A2.
+## The screen (A2)
+
+Analytics, under Overview in the menu, is `/analytics` in
+`lib/features/analytics/`. It offers the same people as Reports, except the
+Transport Manager, who has no chart until A6.
+
+- The top row has the school or branch picker, By week / By month and the
+  range (the last 12 periods by default). Below it, one chip per measure the
+  API lists.
+- Each chart shows the latest figure, the change from the period before it,
+  the highest and lowest, and for flows (fees collected, topics completed) a
+  total over the range. Percentages change by points.
+- Below each chart is a bar per period. A gap is a hairline and a dash, with a
+  note saying why. A year of weeks scrolls sideways on a narrow screen.
+- Money gets one chart per currency.
+- A table under the charts lists every point exactly, newest first.
+- A range with no figure at all says which of three reasons it is: the
+  school did not run, the figure is not recorded yet (snapshots), or the
+  school ran and nothing was recorded.
+- A Group Admin picks a branch. Charts for the whole group together are not
+  available yet.
+
+The bars are plain widgets, like the dashboard's attendance trend. No chart
+package was added.
 
 ## The phases
 
 | | Phase | State |
 |---|---|---|
 | A1 | Foundation: measures, periods, snapshots, the API | **built** |
-| A2 | School Analytics screen: trend charts per measure | next |
-| A3 | Student early warning: attendance and marks falling together | to decide |
+| A2 | School Analytics screen: trend charts per measure | **built** |
+| A3 | Student early warning: attendance and marks falling together | next, to decide |
 | A4 | Academic analytics: subjects and classes over terms | |
 | A5 | Finance: collection against what fell due, per currency | to decide |
 | A6 | Transport: trips run, riders, late trips | |
@@ -123,7 +150,5 @@ that is A2.
 
 These are still open, and each is asked when its phase is reached:
 
-- A2: the chart package (`fl_chart` is the likely choice) and whether A2 or
-  A3 comes first.
 - A3: the early-warning rules, and who sees a flagged child.
 - A5: whether to forecast fees at all.

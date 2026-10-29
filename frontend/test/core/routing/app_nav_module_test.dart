@@ -146,6 +146,25 @@ void main() {
       expect(_item('/attendance').allows(sessionUser(UserRole.teacher)), isTrue);
     });
 
+    test('analytics follows reports, except for a role it has no chart for yet', () {
+      final reader = {AppModules.reports: PermissionLevel.view};
+
+      expect(_item('/analytics').allows(sessionUser(UserRole.schoolAdmin, permissions: reader)), isTrue);
+      expect(_item('/analytics').allows(sessionUser(UserRole.accountant, permissions: reader)), isTrue);
+      // Reads reports, but its charts are A6's (docs/analytics.md).
+      expect(_item('/analytics').allows(sessionUser(UserRole.transportManager, permissions: reader)), isFalse);
+      expect(
+        _item('/analytics')
+            .allows(sessionUser(UserRole.schoolAdmin, permissions: {AppModules.reports: PermissionLevel.none})),
+        isFalse,
+      );
+      expect(_item('/analytics').allows(sessionUser(UserRole.teacher)), isFalse);
+      expect(
+        _item('/analytics').allows(sessionUser(UserRole.schoolAdmin, modules: {AppModules.reports: false})),
+        isFalse,
+      );
+    });
+
     test('with no matrix still honours the module switches', () {
       expect(
         _item('/attendance').allows(sessionUser(UserRole.teacher, modules: {AppModules.attendance: false})),

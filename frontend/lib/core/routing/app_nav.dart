@@ -132,6 +132,25 @@ class AppNav {
         pageTitle: 'Reports',
         pageSubtitle: 'Attendance, teaching and transport over a period',
       ),
+      NavItem(
+        path: '/analytics',
+        module: AppModules.reports,
+        label: 'Analytics',
+        icon: Icons.bar_chart_outlined,
+        // Whoever reads the reports the charts come from (docs/analytics.md).
+        allowedRoles: {
+          UserRole.superAdmin,
+          UserRole.groupAdmin,
+          UserRole.schoolAdmin,
+          UserRole.hod,
+          UserRole.accountant,
+        },
+        // Reads reports, but has no chart until transport analytics (A6):
+        // the entry would open on nothing.
+        deniedRoles: {UserRole.transportManager},
+        pageTitle: 'Analytics',
+        pageSubtitle: 'How the figures move, week by week or month by month',
+      ),
     ],
   );
 
