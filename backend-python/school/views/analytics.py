@@ -12,7 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import academic_analytics, analytics, early_warning, finance_analytics, modules, permissions, transport_analytics
+from .. import academic_analytics, analytics, early_warning, finance_analytics, modules, permissions, platform_analytics, transport_analytics
 from ..enums import UserRole
 from ..errors import ModuleDisabled
 from ..models import ClassSection, Department
@@ -23,6 +23,7 @@ from ..requests import (
     AnalyticsSeriesRequest,
     EarlyWarningRequest,
     FinanceAnalyticsRequest,
+    PlatformAnalyticsRequest,
     TransportAnalyticsRequest,
 )
 from ..scope import SchoolScope
@@ -227,6 +228,18 @@ def transport(request):
     return Response(
         transport_analytics.transport(school_id, form.validated_data["from"], form.validated_data["to"])
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def platform(request):
+    """The whole platform, for the Super Admin alone (docs/analytics.md, A7)."""
+    authorize(request.user.role == UserRole.SUPER_ADMIN)
+
+    form = PlatformAnalyticsRequest(data=request.query_params.dict())
+    form.is_valid(raise_exception=True)
+
+    return Response(platform_analytics.platform(form.validated_data["from"], form.validated_data["to"]))
 
 
 def _school_for(actor, form, missing: str) -> int:

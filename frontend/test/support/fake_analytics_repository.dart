@@ -6,6 +6,7 @@ import 'package:edutrack_app/features/analytics/data/models/academic_overview.da
 import 'package:edutrack_app/features/analytics/data/models/analytics_series.dart';
 import 'package:edutrack_app/features/analytics/data/models/early_warning.dart';
 import 'package:edutrack_app/features/analytics/data/models/finance_overview.dart';
+import 'package:edutrack_app/features/analytics/data/models/platform_overview.dart';
 import 'package:edutrack_app/features/analytics/data/models/transport_overview.dart';
 
 /// What a School Admin may chart, in the order the API lists them.
@@ -214,6 +215,82 @@ Map<String, dynamic> fakeFinanceJson({bool withPayroll = true}) => {
 
 /// Route A over two months: September with a late stop, and Market listed
 /// as the stop most often late.
+/// Two months of the whole platform: Sunrise (INR) busy, Lagos (NGN) quiet,
+/// one school closed. September's payments come in two currencies.
+Map<String, dynamic> fakePlatformJson({List<dynamic>? schools}) => {
+  'as_of': '2026-09-14',
+  'totals': {'schools_active': 2, 'schools_inactive': 1, 'students': 420, 'staff': 35, 'users': 61},
+  'months': [
+    {
+      'from': '2026-08-01',
+      'to': '2026-08-31',
+      'new_schools': 2,
+      'sign_ins': 40,
+      'active_users': 12,
+      'messages': {
+        'sms': {'sent': 0, 'failed': 0},
+        'whatsapp': {'sent': 0, 'failed': 0},
+        'email': {'sent': 5, 'failed': 0},
+      },
+      'payments': <dynamic>[],
+      'early_access_requests': 3,
+      'demo_requests': 0,
+    },
+    {
+      'from': '2026-09-01',
+      'to': '2026-09-14',
+      'new_schools': 1,
+      'sign_ins': 75,
+      'active_users': 18,
+      'messages': {
+        'sms': {'sent': 120, 'failed': 4},
+        'whatsapp': {'sent': 30, 'failed': 0},
+        'email': {'sent': 0, 'failed': 0},
+      },
+      'payments': [
+        {'currency_code': 'INR', 'amount': '50000.00'},
+        {'currency_code': 'NGN', 'amount': '300000.00'},
+      ],
+      'early_access_requests': 1,
+      'demo_requests': 2,
+    },
+  ],
+  'schools':
+      schools ??
+      [
+        {
+          'school_id': 1,
+          'name': 'Sunrise School',
+          'city': 'Pune',
+          'country': 'IN',
+          'status': 'active',
+          'students': 400,
+          'staff': 30,
+          'last_sign_in': '2026-09-12T09:00:00+00:00',
+          'last_sign_in_label': '09/12/2026',
+          'recent_sign_ins': 70,
+          'recent_messages': 150,
+        },
+        {
+          'school_id': 2,
+          'name': 'Lagos Academy',
+          'city': 'Lagos',
+          'country': 'NG',
+          'status': 'active',
+          'students': 20,
+          'staff': 5,
+          'last_sign_in': null,
+          'last_sign_in_label': null,
+          'recent_sign_ins': 0,
+          'recent_messages': 0,
+        },
+      ],
+  'modules': [
+    {'module': 'transport', 'label': 'Transport', 'schools_on': 1, 'schools': 2},
+  ],
+  'recent_days': 30,
+};
+
 Map<String, dynamic> fakeTransportJson({bool withRoutes = true}) => {
   'as_of': '2026-09-14',
   'late_after_minutes': 10,
@@ -328,7 +405,21 @@ class FakeAnalyticsRepository extends AnalyticsRepository {
     this.academicJson,
     this.financeJson,
     this.transportJson,
+    this.platformJson,
   }) : super(AnalyticsApi(Dio()));
+
+  /// What the Platform view gets; [fakePlatformJson] if null.
+  final Map<String, dynamic>? platformJson;
+
+  var platformAsked = 0;
+
+  @override
+  Future<PlatformOverview> platform() async {
+    platformAsked++;
+    if (failure != null) throw failure!;
+
+    return PlatformOverview.fromJson(platformJson ?? fakePlatformJson());
+  }
 
   /// What the Transport view gets; [fakeTransportJson] if null.
   final Map<String, dynamic>? transportJson;

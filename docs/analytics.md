@@ -328,6 +328,26 @@ clock, so each recorded arrival is turned into the school's time before it
 is compared. A stop with no scheduled time for the trip's direction counts
 neither as on time nor as late.
 
+## Platform (A7)
+
+Built 2026-10-29. "Platform" is the first view on the Analytics page for the
+Super Admin, and the page opens on it, since it needs no school picked. No
+other role sees it. The endpoint is
+`GET /api/v1/analytics/platform?from=&to=`, covering the last 12 months by
+default and at most 24, on the platform's calendar (`PLATFORM_TIMEZONE`),
+since the months belong to no school. It is built in
+`school/platform_analytics.py`.
+
+| Part | What it says |
+|---|---|
+| Now | active and inactive schools; students on roll, staff and accounts that can sign in, across every school |
+| Month by month | new schools, sign-ins and the distinct people signing in, SMS / WhatsApp / email sent and failed, payments received from schools per currency (paid and part-paid), early access and demo requests |
+| Each school | its roll, its last sign-in, and its sign-ins and messages sent over the last 30 days; active schools first, busiest first, so a school that has gone quiet sits low |
+| Modules | how many active schools have each switchable module on |
+
+Payments are never added across currencies. A school nobody has signed in
+to shows "Never" for its last sign-in.
+
 ## The phases
 
 | | Phase | State |
@@ -338,7 +358,7 @@ neither as on time nor as late.
 | A4 | Academic analytics: subjects and classes over terms | **built** |
 | A5 | Finance: collection against what fell due, per currency | **built** |
 | A6 | Transport: trips run, riders, late trips | **built** |
-| A7 | Platform analytics for the Super Admin | |
+| A7 | Platform analytics for the Super Admin | **built** |
 
 These are still open, and each is asked when its phase is reached:
 

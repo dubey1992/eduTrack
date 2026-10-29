@@ -6,6 +6,7 @@ import 'package:edutrack_app/core/utils/currency_formatter.dart';
 import 'package:edutrack_app/features/analytics/data/analytics_api.dart';
 import 'package:edutrack_app/features/analytics/data/analytics_repository.dart';
 import 'package:edutrack_app/features/analytics/data/models/analytics_series.dart';
+import 'package:edutrack_app/features/analytics/data/models/platform_overview.dart';
 import 'package:edutrack_app/features/analytics/presentation/analytics_screen.dart';
 import 'package:edutrack_app/features/analytics/presentation/series_line.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
@@ -14,6 +15,8 @@ import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../support/fake_analytics_repository.dart' show fakePlatformJson;
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_repository.dart';
@@ -114,6 +117,9 @@ class _FakeAnalyticsRepository extends AnalyticsRepository {
 
   @override
   Future<List<AnalyticsMeasure>> measures() async => measureList;
+
+  @override
+  Future<PlatformOverview> platform() async => PlatformOverview.fromJson(fakePlatformJson());
 
   @override
   Future<AnalyticsSeries> series(
@@ -292,6 +298,9 @@ void main() {
     _useDesktop(tester);
     final fake = _FakeAnalyticsRepository();
     await tester.pumpWidget(_wrap(fake, actor: _root));
+    await tester.pumpAndSettle();
+    // They land on Platform (A7), which needs no school.
+    await tester.tap(find.text('Trends'));
     await tester.pumpAndSettle();
 
     expect(find.text('Pick a school to see its charts.'), findsOneWidget);

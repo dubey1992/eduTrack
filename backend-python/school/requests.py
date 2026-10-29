@@ -5503,6 +5503,50 @@ class TransportAnalyticsRequest(FinanceAnalyticsRequest):
             raise serializers.ValidationError(errors)
 
 
+class PlatformAnalyticsRequest(serializers.Serializer):
+    """The platform's months (A7): the last twelve unless a range is given,
+    never more than two years, and never past today on the platform's
+    calendar."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def to_internal_value(self, data):
+        from . import analytics
+
+        errors: dict[str, list[str]] = {}
+        values: dict = {}
+        today = SchoolClock.platform().now().date()
+
+        for field in ("from", "to"):
+            if data.get(field) in (None, ""):
+                continue
+            try:
+                values[field] = LaravelDateField(field).to_internal_value(data[field])
+            except serializers.ValidationError:
+                errors[field] = [not_a_date(field)]
+                continue
+            if values[field] > today:
+                errors[field] = ["Analytics cannot run past today."]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        end = values.get("to") or today
+        start = values.get("from") or min(analytics.default_from(today, analytics.MONTH), end)
+
+        if start > end:
+            raise serializers.ValidationError({"to": ["The end of the range must not be before its start."]})
+
+        if analytics.period_count(start, end, analytics.MONTH) > analytics.MAX_PERIODS[analytics.MONTH]:
+            raise serializers.ValidationError({"from": ["Platform analytics covers at most 24 months. Pick a shorter range."]})
+
+        return {"from": start, "to": end}
+
+
 class EarlyWarningRequest(ReportRequest):
     """Which school's flagged students, narrowed to a class or a level
     (docs/analytics.md, A3). The report form's school and class checks,

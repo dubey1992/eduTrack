@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/analytics_repository.dart';
 import '../data/models/academic_overview.dart';
 import '../data/models/finance_overview.dart';
+import '../data/models/platform_overview.dart';
 import '../data/models/transport_overview.dart';
 import '../data/models/analytics_series.dart';
 import '../data/models/early_warning.dart';
@@ -124,4 +125,9 @@ final financeOverviewProvider = FutureProvider.autoDispose.family<FinanceOvervie
 /// Each route of a school, the last twelve months (A6).
 final transportOverviewProvider = FutureProvider.autoDispose.family<TransportOverview, int?>((ref, schoolId) {
   return ref.watch(analyticsRepositoryProvider).transport(schoolId: schoolId);
+}, retry: (retryCount, error) => null);
+
+/// The whole platform, the last twelve months - the Super Admin's (A7).
+final platformOverviewProvider = FutureProvider.autoDispose<PlatformOverview>((ref) {
+  return ref.watch(analyticsRepositoryProvider).platform();
 }, retry: (retryCount, error) => null);

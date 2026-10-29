@@ -15,6 +15,7 @@ import '../data/models/analytics_series.dart';
 import 'series_line.dart';
 import 'widgets/academic_view.dart';
 import 'widgets/finance_view.dart';
+import 'widgets/platform_view.dart';
 import 'widgets/transport_view.dart';
 import 'widgets/trend_bar_chart.dart';
 
@@ -44,8 +45,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   DateTime? _to;
 
   /// Trends over time (A1-A2), subjects and classes term by term (A4), or
-  /// fee money month by month (A5).
-  _View _view = _View.trends;
+  /// fee money month by month (A5). Null until picked: the page opens on the
+  /// first view the person has, or on Trends when a dashboard card opened it.
+  late _View? _view = widget.initialMeasure == null ? null : _View.trends;
 
   /// Who reads the class performance report the term view is built from.
   static const _academicRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod};
@@ -101,16 +103,21 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         actor != null && _transportRoles.contains(actor.role) && actor.moduleOn(AppModules.transport);
     // A transport manager has no trend charts: their analytics are the routes.
     final offersTrends = actor == null || actor.role != UserRole.transportManager;
+    // The whole platform, for the Super Admin alone (A7) - and first, since
+    // it needs no school picked.
+    final offersPlatform = actor != null && actor.role == UserRole.superAdmin;
     final views = [
+      if (offersPlatform) _View.platform,
       if (offersTrends) _View.trends,
       if (offersAcademic) _View.academic,
       if (offersFinance) _View.finance,
       if (offersTransport) _View.transport,
     ];
-    final view = views.contains(_view) ? _view : (views.isEmpty ? _View.trends : views.first);
+    final view = views.contains(_view) ? _view! : (views.isEmpty ? _View.trends : views.first);
     final transport = view == _View.transport;
     final academic = view == _View.academic;
     final finance = view == _View.finance;
+    final platform = view == _View.platform;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -129,10 +136,11 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  SchoolFilterDropdown(
-                    selected: _schoolId,
-                    onChanged: (schoolId) => setState(() => _schoolId = schoolId),
-                  ),
+                  if (!platform)
+                    SchoolFilterDropdown(
+                      selected: _schoolId,
+                      onChanged: (schoolId) => setState(() => _schoolId = schoolId),
+                    ),
                   if (views.length > 1)
                     SegmentedButton<_View>(
                       segments: [for (final option in views) ButtonSegment(value: option, label: Text(option.label))],
@@ -170,6 +178,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           ),
           const SizedBox(height: 4),
           Text(switch (view) {
+            _View.platform =>
+              'The whole of School365ai: schools, people and use now and month by month, over the last twelve '
+                  'months. Payments are shown per currency.',
             _View.academic =>
               'How each subject and class did, term by term - the Class Performance report for each term.',
             _View.transport =>
@@ -181,7 +192,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               "How the school's figures move over time. Each bar is that period's figure from the matching report.",
           }, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 12),
-          if (academic)
+          if (platform)
+            const PlatformView()
+          else if (academic)
             needsSchool
                 ? _Notice(
                     actor.role == UserRole.superAdmin
@@ -262,6 +275,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
 /// The views of the Analytics page.
 enum _View {
+  platform('Platform'),
   trends('Trends'),
   academic('Subjects & classes'),
   finance('Finance'),
