@@ -51,6 +51,7 @@ from school.views import (
     site_pages,
     payments,
     payroll,
+    platform_messaging,
     fees,
     reports,
     schools,
@@ -279,12 +280,15 @@ urlpatterns = [
     path("api/v1/communication/settings", communication.settings),
     # Messaging channels - Python only (docs/communication.md).
     path("api/v1/communication/settings/test", communication.test_gateway),
-    path("api/v1/communication/templates/<str:event>/whatsapp", communication.whatsapp_template),
     path("api/v1/communication/notices", communication.notices),
     path("api/v1/communication/notices/preview", communication.notice_preview),
     path("api/v1/settings/company", company_profile.profile),
     path("api/v1/settings/mail", mail_settings.settings),
     path("api/v1/settings/mail/test", mail_settings.test),
+    # School365ai's own SMS and WhatsApp account (docs/platform-messaging.md, M1).
+    path("api/v1/platform/messaging", platform_messaging.settings),
+    path("api/v1/platform/messaging/test", platform_messaging.test),
+    path("api/v1/platform/whatsapp-templates/<str:event>", platform_messaging.whatsapp_template),
     # Module settings and the permissions matrix - Python only (docs/settings.md).
     path("api/v1/settings/modules", settings_modules.collection),
     path("api/v1/settings/modules/<str:module>", settings_modules.detail),

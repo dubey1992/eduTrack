@@ -13,7 +13,7 @@ import logging
 
 from django.utils import timezone
 
-from . import dates, mailer, notifications, progress_reports, push, queue, receipts, sms, whatsapp
+from . import dates, mailer, notifications, platform_messaging, progress_reports, push, queue, receipts, sms, whatsapp
 
 # Imported for its side effect: registering compute_route_path. The worker
 # finds handlers by importing this module, so one that lives elsewhere has
@@ -102,14 +102,12 @@ def record_outcome(message: Message, result: Result, now) -> None:
 def deliver(message: Message) -> Result:
     """Hands one external copy to whatever carries its channel. Never raises:
     a provider's bad morning is a failed row with a reason, not a dead worker."""
-    setting = notifications.settings_for(message.school_id)
-
+    # Every school sends through School365ai's own account
+    # (docs/platform-messaging.md): the gateway recorded on the message,
+    # with the platform's keys.
     if message.channel == MessageChannel.SMS:
         return sms.gateway(message.provider).send(
-            message.recipient_mobile,
-            message.body,
-            setting.sender_id,
-            notifications.credentials_of(setting, sms.resolve(message.provider)),
+            message.recipient_mobile, message.body, None, platform_messaging.credentials()
         )
 
     if message.channel == MessageChannel.WHATSAPP:
@@ -125,7 +123,7 @@ def deliver(message: Message) -> Result:
                 language=payload.get("language") or "en",
                 values=payload.get("values") or [],
             ),
-            notifications.credentials_of(setting, whatsapp.resolve(message.provider)),
+            platform_messaging.credentials(),
         )
 
     if message.channel == MessageChannel.EMAIL:

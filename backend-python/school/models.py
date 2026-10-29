@@ -1895,3 +1895,45 @@ class DemoRequest(models.Model):
     class Meta:
         managed = False
         db_table = 'demo_requests'
+
+
+class PlatformMessaging(models.Model):
+    """School365ai's own SMS and WhatsApp account - one row, set by the Super
+    Admin (docs/platform-messaging.md, M1). Every school sends through it.
+    `credentials` is encrypted JSON (school/crypto.py), never returned by
+    the API. No row means the Demo Gateway: messages recorded, none sent."""
+
+    id = models.BigAutoField(primary_key=True)
+    provider = models.CharField(max_length=50, default="log")
+    credentials = models.TextField(blank=True, null=True)
+    last_tested_at = UtcDateTimeField(blank=True, null=True)
+    last_test_error = models.CharField(max_length=255, blank=True, null=True)
+    updated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'platform_messaging'
+
+
+class PlatformWhatsappTemplate(models.Model):
+    """Which of School365ai's approved WhatsApp templates carries an event,
+    and which of the event's tokens fill its numbered parameters, in order.
+    An event without a row is skipped on WhatsApp, for every school."""
+
+    id = models.BigAutoField(primary_key=True)
+    event = models.CharField(max_length=50, unique=True)
+    template_name = models.CharField(max_length=120)
+    language = models.CharField(max_length=10, default="en")
+    parameters = models.CharField(max_length=255, blank=True, null=True)
+    updated_by = models.ForeignKey('User', models.DO_NOTHING, db_column='updated_by', blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'platform_whatsapp_templates'
+
+    def parameter_names(self) -> list[str]:
+        return [name.strip() for name in (self.parameters or "").split(",") if name.strip()]

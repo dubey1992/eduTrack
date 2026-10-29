@@ -10,6 +10,9 @@ Three things this file guards that a quick read of the code would not:
   no address is "skipped", so the missing number can be noticed.
 - **WhatsApp carries only mapped templates.** An event without a mapping is
   skipped with that reason, never sent as free text the provider would refuse.
+- **Every school sends through School365ai's account** (decided 2026-10-29,
+  docs/platform-messaging.md). The provider, its keys and the WhatsApp
+  templates are the Super Admin's; a school keeps only its switches.
 
 Providers are exercised at the HTTP boundary (`school.gateways.http.post`
 is replaced), so what each adapter *sends* is asserted, not just that it
@@ -31,11 +34,22 @@ from school.gateways import Template
 from school.gateways.http import ProviderError
 from school.gateways.meta import MetaWhatsAppGateway
 from school.gateways.twilio import TwilioSmsGateway, TwilioWhatsAppGateway
-from school.models import AuditLog, CommunicationSetting, MailSetting, Message, QueuedJob, WhatsappTemplate
+from school.models import (
+    AuditLog,
+    CommunicationSetting,
+    MailSetting,
+    Message,
+    PlatformMessaging,
+    PlatformWhatsappTemplate,
+    QueuedJob,
+)
 
 SETTINGS = "/api/v1/communication/settings"
 NOTICES = "/api/v1/communication/notices"
 MAIL = "/api/v1/settings/mail"
+PLATFORM = "/api/v1/platform/messaging"
+TWILIO = {"account_sid": "AC12345678", "auth_token": "very-secret", "sms_from": "+15550001111",
+          "whatsapp_from": "+15550002222"}
 
 
 def section_in(school):
@@ -79,10 +93,17 @@ class MessagingTest(TestCase):
     def errors(self, response) -> dict:
         return response.data["details"]["errors"]
 
+    def platform(self, provider="twilio", **credentials) -> PlatformMessaging:
+        """School365ai's account, as the Super Admin would have saved it."""
+        keys = credentials if credentials else TWILIO
+
+        return PlatformMessaging.objects.create(
+            provider=provider, credentials=crypto.encrypt_json(keys) if keys and provider != "log" else None,
+        )
+
     def whatsapp_mapping(self, event="attendance.absent", parameters="student_name,date,school_name"):
-        return WhatsappTemplate.objects.create(
-            school_id=self.school.id, event=event, template_name="attendance_absent", language="en",
-            parameters=parameters,
+        return PlatformWhatsappTemplate.objects.create(
+            event=event, template_name="attendance_absent", language="en", parameters=parameters,
         )
 
 
@@ -114,12 +135,14 @@ class ChannelsWhenRecording(MessagingTest):
         self.assertEqual("smtp", email.provider)
 
     def test_a_whatsapp_copy_carries_the_template_filled_in_at_the_time(self):
-        self.settings(whatsapp_enabled=True, whatsapp_provider="meta")
+        self.settings(whatsapp_enabled=True)
+        self.platform()
         self.whatsapp_mapping()
 
         copy = [m for m in self.alert() if m.channel == MessageChannel.WHATSAPP][0]
 
-        self.assertEqual("meta", copy.provider)
+        # The platform's carrier, whichever school raised it.
+        self.assertEqual("twilio", copy.provider)
         self.assertEqual("attendance_absent", copy.template_parameters["template"])
         self.assertEqual("en", copy.template_parameters["language"])
         values = copy.template_parameters["values"]
@@ -218,47 +241,54 @@ class Delivering(MessagingTest):
         message.refresh_from_db()
         self.assertEqual((MessageStatus.FAILED, "Connection refused"), (message.status, message.failure_reason))
 
-    def test_a_whatsapp_copy_is_sent_as_its_template_through_the_schools_account(self):
-        self.settings(whatsapp_enabled=True, whatsapp_provider="meta",
-                      credentials=crypto.encrypt_json({"meta": {"phone_number_id": "1234", "access_token": "tok"}}))
+    def test_a_whatsapp_copy_is_sent_as_its_template_through_the_platform_account(self):
+        self.platform()
         message = self.queued(
-            "whatsapp", provider="meta",
-            template_parameters={"template": "attendance_absent", "language": "en", "values": ["Aarav", "09/19/2026"]},
+            "whatsapp", provider="twilio",
+            template_parameters={"template": "HX123", "language": "en", "values": ["Aarav", "09/19/2026"]},
         )
 
-        with mock.patch("school.gateways.meta.post", return_value={"_status": 200, "messages": [{"id": "wamid.1"}]}) as post:
+        with mock.patch("school.gateways.twilio.post", return_value={"_status": 201, "sid": "SM7"}) as post:
             queue.work()
 
         message.refresh_from_db()
-        self.assertEqual((MessageStatus.SENT, "wamid.1"), (message.status, message.provider_message_id))
-        url, kwargs = post.call_args.args[0], post.call_args.kwargs
-        self.assertEqual("https://graph.facebook.com/v21.0/1234/messages", url)
-        self.assertEqual("tok", kwargs["bearer"])
-        self.assertEqual("919000000000", kwargs["body"]["to"])
-        self.assertEqual(
-            {"name": "attendance_absent", "language": {"code": "en"}, "components": [
-                {"type": "body", "parameters": [{"type": "text", "text": "Aarav"}, {"type": "text", "text": "09/19/2026"}]}
-            ]},
-            kwargs["body"]["template"],
-        )
+        self.assertEqual((MessageStatus.SENT, "SM7"), (message.status, message.provider_message_id))
+        form = post.call_args.kwargs["form"]
+        self.assertEqual(("whatsapp:+919000000000", "whatsapp:+15550002222", "HX123"),
+                         (form["To"], form["From"], form["ContentSid"]))
+        self.assertEqual({"1": "Aarav", "2": "09/19/2026"}, json.loads(form["ContentVariables"]))
 
-    def test_an_sms_through_twilio_uses_the_schools_number_and_basic_auth(self):
-        self.settings(provider="twilio", sender_id="SUNRISE",
-                      credentials=crypto.encrypt_json({"twilio": {"account_sid": "AC1", "auth_token": "secret", "sms_from": "+15550001111"}}))
-        message = self.queued("sms", provider="twilio")
+    def test_an_sms_goes_through_the_platform_number_and_account_for_every_school(self):
+        self.platform()
+        here = self.queued("sms", provider="twilio")
+        there = self.queued("sms", provider="twilio", school=self.elsewhere)
 
         with mock.patch("school.gateways.twilio.post", return_value={"_status": 201, "sid": "SM9"}) as post:
             queue.work()
 
-        message.refresh_from_db()
-        self.assertEqual((MessageStatus.SENT, "SM9"), (message.status, message.provider_message_id))
-        self.assertEqual("https://api.twilio.com/2010-04-01/Accounts/AC1/Messages.json", post.call_args.args[0])
-        self.assertEqual(("AC1", "secret"), post.call_args.kwargs["basic"])
-        self.assertEqual({"To": "+919000000000", "From": "+15550001111", "Body": message.body}, post.call_args.kwargs["form"])
+        here.refresh_from_db()
+        there.refresh_from_db()
+        self.assertEqual((MessageStatus.SENT, MessageStatus.SENT), (here.status, there.status))
+        for call in post.call_args_list:
+            self.assertEqual("https://api.twilio.com/2010-04-01/Accounts/AC12345678/Messages.json", call.args[0])
+            self.assertEqual(("AC12345678", "very-secret"), call.kwargs["basic"])
+            self.assertEqual("+15550001111", call.kwargs["form"]["From"])
+
+    def test_a_school_s_old_keys_are_no_longer_used(self):
+        # Saved before 2026-10-29; left in the column, never read again.
+        self.settings(provider="twilio", sender_id="SUNRISE",
+                      credentials=crypto.encrypt_json({"twilio": {"account_sid": "ACold", "auth_token": "old",
+                                                                  "sms_from": "+1999"}}))
+        self.platform()
+        self.queued("sms", provider="twilio")
+
+        with mock.patch("school.gateways.twilio.post", return_value={"_status": 201, "sid": "SM9"}) as post:
+            queue.work()
+
+        self.assertEqual(("AC12345678", "very-secret"), post.call_args.kwargs["basic"])
 
     def test_a_provider_refusal_is_recorded_in_its_own_words(self):
-        self.settings(provider="twilio",
-                      credentials=crypto.encrypt_json({"twilio": {"account_sid": "AC1", "auth_token": "s", "sms_from": "+1"}}))
+        self.platform()
         message = self.queued("sms", provider="twilio")
 
         with mock.patch("school.gateways.twilio.post", return_value={"_status": 400, "message": "The 'To' number is not valid."}):
@@ -267,8 +297,8 @@ class Delivering(MessagingTest):
         message.refresh_from_db()
         self.assertEqual((MessageStatus.FAILED, "Twilio: The 'To' number is not valid."), (message.status, message.failure_reason))
 
-    def test_a_school_with_no_account_on_file_gets_a_plain_reason(self):
-        self.settings(provider="twilio")
+    def test_a_platform_with_no_account_on_file_gets_a_plain_reason(self):
+        self.platform(provider="twilio", sms_from="")
         message = self.queued("sms", provider="twilio")
 
         with mock.patch("school.gateways.twilio.post") as post:
@@ -325,64 +355,60 @@ class TheAdapters(TestCase):
 
 
 class SettingsWithChannels(MessagingTest):
+    """A school's switches. Who carries the messages is not the school's to
+    choose any more, so a provider or keys an older client sends are
+    ignored rather than stored."""
+
     def body(self, **overrides) -> dict:
         data = {
             "sms_enabled": True, "attendance_alerts": "absent", "transport_alerts_enabled": True,
-            "leave_alerts_enabled": True, "provider": "twilio", "sender_id": "SUNRISE",
-            "whatsapp_enabled": True, "whatsapp_provider": "meta", "email_enabled": True,
-            "credentials": {
-                "twilio": {"account_sid": "AC12345678", "auth_token": "very-secret", "sms_from": "+15550001111"},
-                "meta": {"phone_number_id": "9876", "access_token": "EAAB-secret"},
-            },
+            "leave_alerts_enabled": True, "whatsapp_enabled": True, "email_enabled": True,
         }
         data.update(overrides)
 
         return data
 
-    def test_saving_stores_the_channels_and_the_credentials_encrypted(self):
+    def test_saving_stores_the_school_s_switches(self):
         response = self.as_user(self.admin).put(SETTINGS, self.body(), format="json")
 
         self.assertEqual(200, response.status_code, response.data)
-        self.assertEqual((True, "meta", True), (
-            response.data["whatsapp_enabled"], response.data["whatsapp_provider"], response.data["email_enabled"],
+        self.assertEqual((True, True, "absent"), (
+            response.data["whatsapp_enabled"], response.data["email_enabled"], response.data["attendance_alerts"],
         ))
 
+    def test_a_provider_or_keys_from_an_older_client_are_ignored(self):
+        response = self.as_user(self.admin).put(
+            SETTINGS,
+            self.body(provider="twilio", sender_id="SUNRISE", whatsapp_provider="meta",
+                      credentials={"twilio": {"account_sid": "ACmine", "auth_token": "mine"}}),
+            format="json",
+        )
+
+        self.assertEqual(200, response.status_code, response.data)
         row = CommunicationSetting.objects.get()
-        self.assertTrue(row.credentials.startswith("enc:"))
-        self.assertNotIn("very-secret", row.credentials)
-        self.assertEqual("very-secret", crypto.decrypt_json(row.credentials)["twilio"]["auth_token"])
+        self.assertEqual(("log", None, None), (row.provider, row.sender_id, row.credentials))
+        self.assertNotIn("credentials", response.data)
 
-    def test_the_answer_says_what_is_set_and_never_what_it_is(self):
-        response = self.as_user(self.admin).put(SETTINGS, self.body(), format="json")
+    def test_the_answer_says_how_messages_go_out_never_with_what_keys(self):
+        self.platform()
 
-        twilio = response.data["credentials"]["twilio"]
-        self.assertEqual({"set": True, "hint": None}, twilio["auth_token"])
-        self.assertEqual({"set": True, "hint": "…5678"}, twilio["account_sid"])
-        self.assertEqual({"set": False, "hint": None}, twilio["whatsapp_from"])
-        self.assertNotIn("very-secret", json.dumps(response.data))
-        self.assertNotIn("EAAB-secret", json.dumps(response.data))
+        data = self.as_user(self.admin).get(SETTINGS).data
 
-    def test_a_field_left_out_is_kept_and_a_blank_one_is_cleared(self):
-        client = self.as_user(self.admin)
-        client.put(SETTINGS, self.body(), format="json")
+        self.assertEqual(("twilio", "Twilio", True), (data["provider"], data["provider_label"], data["provider_delivers"]))
+        self.assertEqual(("twilio", True), (data["whatsapp_provider"], data["whatsapp_provider_delivers"]))
+        self.assertNotIn("very-secret", json.dumps(data))
+        self.assertNotIn("AC12345678", json.dumps(data))
 
-        client.put(SETTINGS, self.body(credentials={"twilio": {"sms_from": "+15559999999"}}), format="json")
-        stored = crypto.decrypt_json(CommunicationSetting.objects.get().credentials)
-        self.assertEqual(("very-secret", "+15559999999", "EAAB-secret"), (
-            stored["twilio"]["auth_token"], stored["twilio"]["sms_from"], stored["meta"]["access_token"],
-        ))
+    def test_without_a_platform_account_the_school_is_told_nothing_is_sent(self):
+        data = self.as_user(self.admin).get(SETTINGS).data
 
-        client.put(SETTINGS, self.body(credentials={"meta": {"access_token": "", "phone_number_id": None}}), format="json")
-        stored = crypto.decrypt_json(CommunicationSetting.objects.get().credentials)
-        self.assertNotIn("meta", stored)
+        self.assertEqual(("log", False), (data["provider"], data["provider_delivers"]))
 
-    def test_the_audit_trail_records_the_switches_but_never_the_credentials(self):
+    def test_the_audit_trail_records_the_switches(self):
         self.as_user(self.admin).put(SETTINGS, self.body(), format="json")
 
         entry = AuditLog.objects.get(entity_type="communication_setting")
         self.assertEqual(True, entry.new_values["whatsapp_enabled"])
-        self.assertNotIn("credentials", entry.new_values)
-        self.assertNotIn("very-secret", json.dumps(entry.new_values))
 
     def test_a_client_that_only_knows_the_sms_switches_still_saves(self):
         old = {"sms_enabled": True, "attendance_alerts": "both", "transport_alerts_enabled": True,
@@ -393,19 +419,11 @@ class SettingsWithChannels(MessagingTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual((False, False), (response.data["whatsapp_enabled"], response.data["email_enabled"]))
 
-    def test_bad_channel_settings_are_named(self):
-        response = self.as_user(self.admin).put(
-            SETTINGS,
-            self.body(whatsapp_provider="msg91", credentials={"twilio": {"nope": "x"}, "acme": {}, "meta": {"access_token": 5}}),
-            format="json",
-        )
+    def test_bad_switches_are_named(self):
+        response = self.as_user(self.admin).put(SETTINGS, self.body(whatsapp_enabled="maybe"), format="json")
 
         self.assertEqual(422, response.status_code)
-        self.assertEqual(["That WhatsApp gateway is not available."], self.errors(response)["whatsapp_provider"])
-        self.assertEqual(
-            ['"nope" is not a setting of the twilio provider.', 'Unknown provider "acme".', "The meta access_token must be text."],
-            self.errors(response)["credentials"],
-        )
+        self.assertIn("whatsapp_enabled", self.errors(response))
 
     def test_a_stranger_cannot_read_or_change_them(self):
         self.assertEqual(403, self.as_user(self.stranger).get(f"{SETTINGS}?school_id={self.school.id}").status_code)
@@ -413,21 +431,23 @@ class SettingsWithChannels(MessagingTest):
 
 
 class TestingAGateway(MessagingTest):
+    """A school's own test: its switches, School365ai's account."""
+
     URL = SETTINGS + "/test"
 
-    def test_a_test_sms_goes_through_the_schools_provider_now(self):
-        self.settings(provider="twilio",
-                      credentials=crypto.encrypt_json({"twilio": {"account_sid": "AC1", "auth_token": "s", "sms_from": "+1"}}))
+    def test_a_test_sms_goes_through_the_platform_account_now(self):
+        self.platform()
 
         with mock.patch("school.gateways.twilio.post", return_value={"_status": 201, "sid": "SM1"}) as post:
             response = self.as_user(self.admin).post(self.URL, {"channel": "sms", "to": "+91 9000000000"}, format="json")
 
         self.assertEqual(200, response.status_code, response.data)
-        self.assertIn("test message", post.call_args.kwargs["form"]["Body"])
+        self.assertIn("Sunrise Public School", post.call_args.kwargs["form"]["Body"])
+        self.assertEqual(("AC12345678", "very-secret"), post.call_args.kwargs["basic"])
         self.assertFalse(Message.objects.exists(), "a test is not part of the school's log")
 
     def test_a_refused_test_says_why(self):
-        self.settings(provider="twilio")
+        self.platform(provider="twilio", sms_from="")
 
         response = self.as_user(self.admin).post(self.URL, {"channel": "sms", "to": "+91 9000000000"}, format="json")
 
@@ -435,13 +455,13 @@ class TestingAGateway(MessagingTest):
         self.assertEqual("GATEWAY_TEST_FAILED", response.data["code"])
         self.assertEqual("No Twilio sender number or sender ID is set up.", response.data["message"])
 
-    def test_a_whatsapp_test_needs_the_message_event_mapped(self):
-        self.settings(whatsapp_enabled=True, whatsapp_provider="meta")
+    def test_a_whatsapp_test_says_school365ai_has_no_template_yet(self):
+        self.platform()
 
         response = self.as_user(self.admin).post(self.URL, {"channel": "whatsapp", "to": "+91 9000000000"}, format="json")
 
         self.assertEqual(422, response.status_code)
-        self.assertIn("Map a WhatsApp template", response.data["message"])
+        self.assertIn("School365ai has no template for this message", response.data["message"])
 
     def test_the_number_and_channel_are_checked_and_strangers_refused(self):
         response = self.as_user(self.admin).post(self.URL, {"channel": "email", "to": "12"}, format="json")
@@ -456,10 +476,9 @@ class TestingAGateway(MessagingTest):
         )
 
     def test_ten_tests_an_hour_and_no_more(self):
-        # Each test goes to a typed-in number on the school's paid account;
+        # Each test goes to a typed-in number on School365ai's paid account;
         # a compromised admin login must not be a free SMS cannon.
-        self.settings(provider="twilio",
-                      credentials=crypto.encrypt_json({"twilio": {"account_sid": "AC1", "auth_token": "s", "sms_from": "+1"}}))
+        self.platform()
         cache.clear()
 
         with mock.patch("school.gateways.twilio.post", return_value={"_status": 201, "sid": "SM1"}) as post:
@@ -471,31 +490,115 @@ class TestingAGateway(MessagingTest):
         self.assertEqual([200] * 10 + [429], answers)
         self.assertEqual(10, post.call_count, "the eleventh never reached the provider")
 
-# -- WhatsApp templates -------------------------------------------------------
+
+# -- School365ai's account (docs/platform-messaging.md, M1) -------------------
+
+
+class PlatformAccount(MessagingTest):
+    def save(self, user=None, **overrides):
+        body = {"provider": "twilio", "credentials": dict(TWILIO)}
+        body.update(overrides)
+
+        return self.as_user(user or self.root).put(PLATFORM, body, format="json")
+
+    def test_the_super_admin_saves_it_encrypted(self):
+        response = self.save()
+
+        self.assertEqual(200, response.status_code, response.data)
+        row = PlatformMessaging.objects.get()
+        self.assertTrue(row.credentials.startswith("enc:"))
+        self.assertNotIn("very-secret", row.credentials)
+        self.assertEqual("very-secret", crypto.decrypt_json(row.credentials)["auth_token"])
+
+    def test_the_answer_says_what_is_set_and_never_what_it_is(self):
+        data = self.save().data
+
+        fields = {field["key"]: field for field in data["fields"]}
+        self.assertEqual((True, None), (fields["auth_token"]["set"], fields["auth_token"]["hint"]))
+        self.assertEqual((True, "\u20265678"), (fields["account_sid"]["set"], fields["account_sid"]["hint"]))
+        self.assertEqual("twilio", data["provider"])
+        self.assertNotIn("very-secret", json.dumps(data))
+
+    def test_a_key_left_out_is_kept_and_a_blank_one_is_cleared(self):
+        self.save()
+
+        self.save(credentials={"sms_from": "+15559999999", "whatsapp_from": ""})
+
+        stored = crypto.decrypt_json(PlatformMessaging.objects.get().credentials)
+        self.assertEqual(("very-secret", "+15559999999"), (stored["auth_token"], stored["sms_from"]))
+        self.assertNotIn("whatsapp_from", stored)
+
+    def test_the_audit_trail_never_holds_the_keys(self):
+        self.save()
+
+        entry = AuditLog.objects.get(entity_type="platform_messaging")
+        self.assertNotIn("credentials", entry.new_values)
+        self.assertNotIn("very-secret", json.dumps(entry.new_values))
+
+    def test_a_bad_provider_or_key_is_named(self):
+        response = self.save(provider="msg91", credentials={"nope": "x", "auth_token": 5})
+
+        self.assertEqual(422, response.status_code)
+        self.assertEqual(["Choose Twilio, or the Demo Gateway that sends nothing."], self.errors(response)["provider"])
+        self.assertEqual(['"nope" is not a Twilio setting.', "The auth_token must be text."],
+                         self.errors(response)["credentials"])
+
+    def test_only_the_super_admin_reads_or_changes_it(self):
+        self.assertEqual(403, self.as_user(self.admin).get(PLATFORM).status_code)
+        self.assertEqual(403, self.save(user=self.admin).status_code)
+        self.assertEqual(401, APIClient().get(PLATFORM).status_code)
+        self.assertFalse(PlatformMessaging.objects.exists())
+
+    def test_a_test_goes_through_it_and_the_outcome_is_kept(self):
+        self.save()
+
+        with mock.patch("school.gateways.twilio.post", return_value={"_status": 201, "sid": "SM1"}):
+            ok = self.as_user(self.root).post(f"{PLATFORM}/test", {"channel": "sms", "to": "+91 9000000000"},
+                                              format="json")
+        with mock.patch("school.gateways.twilio.post", return_value={"_status": 401, "message": "Authenticate"}):
+            refused = self.as_user(self.root).post(f"{PLATFORM}/test", {"channel": "sms", "to": "+91 9000000000"},
+                                                   format="json")
+
+        self.assertEqual(200, ok.status_code, ok.data)
+        self.assertEqual((422, "Twilio: Authenticate"), (refused.status_code, refused.data["message"]))
+        self.assertEqual("Twilio: Authenticate", PlatformMessaging.objects.get().last_test_error)
+        self.assertEqual(403, self.as_user(self.admin).post(f"{PLATFORM}/test", {"channel": "sms", "to": "+91 9000000000"},
+                                                            format="json").status_code)
+
+    def test_a_whatsapp_test_needs_the_message_event_mapped(self):
+        self.save()
+
+        response = self.as_user(self.root).post(f"{PLATFORM}/test", {"channel": "whatsapp", "to": "+91 9000000000"},
+                                                format="json")
+
+        self.assertEqual(422, response.status_code)
+        self.assertIn("Map a WhatsApp template", response.data["message"])
 
 
 class WhatsappTemplates(MessagingTest):
-    def url(self, event="attendance.absent") -> str:
-        return f"/api/v1/communication/templates/{event}/whatsapp"
+    """School365ai's approved templates, mapped once for every school."""
 
-    def test_an_admin_maps_an_event_and_the_listing_shows_it(self):
-        response = self.as_user(self.admin).put(
-            self.url(), {"template_name": "absent_v2", "language": "en_US", "parameters": ["student_name", "date"]},
+    def url(self, event="attendance.absent") -> str:
+        return f"/api/v1/platform/whatsapp-templates/{event}"
+
+    def test_the_super_admin_maps_an_event_for_every_school(self):
+        response = self.as_user(self.root).put(
+            self.url(), {"template_name": "HXabsent", "language": "en_US", "parameters": ["student_name", "date"]},
             format="json",
         )
 
         self.assertEqual(200, response.status_code, response.data)
-        self.assertEqual(
-            {"template_name": "absent_v2", "language": "en_US", "parameters": ["student_name", "date"]},
-            {k: response.data["whatsapp"][k] for k in ("template_name", "language", "parameters")},
-        )
+        row = next(t for t in response.data["whatsapp_templates"] if t["event"] == "attendance.absent")
+        self.assertEqual({"template_name": "HXabsent", "language": "en_US", "parameters": ["student_name", "date"]},
+                         {k: row["template"][k] for k in ("template_name", "language", "parameters")})
 
+        # And each school's templates listing shows it.
         listed = self.as_user(self.admin).get("/api/v1/communication/templates").data
-        self.assertEqual("absent_v2", next(r for r in listed if r["event"] == "attendance.absent")["whatsapp"]["template_name"])
-        self.assertTrue(AuditLog.objects.filter(action="whatsapp_template.created").exists())
+        self.assertEqual("HXabsent", next(r for r in listed if r["event"] == "attendance.absent")["whatsapp"]["template_name"])
+        self.assertTrue(AuditLog.objects.filter(action="platform_whatsapp_template.created").exists())
 
     def test_a_parameter_the_event_does_not_have_is_refused_by_name(self):
-        response = self.as_user(self.admin).put(
+        response = self.as_user(self.root).put(
             self.url(), {"template_name": "x", "parameters": ["student_name", "amount", "amount"]}, format="json"
         )
 
@@ -505,17 +608,19 @@ class WhatsappTemplates(MessagingTest):
     def test_clearing_the_mapping_drops_the_row(self):
         self.whatsapp_mapping()
 
-        response = self.as_user(self.admin).delete(self.url())
+        response = self.as_user(self.root).delete(self.url())
 
         self.assertEqual(200, response.status_code)
-        self.assertIsNone(response.data["whatsapp"])
-        self.assertFalse(WhatsappTemplate.objects.exists())
+        self.assertFalse(PlatformWhatsappTemplate.objects.exists())
 
-    def test_an_unknown_event_is_a_404_and_strangers_are_refused(self):
-        self.assertEqual(404, self.as_user(self.admin).put(self.url("bogus.event"), {}, format="json").status_code)
+    def test_an_unknown_event_is_a_404_and_schools_are_refused(self):
+        self.assertEqual(404, self.as_user(self.root).put(self.url("bogus.event"), {}, format="json").status_code)
+        self.assertEqual(403, self.as_user(self.admin).put(self.url(), {"template_name": "x"}, format="json").status_code)
+        # The old per-school address is gone.
         self.assertEqual(
-            403,
-            self.as_user(self.stranger).put(f"{self.url()}?school_id={self.school.id}", {"template_name": "x"}, format="json").status_code,
+            404,
+            self.as_user(self.admin).put("/api/v1/communication/templates/attendance.absent/whatsapp",
+                                         {"template_name": "x"}, format="json").status_code,
         )
 
 

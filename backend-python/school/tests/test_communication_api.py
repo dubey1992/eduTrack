@@ -441,37 +441,20 @@ class SettingsTest(CommunicationTestCase):
                 "transport_alerts_enabled": True,
                 "leave_alerts_enabled": True,
                 "result_alerts_enabled": True,
+                # School365ai's account carries every school's messages
+                # (docs/platform-messaging.md); with none saved, nothing goes.
                 "provider": "log",
                 "provider_label": "Demo Gateway",
                 "provider_delivers": False,
-                "sender_id": None,
-                "available_providers": [{"value": "log", "label": "Demo Gateway"}, {"value": "twilio", "label": "Twilio"}],
                 "whatsapp_enabled": False,
                 "whatsapp_provider": "log",
                 "whatsapp_provider_label": "Demo Gateway",
                 "whatsapp_provider_delivers": False,
-                "available_whatsapp_providers": [
-                    {"value": "log", "label": "Demo Gateway"},
-                    {"value": "twilio", "label": "Twilio"},
-                    {"value": "meta", "label": "Meta WhatsApp Cloud API"},
-                ],
                 "email_enabled": False,
                 "email_delivers": False,
                 "is_saved": False,
             },
-            {key: value for key, value in response.data.items() if key not in ("credential_fields", "credentials")},
-        )
-        # Nothing is on file for any provider, and the screen is told what
-        # each one asks for - never a value.
-        self.assertEqual(
-            {"account_sid": {"set": False, "hint": None}, "auth_token": {"set": False, "hint": None},
-             "sms_from": {"set": False, "hint": None}, "whatsapp_from": {"set": False, "hint": None}},
-            response.data["credentials"]["twilio"],
-        )
-        self.assertEqual(
-            [{"key": "phone_number_id", "label": "Phone number ID", "secret": False},
-             {"key": "access_token", "label": "Access token", "secret": True}],
-            response.data["credential_fields"]["meta"],
+            response.data,
         )
         self.assertFalse(CommunicationSetting.objects.exists())
 
@@ -486,17 +469,6 @@ class SettingsTest(CommunicationTestCase):
             response.data["attendance_alerts"], response.data["attendance_alerts_label"], response.data["is_saved"],
         ))
 
-    def test_a_missing_sender_is_kept_and_a_null_one_is_cleared(self):
-        self.as_user(self.admin).put(self.URL, self.body(), format="json")
-
-        kept = self.body()
-        del kept["sender_id"]
-        self.as_user(self.admin).put(self.URL, kept, format="json")
-        self.assertEqual("SUNRISE", CommunicationSetting.objects.get().sender_id)
-
-        self.as_user(self.admin).put(self.URL, self.body(sender_id=None), format="json")
-        self.assertIsNone(CommunicationSetting.objects.get().sender_id)
-
     def test_strangers_are_refused_before_their_request_is_read(self):
         response = self.as_user(self.stranger).put(f"{self.URL}?school_id={self.school.id}", {}, format="json")
 
@@ -510,6 +482,7 @@ class SettingsTest(CommunicationTestCase):
                 "attendance_alerts": "sometimes",
                 "transport_alerts_enabled": 2,
                 "leave_alerts_enabled": None,
+                # Not the school's to choose any more: ignored, not refused.
                 "provider": "msg91",
                 "sender_id": "has space!",
             },
@@ -522,8 +495,6 @@ class SettingsTest(CommunicationTestCase):
                 "attendance_alerts": ["The selected attendance alerts is invalid."],
                 "transport_alerts_enabled": ["The transport alerts enabled field must be true or false."],
                 "leave_alerts_enabled": ["The leave alerts enabled field is required."],
-                "provider": ["That SMS gateway is not available."],
-                "sender_id": ["A sender ID can only contain letters, numbers and hyphens."],
             },
             self.errors(response),
         )

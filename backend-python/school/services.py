@@ -30,6 +30,7 @@ from . import (
     notices,
     notifications,
     permissions,
+    platform_messaging,
     queue,
     route_paths,
     sms,
@@ -2539,7 +2540,7 @@ class MessageTemplateService:
         }
 
         rows = []
-        whatsapp_rows = WhatsappTemplateService.by_event(school_id)
+        whatsapp_rows = platform_messaging.templates_by_event()
 
         for event in MessageEvent.values:
             override = overrides.get(event)
@@ -2598,29 +2599,18 @@ class MessageTemplateService:
 
 
 class CommunicationSettingService:
+    # What a school decides: which channels are on and which alerts go out.
+    # Who carries them, and with whose keys, is School365ai's
+    # (school/platform_messaging.py, decided 2026-10-29).
     SWITCHES = (
-        "sms_enabled", "attendance_alerts", "transport_alerts_enabled", "leave_alerts_enabled", "provider",
-        "whatsapp_enabled", "whatsapp_provider", "email_enabled", "result_alerts_enabled",
+        "sms_enabled", "attendance_alerts", "transport_alerts_enabled", "leave_alerts_enabled",
+        "whatsapp_enabled", "email_enabled", "result_alerts_enabled",
     )
 
     @classmethod
     def update(cls, school_id: int, data: dict):
         setting = notifications.settings_for(school_id)
         values = {field: data[field] for field in cls.SWITCHES if field in data}
-
-        # Absent leaves the sender alone; an explicit null clears it.
-        if "sender_id" in data:
-            values["sender_id"] = data["sender_id"]
-
-        # Credentials merge: a field that is sent replaces the stored one, an
-        # empty one clears it, and a field left out is kept - so the screen
-        # never has to send a secret back to keep it.
-        if data.get("credentials") is not None:
-            current = crypto.decrypt_json(setting.credentials)
-            merged = cls.merged_credentials(current, data["credentials"])
-
-            if merged != current:
-                values["credentials"] = crypto.encrypt_json(merged) if merged else None
 
         changed = [field for field, value in values.items() if getattr(setting, field) != value]
         now = timezone.now()
@@ -2643,99 +2633,28 @@ class CommunicationSettingService:
         return CommunicationSetting.objects.get(pk=setting.pk)
 
     @staticmethod
-    def merged_credentials(current: dict, submitted: dict) -> dict:
-        merged = {provider: dict(fields) for provider, fields in current.items()}
-
-        for provider, fields in submitted.items():
-            account = merged.setdefault(provider, {})
-
-            for key, value in fields.items():
-                if value in (None, ""):
-                    account.pop(key, None)
-                else:
-                    account[key] = value
-
-            if not account:
-                merged.pop(provider)
-
-        return merged
-
-    @staticmethod
     def test(school_id: int, channel: str, to: str):
-        """One message through the school's own provider, now, so an
-        administrator learns whether the account works before a parent does.
-        A WhatsApp test needs the "Message" event's template mapped, since
-        WhatsApp carries nothing else."""
-        setting = notifications.settings_for(school_id)
+        """One message, now, through the account every school sends by
+        (School365ai's), so an administrator sees their switches work before
+        a parent depends on them. A WhatsApp test needs the "Message" event's
+        template, which the platform maps."""
         school = School.objects.get(pk=school_id)
         body = f"This is a test message from {school.name}. Your messaging settings work."
 
         if channel == MessageChannel.SMS:
-            provider = sms.resolve(setting.provider)
-
-            return sms.gateway(provider).send(
-                to, body, setting.sender_id, notifications.credentials_of(setting, provider)
-            )
+            return platform_messaging.send_sms(to, body)
 
         tokens = {"recipient_name": "Test", "subject": "Test message", "body": body, "school_name": school.name}
-        payload = notifications.whatsapp_payload(school_id, MessageEvent.GENERAL_MESSAGE, tokens)
+        payload = platform_messaging.whatsapp_payload(MessageEvent.GENERAL_MESSAGE, tokens)
 
         if payload is None:
-            raise GatewayTestFailed('Map a WhatsApp template to the "Message" event first, then test again.')
-
-        provider = whatsapp.resolve(setting.whatsapp_provider)
-
-        return whatsapp.gateway(provider).send_template(
-            to,
-            Template(name=payload["template"], language=payload["language"], values=payload["values"]),
-            notifications.credentials_of(setting, provider),
-        )
-
-
-class WhatsappTemplateService:
-    """Which registered WhatsApp template carries each event for a school.
-    A row exists only for an event the school has mapped; the rest are
-    skipped on the WhatsApp channel, with that as the reason."""
-
-    @staticmethod
-    def by_event(school_id: int) -> dict:
-        return {row.event: row for row in WhatsappTemplate.objects.filter(school_id=school_id)}
-
-    @staticmethod
-    def set(school_id: int, event: str, data: dict, actor: User):
-        now = timezone.now()
-        values = {
-            "template_name": data["template_name"],
-            "language": data.get("language") or "en",
-            "parameters": ",".join(data.get("parameters") or []) or None,
-        }
-        existing = WhatsappTemplate.objects.filter(school_id=school_id, event=event).first()
-
-        if existing is None:
-            row = WhatsappTemplate.objects.create(
-                school_id=school_id, event=event, updated_by_id=actor.id, created_at=now, updated_at=now, **values
+            raise GatewayTestFailed(
+                "WhatsApp is not ready yet: School365ai has no template for this message. Please contact support."
             )
-            audit.created("communication", row)
 
-            return row
-
-        before = audit.fields_of(existing)
-
-        for field, value in values.items():
-            setattr(existing, field, value)
-
-        existing.updated_by_id = actor.id
-        existing.updated_at = now
-        existing.save()
-        audit.updated("communication", existing, before)
-
-        return existing
-
-    @staticmethod
-    def clear(school_id: int, event: str) -> None:
-        for row in WhatsappTemplate.objects.filter(school_id=school_id, event=event):
-            audit.deleted("communication", row)
-            row.delete()
+        return platform_messaging.send_whatsapp(
+            to, Template(name=payload["template"], language=payload["language"], values=payload["values"])
+        )
 
 
 class CompanyProfileService:

@@ -300,45 +300,14 @@ def message_template_resource(row: dict) -> dict:
     }
 
 
-def credential_fields() -> dict:
-    """What each provider asks a school for, so the settings screen can draw
-    the right boxes without knowing any provider itself."""
-    fields = {}
-
-    for registry in (sms.GATEWAYS, whatsapp.GATEWAYS):
-        for name, gateway in registry.items():
-            listed = fields.setdefault(name, [])
-
-            for key, label, secret in gateway.CREDENTIALS:
-                if key not in {row["key"] for row in listed}:
-                    listed.append({"key": key, "label": label, "secret": secret})
-
-    return {name: rows for name, rows in fields.items() if rows}
-
-
-def credentials_status(setting) -> dict:
-    """Which fields are filled in, per provider - never their values. A
-    non-secret field shows its last four characters so an administrator can
-    tell which account is on file."""
-    from .crypto import decrypt_json
-
-    stored = decrypt_json(setting.credentials)
-    status = {}
-
-    for name, rows in credential_fields().items():
-        account = stored.get(name) or {}
-        status[name] = {
-            row["key"]: {
-                "set": bool(account.get(row["key"])),
-                "hint": None if row["secret"] or not account.get(row["key"]) else "\u2026" + str(account[row["key"]])[-4:],
-            }
-            for row in rows
-        }
-
-    return status
-
-
 def communication_setting_resource(setting) -> dict:
+    """A school's switches, and how its messages go out. The carrier is
+    School365ai's account for every school (school/platform_messaging.py),
+    so this says which it is and whether it delivers - never its keys."""
+    from . import platform_messaging
+
+    provider = platform_messaging.provider()
+
     return {
         "school_id": setting.school_id,
         "sms_enabled": setting.sms_enabled,
@@ -347,23 +316,63 @@ def communication_setting_resource(setting) -> dict:
         "transport_alerts_enabled": setting.transport_alerts_enabled,
         "leave_alerts_enabled": setting.leave_alerts_enabled,
         "result_alerts_enabled": setting.result_alerts_enabled,
-        "provider": setting.provider,
-        "provider_label": sms.label(setting.provider),
-        "provider_delivers": sms.delivers(setting.provider),
-        "sender_id": setting.sender_id,
-        "available_providers": sms.available(),
+        "provider": provider,
+        "provider_label": sms.label(provider),
+        "provider_delivers": sms.delivers(provider),
         "whatsapp_enabled": setting.whatsapp_enabled,
-        "whatsapp_provider": setting.whatsapp_provider,
-        "whatsapp_provider_label": whatsapp.label(setting.whatsapp_provider),
-        "whatsapp_provider_delivers": whatsapp.delivers(setting.whatsapp_provider),
-        "available_whatsapp_providers": whatsapp.available(),
+        "whatsapp_provider": provider,
+        "whatsapp_provider_label": whatsapp.label(provider),
+        "whatsapp_provider_delivers": whatsapp.delivers(provider),
         "email_enabled": setting.email_enabled,
         # Whether the platform has an SMTP server to send through at all.
         "email_delivers": mailer.active() is not None,
-        "credential_fields": credential_fields(),
-        "credentials": credentials_status(setting),
         # Whether the school has ever saved these, or is looking at defaults.
         "is_saved": setting.pk is not None,
+    }
+
+
+def platform_messaging_resource(row) -> dict:
+    """School365ai's account for the Super Admin: the provider, which keys
+    are set - a non-secret one showing its last four characters, a secret
+    one nothing - when it was last tested, and every event's WhatsApp
+    template."""
+    from . import crypto, platform_messaging
+
+    stored = crypto.decrypt_json(row.credentials) or {}
+    clock = SchoolClock.platform()
+    templates = platform_messaging.templates_by_event()
+
+    return {
+        "is_saved": row.pk is not None,
+        "provider": platform_messaging.provider(),
+        "available_providers": [
+            {"value": name, "label": sms.label(name), "delivers": sms.delivers(name)}
+            for name in platform_messaging.PROVIDERS
+        ],
+        "fields": [
+            {
+                "key": key,
+                "label": label,
+                "secret": secret,
+                "set": bool(stored.get(key)),
+                "hint": None if secret or not stored.get(key) else "…" + str(stored[key])[-4:],
+            }
+            for key, label, secret in platform_messaging.FIELDS["twilio"]
+        ],
+        "last_tested_at": timestamp(row.last_tested_at),
+        "last_tested_at_label": clock.format(row.last_tested_at, DATE_TIME),
+        "last_test_error": row.last_test_error,
+        "updated_by_name": row.updated_by.name if row.updated_by_id else None,
+        "whatsapp_templates": [
+            {
+                "event": event,
+                "event_label": MessageEvent(event).label,
+                "tokens": MessageEvent.tokens(event),
+                "template": whatsapp_template_resource(templates.get(event)),
+            }
+            for event in MessageEvent.values
+            if MessageChannel.WHATSAPP in MessageEvent.channels(event)
+        ],
     }
 
 

@@ -1444,7 +1444,6 @@ class HodDepartmentReportRequest(ScopedSerializer):
 # Three SMS segments. Templates are refused past it before they are saved.
 MAX_BODY_LENGTH = 480
 
-SENDER_ID = re.compile(r"^[A-Za-z0-9-]+$")
 
 
 def php_int(value) -> int:
@@ -1560,20 +1559,21 @@ class UpdateMessageTemplateRequest(serializers.Serializer):
 
 
 class UpdateCommunicationSettingRequest(serializers.Serializer):
+    """A school's switches. Since 2026-10-29 a school no longer picks a
+    provider or keeps keys - School365ai's account carries every school's
+    messages (school/platform_messaging.py) - so an older client still
+    sending provider, sender_id or credentials has them ignored."""
+
     school_id = LaravelIntegerField("school_id", required=False, allow_null=True)
     sms_enabled = LaravelBooleanField("sms_enabled")
     attendance_alerts = LaravelCharField("attendance_alerts", max_length=255)
     transport_alerts_enabled = LaravelBooleanField("transport_alerts_enabled")
     leave_alerts_enabled = LaravelBooleanField("leave_alerts_enabled")
-    provider = LaravelCharField("provider", max_length=255)
-    sender_id = LaravelCharField("sender_id", max_length=20, required=False, allow_null=True)
     # The channels added after Phase 16 are optional on the form, so a client
     # that only knows the SMS switches keeps working.
     whatsapp_enabled = LaravelBooleanField("whatsapp_enabled", required=False)
-    whatsapp_provider = LaravelCharField("whatsapp_provider", max_length=255, required=False)
     email_enabled = LaravelBooleanField("email_enabled", required=False)
     result_alerts_enabled = LaravelBooleanField("result_alerts_enabled", required=False)
-    credentials = serializers.JSONField(required=False, allow_null=True)
 
     def __init__(self, *args, **kwargs) -> None:
         if "data" in kwargs:
@@ -1589,75 +1589,57 @@ class UpdateCommunicationSettingRequest(serializers.Serializer):
 
     validate_attendance_alerts = staticmethod(enum_choice("attendance_alerts", AttendanceAlertMode.values))
 
+
+class UpdatePlatformMessagingRequest(serializers.Serializer):
+    """School365ai's own account (docs/platform-messaging.md, M1): which
+    provider, and its keys. A key left out is kept; an empty one clears it."""
+
+    provider = LaravelCharField("provider", max_length=50)
+    credentials = serializers.JSONField(required=False, allow_null=True)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
     def validate_provider(self, value):
-        if value not in sms.GATEWAYS:
-            raise serializers.ValidationError("That SMS gateway is not available.")
+        from .platform_messaging import PROVIDERS
 
-        return value
-
-    def validate_whatsapp_provider(self, value):
-        if value not in whatsapp.GATEWAYS:
-            raise serializers.ValidationError("That WhatsApp gateway is not available.")
+        if value not in PROVIDERS:
+            raise serializers.ValidationError("Choose Twilio, or the Demo Gateway that sends nothing.")
 
         return value
 
     def validate_credentials(self, value):
-        """{provider: {field: value}} for providers and fields that exist. A
-        value is text or null; nothing longer than a column holds."""
+        from .platform_messaging import FIELDS
+
         if value is None:
-            return None
+            return {}
 
         if not isinstance(value, dict):
-            raise serializers.ValidationError("The credentials field must be an object keyed by provider.")
+            raise serializers.ValidationError("The credentials field must be an object.")
 
+        allowed = {key for key, _label, _secret in FIELDS["twilio"]}
         problems = []
 
-        for provider, fields in value.items():
-            allowed = credential_keys(provider)
-
-            if allowed is None:
-                problems.append(f'Unknown provider "{provider}".')
-                continue
-
-            if not isinstance(fields, dict):
-                problems.append(f'The credentials for "{provider}" must be an object.')
-                continue
-
-            for key, text in fields.items():
-                if key not in allowed:
-                    problems.append(f'"{key}" is not a setting of the {provider} provider.')
-                elif text is not None and not isinstance(text, str):
-                    problems.append(f'The {provider} {key} must be text.')
-                elif text is not None and len(text) > 255:
-                    problems.append(f'The {provider} {key} may not be greater than 255 characters.')
+        for key, text in value.items():
+            if key not in allowed:
+                problems.append(f'"{key}" is not a Twilio setting.')
+            elif text is not None and not isinstance(text, str):
+                problems.append(f"The {key} must be text.")
+            elif text is not None and len(text) > 255:
+                problems.append(f"The {key} may not be greater than 255 characters.")
 
         if problems:
             raise serializers.ValidationError(problems)
 
         return value
 
-    def validate_sender_id(self, value):
-        if value is not None and not SENDER_ID.match(value):
-            raise serializers.ValidationError(
-                "A sender ID can only contain letters, numbers and hyphens."
-            )
-
-        return value
-
-
-def credential_keys(provider: str) -> set[str] | None:
-    """Every field the SMS or WhatsApp adapter of this name asks for, or None
-    for a name no adapter has."""
-    gateways = [g for registry in (sms.GATEWAYS, whatsapp.GATEWAYS) for name, g in registry.items() if name == provider]
-
-    if not gateways:
-        return None
-
-    return {key for gateway in gateways for key, _label, _secret in gateway.CREDENTIALS}
-
 
 class SendTestMessageRequest(serializers.Serializer):
-    """A test through the school's own provider: which channel, to which number."""
+    """A test through School365ai's account: which channel, to which number.
+    A school's test and the Super Admin's take the same form."""
 
     school_id = LaravelIntegerField("school_id", required=False, allow_null=True)
     channel = LaravelCharField("channel", max_length=20)
@@ -1680,10 +1662,8 @@ LANGUAGE_CODE = re.compile(r"^[a-z]{2,3}(_[A-Za-z]{2,4})?$")
 
 
 class UpdateWhatsappTemplateRequest(serializers.Serializer):
-    """Which of the school's registered WhatsApp templates carries an event,
+    """Which of School365ai's approved WhatsApp templates carries an event,
     and which of the event's tokens fill its numbered parameters, in order."""
-
-    school_id = LaravelIntegerField("school_id", required=False, allow_null=True)
     template_name = LaravelCharField("template_name", max_length=120)
     language = LaravelCharField("language", max_length=10, required=False, allow_null=True, allow_blank=True)
     parameters = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True, max_length=10)

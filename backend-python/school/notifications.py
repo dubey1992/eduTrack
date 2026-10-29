@@ -32,7 +32,7 @@ from dataclasses import dataclass
 
 from django.utils import timezone
 
-from . import attendants, crypto, dates, modules, queue
+from . import attendants, dates, modules, platform_messaging, queue
 from .clock import SchoolClock
 from .enums import (
     AttendanceAlertMode,
@@ -41,7 +41,7 @@ from .enums import (
     MessageEvent,
     MessageStatus,
 )
-from .models import CommunicationSetting, Message, MessageTemplate, School, WhatsappTemplate
+from .models import CommunicationSetting, Message, MessageTemplate, School
 
 logger = logging.getLogger(__name__)
 
@@ -129,11 +129,6 @@ def settings_for(school_id: int) -> CommunicationSetting:
         return existing
 
     return CommunicationSetting(school_id=school_id, **DEFAULTS)
-
-
-def credentials_of(setting: CommunicationSetting, provider: str) -> dict:
-    """The school's account with one provider, decrypted - {} when none."""
-    return crypto.decrypt_json(setting.credentials).get(provider) or {}
 
 
 def body_for(school_id: int, event: str) -> str:
@@ -227,30 +222,6 @@ def outcome_for(channel: str, setting: CommunicationSetting, recipient: Recipien
         return MessageStatus.SKIPPED, NO_EMAIL if channel == MessageChannel.EMAIL else NO_MOBILE
 
     return MessageStatus.QUEUED, None
-
-
-def whatsapp_payload(school_id: int, event: str, tokens: dict) -> dict | None:
-    """The template a WhatsApp copy is sent as, filled in now - or None when
-    the school has not mapped one for this event."""
-    mapping = WhatsappTemplate.objects.filter(school_id=school_id, event=event).first()
-
-    if mapping is None:
-        return None
-
-    return {
-        "template": mapping.template_name,
-        "language": mapping.language,
-        "values": [str(tokens.get(name) or "") for name in mapping.parameter_names()],
-    }
-
-
-def provider_for(channel: str, setting: CommunicationSetting) -> str | None:
-    return {
-        MessageChannel.SMS: setting.provider,
-        MessageChannel.WHATSAPP: setting.whatsapp_provider,
-        MessageChannel.EMAIL: "smtp",
-        MessageChannel.IN_APP: None,
-    }[channel]
 
 
 def school_name(school_id) -> str | None:
@@ -400,7 +371,9 @@ def record(
             continue
 
         if channel == MessageChannel.WHATSAPP and status == MessageStatus.QUEUED:
-            whatsapp = whatsapp_payload(school_id, event, tokens)
+            # School365ai's own templates, the same for every school
+            # (docs/platform-messaging.md).
+            whatsapp = platform_messaging.whatsapp_payload(event, tokens)
 
             if whatsapp is None:
                 status, reason = MessageStatus.SKIPPED, NO_WHATSAPP_TEMPLATE
@@ -426,7 +399,7 @@ def record(
                     body=body,
                     template_parameters=whatsapp if channel == MessageChannel.WHATSAPP else None,
                     status=status,
-                    provider=provider_for(channel, setting),
+                    provider=platform_messaging.provider_for(channel),
                     failure_reason=reason,
                     created_by_id=actor.id if actor else None,
                     sent_at=now if status == MessageStatus.SENT else None,

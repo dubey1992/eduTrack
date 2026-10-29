@@ -41,7 +41,6 @@ from ..requests import (
     SendTestMessageRequest,
     UpdateCommunicationSettingRequest,
     UpdateMessageTemplateRequest,
-    UpdateWhatsappTemplateRequest,
     php_int,
     requested_school,
 )
@@ -57,7 +56,6 @@ from ..services import (
     MessageService,
     MessageTemplateService,
     NoticeService,
-    WhatsappTemplateService,
 )
 from ..validation import normalise
 from ..throttling import TestMessageThrottle
@@ -247,42 +245,6 @@ def test_gateway(request) -> Response:
         raise GatewayTestFailed(result.failure_reason or "The provider did not accept the test message.")
 
     return Response({"message": f"A test message was sent to {form.validated_data['to']}."})
-
-
-# -- WhatsApp templates -----------------------------------------------------
-
-
-@api_view(["PUT", "DELETE"])
-@permission_classes([IsAuthenticated])
-def whatsapp_template(request, event: str) -> Response:
-    """Which registered template carries this event on WhatsApp. The same
-    checks, in the same order, as rewording the event."""
-    event = event_or_404(event)
-
-    if request.method == "DELETE":
-        school_id = from_query(request)
-
-        authorize(MessagePolicy.configure(request.user, school_id))
-
-        school = get_object_or_404(School, pk=school_id)
-        WhatsappTemplateService.clear(school.id, event)
-
-        return Response(message_template_resource(MessageTemplateService.row_for(school.id, event)))
-
-    school_id = from_input(request)
-
-    authorize(MessagePolicy.configure(request.user, school_id))
-
-    form = UpdateWhatsappTemplateRequest(data=request.data, event=event)
-    form.is_valid(raise_exception=True)
-
-    if school_id is None:
-        raise Http404
-
-    school = get_object_or_404(School, pk=school_id)
-    WhatsappTemplateService.set(school.id, event, form.validated_data, request.user)
-
-    return Response(message_template_resource(MessageTemplateService.row_for(school.id, event)))
 
 
 # -- notices: messages written by hand --------------------------------------
