@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../analytics/application/analytics_notifier.dart';
 import '../../../core/network/session_ended_notifier.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
 import '../../assessments/application/assessment_list_notifier.dart';
@@ -206,6 +207,11 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(mapsConfigProvider);
     ref.invalidate(schoolLocationsProvider);
     ref.invalidate(dashboardNotifierProvider);
+    // Analytics keeps its figures for the session (analytics_notifier.dart).
+    ref.invalidate(analyticsMeasuresProvider);
+    ref.invalidate(analyticsSeriesProvider);
+    ref.invalidate(earlyWarningProvider);
+    ref.invalidate(academicOverviewProvider);
     ref.invalidate(departmentPageNotifierProvider);
     ref.invalidate(driverPageNotifierProvider);
     ref.invalidate(earlyAccessNotifierProvider);

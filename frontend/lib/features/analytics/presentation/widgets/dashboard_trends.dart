@@ -53,7 +53,16 @@ class DashboardTrends extends ConsumerWidget {
     final available = measures.value;
     // Words rather than a spinner: these sit under the dashboard's own
     // figures and should not draw the eye while they arrive.
-    if (available == null) return const _Section(child: _Quiet(message: 'Loading trends...'));
+    if (available == null) {
+      // The cards' own height, held while they load, so what sits below them
+      // does not jump down when they arrive.
+      return const _Section(
+        child: SizedBox(
+          height: _TrendCard.height,
+          child: _Quiet(message: 'Loading trends...'),
+        ),
+      );
+    }
 
     final shown = [for (final key in featured) ...available.where((measure) => measure.key == key)];
     if (shown.isEmpty) return const SizedBox.shrink();

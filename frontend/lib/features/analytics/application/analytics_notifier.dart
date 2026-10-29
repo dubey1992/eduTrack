@@ -45,12 +45,23 @@ class AnalyticsQuery {
 /// it is asked once.
 ///
 /// No automatic retry here or below: a 403 is an answer, not a blip.
-final analyticsMeasuresProvider = FutureProvider.autoDispose<List<AnalyticsMeasure>>(
-  (ref) => ref.watch(analyticsRepositoryProvider).measures(),
-  retry: (retryCount, error) => null,
-);
+final analyticsMeasuresProvider = FutureProvider.autoDispose<List<AnalyticsMeasure>>((ref) {
+  _keep(ref);
+  return ref.watch(analyticsRepositoryProvider).measures();
+}, retry: (retryCount, error) => null);
+
+/// Figures fetched for the dashboard or the Analytics page are kept for
+/// the session rather than dropped the moment nobody is looking. Coming back
+/// then shows them at once, and the screen re-reads them in place - Riverpod
+/// keeps the old value on screen while a kept provider refreshes - instead
+/// of loading from nothing. Loading from nothing grew the dashboard's trend
+/// cards and banner a moment after arriving, pushing the page around under
+/// somebody's scroll. Cleared on sign-out (AuthNotifier), so the next person
+/// on the browser never sees them.
+void _keep(Ref ref) => ref.keepAlive();
 
 final analyticsSeriesProvider = FutureProvider.autoDispose.family<AnalyticsSeries, AnalyticsQuery>((ref, query) {
+  _keep(ref);
   return ref
       .watch(analyticsRepositoryProvider)
       .series(query.measure, interval: query.interval, schoolId: query.schoolId, from: query.from, to: query.to);
@@ -84,6 +95,7 @@ class EarlyWarningQuery {
 }
 
 final earlyWarningProvider = FutureProvider.autoDispose.family<EarlyWarningPage, EarlyWarningQuery>((ref, query) {
+  _keep(ref);
   return ref
       .watch(analyticsRepositoryProvider)
       .earlyWarning(schoolId: query.schoolId, level: query.level, page: query.page, perPage: query.perPage);

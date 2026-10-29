@@ -38,7 +38,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Only on re-entry: on the first build the provider is already loading.
       if (mounted && ref.read(dashboardNotifierProvider) is AsyncData) {
-        ref.read(dashboardNotifierProvider.notifier).refresh();
+        ref.read(dashboardNotifierProvider.notifier).refresh(keepFigures: true);
+        // In place too: the kept trend and early-warning figures stay on
+        // screen until the new ones arrive.
+        ref.invalidate(analyticsSeriesProvider);
+        ref.invalidate(earlyWarningProvider);
       }
     });
   }
@@ -79,8 +83,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   OutlinedButton.icon(
                     onPressed: () {
                       notifier.refresh();
-                      // The trend cards too: this month's bar moves with the day.
+                      // The trend cards and the early-warning count too: this
+                      // month's bar and today's flags move with the day.
                       ref.invalidate(analyticsSeriesProvider);
+                      ref.invalidate(earlyWarningProvider);
                     },
                     icon: const Icon(Icons.refresh, size: 18),
                     label: const Text('Refresh'),
