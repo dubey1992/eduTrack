@@ -1859,6 +1859,12 @@ class AnalyticsSchoolFeeDay(models.Model):
     currency_code = models.CharField(max_length=3)
     outstanding = models.DecimalField(max_digits=12, decimal_places=2)
     overdue = models.DecimalField(max_digits=12, decimal_places=2)
+    # How old the overdue part is (A5). `ages_recorded` is False on rows
+    # written before the ages were, which read 0 and must not be charted.
+    overdue_0_30 = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    overdue_31_60 = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    overdue_61_plus = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    ages_recorded = models.BooleanField(default=False)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 

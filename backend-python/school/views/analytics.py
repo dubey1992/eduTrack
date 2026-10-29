@@ -12,13 +12,18 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import academic_analytics, analytics, early_warning, modules, permissions
+from .. import academic_analytics, analytics, early_warning, finance_analytics, modules, permissions
 from ..enums import UserRole
 from ..errors import ModuleDisabled
 from ..models import ClassSection, Department
 from ..pagination import LaravelPagination
-from ..policies import FeePolicy, authorize, permitted
-from ..requests import AcademicAnalyticsRequest, AnalyticsSeriesRequest, EarlyWarningRequest
+from ..policies import FeePolicy, PayrollPolicy, authorize, in_scope, permitted
+from ..requests import (
+    AcademicAnalyticsRequest,
+    AnalyticsSeriesRequest,
+    EarlyWarningRequest,
+    FinanceAnalyticsRequest,
+)
 from ..scope import SchoolScope
 from .reports import filters_for
 
@@ -165,6 +170,38 @@ def academic(request):
         "pass_mark": modules.setting(school_id, "assessments", "pass_percentage"),
         "weak_below": modules.setting(school_id, "assessments", "weak_below_percentage"),
     })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def finance(request):
+    """A school's fee money month by month (docs/analytics.md, A5).
+
+    Whoever reads the fee reports reads this - the fees row of the matrix,
+    for a school that uses Fee Management. The fees-against-payroll part is
+    added only for someone who may also read payroll there.
+    """
+    actor = request.user
+    form = FinanceAnalyticsRequest(data=request.query_params.dict(), actor=actor)
+    form.is_valid(raise_exception=True)
+
+    school_id = _school_for(actor, form, "Pick a school to see its finances.")
+
+    # Raises MODULE_DISABLED for a school without Fee Management.
+    authorize(FeePolicy.view(actor, school_id))
+
+    include_payroll = (
+        actor.role in (UserRole.SUPER_ADMIN, *PayrollPolicy.MANAGERS)
+        and modules.is_enabled(school_id, "payroll")
+        and permissions.may_view(actor, "payroll")
+        and in_scope(actor, school_id)
+    )
+
+    return Response(
+        finance_analytics.finance(
+            school_id, form.validated_data["from"], form.validated_data["to"], include_payroll
+        )
+    )
 
 
 def _school_for(actor, form, missing: str) -> int:

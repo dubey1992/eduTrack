@@ -5457,6 +5457,38 @@ class AcademicAnalyticsRequest(ReportRequest):
         return {"academic_year_id": year_id}
 
 
+class FinanceAnalyticsRequest(ReportRequest):
+    """Which school's fees, month by month, over what range (A5). The report
+    form's school and date checks, unchanged; with no range, the last twelve
+    months, and never more than two years."""
+
+    def to_internal_value(self, data):
+        from . import analytics
+
+        errors: dict[str, list[str]] = {}
+        values: dict = {}
+
+        try:
+            values = super().to_internal_value(data)
+        except serializers.ValidationError as failure:
+            errors = dict(failure.detail)
+
+        for key in ("format", "compare", "below", "class_section_id", "department_id"):
+            errors.pop(key, None)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        today = self._school_today(data.get("school_id"))
+        end = values.get("to") or today
+        start = values.get("from") or min(analytics.default_from(today, analytics.MONTH), end)
+
+        if analytics.period_count(start, end, analytics.MONTH) > analytics.MAX_PERIODS[analytics.MONTH]:
+            raise serializers.ValidationError({"from": ["Finance covers at most 24 months. Pick a shorter range."]})
+
+        return {"from": start, "to": end}
+
+
 class EarlyWarningRequest(ReportRequest):
     """Which school's flagged students, narrowed to a class or a level
     (docs/analytics.md, A3). The report form's school and class checks,

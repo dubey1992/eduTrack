@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -13,6 +14,7 @@ import '../application/analytics_notifier.dart';
 import '../data/models/analytics_series.dart';
 import 'series_line.dart';
 import 'widgets/academic_view.dart';
+import 'widgets/finance_view.dart';
 import 'widgets/trend_bar_chart.dart';
 
 /// School Analytics (docs/analytics.md, A2): one figure over time, week by
@@ -40,8 +42,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   DateTime? _from;
   DateTime? _to;
 
-  /// Trends over time (A1-A2), or subjects and classes term by term (A4).
-  bool _academic = false;
+  /// Trends over time (A1-A2), subjects and classes term by term (A4), or
+  /// fee money month by month (A5).
+  _View _view = _View.trends;
 
   /// Who reads the class performance report the term view is built from.
   static const _academicRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod};
@@ -82,7 +85,12 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     // is not a figure the server gives yet.
     final needsSchool = actor != null && actor.picksSchool && _schoolId == null;
     final offersAcademic = actor != null && _academicRoles.contains(actor.role);
-    final academic = _academic && offersAcademic;
+    // Whoever may read fees, where the school uses them - the fee reports' audience.
+    final offersFinance = actor != null && actor.canView(AppModules.fees);
+    final views = [_View.trends, if (offersAcademic) _View.academic, if (offersFinance) _View.finance];
+    final view = views.contains(_view) ? _view : _View.trends;
+    final academic = view == _View.academic;
+    final finance = view == _View.finance;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -105,17 +113,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     selected: _schoolId,
                     onChanged: (schoolId) => setState(() => _schoolId = schoolId),
                   ),
-                  if (offersAcademic)
-                    SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(value: false, label: Text('Trends')),
-                        ButtonSegment(value: true, label: Text('Subjects & classes')),
-                      ],
-                      selected: {academic},
+                  if (views.length > 1)
+                    SegmentedButton<_View>(
+                      segments: [for (final option in views) ButtonSegment(value: option, label: Text(option.label))],
+                      selected: {view},
                       showSelectedIcon: false,
-                      onSelectionChanged: (selection) => setState(() => _academic = selection.single),
+                      onSelectionChanged: (selection) => setState(() => _view = selection.single),
                     ),
-                  if (!academic) ...[
+                  if (view == _View.trends) ...[
                     SegmentedButton<AnalyticsInterval>(
                       segments: const [
                         ButtonSegment(value: AnalyticsInterval.week, label: Text('By week')),
@@ -144,12 +149,15 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            academic
-                ? 'How each subject and class did, term by term - the Class Performance report for each term.'
-                : "How the school's figures move over time. Each bar is that period's figure from the matching report.",
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
+          Text(switch (view) {
+            _View.academic =>
+              'How each subject and class did, term by term - the Class Performance report for each term.',
+            _View.finance =>
+              "The school's fee money month by month, over the last twelve months. "
+                  'Each currency on its own; nothing is added across them.',
+            _View.trends =>
+              "How the school's figures move over time. Each bar is that period's figure from the matching report.",
+          }, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 12),
           if (academic)
             needsSchool
@@ -159,6 +167,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         : 'Pick a branch to see its subjects and classes.',
                   )
                 : AcademicView(schoolId: _schoolId)
+          else if (finance)
+            needsSchool
+                ? _Notice(
+                    actor.role == UserRole.superAdmin
+                        ? 'Pick a school to see its finances.'
+                        : 'Pick a branch to see its finances.',
+                  )
+                : FinanceView(schoolId: _schoolId)
           else
             AsyncValueView<List<AnalyticsMeasure>>(
               value: ref.watch(analyticsMeasuresProvider),
@@ -212,6 +228,17 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       ),
     );
   }
+}
+
+/// The views of the Analytics page.
+enum _View {
+  trends('Trends'),
+  academic('Subjects & classes'),
+  finance('Finance');
+
+  const _View(this.label);
+
+  final String label;
 }
 
 class _SeriesView extends ConsumerWidget {

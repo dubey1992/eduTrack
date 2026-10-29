@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import 'models/academic_overview.dart';
+import 'models/finance_overview.dart';
 import 'models/analytics_series.dart';
 import 'models/early_warning.dart';
 
@@ -73,5 +74,14 @@ class AnalyticsApi {
     );
 
     return AcademicOverview.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<FinanceOverview> finance({int? schoolId, String? from, String? to}) async {
+    final response = await _dio.get(
+      '/analytics/finance',
+      queryParameters: {'school_id': ?schoolId, 'from': ?from, 'to': ?to},
+    );
+
+    return FinanceOverview.fromJson(response.data as Map<String, dynamic>);
   }
 }

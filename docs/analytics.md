@@ -262,6 +262,38 @@ carries:
 - Teachers, staff, accountants and transport managers are refused.
 - A school without Class Tests & Assessments gets 403 `MODULE_DISABLED`.
 
+## Finance (A5)
+
+Built 2026-10-29, from the user's answers that day:
+
+- look ahead only at what is scheduled;
+- show all four views;
+- show them to whoever can see fees.
+
+"Finance" is the third view on the Analytics page. It is offered to anyone
+the permissions matrix lets read fees, in a school that uses Fee Management.
+The endpoint is `GET /api/v1/analytics/finance?school_id=&from=&to=`, which
+covers the last 12 months by default and at most 24. It is built in
+`school/finance_analytics.py`.
+
+| Section | What it says |
+|---|---|
+| Collected by month | what fell due (after discounts), what came in (valid receipts), and how much of that month's dues is **paid so far**, which keeps rising as families pay late |
+| Falling due next | the next 3 months' **scheduled**, unpaid dues from the fee plans - not a forecast |
+| Overdue by age | 1-30 / 31-60 / 61+ days past due on each month's last recorded night |
+| By class, today | charged, paid, owed and overdue per class, by each student's class now, with most owed first |
+| Fees and payroll | fees collected in the month against the payroll finalized for it (net pay), shown only to someone who may read payroll |
+
+Every figure is per currency. A school billing in two currencies gets two
+blocks, never one blended total. Cancelled and waived dues, and cancelled
+receipts, count as nothing.
+
+**Overdue by age is recorded nightly.** A due keeps only what has been paid
+so far, so a past month's arrears cannot be counted again later. The
+snapshot (`analytics_school_fee_days`) records the three ages beside the
+totals. Rows from before that carry `ages_recorded = false` and are never
+charted, so the chart starts from the first night after A5 went live.
+
 ## The phases
 
 | | Phase | State |
@@ -270,10 +302,9 @@ carries:
 | A2 | School Analytics screen: trend charts per measure | **built** |
 | A3 | Student early warning: low or falling attendance and test results | **built** |
 | A4 | Academic analytics: subjects and classes over terms | **built** |
-| A5 | Finance: collection against what fell due, per currency | to decide |
+| A5 | Finance: collection against what fell due, per currency | **built** |
 | A6 | Transport: trips run, riders, late trips | |
 | A7 | Platform analytics for the Super Admin | |
 
 These are still open, and each is asked when its phase is reached:
 
-- A5: whether to forecast fees at all.

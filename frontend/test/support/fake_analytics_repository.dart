@@ -5,6 +5,7 @@ import 'package:edutrack_app/features/analytics/data/analytics_repository.dart';
 import 'package:edutrack_app/features/analytics/data/models/academic_overview.dart';
 import 'package:edutrack_app/features/analytics/data/models/analytics_series.dart';
 import 'package:edutrack_app/features/analytics/data/models/early_warning.dart';
+import 'package:edutrack_app/features/analytics/data/models/finance_overview.dart';
 
 /// What a School Admin may chart, in the order the API lists them.
 const fakeAnalyticsMeasures = [
@@ -137,6 +138,79 @@ Map<String, dynamic> fakeAcademicJson({List<dynamic>? terms}) => {
   'weak_below': 40,
 };
 
+/// A school billing in rupees and, for one family, dollars: two months of
+/// collection, July's overdue ages recorded, one class, and the payroll
+/// section when [withPayroll].
+Map<String, dynamic> fakeFinanceJson({bool withPayroll = true}) => {
+  'as_of': '2026-07-15',
+  'months': [
+    {'from': '2026-06-01', 'to': '2026-06-30'},
+    {'from': '2026-07-01', 'to': '2026-07-15'},
+  ],
+  'collection': [
+    {
+      'from': '2026-06-01',
+      'to': '2026-06-30',
+      'amounts': [
+        {'currency_code': 'INR', 'due': '0.00', 'collected': '500.00', 'paid_so_far': '0.00', 'rate': null},
+      ],
+    },
+    {
+      'from': '2026-07-01',
+      'to': '2026-07-15',
+      'amounts': [
+        {'currency_code': 'INR', 'due': '1000.00', 'collected': '1000.00', 'paid_so_far': '250.00', 'rate': 25.0},
+        {'currency_code': 'USD', 'due': '40.00', 'collected': '10.00', 'paid_so_far': '10.00', 'rate': 25.0},
+      ],
+    },
+  ],
+  'overdue_by_age': [
+    {'from': '2026-06-01', 'to': '2026-06-30', 'as_of': null, 'amounts': null},
+    {
+      'from': '2026-07-01',
+      'to': '2026-07-15',
+      'as_of': '2026-07-15',
+      'amounts': [
+        {'currency_code': 'INR', 'overdue_0_30': '1000.00', 'overdue_31_60': '0.00', 'overdue_61_plus': '750.00'},
+      ],
+    },
+  ],
+  'by_class': [
+    {
+      'class_section_id': 3,
+      'class_section': 'Class 8 A',
+      'currency_code': 'INR',
+      'charged': '2000.00',
+      'paid': '1000.00',
+      'outstanding': '1000.00',
+      'overdue': '1000.00',
+      'rate': 50.0,
+    },
+  ],
+  'upcoming': [
+    {'from': '2026-08-01', 'to': '2026-08-31', 'amounts': <dynamic>[]},
+    {'from': '2026-09-01', 'to': '2026-09-30', 'amounts': <dynamic>[]},
+    {
+      'from': '2026-10-01',
+      'to': '2026-10-31',
+      'amounts': [
+        {'currency_code': 'INR', 'due': '1000.00'},
+      ],
+    },
+  ],
+  if (withPayroll)
+    'fees_vs_payroll': [
+      {'from': '2026-06-01', 'to': '2026-06-30', 'amounts': <dynamic>[]},
+      {
+        'from': '2026-07-01',
+        'to': '2026-07-15',
+        'amounts': [
+          {'currency_code': 'INR', 'fees_in': '1000.00', 'payroll_out': '800.00'},
+        ],
+      },
+    ],
+};
+
 /// Two flagged students in Grade 8 A: one at high risk, one at risk.
 EarlyWarningPage fakeEarlyWarningPage({int high = 1, int atRisk = 1, EarlyWarningLevel? level}) {
   final rows = [
@@ -203,7 +277,21 @@ class FakeAnalyticsRepository extends AnalyticsRepository {
     this.flaggedAtRisk = 0,
     this.earlyWarningFailure,
     this.academicJson,
+    this.financeJson,
   }) : super(AnalyticsApi(Dio()));
+
+  /// What the Finance view gets; [fakeFinanceJson] if null.
+  final Map<String, dynamic>? financeJson;
+
+  final financeAsked = <int?>[];
+
+  @override
+  Future<FinanceOverview> finance({int? schoolId, String? from, String? to}) async {
+    financeAsked.add(schoolId);
+    if (failure != null) throw failure!;
+
+    return FinanceOverview.fromJson(financeJson ?? fakeFinanceJson());
+  }
 
   /// What the "Subjects & classes" view gets; [fakeAcademicJson] if null.
   final Map<String, dynamic>? academicJson;

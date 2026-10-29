@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/analytics_repository.dart';
 import '../data/models/academic_overview.dart';
+import '../data/models/finance_overview.dart';
 import '../data/models/analytics_series.dart';
 import '../data/models/early_warning.dart';
 
@@ -109,4 +110,12 @@ final academicOverviewProvider = FutureProvider.autoDispose.family<AcademicOverv
   return ref
       .watch(analyticsRepositoryProvider)
       .academic(schoolId: query.schoolId, academicYearId: query.academicYearId);
+}, retry: (retryCount, error) => null);
+
+/// Which school's fee money the Finance view shows (A5): the last twelve
+/// months unless a range is given.
+typedef FinanceQuery = ({int? schoolId, String? from, String? to});
+
+final financeOverviewProvider = FutureProvider.autoDispose.family<FinanceOverview, FinanceQuery>((ref, query) {
+  return ref.watch(analyticsRepositoryProvider).finance(schoolId: query.schoolId, from: query.from, to: query.to);
 }, retry: (retryCount, error) => null);

@@ -320,10 +320,13 @@ def record_snapshot(school_id: int, day: dt.date, now: dt.datetime) -> None:
     currencies = []
 
     for line in owed:
-        overdue = sum(
-            (Decimal(line[key]) for key in ("overdue_0_30", "overdue_31_60", "overdue_61_plus")), ZERO
-        )
-        values = {"outstanding": Decimal(line["balance"]), "overdue": overdue}
+        ages = {key: Decimal(line[key]) for key in ("overdue_0_30", "overdue_31_60", "overdue_61_plus")}
+        values = {
+            "outstanding": Decimal(line["balance"]),
+            "overdue": sum(ages.values(), ZERO),
+            **ages,
+            "ages_recorded": True,
+        }
         currencies.append(line["currency_code"])
 
         AnalyticsSchoolFeeDay.objects.update_or_create(
