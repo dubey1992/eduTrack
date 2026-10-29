@@ -5,6 +5,7 @@ import '../../analytics/application/analytics_notifier.dart';
 import '../../../core/network/session_ended_notifier.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
 import '../../assessments/application/assessment_list_notifier.dart';
+import '../../platform_messaging/application/platform_messaging_notifier.dart';
 import '../../promotion/application/promotion_history_notifier.dart';
 import '../../promotion/application/promotion_notifier.dart';
 import '../../grade_scales/application/grade_scale_notifier.dart';
@@ -201,6 +202,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(announcementPageNotifierProvider);
     ref.invalidate(auditLogNotifierProvider);
     ref.invalidate(mailSettingsNotifierProvider);
+    ref.invalidate(platformMessagingNotifierProvider);
     ref.invalidate(companyDetailsNotifierProvider);
     ref.invalidate(marketingDraftNotifierProvider);
     ref.invalidate(sitePageListNotifierProvider);

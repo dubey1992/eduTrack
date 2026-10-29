@@ -166,42 +166,6 @@ class FakeCommunicationRepository implements CommunicationRepository {
     return _replaceTemplate(event, (current) => templateAs(current, body: current.defaultBody, isCustom: false));
   }
 
-  @override
-  Future<MessageTemplate> setWhatsappTemplate(
-    String event, {
-    int? schoolId,
-    required String templateName,
-    required String language,
-    required List<String> parameters,
-  }) async {
-    _guard();
-    lastCall = {
-      'op': 'setWhatsappTemplate',
-      'event': event,
-      'school_id': schoolId,
-      'template_name': templateName,
-      'language': language,
-      'parameters': parameters,
-    };
-
-    final mapping = WhatsAppTemplateMapping(
-      templateName: templateName,
-      language: language,
-      parameters: parameters,
-      updatedAt: '2026-09-16T11:00:00.000000Z',
-    );
-
-    return _replaceTemplate(event, (current) => templateAs(current, whatsapp: mapping));
-  }
-
-  @override
-  Future<MessageTemplate> clearWhatsappTemplate(String event, {int? schoolId}) async {
-    _guard();
-    lastCall = {'op': 'clearWhatsappTemplate', 'event': event, 'school_id': schoolId};
-
-    return _replaceTemplate(event, (current) => templateAs(current, whatsapp: null));
-  }
-
   MessageTemplate _replaceTemplate(String event, MessageTemplate Function(MessageTemplate current) change) {
     final index = _templates.indexWhere((t) => t.event == event);
     final updated = change(_templates[index]);
@@ -226,12 +190,8 @@ class FakeCommunicationRepository implements CommunicationRepository {
     required bool transportAlertsEnabled,
     required bool leaveAlertsEnabled,
     bool? resultAlertsEnabled,
-    required String provider,
-    String? senderId,
     bool? whatsappEnabled,
-    String? whatsappProvider,
     bool? emailEnabled,
-    Map<String, Map<String, String>>? credentials,
   }) async {
     _guard();
     lastCall = {
@@ -242,26 +202,11 @@ class FakeCommunicationRepository implements CommunicationRepository {
       'transport_alerts_enabled': transportAlertsEnabled,
       'leave_alerts_enabled': leaveAlertsEnabled,
       'result_alerts_enabled': resultAlertsEnabled,
-      'provider': provider,
-      'sender_id': senderId,
       'whatsapp_enabled': whatsappEnabled,
-      'whatsapp_provider': whatsappProvider,
       'email_enabled': emailEnabled,
-      'credentials': credentials,
     };
 
-    // The same rule as the server: a key left out is kept, a blank clears.
-    final status = {for (final entry in _settings.credentials.entries) entry.key: Map.of(entry.value)};
-    for (final provider in (credentials ?? const {}).entries) {
-      final fields = status.putIfAbsent(provider.key, () => {});
-      for (final field in provider.value.entries) {
-        final secret = _settings.credentialFields[provider.key]?.any((f) => f.key == field.key && f.secret) ?? false;
-        fields[field.key] = field.value.isEmpty
-            ? const CredentialStatus(isSet: false)
-            : CredentialStatus(isSet: true, hint: secret ? null : '…${field.value.substring(field.value.length - 4)}');
-      }
-    }
-
+    // How messages go out is the platform's, so it survives a save as is.
     _settings = CommunicationSettings(
       schoolId: schoolId ?? _settings.schoolId,
       smsEnabled: smsEnabled,
@@ -269,21 +214,16 @@ class FakeCommunicationRepository implements CommunicationRepository {
       transportAlertsEnabled: transportAlertsEnabled,
       leaveAlertsEnabled: leaveAlertsEnabled,
       resultAlertsEnabled: resultAlertsEnabled ?? _settings.resultAlertsEnabled,
-      provider: provider,
-      providerLabel: provider == 'log' ? 'Demo Gateway' : provider,
-      providerDelivers: provider != 'log',
-      senderId: senderId,
-      availableProviders: _settings.availableProviders,
+      provider: _settings.provider,
+      providerLabel: _settings.providerLabel,
+      providerDelivers: _settings.providerDelivers,
       isSaved: true,
       whatsappEnabled: whatsappEnabled ?? _settings.whatsappEnabled,
-      whatsappProvider: whatsappProvider ?? _settings.whatsappProvider,
+      whatsappProvider: _settings.whatsappProvider,
       whatsappProviderLabel: _settings.whatsappProviderLabel,
-      whatsappProviderDelivers: (whatsappProvider ?? _settings.whatsappProvider) != 'log',
-      availableWhatsappProviders: _settings.availableWhatsappProviders,
+      whatsappProviderDelivers: _settings.whatsappProviderDelivers,
       emailEnabled: emailEnabled ?? _settings.emailEnabled,
       emailDelivers: _settings.emailDelivers,
-      credentialFields: _settings.credentialFields,
-      credentials: status,
     );
 
     return _settings;

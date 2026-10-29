@@ -1,8 +1,8 @@
 # Platform messaging: School365ai sends, schools are charged
 
 Decided 2026-10-29. This replaces per-school Twilio keys
-(docs/communication.md, "Providers, and where their keys live"). Nothing is
-built yet; this is the plan.
+(docs/communication.md, "Providers, and where their keys live").
+**M1 is built** (below); M2 to M5 are still plans.
 
 ## The decisions
 
@@ -50,6 +50,32 @@ counted from our own message log, which already records every message.
 | M3 | Price list | A Super Admin screen to set the price per SMS part and per WhatsApp message for each currency, with per-school overrides. A school's rate is copied onto each message, so a later price change never rewrites history. |
 | M4 | Statements | A monthly statement per school: counts, parts and amount, in its own currency, as a PDF in the shared design. The Super Admin sees every school's usage and, from a statement, records the payment as an "Additional Service". A School Admin sees their own usage and this month so far. |
 | M5 | Guard rails | Optional monthly caps per school with warnings at 80% and 100%. A cap only warns and never stops sending, matching "never stops for non-payment". |
+
+## M1, as built
+
+- **Tables.** `platform_messaging` is one row: the provider (`log` or
+  `twilio`) and the keys, encrypted. `platform_whatsapp_templates` holds
+  one row per event (Content SID, language, parameters). The per-school
+  `communication_settings.provider`, `whatsapp_provider`, `sender_id`,
+  `credentials` and `whatsapp_templates` are left in place, unread.
+- **API.** All Super Admin only:
+  - `GET`/`PUT /api/v1/platform/messaging`. A key left out is kept and an
+    empty one cleared; a secret is never returned.
+  - `POST /api/v1/platform/messaging/test`: one real SMS or WhatsApp,
+    10 an hour. The outcome is kept as the last test.
+  - `PUT`/`DELETE /api/v1/platform/whatsapp-templates/{event}`.
+- **Sending.** Every message, a school's own test, and each school's
+  templates listing read the platform account. A school's settings save
+  only its switches; provider or keys sent by an older client are ignored.
+  The per-school WhatsApp template endpoint is gone (404).
+- **Screens.**
+  - The Super Admin's **Messaging** screen, beside Mail Settings, holds the
+    account, test sends and the WhatsApp templates.
+  - A school's Alert Settings say messages go through School365ai, or that
+    it is still being set up.
+  - Message Templates says per message whether WhatsApp is ready.
+- **India DLT.** No field is needed in the app: Twilio matches each SMS to
+  its registered template.
 
 ## Answered 2026-10-29
 

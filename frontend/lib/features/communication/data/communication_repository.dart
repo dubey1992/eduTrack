@@ -69,28 +69,6 @@ class CommunicationRepository {
     return _guard(() => _api.resetTemplate(event, schoolId: schoolId));
   }
 
-  Future<MessageTemplate> setWhatsappTemplate(
-    String event, {
-    int? schoolId,
-    required String templateName,
-    required String language,
-    required List<String> parameters,
-  }) {
-    return _guard(
-      () => _api.setWhatsappTemplate(
-        event,
-        schoolId: schoolId,
-        templateName: templateName,
-        language: language,
-        parameters: parameters,
-      ),
-    );
-  }
-
-  Future<MessageTemplate> clearWhatsappTemplate(String event, {int? schoolId}) {
-    return _guard(() => _api.clearWhatsappTemplate(event, schoolId: schoolId));
-  }
-
   Future<CommunicationSettings> settings({int? schoolId}) => _guard(() => _api.settings(schoolId: schoolId));
 
   Future<CommunicationSettings> updateSettings({
@@ -100,12 +78,8 @@ class CommunicationRepository {
     required bool transportAlertsEnabled,
     required bool leaveAlertsEnabled,
     bool? resultAlertsEnabled,
-    required String provider,
-    String? senderId,
     bool? whatsappEnabled,
-    String? whatsappProvider,
     bool? emailEnabled,
-    Map<String, Map<String, String>>? credentials,
   }) {
     return _guard(
       () => _api.updateSettings(
@@ -115,12 +89,8 @@ class CommunicationRepository {
         transportAlertsEnabled: transportAlertsEnabled,
         leaveAlertsEnabled: leaveAlertsEnabled,
         resultAlertsEnabled: resultAlertsEnabled,
-        provider: provider,
-        senderId: senderId,
         whatsappEnabled: whatsappEnabled,
-        whatsappProvider: whatsappProvider,
         emailEnabled: emailEnabled,
-        credentials: credentials,
       ),
     );
   }

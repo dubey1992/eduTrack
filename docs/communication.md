@@ -135,6 +135,15 @@ Who has which address: a guardian is reached on `guardian_mobile` and
 
 ### Providers, and where their keys live
 
+> **Changed 2026-10-29 (docs/platform-messaging.md, M1).** Schools no
+> longer pick a provider or keep keys. Every school's SMS and WhatsApp go
+> through School365ai's own Twilio account and shared sender, set by the
+> Super Admin under **Messaging**, and the WhatsApp templates are mapped
+> there once for everybody. A school's Alert Settings keep only its
+> switches. The per-school columns described below are left in the
+> database, unread. This section describes how things worked before.
+
+
 Each school signs its own contract with a provider, so the credentials
 live on the school's settings row, not on the server. The API takes them as
 `credentials: {twilio: {...}, meta: {...}}`; a field left out is kept, a

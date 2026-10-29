@@ -81,12 +81,10 @@ void main() {
 
       expect(settings.whatsappEnabled, isFalse);
       expect(settings.emailEnabled, isFalse);
-      expect(settings.credentialFields, isEmpty);
       expect(settings.enabledChannels, [MessageChannel.sms, MessageChannel.inApp]);
-      expect(settings.statusOf('twilio', 'auth_token').isSet, isFalse);
     });
 
-    test('settings carry which credentials are on file, never their values', () {
+    test("settings say how School365ai's account sends, never with what keys", () {
       final settings = CommunicationSettings.fromJson({
         'school_id': 1,
         'sms_enabled': false,
@@ -96,39 +94,17 @@ void main() {
         'provider': 'twilio',
         'provider_label': 'Twilio',
         'provider_delivers': true,
-        'sender_id': null,
-        'available_providers': [
-          {'value': 'twilio', 'label': 'Twilio'},
-        ],
         'whatsapp_enabled': true,
-        'whatsapp_provider': 'meta',
-        'whatsapp_provider_label': 'Meta WhatsApp Cloud API',
+        'whatsapp_provider': 'twilio',
+        'whatsapp_provider_label': 'Twilio',
         'whatsapp_provider_delivers': true,
-        'available_whatsapp_providers': [
-          {'value': 'meta', 'label': 'Meta WhatsApp Cloud API'},
-        ],
         'email_enabled': true,
         'email_delivers': false,
-        'credential_fields': {
-          'twilio': [
-            {'key': 'account_sid', 'label': 'Account SID', 'secret': false},
-            {'key': 'auth_token', 'label': 'Auth token', 'secret': true},
-          ],
-        },
-        'credentials': {
-          'twilio': {
-            'account_sid': {'set': true, 'hint': '…5678'},
-            'auth_token': {'set': true, 'hint': null},
-          },
-        },
         'is_saved': true,
       });
 
       expect(settings.enabledChannels, [MessageChannel.inApp, MessageChannel.whatsapp, MessageChannel.email]);
-      expect(settings.credentialFields['twilio']!.map((f) => f.key), ['account_sid', 'auth_token']);
-      expect(settings.credentialFields['twilio']![1].secret, isTrue);
-      expect(settings.statusOf('twilio', 'account_sid').hint, '…5678');
-      expect(settings.statusOf('twilio', 'auth_token').hint, isNull);
+      expect((settings.provider, settings.providerDelivers, settings.whatsappProviderDelivers), ('twilio', true, true));
       expect(settings.emailDelivers, isFalse);
     });
 
@@ -253,55 +229,8 @@ void main() {
     });
   });
 
-  group('TemplateNotifier WhatsApp', () {
-    test('mapping an event records the ordered parameters and shows in the list', () async {
-      final fake = FakeCommunicationRepository();
-      final container = makeContainer(fake);
-      await container.read(templateNotifierProvider(1).future);
-
-      await container
-          .read(templateNotifierProvider(1).notifier)
-          .saveWhatsapp(
-            'attendance.absent',
-            templateName: 'absent_alert',
-            language: 'en_US',
-            parameters: ['date', 'student_name'],
-          );
-
-      expect(fake.lastCall, {
-        'op': 'setWhatsappTemplate',
-        'event': 'attendance.absent',
-        'school_id': 1,
-        'template_name': 'absent_alert',
-        'language': 'en_US',
-        'parameters': ['date', 'student_name'],
-      });
-      final absent = container
-          .read(templateNotifierProvider(1))
-          .value!
-          .firstWhere((t) => t.event == 'attendance.absent');
-      expect(absent.whatsapp!.templateName, 'absent_alert');
-      expect(absent.whatsapp!.parameters, ['date', 'student_name']);
-    });
-
-    test('clearing drops the mapping', () async {
-      final fake = FakeCommunicationRepository();
-      final container = makeContainer(fake);
-      await container.read(templateNotifierProvider(1).future);
-
-      await container.read(templateNotifierProvider(1).notifier).clearWhatsapp('general.message');
-
-      expect(fake.lastCall, {'op': 'clearWhatsappTemplate', 'event': 'general.message', 'school_id': 1});
-      final general = container
-          .read(templateNotifierProvider(1))
-          .value!
-          .firstWhere((t) => t.event == 'general.message');
-      expect(general.whatsapp, isNull);
-    });
-  });
-
   group('CommunicationSettingsNotifier channels', () {
-    test('saves the channel switches and only the credentials handed to it', () async {
+    test('saves the channel switches and nothing about who carries them', () async {
       final fake = FakeCommunicationRepository(settings: twilioSettings);
       final container = makeContainer(fake);
       await container.read(communicationSettingsNotifierProvider(1).future);
@@ -313,29 +242,20 @@ void main() {
             attendanceAlerts: AttendanceAlertMode.absentOnly,
             transportAlertsEnabled: true,
             leaveAlertsEnabled: true,
-            provider: 'twilio',
             whatsappEnabled: false,
-            whatsappProvider: 'twilio',
             emailEnabled: true,
-            credentials: {
-              'twilio': {'whatsapp_from': '+15550002222', 'auth_token': ''},
-            },
           );
 
       expect(fake.lastCall!['whatsapp_enabled'], isFalse);
-      expect(fake.lastCall!['whatsapp_provider'], 'twilio');
       expect(fake.lastCall!['email_enabled'], isTrue);
-      expect(fake.lastCall!['credentials'], {
-        'twilio': {'whatsapp_from': '+15550002222', 'auth_token': ''},
-      });
+      // School365ai's account (docs/platform-messaging.md): never the school's to send.
+      expect(fake.lastCall!.keys, isNot(contains('provider')));
+      expect(fake.lastCall!.keys, isNot(contains('credentials')));
 
       final saved = container.read(communicationSettingsNotifierProvider(1)).value!;
       expect(saved.whatsappEnabled, isFalse);
       expect(saved.emailEnabled, isTrue);
-      expect(saved.statusOf('twilio', 'whatsapp_from').hint, '…2222');
-      expect(saved.statusOf('twilio', 'auth_token').isSet, isFalse);
-      // Untouched ones stay as they were.
-      expect(saved.statusOf('twilio', 'account_sid').hint, '…5678');
+      expect(saved.provider, 'twilio');
     });
 
     test('a test message goes through the school and returns the confirmation', () async {

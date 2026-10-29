@@ -288,39 +288,11 @@ const defaultSettings = CommunicationSettings(
   provider: 'log',
   providerLabel: 'Demo Gateway',
   providerDelivers: false,
-  senderId: null,
-  availableProviders: [
-    SmsProviderOption(value: 'log', label: 'Demo Gateway'),
-    twilioOption,
-  ],
-  availableWhatsappProviders: [
-    SmsProviderOption(value: 'log', label: 'Demo Gateway'),
-    twilioOption,
-    metaOption,
-  ],
-  credentialFields: credentialFields,
   isSaved: false,
 );
 
-const twilioOption = SmsProviderOption(value: 'twilio', label: 'Twilio');
-const metaOption = SmsProviderOption(value: 'meta', label: 'Meta WhatsApp Cloud API');
-
-/// What each real provider asks for, as the server lists it.
-const credentialFields = {
-  'twilio': [
-    CredentialField(key: 'account_sid', label: 'Account SID', secret: false),
-    CredentialField(key: 'auth_token', label: 'Auth token', secret: true),
-    CredentialField(key: 'sms_from', label: 'SMS sender number', secret: false),
-    CredentialField(key: 'whatsapp_from', label: 'WhatsApp sender number', secret: false),
-  ],
-  'meta': [
-    CredentialField(key: 'phone_number_id', label: 'Phone number ID', secret: false),
-    CredentialField(key: 'access_token', label: 'Access token', secret: true),
-  ],
-};
-
-/// A school on Twilio for SMS and Meta for WhatsApp, with a Twilio account
-/// partly on file: the SID and token are saved, the sender numbers are not.
+/// A school once School365ai's Twilio account is set up
+/// (docs/platform-messaging.md): every channel on, really sending.
 const twilioSettings = CommunicationSettings(
   schoolId: 1,
   smsEnabled: true,
@@ -331,33 +303,13 @@ const twilioSettings = CommunicationSettings(
   provider: 'twilio',
   providerLabel: 'Twilio',
   providerDelivers: true,
-  senderId: null,
-  availableProviders: [
-    SmsProviderOption(value: 'log', label: 'Demo Gateway'),
-    twilioOption,
-  ],
   isSaved: true,
   whatsappEnabled: true,
-  whatsappProvider: 'meta',
-  whatsappProviderLabel: 'Meta WhatsApp Cloud API',
+  whatsappProvider: 'twilio',
+  whatsappProviderLabel: 'Twilio',
   whatsappProviderDelivers: true,
-  availableWhatsappProviders: [
-    SmsProviderOption(value: 'log', label: 'Demo Gateway'),
-    twilioOption,
-    metaOption,
-  ],
   emailEnabled: true,
   emailDelivers: false,
-  credentialFields: credentialFields,
-  credentials: {
-    'twilio': {
-      'account_sid': CredentialStatus(isSet: true, hint: '…5678'),
-      'auth_token': CredentialStatus(isSet: true),
-      'sms_from': CredentialStatus(isSet: false),
-      'whatsapp_from': CredentialStatus(isSet: false),
-    },
-    'meta': {'phone_number_id': CredentialStatus(isSet: false), 'access_token': CredentialStatus(isSet: false)},
-  },
 );
 
 /// Copies a message with a couple of fields changed - the model is

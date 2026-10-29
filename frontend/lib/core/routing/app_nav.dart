@@ -282,6 +282,17 @@ class AppNav {
         pageTitle: 'Email Settings',
         pageSubtitle: 'The SMTP server the platform sends through',
       ),
+      NavItem(
+        path: '/messaging-settings',
+        label: 'Messaging',
+        icon: Icons.sms_outlined,
+        // School365ai's own Twilio account, which sends every school's SMS
+        // and WhatsApp (docs/platform-messaging.md). Schools only switch
+        // channels on or off.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Messaging',
+        pageSubtitle: "SMS and WhatsApp for every school, through School365ai's Twilio account",
+      ),
     ],
   );
 

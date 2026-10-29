@@ -52,7 +52,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No text messages are being delivered'), findsOneWidget);
-    expect(find.textContaining('Demo Gateway'), findsWidgets);
+    // Nothing for the school to connect: School365ai's account sends
+    // (docs/platform-messaging.md), and it says whose move it is.
+    expect(find.textContaining('School365ai has not switched on SMS yet'), findsOneWidget);
     // The point of the warning: it contradicts the word "Sent" on the same
     // screen, so it has to name what actually happened.
     expect(find.textContaining('reached the log'), findsOneWidget);

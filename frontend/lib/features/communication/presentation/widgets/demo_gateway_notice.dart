@@ -47,9 +47,11 @@ class DemoGatewayNotice extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'This school is on ${summary.providerLabel ?? 'a demo gateway'}, which records '
-                      'messages without sending them. Anything marked Sent below reached the log, '
-                      'not a phone. Connect a real SMS provider before relying on alerts.',
+                      // The account is School365ai's, not the school's
+                      // (docs/platform-messaging.md): nothing for a school to
+                      // connect, only to wait for.
+                      'School365ai has not switched on SMS yet, so messages are recorded without being '
+                      'sent. Anything marked Sent below reached the log, not a phone.',
                       style: TextStyle(color: scheme.onErrorContainer),
                     ),
                   ],

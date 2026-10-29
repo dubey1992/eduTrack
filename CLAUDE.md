@@ -34,6 +34,8 @@ Do not invent business rules when a requirement is unclear. If genuinely missing
 
 There is **no** subscription/SaaS billing system (no plans, monthly/yearly subscriptions, auto-renewal, subscription invoices/tiers). Only a **simple payment-recording system** for Super Admin: records payments received from schools (Setup Fee, Annual Maintenance, Additional Service, Other), via Cash / Bank Transfer / UPI / Cheque / Online Transfer. This never controls whether a school can use the product.
 
+**Exception, decided 2026-10-29: messaging usage.** School365ai sends every school's SMS and WhatsApp through its own Twilio account, meters each **delivered** message against a price list, and emails each school a monthly usage statement; the payment is recorded as an "Additional Service". Limits per month or year only warn, and sending never stops for non-payment (`docs/platform-messaging.md`).
+
 ## 5. Multi-Nation Currency Model (resolved 2026-09-07)
 
 Schools operate in different countries, so currency is a first-class field:

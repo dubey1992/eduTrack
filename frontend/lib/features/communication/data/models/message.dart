@@ -337,51 +337,12 @@ class WhatsAppTemplateMapping {
   final String? updatedAt;
 }
 
-/// A gateway the school may choose.
-class SmsProviderOption {
-  const SmsProviderOption({required this.value, required this.label});
-
-  factory SmsProviderOption.fromJson(Map<String, dynamic> json) {
-    return SmsProviderOption(value: json['value'] as String, label: json['label'] as String);
-  }
-
-  final String value;
-  final String label;
-}
-
-/// One thing a provider asks a school for, e.g. Twilio's account SID.
-class CredentialField {
-  const CredentialField({required this.key, required this.label, required this.secret});
-
-  factory CredentialField.fromJson(Map<String, dynamic> json) {
-    return CredentialField(
-      key: json['key'] as String,
-      label: json['label'] as String,
-      secret: json['secret'] as bool? ?? false,
-    );
-  }
-
-  final String key;
-  final String label;
-
-  /// A secret is never sent back, not even hinted at.
-  final bool secret;
-}
-
-/// Whether a credential is on file - never its value. A non-secret one
-/// carries a hint such as "…5678" so an administrator can tell which account.
-class CredentialStatus {
-  const CredentialStatus({required this.isSet, this.hint});
-
-  factory CredentialStatus.fromJson(Map<String, dynamic> json) {
-    return CredentialStatus(isSet: json['set'] as bool? ?? false, hint: json['hint'] as String?);
-  }
-
-  final bool isSet;
-  final String? hint;
-}
-
-/// A school's alert switches, channels and provider accounts.
+/// A school's alert switches and channels, and how its messages go out.
+///
+/// Since 2026-10-29 every school sends through School365ai's own account
+/// (docs/platform-messaging.md): the provider is the platform's, shown here
+/// so the school knows whether a message really reaches a phone, and its
+/// keys are never the school's to see or set.
 class CommunicationSettings {
   const CommunicationSettings({
     required this.schoolId,
@@ -392,19 +353,14 @@ class CommunicationSettings {
     required this.resultAlertsEnabled,
     required this.provider,
     required this.providerLabel,
-    required this.senderId,
-    required this.availableProviders,
     required this.isSaved,
     this.providerDelivers = true,
     this.whatsappEnabled = false,
     this.whatsappProvider = 'log',
     this.whatsappProviderLabel = 'Demo Gateway',
     this.whatsappProviderDelivers = false,
-    this.availableWhatsappProviders = const [],
     this.emailEnabled = false,
     this.emailDelivers = false,
-    this.credentialFields = const {},
-    this.credentials = const {},
   });
 
   factory CommunicationSettings.fromJson(Map<String, dynamic> json) {
@@ -417,47 +373,15 @@ class CommunicationSettings {
       resultAlertsEnabled: json['result_alerts_enabled'] as bool? ?? true,
       provider: json['provider'] as String,
       providerLabel: json['provider_label'] as String,
-      senderId: json['sender_id'] as String?,
-      availableProviders: (json['available_providers'] as List<dynamic>)
-          .map((value) => SmsProviderOption.fromJson(value as Map<String, dynamic>))
-          .toList(growable: false),
       isSaved: json['is_saved'] as bool? ?? false,
       providerDelivers: json['provider_delivers'] as bool? ?? true,
       whatsappEnabled: json['whatsapp_enabled'] as bool? ?? false,
       whatsappProvider: json['whatsapp_provider'] as String? ?? 'log',
       whatsappProviderLabel: json['whatsapp_provider_label'] as String? ?? 'Demo Gateway',
       whatsappProviderDelivers: json['whatsapp_provider_delivers'] as bool? ?? false,
-      availableWhatsappProviders: ((json['available_whatsapp_providers'] as List<dynamic>?) ?? const [])
-          .map((value) => SmsProviderOption.fromJson(value as Map<String, dynamic>))
-          .toList(growable: false),
       emailEnabled: json['email_enabled'] as bool? ?? false,
       emailDelivers: json['email_delivers'] as bool? ?? false,
-      credentialFields: _credentialFieldsFromJson(json['credential_fields']),
-      credentials: _credentialsFromJson(json['credentials']),
     );
-  }
-
-  static Map<String, List<CredentialField>> _credentialFieldsFromJson(Object? raw) {
-    if (raw is! Map) return const {};
-
-    return {
-      for (final entry in raw.entries)
-        entry.key.toString(): ((entry.value as List<dynamic>?) ?? const [])
-            .map((value) => CredentialField.fromJson(value as Map<String, dynamic>))
-            .toList(growable: false),
-    };
-  }
-
-  static Map<String, Map<String, CredentialStatus>> _credentialsFromJson(Object? raw) {
-    if (raw is! Map) return const {};
-
-    return {
-      for (final entry in raw.entries)
-        entry.key.toString(): {
-          for (final field in ((entry.value as Map?) ?? const {}).entries)
-            field.key.toString(): CredentialStatus.fromJson(field.value as Map<String, dynamic>),
-        },
-    };
   }
 
   final int? schoolId;
@@ -469,14 +393,13 @@ class CommunicationSettings {
   /// Whether publishing a class test result messages the guardians.
   final bool resultAlertsEnabled;
 
-  /// The SMS gateway.
+  /// The gateway School365ai's account sends through - "log" (the Demo
+  /// Gateway) until the Super Admin sets up Twilio.
   final String provider;
   final String providerLabel;
 
   /// False when the SMS gateway writes to a log and sends nothing.
   final bool providerDelivers;
-  final String? senderId;
-  final List<SmsProviderOption> availableProviders;
 
   /// False while the school is still on the shipped defaults.
   final bool isSaved;
@@ -485,20 +408,12 @@ class CommunicationSettings {
   final String whatsappProvider;
   final String whatsappProviderLabel;
   final bool whatsappProviderDelivers;
-  final List<SmsProviderOption> availableWhatsappProviders;
 
   final bool emailEnabled;
 
   /// False when the platform has no SMTP server set up yet, so email copies
   /// would be recorded but go nowhere.
   final bool emailDelivers;
-
-  /// What each provider asks for, keyed by provider name ("twilio", "meta").
-  /// A provider that needs nothing (the demo gateway) is not listed.
-  final Map<String, List<CredentialField>> credentialFields;
-
-  /// Which of those are on file, per provider - never the values.
-  final Map<String, Map<String, CredentialStatus>> credentials;
 
   /// The channels this school has switched on. The inbox is always there.
   List<MessageChannel> get enabledChannels => [
@@ -507,9 +422,6 @@ class CommunicationSettings {
     if (whatsappEnabled) MessageChannel.whatsapp,
     if (emailEnabled) MessageChannel.email,
   ];
-
-  CredentialStatus statusOf(String provider, String key) =>
-      credentials[provider]?[key] ?? const CredentialStatus(isSet: false);
 }
 
 /// What somebody in the Communication Center is writing by hand.

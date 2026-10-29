@@ -163,13 +163,10 @@ void main() {
             attendanceAlerts: AttendanceAlertMode.presentAndAbsent,
             transportAlertsEnabled: false,
             leaveAlertsEnabled: true,
-            provider: 'log',
-            senderId: 'SUNRIS',
           );
 
       expect(fake.lastCall!['attendance_alerts'], 'both');
       expect(fake.lastCall!['transport_alerts_enabled'], false);
-      expect(fake.lastCall!['sender_id'], 'SUNRIS');
 
       final saved = container.read(communicationSettingsNotifierProvider(1)).value!;
       expect(saved.isSaved, isTrue);

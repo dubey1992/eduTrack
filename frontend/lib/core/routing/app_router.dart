@@ -39,6 +39,7 @@ import '../../features/marketing/presentation/marketing_screen.dart';
 import '../../features/payments/presentation/payment_list_screen.dart';
 import '../../features/payroll/presentation/my_payslips_screen.dart';
 import '../../features/payroll/presentation/payroll_screen.dart';
+import '../../features/platform_messaging/presentation/platform_messaging_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/analytics/data/models/early_warning.dart';
@@ -187,6 +188,7 @@ const appRoutePaths = {
   '/audit-log',
   '/company-details',
   '/mail-settings',
+  '/messaging-settings',
   '/homepage-content',
   '/site-pages',
   '/profile',
@@ -339,6 +341,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
           GoRoute(path: '/company-details', builder: (context, state) => const CompanyDetailsScreen()),
           GoRoute(path: '/mail-settings', builder: (context, state) => const MailSettingsScreen()),
+          GoRoute(path: '/messaging-settings', builder: (context, state) => const PlatformMessagingScreen()),
           GoRoute(path: '/homepage-content', builder: (context, state) => const MarketingContentScreen()),
           GoRoute(
             path: '/site-pages',

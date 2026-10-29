@@ -160,7 +160,7 @@ void main() {
       expect(find.text('This school is still on the default settings.'), findsOneWidget);
       expect(find.text('Enable parent SMS'), findsOneWidget);
       expect(find.text('Absent only'), findsWidgets);
-      expect(find.text('Demo Gateway'), findsWidgets);
+      expect(find.textContaining('School365ai is still setting up SMS and WhatsApp'), findsOneWidget);
       expect(tester.widget<SwitchListTile>(find.widgetWithText(SwitchListTile, 'Transport alerts')).value, isTrue);
     });
 
@@ -178,7 +178,6 @@ void main() {
       await tester.tap(find.text('Present + Absent').last);
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Sender ID (optional)'), 'SUNRIS');
       await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Settings'));
       await tester.tap(find.widgetWithText(FilledButton, 'Save Settings'));
       await tester.pumpAndSettle();
@@ -191,30 +190,10 @@ void main() {
         'transport_alerts_enabled': false,
         'leave_alerts_enabled': true,
         'result_alerts_enabled': true,
-        'provider': 'log',
-        'sender_id': 'SUNRIS',
         'whatsapp_enabled': false,
-        'whatsapp_provider': 'log',
         'email_enabled': false,
-        // Nothing typed into an account box, so nothing on file changes.
-        'credentials': null,
       });
       expect(find.text('Alert settings saved.'), findsOneWidget);
-    });
-
-    testWidgets('a bad sender ID is refused before it reaches the server', (tester) async {
-      useDesktop(tester);
-      final fake = FakeCommunicationRepository();
-      await tester.pumpWidget(wrap(fake, const CommunicationSettingsDialog(schoolId: 1)));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.widgetWithText(TextFormField, 'Sender ID (optional)'), 'not valid!');
-      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Settings'));
-      await tester.tap(find.widgetWithText(FilledButton, 'Save Settings'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('A sender ID can only contain letters, numbers and hyphens.'), findsOneWidget);
-      expect(fake.lastCall, isNull);
     });
 
     testWidgets('a server rejection is shown in the form', (tester) async {
@@ -223,12 +202,12 @@ void main() {
       await tester.pumpWidget(wrap(fake, const CommunicationSettingsDialog(schoolId: 1)));
       await tester.pumpAndSettle();
 
-      fake.failWith = const Failure(code: 'VALIDATION_ERROR', message: 'That SMS gateway is not available.');
+      fake.failWith = const Failure(code: 'VALIDATION_ERROR', message: 'The attendance alerts field is required.');
       await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Settings'));
       await tester.tap(find.widgetWithText(FilledButton, 'Save Settings'));
       await tester.pumpAndSettle();
 
-      expect(find.text('That SMS gateway is not available.'), findsOneWidget);
+      expect(find.text('The attendance alerts field is required.'), findsOneWidget);
     });
 
     testWidgets('a load failure offers a retry', (tester) async {
