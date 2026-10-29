@@ -17,7 +17,7 @@ class TrendBar {
 /// does well. A gap - a holiday week, a period before the first recording -
 /// is a hairline and a dash, never a bar of nought.
 class TrendBarChart extends StatelessWidget {
-  const TrendBarChart({super.key, required this.bars, required this.maxValue, this.height = 200});
+  const TrendBarChart({super.key, required this.bars, required this.maxValue, this.height = 200, this.compact = false});
 
   final List<TrendBar> bars;
 
@@ -26,24 +26,30 @@ class TrendBarChart extends StatelessWidget {
   final double maxValue;
   final double height;
 
+  /// The dashboard's small version: no figure above each bar - the card
+  /// states the latest one - so the bars can be narrow.
+  final bool compact;
+
   /// Narrower than this and the labels stop being readable, so the chart
   /// scrolls sideways instead - a year of weeks on a phone.
   static const _minBarWidth = 52.0;
+  static const _minCompactBarWidth = 24.0;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final fits = constraints.maxWidth / bars.length >= _minBarWidth;
+        final minWidth = compact ? _minCompactBarWidth : _minBarWidth;
+        final fits = constraints.maxWidth / bars.length >= minWidth;
         final row = SizedBox(
           height: height,
-          width: fits ? constraints.maxWidth : bars.length * _minBarWidth,
+          width: fits ? constraints.maxWidth : bars.length * minWidth,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               for (final bar in bars)
                 Expanded(
-                  child: _Bar(bar: bar, maxValue: maxValue),
+                  child: _Bar(bar: bar, maxValue: maxValue, compact: compact),
                 ),
             ],
           ),
@@ -59,10 +65,11 @@ class TrendBarChart extends StatelessWidget {
 }
 
 class _Bar extends StatelessWidget {
-  const _Bar({required this.bar, required this.maxValue});
+  const _Bar({required this.bar, required this.maxValue, required this.compact});
 
   final TrendBar bar;
   final double maxValue;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -73,21 +80,23 @@ class _Bar extends StatelessWidget {
       label: '${bar.label}: ${bar.valueLabel}',
       excludeSemantics: true,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 4),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Text(
-              bar.valueLabel,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: value == null ? scheme.onSurfaceVariant : scheme.onSurface,
+            if (!compact) ...[
+              Text(
+                bar.valueLabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: value == null ? scheme.onSurfaceVariant : scheme.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
+              const SizedBox(height: 4),
+            ],
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {

@@ -303,7 +303,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/announcements', builder: (context, state) => const AnnouncementScreen()),
           GoRoute(path: '/inbox', builder: (context, state) => const InboxScreen()),
           GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
-          GoRoute(path: '/analytics', builder: (context, state) => const AnalyticsScreen()),
+          GoRoute(
+            path: '/analytics',
+            builder: (context, state) => AnalyticsScreen(
+              initialMeasure: state.uri.queryParameters['measure'],
+              initialSchoolId: int.tryParse(state.uri.queryParameters['school_id'] ?? ''),
+            ),
+          ),
           GoRoute(path: '/payroll', builder: (context, state) => const PayrollScreen()),
           GoRoute(path: '/fee-setup', builder: (context, state) => const FeeSetupScreen()),
           GoRoute(path: '/fee-receipts', builder: (context, state) => const FeeReceiptsScreen()),

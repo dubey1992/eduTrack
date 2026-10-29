@@ -136,6 +136,32 @@ Transport Manager, who has no chart until A6.
 The bars are plain widgets, like the dashboard's attendance trend. No chart
 package was added.
 
+## On the Dashboard
+
+The Dashboard has a **Trends** row after its figure cards, so the trends are
+there the moment anyone signs in.
+
+- **Which figures:** up to four, in this order, of those the person may
+  chart: student attendance, staff attendance, fees collected, students on
+  roll. A head of department sees staff attendance alone; an accountant sees
+  staff attendance and fees.
+- **Each card:** the latest month, its change on the month before, and six
+  small monthly bars. Money charts its first currency and says how many
+  more there are.
+- **Opening a card:** a tap opens the full chart on the Analytics page, on
+  the same figure and school (`/analytics?measure=...&school_id=...`).
+- **Why six months:** the Analytics page's twelve are too many here. Each
+  month is a report run on the server, and this is the page everyone lands
+  on.
+- **Loading and failures:** each card loads by itself. Loading and failures
+  are a quiet line with Retry, never an error panel above the Dashboard's
+  own figures. Refresh reloads the trends too.
+- **Who sees the row:** exactly the people the Analytics menu entry allows
+  (`AppNav`).
+- **Which school:** a Group Admin looking at the whole group sees their own
+  school's trends, with its name in the heading, until they pick a branch.
+  A Super Admin picks a school first.
+
 ## The phases
 
 | | Phase | State |

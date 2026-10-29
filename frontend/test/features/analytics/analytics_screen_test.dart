@@ -7,6 +7,7 @@ import 'package:edutrack_app/features/analytics/data/analytics_api.dart';
 import 'package:edutrack_app/features/analytics/data/analytics_repository.dart';
 import 'package:edutrack_app/features/analytics/data/models/analytics_series.dart';
 import 'package:edutrack_app/features/analytics/presentation/analytics_screen.dart';
+import 'package:edutrack_app/features/analytics/presentation/series_line.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
@@ -226,6 +227,29 @@ void main() {
 
     expect(find.textContaining('The school ran, but no staff attendance was recorded.'), findsOneWidget);
     expect(find.text('0%'), findsNothing);
+  });
+
+  testWidgets('opens on the measure a dashboard card asked for', (tester) async {
+    _useDesktop(tester);
+    final fake = _FakeAnalyticsRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        retry: (retryCount, error) => null,
+        overrides: [
+          analyticsRepositoryProvider.overrideWithValue(fake),
+          schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository()),
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _admin)),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const Scaffold(body: AnalyticsScreen(initialMeasure: 'fees_collected')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(fake.asked.single.measure, 'fees_collected');
+    expect(find.text('Fees collected (INR)'), findsOneWidget);
   });
 
   testWidgets('by week asks the server for weeks', (tester) async {

@@ -1,6 +1,8 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/core/utils/currency_formatter.dart';
+import 'package:edutrack_app/features/analytics/data/analytics_repository.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/dashboard/data/dashboard_repository.dart';
@@ -10,17 +12,20 @@ import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../support/fake_analytics_repository.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_dashboard_repository.dart';
 import '../../support/fake_school_repository.dart';
 
 const _admin = AuthenticatedUser(id: 2, name: 'Anita Sharma', email: 'anita@example.com', role: UserRole.schoolAdmin);
 
-Widget wrap(FakeDashboardRepository fake, {AuthenticatedUser actor = _admin}) {
+Widget wrap(FakeDashboardRepository fake, {AuthenticatedUser actor = _admin, FakeAnalyticsRepository? analytics}) {
   return ProviderScope(
     overrides: [
       dashboardRepositoryProvider.overrideWithValue(fake),
+      analyticsRepositoryProvider.overrideWithValue(analytics ?? FakeAnalyticsRepository()),
       schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository()),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: actor)),
     ],
@@ -187,5 +192,137 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(FilledButton, 'Open reports'), findsNothing);
+  });
+
+  group('trends', () {
+    testWidgets('shows the featured figures with their latest value, and gaps as gaps', (tester) async {
+      tester.view.physicalSize = const Size(1600, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final analytics = FakeAnalyticsRepository();
+
+      await tester.pumpWidget(wrap(FakeDashboardRepository(), analytics: analytics));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Trends, last 6 months'), findsOneWidget);
+      // Attendance: the latest month, and its change on the last month that
+      // had a register - August had none.
+      expect(find.text('88%'), findsOneWidget);
+      expect(find.text('-3.5 pts on the month before'), findsOneWidget);
+      // Money: the first currency charted, the other said, never added.
+      expect(find.text(formatCurrency(400, 'INR')), findsOneWidget);
+      expect(find.textContaining('+1 more currency'), findsOneWidget);
+      // Not recorded yet: said, not drawn as nought.
+      expect(find.text('Recorded daily from now on - no figures yet.'), findsOneWidget);
+      // Six months, ending today at the school.
+      expect(analytics.asked.map((a) => a.measure).toSet(), {
+        'student_attendance_rate',
+        'fees_collected',
+        'active_students',
+      });
+    });
+
+    testWidgets('a card opens its full chart on the analytics page', (tester) async {
+      tester.view.physicalSize = const Size(1600, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const Scaffold(body: DashboardScreen()),
+          ),
+          GoRoute(path: '/analytics', builder: (context, state) => Text('opened ${state.uri}')),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+            analyticsRepositoryProvider.overrideWithValue(FakeAnalyticsRepository()),
+            schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository()),
+            authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _admin)),
+          ],
+          child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Fees collected'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('opened /analytics?measure=fees_collected'), findsOneWidget);
+    });
+
+    testWidgets('a trend that fails says so in one line and offers a retry', (tester) async {
+      tester.view.physicalSize = const Size(1600, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final analytics = FakeAnalyticsRepository(
+        failure: const Failure(code: 'X', message: 'Could not reach the server.'),
+      );
+
+      await tester.pumpWidget(wrap(FakeDashboardRepository(), analytics: analytics));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Could not reach the server.'), findsNWidgets(3));
+      await tester.tap(find.text('Retry').first);
+      await tester.pumpAndSettle();
+      expect(analytics.asked.length, 4);
+    });
+
+    testWidgets("a group admin on the whole group sees their own school's trends, named", (tester) async {
+      final analytics = FakeAnalyticsRepository();
+      await tester.pumpWidget(
+        wrap(
+          FakeDashboardRepository(),
+          analytics: analytics,
+          actor: const AuthenticatedUser(
+            id: 7,
+            name: 'Group',
+            email: 'group@example.com',
+            role: UserRole.groupAdmin,
+            schoolId: 1,
+            managesBranches: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Their own school, not a prompt to pick one.
+      expect(analytics.asked.map((a) => a.schoolId).toSet(), {1});
+      expect(find.text('Pick a school above to see its trends.'), findsNothing);
+    });
+
+    testWidgets('a role without analytics sees no trends', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          FakeDashboardRepository(),
+          actor: const AuthenticatedUser(id: 5, name: 'Ravi', email: 'ravi@example.com', role: UserRole.teacher),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Trends, last 6 months'), findsNothing);
+    });
+
+    testWidgets('a Super Admin picks a school first', (tester) async {
+      final analytics = FakeAnalyticsRepository();
+      await tester.pumpWidget(
+        wrap(
+          FakeDashboardRepository(),
+          analytics: analytics,
+          actor: const AuthenticatedUser(id: 1, name: 'Root', email: 'root@example.com', role: UserRole.superAdmin),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pick a school above to see its trends.'), findsOneWidget);
+      expect(analytics.asked, isEmpty);
+    });
   });
 }
