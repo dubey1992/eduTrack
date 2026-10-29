@@ -219,6 +219,49 @@ filter was asked for.
   top, opening the list. It shows nothing when nobody is flagged or the
   count fails to load.
 
+## Subjects and classes, term by term (A4)
+
+Built 2026-10-29. "Subjects & classes" is the second view on the Analytics
+page, beside "Trends". It is offered to admins and heads of department, the
+Class Performance report's own audience. It shows one academic year, term
+by term:
+
+- **By subject:** each subject's average across every class that takes it.
+- **By class:** each class's average across its subjects.
+- **Each class, by subject:** every pairing, with how many students are
+  under the school's weak line in the latest term.
+
+How the figures are made:
+
+- **Each term is the Class Performance report run over that term's dates.**
+  So the figures are what the school prints, from published results only,
+  with absentees left out rather than scored nought.
+- **The two roll-ups weigh each term by the marks it counted**, as the
+  report's own total does.
+- **A term with no result is a dash, never 0%.**
+- **Only terms that have begun are shown.** The one still running is
+  marked "(so far)".
+- **"Change" compares the last two terms that have a figure.**
+
+**Colours:** red is under the Assessments pass mark, amber is under the weak
+line. The legend states both numbers, because they are the school's own
+settings.
+
+**API:** `GET /api/v1/analytics/academic?school_id=&academic_year_id=`. With
+no year, it uses the school's current year. A year belonging to another
+school is ignored, and the current year is used instead. The response
+carries:
+
+- the school's list of years, so the picker needs no second call, and a
+  head of department needs no access to the academic-years screen;
+- `pass_mark` and `weak_below`.
+
+**Access:**
+
+- A head of department sees only their own departments' subjects.
+- Teachers, staff, accountants and transport managers are refused.
+- A school without Class Tests & Assessments gets 403 `MODULE_DISABLED`.
+
 ## The phases
 
 | | Phase | State |
@@ -226,7 +269,7 @@ filter was asked for.
 | A1 | Foundation: measures, periods, snapshots, the API | **built** |
 | A2 | School Analytics screen: trend charts per measure | **built** |
 | A3 | Student early warning: low or falling attendance and test results | **built** |
-| A4 | Academic analytics: subjects and classes over terms | |
+| A4 | Academic analytics: subjects and classes over terms | **built** |
 | A5 | Finance: collection against what fell due, per currency | to decide |
 | A6 | Transport: trips run, riders, late trips | |
 | A7 | Platform analytics for the Super Admin | |

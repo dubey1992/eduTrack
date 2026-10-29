@@ -137,6 +137,8 @@ SECTIONS: tuple[Section, ...] = (
             Field("join", "Call to action", max_length=32),
             Field("joinShort", "Call to action, on a phone", max_length=16,
                   help="Shown under 480px, where the full wording does not fit."),
+            Field("demo", "Demo button", max_length=32,
+                  help="Opens the Request a Demo form (2026-10-29). Left out of a narrow bar rather than shortened."),
         ),
     ),
     Section(
@@ -147,6 +149,7 @@ SECTIONS: tuple[Section, ...] = (
                   help="Set large, beside the dashboard picture. Two short lines read better than one long one."),
             Field("body", "Opening paragraph", multiline=True, max_length=300),
             Field("primaryButton", "Main button", max_length=32),
+            Field("demoButton", "Demo button", max_length=32),
             Field("secondaryButton", "Second button", max_length=32),
             Field("trustLine", "Line under the buttons", max_length=90),
         ),
@@ -218,6 +221,7 @@ SECTIONS: tuple[Section, ...] = (
             Field("headline", "Heading", max_length=90),
             Field("body", "Paragraph", multiline=True, max_length=300),
             Field("button", "Button", max_length=32),
+            Field("demoButton", "Demo button", max_length=32),
         ),
     ),
     Section(

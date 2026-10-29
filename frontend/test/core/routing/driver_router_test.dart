@@ -124,7 +124,7 @@ void main() {
 
       expect(find.byType(DriverLandingScreen), findsOneWidget);
       expect(find.text('Your trip sheet, on this phone.'), findsOneWidget);
-      expect(find.text('Request A Demo →'), findsNothing);
+      expect(find.text('Join Early Access →'), findsNothing);
       // The shuttle, not the graduation cap the app first had.
       expect(find.byType(DriverMark), findsOneWidget);
     });

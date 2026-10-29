@@ -190,6 +190,16 @@ class AppNav {
         pageSubtitle: 'Schools that have asked to join the platform',
       ),
       NavItem(
+        path: '/demo-requests',
+        label: 'Demo Requests',
+        icon: Icons.event_available_outlined,
+        // Schools asking to be shown the product - platform business, the
+        // same as early access.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Demo Requests',
+        pageSubtitle: 'Schools that have asked for a demo',
+      ),
+      NavItem(
         path: '/payments',
         label: 'Payments',
         icon: Icons.payments_outlined,

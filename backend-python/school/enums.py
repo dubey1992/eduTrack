@@ -748,6 +748,27 @@ class EarlyAccessStatus(models.TextChoices):
         return (cls.NEW, cls.CONTACTED)
 
 
+class DemoRequestStatus(models.TextChoices):
+    """Where a demo request stands (decided 2026-10-29)."""
+
+    NEW = "new", "New"
+    SCHEDULED = "scheduled", "Scheduled"
+    DONE = "done", "Done"
+    DECLINED = "declined", "Declined"
+
+    @classmethod
+    def open(cls) -> tuple:
+        return (cls.NEW, cls.SCHEDULED)
+
+
+class PreferredTime(models.TextChoices):
+    """A part of the visitor's day, in their own timezone."""
+
+    MORNING = "morning", "Morning"
+    AFTERNOON = "afternoon", "Afternoon"
+    EVENING = "evening", "Evening"
+
+
 class NoticeKind(models.TextChoices):
     """What somebody in the Communication Center is writing (docs/communication.md)."""
 

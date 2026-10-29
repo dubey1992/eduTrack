@@ -233,7 +233,7 @@ void main() {
       for (final path in ['/dashboard', '/inbox', '/users', '/audit-log', '/module-settings', '/permissions']) {
         expect(_item(path).allows(admin), isTrue, reason: path);
       }
-      for (final path in ['/schools', '/payments', '/early-access', '/mail-settings']) {
+      for (final path in ['/schools', '/payments', '/early-access', '/demo-requests', '/mail-settings']) {
         expect(_item(path).allows(admin), isFalse, reason: '$path is the platform\'s own');
       }
     });

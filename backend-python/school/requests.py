@@ -19,6 +19,7 @@ from rest_framework import serializers
 import datetime as dt
 import decimal
 import re
+import zoneinfo
 
 from . import attendants, audit, hashing, mailer, marketing, notices, notifications, permissions, site_pages, sms, whatsapp
 from .enums import (
@@ -28,7 +29,9 @@ from .enums import (
     NoticeAudience,
     NoticeKind,
     NoticeRecipients,
+    DemoRequestStatus,
     EarlyAccessStatus,
+    PreferredTime,
     TripDirection,
     TripRiderStatus,
     TransportStatus,
@@ -3265,6 +3268,90 @@ class ReviewEarlyAccessRequest(PartialForm):
         return value
 
 
+class StoreDemoRequest(serializers.Serializer):
+    """The marketing page's demo form (decided 2026-10-29): who is asking,
+    and the day and part of the day they would like."""
+
+    contact_name = LaravelCharField("contact_name", max_length=150)
+    school_name = LaravelCharField("school_name", max_length=150)
+    email = EmailField("email", max_length=255)
+    phone = LaravelCharField("phone", max_length=20)
+    city = optional_text("city", 100)
+    country = LaravelCharField("country", max_length=100)
+    expected_students = LaravelIntegerField("expected_students", required=False, allow_null=True, min_value=1)
+    preferred_date = LaravelDateField("preferred_date")
+    preferred_time = optional_text("preferred_time", 20)
+    timezone = optional_text("timezone", 64)
+    message = optional_text("message", 2000)
+
+    # A demo is booked within the next six months or not at all.
+    FURTHEST_DAYS = 180
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_phone(self, value):
+        if not INTERNATIONAL_PHONE.match(value):
+            raise serializers.ValidationError("Include the country code, like +91 9876543210.")
+
+        return value
+
+    def validate_expected_students(self, value):
+        if value is not None and value > 200000:
+            raise serializers.ValidationError(
+                "That is more students than any school we know of - please get in touch directly."
+            )
+
+        return value
+
+    def validate_preferred_date(self, value):
+        # A day behind the platform's date is still today somewhere the
+        # visitor might be.
+        today = SchoolClock.platform().now().date()
+
+        if value < today - dt.timedelta(days=1):
+            raise serializers.ValidationError("Pick a day that has not passed.")
+
+        if value > today + dt.timedelta(days=self.FURTHEST_DAYS):
+            raise serializers.ValidationError("Pick a day within the next six months.")
+
+        return value
+
+    def validate_preferred_time(self, value):
+        if value not in (None, "") and value not in PreferredTime.values:
+            raise serializers.ValidationError("Pick morning, afternoon or evening.")
+
+        return value or None
+
+    def validate_timezone(self, value):
+        """The browser's own zone name. Kept only when it is a real one - it
+        is a hint for whoever calls back, never something to fail a request
+        over."""
+        if value in (None, ""):
+            return None
+
+        try:
+            zoneinfo.ZoneInfo(value)
+        except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+            return None
+
+        return value
+
+
+class ReviewDemoRequest(PartialForm):
+    status = LaravelCharField("status", max_length=255)
+    notes = LaravelCharField("notes", max_length=2000, allow_null=True)
+
+    def validate_status(self, value):
+        if value not in DemoRequestStatus.values:
+            raise serializers.ValidationError(selected_is_invalid("status"))
+
+        return value
+
+
 class ForgotPasswordRequest(serializers.Serializer):
     email = EmailField("email", lowercase=True, max_length=255)
 
@@ -5358,6 +5445,36 @@ class AnalyticsSeriesRequest(ReportRequest):
             )
 
         return values
+
+
+class AcademicAnalyticsRequest(ReportRequest):
+    """Which school's year to line up term by term (docs/analytics.md, A4).
+    The report form's school check, unchanged; the year is optional, and
+    the current one when it is left out."""
+
+    def to_internal_value(self, data):
+        errors: dict[str, list[str]] = {}
+
+        try:
+            super().to_internal_value(data)
+        except serializers.ValidationError as failure:
+            errors = dict(failure.detail)
+
+        for key in ("format", "compare", "below", "from", "to", "class_section_id", "department_id"):
+            errors.pop(key, None)
+
+        year = data.get("academic_year_id")
+        year_id = None
+        if year not in (None, ""):
+            if not PHP_INTEGER.match(str(year)):
+                errors["academic_year_id"] = [must_be_an_integer("academic_year_id")]
+            else:
+                year_id = int(year)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return {"academic_year_id": year_id}
 
 
 class EarlyWarningRequest(ReportRequest):

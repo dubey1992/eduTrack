@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/marketing/data/marketing_content.dart';
 import 'package:edutrack_app/features/marketing/presentation/widgets/marketing_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,13 +13,22 @@ import '../../support/marketing_scope.dart';
 void main() {
   const labels = ['Features', 'Modules', 'Pricing', 'Contact'];
 
-  Widget wrap(double width, {List<String> links = labels}) {
+  Widget wrap(
+    double width, {
+    List<String> links = labels,
+    MarketingContent content = const MarketingContent.asItShips(),
+  }) {
     return marketingScope(
+      content: content,
       MaterialApp(
         home: Scaffold(
           body: SizedBox(
             width: width,
-            child: MarketingNavBar(onNavigate: {for (final label in links) label: () {}}, onJoinEarlyAccess: () {}),
+            child: MarketingNavBar(
+              onNavigate: {for (final label in links) label: () {}},
+              onJoinEarlyAccess: () {},
+              onRequestDemo: () {},
+            ),
           ),
         ),
       ),
@@ -66,12 +76,49 @@ void main() {
     // A short set on purpose. The suite's font is far wider than the one the
     // site loads, so "a wide bar" is not by itself enough room for five real
     // labels here - and asserting that it is would only be asserting the
-    // clipping this test file exists to prevent.
-    await tester.pumpWidget(wrap(1440, links: ['Features', 'Contact']));
+    // clipping this test file exists to prevent. Since 2026-10-29 the bar
+    // also carries Request a Demo, so both calls to action are shortened
+    // here for the same reason; in the site's font all six links and both
+    // buttons fit.
+    await tester.pumpWidget(
+      wrap(
+        1440,
+        links: ['Features', 'Contact'],
+        content: const MarketingContent({'nav.demo': 'Demo', 'nav.join': 'Join'}),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Features'), findsOneWidget);
     expect(find.text('Contact'), findsOneWidget);
+    expect(find.text('Demo'), findsOneWidget);
+  });
+
+  testWidgets('the links give way before Request a Demo does', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(wrap(1200));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Request a Demo'), findsOneWidget);
+    expect(find.text('Features'), findsNothing);
+  });
+
+  testWidgets('on a phone the bar leaves the demo to the hero', (tester) async {
+    tester.view.physicalSize = const Size(390, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(wrap(390));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Request a Demo'), findsNothing);
+    expect(find.text('Login'), findsOneWidget);
   });
 
   /// The links are shown whole or not at all. They used to scroll inside

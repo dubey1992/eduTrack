@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import 'analytics_api.dart';
+import 'models/academic_overview.dart';
 import 'models/analytics_series.dart';
 import 'models/early_warning.dart';
 
@@ -62,6 +63,14 @@ class AnalyticsRepository {
         page: page,
         perPage: perPage,
       );
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<AcademicOverview> academic({int? schoolId, int? academicYearId}) async {
+    try {
+      return await _api.academic(schoolId: schoolId, academicYearId: academicYearId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

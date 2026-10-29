@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/features/analytics/data/analytics_api.dart';
 import 'package:edutrack_app/features/analytics/data/analytics_repository.dart';
+import 'package:edutrack_app/features/analytics/data/models/academic_overview.dart';
 import 'package:edutrack_app/features/analytics/data/models/analytics_series.dart';
 import 'package:edutrack_app/features/analytics/data/models/early_warning.dart';
 
@@ -74,6 +75,68 @@ AnalyticsSeries fakeNotRecordedYetSeries() => AnalyticsSeries.fromJson({
   ],
 });
 
+/// 2026-27, two terms in: Physics fell from 75% to 50% in 8 A; Maths was 30%
+/// in term 1 (under the 33% pass mark) and has no result in term 2.
+Map<String, dynamic> fakeAcademicJson({List<dynamic>? terms}) => {
+  'years': [
+    {'id': 2, 'name': '2026-27', 'is_current': true},
+    {'id': 1, 'name': '2025-26', 'is_current': false},
+  ],
+  'year': {'id': 2, 'name': '2026-27'},
+  'terms_set_up': 3,
+  'terms':
+      terms ??
+      [
+        {'id': 11, 'name': 'Term 1', 'from': '2026-04-01', 'to': '2026-07-31', 'in_progress': false},
+        {'id': 12, 'name': 'Term 2', 'from': '2026-08-01', 'to': '2026-09-14', 'in_progress': true},
+      ],
+  'subjects': [
+    {
+      'subject_id': 5,
+      'subject': 'Maths',
+      'department': 'Mathematics',
+      'terms': [
+        {'average_percentage': 30, 'marks_counted': 1},
+        null,
+      ],
+    },
+    {
+      'subject_id': 4,
+      'subject': 'Physics',
+      'department': 'Science',
+      'terms': [
+        {'average_percentage': 75, 'marks_counted': 1},
+        {'average_percentage': 50, 'marks_counted': 1},
+      ],
+    },
+  ],
+  'classes': [
+    {
+      'class_section_id': 3,
+      'class_section': 'Grade 8 A',
+      'terms': [
+        {'average_percentage': 52.5, 'marks_counted': 2},
+        {'average_percentage': 50, 'marks_counted': 1},
+      ],
+    },
+  ],
+  'cells': [
+    {
+      'class_section_id': 3,
+      'class_section': 'Grade 8 A',
+      'subject_id': 4,
+      'subject': 'Physics',
+      'department': 'Science',
+      'terms': [
+        {'average_percentage': 75, 'marks_counted': 1, 'students': 30, 'students_below_the_mark': 2},
+        {'average_percentage': 50, 'marks_counted': 1, 'students': 30, 'students_below_the_mark': 9},
+      ],
+    },
+  ],
+  'pass_mark': 33,
+  'weak_below': 40,
+};
+
 /// Two flagged students in Grade 8 A: one at high risk, one at risk.
 EarlyWarningPage fakeEarlyWarningPage({int high = 1, int atRisk = 1, EarlyWarningLevel? level}) {
   final rows = [
@@ -139,7 +202,21 @@ class FakeAnalyticsRepository extends AnalyticsRepository {
     this.flaggedHigh = 0,
     this.flaggedAtRisk = 0,
     this.earlyWarningFailure,
+    this.academicJson,
   }) : super(AnalyticsApi(Dio()));
+
+  /// What the "Subjects & classes" view gets; [fakeAcademicJson] if null.
+  final Map<String, dynamic>? academicJson;
+
+  final academicAsked = <({int? schoolId, int? academicYearId})>[];
+
+  @override
+  Future<AcademicOverview> academic({int? schoolId, int? academicYearId}) async {
+    academicAsked.add((schoolId: schoolId, academicYearId: academicYearId));
+    if (failure != null) throw failure!;
+
+    return AcademicOverview.fromJson(academicJson ?? fakeAcademicJson());
+  }
 
   /// How many students the early-warning list says are flagged.
   final int flaggedHigh;

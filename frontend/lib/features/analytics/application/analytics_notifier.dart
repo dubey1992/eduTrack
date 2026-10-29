@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/analytics_repository.dart';
+import '../data/models/academic_overview.dart';
 import '../data/models/analytics_series.dart';
 import '../data/models/early_warning.dart';
 
@@ -86,4 +87,14 @@ final earlyWarningProvider = FutureProvider.autoDispose.family<EarlyWarningPage,
   return ref
       .watch(analyticsRepositoryProvider)
       .earlyWarning(schoolId: query.schoolId, level: query.level, page: query.page, perPage: query.perPage);
+}, retry: (retryCount, error) => null);
+
+/// Which school's year the "Subjects & classes" view shows (A4). A null
+/// year is the school's current one.
+typedef AcademicQuery = ({int? schoolId, int? academicYearId});
+
+final academicOverviewProvider = FutureProvider.autoDispose.family<AcademicOverview, AcademicQuery>((ref, query) {
+  return ref
+      .watch(analyticsRepositoryProvider)
+      .academic(schoolId: query.schoolId, academicYearId: query.academicYearId);
 }, retry: (retryCount, error) => null);

@@ -33,6 +33,7 @@ from school.views import (
     classes,
     communication,
     dashboard,
+    demo_requests,
     early_access,
     hod,
     iclock,
@@ -249,6 +250,7 @@ urlpatterns = [
     path("api/v1/analytics/measures", analytics.measures),
     path("api/v1/analytics/series", analytics.series),
     path("api/v1/analytics/early-warning", analytics.early_warning_list),
+    path("api/v1/analytics/academic", analytics.academic),
     path("api/v1/reports/student-attendance", reports.student_attendance),
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),
@@ -354,6 +356,9 @@ urlpatterns = [
     path("api/v1/site-pages/<str:slug>", site_pages.detail),
     path("api/v1/early-access", early_access.collection),
     path("api/v1/early-access/<int:request_id>", early_access.detail),
+    # "Request a Demo" on the marketing page (decided 2026-10-29).
+    path("api/v1/demo-requests", demo_requests.collection),
+    path("api/v1/demo-requests/<int:request_id>", demo_requests.detail),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
     path("api/v1/students/<int:student_id>", students.detail),

@@ -13,7 +13,7 @@ import logging
 
 from django.utils import timezone
 
-from . import mailer, notifications, progress_reports, push, queue, receipts, sms, whatsapp
+from . import dates, mailer, notifications, progress_reports, push, queue, receipts, sms, whatsapp
 
 # Imported for its side effect: registering compute_route_path. The worker
 # finds handlers by importing this module, so one that lives elsewhere has
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 SEND_PAYMENT_RECEIPT = "payment_receipt"
 SEND_PROGRESS_REPORT = "progress_report"
 SEND_NOTICE = "send_notice"
+DEMO_REQUEST_EMAIL = "demo_request_email"
 SEND_PUSH = "send_push"
 EMAIL_CHANGED_NOTICE = "email_changed_notice"
 
@@ -538,3 +539,51 @@ def send_push(message_id: int) -> None:
 
     if message is not None:
         push.deliver(message)
+
+
+@handler(DEMO_REQUEST_EMAIL)
+def send_demo_request_email(demo_request_id: int) -> None:
+    """Tells the platform's Super Admins that a school has asked for a demo
+    (decided 2026-10-29), with everything the form said, so they can call
+    back without opening the app first. Replying goes to the school."""
+    from .models import DemoRequest
+
+    request = DemoRequest.objects.filter(pk=demo_request_id).first()
+    if request is None:
+        return
+
+    recipients = list(
+        User.objects.filter(role=UserRole.SUPER_ADMIN, status=UserStatus.ACTIVE)
+        .exclude(email__isnull=True)
+        .exclude(email="")
+        .values_list("email", flat=True)
+    )
+    if not recipients:
+        logger.warning("Demo request %s: no active Super Admin to tell.", request.id)
+        return
+
+    when = dates.us(request.preferred_date)
+    if request.preferred_time:
+        when += f", {request.preferred_time}"
+    if request.timezone:
+        when += f" ({request.timezone})"
+
+    lines = [
+        f"{request.contact_name} from {request.school_name} has asked for a demo.",
+        "",
+        f"Preferred: {when}",
+        f"Email: {request.email}",
+        f"Phone: {request.phone}",
+        f"Where: {', '.join(part for part in (request.city, request.country) if part)}",
+    ]
+    if request.expected_students:
+        lines.append(f"Students: about {request.expected_students}")
+    if request.message:
+        lines += ["", "Their message:", request.message]
+    lines += ["", "It is in the app under Demo Requests."]
+
+    mail = mailer.message(
+        subject=f"Demo request: {request.school_name}", body="\n".join(lines), to=recipients,
+    )
+    mail.reply_to = [request.email]
+    mail.send()

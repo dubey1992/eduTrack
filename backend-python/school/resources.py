@@ -19,7 +19,7 @@ from django.utils import timezone
 
 from . import dates, mailer, modules, money, permissions, sms, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
-from .enums import EarlyAccessStatus, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
+from .enums import DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
 from .scope import SchoolScope
@@ -837,6 +837,34 @@ def early_access_resource(request) -> dict:
         "notes": request.notes,
         "converted_school_id": request.converted_school_id,
         "converted_school_name": request.converted_school.name if request.converted_school_id else None,
+        "reviewed_by_name": request.reviewed_by.name if request.reviewed_by_id else None,
+        "reviewed_at": clock.format(request.reviewed_at, DATE_TIME),
+        "submitted_at": clock.format(request.created_at, DATE_TIME),
+    }
+
+
+def demo_request_resource(request) -> dict:
+    """A demo request. Like early access it belongs to no school, so the
+    platform's clock reads it; the visitor's own timezone travels with it."""
+    clock = SchoolClock.platform()
+
+    return {
+        "id": request.id,
+        "contact_name": request.contact_name,
+        "school_name": request.school_name,
+        "email": request.email,
+        "phone": request.phone,
+        "city": request.city,
+        "country": request.country,
+        "expected_students": request.expected_students,
+        "preferred_date": request.preferred_date.isoformat(),
+        "preferred_time": request.preferred_time,
+        "preferred_time_label": PreferredTime(request.preferred_time).label if request.preferred_time else None,
+        "timezone": request.timezone,
+        "message": request.message,
+        "status": request.status,
+        "status_label": DemoRequestStatus(request.status).label,
+        "notes": request.notes,
         "reviewed_by_name": request.reviewed_by.name if request.reviewed_by_id else None,
         "reviewed_at": clock.format(request.reviewed_at, DATE_TIME),
         "submitted_at": clock.format(request.created_at, DATE_TIME),

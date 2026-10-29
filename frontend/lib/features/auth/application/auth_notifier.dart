@@ -23,6 +23,7 @@ import '../../communication/application/inbox_notifier.dart';
 import '../../communication/application/message_page_notifier.dart';
 import '../../dashboard/application/dashboard_notifier.dart';
 import '../../departments/application/department_list_notifier.dart';
+import '../../demo_requests/application/demo_request_notifier.dart';
 import '../../early_access/application/early_access_notifier.dart';
 import '../../holidays/application/holiday_page_notifier.dart';
 import '../../payments/application/payment_list_notifier.dart';
@@ -208,6 +209,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(departmentPageNotifierProvider);
     ref.invalidate(driverPageNotifierProvider);
     ref.invalidate(earlyAccessNotifierProvider);
+    ref.invalidate(demoRequestNotifierProvider);
     ref.invalidate(holidayPageNotifierProvider);
     ref.invalidate(inboxNotifierProvider);
     ref.invalidate(messagePageNotifierProvider);

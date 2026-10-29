@@ -50,6 +50,7 @@ from .enums import (
     NoticeAudience,
     NoticeKind,
     NoticeRecipients,
+    DemoRequestStatus,
     EarlyAccessStatus,
     TripDirection,
     TripEventType,
@@ -147,6 +148,7 @@ from .models import (
     SyllabusTopic,
     SyllabusTopicProgress,
     TimetableEntry,
+    DemoRequest,
     EarlyAccessRequest,
     PersonalAccessToken,
     School,
@@ -427,6 +429,94 @@ class EarlyAccessService:
                      entity_id=request.pk, school_id=None, new={"converted_school_id": school.id})
 
         return EarlyAccessRequest.objects.get(pk=request.pk)
+
+
+class DemoRequestService:
+    """The marketing page's demo requests, and the Super Admin's list of them
+    (decided 2026-10-29). The same rules as early access for a repeat: one
+    open request per address, filled in but never overwritten."""
+
+    FIELDS = (
+        "contact_name", "school_name", "email", "phone", "city", "country", "expected_students",
+        "preferred_date", "preferred_time", "timezone", "message",
+    )
+
+    @classmethod
+    def record(cls, data: dict) -> None:
+        """A request - or the same address asking again.
+
+        A new one is written down and the Super Admin emailed, through the
+        queue so the visitor is not kept waiting on a mail server. A repeat
+        while the first is still open keeps its place: what it said goes to
+        the audit trail and fills only what was blank, since nobody proves
+        they own the address on a public form.
+        """
+        now = timezone.now()
+        existing = (
+            DemoRequest.objects.filter(email=data["email"], status__in=DemoRequestStatus.open())
+            .order_by("-id")
+            .first()
+        )
+
+        if existing is None:
+            request = DemoRequest.objects.create(
+                **{field: data.get(field) for field in cls.FIELDS},
+                status=DemoRequestStatus.NEW, created_at=now, updated_at=now,
+            )
+            audit.created("schools", request)
+            queue.push(jobs.DEMO_REQUEST_EMAIL, {"demo_request_id": request.id})
+
+            return
+
+        audit.record(
+            actor=None, action="demo_request.asked_again", module="schools", entity_type="demo_request",
+            entity_id=existing.pk, school_id=None,
+            new={
+                field: str(data[field]) for field in cls.FIELDS if data.get(field) not in (None, "")
+            },
+        )
+
+        blanks = [
+            field for field in cls.FIELDS
+            if data.get(field) not in (None, "") and getattr(existing, field) in (None, "")
+        ]
+
+        if blanks:
+            for field in blanks:
+                setattr(existing, field, data[field])
+
+            existing.updated_at = now
+            existing.save(update_fields=[*blanks, "updated_at"])
+
+    @staticmethod
+    def visible_to(filters: dict):
+        requests = DemoRequest.objects.select_related("reviewed_by")
+
+        if filters.get("status"):
+            requests = requests.filter(status=filters["status"])
+
+        if filters.get("q"):
+            like = f"%{filters['q']}%"
+            requests = requests.filter(Q(school_name__ilike=like) | Q(contact_name__ilike=like) | Q(email__ilike=like))
+
+        # Newest first, like the early access list.
+        return requests.order_by("-id")
+
+    @staticmethod
+    def review(request, data: dict, actor: User):
+        before = audit.fields_of(request)
+        now = timezone.now()
+
+        for field, value in data.items():
+            setattr(request, field, value)
+
+        request.reviewed_by_id = actor.id
+        request.reviewed_at = now
+        request.updated_at = now
+        request.save(update_fields=[*data.keys(), "reviewed_by", "reviewed_at", "updated_at"])
+        audit.updated("schools", request, before, action="demo_request.reviewed")
+
+        return DemoRequest.objects.select_related("reviewed_by").get(pk=request.pk)
 
 
 class SchoolService:

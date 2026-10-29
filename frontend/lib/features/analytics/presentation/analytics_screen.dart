@@ -12,6 +12,7 @@ import '../../auth/application/school_clock_provider.dart';
 import '../application/analytics_notifier.dart';
 import '../data/models/analytics_series.dart';
 import 'series_line.dart';
+import 'widgets/academic_view.dart';
 import 'widgets/trend_bar_chart.dart';
 
 /// School Analytics (docs/analytics.md, A2): one figure over time, week by
@@ -38,6 +39,12 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   late int? _schoolId = widget.initialSchoolId;
   DateTime? _from;
   DateTime? _to;
+
+  /// Trends over time (A1-A2), or subjects and classes term by term (A4).
+  bool _academic = false;
+
+  /// Who reads the class performance report the term view is built from.
+  static const _academicRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod};
 
   String _iso(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
@@ -74,6 +81,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     // Someone who spans schools charts one at a time (A1): the whole group
     // is not a figure the server gives yet.
     final needsSchool = actor != null && actor.picksSchool && _schoolId == null;
+    final offersAcademic = actor != null && _academicRoles.contains(actor.role);
+    final academic = _academic && offersAcademic;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -96,86 +105,109 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     selected: _schoolId,
                     onChanged: (schoolId) => setState(() => _schoolId = schoolId),
                   ),
-                  SegmentedButton<AnalyticsInterval>(
-                    segments: const [
-                      ButtonSegment(value: AnalyticsInterval.week, label: Text('By week')),
-                      ButtonSegment(value: AnalyticsInterval.month, label: Text('By month')),
-                    ],
-                    selected: {_interval},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (selection) => setState(() => _interval = selection.single),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _pickRange,
-                    icon: const Icon(Icons.date_range, size: 18),
-                    label: Text(_rangeLabel),
-                  ),
-                  if (_from != null)
-                    TextButton(
-                      onPressed: () => setState(() {
-                        _from = null;
-                        _to = null;
-                      }),
-                      child: const Text('Reset range'),
+                  if (offersAcademic)
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(value: false, label: Text('Trends')),
+                        ButtonSegment(value: true, label: Text('Subjects & classes')),
+                      ],
+                      selected: {academic},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (selection) => setState(() => _academic = selection.single),
                     ),
+                  if (!academic) ...[
+                    SegmentedButton<AnalyticsInterval>(
+                      segments: const [
+                        ButtonSegment(value: AnalyticsInterval.week, label: Text('By week')),
+                        ButtonSegment(value: AnalyticsInterval.month, label: Text('By month')),
+                      ],
+                      selected: {_interval},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (selection) => setState(() => _interval = selection.single),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _pickRange,
+                      icon: const Icon(Icons.date_range, size: 18),
+                      label: Text(_rangeLabel),
+                    ),
+                    if (_from != null)
+                      TextButton(
+                        onPressed: () => setState(() {
+                          _from = null;
+                          _to = null;
+                        }),
+                        child: const Text('Reset range'),
+                      ),
+                  ],
                 ],
               ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
-            "How the school's figures move over time. Each bar is that period's figure from the matching report.",
+            academic
+                ? 'How each subject and class did, term by term - the Class Performance report for each term.'
+                : "How the school's figures move over time. Each bar is that period's figure from the matching report.",
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
-          AsyncValueView<List<AnalyticsMeasure>>(
-            value: ref.watch(analyticsMeasuresProvider),
-            onRetry: () => ref.invalidate(analyticsMeasuresProvider),
-            isEmpty: (measures) => measures.isEmpty,
-            emptyBuilder: (context) => const _Notice('There are no charts for your role yet.'),
-            data: (context, measures) {
-              final measure = measures.firstWhere((m) => m.key == _measure, orElse: () => measures.first);
+          if (academic)
+            needsSchool
+                ? _Notice(
+                    actor.role == UserRole.superAdmin
+                        ? 'Pick a school to see its subjects and classes.'
+                        : 'Pick a branch to see its subjects and classes.',
+                  )
+                : AcademicView(schoolId: _schoolId)
+          else
+            AsyncValueView<List<AnalyticsMeasure>>(
+              value: ref.watch(analyticsMeasuresProvider),
+              onRetry: () => ref.invalidate(analyticsMeasuresProvider),
+              isEmpty: (measures) => measures.isEmpty,
+              emptyBuilder: (context) => const _Notice('There are no charts for your role yet.'),
+              data: (context, measures) {
+                final measure = measures.firstWhere((m) => m.key == _measure, orElse: () => measures.first);
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final option in measures)
-                        ChoiceChip(
-                          label: Text(option.label),
-                          selected: option.key == measure.key,
-                          onSelected: (_) => setState(() => _measure = option.key),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (needsSchool)
-                    _Notice(
-                      actor.role == UserRole.superAdmin
-                          ? 'Pick a school to see its charts.'
-                          // The dropdown offers the whole group, which is
-                          // not a figure the server gives yet.
-                          : 'Pick a branch to see its charts. Charts for the whole group together are not '
-                                'available yet.',
-                    )
-                  else
-                    _SeriesView(
-                      measure: measure,
-                      query: AnalyticsQuery(
-                        measure: measure.key,
-                        interval: _interval,
-                        schoolId: _schoolId,
-                        from: _from == null ? null : _iso(_from!),
-                        to: _to == null ? null : _iso(_to!),
-                      ),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final option in measures)
+                          ChoiceChip(
+                            label: Text(option.label),
+                            selected: option.key == measure.key,
+                            onSelected: (_) => setState(() => _measure = option.key),
+                          ),
+                      ],
                     ),
-                ],
-              );
-            },
-          ),
+                    const SizedBox(height: 16),
+                    if (needsSchool)
+                      _Notice(
+                        actor.role == UserRole.superAdmin
+                            ? 'Pick a school to see its charts.'
+                            // The dropdown offers the whole group, which is
+                            // not a figure the server gives yet.
+                            : 'Pick a branch to see its charts. Charts for the whole group together are not '
+                                  'available yet.',
+                      )
+                    else
+                      _SeriesView(
+                        measure: measure,
+                        query: AnalyticsQuery(
+                          measure: measure.key,
+                          interval: _interval,
+                          schoolId: _schoolId,
+                          from: _from == null ? null : _iso(_from!),
+                          to: _to == null ? null : _iso(_to!),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
         ],
       ),
     );

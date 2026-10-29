@@ -44,6 +44,20 @@ class LoginAddressThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
 
 
+class DemoRequestThrottle(SimpleRateThrottle):
+    """The marketing page's demo form: a public write, limited like the early
+    access form and counted apart from it."""
+
+    scope = "demo-request"
+    rate = "5/min"
+
+    def get_cache_key(self, request, view) -> str | None:
+        if request.method != "POST":
+            return None
+
+        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
+
+
 class EarlyAccessThrottle(SimpleRateThrottle):
     """The marketing page's signup form: a public write with no account behind
     it. Five a minute is more than any school needs and less than any bot

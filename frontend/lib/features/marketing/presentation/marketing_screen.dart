@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'marketing_colors.dart';
 import 'widgets/cta_section.dart';
 import 'widgets/features_section.dart';
+import 'widgets/demo_request_form.dart';
 import 'widgets/early_access_form.dart';
 import 'widgets/hero_section.dart';
 import 'widgets/marketing_footer.dart';
@@ -92,6 +93,7 @@ class _MarketingScreenState extends State<MarketingScreen> {
                 'Contact': () => _scrollTo(_contactKey),
               },
               onJoinEarlyAccess: () => showEarlyAccessDialog(context),
+              onRequestDemo: () => showDemoRequestDialog(context),
             ),
             Expanded(
               child: SingleChildScrollView(

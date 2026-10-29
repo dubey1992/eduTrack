@@ -5,6 +5,7 @@ import '../../data/marketing_content_repository.dart';
 
 import '../marketing_colors.dart';
 import 'dashboard_mockup.dart';
+import 'demo_request_form.dart';
 import 'early_access_form.dart';
 import 'marketing_buttons.dart';
 import 'marketing_wrap.dart';
@@ -83,6 +84,11 @@ class _HeroCopy extends ConsumerWidget {
             MarketingPrimaryButton(
               label: words.text('hero.primaryButton'),
               onPressed: () => showEarlyAccessDialog(context),
+            ),
+            MarketingOutlineButton(
+              label: words.text('hero.demoButton'),
+              icon: Icons.event_available_outlined,
+              onPressed: () => showDemoRequestDialog(context),
             ),
             MarketingOutlineButton(
               label: words.text('hero.secondaryButton'),

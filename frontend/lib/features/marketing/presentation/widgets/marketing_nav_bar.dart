@@ -14,18 +14,26 @@ import 'marketing_wrap.dart';
 
 /// The sticky top nav, matching the prototype's `.nav` - brand mark, anchor
 /// links to each section (hidden below [MarketingBreakpoints.tablet], same
-/// as the source `.links{display:none}` rule), and Login/Request A Demo
+/// as the source `.links{display:none}` rule), and Login/Join Early Access
 /// actions.
 ///
 /// The bar is the first thing anyone sees, on whatever device they own, so it
 /// is built so it cannot run off the edge: the brand and the actions are
 /// fixed, and everything between them lives in the space that is left.
 class MarketingNavBar extends ConsumerWidget {
-  const MarketingNavBar({super.key, required this.onNavigate, required this.onJoinEarlyAccess});
+  const MarketingNavBar({
+    super.key,
+    required this.onNavigate,
+    required this.onJoinEarlyAccess,
+    required this.onRequestDemo,
+  });
 
   /// label -> scroll callback, in display order.
   final Map<String, VoidCallback> onNavigate;
   final VoidCallback onJoinEarlyAccess;
+
+  /// Opens the Request a Demo form (decided 2026-10-29).
+  final VoidCallback onRequestDemo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -69,6 +77,20 @@ class MarketingNavBar extends ConsumerWidget {
         // exceed the screen, so the call to action shortens rather than
         // the bar spilling over the edge.
         final isTight = constraints.maxWidth < 480;
+
+        // Request a Demo sits between Login and Join Early Access, but only
+        // when the bar has room for it whole beside the brand and the other
+        // two: a bar that spills over the edge is worse than one without
+        // it. The section links give way first, since every section is
+        // still reached by scrolling. On a phone the hero's own demo
+        // button is the way in.
+        final fixed =
+            (isCompact ? 0 : math.min(_brandWidth(context, wordmark, tagline), constraints.maxWidth / 2)) +
+            _buttonWidth(context, words.text('nav.login')) +
+            _buttonWidth(context, isTight ? words.text('nav.joinShort') : words.text('nav.join')) +
+            10;
+        final showDemo =
+            !isCompact && constraints.maxWidth - fixed >= _buttonWidth(context, words.text('nav.demo')) + 10;
 
         return Row(
           children: [
@@ -134,6 +156,10 @@ class MarketingNavBar extends ConsumerWidget {
               ),
             MarketingOutlineButton(label: words.text('nav.login'), onPressed: () => context.go('/login')),
             const SizedBox(width: 10),
+            if (showDemo) ...[
+              MarketingOutlineButton(label: words.text('nav.demo'), onPressed: onRequestDemo),
+              const SizedBox(width: 10),
+            ],
             MarketingPrimaryButton(
               label: isTight ? words.text('nav.joinShort') : words.text('nav.join'),
               onPressed: onJoinEarlyAccess,
@@ -146,6 +172,15 @@ class MarketingNavBar extends ConsumerWidget {
 }
 
 const _linkStyle = TextStyle(fontSize: 14, color: Color(0xFF334155));
+
+/// A marketing button's label as the theme draws it, and what the button
+/// adds around it - 18px of padding a side and the border, with a little
+/// to spare - for deciding whether one fits before drawing it.
+const _buttonLabelStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.w700);
+const _buttonChrome = 48.0;
+
+double _buttonWidth(BuildContext context, String label) =>
+    _textWidth(context, label, _buttonLabelStyle) + _buttonChrome;
 const _wordmarkStyle = TextStyle(fontWeight: FontWeight.w800, fontSize: 20, height: 1.1, color: MarketingColors.text);
 const _taglineStyle = TextStyle(fontSize: 11, height: 1.3, color: MarketingColors.subtle);
 const _logoSize = 38.0;

@@ -103,7 +103,7 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) =>
-                  TextButton(onPressed: () => showEarlyAccessDialog(context), child: const Text('Request A Demo')),
+                  TextButton(onPressed: () => showEarlyAccessDialog(context), child: const Text('Join Early Access')),
             ),
           ),
         ),
@@ -117,7 +117,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(wrap(fake));
-      await tester.tap(find.text('Request A Demo'));
+      await tester.tap(find.text('Join Early Access'));
       await tester.pumpAndSettle();
     }
 
@@ -133,7 +133,7 @@ void main() {
     testWidgets('asks for what a callback actually needs', (tester) async {
       await open(tester, _FakeEarlyAccessRepository());
 
-      expect(find.text('Request A Demo'), findsWidgets);
+      expect(find.text('Join Early Access'), findsWidgets);
       for (final label in ['School name', 'Your name', 'Email', 'City', 'Country']) {
         expect(find.widgetWithText(TextFormField, label), findsOneWidget, reason: '$label is missing');
       }

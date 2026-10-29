@@ -12,13 +12,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import analytics, early_warning, modules, permissions
+from .. import academic_analytics, analytics, early_warning, modules, permissions
 from ..enums import UserRole
 from ..errors import ModuleDisabled
 from ..models import ClassSection, Department
 from ..pagination import LaravelPagination
 from ..policies import FeePolicy, authorize, permitted
-from ..requests import AnalyticsSeriesRequest, EarlyWarningRequest
+from ..requests import AcademicAnalyticsRequest, AnalyticsSeriesRequest, EarlyWarningRequest
 from ..scope import SchoolScope
 from .reports import filters_for
 
@@ -136,6 +136,35 @@ def early_warning_list(request):
     }
 
     return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def academic(request):
+    """Subjects and classes term by term (docs/analytics.md, A4).
+
+    The Class Performance report's audience: admins, and heads of
+    department for their own departments' subjects.
+    """
+    actor = request.user
+    form = AcademicAnalyticsRequest(data=request.query_params.dict(), actor=actor)
+    form.is_valid(raise_exception=True)
+
+    authorize(permitted(actor, "reports") and actor.role in (*analytics.ADMINS, UserRole.HOD))
+    school_id = _school_for(actor, form, "Pick a school to see its subjects and classes.")
+
+    if not modules.is_enabled(school_id, "assessments"):
+        raise ModuleDisabled(modules.get("assessments").label)
+
+    # A head of department's own departments, as in the report.
+    filters = {key: value for key, value in filters_for(actor, {}).items() if key == "department_ids"}
+    result = academic_analytics.academic(school_id, form.validated_data["academic_year_id"], filters)
+
+    return Response({
+        **result,
+        "pass_mark": modules.setting(school_id, "assessments", "pass_percentage"),
+        "weak_below": modules.setting(school_id, "assessments", "weak_below_percentage"),
+    })
 
 
 def _school_for(actor, form, missing: str) -> int:

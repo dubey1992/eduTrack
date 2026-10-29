@@ -20,6 +20,7 @@ import '../../features/classes/presentation/class_list_screen.dart';
 import '../../features/communication/presentation/communication_screen.dart';
 import '../../features/communication/presentation/inbox_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/demo_requests/presentation/demo_request_screen.dart';
 import '../../features/early_access/presentation/early_access_screen.dart';
 import '../../features/fees/presentation/fee_discounts_screen.dart';
 import '../../features/fees/presentation/fee_receipts_screen.dart';
@@ -145,6 +146,7 @@ const appRoutePaths = {
   '/users',
   '/schools',
   '/early-access',
+  '/demo-requests',
   '/payments',
   '/academic-years',
   '/assessments',
@@ -277,6 +279,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
           GoRoute(path: '/early-access', builder: (context, state) => const EarlyAccessScreen()),
+          GoRoute(path: '/demo-requests', builder: (context, state) => const DemoRequestScreen()),
           GoRoute(path: '/payments', builder: (context, state) => const PaymentListScreen()),
           GoRoute(path: '/academic-years', builder: (context, state) => const AcademicYearListScreen()),
           GoRoute(path: '/assessments', builder: (context, state) => const AssessmentListScreen()),

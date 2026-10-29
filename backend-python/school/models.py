@@ -1866,3 +1866,32 @@ class AnalyticsSchoolFeeDay(models.Model):
         managed = False
         db_table = 'analytics_school_fee_days'
         unique_together = (('school', 'snapshot_date', 'currency_code'),)
+
+
+class DemoRequest(models.Model):
+    """A school asking to be shown the product (docs/marketing-content.md,
+    decided 2026-10-29). Kept apart from early access: this wants a person's
+    time on a day, not an account."""
+
+    id = models.BigAutoField(primary_key=True)
+    contact_name = models.CharField(max_length=150)
+    school_name = models.CharField(max_length=150)
+    email = models.CharField(max_length=255)
+    phone = models.CharField(max_length=20)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100)
+    expected_students = models.IntegerField(blank=True, null=True)
+    preferred_date = models.DateField()
+    preferred_time = models.CharField(max_length=20, blank=True, null=True)
+    timezone = models.CharField(max_length=64, blank=True, null=True)
+    message = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20)
+    notes = models.TextField(blank=True, null=True)
+    reviewed_by = models.ForeignKey('User', models.DO_NOTHING, db_column='reviewed_by', blank=True, null=True)
+    reviewed_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'demo_requests'

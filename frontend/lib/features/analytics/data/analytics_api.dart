@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import 'models/academic_overview.dart';
 import 'models/analytics_series.dart';
 import 'models/early_warning.dart';
 
@@ -63,5 +64,14 @@ class AnalyticsApi {
     );
 
     return EarlyWarningPage.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AcademicOverview> academic({int? schoolId, int? academicYearId}) async {
+    final response = await _dio.get(
+      '/analytics/academic',
+      queryParameters: {'school_id': ?schoolId, 'academic_year_id': ?academicYearId},
+    );
+
+    return AcademicOverview.fromJson(response.data as Map<String, dynamic>);
   }
 }
