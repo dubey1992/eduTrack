@@ -351,6 +351,18 @@ has none of the dependencies.
 
 ## 6. The web app
 
+**Caching.** `frontend/web/.htaccess` sends `Cache-Control: no-cache` for
+the app's html, js, json and font files, so every load checks them with the
+server. An unchanged file answers a cheap 304, and a deploy reaches every
+browser at once.
+
+Without this rule the host sends no caching instruction at all, and
+browsers guess from a file's age. On 2026-10-29 that kept a weeks-old icon
+font beside the new app: Flutter trims the font to the icons each build
+uses, so the sidebar's new Analytics entry showed no icon. A `.htaccess`
+uploaded to public_html must keep cPanel's PHP block; merge, never replace.
+
+
 Build with the API base URL pointed at production, then upload
 `frontend/build/web/` into `public_html/`:
 

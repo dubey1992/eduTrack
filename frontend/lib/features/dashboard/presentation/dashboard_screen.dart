@@ -9,6 +9,7 @@ import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../analytics/application/analytics_notifier.dart';
 import '../../analytics/presentation/widgets/dashboard_trends.dart';
+import '../../analytics/presentation/widgets/early_warning_banner.dart';
 import '../../auth/data/models/authenticated_user.dart';
 import '../application/dashboard_notifier.dart';
 import '../data/models/dashboard.dart';
@@ -118,6 +119,7 @@ class _DashboardBody extends StatelessWidget {
         // school there is no single set of opening hours to be closed, and
         // saying "the school is closed" of all seven at once is nonsense.
         if (!dashboard.isWorkingDay && dashboard.schoolId != null) _ClosedBanner(dashboard: dashboard),
+        EarlyWarningBanner(schoolId: schoolId),
         Wrap(spacing: 12, runSpacing: 12, children: [for (final card in dashboard.cards) _StatCard(card: card)]),
         const SizedBox(height: 16),
         DashboardTrends(schoolId: schoolId),

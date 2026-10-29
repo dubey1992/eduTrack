@@ -8,7 +8,8 @@ import '../../../early_access/data/early_access_repository.dart';
 import '../marketing_colors.dart';
 import '../../../../core/widgets/dialog_message.dart';
 
-/// The form behind every "Join Early Access" button.
+/// The form behind every "Request A Demo" button (called "Join Early
+/// Access" until 2026-10-29; the requests still land in Early Access).
 ///
 /// It is the one thing in the app a complete stranger fills in, so it asks
 /// for the least that makes a callback possible and treats everything else as
@@ -118,7 +119,7 @@ class _EarlyAccessDialogState extends ConsumerState<_EarlyAccessDialog> {
     }
 
     return AlertDialog(
-      title: Text('Join Early Access', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+      title: Text('Request A Demo', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
       content: SizedBox(
         width: 460,
         child: SingleChildScrollView(

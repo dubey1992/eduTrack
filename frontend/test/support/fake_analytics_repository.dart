@@ -3,6 +3,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/features/analytics/data/analytics_api.dart';
 import 'package:edutrack_app/features/analytics/data/analytics_repository.dart';
 import 'package:edutrack_app/features/analytics/data/models/analytics_series.dart';
+import 'package:edutrack_app/features/analytics/data/models/early_warning.dart';
 
 /// What a School Admin may chart, in the order the API lists them.
 const fakeAnalyticsMeasures = [
@@ -73,9 +74,93 @@ AnalyticsSeries fakeNotRecordedYetSeries() => AnalyticsSeries.fromJson({
   ],
 });
 
+/// Two flagged students in Grade 8 A: one at high risk, one at risk.
+EarlyWarningPage fakeEarlyWarningPage({int high = 1, int atRisk = 1, EarlyWarningLevel? level}) {
+  final rows = [
+    if (high > 0 && level != EarlyWarningLevel.atRisk)
+      {
+        'student_id': 7,
+        'name': 'Zara Khan',
+        'admission_number': 'ADM-0007',
+        'class_section_id': 3,
+        'class_section': 'Grade 8 A',
+        'level': 'high',
+        'signals': [
+          {
+            'code': 'low_attendance',
+            'value': 62,
+            'previous': null,
+            'message': 'Attendance 62% over the last 30 school days, below 75%.',
+          },
+          {
+            'code': 'falling_marks',
+            'value': 48,
+            'previous': 71,
+            'message': 'Test average down 23 points, from 71% to 48%.',
+          },
+        ],
+      },
+    if (atRisk > 0 && level != EarlyWarningLevel.high)
+      {
+        'student_id': 9,
+        'name': 'Arjun Kumar',
+        'admission_number': 'ADM-0042',
+        'class_section_id': 3,
+        'class_section': 'Grade 8 A',
+        'level': 'at_risk',
+        'signals': [
+          {
+            'code': 'falling_attendance',
+            'value': 86.7,
+            'previous': 100,
+            'message': 'Attendance down 13.3 points, from 100% to 86.7%.',
+          },
+        ],
+      },
+  ];
+
+  return EarlyWarningPage.fromJson({
+    'data': rows,
+    'meta': {'current_page': 1, 'last_page': 1, 'total': rows.length, 'per_page': 20},
+    'summary': {
+      'as_of': '2026-09-14',
+      'thresholds': {'attendance_below': 75, 'drop_points': 10, 'pass_mark': 33},
+      'windows': <String, dynamic>{},
+      'counts': {'high': high, 'at_risk': atRisk},
+    },
+  });
+}
+
 class FakeAnalyticsRepository extends AnalyticsRepository {
-  FakeAnalyticsRepository({this.measureList = fakeAnalyticsMeasures, this.failure, this.seriesByMeasure = const {}})
-    : super(AnalyticsApi(Dio()));
+  FakeAnalyticsRepository({
+    this.measureList = fakeAnalyticsMeasures,
+    this.failure,
+    this.seriesByMeasure = const {},
+    this.flaggedHigh = 0,
+    this.flaggedAtRisk = 0,
+    this.earlyWarningFailure,
+  }) : super(AnalyticsApi(Dio()));
+
+  /// How many students the early-warning list says are flagged.
+  final int flaggedHigh;
+  final int flaggedAtRisk;
+  final Failure? earlyWarningFailure;
+
+  final earlyWarningAsked = <({int? schoolId, EarlyWarningLevel? level, int page, int perPage})>[];
+
+  @override
+  Future<EarlyWarningPage> earlyWarning({
+    int? schoolId,
+    int? classSectionId,
+    EarlyWarningLevel? level,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    earlyWarningAsked.add((schoolId: schoolId, level: level, page: page, perPage: perPage));
+    if (earlyWarningFailure != null) throw earlyWarningFailure!;
+
+    return fakeEarlyWarningPage(high: flaggedHigh, atRisk: flaggedAtRisk, level: level);
+  }
 
   final List<AnalyticsMeasure> measureList;
 

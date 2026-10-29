@@ -17,8 +17,8 @@ const marketingDefaults = <String, String>{
   'nav.wordmark': 'School365ai',
   'nav.tagline': 'Smarter Schools. Brighter Futures.',
   'nav.login': 'Login',
-  'nav.join': 'Join Early Access',
-  'nav.joinShort': 'Join',
+  'nav.join': 'Request A Demo',
+  'nav.joinShort': 'Demo',
 
   // -- the first thing anybody reads -------------------------------------
   'hero.eyebrow': 'A Complete School Management Platform',
@@ -26,7 +26,7 @@ const marketingDefaults = <String, String>{
   'hero.body':
       'Students, Teachers, Academics, Attendance, Transport, Communication, '
       'Payroll and more — all in one simple and powerful platform.',
-  'hero.primaryButton': 'Join Early Access →',
+  'hero.primaryButton': 'Request A Demo →',
   'hero.secondaryButton': 'Watch Video',
   'hero.trustLine': 'Trusted by forward-thinking school leaders worldwide.',
 
@@ -50,7 +50,7 @@ const marketingDefaults = <String, String>{
   'cta.body':
       "We're currently inviting schools worldwide to join our early access program.\n"
       'Get exclusive access, provide feedback, and help shape the future of School365ai.',
-  'cta.button': 'Join Early Access →',
+  'cta.button': 'Request A Demo →',
 
   // -- the bottom ---------------------------------------------------------
   'footer.wordmark': 'School365ai',

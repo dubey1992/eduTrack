@@ -248,6 +248,7 @@ urlpatterns = [
     # Analytics, A1 (docs/analytics.md).
     path("api/v1/analytics/measures", analytics.measures),
     path("api/v1/analytics/series", analytics.series),
+    path("api/v1/analytics/early-warning", analytics.early_warning_list),
     path("api/v1/reports/student-attendance", reports.student_attendance),
     path("api/v1/reports/staff-attendance", reports.staff_attendance),
     path("api/v1/reports/teaching-coverage", reports.teaching_coverage),

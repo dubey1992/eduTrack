@@ -179,7 +179,21 @@ MODULES: tuple[Module, ...] = (
             ),
         ),
     ),
-    Module("reports", "Reports", "Attendance, leave, teaching, transport and payroll reports."),
+    Module(
+        "reports", "Reports", "Attendance, leave, teaching, transport and payroll reports.",
+        # Student early warning (docs/analytics.md, A3): per school, decided
+        # 2026-10-29. The test-average line is the Assessments pass mark.
+        settings=(
+            Setting(
+                "early_warning_attendance_below", "Early warning: attendance below (%)", "int", 75, min=1, max=100,
+                help="A student under this over the last 30 school days is flagged.",
+            ),
+            Setting(
+                "early_warning_drop_points", "Early warning: a drop of (points)", "int", 10, min=1, max=100,
+                help="A fall this large in attendance or test average is flagged, even above the lines.",
+            ),
+        ),
+    ),
 )
 
 BY_KEY = {module.key: module for module in MODULES}

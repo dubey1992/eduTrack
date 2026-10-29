@@ -9,7 +9,7 @@ const _kButtonPadding = EdgeInsets.symmetric(horizontal: 18, vertical: 11);
 final _kButtonShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(10));
 const _kButtonTextStyle = TextStyle(fontWeight: FontWeight.w700);
 
-/// The solid blue CTA, e.g. "Join Early Access". Carries the prototype's
+/// The solid blue CTA, e.g. "Request A Demo". Carries the prototype's
 /// `.primary{box-shadow:0 8px 20px #2563eb26}` glow, which a plain
 /// [FilledButton] doesn't have - without it the color reads flatter than
 /// the source design.

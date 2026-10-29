@@ -162,13 +162,70 @@ there the moment anyone signs in.
   school's trends, with its name in the heading, until they pick a branch.
   A Super Admin picks a school first.
 
+## Student early warning (A3)
+
+Built 2026-10-29, from three decisions made the same day: flag students
+whose figures are low or falling; show them to admins, class teachers and
+heads of department; let each school set the lines.
+
+**The four signals.** Each is a sentence with its numbers, written by the
+server, in `school/early_warning.py`:
+
+| Signal | Fires when | Needs |
+|---|---|---|
+| Low attendance | under the school's line (default 75%) over the last 30 working days | 10 marked days |
+| Falling attendance | down by the school's drop (default 10 points) on the 30 working days before | 10 marked days in each |
+| Low test average | under the Assessments pass mark (default 33%) over the last 90 days | 2 results |
+| Falling test average | down by the drop on the 90 days before | 2 results in each |
+
+One signal is **at risk**, two or more **high risk**. The thresholds are two
+settings on the Reports module, in Module Settings: "attendance below" and
+"a drop of". The pass mark is the Assessments one the school already has.
+
+These rules are deliberate:
+
+- **Attendance is counted over the days a student was marked**, not over
+  every working day. A register nobody took says nothing about the child,
+  and counting it would flag a whole class whose teacher forgot.
+- **The test average is the Student Performance report's own**, so it uses
+  published results only, ignores absences, and weighs subjects evenly. A
+  flag can always be checked against that report.
+- **On the line is not under it.** 75% with a 75% line is not flagged.
+- **Only current students are listed.** Someone who has left is not.
+- **No signal without enough to go on.** One test is not a trend.
+
+**Who sees what** (`GET /api/v1/analytics/early-warning`):
+
+| Who | Students | Signals |
+|---|---|---|
+| Super / Group / School Admin | the whole school (one at a time for those spanning schools) | all |
+| Class teacher | their own classes | all |
+| Head of department | any student | test signals from their departments' subjects only, plus their own class in full if they have one |
+| Anyone else | refused (403) | - |
+
+A teacher with no class sees an empty list, not an error. A school with
+Reports switched off has no early warning (403 `MODULE_DISABLED`). Without
+Attendance or Assessments switched on, that module's signals are left out.
+
+The list is paginated and highest risk first. `summary` carries `as_of`,
+the thresholds, the windows and the whole list's counts, whatever `level`
+filter was asked for.
+
+**On screen:**
+
+- **Early Warning page:** under Overview. Level chips show their counts, the
+  lines in use are stated, and each student is a card with their reasons.
+- **Dashboard banner:** "3 students at high risk, 8 at risk - Review" at the
+  top, opening the list. It shows nothing when nobody is flagged or the
+  count fails to load.
+
 ## The phases
 
 | | Phase | State |
 |---|---|---|
 | A1 | Foundation: measures, periods, snapshots, the API | **built** |
 | A2 | School Analytics screen: trend charts per measure | **built** |
-| A3 | Student early warning: attendance and marks falling together | next, to decide |
+| A3 | Student early warning: low or falling attendance and test results | **built** |
 | A4 | Academic analytics: subjects and classes over terms | |
 | A5 | Finance: collection against what fell due, per currency | to decide |
 | A6 | Transport: trips run, riders, late trips | |
@@ -176,5 +233,4 @@ there the moment anyone signs in.
 
 These are still open, and each is asked when its phase is reached:
 
-- A3: the early-warning rules, and who sees a flagged child.
 - A5: whether to forecast fees at all.

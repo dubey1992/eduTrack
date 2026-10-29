@@ -151,6 +151,20 @@ class AppNav {
         pageTitle: 'Analytics',
         pageSubtitle: 'How the figures move, week by week or month by month',
       ),
+      NavItem(
+        path: '/early-warning',
+        module: AppModules.reports,
+        label: 'Early Warning',
+        icon: Icons.warning_amber_outlined,
+        // Decided 2026-10-29 (docs/analytics.md, A3): admins see the school,
+        // a class teacher their own class, a head of department the test
+        // results in their subjects. A teacher's access is their class, not
+        // the reports matrix, so only the Reports switch is asked of it.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
+        requiredLevel: PermissionLevel.none,
+        pageTitle: 'Early Warning',
+        pageSubtitle: 'Students whose attendance or results are low or falling',
+      ),
     ],
   );
 

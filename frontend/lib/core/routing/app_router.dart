@@ -40,7 +40,9 @@ import '../../features/payroll/presentation/my_payslips_screen.dart';
 import '../../features/payroll/presentation/payroll_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
+import '../../features/analytics/data/models/early_warning.dart';
 import '../../features/analytics/presentation/analytics_screen.dart';
+import '../../features/analytics/presentation/early_warning_screen.dart';
 import '../../features/biometric/presentation/device_list_screen.dart';
 import '../../features/schools/presentation/school_detail_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
@@ -173,6 +175,7 @@ const appRoutePaths = {
   '/inbox',
   '/reports',
   '/analytics',
+  '/early-warning',
   '/payroll',
   '/fee-setup',
   '/student-fees',
@@ -303,6 +306,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/announcements', builder: (context, state) => const AnnouncementScreen()),
           GoRoute(path: '/inbox', builder: (context, state) => const InboxScreen()),
           GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
+          GoRoute(
+            path: '/early-warning',
+            builder: (context, state) => EarlyWarningScreen(
+              initialLevel: switch (state.uri.queryParameters['level']) {
+                null => null,
+                final level => EarlyWarningLevel.fromApi(level),
+              },
+              initialSchoolId: int.tryParse(state.uri.queryParameters['school_id'] ?? ''),
+            ),
+          ),
           GoRoute(
             path: '/analytics',
             builder: (context, state) => AnalyticsScreen(

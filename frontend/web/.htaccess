@@ -41,6 +41,15 @@
 ErrorDocument 404 /404.html
 
 <IfModule mod_headers.c>
+  # The app's own files are checked with the server on every load. Without
+  # this the server sends no caching rule at all, and a browser guesses from
+  # how old a file is - so after a deploy it kept a weeks-old icon font
+  # beside the new app, and the sidebar's new Analytics entry showed no
+  # icon (2026-10-29). Unchanged files still answer a cheap 304.
+  <FilesMatch "\.(html|js|json|otf|ttf|wasm)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+
   # What the page may load and talk to, and nothing else. Each source is here
   # because the app needs it:
   #   'self'                     the app's own files

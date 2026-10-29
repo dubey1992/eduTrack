@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/analytics_repository.dart';
 import '../data/models/analytics_series.dart';
+import '../data/models/early_warning.dart';
 
 /// What the analytics screen is currently charting (docs/analytics.md, A2).
 ///
@@ -52,4 +53,37 @@ final analyticsSeriesProvider = FutureProvider.autoDispose.family<AnalyticsSerie
   return ref
       .watch(analyticsRepositoryProvider)
       .series(query.measure, interval: query.interval, schoolId: query.schoolId, from: query.from, to: query.to);
+}, retry: (retryCount, error) => null);
+
+/// What the early-warning list is asking for (A3).
+class EarlyWarningQuery {
+  const EarlyWarningQuery({this.schoolId, this.level, this.page = 1, this.perPage = 20});
+
+  final int? schoolId;
+
+  /// Null for every flagged student.
+  final EarlyWarningLevel? level;
+  final int page;
+  final int perPage;
+
+  EarlyWarningQuery copyWith({int? page, int? perPage}) =>
+      EarlyWarningQuery(schoolId: schoolId, level: level, page: page ?? this.page, perPage: perPage ?? this.perPage);
+
+  @override
+  bool operator ==(Object other) {
+    return other is EarlyWarningQuery &&
+        other.schoolId == schoolId &&
+        other.level == level &&
+        other.page == page &&
+        other.perPage == perPage;
+  }
+
+  @override
+  int get hashCode => Object.hash(schoolId, level, page, perPage);
+}
+
+final earlyWarningProvider = FutureProvider.autoDispose.family<EarlyWarningPage, EarlyWarningQuery>((ref, query) {
+  return ref
+      .watch(analyticsRepositoryProvider)
+      .earlyWarning(schoolId: query.schoolId, level: query.level, page: query.page, perPage: query.perPage);
 }, retry: (retryCount, error) => null);

@@ -5360,6 +5360,38 @@ class AnalyticsSeriesRequest(ReportRequest):
         return values
 
 
+class EarlyWarningRequest(ReportRequest):
+    """Which school's flagged students, narrowed to a class or a level
+    (docs/analytics.md, A3). The report form's school and class checks,
+    unchanged; the list is always as of today, so it takes no range."""
+
+    LEVELS = ("high", "at_risk")
+
+    def to_internal_value(self, data):
+        errors: dict[str, list[str]] = {}
+        values: dict = {}
+
+        try:
+            values = super().to_internal_value(data)
+        except serializers.ValidationError as failure:
+            errors = dict(failure.detail)
+
+        for key in ("format", "compare", "below", "from", "to"):
+            errors.pop(key, None)
+
+        level = data.get("level")
+        if level not in (None, "") and level not in self.LEVELS:
+            errors["level"] = [selected_is_invalid("level")]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return {
+            "class_section_id": values.get("class_section_id"),
+            "level": level or None,
+        }
+
+
 # -- audit log (Phase 21) ------------------------------------------------------
 
 

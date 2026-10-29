@@ -14,7 +14,7 @@ import 'marketing_wrap.dart';
 
 /// The sticky top nav, matching the prototype's `.nav` - brand mark, anchor
 /// links to each section (hidden below [MarketingBreakpoints.tablet], same
-/// as the source `.links{display:none}` rule), and Login/Join Early Access
+/// as the source `.links{display:none}` rule), and Login/Request A Demo
 /// actions.
 ///
 /// The bar is the first thing anyone sees, on whatever device they own, so it

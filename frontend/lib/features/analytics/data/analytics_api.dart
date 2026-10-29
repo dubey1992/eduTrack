@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import 'models/analytics_series.dart';
+import 'models/early_warning.dart';
 
 final analyticsApiProvider = Provider<AnalyticsApi>((ref) => AnalyticsApi(ref.watch(dioClientProvider)));
 
@@ -41,5 +42,26 @@ class AnalyticsApi {
     );
 
     return AnalyticsSeries.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<EarlyWarningPage> earlyWarning({
+    int? schoolId,
+    int? classSectionId,
+    EarlyWarningLevel? level,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final response = await _dio.get(
+      '/analytics/early-warning',
+      queryParameters: {
+        'school_id': ?schoolId,
+        'class_section_id': ?classSectionId,
+        'level': ?level?.apiValue,
+        'page': page,
+        'per_page': perPage,
+      },
+    );
+
+    return EarlyWarningPage.fromJson(response.data as Map<String, dynamic>);
   }
 }

@@ -121,7 +121,7 @@ void main() {
     expect(find.text('Login Screen'), findsOneWidget);
   });
 
-  testWidgets('tapping Join Early Access opens the signup form, not a JS alert', (tester) async {
+  testWidgets('tapping Request A Demo opens the signup form, not a JS alert', (tester) async {
     // Tall enough for the form; the dialog scrolls, but the fields have to
     // exist to be found.
     tester.view.physicalSize = const Size(1200, 1400);
@@ -132,7 +132,7 @@ void main() {
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Join Early Access').first);
+    await tester.tap(find.widgetWithText(FilledButton, 'Request A Demo').first);
     await tester.pumpAndSettle();
 
     expect(find.byType(AlertDialog), findsOneWidget);
