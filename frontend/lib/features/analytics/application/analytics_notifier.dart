@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/analytics_repository.dart';
 import '../data/models/academic_overview.dart';
 import '../data/models/finance_overview.dart';
+import '../data/models/transport_overview.dart';
 import '../data/models/analytics_series.dart';
 import '../data/models/early_warning.dart';
 
@@ -118,4 +119,9 @@ typedef FinanceQuery = ({int? schoolId, String? from, String? to});
 
 final financeOverviewProvider = FutureProvider.autoDispose.family<FinanceOverview, FinanceQuery>((ref, query) {
   return ref.watch(analyticsRepositoryProvider).finance(schoolId: query.schoolId, from: query.from, to: query.to);
+}, retry: (retryCount, error) => null);
+
+/// Each route of a school, the last twelve months (A6).
+final transportOverviewProvider = FutureProvider.autoDispose.family<TransportOverview, int?>((ref, schoolId) {
+  return ref.watch(analyticsRepositoryProvider).transport(schoolId: schoolId);
 }, retry: (retryCount, error) => null);

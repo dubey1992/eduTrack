@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import 'models/academic_overview.dart';
 import 'models/finance_overview.dart';
+import 'models/transport_overview.dart';
 import 'models/analytics_series.dart';
 import 'models/early_warning.dart';
 
@@ -83,5 +84,11 @@ class AnalyticsApi {
     );
 
     return FinanceOverview.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TransportOverview> transport({int? schoolId}) async {
+    final response = await _dio.get('/analytics/transport', queryParameters: {'school_id': ?schoolId});
+
+    return TransportOverview.fromJson(response.data as Map<String, dynamic>);
   }
 }

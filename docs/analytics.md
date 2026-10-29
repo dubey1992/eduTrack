@@ -294,6 +294,40 @@ snapshot (`analytics_school_fee_days`) records the three ages beside the
 totals. Rows from before that carry `ages_recorded = false` and are never
 charted, so the chart starts from the first night after A5 went live.
 
+## Transport (A6)
+
+Built 2026-10-29, from the user's answers that day:
+
+- a bus is late at a stop when it arrives **more than 10 minutes** after the
+  stop's scheduled time;
+- show all four views;
+- show them to the Transport Usage report's audience: admins and the
+  Transport Manager.
+
+"Transport" is the fourth view on the Analytics page, for a school that
+uses Transport. The Transport Manager now gets the Analytics menu, landing
+on this view; the other views stay hidden from them. The endpoint is
+`GET /api/v1/analytics/transport?school_id=&from=&to=`, covering the last
+12 months by default and at most 24. It is built in
+`school/transport_analytics.py`.
+
+For each route, month by month:
+
+| Part | What it says |
+|---|---|
+| Service | days a trip ran out of the school's working days, trips completed, trips cancelled |
+| Riders | riders on the trips' lists, how many boarded (marked boarded or dropped), no-shows (marked absent) |
+| On time at stops | each stop reached against its scheduled pickup or drop time: more than 10 minutes after is late, and early is never late; the share on time and the average lateness of the late ones |
+| Trip length | the average and longest completed trip, in minutes |
+
+Above the routes, **Stops most often late** lists, over the whole range, up
+to ten stops that were ever more than 10 minutes late, worst first.
+
+Times are the school's own. A stop's schedule is a time on the school's
+clock, so each recorded arrival is turned into the school's time before it
+is compared. A stop with no scheduled time for the trip's direction counts
+neither as on time nor as late.
+
 ## The phases
 
 | | Phase | State |
@@ -303,7 +337,7 @@ charted, so the chart starts from the first night after A5 went live.
 | A3 | Student early warning: low or falling attendance and test results | **built** |
 | A4 | Academic analytics: subjects and classes over terms | **built** |
 | A5 | Finance: collection against what fell due, per currency | **built** |
-| A6 | Transport: trips run, riders, late trips | |
+| A6 | Transport: trips run, riders, late trips | **built** |
 | A7 | Platform analytics for the Super Admin | |
 
 These are still open, and each is asked when its phase is reached:

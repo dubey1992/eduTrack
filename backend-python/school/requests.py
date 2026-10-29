@@ -5489,6 +5489,20 @@ class FinanceAnalyticsRequest(ReportRequest):
         return {"from": start, "to": end}
 
 
+class TransportAnalyticsRequest(FinanceAnalyticsRequest):
+    """Which school's routes, month by month (A6): the same range rules as
+    finance - the last twelve months unless asked, never more than two years."""
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except serializers.ValidationError as failure:
+            errors = dict(failure.detail)
+            if "from" in errors:
+                errors["from"] = ["Transport analytics covers at most 24 months. Pick a shorter range."]
+            raise serializers.ValidationError(errors)
+
+
 class EarlyWarningRequest(ReportRequest):
     """Which school's flagged students, narrowed to a class or a level
     (docs/analytics.md, A3). The report form's school and class checks,

@@ -15,6 +15,7 @@ import '../data/models/analytics_series.dart';
 import 'series_line.dart';
 import 'widgets/academic_view.dart';
 import 'widgets/finance_view.dart';
+import 'widgets/transport_view.dart';
 import 'widgets/trend_bar_chart.dart';
 
 /// School Analytics (docs/analytics.md, A2): one figure over time, week by
@@ -48,6 +49,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
   /// Who reads the class performance report the term view is built from.
   static const _academicRoles = {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod};
+
+  /// Who reads the Transport Usage report the route view is built from (A6).
+  static const _transportRoles = {
+    UserRole.superAdmin,
+    UserRole.groupAdmin,
+    UserRole.schoolAdmin,
+    UserRole.transportManager,
+  };
 
   String _iso(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
@@ -87,8 +96,19 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     final offersAcademic = actor != null && _academicRoles.contains(actor.role);
     // Whoever may read fees, where the school uses them - the fee reports' audience.
     final offersFinance = actor != null && actor.canView(AppModules.fees);
-    final views = [_View.trends, if (offersAcademic) _View.academic, if (offersFinance) _View.finance];
-    final view = views.contains(_view) ? _view : _View.trends;
+    // The Transport Usage report's audience, in a school that uses Transport.
+    final offersTransport =
+        actor != null && _transportRoles.contains(actor.role) && actor.moduleOn(AppModules.transport);
+    // A transport manager has no trend charts: their analytics are the routes.
+    final offersTrends = actor == null || actor.role != UserRole.transportManager;
+    final views = [
+      if (offersTrends) _View.trends,
+      if (offersAcademic) _View.academic,
+      if (offersFinance) _View.finance,
+      if (offersTransport) _View.transport,
+    ];
+    final view = views.contains(_view) ? _view : (views.isEmpty ? _View.trends : views.first);
+    final transport = view == _View.transport;
     final academic = view == _View.academic;
     final finance = view == _View.finance;
 
@@ -152,6 +172,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           Text(switch (view) {
             _View.academic =>
               'How each subject and class did, term by term - the Class Performance report for each term.',
+            _View.transport =>
+              'Each route over the last twelve months: days run, riders, on time at stops, and how long trips take.',
             _View.finance =>
               "The school's fee money month by month, over the last twelve months. "
                   'Each currency on its own; nothing is added across them.',
@@ -175,6 +197,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         : 'Pick a branch to see its finances.',
                   )
                 : FinanceView(schoolId: _schoolId)
+          else if (transport)
+            needsSchool
+                ? _Notice(
+                    actor.role == UserRole.superAdmin
+                        ? 'Pick a school to see its routes.'
+                        : 'Pick a branch to see its routes.',
+                  )
+                : TransportView(schoolId: _schoolId)
           else
             AsyncValueView<List<AnalyticsMeasure>>(
               value: ref.watch(analyticsMeasuresProvider),
@@ -234,7 +264,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 enum _View {
   trends('Trends'),
   academic('Subjects & classes'),
-  finance('Finance');
+  finance('Finance'),
+  transport('Transport');
 
   const _View(this.label);
 

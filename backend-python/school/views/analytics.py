@@ -12,7 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import academic_analytics, analytics, early_warning, finance_analytics, modules, permissions
+from .. import academic_analytics, analytics, early_warning, finance_analytics, modules, permissions, transport_analytics
 from ..enums import UserRole
 from ..errors import ModuleDisabled
 from ..models import ClassSection, Department
@@ -23,6 +23,7 @@ from ..requests import (
     AnalyticsSeriesRequest,
     EarlyWarningRequest,
     FinanceAnalyticsRequest,
+    TransportAnalyticsRequest,
 )
 from ..scope import SchoolScope
 from .reports import filters_for
@@ -201,6 +202,30 @@ def finance(request):
         finance_analytics.finance(
             school_id, form.validated_data["from"], form.validated_data["to"], include_payroll
         )
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def transport(request):
+    """Each route month by month (docs/analytics.md, A6): service, riders,
+    on time at stops, trip length. The Transport Usage report's audience -
+    admins and the Transport Manager - in a school that uses Transport."""
+    actor = request.user
+    form = TransportAnalyticsRequest(data=request.query_params.dict(), actor=actor)
+    form.is_valid(raise_exception=True)
+
+    authorize(
+        permitted(actor, "reports")
+        and actor.role in (*analytics.ADMINS, UserRole.TRANSPORT_MANAGER)
+    )
+    school_id = _school_for(actor, form, "Pick a school to see its routes.")
+
+    if not modules.is_enabled(school_id, "transport"):
+        raise ModuleDisabled(modules.get("transport").label)
+
+    return Response(
+        transport_analytics.transport(school_id, form.validated_data["from"], form.validated_data["to"])
     )
 
 

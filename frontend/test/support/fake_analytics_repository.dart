@@ -6,6 +6,7 @@ import 'package:edutrack_app/features/analytics/data/models/academic_overview.da
 import 'package:edutrack_app/features/analytics/data/models/analytics_series.dart';
 import 'package:edutrack_app/features/analytics/data/models/early_warning.dart';
 import 'package:edutrack_app/features/analytics/data/models/finance_overview.dart';
+import 'package:edutrack_app/features/analytics/data/models/transport_overview.dart';
 
 /// What a School Admin may chart, in the order the API lists them.
 const fakeAnalyticsMeasures = [
@@ -211,6 +212,54 @@ Map<String, dynamic> fakeFinanceJson({bool withPayroll = true}) => {
     ],
 };
 
+/// Route A over two months: September with a late stop, and Market listed
+/// as the stop most often late.
+Map<String, dynamic> fakeTransportJson({bool withRoutes = true}) => {
+  'as_of': '2026-09-14',
+  'late_after_minutes': 10,
+  'months': [
+    {'from': '2026-08-01', 'to': '2026-08-31'},
+    {'from': '2026-09-01', 'to': '2026-09-14'},
+  ],
+  'routes': [
+    if (withRoutes)
+      {
+        'route_id': 1,
+        'route': 'Route A',
+        'months': [
+          {
+            'from': '2026-08-01',
+            'to': '2026-08-31',
+            'service': {'working_days': 21, 'days_run': 0, 'trips_completed': 0, 'trips_cancelled': 0},
+            'riders': {'on_list': 0, 'boarded': 0, 'absent': 0, 'boarded_rate': null},
+            'on_time': {'arrivals': 0, 'late': 0, 'on_time_rate': null, 'average_minutes_late': null},
+            'length': {'trips': 0, 'average_minutes': null, 'longest_minutes': null},
+          },
+          {
+            'from': '2026-09-01',
+            'to': '2026-09-14',
+            'service': {'working_days': 10, 'days_run': 2, 'trips_completed': 3, 'trips_cancelled': 1},
+            'riders': {'on_list': 4, 'boarded': 3, 'absent': 1, 'boarded_rate': 75.0},
+            'on_time': {'arrivals': 3, 'late': 1, 'on_time_rate': 66.7, 'average_minutes_late': 16.0},
+            'length': {'trips': 2, 'average_minutes': 50.0, 'longest_minutes': 60.0},
+          },
+        ],
+      },
+  ],
+  'late_stops': [
+    if (withRoutes)
+      {
+        'stop_id': 2,
+        'stop': 'Market',
+        'route': 'Route A',
+        'arrivals': 2,
+        'late': 2,
+        'late_rate': 100.0,
+        'average_minutes_late': 20.0,
+      },
+  ],
+};
+
 /// Two flagged students in Grade 8 A: one at high risk, one at risk.
 EarlyWarningPage fakeEarlyWarningPage({int high = 1, int atRisk = 1, EarlyWarningLevel? level}) {
   final rows = [
@@ -278,7 +327,21 @@ class FakeAnalyticsRepository extends AnalyticsRepository {
     this.earlyWarningFailure,
     this.academicJson,
     this.financeJson,
+    this.transportJson,
   }) : super(AnalyticsApi(Dio()));
+
+  /// What the Transport view gets; [fakeTransportJson] if null.
+  final Map<String, dynamic>? transportJson;
+
+  final transportAsked = <int?>[];
+
+  @override
+  Future<TransportOverview> transport({int? schoolId}) async {
+    transportAsked.add(schoolId);
+    if (failure != null) throw failure!;
+
+    return TransportOverview.fromJson(transportJson ?? fakeTransportJson());
+  }
 
   /// What the Finance view gets; [fakeFinanceJson] if null.
   final Map<String, dynamic>? financeJson;

@@ -144,10 +144,9 @@ class AppNav {
           UserRole.schoolAdmin,
           UserRole.hod,
           UserRole.accountant,
+          // Since A6: the route view (docs/analytics.md).
+          UserRole.transportManager,
         },
-        // Reads reports, but has no chart until transport analytics (A6):
-        // the entry would open on nothing.
-        deniedRoles: {UserRole.transportManager},
         pageTitle: 'Analytics',
         pageSubtitle: 'How the figures move, week by week or month by month',
       ),

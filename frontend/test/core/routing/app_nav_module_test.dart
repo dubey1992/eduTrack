@@ -151,8 +151,8 @@ void main() {
 
       expect(_item('/analytics').allows(sessionUser(UserRole.schoolAdmin, permissions: reader)), isTrue);
       expect(_item('/analytics').allows(sessionUser(UserRole.accountant, permissions: reader)), isTrue);
-      // Reads reports, but its charts are A6's (docs/analytics.md).
-      expect(_item('/analytics').allows(sessionUser(UserRole.transportManager, permissions: reader)), isFalse);
+      // Since A6 the route view is theirs (docs/analytics.md).
+      expect(_item('/analytics').allows(sessionUser(UserRole.transportManager, permissions: reader)), isTrue);
       expect(
         _item('/analytics')
             .allows(sessionUser(UserRole.schoolAdmin, permissions: {AppModules.reports: PermissionLevel.none})),
