@@ -16,6 +16,8 @@ does not call.
 
 from django.urls import path
 
+from school.security import robots
+
 from school.views import (
     academic_config,
     analytics,
@@ -68,6 +70,8 @@ from school.views import (
 )
 
 urlpatterns = [
+    # The API host is never crawled (docs/seo.md).
+    path("robots.txt", robots),
     # -- academic years ----------------------------------------------------
     path("api/v1/academic-years", academic_years.collection),
     path("api/v1/academic-years/<int:year_id>", academic_years.detail),

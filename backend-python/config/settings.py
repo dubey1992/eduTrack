@@ -139,6 +139,8 @@ MIDDLEWARE = [
     # The API serves JSON, CSV and PDF, never a page: a policy that allows
     # nothing costs nothing and stops a response being framed or scripted.
     "school.security.ContentSecurityPolicyMiddleware",
+    # Nothing the API answers belongs in search results (docs/seo.md).
+    "school.security.NoIndexMiddleware",
     # Lets the audit trail record where a change came from (school/audit.py).
     "school.audit.AuditContextMiddleware",
 ]

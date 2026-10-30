@@ -204,10 +204,32 @@ def cache_key(slug: str) -> str:
     return f"site-page:{slug}"
 
 
+LIVE_SLUGS_KEY = "site-pages:live"
+
+
+def live_slugs() -> list[str]:
+    """Every address a visitor can read a page at, cached like the pages.
+
+    The homepage hides footer links to the rest (docs/seo.md, S1): a link
+    to "page not available" is a dead link to a visitor and to a crawler.
+    """
+    cached = cache.get(LIVE_SLUGS_KEY)
+
+    if cached is not None:
+        return cached
+
+    slugs = [page.slug for page in every_page() if page.is_live]
+    cache.set(LIVE_SLUGS_KEY, slugs, CACHE_SECONDS)
+
+    return slugs
+
+
 def forget(*slugs: str) -> None:
     """Called whenever what visitors would see at an address changes."""
     for slug in slugs:
         cache.delete(cache_key(slug))
+
+    cache.delete(LIVE_SLUGS_KEY)
 
 
 # -- the Super Admin's side ---------------------------------------------------

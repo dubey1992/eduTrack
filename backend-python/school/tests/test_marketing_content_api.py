@@ -46,7 +46,7 @@ class ReadingThePage(TestCase):
         the client renders its own copy from it."""
         response = self.client.get(URL)
 
-        self.assertEqual({"document": {}}, response.data)
+        self.assertEqual({}, response.data["document"])
 
     def test_it_returns_what_somebody_changed(self):
         self.write({"hero.headline": "Run Your School Smarter"})

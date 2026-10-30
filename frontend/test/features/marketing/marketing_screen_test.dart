@@ -188,6 +188,25 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('a link to a website page that is not published is left out', (tester) async {
+      await openFooter(
+        tester,
+        const MarketingContent(
+          {},
+          {
+            'footer.companyLinks': [
+              {'label': 'About Us', 'url': '/about'},
+              {'label': 'Careers', 'url': 'https://school365ai.com/careers'},
+            ],
+          },
+          {'about'},
+        ),
+      );
+
+      expect(find.text('About Us'), findsOneWidget);
+      expect(find.text('Careers'), findsNothing);
+    });
+
     testWidgets('a line without an address is the plain text it has always been', (tester) async {
       await openFooter(
         tester,

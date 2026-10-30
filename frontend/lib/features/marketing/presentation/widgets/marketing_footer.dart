@@ -87,9 +87,18 @@ class _MarketingFooterState extends ConsumerState<MarketingFooter> {
                   const _BrandColumn(),
                   // Three columns, not a variable number: the row is the
                   // brand, these, and the newsletter across five.
-                  _LinkColumn(title: words.text('footer.productTitle'), links: words.list('footer.productLinks')),
-                  _LinkColumn(title: words.text('footer.companyTitle'), links: words.list('footer.companyLinks')),
-                  _LinkColumn(title: words.text('footer.resourceTitle'), links: words.list('footer.resourceLinks')),
+                  _LinkColumn(
+                    title: words.text('footer.productTitle'),
+                    links: words.linksThatLead('footer.productLinks'),
+                  ),
+                  _LinkColumn(
+                    title: words.text('footer.companyTitle'),
+                    links: words.linksThatLead('footer.companyLinks'),
+                  ),
+                  _LinkColumn(
+                    title: words.text('footer.resourceTitle'),
+                    links: words.linksThatLead('footer.resourceLinks'),
+                  ),
                   _NewsletterColumn(
                     emailController: _emailController,
                     onSubscribe: _subscribe,

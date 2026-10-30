@@ -21,6 +21,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .. import audit, marketing
+from . import site_pages
 from ..enums import SchoolCategory, SchoolStatus, StudentStatus, UserRole
 from ..models import MarketingContent, School, Student
 from ..policies import authorize
@@ -38,7 +39,9 @@ CACHE_SECONDS = 60 * 60
 @permission_classes([AllowAny])
 @throttle_classes([MarketingContentThrottle])
 def content(request) -> Response:
-    return Response({"document": published()})
+    # The website pages that exist, so the footer can leave out links to
+    # ones that do not (docs/seo.md, S1).
+    return Response({"document": published(), "pages": site_pages.live_slugs()})
 
 
 def published() -> dict:

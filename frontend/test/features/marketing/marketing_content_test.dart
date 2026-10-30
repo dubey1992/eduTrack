@@ -218,4 +218,64 @@ void main() {
       }
     });
   });
+
+  group('footer links to website pages (docs/seo.md, S1)', () {
+    MarketingContent withPages(Set<String>? pages) => MarketingContent(const {}, const {}, pages);
+
+    test('the server says which pages are live', () {
+      final content = MarketingContent.fromJson({
+        'document': <String, dynamic>{},
+        'pages': ['about', 'privacy'],
+      });
+
+      expect(content.livePages, {'about', 'privacy'});
+    });
+
+    test('a link to a page nobody has published leads nowhere', () {
+      final content = withPages({'about', 'privacy'});
+
+      expect(content.leadsSomewhere('https://school365ai.com/careers'), isFalse);
+      expect(content.leadsSomewhere('https://www.school365ai.com/blog/'), isFalse);
+      expect(content.leadsSomewhere('/terms'), isFalse);
+    });
+
+    test('a published page, a homepage section, the app and other sites are kept', () {
+      final content = withPages({'about', 'privacy'});
+
+      for (final url in [
+        '/about',
+        'https://school365ai.com/privacy',
+        'https://school365ai.com/features',
+        'https://school365ai.com/mobile-app',
+        '/login',
+        '/',
+        'https://example.com/careers',
+        'mailto:hello@school365ai.com',
+        null,
+      ]) {
+        expect(content.leadsSomewhere(url), isTrue, reason: url);
+      }
+    });
+
+    test('nothing is hidden when the server has not said which pages exist', () {
+      expect(withPages(null).leadsSomewhere('https://school365ai.com/careers'), isTrue);
+      expect(const MarketingContent.asItShips().leadsSomewhere('/blog'), isTrue);
+    });
+
+    test('a column keeps its order, without the dead links', () {
+      final content = MarketingContent(
+        const {},
+        const {
+          'footer.companyLinks': [
+            {'label': 'About Us', 'url': '/about'},
+            {'label': 'Careers', 'url': 'https://school365ai.com/careers'},
+            {'label': 'Contact', 'url': 'https://school365ai.com/contact'},
+          ],
+        },
+        {'about'},
+      );
+
+      expect(content.linksThatLead('footer.companyLinks').map((link) => link['label']), ['About Us', 'Contact']);
+    });
+  });
 }
