@@ -211,7 +211,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => MarketingScreen(section: state.uri.queryParameters['section']),
+        builder: (context, state) =>
+            MarketingScreen(section: state.uri.queryParameters['section'], open: state.uri.queryParameters['open']),
       ),
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
       // Public, like the homepage: it has to be readable by a parent, a

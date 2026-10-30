@@ -45,7 +45,14 @@ class MarketingDraftRepository {
     });
   }
 
-  Future<void> publish() {
-    return _call(() => _dio.post('/marketing-content/publish'));
+  /// Null, or why the plain-HTML homepage could not be written
+  /// (docs/seo.md, S2) - the publish itself stood either way.
+  Future<String?> publish() {
+    return _call(() async {
+      final response = await _dio.post('/marketing-content/publish');
+      final data = response.data;
+
+      return data is Map ? data['website_problem'] as String? : null;
+    });
   }
 }

@@ -18,13 +18,19 @@ import 'widgets/web_app_section.dart';
 /// rebranded to School365ai. Visitors reach the actual app via the nav bar's
 /// "Login" button; there is no session/auth involved on this screen itself.
 class MarketingScreen extends StatefulWidget {
-  const MarketingScreen({super.key, this.section});
+  const MarketingScreen({super.key, this.section, this.open});
 
   /// A section to open at - `features`, `for-schools`, `mobile-app`, `about`
-  /// or `contact` - so a plain address such as school365ai.com/about lands
-  /// on it (the web host redirects those to `/#/?section=about`; see
-  /// frontend/web/.htaccess). Anything else opens at the top.
+  /// or `contact` - for a link into the app's own copy of the homepage
+  /// (`/app/#/?section=features`). The public site's plain addresses are
+  /// plain HTML now (docs/seo.md, S2). Anything else opens at the top.
   final String? section;
+
+  /// A form to open at once - `demo` (Request a Demo) or `join` (Join
+  /// Early Access). The public website is plain HTML now (docs/seo.md,
+  /// S2) and its buttons bring visitors here, to the forms the app already
+  /// has, rather than keeping a second copy of each.
+  final String? open;
 
   @override
   State<MarketingScreen> createState() => _MarketingScreenState();
@@ -52,6 +58,17 @@ class _MarketingScreenState extends State<MarketingScreen> {
     super.initState();
     final asked = _sections[widget.section];
     if (asked != null) WidgetsBinding.instance.addPostFrameCallback((_) => _scrollTo(asked));
+
+    final form = switch (widget.open) {
+      'demo' => showDemoRequestDialog,
+      'join' => showEarlyAccessDialog,
+      _ => null,
+    };
+    if (form != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) form(context);
+      });
+    }
   }
 
   @override

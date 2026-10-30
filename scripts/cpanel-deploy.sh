@@ -221,6 +221,12 @@ step "super admin" "$VENV_BIN/python" manage.py create_super_admin
 # The two backends must agree about the schema they are both looking at.
 step "check_models" "$VENV_BIN/python" manage.py check_models
 
+# The public website is plain HTML the server writes (docs/seo.md, S2). A
+# deploy can change its templates, styles or .htaccess, so it is rewritten
+# here as well as on every publish. Skipped, not failed, where the web root
+# has not been configured.
+step "public website" "$VENV_BIN/python" manage.py build_public_site --if-configured
+
 # Passenger reloads when this is touched; without it the old code keeps
 # serving and a successful deploy looks like it did nothing.
 echo "--- restart ---" >> "$LOG"

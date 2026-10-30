@@ -27,7 +27,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .. import audit, site_pages
+from .. import audit, public_site, site_pages
 from ..enums import UserRole
 from ..errors import PageBuiltIn, PageEmpty, PageLimitReached, PageNotFound
 from ..models import SitePage
@@ -340,6 +340,8 @@ def save_draft(request, page: Page) -> Page:
 
     if row.slug != old_slug:
         forget(old_slug, row.slug)
+        # A published page moves to its new address at once.
+        public_site.rebuild()
 
         audit.record(
             action="site_page.renamed",
@@ -399,6 +401,7 @@ def delete(page: Page) -> None:
 
     row.delete()
     forget(page.slug)
+    public_site.rebuild()
 
     audit.record(
         action="site_page.deleted",
@@ -439,6 +442,7 @@ def publish(request, slug: str) -> Response:
     row.updated_at = now
     row.save(update_fields=["published_title", "published_body", "published_at", "published_by", "updated_at"])
     forget(row.slug)
+    website_problem = public_site.rebuild()
 
     audit.record(
         action="site_page.published",
@@ -450,4 +454,6 @@ def publish(request, slug: str) -> Response:
         new={"title": row.title, "body": row.body},
     )
 
-    return Response(resource(from_row(row)))
+    # Null, or why the plain-HTML page could not be written (docs/seo.md):
+    # the publish itself stands either way.
+    return Response({**resource(from_row(row)), "website_problem": website_problem})

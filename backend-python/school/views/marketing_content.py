@@ -20,7 +20,7 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .. import audit, marketing
+from .. import audit, marketing, public_site
 from . import site_pages
 from ..enums import SchoolCategory, SchoolStatus, StudentStatus, UserRole
 from ..models import MarketingContent, School, Student
@@ -153,6 +153,8 @@ def publish(request) -> Response:
         document=wanted, published_at=now, published_by_id=request.user.id, updated_at=now
     )
     forget()
+    # The homepage itself is a plain-HTML file now (docs/seo.md, S2).
+    website_problem = public_site.rebuild()
 
     audit.record(
         action="marketing_content.published",
@@ -164,7 +166,7 @@ def publish(request) -> Response:
         new=wanted,
     )
 
-    return Response({"published": wanted, "published_at": now.isoformat()})
+    return Response({"published": wanted, "published_at": now.isoformat(), "website_problem": website_problem})
 
 
 def draft_of(row) -> dict:

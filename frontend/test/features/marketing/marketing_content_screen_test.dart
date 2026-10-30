@@ -390,6 +390,24 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('a publish whose website copy was not written says so', (tester) async {
+      useDesktop(tester);
+      final fake = FakeMarketingDraftRepository(
+        draft: {'hero.headline': 'New'},
+        websiteProblem: 'The website pages could not be updated: disk full',
+      );
+
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await publish(tester);
+
+      expect(fake.publishCalls, 1);
+      expect(
+        find.text('Published, but the website copy was not updated. The website pages could not be updated: disk full'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('changing your mind publishes nothing', (tester) async {
       useDesktop(tester);
       final fake = FakeMarketingDraftRepository(draft: {'hero.headline': 'New'});

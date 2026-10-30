@@ -76,6 +76,7 @@ class SitePageDetail extends SitePageSummary {
     super.updatedAt,
     this.publishedTitle,
     this.publishedBody,
+    this.websiteProblem,
   });
 
   factory SitePageDetail.fromJson(Map<String, dynamic> json) {
@@ -92,6 +93,7 @@ class SitePageDetail extends SitePageSummary {
       body: json['body'] as String? ?? '',
       publishedTitle: json['published_title'] as String?,
       publishedBody: json['published_body'] as String?,
+      websiteProblem: json['website_problem'] as String?,
     );
   }
 
@@ -99,6 +101,10 @@ class SitePageDetail extends SitePageSummary {
   final String body;
   final String? publishedTitle;
   final String? publishedBody;
+
+  /// Set only on a publish whose plain-HTML page could not be written
+  /// (docs/seo.md, S2). The publish itself stood.
+  final String? websiteProblem;
 }
 
 DateTime? _date(Object? value) => value is String ? DateTime.tryParse(value)?.toLocal() : null;

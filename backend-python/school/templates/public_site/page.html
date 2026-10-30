@@ -1,0 +1,10 @@
+{% extends "public_site/base.html" %}
+{% block content %}
+<article class="section">
+  <div class="wrap prose">
+    <h1>{{ page_title }}</h1>
+    {% if updated %}<p class="muted small">Last updated {{ updated }}</p>{% endif %}
+    {{ body_html|safe }}
+  </div>
+</article>
+{% endblock %}

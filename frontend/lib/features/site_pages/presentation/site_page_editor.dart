@@ -188,7 +188,11 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
         if (!mounted) return;
 
         setState(() => _page = page);
-        _say('Published. Visitors see it now at ${publicAddress(page.slug)}.');
+        _say(
+          page.websiteProblem == null
+              ? 'Published. Visitors see it now at ${publicAddress(page.slug)}.'
+              : 'Published, but the website copy was not updated. ${page.websiteProblem}',
+        );
 
         if (wasCreating || page.slug != oldSlug) context.go('/site-pages?page=${page.slug}');
       },

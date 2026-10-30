@@ -1,0 +1,68 @@
+{% extends "public_site/base.html" %}
+{% block content %}
+<section class="hero" id="home">
+  <div class="wrap">
+    <p class="eyebrow">{{ hero.eyebrow }}</p>
+    <h1>{{ hero.headline }}</h1>
+    <p class="lead">{{ hero.body }}</p>
+    <div class="actions">
+      <a class="button primary large" href="{{ join_href }}">{{ hero.join }}</a>
+      <a class="button outline large" href="{{ demo_href }}">{{ hero.demo }}</a>
+    </div>
+    <p class="muted small">{{ hero.trust }}</p>
+    <ul class="stats">
+      {% for stat in hero.stats %}
+      <li><strong>{{ stat.value }}</strong><span>{{ stat.label }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="wrap">
+    <p class="eyebrow">{{ features.eyebrow }}</p>
+    <h2>{{ features.title }}</h2>
+    <p class="lead">{{ features.body }}</p>
+    <ul class="cards">
+      {% for item in features.items %}
+      <li class="card">
+        <span class="icon" aria-hidden="true">{{ item.icon }}</span>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.body }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+<section class="section tinted" id="mobile-app">
+  <div class="wrap narrow">
+    <p class="eyebrow">{{ mobile.eyebrow }}</p>
+    <h2>{{ mobile.headline|linebreaksbr }}</h2>
+    <p class="lead">{{ mobile.body }}</p>
+  </div>
+</section>
+
+<section class="section" id="for-schools">
+  <div class="wrap narrow">
+    <p class="eyebrow">{{ web.eyebrow }}</p>
+    <h2>{{ web.headline|linebreaksbr }}</h2>
+    <p class="lead">{{ web.body }}</p>
+    <ul class="ticks">
+      {% for bullet in web.bullets %}<li>{{ bullet.text }}</li>{% endfor %}
+    </ul>
+    <a class="button primary" href="{{ login_href }}">{{ web.button }}</a>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap narrow">
+    <h2>{{ cta.headline }}</h2>
+    <p>{{ cta.body|linebreaksbr }}</p>
+    <div class="actions">
+      <a class="button light large" href="{{ join_href }}">{{ cta.join }}</a>
+      <a class="button on-band large" href="{{ demo_href }}">{{ cta.demo }}</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

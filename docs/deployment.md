@@ -134,7 +134,8 @@ is only ever run by hand for migrations.
 ```
 /home/<account>/edutrack/                 <- repo, not web-accessible
 /home/<account>/edutrack/backend-python/  <- application root for the Python app
-/home/<account>/public_html/              <- the Flutter web build (step 6)
+/home/<account>/public_html/              <- the public website, plain HTML the server writes (docs/seo.md)
+/home/<account>/public_html/app/          <- the Flutter web build (step 6)
 ```
 
 In **Setup Python App**, create an application with:
@@ -363,31 +364,45 @@ uses, so the sidebar's new Analytics entry showed no icon. A `.htaccess`
 uploaded to public_html must keep cPanel's PHP block; merge, never replace.
 
 
-Build with the API base URL pointed at production, then upload
-`frontend/build/web/` into `public_html/`:
+**Since 2026-10-30 the app lives at `/app/` (docs/seo.md, S2).** The site
+root is the public website: plain HTML pages the server writes into
+`public_html` itself, on every publish and at every deploy
+(`manage.py build_public_site`, a step of `cpanel-deploy.sh`). That needs two
+lines in the production `.env`:
+
+```
+PUBLIC_SITE_DIR=/home/<account>/public_html
+FRONTEND_URL=https://<domain>/app
+```
+
+Without `PUBLIC_SITE_DIR` nothing is written, and the deploy step says it
+skipped. `FRONTEND_URL` is where emailed links point; an old
+`https://<domain>/#/...` link still works, because every public page forwards
+a `#/` address to `/app/` (`school/public_site_assets/site.js`).
+
+The web root's `.htaccess` is written by that command too, from
+`school/public_site_assets/htaccess`, which already carries cPanel's PHP
+block - so edit it there, never on the server. It sends `/login` and
+`/forgot-password` to the app, `/features`, `/for-schools`, `/mobile-app`
+and `/contact` to sections of the homepage, and any published website page's
+plain address (`/about`) to its file; any other address is a real 404 with
+our own `404.html`.
+
+Build the app for its folder, with the API base URL pointed at production,
+then upload `frontend/build/web/` into `public_html/app/`:
 
 ```bash
 cd frontend
-flutter build web --release --dart-define=API_BASE_URL=https://api.<domain>/api/v1
+flutter build web --release --base-href /app/ --dart-define=API_BASE_URL=https://api.<domain>/api/v1
 ```
 
-The app uses hash routing, so no routing rules are needed - but the build
-does carry an `.htaccess` (`frontend/web/.htaccess`), and uploading it
-**replaces** the one in `public_html`. It holds everything that file needs
-from us: the HTTP-to-HTTPS redirect and the page's security headers
-(docs/security.md). cPanel adds a block of its own for PHP's error log
-("cPanel-generated php ini directives"); the site has no PHP, but put that
-block back at the end of the uploaded file rather than let it go missing,
-so cPanel's MultiPHP screens find what they wrote. The file also sends
-plain addresses to the app (2026-10-26): `/privacy`, `/login` and
-`/forgot-password` to their pages, `/features`, `/for-schools`,
-`/mobile-app` and `/contact` to the homepage at that section, and since
-2026-10-27 any other single lowercase word (`/about`, `/terms`, `/careers`)
-to the website page of that name (docs/site-pages.md) - which says "not
-available" if nobody has written it. Anything else that is not a file goes
-to our own `404.html` rather than the host's. Check afterwards that
-`http://` still answers 301 and `https://` 200 with a
-`Content-Security-Policy` header.
+The app uses hash routing, so no routing rules are needed. Its build
+carries its own `.htaccess` (`frontend/web/.htaccess`) for everything under
+`/app/`: the HTTP-to-HTTPS redirect and the app's security headers
+(docs/security.md), which replace the web root's there. Check afterwards
+that `http://` still answers 301, `https://` 200 with a
+`Content-Security-Policy` header, `/about` 200, `/no-such-page` 404, and
+`/app/` the app.
 
 ## 7. Restarting the app
 

@@ -90,7 +90,7 @@ keeps working. New emails will link to `/app/#/...` directly.
 | | Phase | What it does |
 |---|---|---|
 | S1 | Quick fixes (**built 2026-10-30**) | See "S1 as built" below. |
-| S2 | Static public site | The homepage, `/about`, `/privacy`, `/terms` and any other Website Page rendered to HTML on publish; the app moved to `/app/` with the `#/` redirect shim; `sitemap.xml` written on publish; canonical tags; the demo and early-access forms in plain HTML. This is the change that makes ranking possible. |
+| S2 | Static public site (**built 2026-10-30**) | See "S2 as built" below. This is the change that makes ranking possible. |
 | S3 | Pages that match searches | One page per module, written for how schools search: school attendance software (with SMS alerts to parents), school fee management (receipts, reminders, per-currency), school bus tracking (live GPS, boarding alerts), timetable, staff payroll, biometric attendance, teaching reports and syllabus tracking, the staff and driver apps. Each page has a real description of what the module does, screenshots, and a demo button. The homepage feature cards link to them. |
 | S4 | Structured data and FAQs | schema.org `Organization`, `WebSite`, `SoftwareApplication` (category EducationalApplication; Web and Android), `BreadcrumbList`, and `FAQPage` on pages that carry real FAQs. No made-up ratings or reviews: Google penalises them, and they would be false. |
 | S5 | Blog and help centre | Website Pages gain a "Blog post" kind (date, author, summary, cover image) and a `/blog` index; help articles at `/help/...`. Written content is what earns links and long-tail searches ("how to track school bus attendance", "school fee receipt format"). |
@@ -104,6 +104,48 @@ keeps working. New emails will link to `/app/#/...` directly.
 - **A `<noscript>` version of the homepage**: a heading, what the product does (only what is really built), and links to About, Privacy and Sign in. It also hides the loading screen, which would otherwise cover it for ever.
 - **Footer links to unpublished website pages are hidden.** The homepage API now sends `pages`, the slugs visitors can read (cached, and cleared whenever a page is created, published, renamed or deleted). The footer drops any link to a school365ai.com page that is not among them, and the link comes back the moment the page is published. Today that hides Careers, Blog, Help Center, Pricing, Security and Terms. Homepage sections, app screens and other sites are never hidden.
 - **Moved to S2: a real 404 for unknown addresses.** A plain address still redirects into the app, which shows "not available". Answering 404 needs the server to know which pages exist, and that is exactly what the static pages of S2 give it. The alternatives were a hand-kept list in `.htaccess`, which would break plain addresses for new pages, or a PHP lookup on every hit.
+
+## S2 as built (2026-10-30)
+
+- **`school/public_site.py`** writes the public pages as plain HTML into
+  `PUBLIC_SITE_DIR` (the web root): `index.html` (the homepage), one
+  `site/pages/<slug>.html` per published Website Page (served at
+  `/<slug>`), `404.html`, `sitemap.xml`, `robots.txt` (crawl everything but
+  `/app/`; points at the sitemap), `site/site.css`, `site/site.js`,
+  `favicon.png` and `og-image.png`. Django templates in
+  `school/templates/public_site/`, so everything typed is escaped.
+- **When**: publishing the homepage, publishing, renaming or deleting a
+  Website Page, and every deploy (`manage.py build_public_site`, which also
+  writes the web root's `.htaccess`). A failure to write is logged and
+  returned as `website_problem`; the editors show "Published, but the
+  website copy was not updated", and the publish itself stands.
+- **The words**: the published document over the same defaults as the app.
+  The server keeps its own copy (`school/marketing_copy.py`); a test reads
+  `marketing_defaults.dart` and fails if the two differ.
+- **Website Page text** is converted by `school/site_markup.py`: the same
+  small Markdown subset, escaped first, with every link checked again.
+- **Links**: app screens (`/login`) go to `/app/#/login`; homepage sections
+  (`/features`) to anchors; published pages to their plain address; footer
+  links to unpublished pages are left out, as in S1.
+- **Buttons**: "Request a Demo" and "Join Early Access" open the app with
+  that form showing (`/app/#/?open=demo`, `?open=join`), so the forms and
+  their validation stay in one place.
+- **Left out on purpose**: the footer's newsletter box (it stored nothing
+  and only said "You're on the list") and the hero's "Watch Video" button
+  (there is no video; it opened Early Access). The app's own homepage still
+  shows both; deciding their fate is the Super Admin's.
+- **The app** moved to `/app/` (`flutter build web --base-href /app/`). Its
+  `index.html` says `noindex`. Every public page loads `site/site.js` first,
+  which sends an old `/#/...` link on to `/app/#/...`, so emailed
+  set-password and reset links, bookmarks and the Play listing keep working.
+- **Real 404s**: an address that is neither a file nor a published page
+  gets `404.html` with a 404 status (it carries `noindex`).
+- **Not yet**: the homepage's live figures are refreshed on publish and
+  deploy only; there is no nightly rebuild, because every figure on it is
+  typed today. Leftover root files of the old app build (`main.dart.js`,
+  `canvaskit/` and so on) are harmless and can be cleared once `/app/` has
+  run for a while; `flutter_service_worker.js` must stay, so any browser
+  still holding the old worker can fetch it and unregister.
 
 ## Content notes
 

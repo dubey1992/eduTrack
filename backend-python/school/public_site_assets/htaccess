@@ -1,0 +1,66 @@
+# school365ai.com's web root (docs/seo.md, S2).
+#
+# Written to public_html/.htaccess by `manage.py build_public_site` at each
+# deploy, never by a publish. The public pages here are plain HTML written by
+# the server; the app lives in /app/ with its own .htaccess (the Flutter
+# build's web/.htaccess), which overrides these headers for everything under
+# it.
+
+# Plain HTTP to HTTPS (docs/deployment.md, "The plain-HTTP trap"). Two
+# conditions, both required: the host sits behind a proxy (Via: Caddy), so
+# %{HTTPS} alone can read 'off' on a secure request and loop forever.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteCond %{REQUEST_URI} !^/\.well-known/
+  # The whole path, not a captured part of it: inside /app/ a capture would
+  # leave '/app' out of the address.
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  # Screens of the app that people type or link as plain addresses.
+  RewriteRule ^(login|forgot-password)/?$ /app/#/$1 [R=302,NE,L]
+
+  # The homepage's sections, by the addresses the old site used.
+  RewriteRule ^(features|for-schools|mobile-app|contact)/?$ /#$1 [R=301,NE,L]
+
+  # A published website page answers at its own plain address -
+  # school365ai.com/about - from the file the server wrote for it. One that
+  # does not exist falls through to the 404 below: a real "not found", not
+  # an app screen saying so.
+  RewriteCond %{DOCUMENT_ROOT}/site/pages/$1.html -f
+  RewriteRule ^([a-z0-9]+(-[a-z0-9]+)*)/?$ /site/pages/$1.html [L]
+</IfModule>
+
+ErrorDocument 404 /404.html
+
+<IfModule mod_headers.c>
+  # Pages are checked with the server on every load, so a publish shows at
+  # once; an unchanged page still answers a cheap 304.
+  <FilesMatch "\.(html|js|css|xml|txt)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+
+  # The public pages load their own files and Google Fonts, and nothing
+  # else. No inline script at all: site.js is a file.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+</IfModule>
+
+
+# BEGIN cPanel-generated php ini directives, do not edit
+# Manual editing of this file may result in unexpected behavior.
+# To make changes to this file, use the cPanel MultiPHP INI Editor (Home >> Software >> MultiPHP INI Editor)
+# For more information, read our documentation (https://go.cpanel.net/EA4ModifyINI)
+<IfModule php8_module>
+   php_value error_log "/home/uschool365ai/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+<IfModule lsapi_module>
+   php_value error_log "/home/uschool365ai/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+# END cPanel-generated php ini directives, do not edit

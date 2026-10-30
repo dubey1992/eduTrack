@@ -163,12 +163,20 @@ class _MarketingContentFormState extends ConsumerState<_MarketingContentForm> {
 
     try {
       await notifier.save(_document);
-      await notifier.publish();
+      final websiteProblem = await notifier.publish();
 
       if (!mounted) return;
       messenger
         ..clearSnackBars()
-        ..showSnackBar(const SnackBar(content: Text('Published. Visitors see the new words now.')));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              websiteProblem == null
+                  ? 'Published. Visitors see the new words now.'
+                  : 'Published, but the website copy was not updated. $websiteProblem',
+            ),
+          ),
+        );
     } catch (error) {
       _showFailure(error);
     } finally {

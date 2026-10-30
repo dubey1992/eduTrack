@@ -289,6 +289,12 @@ PLATFORM_TIMEZONE = os.environ.get("PLATFORM_TIMEZONE", "UTC")
 # points at the Flutter app's own screen, never a page this backend serves.
 APP_NAME = os.environ.get("APP_NAME", "School365ai")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+
+# -- the public website (docs/seo.md, S2) --------------------------------------
+# Where the plain-HTML public pages are written: the web root, on the same
+# host. Unset in development and tests, and then nothing is written.
+PUBLIC_SITE_DIR = os.environ.get("PUBLIC_SITE_DIR", "")
+PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", "https://school365ai.com")
 DEFAULT_FROM_EMAIL = os.environ.get("MAIL_FROM_ADDRESS", "hello@example.com")
 
 # Printed to the console while developing, as Laravel's `log` mailer writes to

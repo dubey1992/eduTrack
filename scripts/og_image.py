@@ -1,4 +1,4 @@
-"""Draws frontend/web/og-image.png: the card shown when a link to
+"""Draws backend-python/school/public_site_assets/og-image.png: the card shown when a link to
 school365ai.com is shared on WhatsApp, LinkedIn, X or Facebook
 (docs/seo.md, S1).
 
@@ -15,7 +15,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 WIDTH, HEIGHT = 1200, 630
-OUT = Path(__file__).resolve().parent.parent / "frontend" / "web" / "og-image.png"
+OUT = Path(__file__).resolve().parent.parent / "backend-python" / "school" / "public_site_assets" / "og-image.png"
 
 BLUE_TOP = (37, 99, 235)      # #2563EB, the app's primary
 BLUE_BOTTOM = (29, 78, 216)   # #1D4ED8

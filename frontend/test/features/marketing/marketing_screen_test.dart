@@ -16,7 +16,8 @@ Widget wrap({MarketingContent content = const MarketingContent.asItShips(), Stri
         routes: [
           GoRoute(
             path: '/',
-            builder: (context, state) => MarketingScreen(section: state.uri.queryParameters['section']),
+            builder: (context, state) =>
+                MarketingScreen(section: state.uri.queryParameters['section'], open: state.uri.queryParameters['open']),
           ),
           GoRoute(
             path: '/login',
@@ -436,6 +437,36 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Enter your email address.'), findsNothing);
+    });
+  });
+
+  group('opened from the plain-HTML website (docs/seo.md, S2)', () {
+    Future<void> openAt(WidgetTester tester, String location) async {
+      tester.view.physicalSize = const Size(1600, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(wrap(location: location));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('?open=demo opens the Request a Demo form', (tester) async {
+      await openAt(tester, '/?open=demo');
+
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.descendant(of: find.byType(Dialog), matching: find.text('Request a Demo')), findsOneWidget);
+    });
+
+    testWidgets('?open=join opens the Join Early Access form', (tester) async {
+      await openAt(tester, '/?open=join');
+
+      expect(find.descendant(of: find.byType(Dialog), matching: find.text('Join Early Access')), findsOneWidget);
+    });
+
+    testWidgets('anything else opens no form', (tester) async {
+      await openAt(tester, '/?open=pricing');
+
+      expect(find.byType(Dialog), findsNothing);
     });
   });
 }

@@ -30,14 +30,16 @@ class MarketingDraftNotifier extends AsyncNotifier<MarketingDraft> {
 
   /// Puts the draft in front of the world, then reads the row back so the
   /// screen shows the new "published" and stops offering to publish.
-  Future<void> publish() async {
+  Future<String?> publish() async {
     final repository = ref.read(marketingDraftRepositoryProvider);
 
-    await repository.publish();
+    final websiteProblem = await repository.publish();
     state = AsyncData(await repository.get());
 
     // The Super Admin is almost certainly about to look at the homepage to
     // check their work, and this app may already be holding the old words.
     ref.invalidate(marketingContentProvider);
+
+    return websiteProblem;
   }
 }

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# Before anything else: an old school365ai.com/#/... link belongs to the app. #}
+  <script src="/site/site.js"></script>
+  <title>{{ title }}</title>
+  {% if description %}<meta name="description" content="{{ description }}">{% endif %}
+  {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% else %}<meta name="robots" content="noindex">{% endif %}
+  <meta name="theme-color" content="#2563EB">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="School365ai">
+  {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
+  <meta property="og:title" content="{{ title }}">
+  {% if description %}<meta property="og:description" content="{{ description }}">{% endif %}
+  <meta property="og:image" content="{{ site_url }}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="School365ai - school management software">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ title }}">
+  {% if description %}<meta name="twitter:description" content="{{ description }}">{% endif %}
+  <meta name="twitter:image" content="{{ site_url }}/og-image.png">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/site/site.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-row">
+      <a class="brand" href="/" aria-label="{{ nav.wordmark }} home">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 100 100"><path d="M30 50 L30 66 Q50 78 70 66 L70 50 Z" fill="#fff" fill-opacity=".82"/><path d="M50 24 L86 41 L50 58 L14 41 Z" fill="#fff"/><line x1="50" y1="41" x2="78" y2="45" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/><line x1="78" y1="45" x2="78" y2="65" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/><circle cx="78" cy="65" r="4.5" fill="#FBBF24"/><circle cx="50" cy="41" r="3" fill="#FBBF24"/></svg>
+        </span>
+        <span class="brand-words"><strong>{{ nav.wordmark }}</strong><small>{{ nav.tagline }}</small></span>
+      </a>
+      <nav class="nav-links" aria-label="Main">
+        <a href="/#features">Features</a>
+        <a href="/#for-schools">For Schools</a>
+        <a href="/#mobile-app">Mobile App</a>
+        {% if about_href %}<a href="{{ about_href }}">About</a>{% endif %}
+        <a href="/#contact">Contact</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="button ghost" href="{{ login_href }}">{{ nav.login }}</a>
+        <a class="button outline hide-narrow" href="{{ demo_href }}">{{ nav.demo }}</a>
+        <a class="button primary" href="{{ join_href }}">{{ nav.join }}</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer" id="contact">
+    <div class="wrap footer-grid">
+      <div>
+        <p class="footer-brand">{{ footer.wordmark }}</p>
+        <p class="muted">{{ footer.blurb }}</p>
+      </div>
+      {% for column in footer.columns %}
+      <div>
+        <p class="footer-title">{{ column.title }}</p>
+        <ul class="footer-links">
+          {% for link in column.links %}
+          <li>{% if link.href %}<a href="{{ link.href }}"{% if link.href|slice:":4" == "http" %} rel="noopener" target="_blank"{% endif %}>{{ link.label }}</a>{% else %}{{ link.label }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="wrap footer-base">
+      <span>{{ footer.copyright }}</span>
+      <span>{{ footer.tagline }}</span>
+    </div>
+  </footer>
+</body>
+</html>

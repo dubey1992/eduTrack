@@ -15,6 +15,7 @@ class FakeMarketingDraftRepository implements MarketingDraftRepository {
     this.failGetWith,
     this.failSaveWith,
     this.failPublishWith,
+    this.websiteProblem,
   }) : draft = draft ?? const {},
        published = published ?? const {};
 
@@ -27,6 +28,9 @@ class FakeMarketingDraftRepository implements MarketingDraftRepository {
   Failure? failGetWith;
   Failure? failSaveWith;
   Failure? failPublishWith;
+
+  /// What publishing says about writing the plain-HTML homepage.
+  String? websiteProblem;
 
   /// When set, [get] waits on it - so a test can look at the loading state.
   Completer<void>? getGate;
@@ -76,12 +80,14 @@ class FakeMarketingDraftRepository implements MarketingDraftRepository {
   }
 
   @override
-  Future<void> publish() async {
+  Future<String?> publish() async {
     publishCalls++;
     if (failPublishWith != null) throw failPublishWith!;
 
     published = Map.of(draft);
     publishedAt = DateTime(2026, 10, 1, 9, 30);
+
+    return websiteProblem;
   }
 
   static bool _sameWords(Map<String, String> a, Map<String, String> b) {

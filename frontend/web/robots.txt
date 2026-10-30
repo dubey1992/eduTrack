@@ -1,4 +1,0 @@
-# school365ai.com (docs/seo.md). The public pages may be crawled. A sitemap
-# is added with the plain-HTML public site (phase S2).
-User-agent: *
-Allow: /

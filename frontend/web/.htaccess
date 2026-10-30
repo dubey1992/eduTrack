@@ -1,12 +1,12 @@
 # Security headers for the web app (docs/security.md, "The web app").
 #
 # `flutter build web` copies this file into build/web, and the upload puts it
-# in public_html beside index.html. The API sends its own headers; these are
-# for the page itself, which is what a browser runs and an attacker targets.
+# in public_html/app/ beside the app's index.html (docs/seo.md, S2). It
+# governs everything under /app/; its headers replace the web root's there.
+# The API sends its own headers; these are for the page itself, which is what
+# a browser runs and an attacker targets.
 
-# Plain HTTP to HTTPS (docs/deployment.md, "The plain-HTTP trap"). Kept here
-# so every upload of the web build carries it: this file replaces the one in
-# public_html, and the redirect used to live only there. Two conditions, both
+# Plain HTTP to HTTPS (docs/deployment.md, "The plain-HTTP trap"). Two conditions, both
 # required: the host sits behind a proxy (Via: Caddy), so %{HTTPS} alone can
 # read 'off' on a secure request and loop forever.
 <IfModule mod_rewrite.c>
@@ -14,27 +14,12 @@
   RewriteCond %{HTTPS} !=on
   RewriteCond %{HTTP:X-Forwarded-Proto} !=https
   RewriteCond %{REQUEST_URI} !^/\.well-known/
-  RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+  # The whole path, not a captured part of it: inside /app/ a capture would
+  # leave '/app' out of the address.
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
-  # Plain addresses for the pages that exist. The app routes after a '#',
-  # so school365ai.com/privacy - the kind of address a footer, an email or
-  # Google Play holds - would otherwise be a server 404. Each goes to its
-  # page in the app; the homepage ones open at their section. 302, not 301,
-  # so a browser does not remember a target that may change. NE keeps the
-  # '#' as it is.
-  RewriteRule ^privacy/?$ /#/privacy [R=302,NE,L]
-  RewriteRule ^(login|forgot-password)/?$ /#/$1 [R=302,NE,L]
-  RewriteRule ^(features|for-schools|mobile-app|contact)/?$ /#/?section=$1 [R=302,NE,L]
-
-  # Every other single plain word is a website page the Super Admin may have
-  # written - school365ai.com/terms, /about, /careers (docs/site-pages.md).
-  # The app answers "not available" for one that does not exist, so this
-  # needs no list of pages and never goes out of date. Real files and
-  # folders (assets/, icons/, index.html) are left alone, and the server
-  # refuses these words as page addresses for the same reason.
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^([a-z0-9]+(-[a-z0-9]+)*)/?$ /#/pages/$1 [R=302,NE,L]
+  # Plain addresses (/about, /login, /features) are the web root's job now:
+  # its .htaccess is written by `manage.py build_public_site` (docs/seo.md).
 </IfModule>
 
 # Anything else that is not a file: our own "page not found", not the host's.
