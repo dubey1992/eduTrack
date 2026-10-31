@@ -142,7 +142,7 @@ class _PaymentListMobile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${payment.paymentType.label} · ${formatCurrency(payment.amount, payment.currencyCode)}\n'
+                  '${payment.servicesSummary} · ${formatCurrency(payment.amount, payment.currencyCode)}\n'
                   '${formatDate(payment.paymentDate)}',
                 ),
                 // An outstanding balance is the thing someone scanning this
@@ -209,7 +209,7 @@ class _PaymentListDesktop extends StatelessWidget {
                 DataRow(
                   cells: [
                     DataCell(Text(payment.schoolName ?? 'School #${payment.schoolId}')),
-                    DataCell(Text(payment.paymentType.label)),
+                    DataCell(Text(payment.servicesSummary)),
                     DataCell(Text(formatCurrency(payment.amount, payment.currencyCode))),
                     DataCell(_BalanceCell(payment: payment)),
                     DataCell(Text(formatDate(payment.paymentDate))),

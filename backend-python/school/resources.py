@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from . import dates, mailer, modules, money, permissions, sms, whatsapp, working_hours
+from . import dates, mailer, modules, money, payment_items, permissions, sms, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
 from .enums import SchoolCategory, DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
@@ -1002,6 +1002,20 @@ def payment_resource(payment) -> dict:
         "receipt_sent_at": timestamp(payment.receipt_sent_at),
         "created_at": timestamp(payment.created_at),
     }
+
+    # The services it covers, in the order they were entered.
+    lines = list(payment.items.all())
+    body["items"] = [
+        {
+            "id": line.id,
+            "service": line.service,
+            "name": line.name,
+            "label": payment_items.label_of(line.service, line.name),
+            "amount": str(line.amount),
+        }
+        for line in lines
+    ]
+    body["services_summary"] = payment_items.summary(lines)
 
     if loaded(payment, "school"):
         body["school_name"] = payment.school.name

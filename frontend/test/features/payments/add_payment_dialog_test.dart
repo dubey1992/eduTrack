@@ -62,7 +62,11 @@ Future<void> _selectSchoolAndAmount(WidgetTester tester, {String amount = '2500'
   await tester.tap(find.text('Sunrise Public School (INR)').last);
   await tester.pumpAndSettle();
 
-  await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), amount);
+  // Tick Setup Fee; its amount box opens beside it.
+  await tester.tap(find.text('Setup Fee'));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(const Key('amount-setup_fee')), amount);
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -74,7 +78,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('School is required'), findsOneWidget);
-    expect(find.text('Enter a valid amount'), findsOneWidget);
+    expect(find.text('Choose at least one service'), findsOneWidget);
   });
 
   testWidgets('creates the payment, closes the dialog, and shows a confirmation snackbar', (tester) async {

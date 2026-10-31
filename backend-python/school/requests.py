@@ -21,7 +21,7 @@ import decimal
 import re
 import zoneinfo
 
-from . import attendants, audit, class_levels, hashing, roll_numbers, mailer, marketing, notices, notifications, permissions, site_pages, sms, whatsapp
+from . import attendants, audit, class_levels, hashing, roll_numbers, mailer, marketing, notices, notifications, payment_items, permissions, site_pages, sms, whatsapp
 from .enums import (
     UserStatus,
     PromotionOutcome,
@@ -3787,8 +3787,11 @@ class MoneyField(serializers.Field):
 
 
 class PaymentForm(serializers.Serializer):
-    payment_type = LaravelCharField("payment_type", max_length=50)
-    amount = MoneyField("amount", minimum="0.01")
+    # The services the payment covers, as `items` - [{service, name, amount}].
+    # The older shape, one `payment_type` and one `amount`, is still read as
+    # a payment with a single line. Either way the total is worked out here.
+    payment_type = LaravelCharField("payment_type", max_length=50, required=False)
+    amount = MoneyField("amount", minimum="0.01", required=False)
     payment_date = LaravelDateField("payment_date")
     payment_mode = LaravelCharField("payment_mode", max_length=50)
     reference_number = optional_text("reference_number", 100)
@@ -3817,7 +3820,7 @@ class PaymentForm(serializers.Serializer):
             if field in attrs and attrs[field] not in choices.values:
                 errors[field] = [selected_is_invalid(field)]
 
-        total = attrs.get("amount")
+        total = self.read_lines(attrs, errors)
 
         if total is None and self.payment is not None:
             total = self.payment.amount
@@ -3830,6 +3833,55 @@ class PaymentForm(serializers.Serializer):
             ]
 
         return errors
+
+    def read_lines(self, attrs: dict, errors: dict):
+        """Puts the payment's lines in attrs["items"], and returns their total.
+
+        Returns None, with no lines, when the request leaves the services as
+        they are - an edit that only changes the status, say.
+        """
+        if "items" in self.initial_data:
+            lines = payment_items.read(self.initial_data.get("items"), errors)
+            attrs["items"] = lines
+
+            if any(line["amount"] is None for line in lines) or "items" in errors:
+                return None
+
+            return payment_items.total_of(lines)
+
+        service, amount = attrs.get("payment_type"), attrs.get("amount")
+
+        if service is None and amount is None:
+            if self.payment is None:
+                errors["items"] = ["Choose at least one service."]
+            return None
+
+        # The single-service shape. On an edit it changes the one line, and
+        # only when there is one line to change.
+        if self.payment is not None:
+            lines = list(self.payment.items.all())
+
+            if len(lines) > 1:
+                errors["items"] = ["This payment lists several services - send them all as items."]
+                return None
+
+            current = lines[0] if lines else None
+            service = service or (current.service if current else self.payment.payment_type)
+            amount = amount if amount is not None else self.payment.amount
+            name = current.name if current and service == PaymentType.OTHER else None
+        else:
+            if service is None:
+                errors["payment_type"] = [required("payment_type")]
+            if amount is None:
+                errors["amount"] = [required("amount")]
+            name = None
+
+        if "payment_type" in errors or "amount" in errors:
+            return None
+
+        attrs["items"] = [{"service": service, "name": name, "amount": amount}]
+
+        return amount
 
 
 class StorePaymentRequest(PaymentForm):

@@ -16,7 +16,7 @@ as though the account is settled.
 
 from __future__ import annotations
 
-from . import dates, money, pdf_design
+from . import dates, money, payment_items, pdf_design
 from .clock import DATE_TIME, SchoolClock
 from .enums import PaymentMode, PaymentStatus, PaymentType
 # The escape lives with the shared PDF look; imported here too because the
@@ -85,7 +85,12 @@ def document(payment) -> str:
     # Dates on the receipt are read at the school, not on the server.
     issued_on = dates.us(clock.now())
     number = receipt_number(payment)
-    kind = label(PaymentType, payment.payment_type)
+    lines = list(payment.items.all())
+    labels = [payment_items.label_of(line.service, line.name) for line in lines]
+    # Up to three services are named in full; more are summed up.
+    kind = (", ".join(labels) if len(labels) <= 3 else payment_items.summary(lines)) if lines else (
+        label(PaymentType, payment.payment_type)
+    )
 
     billed = pdf_design.facts([
         ("School", school.name if school else "-"),
@@ -109,9 +114,18 @@ def document(payment) -> str:
     if cancelled:
         stamp = pdf_design.stamp("CANCELLED", ["This payment has been cancelled. Nothing is owed against it."])
 
+    if len(lines) > 1:
+        rows = [
+            [str(position), e(text), e(cash(line.amount))]
+            for position, (line, text) in enumerate(zip(lines, labels), start=1)
+        ]
+    else:
+        # One service: the line it has always been, school name and all.
+        rows = [["1", e(f"{kind} - {school.name}" if school else kind), e(cash(total))]]
+
     items = pdf_design.table(
         [("#", "6%", False), ("Description", "64%", False), ("Amount", "30%", True)],
-        [["1", e(f"{kind} - {school.name}" if school else kind), e(cash(total))]],
+        rows,
     )
 
     try:

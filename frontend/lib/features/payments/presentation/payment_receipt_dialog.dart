@@ -66,7 +66,11 @@ class _PaymentReceiptDialogState extends ConsumerState<PaymentReceiptDialog> {
               const SizedBox(height: 16),
               _Row('Receipt No.', 'RCPT-${payment.id.toString().padLeft(6, '0')}'),
               _Row('School', payment.schoolName ?? '-'),
-              _Row('Payment Type', payment.paymentType.label),
+              // One row per service, each with its own amount.
+              if (payment.items.length > 1)
+                for (final item in payment.items) _Row(item.label, formatCurrency(item.amount, payment.currencyCode))
+              else
+                _Row('Payment Type', payment.servicesSummary),
               _Row('Payment Mode', payment.paymentMode.label),
               _Row('Payment Date', formatDate(payment.paymentDate)),
               _Row('Reference', payment.referenceNumber ?? '-'),
@@ -127,9 +131,13 @@ class _Row extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // A typed fee name can be long: it wraps, with a gap before the value.
           SizedBox(
-            width: 110,
-            child: Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            width: 140,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            ),
           ),
           Expanded(
             child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),

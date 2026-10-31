@@ -23,8 +23,7 @@ class PaymentApi {
 
   Future<Payment> create({
     required int schoolId,
-    required PaymentType paymentType,
-    required double amount,
+    required List<PaymentItem> items,
     double? paidAmount,
     required DateTime paymentDate,
     required PaymentMode paymentMode,
@@ -36,8 +35,8 @@ class PaymentApi {
       '/payments',
       data: {
         'school_id': schoolId,
-        'payment_type': paymentType.apiValue,
-        'amount': amount.toStringAsFixed(2),
+        // The services and their amounts; the API adds them up.
+        'items': [for (final item in items) item.toJson()],
         // Omitted entirely when the form did not ask for a figure: the API
         // then reads it from the status, so "mark it paid" still works.
         'paid_amount': ?paidAmount?.toStringAsFixed(2),
@@ -59,8 +58,7 @@ class PaymentApi {
 
   Future<Payment> update(
     int paymentId, {
-    PaymentType? paymentType,
-    double? amount,
+    List<PaymentItem>? items,
     double? paidAmount,
     DateTime? paymentDate,
     PaymentMode? paymentMode,
@@ -73,8 +71,7 @@ class PaymentApi {
     final response = await _dio.patch(
       '/payments/$paymentId',
       data: {
-        'payment_type': ?paymentType?.apiValue,
-        'amount': ?amount?.toStringAsFixed(2),
+        if (items != null) 'items': [for (final item in items) item.toJson()],
         'paid_amount': ?paidAmount?.toStringAsFixed(2),
         'payment_date': ?formattedDate,
         'payment_mode': ?paymentMode?.apiValue,

@@ -54,8 +54,7 @@ void main() {
         .read(paymentListNotifierProvider.notifier)
         .createPayment(
           schoolId: 1,
-          paymentType: PaymentType.annualMaintenance,
-          amount: 5000,
+          items: const [PaymentItem(service: PaymentType.annualMaintenance, amount: 5000)],
           paymentDate: DateTime(2026, 9, 5),
           paymentMode: PaymentMode.cash,
           status: PaymentStatus.pending,
@@ -93,7 +92,14 @@ void main() {
 
     await container
         .read(paymentListNotifierProvider.notifier)
-        .updatePayment(page.items.first, amount: 30000, referenceNumber: 'TXN-2');
+        .updatePayment(
+          page.items.first,
+          items: const [
+            PaymentItem(service: PaymentType.setupFee, amount: 25000),
+            PaymentItem(service: PaymentType.other, name: 'Training', amount: 5000),
+          ],
+          referenceNumber: 'TXN-2',
+        );
 
     final state = container.read(paymentListNotifierProvider).value;
     expect(state!.items.first.amount, 30000);

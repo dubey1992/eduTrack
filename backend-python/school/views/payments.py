@@ -115,4 +115,4 @@ def receipt(request, payment_id: int):
 
 
 def reload(payment_id: int) -> Payment:
-    return Payment.objects.select_related(*PaymentService.WITH).get(pk=payment_id)
+    return Payment.objects.select_related(*PaymentService.WITH).prefetch_related("items").get(pk=payment_id)

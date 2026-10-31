@@ -10,6 +10,7 @@ import '../../schools/application/school_list_notifier.dart';
 import '../../schools/data/models/school.dart';
 import '../application/payment_list_notifier.dart';
 import '../data/models/payment.dart';
+import 'widgets/payment_services_field.dart';
 import 'widgets/remaining_line.dart';
 import '../../../core/utils/date_format.dart';
 
@@ -22,13 +23,12 @@ class AddPaymentDialog extends ConsumerStatefulWidget {
 
 class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController();
+  final _services = PaymentServicesController();
   final _paidAmountController = TextEditingController();
   final _referenceController = TextEditingController();
   final _notesController = TextEditingController();
 
   int? _schoolId;
-  PaymentType _paymentType = PaymentType.setupFee;
   PaymentMode _paymentMode = PaymentMode.bankTransfer;
   PaymentStatus _status = PaymentStatus.paid;
   late DateTime _paymentDate;
@@ -44,15 +44,15 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
 
   @override
   void dispose() {
-    _amountController.dispose();
+    _services.dispose();
     _paidAmountController.dispose();
     _referenceController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
-  /// The amount typed into the form, or null while it is unreadable.
-  double? get _enteredAmount => double.tryParse(_amountController.text);
+  /// The sum of the services so far, or null while there is nothing to add.
+  double? get _enteredAmount => _services.total > 0 ? _services.total : null;
 
   /// Only sent for a part-payment. For every other status the API works the
   /// received amount out from the status itself, which keeps the two from
@@ -103,8 +103,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
           .read(paymentListNotifierProvider.notifier)
           .createPayment(
             schoolId: _schoolId!,
-            paymentType: _paymentType,
-            amount: double.parse(_amountController.text),
+            items: _services.items,
             paidAmount: _paidAmount,
             paymentDate: _paymentDate,
             paymentMode: _paymentMode,
@@ -131,7 +130,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
     return AlertDialog(
       title: const Text('Add Payment'),
       content: SizedBox(
-        width: 460,
+        width: 540,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -166,28 +165,9 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                     );
                   },
                 ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<PaymentType>(
-                  initialValue: _paymentType,
-                  decoration: const InputDecoration(labelText: 'Payment type'),
-                  items: [
-                    for (final type in PaymentType.values) DropdownMenuItem(value: type, child: Text(type.label)),
-                  ],
-                  onChanged: (value) => setState(() => _paymentType = value!),
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [DecimalTextInputFormatter()],
-                  decoration: const InputDecoration(labelText: 'Amount'),
-                  validator: (v) {
-                    final parsed = double.tryParse(v ?? '');
-                    if (parsed == null || parsed <= 0) return 'Enter a valid amount';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
+                PaymentServicesField(controller: _services, currencyCode: _selectedCurrency(schoolsState.value)),
+                const SizedBox(height: 14),
                 InkWell(
                   onTap: _pickDate,
                   child: InputDecorator(
@@ -231,10 +211,13 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                     onChanged: (_) => setState(() {}),
                     validator: _validatePaidAmount,
                   ),
-                  RemainingLine(
-                    amount: _enteredAmount,
-                    paidAmount: _paidAmount,
-                    currencyCode: _selectedCurrency(schoolsState.value),
+                  ListenableBuilder(
+                    listenable: _services,
+                    builder: (context, _) => RemainingLine(
+                      amount: _enteredAmount,
+                      paidAmount: _paidAmount,
+                      currencyCode: _selectedCurrency(schoolsState.value),
+                    ),
                   ),
                 ],
                 const SizedBox(height: 10),

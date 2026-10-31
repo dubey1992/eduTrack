@@ -34,8 +34,7 @@ class PaymentRepository {
 
   Future<Payment> create({
     required int schoolId,
-    required PaymentType paymentType,
-    required double amount,
+    required List<PaymentItem> items,
     double? paidAmount,
     required DateTime paymentDate,
     required PaymentMode paymentMode,
@@ -46,8 +45,7 @@ class PaymentRepository {
     try {
       return await _api.create(
         schoolId: schoolId,
-        paymentType: paymentType,
-        amount: amount,
+        items: items,
         paidAmount: paidAmount,
         paymentDate: paymentDate,
         paymentMode: paymentMode,
@@ -70,8 +68,7 @@ class PaymentRepository {
 
   Future<Payment> update(
     int paymentId, {
-    PaymentType? paymentType,
-    double? amount,
+    List<PaymentItem>? items,
     double? paidAmount,
     DateTime? paymentDate,
     PaymentMode? paymentMode,
@@ -82,8 +79,7 @@ class PaymentRepository {
     try {
       return await _api.update(
         paymentId,
-        paymentType: paymentType,
-        amount: amount,
+        items: items,
         paidAmount: paidAmount,
         paymentDate: paymentDate,
         paymentMode: paymentMode,

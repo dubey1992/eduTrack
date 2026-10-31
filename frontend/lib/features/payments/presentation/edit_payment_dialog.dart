@@ -7,6 +7,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/decimal_input_formatter.dart';
 import '../application/payment_list_notifier.dart';
+import 'widgets/payment_services_field.dart';
 import 'widgets/remaining_line.dart';
 import '../data/models/payment.dart';
 import '../../../core/utils/date_format.dart';
@@ -22,12 +23,11 @@ class EditPaymentDialog extends ConsumerStatefulWidget {
 
 class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
   final _formKey = GlobalKey<FormState>();
-  late final _amountController = TextEditingController(text: widget.payment.amount.toStringAsFixed(2));
+  late final _services = PaymentServicesController(items: widget.payment.items);
   late final _paidAmountController = TextEditingController(text: widget.payment.paidAmount.toStringAsFixed(2));
   late final _referenceController = TextEditingController(text: widget.payment.referenceNumber ?? '');
   late final _notesController = TextEditingController(text: widget.payment.notes ?? '');
 
-  late PaymentType _paymentType = widget.payment.paymentType;
   late PaymentMode _paymentMode = widget.payment.paymentMode;
   late PaymentStatus _status = widget.payment.status;
   late DateTime _paymentDate = widget.payment.paymentDate;
@@ -37,14 +37,14 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
 
   @override
   void dispose() {
-    _amountController.dispose();
+    _services.dispose();
     _paidAmountController.dispose();
     _referenceController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
-  double? get _enteredAmount => double.tryParse(_amountController.text);
+  double? get _enteredAmount => _services.total > 0 ? _services.total : null;
 
   /// Only sent for a part-payment - for every other status the API derives
   /// it from the status, which keeps the two from contradicting each other.
@@ -84,8 +84,7 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
           .read(paymentListNotifierProvider.notifier)
           .updatePayment(
             widget.payment,
-            paymentType: _paymentType,
-            amount: double.parse(_amountController.text),
+            items: _services.items,
             paidAmount: _paidAmount,
             paymentDate: _paymentDate,
             paymentMode: _paymentMode,
@@ -110,7 +109,7 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
     return AlertDialog(
       title: Text('Edit Payment (${widget.payment.schoolName ?? 'School #${widget.payment.schoolId}'})'),
       content: SizedBox(
-        width: 460,
+        width: 540,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -121,27 +120,8 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
                   Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                   const SizedBox(height: 12),
                 ],
-                DropdownButtonFormField<PaymentType>(
-                  initialValue: _paymentType,
-                  decoration: const InputDecoration(labelText: 'Payment type'),
-                  items: [
-                    for (final type in PaymentType.values) DropdownMenuItem(value: type, child: Text(type.label)),
-                  ],
-                  onChanged: (value) => setState(() => _paymentType = value!),
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [DecimalTextInputFormatter()],
-                  decoration: const InputDecoration(labelText: 'Amount'),
-                  validator: (v) {
-                    final parsed = double.tryParse(v ?? '');
-                    if (parsed == null || parsed <= 0) return 'Enter a valid amount';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 10),
+                PaymentServicesField(controller: _services, currencyCode: widget.payment.currencyCode),
+                const SizedBox(height: 14),
                 InkWell(
                   onTap: _pickDate,
                   child: InputDecorator(
@@ -183,10 +163,13 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
                     onChanged: (_) => setState(() {}),
                     validator: _validatePaidAmount,
                   ),
-                  RemainingLine(
-                    amount: _enteredAmount,
-                    paidAmount: _paidAmount,
-                    currencyCode: widget.payment.currencyCode,
+                  ListenableBuilder(
+                    listenable: _services,
+                    builder: (context, _) => RemainingLine(
+                      amount: _enteredAmount,
+                      paidAmount: _paidAmount,
+                      currencyCode: widget.payment.currencyCode,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 10),

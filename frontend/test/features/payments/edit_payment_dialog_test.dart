@@ -14,6 +14,7 @@ final _payment = Payment(
   schoolId: 1,
   schoolName: 'Sunrise Public School',
   paymentType: PaymentType.setupFee,
+  items: const [PaymentItem(service: PaymentType.setupFee, amount: 25000)],
   amount: 25000,
   paidAmount: 25000,
   remainingAmount: 0,
@@ -60,7 +61,7 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Enter a valid amount'), findsOneWidget);
+    expect(find.text('Enter an amount'), findsOneWidget);
   });
 
   testWidgets('updates the payment, closes the dialog, and shows a confirmation snackbar', (tester) async {

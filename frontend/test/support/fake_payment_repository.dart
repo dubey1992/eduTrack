@@ -59,6 +59,11 @@ class FakePaymentRepository implements PaymentRepository {
   Failure? failSendReceiptWith;
   int sendReceiptCalls = 0;
 
+  /// The services each create was called with, in order.
+  final List<List<PaymentItem>> createdItems = [];
+
+  static double _totalOf(List<PaymentItem> items) => items.fold(0, (sum, item) => sum + item.amount);
+
   List<Payment> _filtered({int? schoolId}) {
     return schoolId == null ? _payments : _payments.where((p) => p.schoolId == schoolId).toList();
   }
@@ -81,8 +86,7 @@ class FakePaymentRepository implements PaymentRepository {
   @override
   Future<Payment> create({
     required int schoolId,
-    required PaymentType paymentType,
-    required double amount,
+    required List<PaymentItem> items,
     double? paidAmount,
     required DateTime paymentDate,
     required PaymentMode paymentMode,
@@ -91,14 +95,18 @@ class FakePaymentRepository implements PaymentRepository {
     required PaymentStatus status,
   }) async {
     if (failCreateWith != null) throw failCreateWith!;
+    createdItems.add(items);
 
+    // The total is the sum of the services, as the API works it out.
+    final amount = _totalOf(items);
     final paid = resolvePaidAmount(amount: amount, paidAmount: paidAmount, status: status);
 
     final payment = Payment(
       id: _payments.length + 1,
       schoolId: schoolId,
       schoolName: 'Test School',
-      paymentType: paymentType,
+      paymentType: items.first.service,
+      items: items,
       amount: amount,
       paidAmount: paid,
       remainingAmount: resolveRemaining(amount, paid, status),
@@ -136,8 +144,7 @@ class FakePaymentRepository implements PaymentRepository {
   @override
   Future<Payment> update(
     int paymentId, {
-    PaymentType? paymentType,
-    double? amount,
+    List<PaymentItem>? items,
     double? paidAmount,
     DateTime? paymentDate,
     PaymentMode? paymentMode,
@@ -148,7 +155,7 @@ class FakePaymentRepository implements PaymentRepository {
     if (failUpdateWith != null) throw failUpdateWith!;
     final index = _payments.indexWhere((p) => p.id == paymentId);
     final existing = _payments[index];
-    final newAmount = amount ?? existing.amount;
+    final newAmount = items == null ? existing.amount : _totalOf(items);
     final paid = resolvePaidAmount(
       amount: newAmount,
       paidAmount: paidAmount,
@@ -159,7 +166,8 @@ class FakePaymentRepository implements PaymentRepository {
       id: existing.id,
       schoolId: existing.schoolId,
       schoolName: existing.schoolName,
-      paymentType: paymentType ?? existing.paymentType,
+      paymentType: items?.first.service ?? existing.paymentType,
+      items: items ?? existing.items,
       amount: newAmount,
       paidAmount: paid,
       remainingAmount: resolveRemaining(newAmount, paid, status ?? existing.status),

@@ -10,6 +10,37 @@ enum PaymentType {
   final String label;
 
   static PaymentType fromApiValue(String value) => PaymentType.values.firstWhere((t) => t.apiValue == value);
+
+  /// The services a payment form offers as ticks; [other] is the named,
+  /// free-text fee and can appear any number of times.
+  static const fixed = [setupFee, annualMaintenance, additionalService];
+}
+
+/// One service on a payment, with its own amount. For [PaymentType.other]
+/// the [name] says what the fee is for.
+class PaymentItem {
+  const PaymentItem({required this.service, required this.amount, this.name});
+
+  factory PaymentItem.fromJson(Map<String, dynamic> json) {
+    return PaymentItem(
+      service: PaymentType.fromApiValue(json['service'] as String),
+      name: json['name'] as String?,
+      amount: double.parse(json['amount'] as String),
+    );
+  }
+
+  final PaymentType service;
+  final String? name;
+  final double amount;
+
+  /// What the line is called - an "other" fee by its own name.
+  String get label => service == PaymentType.other && (name ?? '').isNotEmpty ? name! : service.label;
+
+  Map<String, dynamic> toJson() => {
+    'service': service.apiValue,
+    if (service == PaymentType.other) 'name': name,
+    'amount': amount.toStringAsFixed(2),
+  };
 }
 
 enum PaymentMode {
@@ -58,6 +89,7 @@ class Payment {
     required this.status,
     required this.createdByName,
     this.receiptSentAt,
+    this.items = const [],
   });
 
   factory Payment.fromJson(Map<String, dynamic> json) {
@@ -77,6 +109,10 @@ class Payment {
       status: PaymentStatus.fromApiValue(json['status'] as String),
       createdByName: json['created_by_name'] as String?,
       receiptSentAt: json['receipt_sent_at'] as String?,
+      items: [
+        for (final item in (json['items'] as List? ?? const []).cast<Map<String, dynamic>>())
+          PaymentItem.fromJson(item),
+      ],
     );
   }
 
@@ -102,6 +138,17 @@ class Payment {
   /// When the receipt was last emailed to the school's admins, if ever.
   final String? receiptSentAt;
 
+  /// The services this payment covers, in the order they were entered.
+  final List<PaymentItem> items;
+
+  /// One phrase for a list: "Setup Fee", or "Setup Fee + 2 more".
+  String get servicesSummary {
+    if (items.isEmpty) return paymentType.label;
+    if (items.length == 1) return items.single.label;
+
+    return '${items.first.label} + ${items.length - 1} more';
+  }
+
   /// True while money is still owed - the case the UI has to spell out
   /// rather than leaving someone to subtract two figures.
   bool get hasBalance => remainingAmount > 0 && status != PaymentStatus.cancelled;
@@ -123,6 +170,7 @@ class Payment {
       status: status ?? this.status,
       createdByName: createdByName,
       receiptSentAt: receiptSentAt,
+      items: items,
     );
   }
 }

@@ -20,6 +20,7 @@ Payment payment({
     schoolId: 1,
     schoolName: 'Sunrise Public School',
     paymentType: PaymentType.annualMaintenance,
+    items: [PaymentItem(service: PaymentType.annualMaintenance, amount: amount)],
     amount: amount,
     paidAmount: paidAmount,
     remainingAmount: status == PaymentStatus.cancelled ? 0 : amount - paidAmount,
@@ -116,7 +117,10 @@ void main() {
 
       expect(find.widgetWithText(TextFormField, 'Amount received'), findsNothing);
 
-      await tester.tap(find.widgetWithText(DropdownButtonFormField<PaymentStatus>, 'Paid'));
+      final status = find.widgetWithText(DropdownButtonFormField<PaymentStatus>, 'Paid');
+      await tester.ensureVisible(status);
+      await tester.pumpAndSettle();
+      await tester.tap(status);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Partially Paid').last);
       await tester.pumpAndSettle();

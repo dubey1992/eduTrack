@@ -29,6 +29,7 @@ from . import (
     money,
     notices,
     notifications,
+    payment_items,
     permissions,
     platform_messaging,
     queue,
@@ -144,6 +145,7 @@ from .models import (
     Department,
     Holiday,
     Payment,
+    PaymentItem,
     Period,
     StaffAttendance,
     StaffLeave,
@@ -4336,11 +4338,17 @@ class PaymentService:
         # No SchoolScope: only a Super Admin reaches payments at all, and a
         # Super Admin is unrestricted. The school filter is an ordinary filter
         # rather than a scope narrowing.
-        payments = Payment.objects.select_related(*cls.WITH)
+        payments = Payment.objects.select_related(*cls.WITH).prefetch_related("items")
 
-        for field in ("school_id", "status", "payment_type"):
+        for field in ("school_id", "status"):
             if filters.get(field):
                 payments = payments.filter(**{field: filters[field]})
+
+        # A payment is of a type when any of its services is.
+        if filters.get("payment_type"):
+            payments = payments.filter(
+                id__in=PaymentItem.objects.filter(service=filters["payment_type"]).values("payment_id")
+            )
 
         # Newest first, and already deterministic - `id` breaks the tie.
         return payments.order_by("-payment_date", "-id")
@@ -4350,14 +4358,18 @@ class PaymentService:
         data = dict(data)
         school = School.objects.get(pk=data["school_id"])
 
-        total = money.amount(data["amount"])
+        # The sum of the services, never a figure the client sent.
+        lines = data["items"]
+        total = payment_items.total_of(lines)
         paid = money.paid_amount_for(data, total)
         now = timezone.now()
 
         with transaction.atomic():
             payment = Payment.objects.create(
                 school_id=school.id,
-                payment_type=data["payment_type"],
+                # The first service, so a reader that knows only one still
+                # has a value; the lines are the full story.
+                payment_type=lines[0]["service"],
                 amount=total,
                 paid_amount=paid,
                 # Derived from the figures rather than taken at face value, so
@@ -4374,7 +4386,12 @@ class PaymentService:
                 created_at=now,
                 updated_at=now,
             )
-            audit.created("payments", payment)
+            payment_items.write(payment, lines)
+            audit.record(
+                action="payment.created", module="payments", entity_type="payment", entity_id=payment.id,
+                school_id=payment.school_id,
+                new={**audit.fields_of(payment), "items": payment_items.described(payment.items.all())},
+            )
 
             cls.send_receipt(payment)
 
@@ -4382,25 +4399,49 @@ class PaymentService:
 
     @classmethod
     def update(cls, payment: Payment, data: dict) -> Payment:
+        data = dict(data)
         audited = audit.fields_of(payment)
+        lines_before = payment_items.described(payment.items.all())
 
-        total = money.amount(data.get("amount", payment.amount))
+        # New lines replace the old ones; none sent leaves them, and the total,
+        # as they were.
+        lines = data.pop("items", None)
+        total = payment_items.total_of(lines) if lines else money.amount(payment.amount)
         paid = money.paid_amount_for(data, total, fallback=money.amount(payment.paid_amount))
 
-        before = (money.amount(payment.amount), money.amount(payment.paid_amount), payment.status)
+        before = (money.amount(payment.amount), money.amount(payment.paid_amount), payment.status, lines_before)
 
         with transaction.atomic():
             for field, value in data.items():
                 setattr(payment, field, value)
+
+            if lines:
+                payment_items.write(payment, lines)
+                payment.payment_type = lines[0]["service"]
 
             payment.amount = total
             payment.paid_amount = paid
             payment.status = money.status_for(total, paid, data.get("status"))
             payment.updated_at = timezone.now()
             payment.save()
-            audit.updated("payments", payment, audited)
 
-            after = (payment.amount, payment.paid_amount, payment.status)
+            lines_after = payment_items.described(payment.items.all())
+            logged = audit.updated("payments", payment, audited)
+
+            # The services are not a column, so a change to them is added to
+            # the same entry - or written on its own when nothing else moved.
+            if lines_after != lines_before:
+                if logged is not None:
+                    logged.old_values = {**(logged.old_values or {}), "items": lines_before}
+                    logged.new_values = {**(logged.new_values or {}), "items": lines_after}
+                    logged.save(update_fields=["old_values", "new_values"])
+                else:
+                    audit.record(
+                        action="payment.updated", module="payments", entity_type="payment", entity_id=payment.id,
+                        school_id=payment.school_id, old={"items": lines_before}, new={"items": lines_after},
+                    )
+
+            after = (payment.amount, payment.paid_amount, payment.status, lines_after)
 
             # Only when the money or the standing changed. Re-sending a receipt
             # because somebody corrected a reference number would be noise.

@@ -1038,6 +1038,29 @@ class Payment(models.Model):
         managed = False
         db_table = 'payments'
 
+
+class PaymentItem(models.Model):
+    """One service on a Super Admin payment, with its own amount.
+
+    The payment's `amount` is the sum of these, written by the same save.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    payment = models.ForeignKey('Payment', models.CASCADE, related_name='items')
+    service = models.CharField(max_length=50)
+    # What an "other" fee is for, as the Super Admin typed it.
+    name = models.CharField(max_length=100, blank=True, null=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency_code = models.CharField(max_length=3)
+    position = models.PositiveSmallIntegerField(default=0)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'payment_items'
+        ordering = ('position', 'id')
+
 class PayrollRun(models.Model):
     """One school's payroll for one month. See docs/payroll.md."""
 
