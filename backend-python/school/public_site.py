@@ -65,6 +65,11 @@ def site_url() -> str:
     return getattr(settings, "PUBLIC_SITE_URL", "https://school365ai.com").rstrip("/")
 
 
+def api_url() -> str:
+    """Where the pages' forms send what visitors type."""
+    return getattr(settings, "PUBLIC_API_URL", "https://api.school365ai.com/api/v1").rstrip("/")
+
+
 @dataclass(frozen=True)
 class PublicPage:
     slug: str
@@ -222,8 +227,10 @@ def shared(words: Words, live: set[str]) -> dict:
     return {
         "site_url": site_url(),
         "app": APP,
-        "join_href": APP + "#/?open=join",
-        "demo_href": APP + "#/?open=demo",
+        # The forms open on the page itself (forms.html); site.js sends them.
+        "join_href": "#join-early-access",
+        "demo_href": "#request-a-demo",
+        "api_url": api_url(),
         "login_href": APP + "#/login",
         "about_href": "/about" if "about" in live else None,
         "nav": {

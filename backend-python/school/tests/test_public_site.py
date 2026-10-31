@@ -175,8 +175,13 @@ class Building(TestCase):
         self.build()
         home = self.read("index.html")
 
-        self.assertIn('href="/app/#/?open=demo"', home)
-        self.assertIn('href="/app/#/?open=join"', home)
+        # The two forms open on the page itself, never in the app.
+        self.assertIn('href="#request-a-demo"', home)
+        self.assertIn('href="#join-early-access"', home)
+        self.assertNotIn("?open=", home)
+        self.assertIn('<dialog class="form-dialog" id="request-a-demo"', home)
+        self.assertIn('<dialog class="form-dialog" id="join-early-access"', home)
+        self.assertIn('data-api="https://api.school365ai.com/api/v1"', home)
         self.assertIn('href="/app/#/login"', home)
         self.assertIn(">About Us</a>", home)
         self.assertNotIn("Careers", home)
@@ -185,6 +190,35 @@ class Building(TestCase):
         # nothing, and a video that does not exist.
         self.assertNotIn("Stay Updated", home)
         self.assertNotIn("Watch Video", home)
+
+    def test_every_page_carries_the_forms_with_the_fields_the_api_wants(self):
+        self.build()
+
+        for name in ("index.html", "site/pages/about.html", "404.html"):
+            with self.subTest(name=name):
+                page = self.read(name)
+                self.assertIn('data-endpoint="/demo-requests"', page)
+                self.assertIn('data-endpoint="/early-access"', page)
+
+        home = self.read("index.html")
+        for field in ("contact_name", "school_name", "email", "phone", "country", "preferred_date", "preferred_time"):
+            self.assertIn(f'id="demo-{field}"', home)
+        for field in ("school_name", "contact_name", "email", "phone", "city", "country", "current_software"):
+            self.assertIn(f'id="join-{field}"', home)
+
+    def test_the_homepage_names_the_two_apps_that_exist(self):
+        self.build()
+        home = self.read("index.html")
+
+        self.assertIn("<h3>School365ai</h3>", home)
+        self.assertIn("<h3>School365ai Driver</h3>", home)
+        self.assertNotIn("parents, teachers, students", home)
+
+    def test_the_web_root_lets_the_forms_reach_the_api_and_sends_www_away(self):
+        htaccess = (public_site.ASSETS / "htaccess").read_text(encoding="utf-8")
+
+        self.assertIn("connect-src 'self' https://api.school365ai.com;", htaccess)
+        self.assertIn("RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]", htaccess)
 
     def test_a_page_reads_its_published_text_not_its_draft(self):
         self.build()

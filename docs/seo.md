@@ -127,9 +127,20 @@ keeps working. New emails will link to `/app/#/...` directly.
 - **Links**: app screens (`/login`) go to `/app/#/login`; homepage sections
   (`/features`) to anchors; published pages to their plain address; footer
   links to unpublished pages are left out, as in S1.
-- **Buttons**: "Request a Demo" and "Join Early Access" open the app with
-  that form showing (`/app/#/?open=demo`, `?open=join`), so the forms and
-  their validation stay in one place.
+- **The two forms** (changed 2026-10-31, at the user's request: sending
+  visitors into the app looked wrong): "Request a Demo" and "Join Early
+  Access" open as dialogs on whichever public page the visitor is on
+  (`templates/public_site/forms.html`), and `site.js` sends them to the same
+  API endpoints the app's forms use (`PUBLIC_API_URL`). Each field is
+  checked first; what the server refuses shows beside its field; a
+  throttled or failed send says so; success shows the server's thank-you.
+  The web root's CSP allows `connect-src` to the API for this. The app's
+  `?open=demo` / `?open=join` still work for links into the app.
+- **`www.`** redirects to the bare domain, so the pages are never seen
+  twice (the app under `/app/` is left alone).
+- **The apps** (2026-10-31): the homepage names the two that exist -
+  School365ai for staff, School365ai Driver for bus crews - with a card for
+  each; the app's own phone mockups show those two, not a parent app.
 - **Left out on purpose**: the footer's newsletter box (it stored nothing
   and only said "You're on the list") and the hero's "Watch Video" button
   (there is no video; it opened Early Access). The app's own homepage still

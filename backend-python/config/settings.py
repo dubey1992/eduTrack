@@ -295,6 +295,8 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 # host. Unset in development and tests, and then nothing is written.
 PUBLIC_SITE_DIR = os.environ.get("PUBLIC_SITE_DIR", "")
 PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", "https://school365ai.com")
+# Where those pages' Request a Demo and Join Early Access forms post to.
+PUBLIC_API_URL = os.environ.get("PUBLIC_API_URL", "https://api.school365ai.com/api/v1")
 DEFAULT_FROM_EMAIL = os.environ.get("MAIL_FROM_ADDRESS", "hello@example.com")
 
 # Printed to the console while developing, as Laravel's `log` mailer writes to

@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="/site/site.css">
 </head>
-<body>
+<body data-api="{{ api_url }}">
   <header class="nav">
     <div class="wrap nav-row">
       <a class="brand" href="/" aria-label="{{ nav.wordmark }} home">
@@ -78,5 +78,7 @@
       <span>{{ footer.tagline }}</span>
     </div>
   </footer>
+
+  {% include "public_site/forms.html" %}
 </body>
 </html>

@@ -38,9 +38,12 @@ const marketingDefaults = <String, String>{
   'features.body': 'A complete solution to simplify school operations and enhance learning experiences.',
 
   // -- the phone ----------------------------------------------------------
-  'mobile.eyebrow': 'MOBILE APP',
+  'mobile.eyebrow': 'MOBILE APPS',
   'mobile.headline': 'Your School in\nYour Pocket',
-  'mobile.body': 'Stay connected on the go with mobile apps for parents, teachers, students, and staff.',
+  // The two apps that exist (2026-10-31); a parent or student app is future work.
+  'mobile.body':
+      'Two Android apps: School365ai for teachers, heads of department and office staff, '
+      'and School365ai Driver for the drivers and bus attendants who run every trip.',
 
   // -- the browser --------------------------------------------------------
   'web.eyebrow': 'WEB APPLICATION',

@@ -8,7 +8,7 @@ import 'marketing_wrap.dart';
 import 'phone_mockup.dart';
 
 /// "Your School in Your Pocket" - matching the prototype's `.app` section:
-/// copy + store badges on one side, a parent/teacher phone pair on the other.
+/// copy + store badges on one side, the staff and Driver apps' phones on the other.
 class MobileAppSection extends ConsumerWidget {
   const MobileAppSection({super.key});
 
@@ -122,12 +122,13 @@ class _PhonesRow extends StatelessWidget {
             child: const PhoneMockup(
               width: 175,
               height: 335,
+              // School365ai Driver - the bus crew's app.
               child: PhoneAppContent(
-                greeting: 'Hello, Parent! 👋',
-                subtitle: "Stay connected with your child's school.",
-                quickActions: [('✓', 'Attendance'), ('¤', 'Results'), ('✉', 'Messages'), ('🚌', 'Transport')],
-                footerTitle: "Today's Update",
-                footerBody: '✓ Present',
+                greeting: 'Hello, Driver! 👋',
+                subtitle: "Today's trips, stop by stop.",
+                quickActions: [('🚌', 'My Trip'), ('✓', 'Boarding'), ('▦', 'Route'), ('✉', 'Alerts')],
+                footerTitle: 'Next Stop',
+                footerBody: 'Station Road · 7:42 AM',
               ),
             ),
           ),
@@ -136,10 +137,11 @@ class _PhonesRow extends StatelessWidget {
             child: const PhoneMockup(
               width: 175,
               height: 335,
+              // School365ai - the app every member of staff carries.
               child: PhoneAppContent(
                 greeting: 'Hello, Teacher! 👋',
                 subtitle: 'Everything you need for today.',
-                quickActions: [('✓', 'Attendance'), ('▦', 'Classes'), ('✉', 'Messages'), ('¤', 'Reports')],
+                quickActions: [('✓', 'Attendance'), ('▦', 'Timetable'), ('✉', 'Leave'), ('¤', 'Reports')],
                 footerTitle: "Today's Classes",
                 footerBody: 'Grade 6A · Mathematics',
               ),

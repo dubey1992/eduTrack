@@ -1,0 +1,81 @@
+{# The two ways a school with no account gets in touch, on every public page
+   (docs/seo.md, S2). They post to the same endpoints the app's forms do;
+   site.js opens them, sends them, and shows the answer. #}
+<dialog class="form-dialog" id="request-a-demo" aria-labelledby="demo-title">
+  <form class="lead-form" data-endpoint="/demo-requests" novalidate>
+    <div class="form-head">
+      <h2 id="demo-title">Request a Demo</h2>
+      <button type="button" class="close" data-close aria-label="Close">&times;</button>
+    </div>
+    <p class="muted small">Tell us when suits you and we will confirm a time for a live walkthrough.</p>
+    <div class="form-problem" role="alert" hidden></div>
+    <div class="grid two">
+      <label><span class="caption">Your name</span><input name="contact_name" id="demo-contact_name" required maxlength="150" autocomplete="name"></label>
+      <label><span class="caption">School name</span><input name="school_name" id="demo-school_name" required maxlength="150" autocomplete="organization"></label>
+    </div>
+    <label><span class="caption">Email</span><input type="email" name="email" id="demo-email" required maxlength="255" autocomplete="email"></label>
+    <label><span class="caption">Phone <span class="optional">(with country code)</span></span><input type="tel" name="phone" id="demo-phone" required maxlength="20" placeholder="+91 9876543210" autocomplete="tel"></label>
+    <div class="grid two">
+      <label><span class="caption">City <span class="optional">(optional)</span></span><input name="city" id="demo-city" maxlength="100" autocomplete="address-level2"></label>
+      <label><span class="caption">Country</span><input name="country" id="demo-country" required maxlength="100" autocomplete="country-name"></label>
+    </div>
+    <label><span class="caption">Roughly how many students? <span class="optional">(optional)</span></span><input type="number" name="expected_students" id="demo-expected_students" min="1" max="200000" inputmode="numeric"></label>
+    <div class="grid two">
+      <label><span class="caption">Preferred day</span><input type="date" name="preferred_date" id="demo-preferred_date" required></label>
+      <label><span class="caption">Time of day <span class="optional">(optional)</span></span>
+        <select name="preferred_time" id="demo-preferred_time">
+          <option value="">Any time</option>
+          <option value="morning">Morning</option>
+          <option value="afternoon">Afternoon</option>
+          <option value="evening">Evening</option>
+        </select>
+      </label>
+    </div>
+    <label><span class="caption">What would you like to see? <span class="optional">(optional)</span></span><textarea name="message" id="demo-message" rows="3" maxlength="2000"></textarea></label>
+    <div class="form-actions">
+      <button type="button" class="button ghost" data-close>Cancel</button>
+      <button type="submit" class="button primary">Request demo</button>
+    </div>
+  </form>
+  <div class="form-done" hidden>
+    <h2>Demo requested</h2>
+    <p class="done-message"></p>
+    <div class="form-actions"><button type="button" class="button primary" data-close>Done</button></div>
+  </div>
+</dialog>
+
+<dialog class="form-dialog" id="join-early-access" aria-labelledby="join-title">
+  <form class="lead-form" data-endpoint="/early-access" novalidate>
+    <div class="form-head">
+      <h2 id="join-title">Join Early Access</h2>
+      <button type="button" class="close" data-close aria-label="Close">&times;</button>
+    </div>
+    <p class="muted small">Tell us about your school and we will be in touch about getting started.</p>
+    <div class="form-problem" role="alert" hidden></div>
+    <div class="grid two">
+      <label><span class="caption">School name</span><input name="school_name" id="join-school_name" required maxlength="150" autocomplete="organization"></label>
+      <label><span class="caption">Your name</span><input name="contact_name" id="join-contact_name" required maxlength="150" autocomplete="name"></label>
+    </div>
+    <label><span class="caption">Your role <span class="optional">(optional)</span></span><input name="contact_role" id="join-contact_role" maxlength="100" placeholder="Principal, administrator..." autocomplete="organization-title"></label>
+    <label><span class="caption">Email</span><input type="email" name="email" id="join-email" required maxlength="255" autocomplete="email"></label>
+    <label><span class="caption">Phone <span class="optional">(with country code)</span></span><input type="tel" name="phone" id="join-phone" required maxlength="20" placeholder="+91 9876543210" autocomplete="tel"></label>
+    <div class="grid two">
+      <label><span class="caption">City</span><input name="city" id="join-city" required maxlength="100" autocomplete="address-level2"></label>
+      <label><span class="caption">Country</span><input name="country" id="join-country" required maxlength="100" autocomplete="country-name"></label>
+    </div>
+    <div class="grid two">
+      <label><span class="caption">Roughly how many students? <span class="optional">(optional)</span></span><input type="number" name="expected_students" id="join-expected_students" min="1" max="200000" inputmode="numeric"></label>
+      <label><span class="caption">Software you use today <span class="optional">(optional)</span></span><input name="current_software" id="join-current_software" maxlength="150"></label>
+    </div>
+    <label><span class="caption">Anything else? <span class="optional">(optional)</span></span><textarea name="message" id="join-message" rows="3" maxlength="2000"></textarea></label>
+    <div class="form-actions">
+      <button type="button" class="button ghost" data-close>Cancel</button>
+      <button type="submit" class="button primary">Join early access</button>
+    </div>
+  </form>
+  <div class="form-done" hidden>
+    <h2>You're on the list</h2>
+    <p class="done-message"></p>
+    <div class="form-actions"><button type="button" class="button primary" data-close>Done</button></div>
+  </div>
+</dialog>

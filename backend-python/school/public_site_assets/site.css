@@ -150,3 +150,43 @@ section[id], #contact { scroll-margin-top: 80px; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .footer-grid > :first-child { grid-column: 1 / -1; }
 }
+
+/* -- the two apps --------------------------------------------------------- */
+
+.apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; list-style: none; padding: 0; margin: 28px 0 0; text-align: left; }
+.app-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.app-card h3 { margin-bottom: 2px; }
+.app-card p { margin: 0 0 8px; }
+.app-card p:last-child { margin: 0; color: var(--muted); font-size: .95rem; }
+
+/* -- Request a Demo and Join Early Access (forms.html) ---------------------- */
+
+/* No padding on the dialog itself: a click that lands on it is a click on
+   the dimmed backdrop, which closes it (site.js). */
+.form-dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 0; border-radius: 16px; box-shadow: 0 24px 64px rgba(15, 23, 42, .3); color: var(--text); }
+.form-dialog::backdrop { background: rgba(15, 23, 42, .55); }
+.form-dialog:focus { outline: none; }
+.lead-form, .form-done { padding: 24px; display: grid; gap: 12px; }
+.form-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.form-head h2, .form-done h2 { font-size: 1.4rem; margin: 0; }
+.close { border: 0; background: none; font-size: 1.6rem; line-height: 1; color: var(--subtle); cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+.close:hover { background: var(--background); color: var(--text); }
+.lead-form p { margin: 0; }
+.lead-form label { display: grid; gap: 4px; font-size: .88rem; font-weight: 600; }
+.lead-form .caption { display: block; }
+.lead-form .optional { color: var(--subtle); font-weight: 400; }
+.lead-form input, .lead-form select, .lead-form textarea { font: inherit; font-weight: 400; font-size: .95rem; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text); width: 100%; }
+.lead-form input:focus, .lead-form select:focus, .lead-form textarea:focus { outline: 2px solid var(--primary); outline-offset: 0; border-color: var(--primary); }
+.lead-form [aria-invalid="true"] { border-color: #DC2626; }
+.field-error { color: #DC2626; font-size: .82rem; font-weight: 500; }
+.form-problem { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; border-radius: 10px; padding: 10px 12px; font-size: .9rem; }
+.grid.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.form-actions .button { cursor: pointer; font: inherit; font-weight: 700; }
+.form-actions .button[disabled] { opacity: .6; cursor: progress; }
+.form-done p { color: var(--muted); margin: 0; }
+
+@media (max-width: 520px) {
+  .grid.two { grid-template-columns: 1fr; }
+  .lead-form, .form-done { padding: 18px; }
+}
