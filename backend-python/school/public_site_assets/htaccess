@@ -28,7 +28,8 @@
   RewriteRule ^(login|forgot-password)/?$ /app/#/$1 [R=302,NE,L]
 
   # The homepage's sections, by the addresses the old site used.
-  RewriteRule ^(features|for-schools|mobile-app|contact)/?$ /#$1 [R=301,NE,L]
+  # (/contact is a page of its own since 2026-10-31.)
+  RewriteRule ^(features|for-schools|mobile-app)/?$ /#$1 [R=301,NE,L]
 
   # The blog and the help centre (docs/seo.md, S5): their front pages, and
   # each post or article from the file the server wrote for it.

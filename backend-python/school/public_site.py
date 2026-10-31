@@ -60,7 +60,6 @@ SECTIONS = {
     "features": "features",
     "for-schools": "for-schools",
     "mobile-app": "mobile-app",
-    "contact": "contact",
 }
 
 PAGE_WORD = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -523,8 +522,26 @@ def about_us() -> list[dict]:
         {
             "@type": "Organization",
             "name": "School365ai",
+            "legalName": kinds.OFFICE[0],
             "url": site_url() + "/",
             "logo": site_url() + "/logo.png",
+            "email": kinds.SUPPORT_EMAIL,
+            "telephone": kinds.SUPPORT_PHONE,
+            "address": {
+                "@type": "PostalAddress",
+                "streetAddress": kinds.OFFICE[1],
+                "addressLocality": "Gurgaon",
+                "addressRegion": "Haryana",
+                "postalCode": "122002",
+                "addressCountry": "IN",
+            },
+            "contactPoint": {
+                "@type": "ContactPoint",
+                "contactType": "customer support",
+                "telephone": kinds.SUPPORT_PHONE,
+                "email": kinds.SUPPORT_EMAIL,
+                "availableLanguage": "English",
+            },
         },
         {"@type": "WebSite", "name": "School365ai", "url": site_url() + "/"},
     ]

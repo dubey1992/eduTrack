@@ -98,13 +98,13 @@ class PageText(SimpleTestCase):
 
 
 class Links(SimpleTestCase):
-    LIVE = {"about", "privacy"}
+    LIVE = {"about", "privacy", "contact"}
 
     def test_each_kind_of_address_goes_where_it_belongs_here(self):
         cases = {
             "/login": "/app/#/login",
             "https://school365ai.com/features": "/#features",
-            "/contact": "/#contact",
+            "/contact": "/contact",
             "/about": "/about",
             "https://www.school365ai.com/privacy": "/privacy",
             "https://school365ai.com/": "/",
@@ -488,3 +488,41 @@ class FindingTheQuestions(SimpleTestCase):
         for heading in ("## FAQ", "## FAQs", "## Questions", "## frequently asked questions"):
             with self.subTest(heading=heading):
                 self.assertEqual(1, len(public_site.faq_pairs(f"{heading}\n### Why?\nBecause.")))
+
+
+class TheContactPage(TestCase):
+    """How to reach School365ai (2026-10-31): its own page, and the same
+    details as the Organization's contact point in the structured data."""
+
+    def setUp(self):
+        cache.clear()
+        self.root = Path(tempfile.mkdtemp())
+        public_site.build(self.root, server_files=True)
+
+    def test_it_is_a_page_with_the_phone_whatsapp_email_and_office(self):
+        page = (self.root / "site/pages/contact.html").read_text(encoding="utf-8")
+
+        self.assertIn("<h1>Contact Us</h1>", page)
+        self.assertIn('<a href="tel:+919205313831">+91-9205313831</a>', page)
+        self.assertIn('href="https://wa.me/919205313831"', page)
+        self.assertIn('<a href="mailto:support@school365ai.com">support@school365ai.com</a>', page)
+        self.assertIn("NextWebGen Infotech Private Limited", page)
+        self.assertIn("Gurgaon, Haryana 122002", page)
+
+    def test_the_bar_links_to_it_and_the_web_server_no_longer_sends_it_to_the_homepage(self):
+        home = (self.root / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('<a href="/contact">Contact</a>', home)
+        self.assertNotIn("contact)/?$", (self.root / ".htaccess").read_text(encoding="utf-8"))
+
+    def test_the_organization_says_how_to_reach_it(self):
+        home = (self.root / "index.html").read_text(encoding="utf-8")
+        blocks = [json.loads(raw) for raw in re.findall(r'<script type="application/ld\+json">(.*?)</script>', home, re.S)]
+        organization = next(block for block in blocks if block["@type"] == "Organization")
+
+        self.assertEqual(
+            ("support@school365ai.com", "+91-9205313831", "customer support", "IN"),
+            (organization["email"], organization["telephone"], organization["contactPoint"]["contactType"],
+             organization["address"]["addressCountry"]),
+        )
+

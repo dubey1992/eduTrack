@@ -75,7 +75,7 @@ RESERVED_SLUGS = frozenset(
         "announcements", "inbox", "reports", "payroll", "my-payslips", "audit-log", "mail-settings",
         "homepage-content", "site-pages", "profile", "module-settings", "permissions",
         # The public site's own sections and routes.
-        "pages", "features", "for-schools", "mobile-app", "contact",
+        "pages", "features", "for-schools", "mobile-app",
         # The blog and help centre's own addresses (docs/seo.md, S5).
         "blog", "help", "site",
         # What the web server answers before Flutter ever sees the address.
@@ -137,6 +137,41 @@ class BuiltIn:
     # the line its card shows. The public site lays such a page out with a
     # demo invitation and links to the other parts.
     blurb: str | None = None
+
+
+# How to reach School365ai (2026-10-31, from the user). The same details are
+# the Organization's contactPoint in the site's structured data
+# (school/public_site.py), so change both together.
+SUPPORT_PHONE = "+91-9205313831"
+SUPPORT_PHONE_DIAL = "+919205313831"
+SUPPORT_EMAIL = "support@school365ai.com"
+OFFICE = (
+    "NextWebGen Infotech Private Limited",
+    "Oakwood Estate Condominium Association, DLF City Phase-II",
+    "Gurgaon, Haryana 122002",
+    "India",
+)
+
+CONTACT_BODY = f"""We are glad to hear from schools, families and anyone curious about School365ai. Call us, message us on WhatsApp, or write to us.
+
+## Talk to us
+
+- **Phone:** [{SUPPORT_PHONE}](tel:{SUPPORT_PHONE_DIAL})
+- **WhatsApp:** [Message us on WhatsApp](https://wa.me/{SUPPORT_PHONE_DIAL.lstrip("+")}) at {SUPPORT_PHONE}
+- **Email:** [{SUPPORT_EMAIL}](mailto:{SUPPORT_EMAIL})
+
+## Our office
+
+**{OFFICE[0]}**
+{OFFICE[1]}
+{OFFICE[2]}
+{OFFICE[3]}
+
+## Already using School365ai?
+
+If you work at a school that uses School365ai, your school office is usually the quickest place to start - they can see your account and fix most things straight away. For anything they cannot, they can reach us on your behalf, or you can write to us at [{SUPPORT_EMAIL}](mailto:{SUPPORT_EMAIL}).
+
+You can also find step-by-step guides in our [Help Centre](/help)."""
 
 
 ABOUT_BODY = """School365ai is school management software. A school uses it to run its day-to-day records in one place, instead of across registers, spreadsheets and phone calls.
@@ -348,6 +383,7 @@ BUILT_INS: tuple[BuiltIn, ...] = (
         published_at=dt.datetime(2026, 10, 26, tzinfo=dt.timezone.utc),
     ),
     BuiltIn("terms", "Terms of Use", TERMS_BODY, live_by_default=False),
+    BuiltIn("contact", "Contact Us", CONTACT_BODY, live_by_default=True),
     # Then one page per part of the product (docs/seo.md, S3).
     *(
         BuiltIn(module.slug, module.title, module.body, live_by_default=True, blurb=module.blurb)

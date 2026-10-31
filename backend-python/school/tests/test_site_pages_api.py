@@ -157,18 +157,18 @@ class TheBuiltInPagesByDefault(TestCase):
         data = signed_in_as(UserRole.SUPER_ADMIN).get(ADMIN).data["data"]
 
         modules = [module.slug for module in module_pages.MODULES]
-        built_ins = 3 + len(modules)
+        built_ins = 4 + len(modules)
 
-        self.assertEqual(["about", "privacy", "terms", *modules, "zeta", "alpha"], [page["slug"] for page in data])
+        self.assertEqual(["about", "privacy", "terms", "contact", *modules, "zeta", "alpha"], [page["slug"] for page in data])
         self.assertEqual(
             {"slug", "title", "kind", "path", "built_in", "is_live", "published_at", "has_unpublished_changes", "updated_at"},
             set(data[0]),
         )
         self.assertEqual([True] * built_ins + [False, False], [page["built_in"] for page in data])
         # The terms wait for their blanks; every module page is live from the start.
-        self.assertEqual([True, True, False] + [True] * len(modules) + [False, False], [page["is_live"] for page in data])
+        self.assertEqual([True, True, False, True] + [True] * len(modules) + [False, False], [page["is_live"] for page in data])
         self.assertEqual(
-            [False, False, True] + [False] * len(modules) + [True, True], [page["has_unpublished_changes"] for page in data]
+            [False, False, True, False] + [False] * len(modules) + [True, True], [page["has_unpublished_changes"] for page in data]
         )
 
     def test_a_built_in_page_opens_in_the_editor_without_a_row(self):
@@ -268,7 +268,7 @@ class CreatingAPage(TestCase):
         self.assertEqual(201, self.create(slug="ab", title="A").status_code)
 
     def test_an_address_the_app_already_uses_is_reserved(self):
-        for slug in ("login", "dashboard", "api", "pages", "contact", "site-pages", "404"):
+        for slug in ("login", "dashboard", "api", "pages", "blog", "help", "site-pages", "404"):
             self.assertEqual(
                 ["That address is reserved by the app. Choose another."],
                 self.errors(self.create(slug=slug, title="Mine"), "slug"),

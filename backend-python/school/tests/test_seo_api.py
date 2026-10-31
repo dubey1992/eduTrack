@@ -44,7 +44,7 @@ class TheHomepageKnowsWhichPagesExist(TestCase):
     def test_the_built_in_pages_live_from_the_start_and_not_the_terms(self):
         modules = [module.slug for module in module_pages.MODULES]
 
-        self.assertEqual(["about", "privacy", *modules], self.pages())
+        self.assertEqual(["about", "privacy", "contact", *modules], self.pages())
 
     def test_a_page_appears_once_published_and_not_before(self):
         self.pages()  # cached before the page exists, as a busy homepage would be
