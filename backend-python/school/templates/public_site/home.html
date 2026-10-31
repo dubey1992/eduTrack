@@ -35,6 +35,17 @@
   </div>
 </section>
 
+{% if modules %}
+<section class="section" id="modules">
+  <div class="wrap">
+    <p class="eyebrow">In detail</p>
+    <h2>What each part does</h2>
+    <p class="lead">A page for each part of School365ai: who uses it, and what it does for them.</p>
+    {% include "public_site/module_cards.html" %}
+  </div>
+</section>
+{% endif %}
+
 <section class="section tinted" id="mobile-app">
   <div class="wrap narrow">
     <p class="eyebrow">{{ mobile.eyebrow }}</p>

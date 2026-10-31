@@ -15,7 +15,7 @@ from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from school import factories, site_pages, tokens
+from school import factories, module_pages, site_pages, tokens
 from school.enums import UserRole
 from school.models import AuditLog, SitePage
 from school.views import site_pages as site_pages_view
@@ -156,14 +156,20 @@ class TheBuiltInPagesByDefault(TestCase):
 
         data = signed_in_as(UserRole.SUPER_ADMIN).get(ADMIN).data["data"]
 
-        self.assertEqual(["about", "privacy", "terms", "zeta", "alpha"], [page["slug"] for page in data])
+        modules = [module.slug for module in module_pages.MODULES]
+        built_ins = 3 + len(modules)
+
+        self.assertEqual(["about", "privacy", "terms", *modules, "zeta", "alpha"], [page["slug"] for page in data])
         self.assertEqual(
             {"slug", "title", "built_in", "is_live", "published_at", "has_unpublished_changes", "updated_at"},
             set(data[0]),
         )
-        self.assertEqual([True, True, True, False, False], [page["built_in"] for page in data])
-        self.assertEqual([True, True, False, False, False], [page["is_live"] for page in data])
-        self.assertEqual([False, False, True, True, True], [page["has_unpublished_changes"] for page in data])
+        self.assertEqual([True] * built_ins + [False, False], [page["built_in"] for page in data])
+        # The terms wait for their blanks; every module page is live from the start.
+        self.assertEqual([True, True, False] + [True] * len(modules) + [False, False], [page["is_live"] for page in data])
+        self.assertEqual(
+            [False, False, True] + [False] * len(modules) + [True, True], [page["has_unpublished_changes"] for page in data]
+        )
 
     def test_a_built_in_page_opens_in_the_editor_without_a_row(self):
         page = signed_in_as(UserRole.SUPER_ADMIN).get(detail("terms")).data
@@ -325,7 +331,7 @@ class CreatingAPage(TestCase):
     def test_fifty_pages_is_the_limit_built_ins_included(self):
         now = timezone.now()
         SitePage.objects.bulk_create(
-            SitePage(slug=f"page-{n}", title=f"Page {n}", body="", created_at=now, updated_at=now) for n in range(47)
+            SitePage(slug=f"page-{n}", title=f"Page {n}", body="", created_at=now, updated_at=now) for n in range(site_pages.MAX_PAGES - len(site_pages.BUILT_IN_SLUGS))
         )
 
         response = self.create(slug="one-more", title="One more")
@@ -339,7 +345,7 @@ class CreatingAPage(TestCase):
     def test_a_saved_built_in_is_not_counted_twice(self):
         now = timezone.now()
         SitePage.objects.bulk_create(
-            SitePage(slug=f"page-{n}", title=f"Page {n}", body="", created_at=now, updated_at=now) for n in range(46)
+            SitePage(slug=f"page-{n}", title=f"Page {n}", body="", created_at=now, updated_at=now) for n in range(site_pages.MAX_PAGES - len(site_pages.BUILT_IN_SLUGS) - 1)
         )
         self.client.put(detail("about"), {"title": "About Us", "body": "Us."}, format="json")
 

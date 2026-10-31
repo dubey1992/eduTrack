@@ -21,7 +21,7 @@ from django.core.management.base import CommandError
 from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIClient
 
-from school import factories, marketing_copy, public_site, site_markup, tokens
+from school import factories, marketing_copy, module_pages, public_site, site_markup, tokens
 from school.enums import UserRole
 from school.models import MarketingContent
 
@@ -206,6 +206,17 @@ class Building(TestCase):
         for field in ("school_name", "contact_name", "email", "phone", "city", "country", "current_software"):
             self.assertIn(f'id="join-{field}"', home)
 
+    def test_no_template_comment_reaches_a_page(self):
+        """A {# #} comment spanning lines is printed by Django as text; one
+        was, at the foot of every page, until 2026-10-31."""
+        self.build()
+
+        for name in ("index.html", "site/pages/about.html", "404.html"):
+            with self.subTest(name=name):
+                page = self.read(name)
+                self.assertNotIn("{#", page)
+                self.assertNotIn("{%", page)
+
     def test_the_homepage_names_the_two_apps_that_exist(self):
         self.build()
         home = self.read("index.html")
@@ -321,3 +332,65 @@ class TheCommand(TestCase):
         call_command("build_public_site", "--if-configured", stdout=out)
 
         self.assertIn("not written", out.getvalue())
+
+
+class ModulePages(TestCase):
+    """One page per part of the product (docs/seo.md, S3)."""
+
+    def setUp(self):
+        cache.clear()
+        self.root = Path(tempfile.mkdtemp())
+        public_site.build(self.root)
+
+    def read(self, name: str) -> str:
+        return (self.root / name).read_text(encoding="utf-8")
+
+    def test_each_is_written_at_its_own_address_and_in_the_sitemap(self):
+        sitemap = self.read("sitemap.xml")
+
+        for module in module_pages.MODULES:
+            with self.subTest(slug=module.slug):
+                page = self.read(f"site/pages/{module.slug}.html")
+                self.assertIn(f"<h1>{module.title}</h1>", page)
+                self.assertIn(f'<link rel="canonical" href="https://school365ai.com/{module.slug}">', page)
+                self.assertIn(f"<loc>https://school365ai.com/{module.slug}</loc>", sitemap)
+
+    def test_a_module_page_invites_a_demo_and_links_to_the_others_not_itself(self):
+        page = self.read("site/pages/school-attendance-software.html")
+
+        self.assertIn("See it with your own school", page)
+        self.assertIn('href="#request-a-demo"', page)
+        self.assertIn('href="/school-fee-management-software"', page)
+        self.assertNotIn('class="card module-card" href="/school-attendance-software"', page)
+
+    def test_an_ordinary_page_does_not(self):
+        self.assertNotIn("See it with your own school", self.read("site/pages/about.html"))
+
+    def test_the_homepage_links_to_every_module(self):
+        home = self.read("index.html")
+
+        self.assertIn("What each part does", home)
+        for module in module_pages.MODULES:
+            self.assertIn(f'href="/{module.slug}"', home)
+
+    def test_each_snippet_is_plain_words_from_its_first_paragraph_and_fits_a_search_result(self):
+        for module in module_pages.MODULES:
+            with self.subTest(slug=module.slug):
+                snippet = public_site.summary(module.body)
+                first = public_site.summary(module.body.split("\n\n")[0])
+                self.assertEqual(first[:100], snippet[:100])
+                self.assertNotIn("*", snippet)
+                self.assertTrue(80 <= len(snippet) <= 158, snippet)
+
+    def test_the_pages_promise_nothing_the_product_does_not_do(self):
+        """The research behind them (2026-10-31): no parent or student app,
+        no iPhone app, no online fee payment, no exams, nothing "AI"."""
+        for module in module_pages.MODULES:
+            text = module.body.lower()
+            with self.subTest(slug=module.slug):
+                # (Saying plainly what it does not do - "families do not pay
+                # online through it" - is fine; claiming it is not.)
+                for claim in ("parent app", "student app", "ai-powered", "artificial intelligence",
+                              "payment gateway", "app store", "ios app", "iphone app."):
+                    self.assertNotIn(claim, text)
+

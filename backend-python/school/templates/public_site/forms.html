@@ -1,6 +1,9 @@
-{# The two ways a school with no account gets in touch, on every public page
-   (docs/seo.md, S2). They post to the same endpoints the app's forms do;
-   site.js opens them, sends them, and shows the answer. #}
+{% comment %}
+  The two ways a school with no account gets in touch, on every public page
+  (docs/seo.md, S2). They post to the same endpoints the app's forms do;
+  site.js opens them, sends them, and shows the answer. A {# #} comment is
+  one line only in Django - across lines it is printed as text.
+{% endcomment %}
 <dialog class="form-dialog" id="request-a-demo" aria-labelledby="demo-title">
   <form class="lead-form" data-endpoint="/demo-requests" novalidate>
     <div class="form-head">

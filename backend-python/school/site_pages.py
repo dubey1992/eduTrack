@@ -33,7 +33,7 @@ import datetime as dt
 import re
 from dataclasses import dataclass
 
-from . import marketing
+from . import marketing, module_pages
 
 # The whole website, built-ins included. Bounded so the Super Admin's list
 # never needs paging and the footer never needs a scroll bar.
@@ -94,6 +94,10 @@ class BuiltIn:
     # The date the shipped text was last changed in substance, shown as the
     # page's "last updated" until somebody publishes their own version.
     published_at: dt.datetime | None = None
+    # Set on a page about one part of the product (school/module_pages.py):
+    # the line its card shows. The public site lays such a page out with a
+    # demo invitation and links to the other parts.
+    blurb: str | None = None
 
 
 ABOUT_BODY = """School365ai is school management software. A school uses it to run its day-to-day records in one place, instead of across registers, spreadsheets and phone calls.
@@ -305,6 +309,11 @@ BUILT_INS: tuple[BuiltIn, ...] = (
         published_at=dt.datetime(2026, 10, 26, tzinfo=dt.timezone.utc),
     ),
     BuiltIn("terms", "Terms of Use", TERMS_BODY, live_by_default=False),
+    # Then one page per part of the product (docs/seo.md, S3).
+    *(
+        BuiltIn(module.slug, module.title, module.body, live_by_default=True, blurb=module.blurb)
+        for module in module_pages.MODULES
+    ),
 )
 
 BUILT_IN_SLUGS: tuple[str, ...] = tuple(page.slug for page in BUILT_INS)

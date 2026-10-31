@@ -76,6 +76,8 @@ class PublicPage:
     title: str
     body: str
     published_at: object
+    # Set on a page about one part of the product (school/module_pages.py).
+    blurb: str | None = None
 
     @property
     def path(self) -> str:
@@ -104,10 +106,11 @@ def build(root: Path, server_files: bool = False) -> list[str]:
 
     document = marketing_content.published()
     pages = [
-        PublicPage(page.slug, page.published_title, page.published_body, page.published_at)
+        PublicPage(page.slug, page.published_title, page.published_body, page.published_at, blurb_of(page.slug))
         for page in site_pages.every_page()
         if page.is_live
     ]
+    modules = [page for page in pages if page.blurb]
     live = {page.slug for page in pages}
     written: list[str] = []
 
@@ -120,10 +123,10 @@ def build(root: Path, server_files: bool = False) -> list[str]:
         written.append(str(relative).replace(os.sep, "/"))
 
     words = Words(document)
-    write("index.html", render_home(words, live))
+    write("index.html", render_home(words, live, modules))
 
     for page in pages:
-        write(PAGES_DIR / f"{page.slug}.html", render_page(page, words, live))
+        write(PAGES_DIR / f"{page.slug}.html", render_page(page, words, live, modules))
 
     # A page unpublished or renamed stops answering at its old address.
     for stale in (root / PAGES_DIR).glob("*.html"):
@@ -144,6 +147,15 @@ def build(root: Path, server_files: bool = False) -> list[str]:
         write(".htaccess", (ASSETS / "htaccess").read_bytes())
 
     return written
+
+
+def blurb_of(slug: str) -> str | None:
+    """The card line of a module page (school/module_pages.py), or None."""
+    from . import site_pages as built_ins
+
+    page = built_ins.built_in(slug)
+
+    return page.blurb if page is not None else None
 
 
 # -- links ---------------------------------------------------------------------
@@ -250,11 +262,12 @@ def shared(words: Words, live: set[str]) -> dict:
     }
 
 
-def render_home(words: Words, live: set[str]) -> str:
+def render_home(words: Words, live: set[str], modules: list[PublicPage]) -> str:
     return render_to_string(
         "public_site/home.html",
         {
             **shared(words, live),
+            "modules": modules,
             "canonical": site_url() + "/",
             "title": "School365ai - School Management Software for Attendance, Fees and Transport",
             "description": (
@@ -298,11 +311,14 @@ def render_home(words: Words, live: set[str]) -> str:
     )
 
 
-def render_page(page: PublicPage, words: Words, live: set[str]) -> str:
+def render_page(page: PublicPage, words: Words, live: set[str], modules: list[PublicPage]) -> str:
     return render_to_string(
         "public_site/page.html",
         {
             **shared(words, live),
+            # A module page invites a demo and points at the other parts.
+            "is_module": bool(page.blurb),
+            "other_modules": [module for module in modules if module.slug != page.slug],
             "canonical": site_url() + page.path,
             "title": f"{page.title} - School365ai",
             "description": summary(page.body),

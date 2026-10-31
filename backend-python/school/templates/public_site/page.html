@@ -7,4 +7,24 @@
     {{ body_html|safe }}
   </div>
 </article>
+{% if is_module %}
+<section class="band">
+  <div class="wrap narrow">
+    <h2>See it with your own school's day</h2>
+    <p>Book a walkthrough and we will show you this on a school like yours.</p>
+    <div class="actions">
+      <a class="button light large" href="{{ demo_href }}">Request a Demo</a>
+      <a class="button on-band large" href="{{ join_href }}">Join Early Access</a>
+    </div>
+  </div>
+</section>
+{% if other_modules %}
+<section class="section">
+  <div class="wrap">
+    <h2>Explore more of School365ai</h2>
+    {% include "public_site/module_cards.html" with modules=other_modules %}
+  </div>
+</section>
+{% endif %}
+{% endif %}
 {% endblock %}

@@ -10,7 +10,7 @@ from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from school import factories, tokens
+from school import factories, module_pages, tokens
 from school.enums import UserRole
 
 HOMEPAGE = "/api/v1/marketing-content"
@@ -42,7 +42,9 @@ class TheHomepageKnowsWhichPagesExist(TestCase):
         return APIClient().get(HOMEPAGE).data["pages"]
 
     def test_the_built_in_pages_live_from_the_start_and_not_the_terms(self):
-        self.assertEqual(["about", "privacy"], self.pages())
+        modules = [module.slug for module in module_pages.MODULES]
+
+        self.assertEqual(["about", "privacy", *modules], self.pages())
 
     def test_a_page_appears_once_published_and_not_before(self):
         self.pages()  # cached before the page exists, as a busy homepage would be

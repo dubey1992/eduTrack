@@ -91,7 +91,7 @@ keeps working. New emails will link to `/app/#/...` directly.
 |---|---|---|
 | S1 | Quick fixes (**built 2026-10-30**) | See "S1 as built" below. |
 | S2 | Static public site (**built 2026-10-30**) | See "S2 as built" below. This is the change that makes ranking possible. |
-| S3 | Pages that match searches | One page per module, written for how schools search: school attendance software (with SMS alerts to parents), school fee management (receipts, reminders, per-currency), school bus tracking (live GPS, boarding alerts), timetable, staff payroll, biometric attendance, teaching reports and syllabus tracking, the staff and driver apps. Each page has a real description of what the module does, screenshots, and a demo button. The homepage feature cards link to them. |
+| S3 | Pages that match searches (**built 2026-10-31**) | See "S3 as built" below. |
 | S4 | Structured data and FAQs | schema.org `Organization`, `WebSite`, `SoftwareApplication` (category EducationalApplication; Web and Android), `BreadcrumbList`, and `FAQPage` on pages that carry real FAQs. No made-up ratings or reviews: Google penalises them, and they would be false. |
 | S5 | Blog and help centre | Website Pages gain a "Blog post" kind (date, author, summary, cover image) and a `/blog` index; help articles at `/help/...`. Written content is what earns links and long-tail searches ("how to track school bus attendance", "school fee receipt format"). |
 | S6 | Measure | Google Search Console and Bing Webmaster Tools verified (a DNS or meta-tag step), the sitemap submitted, indexing and search terms watched. Visitor analytics is a separate decision (see below). |
@@ -157,6 +157,30 @@ keeps working. New emails will link to `/app/#/...` directly.
   `canvaskit/` and so on) are harmless and can be cleared once `/app/` has
   run for a while; `flutter_service_worker.js` must stay, so any browser
   still holding the old worker can fetch it and unregister.
+
+## S3 as built (2026-10-31)
+
+- **Eleven module pages**, one per part of the product, each aimed at one
+  search: `/school-attendance-software`, `/school-fee-management-software`,
+  `/school-bus-tracking-software`, `/staff-attendance-software`,
+  `/school-timetable-software`, `/student-progress-reports`,
+  `/school-payroll-software`, `/school-communication-software`,
+  `/school-reports-and-analytics`, `/student-information-system` and
+  `/school-staff-and-driver-apps`.
+- **They are built-in Website Pages** (`school/module_pages.py`), live from
+  the first deploy and editable in the Website Pages screen like About.
+  Built-ins count towards the 50-page limit, so 36 remain for custom pages.
+- **Written from a check of the code, not the plans**: what each part does
+  today, and nothing more. They say plainly what is not done (families do
+  not pay fees online through it; no exam scheduling), and a test refuses
+  claims of a parent, student or iPhone app, a payment gateway or "AI".
+- **Layout**: a module page ends with a demo / early-access band and cards
+  for the other modules; the homepage has a "What each part does" section
+  linking to every live module page. All are in the sitemap.
+- **Also fixed**: the demo and early-access dialogs showed their success
+  message under the form before anything was sent (a `display` rule beat
+  `[hidden]`), and a multi-line `{# #}` template comment was printed at the
+  foot of every page.
 
 ## Content notes
 

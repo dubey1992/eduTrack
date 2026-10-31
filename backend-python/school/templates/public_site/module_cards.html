@@ -1,0 +1,6 @@
+{# A card per module page (school/module_pages.py), each a link to it. #}
+<ul class="cards modules">
+  {% for module in modules %}
+  <li><a class="card module-card" href="{{ module.path }}"><h3>{{ module.title }}</h3><p>{{ module.blurb }}</p><span class="more" aria-hidden="true">Read more &rarr;</span></a></li>
+  {% endfor %}
+</ul>
