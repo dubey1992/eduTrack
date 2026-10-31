@@ -51,6 +51,27 @@ class Suggestion:
 
 
 @dataclass(frozen=True)
+class PostalPlace:
+    """What a postal code says about where it is (docs/maps.md, postal codes).
+
+    The street is never here: a postal code covers many streets, so the
+    address line stays the person's to type.
+    """
+
+    postal_code: str
+    city: str
+    state: str
+    country: str
+    country_code: str
+    latitude: float
+    longitude: float
+    address: str
+    # The localities the code covers, where Google says (an Indian PIN code
+    # often serves several), for somebody choosing between them.
+    localities: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Place:
     place_id: str
     label: str
@@ -167,6 +188,76 @@ def reverse_geocode(latitude: float, longitude: float) -> str:
     results = answer.get("results") or []
 
     return (results[0].get("formatted_address") or "") if results else ""
+
+
+# The town a postal code belongs to, in the order Google's address parts
+# are most often right about it: a city, then a UK-style postal town, then
+# the smaller and larger districts around it.
+CITY_TYPES = (
+    "locality",
+    "postal_town",
+    "administrative_area_level_3",
+    "administrative_area_level_2",
+    "sublocality",
+)
+
+
+def postal_code(code: str, *, country: str | None = None, region: str | None = None) -> PostalPlace | None:
+    """The city, state, country and map position a postal code belongs to,
+    or None when Google knows no such code.
+
+    Restricted to postal codes, so "411001" is never read as a street
+    number. [country] narrows the search - a name ("India") or a two-letter
+    code - because the same digits are a postal code in several countries;
+    without it, [region] only prefers one.
+    """
+    components = f"postal_code:{code}" + (f"|country:{country}" if country else "")
+    params = {"components": components, "key": server_key()}
+
+    if region and not country:
+        params["region"] = region.lower()
+
+    answer = _call(lambda: get(GEOCODE_URL, params=params))
+    status = answer.get("status")
+
+    if status == "ZERO_RESULTS":
+        return None
+
+    if status != "OK":
+        raise MapsUnavailable(f"Google Maps: {answer.get('error_message') or status}"[:255])
+
+    results = answer.get("results") or []
+    found = next((result for result in results if "postal_code" in (result.get("types") or [])), None)
+
+    if found is None:
+        return None
+
+    parts = found.get("address_components") or []
+
+    def part(*types: str, short: bool = False) -> str:
+        for wanted in types:
+            for component in parts:
+                if wanted in (component.get("types") or []):
+                    return (component.get("short_name" if short else "long_name") or "").strip()
+
+        return ""
+
+    location = (found.get("geometry") or {}).get("location") or {}
+
+    if "lat" not in location or "lng" not in location:
+        return None
+
+    return PostalPlace(
+        postal_code=part("postal_code") or code,
+        city=part(*CITY_TYPES),
+        state=part("administrative_area_level_1"),
+        country=part("country"),
+        country_code=part("country", short=True),
+        latitude=float(location["lat"]),
+        longitude=float(location["lng"]),
+        address=found.get("formatted_address") or "",
+        localities=tuple(found.get("postcode_localities") or ()),
+    )
 
 
 @dataclass(frozen=True)

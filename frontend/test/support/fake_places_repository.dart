@@ -10,7 +10,12 @@ import 'package:edutrack_app/features/maps/data/places_repository.dart';
 /// always type into, so a failed lookup is an empty answer rather than an
 /// error.
 class FakePlacesRepository implements PlacesRepository {
-  FakePlacesRepository({this.suggestions = const [], this.place, this.address = ''});
+  FakePlacesRepository({
+    this.suggestions = const [],
+    this.place,
+    this.address = '',
+    this.postalLookup = const PostalLookup.unavailable(),
+  });
 
   List<PlaceSuggestion> suggestions;
 
@@ -19,6 +24,10 @@ class FakePlacesRepository implements PlacesRepository {
 
   /// Empty is a real answer: the sea has no address.
   String address;
+
+  /// What a postal code lookup answers.
+  PostalLookup postalLookup;
+  final postalLookups = <({String code, String? country})>[];
 
   /// When set, [search] waits on it, so a test can see the spinner.
   Completer<void>? searchGate;
@@ -54,5 +63,12 @@ class FakePlacesRepository implements PlacesRepository {
     describes++;
 
     return address;
+  }
+
+  @override
+  Future<PostalLookup> lookUpPostalCode(String postalCode, {String? country}) async {
+    postalLookups.add((code: postalCode, country: country));
+
+    return postalLookup;
   }
 }

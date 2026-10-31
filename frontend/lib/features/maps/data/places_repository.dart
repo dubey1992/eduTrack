@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
@@ -45,6 +46,62 @@ class FoundPlace {
   final String address;
   final double latitude;
   final double longitude;
+}
+
+/// What a postal code says about where it is. The street is never here: a
+/// postal code covers many streets, so the address line stays the person's.
+class PostalPlace {
+  const PostalPlace({
+    required this.postalCode,
+    required this.city,
+    required this.state,
+    required this.country,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  factory PostalPlace.fromJson(Map<String, dynamic> json) {
+    return PostalPlace(
+      postalCode: json['postal_code'] as String? ?? '',
+      city: json['city'] as String? ?? '',
+      state: json['state'] as String? ?? '',
+      country: json['country'] as String? ?? '',
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+    );
+  }
+
+  final String postalCode;
+  final String city;
+  final String state;
+  final String country;
+  final double latitude;
+  final double longitude;
+
+  /// "Pune, Maharashtra, India", leaving out whatever Google did not say.
+  String get place => [city, state, country].where((part) => part.isNotEmpty).join(', ');
+}
+
+enum PostalLookupOutcome {
+  found,
+
+  /// No such postal code - or none in the country typed.
+  notFound,
+
+  /// No key on the server, Google unreachable, or no connection. The boxes
+  /// stay the person's to type, exactly as before there was a lookup.
+  unavailable,
+}
+
+class PostalLookup {
+  const PostalLookup.found(PostalPlace this.place) : outcome = PostalLookupOutcome.found;
+
+  const PostalLookup.notFound() : outcome = PostalLookupOutcome.notFound, place = null;
+
+  const PostalLookup.unavailable() : outcome = PostalLookupOutcome.unavailable, place = null;
+
+  final PostalLookupOutcome outcome;
+  final PostalPlace? place;
 }
 
 final placesRepositoryProvider = Provider<PlacesRepository>((ref) => PlacesRepository(ref.watch(dioClientProvider)));
@@ -107,6 +164,34 @@ class PlacesRepository {
       return body['address'] as String? ?? '';
     } catch (_) {
       return '';
+    }
+  }
+
+  /// The city, state, country and map position of a postal code (docs/maps.md).
+  ///
+  /// Never throws: a lookup that cannot be done must not stop anybody typing
+  /// the address in. A failure is logged and answered as [PostalLookupOutcome.unavailable].
+  Future<PostalLookup> lookUpPostalCode(String postalCode, {String? country}) async {
+    try {
+      final response = await _dio.get(
+        '/maps/geocode/postal',
+        queryParameters: {
+          'postal_code': postalCode,
+          if (country != null && country.trim().isNotEmpty) 'country': country.trim(),
+        },
+      );
+      final body = response.data;
+
+      if (body is! Map<String, dynamic> || body['found'] != true) return const PostalLookup.notFound();
+
+      return PostalLookup.found(PostalPlace.fromJson(body));
+    } on DioException catch (error) {
+      // 422: what was typed cannot be a postal code - which, to the person
+      // typing, is the same as no such code.
+      if (error.response?.statusCode == 422) return const PostalLookup.notFound();
+
+      debugPrint('Postal code lookup failed: ${error.response?.statusCode ?? error.type}');
+      return const PostalLookup.unavailable();
     }
   }
 }

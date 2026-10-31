@@ -20,6 +20,7 @@ it is the referrer and package restrictions set on it in Google Cloud.
 from __future__ import annotations
 
 import hashlib
+import re
 
 from django.conf import settings
 from django.core.cache import cache
@@ -28,7 +29,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..enums import UserRole
-from ..errors import InvalidCoordinate, MapsUnavailable
+from ..errors import InvalidCoordinate, InvalidPostalCode, MapsUnavailable
 from ..gateways import google_maps
 from ..policies import authorize
 from ..throttling import MapsLookupThrottle
@@ -40,6 +41,10 @@ CACHE_SECONDS = 60 * 60 * 24
 # Asking Google about one or two characters costs the same as asking about a
 # road name and tells nobody anything.
 MINIMUM_QUERY = 3
+
+# Every postal code in use is letters, digits, spaces and hyphens, two to ten
+# characters: "411001", "SW1A 1AA", "10115", "K1A 0B1", "1000-001".
+POSTAL_CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 -]{1,9}$")
 
 
 def may_look_up(actor) -> bool:
@@ -147,6 +152,50 @@ def reverse_geocode(request) -> Response:
     cache.set(key, address, CACHE_SECONDS)
 
     return Response({"address": address})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@throttle_classes([MapsLookupThrottle])
+def postal_code(request) -> Response:
+    """The city, state, country and map position of a postal code, so the
+    school form fills itself in once somebody types one (docs/maps.md).
+
+    `found` false is an answer, not an error: a code Google does not know is
+    something the person can correct, and every box stays theirs to type.
+    """
+    authorize(may_look_up(request.user))
+
+    code = " ".join((request.query_params.get("postal_code") or "").split()).upper()
+    country = " ".join((request.query_params.get("country") or "").split())[:100]
+
+    if not POSTAL_CODE.match(code):
+        raise InvalidPostalCode("Enter a postal code of 2 to 10 letters, digits, spaces or hyphens.")
+
+    key = _cache_key("postal", settings.GOOGLE_MAPS_REGION, country.lower(), code)
+    cached = cache.get(key)
+
+    if cached is not None:
+        return Response(cached)
+
+    found = _asked(
+        lambda: google_maps.postal_code(code, country=country or None, region=settings.GOOGLE_MAPS_REGION or None)
+    )
+    answer = {"found": False} if found is None else {
+        "found": True,
+        "postal_code": found.postal_code,
+        "city": found.city,
+        "state": found.state,
+        "country": found.country,
+        "country_code": found.country_code,
+        "latitude": found.latitude,
+        "longitude": found.longitude,
+        "address": found.address,
+        "localities": list(found.localities),
+    }
+    cache.set(key, answer, CACHE_SECONDS)
+
+    return Response(answer)
 
 
 def _cache_key(*parts) -> str:

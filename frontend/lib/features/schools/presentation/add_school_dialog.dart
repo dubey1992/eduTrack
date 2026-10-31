@@ -13,6 +13,7 @@ import '../data/models/working_week.dart';
 import 'widgets/coordinates_fields.dart';
 import '../../early_access/data/models/early_access_request.dart';
 import 'widgets/parent_school_field.dart';
+import 'widgets/postal_code_field.dart';
 import 'widgets/school_category_field.dart';
 import 'widgets/timezone_field.dart';
 import 'widgets/working_days_field.dart';
@@ -303,6 +304,34 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
                   validator: (v) => _required(v, 'Address'),
                 ),
                 const SizedBox(height: 10),
+                // Country and postal code first: a postal code fills in the
+                // city, state and map pin below it (docs/maps.md), and the
+                // country tells it which country's codes to look in.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _countryController,
+                        decoration: const InputDecoration(labelText: 'Country'),
+                        validator: (v) => _required(v, 'Country'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: PostalCodeField(
+                        postalCode: _postalCodeController,
+                        city: _cityController,
+                        state: _stateController,
+                        country: _countryController,
+                        latitude: _latitudeController,
+                        longitude: _longitudeController,
+                        validator: (v) => _required(v, 'Postal code'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
@@ -318,26 +347,6 @@ class _AddSchoolDialogState extends ConsumerState<AddSchoolDialog> {
                         controller: _stateController,
                         decoration: const InputDecoration(labelText: 'State'),
                         validator: (v) => _required(v, 'State'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _countryController,
-                        decoration: const InputDecoration(labelText: 'Country'),
-                        validator: (v) => _required(v, 'Country'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _postalCodeController,
-                        decoration: const InputDecoration(labelText: 'Postal code'),
-                        validator: (v) => _required(v, 'Postal code'),
                       ),
                     ),
                   ],

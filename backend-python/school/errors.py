@@ -101,6 +101,11 @@ class InvalidCoordinate(ApiError):
     error_code = "VALIDATION_ERROR"
 
 
+class InvalidPostalCode(ApiError):
+    status_code = 422
+    error_code = "VALIDATION_ERROR"
+
+
 class HolidayOverlap(ApiError):
     """Two holidays covering the same day.
 

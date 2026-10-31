@@ -355,6 +355,8 @@ urlpatterns = [
     path("api/v1/maps/places/autocomplete", maps.autocomplete),
     path("api/v1/maps/places/<str:place_id>", maps.place),
     path("api/v1/maps/geocode/reverse", maps.reverse_geocode),
+    # A postal code filling in the rest of a school's address.
+    path("api/v1/maps/geocode/postal", maps.postal_code),
     # The public homepage's words (docs/marketing-content.md). Public:
     # the page is served to anybody, so its words are readable by anybody.
     path("api/v1/marketing-content", marketing_content.content),

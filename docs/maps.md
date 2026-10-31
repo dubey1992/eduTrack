@@ -781,3 +781,27 @@ has overshot and is coming back is further away than the leg is long, and
 
 The card says the time where there is one and falls back to the straight
 line where there is not, and the next stop's own pin carries it too.
+
+## Postal codes fill in a school's address (2026-10-31)
+
+On the Add School and Edit School forms, Country and Postal code now come
+before City and State. A short pause after somebody types a postal code
+(three characters or more), the app asks `GET /api/v1/maps/geocode/postal?
+postal_code=&country=`, which asks Google's Geocoding API - restricted to
+postal codes, and to the typed country when there is one, otherwise
+preferring `GOOGLE_MAPS_REGION` - and answers the city, state, country,
+country code and position, or `{"found": false}`.
+
+- **It fills only empty boxes, or boxes it filled itself**, so nothing a
+  person typed is overwritten. The street address is never filled: a postal
+  code covers many streets.
+- **The map pin moves** because latitude and longitude are filled, and the
+  location picker follows those boxes.
+- **An existing school is not looked up by opening its form**, only when
+  somebody types a different code.
+- The same rules as the other lookups: the server key never leaves the
+  server, answers are cached for a day, the lookup is rate limited, and only
+  Super, Group and School Admins and Transport Managers may ask. A missing
+  key or a Google refusal is a 503; the form then says the lookup is not
+  available and the boxes are typed by hand, as before.
+

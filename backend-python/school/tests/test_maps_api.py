@@ -340,3 +340,155 @@ class WhoMaySpendACallOnGoogle(TestCase):
         self.assertEqual(401, client.get(AUTOCOMPLETE, {"q": "Station Road"}).status_code)
         self.assertEqual(401, client.get(PLACE.format("ChIJ_station")).status_code)
         self.assertEqual(401, client.get(REVERSE, {"lat": "18.5", "lng": "73.8"}).status_code)
+
+
+POSTAL = "/api/v1/maps/geocode/postal"
+
+# What Geocoding sends for an Indian PIN code: a postal_code result whose
+# parts name the city, the state and the country, and the post offices the
+# code serves.
+PIN_CODE = {
+    "_status": 200,
+    "status": "OK",
+    "results": [
+        {
+            "types": ["postal_code"],
+            "formatted_address": "Pune, Maharashtra 411001, India",
+            "postcode_localities": ["Pune Cantonment", "Pune Station"],
+            "geometry": {"location": {"lat": 18.5236, "lng": 73.8740}},
+            "address_components": [
+                {"long_name": "411001", "short_name": "411001", "types": ["postal_code"]},
+                {"long_name": "Pune", "short_name": "Pune", "types": ["locality", "political"]},
+                {"long_name": "Pune", "short_name": "Pune", "types": ["administrative_area_level_3", "political"]},
+                {"long_name": "Maharashtra", "short_name": "MH", "types": ["administrative_area_level_1", "political"]},
+                {"long_name": "India", "short_name": "IN", "types": ["country", "political"]},
+            ],
+        }
+    ],
+}
+
+# A UK postcode names its town as a postal_town, not a locality.
+UK_POSTCODE = {
+    "_status": 200,
+    "status": "OK",
+    "results": [
+        {
+            "types": ["postal_code"],
+            "formatted_address": "London SW1A 1AA, UK",
+            "geometry": {"location": {"lat": 51.501, "lng": -0.1416}},
+            "address_components": [
+                {"long_name": "SW1A 1AA", "short_name": "SW1A 1AA", "types": ["postal_code"]},
+                {"long_name": "London", "short_name": "London", "types": ["postal_town"]},
+                {"long_name": "England", "short_name": "England", "types": ["administrative_area_level_1", "political"]},
+                {"long_name": "United Kingdom", "short_name": "GB", "types": ["country", "political"]},
+            ],
+        }
+    ],
+}
+
+
+@override_settings(GOOGLE_MAPS_SERVER_KEY=SERVER_KEY, GOOGLE_MAPS_BROWSER_KEY=BROWSER_KEY, GOOGLE_MAPS_REGION="IN")
+class LookingUpAPostalCode(TestCase):
+    """Typing a postal code fills in the rest of a school's address."""
+
+    def setUp(self):
+        cache.clear()
+        self.client = signed_in_as(UserRole.SUPER_ADMIN)
+
+    def look_up(self, code="411001", **extra):
+        return self.client.get(POSTAL, {"postal_code": code, **extra})
+
+    def test_it_names_the_city_state_and_country_and_says_where_it_is(self):
+        with mock.patch.object(google_maps, "get", return_value=PIN_CODE):
+            response = self.look_up()
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            {
+                "found": True,
+                "postal_code": "411001",
+                "city": "Pune",
+                "state": "Maharashtra",
+                "country": "India",
+                "country_code": "IN",
+                "latitude": 18.5236,
+                "longitude": 73.874,
+                "address": "Pune, Maharashtra 411001, India",
+                "localities": ["Pune Cantonment", "Pune Station"],
+            },
+            response.data,
+        )
+
+    def test_it_asks_only_about_postal_codes_in_the_country_given(self):
+        with mock.patch.object(google_maps, "get", return_value=PIN_CODE) as asked:
+            self.look_up(country="India")
+
+        params = asked.call_args.kwargs["params"]
+        self.assertEqual("postal_code:411001|country:India", params["components"])
+        self.assertNotIn("region", params)
+
+    def test_with_no_country_it_prefers_the_platforms_region(self):
+        with mock.patch.object(google_maps, "get", return_value=PIN_CODE) as asked:
+            self.look_up()
+
+        self.assertEqual(("postal_code:411001", "in"), (asked.call_args.kwargs["params"]["components"],
+                                                         asked.call_args.kwargs["params"]["region"]))
+
+    def test_a_postal_town_is_a_city_too(self):
+        with mock.patch.object(google_maps, "get", return_value=UK_POSTCODE):
+            data = self.look_up("sw1a  1aa", country="United Kingdom").data
+
+        self.assertEqual(("SW1A 1AA", "London", "England", "GB"),
+                         (data["postal_code"], data["city"], data["state"], data["country_code"]))
+
+    def test_a_code_google_does_not_know_is_an_answer_not_an_error(self):
+        with mock.patch.object(google_maps, "get", return_value={"_status": 200, "status": "ZERO_RESULTS", "results": []}):
+            response = self.look_up("999999")
+
+        self.assertEqual((200, {"found": False}), (response.status_code, response.data))
+
+    def test_a_street_that_happens_to_match_is_not_a_postal_code(self):
+        street = {"_status": 200, "status": "OK", "results": [{**PIN_CODE["results"][0], "types": ["route"]}]}
+
+        with mock.patch.object(google_maps, "get", return_value=street):
+            self.assertEqual({"found": False}, self.look_up().data)
+
+    def test_the_same_code_is_asked_of_google_once(self):
+        with mock.patch.object(google_maps, "get", return_value=PIN_CODE) as asked:
+            self.look_up("411001", country="India")
+            self.look_up(" 411001 ", country="india")
+
+        self.assertEqual(1, asked.call_count)
+
+    def test_the_key_is_never_in_the_answer(self):
+        with mock.patch.object(google_maps, "get", return_value=PIN_CODE):
+            response = self.look_up()
+
+        self.assertNotIn(SERVER_KEY, response.content.decode())
+
+    def test_what_is_not_a_postal_code_is_refused_before_google_is_asked(self):
+        for code in ("", "1", "41100<script>", "12345678901", "-12345"):
+            with self.subTest(code=code), mock.patch.object(google_maps, "get") as asked:
+                response = self.look_up(code)
+                self.assertEqual(422, response.status_code)
+                asked.assert_not_called()
+
+    def test_no_key_or_a_google_refusal_is_a_503_the_form_can_shrug_off(self):
+        with override_settings(GOOGLE_MAPS_SERVER_KEY=""):
+            self.assertEqual(503, self.look_up().status_code)
+
+        refused = {"_status": 200, "status": "REQUEST_DENIED", "error_message": "The provided API key is invalid."}
+        with mock.patch.object(google_maps, "get", return_value=refused):
+            self.assertEqual(503, self.look_up("411002").status_code)
+
+    def test_only_those_who_place_schools_or_stops_may_ask(self):
+        for role in (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.TRANSPORT_MANAGER):
+            with self.subTest(role=role), mock.patch.object(google_maps, "get", return_value=PIN_CODE):
+                cache.clear()
+                self.assertEqual(200, signed_in_as(role).get(POSTAL, {"postal_code": "411001"}).status_code)
+
+        for role in (UserRole.TEACHER, UserRole.HOD, UserRole.STAFF, UserRole.ACCOUNTANT):
+            with self.subTest(role=role):
+                self.assertEqual(403, signed_in_as(role).get(POSTAL, {"postal_code": "411001"}).status_code)
+
+        self.assertEqual(401, APIClient().get(POSTAL, {"postal_code": "411001"}).status_code)

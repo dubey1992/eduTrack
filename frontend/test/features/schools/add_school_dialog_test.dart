@@ -1,5 +1,6 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/features/maps/data/places_repository.dart';
 import 'package:edutrack_app/features/schools/data/models/school.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:edutrack_app/features/schools/presentation/add_school_dialog.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_map.dart';
+import '../../support/fake_places_repository.dart';
 import '../../support/fake_school_repository.dart';
 
 // Opened via a real showDialog route (rather than placed directly as the
@@ -15,12 +17,16 @@ import '../../support/fake_school_repository.dart';
 // Navigator.pop() on a route-less body empties the app's entire (sole) route
 // instead of just the dialog, which tears down the Scaffold - and the
 // SnackBar it was about to show - before the test can observe either.
-Widget wrap(FakeSchoolRepository fake) {
+Widget wrap(FakeSchoolRepository fake, {FakePlacesRepository? places}) {
   return ProviderScope(
     // The form now holds a map. Pinned to "no key" so the dialog's own
     // tests never reach the network to find out, and so what they see is
     // the state the product is in before a key is configured.
-    overrides: [schoolRepositoryProvider.overrideWithValue(fake), ...mapIsUnavailable()],
+    overrides: [
+      schoolRepositoryProvider.overrideWithValue(fake),
+      ...mapIsUnavailable(),
+      placesRepositoryProvider.overrideWithValue(places ?? FakePlacesRepository()),
+    ],
     child: MaterialApp(
       theme: AppTheme.light(),
       home: Scaffold(
@@ -287,5 +293,46 @@ void main() {
 
       expect((fake.lastCreateCategory, fake.lastCreateTrialEndsOn), (SchoolCategory.demo, null));
     });
+  });
+
+  testWidgets('typing a postal code fills in the rest of the address, and saves it', (tester) async {
+    final fake = FakeSchoolRepository();
+    final places = FakePlacesRepository(
+      postalLookup: const PostalLookup.found(
+        PostalPlace(
+          postalCode: '411001',
+          city: 'Pune',
+          state: 'Maharashtra',
+          country: 'India',
+          latitude: 18.5236,
+          longitude: 73.874,
+        ),
+      ),
+    );
+    await tester.pumpWidget(wrap(fake, places: places));
+    await _open(tester);
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'School name'), 'Postal Code School');
+    await _pickCategory(tester, 'Live');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'admin@postal.edu');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Phone'), '9876543210');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Address'), '45 Park Avenue');
+    await tester.enterText(find.byKey(const Key('school-postal-code')), '411001');
+    await tester.pump(const Duration(milliseconds: 750));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('school-admin-first-name')), 'Meena');
+    await tester.enterText(find.byKey(const Key('school-admin-last-name')), 'Iyer');
+
+    expect(find.textContaining('Pune, Maharashtra, India - filled in the city, state, country'), findsOneWidget);
+
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+
+    final created = (await fake.list()).single;
+    expect(
+      (created.city, created.state, created.country, created.postalCode),
+      ('Pune', 'Maharashtra', 'India', '411001'),
+    );
+    expect((created.latitude, created.longitude), ('18.5236000', '73.8740000'));
   });
 }
