@@ -92,7 +92,7 @@ keeps working. New emails will link to `/app/#/...` directly.
 | S1 | Quick fixes (**built 2026-10-30**) | See "S1 as built" below. |
 | S2 | Static public site (**built 2026-10-30**) | See "S2 as built" below. This is the change that makes ranking possible. |
 | S3 | Pages that match searches (**built 2026-10-31**) | See "S3 as built" below. |
-| S4 | Structured data and FAQs | schema.org `Organization`, `WebSite`, `SoftwareApplication` (category EducationalApplication; Web and Android), `BreadcrumbList`, and `FAQPage` on pages that carry real FAQs. No made-up ratings or reviews: Google penalises them, and they would be false. |
+| S4 | Structured data and FAQs (**built 2026-10-31**) | See "S4 as built" below. |
 | S5 | Blog and help centre | Website Pages gain a "Blog post" kind (date, author, summary, cover image) and a `/blog` index; help articles at `/help/...`. Written content is what earns links and long-tail searches ("how to track school bus attendance", "school fee receipt format"). |
 | S6 | Measure | Google Search Console and Bing Webmaster Tools verified (a DNS or meta-tag step), the sitemap submitted, indexing and search terms watched. Visitor analytics is a separate decision (see below). |
 
@@ -181,6 +181,27 @@ keeps working. New emails will link to `/app/#/...` directly.
   message under the form before anything was sent (a `display` rule beat
   `[hidden]`), and a multi-line `{# #}` template comment was printed at the
   foot of every page.
+
+## S4 as built (2026-10-31)
+
+- **schema.org JSON-LD** in each public page's `<head>` (`public_site.structured`):
+  the homepage carries `Organization` (with `/logo.png`, the app's 512px
+  icon), `WebSite` and `SoftwareApplication` (Web and Android); every page
+  carries a `BreadcrumbList`; a page with questions carries `FAQPage`.
+- **No ratings, reviews or prices** - there are none to report, and a test
+  refuses them. Without an `offers` or rating Google shows no software rich
+  result; the markup still tells it what the product and publisher are.
+- **FAQs**: every module page ends with "## Frequently asked questions",
+  three `###` questions each, written from the same code check as S3 -
+  including the honest "not yet" answers (live bus tracking for parents, an
+  iPhone app, online fee payment). `faq_pairs` reads them back out of the
+  page text, so the FAQPage data always matches what the page shows, and any
+  Website Page the Super Admin writes with such a section gets it too.
+- **Since 2023 Google shows FAQ results only for government and health
+  sites**; the questions earn their place as page content - long-tail
+  searches and answer boxes - rather than as a results-page drop-down.
+- `<` is escaped inside every JSON-LD block, so typed text cannot end the
+  script early.
 
 ## Content notes
 

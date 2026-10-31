@@ -24,6 +24,7 @@ default - and nothing is written.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -32,6 +33,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.template.loader import render_to_string
+from django.utils.safestring import mark_safe
 
 from . import dates, site_markup
 from .marketing_copy import Words
@@ -140,7 +142,7 @@ def build(root: Path, server_files: bool = False) -> list[str]:
     for name in ("site.css", "site.js"):
         write(Path("site") / name, (ASSETS / name).read_bytes())
 
-    for name in ("favicon.png", "og-image.png"):
+    for name in ("favicon.png", "og-image.png", "logo.png"):
         write(name, (ASSETS / name).read_bytes())
 
     if server_files:
@@ -268,6 +270,7 @@ def render_home(words: Words, live: set[str], modules: list[PublicPage]) -> str:
         {
             **shared(words, live),
             "modules": modules,
+            "structured_data": structured([*about_us(), product()]),
             "canonical": site_url() + "/",
             "title": "School365ai - School Management Software for Attendance, Fees and Transport",
             "description": (
@@ -318,6 +321,9 @@ def render_page(page: PublicPage, words: Words, live: set[str], modules: list[Pu
             **shared(words, live),
             # A module page invites a demo and points at the other parts.
             "is_module": bool(page.blurb),
+            "structured_data": structured(
+                [breadcrumbs(page), *([faq(pairs)] if (pairs := faq_pairs(page.body)) else [])]
+            ),
             "other_modules": [module for module in modules if module.slug != page.slug],
             "canonical": site_url() + page.path,
             "title": f"{page.title} - School365ai",
@@ -334,6 +340,122 @@ def render_not_found(words: Words, live: set[str]) -> str:
         "public_site/not_found.html",
         {**shared(words, live), "canonical": None, "title": "Page not found - School365ai", "description": ""},
     )
+
+
+# -- structured data (docs/seo.md, S4) -----------------------------------------
+#
+# schema.org descriptions search engines read beside the page: who publishes
+# the site, what the product is, where a page sits, and a page's questions
+# and answers. Only what is true and on the page - no ratings, reviews or
+# prices, because there are none to report.
+
+
+def structured(blocks: list[dict]) -> list[str]:
+    """Each block as JSON for a <script type="application/ld+json">.
+
+    `<` is escaped, so nothing typed into a page - a question with "</script>"
+    in it - can end the block early.
+    """
+    return [
+        mark_safe(json.dumps({"@context": "https://schema.org", **block}, ensure_ascii=False).replace("<", "\\u003c"))
+        for block in blocks
+    ]
+
+
+def about_us() -> list[dict]:
+    return [
+        {
+            "@type": "Organization",
+            "name": "School365ai",
+            "url": site_url() + "/",
+            "logo": site_url() + "/logo.png",
+        },
+        {"@type": "WebSite", "name": "School365ai", "url": site_url() + "/"},
+    ]
+
+
+def product() -> dict:
+    return {
+        "@type": "SoftwareApplication",
+        "name": "School365ai",
+        "url": site_url() + "/",
+        "applicationCategory": "BusinessApplication",
+        "applicationSubCategory": "School management software",
+        "operatingSystem": "Web, Android",
+        "description": (
+            "School management software for attendance, fees, school bus tracking, timetables, "
+            "teaching reports, payroll, parent alerts and reports."
+        ),
+        "publisher": {"@type": "Organization", "name": "School365ai", "url": site_url() + "/"},
+    }
+
+
+def breadcrumbs(page: PublicPage) -> dict:
+    return {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Home", "item": site_url() + "/"},
+            {"@type": "ListItem", "position": 2, "name": page.title, "item": site_url() + page.path},
+        ],
+    }
+
+
+def faq(pairs: list[tuple[str, str]]) -> dict:
+    return {
+        "@type": "FAQPage",
+        "mainEntity": [
+            {"@type": "Question", "name": question, "acceptedAnswer": {"@type": "Answer", "text": answer}}
+            for question, answer in pairs
+        ],
+    }
+
+
+FAQ_HEADING = re.compile(r"^##\s+(frequently asked questions|faqs?|questions)\s*$", re.IGNORECASE)
+
+
+def faq_pairs(body: str) -> list[tuple[str, str]]:
+    """The questions and answers in a page's "## Frequently asked questions"
+    section: each `### question`, with the plain text of what follows it up
+    to the next heading as its answer. A question with no answer is left
+    out - structured data must match what the page says."""
+    pairs: list[tuple[str, str]] = []
+    in_section = False
+    question: str | None = None
+    answer: list[str] = []
+
+    def close():
+        if question and " ".join(answer).strip():
+            pairs.append((plain(question), plain(" ".join(answer))))
+
+    for line in (body or "").replace("\r\n", "\n").split("\n"):
+        stripped = line.strip()
+
+        if stripped.startswith("## ") or stripped.startswith("# "):
+            close()
+            question, answer = None, []
+            in_section = bool(FAQ_HEADING.match(stripped))
+            continue
+
+        if not in_section:
+            continue
+
+        if stripped.startswith("### "):
+            close()
+            question, answer = stripped[4:].strip(), []
+        elif question is not None and stripped:
+            answer.append(stripped)
+
+    close()
+
+    return pairs
+
+
+def plain(text: str) -> str:
+    """Page-text marks taken off: link words kept, bold marks gone."""
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
+    text = text.replace("**", "")
+
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def render_sitemap(pages: list[PublicPage]) -> str:

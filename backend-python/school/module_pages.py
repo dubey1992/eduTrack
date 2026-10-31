@@ -14,6 +14,12 @@ search engines and school leaders alike, and neither exists yet.
 The format is the Website Pages one: `##` headings, `-` bullets, `**bold**`
 and `[links](/address)`. The first paragraph is the search snippet, so it
 says plainly what the page is about.
+
+Each ends with a "## Frequently asked questions" section: every `###`
+question under it, with the paragraph that follows as its answer, is also
+written into the page as FAQPage structured data (school/public_site.py).
+The honest "not yet" answers are there on purpose - they are what schools
+ask, and a plain answer is worth more than silence.
 """
 
 from __future__ import annotations
@@ -53,7 +59,18 @@ When the school switches it on, guardians get a message the moment the register 
 
 Every percentage counts only the days the school was open, so a holiday never makes a class look worse than it was.
 
-Staff attendance has its own page: [Staff attendance and check-in](/staff-attendance-software)."""
+Staff attendance has its own page: [Staff attendance and check-in](/staff-attendance-software).
+
+## Frequently asked questions
+
+### Can teachers take attendance without internet?
+Yes. In the School365ai app the register is saved on the phone and sent as soon as there is a connection.
+
+### Do guardians get a message when their child is absent?
+When the school switches it on, yes - by SMS, WhatsApp or email, as soon as the register is submitted. The school chooses absences only or every mark, and can reword the message.
+
+### Is attendance taken for every period or once a day?
+Once a day, one register per class. School365ai does not keep a separate register for each period."""
 
 
 STAFF_ATTENDANCE = """School365ai keeps a daily staff register - present, absent, on leave or half day, with check-in and check-out times - filled in by the office, by staff checking in from their phones at school, or from fingerprint readers.
@@ -73,7 +90,18 @@ Where a school uses fingerprint readers, punches can be sent straight to School3
 
 - **Late arrivals** are worked out from check-in time against the school's first period, and shown on the register and in the report.
 - **Approved leave** is written onto the register automatically, so nobody is marked absent while on leave. See [Staff payroll and leave](/school-payroll-software).
-- **Staff attendance report** in PDF or CSV for any period."""
+- **Staff attendance report** in PDF or CSV for any period.
+
+## Frequently asked questions
+
+### Can staff check in from home?
+No. A check-in is accepted only within the school's radius of its location on the map - 100 metres unless the school sets another distance - and faked locations are refused.
+
+### Does the app track staff during the day?
+No. The phone's location is read only at the moment somebody taps to check in or out.
+
+### Which fingerprint readers work with School365ai?
+Readers that can send punches over the network, or that can export them as a CSV file to upload. Tell us the make and model before you rely on yours."""
 
 
 FEES = """School365ai's fee management software sets up a school's fees once, charges every student the right amount on the right dates, and records each payment with a numbered receipt - in the school's own currency.
@@ -101,7 +129,18 @@ FEES = """School365ai's fee management software sets up a school's fees once, ch
 
 Fee collection, outstanding and discount reports in PDF or CSV, a fee statement for any student, and dashboard figures for what has been collected, what is outstanding and what is overdue - each currency on its own, never added together.
 
-School365ai records the money a school receives; families do not pay online through it."""
+School365ai records the money a school receives; families do not pay online through it.
+
+## Frequently asked questions
+
+### Can parents pay fees online through School365ai?
+Not yet. School365ai records the money a school receives - cash, bank transfer, UPI, cheque, card or online transfer - and issues the receipt.
+
+### Can a school charge fees in its own currency?
+Yes. Each school has its own currency, used on every fee, receipt and report. Amounts are never converted or added across currencies.
+
+### What happens to fees when a student changes class or bus route?
+Their future dues are worked out again for the new class or route. Money already paid for fees that no longer apply is held as credit and pays the next dues."""
 
 
 TRANSPORT = """School365ai's school bus software plans routes on a map, runs every pickup and drop from the driver's phone, and tells guardians when their child boards the bus and when they are dropped off.
@@ -132,7 +171,18 @@ When the school switches it on, guardians get an SMS, WhatsApp message or email 
 
 ## Reports
 
-A transport usage report in PDF or CSV, and route-by-route analytics: trips run, riders, and stops where the bus is often late."""
+A transport usage report in PDF or CSV, and route-by-route analytics: trips run, riders, and stops where the bus is often late.
+
+## Frequently asked questions
+
+### Can parents track the school bus live?
+Not yet. The live map is for the school's office. Guardians are told by SMS, WhatsApp or email when their child boards the bus and when they are dropped off.
+
+### Do buses need GPS devices?
+No. The bus's position comes from the crew's phone, running the School365ai Driver app, while a trip is under way.
+
+### What if there is no mobile signal on the route?
+The crew carry on as normal. Boarding and drop-off marks are kept on the phone and sent when the bus is back in coverage."""
 
 
 TIMETABLE = """School365ai builds each class's weekly timetable, shows every teacher their day, and turns each lesson taught into a teaching report that ticks off the syllabus - so heads of department see what was taught, not just what was planned.
@@ -158,7 +208,18 @@ Topics per subject and class, with progress for every section and a syllabus pro
 
 - **Review or return** each teaching report with a note; the teacher is told in the app.
 - **A monthly department report** and a teaching coverage report: periods scheduled against periods actually reported.
-- **A department view** in the app: who is in today and each teacher's month."""
+- **A department view** in the app: who is in today and each teacher's month.
+
+## Frequently asked questions
+
+### Does School365ai make the timetable automatically?
+No. The school builds it entry by entry, and School365ai stops a teacher being booked into two classes in the same period.
+
+### How does syllabus tracking work?
+When a teacher files the day's teaching report, they choose the topic taught, and that topic is marked covered for their section.
+
+### Can heads of department see what was actually taught?
+Yes. They review each teaching report, can return one with a note, and see periods scheduled against periods reported for their department."""
 
 
 PAYROLL = """School365ai runs a school's monthly payroll from each employee's salary profile and attendance, produces PDF payslips, and handles staff leave from application to approval.
@@ -178,7 +239,18 @@ Payroll works in each school's own currency. Country-specific tax and statutory 
 - **Staff apply from the app or the web** - casual, medical, earned or half-day leave.
 - **Approved or rejected** by an admin, or by the head of department for their own department, and the applicant is told.
 - **Written onto the register** once approved, so the day counts as leave in attendance and payroll alike.
-- **Minimum notice** if the school wants one, and a leave usage report."""
+- **Minimum notice** if the school wants one, and a leave usage report.
+
+## Frequently asked questions
+
+### Does School365ai calculate tax and statutory deductions?
+No. Payroll works in many countries, so each school enters its own deductions as salary components.
+
+### Is pay reduced for unpaid absence?
+Yes. Pay is pro-rated from the staff register: half days, unpaid absences and a mid-month joining date are all taken into account.
+
+### How do staff get their payslips?
+As a PDF, emailed to them and readable in the School365ai app."""
 
 
 ASSESSMENTS = """School365ai records class tests and marks against the school's own grade scale, publishes results to guardians, and prints a progress report for each student - term by term.
@@ -205,7 +277,18 @@ A printable progress report for each student: every test with its grade, the cla
 
 A promotion wizard moves a whole class on at the end of the year: promote, retain, graduate or mark as left, student by student, in one batch. Every year's class stays in the student's history.
 
-School365ai handles class tests and progress through the year; it does not schedule examinations or issue hall tickets."""
+School365ai handles class tests and progress through the year; it does not schedule examinations or issue hall tickets.
+
+## Frequently asked questions
+
+### Is School365ai an examination system?
+No. It records class tests, marks and grades through the year and prints progress reports. It does not schedule examinations or issue hall tickets.
+
+### Can marks be imported from a spreadsheet?
+Yes. Marks for a test can be imported from a CSV file, with every problem in the file listed before anything is saved.
+
+### How do guardians see results?
+When the school switches it on, publishing a test's results tells guardians by SMS, WhatsApp or email. A student's progress report is emailed when the school chooses to send it."""
 
 
 COMMUNICATION = """School365ai keeps a school in touch with guardians and staff by SMS, WhatsApp, email, the in-app inbox and push notifications - from one-off announcements to automatic alerts when something happens.
@@ -226,7 +309,18 @@ A message log shows each message as queued, sent, failed or skipped - with the r
 
 ## No accounts to set up
 
-School365ai sends SMS and WhatsApp for every school through its own account, so a school does not need its own messaging provider. Each school still decides which channels it uses."""
+School365ai sends SMS and WhatsApp for every school through its own account, so a school does not need its own messaging provider. Each school still decides which channels it uses.
+
+## Frequently asked questions
+
+### Does a school need its own SMS or WhatsApp account?
+No. School365ai sends for every school through its own account. Each school chooses which channels and alerts it uses.
+
+### Can parents reply to messages?
+No. Messages go out from the school; replies come back by phone or email, outside School365ai.
+
+### How does a school know a message went out?
+The message log shows each one as queued, sent, failed or skipped, with the reason, and failed messages can be sent again."""
 
 
 REPORTS = """School365ai gives every role a dashboard of its own and twelve ready-made school reports in PDF and CSV - each compared with the period before - plus analytics that show how the school's figures move over the year.
@@ -249,7 +343,18 @@ School admins, heads of department, teachers, transport managers, accountants an
 
 ## For school groups
 
-A school with several branches sees reports and a dashboard across the whole group, as well as branch by branch."""
+A school with several branches sees reports and a dashboard across the whole group, as well as branch by branch.
+
+## Frequently asked questions
+
+### Can reports be opened in Excel?
+Yes. Every report downloads as a CSV file, which opens in Excel or any spreadsheet, as well as a PDF.
+
+### Do the analytics use AI?
+No. Every figure and chart is worked out from the school's own records, and early warning uses limits the school sets itself.
+
+### Can a group of schools see all its branches together?
+Yes. A group admin sees reports and a dashboard across every branch, as well as branch by branch."""
 
 
 RECORDS = """School365ai keeps a school's students, guardians, staff, classes and academic years in one place - with bulk import from spreadsheets, support for school groups with several branches, and a record of every change.
@@ -275,7 +380,18 @@ Ten roles, from school admin and head of department to teacher, accountant, tran
 
 ## A record of every change
 
-An audit log shows who changed what and when, with the values before and after. Sign-in sessions can be reviewed and ended, and accounts lock after repeated failed sign-ins."""
+An audit log shows who changed what and when, with the values before and after. Sign-in sessions can be reviewed and ended, and accounts lock after repeated failed sign-ins.
+
+## Frequently asked questions
+
+### Can we bring in the records we already have?
+Yes. Students, staff, subjects, vehicles, drivers and marks can be imported from CSV files, with a preview before anything is saved.
+
+### Can several branches of a school share one account?
+Yes. Each branch runs as its own school, with its own currency and timezone if it needs them, and a group admin sees across all of them.
+
+### Can a teacher see classes they do not teach?
+No. Every request is checked on the server against the person's school, department and classes."""
 
 
 APPS = """School365ai has two Android apps: **School365ai** for teachers, heads of department and office staff, and **School365ai Driver** for the drivers and bus attendants who run each trip. Admins work in the web app.
@@ -304,7 +420,18 @@ Drivers and bus attendants sign in with their mobile number and a passcode, on a
 - **SOS** to the school's transport managers and admins.
 - **Shares the bus's position** with the school while a trip runs, and works without signal.
 
-Both apps run on Android 7 and newer. There is no iPhone app yet. Read more about [school bus tracking](/school-bus-tracking-software) and [attendance](/school-attendance-software)."""
+Both apps run on Android 7 and newer. There is no iPhone app yet. Read more about [school bus tracking](/school-bus-tracking-software) and [attendance](/school-attendance-software).
+
+## Frequently asked questions
+
+### Is there an iPhone app?
+Not yet. Both apps are for Android 7 and newer. The web app works in any modern browser.
+
+### Is there an app for parents?
+Not yet. Guardians hear from the school by SMS, WhatsApp and email.
+
+### Which app does a bus attendant use?
+School365ai Driver - the same app as the driver. Both sign in with their mobile number and a passcode on a phone the school has registered."""
 
 # In the order the homepage shows them: what a school asks about first.
 MODULES: tuple[ModulePage, ...] = (

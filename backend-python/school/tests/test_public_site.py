@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import ast
 import io
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -17,13 +18,14 @@ from unittest import mock
 
 from django.core.cache import cache
 from django.core.management import call_command
+from django.utils import timezone
 from django.core.management.base import CommandError
 from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIClient
 
 from school import factories, marketing_copy, module_pages, public_site, site_markup, tokens
 from school.enums import UserRole
-from school.models import MarketingContent
+from school.models import MarketingContent, SitePage
 
 DART_DEFAULTS = Path(__file__).resolve().parents[3] / "frontend" / "lib" / "features" / "marketing" / "data" / "marketing_defaults.dart"
 
@@ -394,3 +396,95 @@ class ModulePages(TestCase):
                               "payment gateway", "app store", "ios app", "iphone app."):
                     self.assertNotIn(claim, text)
 
+
+
+LD_JSON = re.compile(r'<script type="application/ld\+json">(.*?)</script>', re.S)
+
+
+class StructuredData(TestCase):
+    """What search engines read beside each page (docs/seo.md, S4)."""
+
+    def setUp(self):
+        cache.clear()
+        self.root = Path(tempfile.mkdtemp())
+
+    def blocks(self, name: str) -> list[dict]:
+        public_site.build(self.root)
+        html = (self.root / name).read_text(encoding="utf-8")
+
+        return [json.loads(raw) for raw in LD_JSON.findall(html)]
+
+    def test_the_homepage_says_who_publishes_it_and_what_the_product_is(self):
+        blocks = {block["@type"]: block for block in self.blocks("index.html")}
+
+        self.assertEqual({"Organization", "WebSite", "SoftwareApplication"}, set(blocks))
+        self.assertEqual("https://school365ai.com/logo.png", blocks["Organization"]["logo"])
+        self.assertEqual("Web, Android", blocks["SoftwareApplication"]["operatingSystem"])
+        self.assertTrue((self.root / "logo.png").exists())
+
+    def test_nothing_is_claimed_that_is_not_true(self):
+        """No ratings, reviews or prices: there are none to report, and
+        made-up ones are both false and penalised."""
+        for name in ("index.html", "site/pages/school-attendance-software.html"):
+            text = json.dumps(self.blocks(name))
+            for invented in ("aggregateRating", "review", "offers", "price"):
+                self.assertNotIn(invented, text, name)
+
+    def test_every_page_has_its_place_in_the_site(self):
+        crumbs = next(b for b in self.blocks("site/pages/about.html") if b["@type"] == "BreadcrumbList")
+
+        self.assertEqual(
+            [("Home", "https://school365ai.com/"), ("About Us", "https://school365ai.com/about")],
+            [(item["name"], item["item"]) for item in crumbs["itemListElement"]],
+        )
+
+    def test_a_module_pages_questions_are_the_ones_it_shows(self):
+        page = (self.root / "site/pages/school-bus-tracking-software.html")
+        faq = next(b for b in self.blocks("site/pages/school-bus-tracking-software.html") if b["@type"] == "FAQPage")
+        html = page.read_text(encoding="utf-8")
+
+        questions = [entry["name"] for entry in faq["mainEntity"]]
+        self.assertEqual(3, len(questions))
+        self.assertIn("Can parents track the school bus live?", questions)
+        for question in questions:
+            self.assertIn(f"<h4>{question}</h4>", html)
+
+    def test_every_module_page_carries_its_questions(self):
+        for module in module_pages.MODULES:
+            with self.subTest(slug=module.slug):
+                pairs = public_site.faq_pairs(module.body)
+                self.assertEqual(3, len(pairs))
+                self.assertTrue(all(question.endswith("?") and answer for question, answer in pairs))
+
+    def test_a_page_without_questions_has_no_faq(self):
+        self.assertNotIn("FAQPage", [b["@type"] for b in self.blocks("site/pages/privacy.html")])
+
+    def test_typed_text_cannot_end_the_block_early(self):
+        SitePage.objects.create(
+            slug="help", title="Help", body="", published_title="Help",
+            published_body="## Questions\n\n### Is </script><script>alert(1)</script> safe?\nYes.",
+            published_at=timezone.now(), created_at=timezone.now(), updated_at=timezone.now(),
+        )
+
+        html = public_site.build(self.root) and (self.root / "site/pages/help.html").read_text(encoding="utf-8")
+        block = LD_JSON.findall(html)
+
+        self.assertNotIn("<script>alert", html)
+        faq = next(json.loads(raw) for raw in block if "FAQPage" in raw)
+        self.assertEqual("Is </script><script>alert(1)</script> safe?", faq["mainEntity"][0]["name"])
+
+
+class FindingTheQuestions(SimpleTestCase):
+    def test_questions_and_answers_under_the_heading_and_nowhere_else(self):
+        body = (
+            "Intro.\n\n### Not a question here\nNot an answer.\n\n"
+            "## Frequently asked questions\n\n### Does it **work**?\nYes - see [the page](/about).\n"
+            "It does.\n\n### Empty?\n\n## After\n\n### Also not\nNo."
+        )
+
+        self.assertEqual([("Does it work?", "Yes - see the page. It does.")], public_site.faq_pairs(body))
+
+    def test_faq_and_questions_are_the_same_heading(self):
+        for heading in ("## FAQ", "## FAQs", "## Questions", "## frequently asked questions"):
+            with self.subTest(heading=heading):
+                self.assertEqual(1, len(public_site.faq_pairs(f"{heading}\n### Why?\nBecause.")))
