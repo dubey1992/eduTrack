@@ -21,7 +21,7 @@ import decimal
 import re
 import zoneinfo
 
-from . import attendants, audit, hashing, mailer, marketing, notices, notifications, permissions, site_pages, sms, whatsapp
+from . import attendants, audit, class_levels, hashing, mailer, marketing, notices, notifications, permissions, site_pages, sms, whatsapp
 from .enums import (
     UserStatus,
     PromotionOutcome,
@@ -4118,7 +4118,11 @@ class UpdateHolidayRequest(HolidayForm):
 class StoreSchoolClassRequest(ScopedSerializer):
     academic_year_id = LaravelIntegerField("academic_year_id")
     name = LaravelCharField("name", max_length=50)
-    level = LaravelIntegerField("level", min_value=0, max_value=12)
+    # Left out, it is worked out from the name - "LKG", "Class 7" - and asked
+    # for only when the name says nothing (docs/onboarding.md).
+    level = LaravelIntegerField(
+        "level", min_value=class_levels.LOWEST, max_value=class_levels.HIGHEST, required=False, allow_null=True
+    )
 
     def validate(self, attrs):
         self.validate_school_id_field()
@@ -4138,6 +4142,13 @@ class StoreSchoolClassRequest(ScopedSerializer):
         ).exists():
             errors["name"] = [already_taken("name")]
 
+        if attrs.get("level") is None:
+            attrs["level"] = class_levels.infer(attrs["name"])
+            if attrs["level"] is None:
+                errors["level"] = [
+                    "Choose which year this class is - the name does not say (for example \"Class 7\" or \"LKG\")."
+                ]
+
         if errors:
             raise serializers.ValidationError(errors)
 
@@ -4151,7 +4162,7 @@ class UpdateSchoolClassRequest(ScopedSerializer):
     between years would take its sections and students with it."""
 
     name = LaravelCharField("name", max_length=50, required=False)
-    level = LaravelIntegerField("level", min_value=0, max_value=12, required=False)
+    level = LaravelIntegerField("level", min_value=class_levels.LOWEST, max_value=class_levels.HIGHEST, required=False)
 
     def __init__(self, *args, school_class=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -4162,6 +4173,45 @@ class UpdateSchoolClassRequest(ScopedSerializer):
             academic_year_id=self.school_class.academic_year_id, name=attrs["name"]
         ).exclude(pk=self.school_class.pk).exists():
             raise serializers.ValidationError({"name": [already_taken("name")]})
+
+        return attrs
+
+
+# A school with more than this many sections of one class sets the rest up by hand.
+QUICK_SECTIONS_MAX = 6
+
+
+class QuickClassSetupRequest(ScopedSerializer):
+    """The standard classes and their sections, in one step
+    (docs/onboarding.md): which of class_levels.STANDARD to create in a year,
+    and how many sections each gets - A, then B, and so on."""
+
+    academic_year_id = LaravelIntegerField("academic_year_id")
+    classes = serializers.ListField(
+        child=serializers.CharField(max_length=50), allow_empty=False,
+        error_messages={"empty": "Tick at least one class.", "not_a_list": "Tick at least one class."},
+    )
+    sections = LaravelIntegerField("sections", min_value=1, max_value=QUICK_SECTIONS_MAX)
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+        school_id = self.resolved_school_id()
+        errors = {}
+
+        if not AcademicYear.objects.filter(pk=attrs["academic_year_id"], school_id=school_id).exists():
+            errors["academic_year_id"] = [does_not_exist("academic_year_id")]
+
+        standard = dict(class_levels.STANDARD)
+        unknown = [name for name in attrs["classes"] if name not in standard]
+        if unknown:
+            errors["classes"] = [f"Not a standard class: {', '.join(unknown)}."]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = school_id
+        # In the standard order, whatever order they were ticked in.
+        attrs["classes"] = [(name, level) for name, level in class_levels.STANDARD if name in attrs["classes"]]
 
         return attrs
 
@@ -4293,8 +4343,12 @@ class SubjectForm(ScopedSerializer):
     name = LaravelCharField("name", max_length=100)
     # A class level, 0 to 12 - 0 being a nursery or reception year. The pair
     # says which classes may be taught this subject at all.
-    min_class_level = LaravelIntegerField("min_class_level", min_value=0, max_value=12)
-    max_class_level = LaravelIntegerField("max_class_level", min_value=0, max_value=12)
+    min_class_level = LaravelIntegerField(
+        "min_class_level", min_value=class_levels.LOWEST, max_value=class_levels.HIGHEST
+    )
+    max_class_level = LaravelIntegerField(
+        "max_class_level", min_value=class_levels.LOWEST, max_value=class_levels.HIGHEST
+    )
     lead_teacher_id = LaravelIntegerField("lead_teacher_id", required=False, allow_null=True)
 
     def check(self, attrs, school_id, ignoring=None) -> dict:

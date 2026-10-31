@@ -4908,6 +4908,40 @@ class SchoolClassService:
         school_class.delete()
 
     @staticmethod
+    def quick_setup(data: dict, actor: User) -> dict:
+        """The standard classes ticked, each with its sections - A, B, ... -
+        created together (docs/onboarding.md). A class the year already has
+        is left as it is, so running it twice adds nothing twice."""
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.get("school_id"))
+        year_id = data["academic_year_id"]
+        existing = set(SchoolClass.objects.filter(academic_year_id=year_id).values_list("name", flat=True))
+        section_names = [chr(ord("A") + n) for n in range(data["sections"])]
+        now = timezone.now()
+        created, skipped = [], []
+
+        with transaction.atomic():
+            for name, level in data["classes"]:
+                if name in existing:
+                    skipped.append(name)
+                    continue
+
+                school_class = SchoolClass.objects.create(
+                    school_id=school_id, academic_year_id=year_id, name=name, level=level,
+                    created_at=now, updated_at=now,
+                )
+                audit.created("academic", school_class)
+
+                for section_name in section_names:
+                    section = ClassSection.objects.create(
+                        school_class_id=school_class.id, name=section_name, created_at=now, updated_at=now,
+                    )
+                    audit.created("academic", section)
+
+                created.append(name)
+
+        return {"created": created, "skipped": skipped, "sections": section_names}
+
+    @staticmethod
     def add_section(school_class: SchoolClass, data: dict) -> ClassSection:
         now = timezone.now()
 

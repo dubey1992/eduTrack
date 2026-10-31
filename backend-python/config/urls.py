@@ -106,6 +106,8 @@ urlpatterns = [
 
     # -- classes, sections, periods and holidays ---------------------------
     path("api/v1/classes", classes.classes),
+    # Nursery to Class 12 and their sections in one step (docs/onboarding.md).
+    path("api/v1/classes/quick-setup", classes.quick_setup),
     path("api/v1/classes/<int:class_id>", classes.school_class),
     path("api/v1/classes/<int:class_id>/sections", classes.add_section),
     path("api/v1/sections/<int:section_id>", classes.section),

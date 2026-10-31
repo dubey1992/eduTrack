@@ -13,6 +13,7 @@ import '../../auth/application/auth_notifier.dart';
 import '../application/school_class_list_notifier.dart';
 import '../data/models/school_class.dart';
 import 'add_class_dialog.dart';
+import 'quick_class_setup_dialog.dart';
 import 'add_section_dialog.dart';
 import 'edit_class_dialog.dart';
 import 'edit_section_dialog.dart';
@@ -39,6 +40,12 @@ class _ClassListScreenState extends ConsumerState<ClassListScreen> {
         SectionHeader(
           title: 'Classes & Sections',
           actions: [
+            if (canManage)
+              OutlinedButton.icon(
+                onPressed: () => showDialog(context: context, builder: (_) => const QuickClassSetupDialog()),
+                icon: const Icon(Icons.playlist_add_check, size: 18),
+                label: const Text('Quick setup'),
+              ),
             if (canManage)
               FilledButton.icon(
                 onPressed: () => showDialog(context: context, builder: (_) => const AddClassDialog()),

@@ -58,13 +58,16 @@ Widget wrap(FakeSchoolClassRepository fake) {
 }
 
 Future<void> _fillValidForm(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Academic year'));
+  await _pick(tester, 'Academic year', '2026-27');
+  await tester.enterText(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), 'Class 8');
   await tester.pumpAndSettle();
-  await tester.tap(find.text('2026-27').last);
-  await tester.pumpAndSettle();
+}
 
-  await tester.enterText(find.widgetWithText(TextFormField, 'Grade / Class (e.g. Grade 8)'), 'Grade 8');
-  await tester.enterText(find.widgetWithText(TextFormField, 'Level (0-12)'), '8');
+Future<void> _pick(WidgetTester tester, String label, String item) async {
+  await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, label));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(item).last);
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -78,24 +81,62 @@ void main() {
 
     expect(find.text('Academic year is required'), findsOneWidget);
     expect(find.text('Name is required'), findsOneWidget);
+    expect(find.text('Choose which year this is'), findsOneWidget);
   });
 
-  testWidgets('shows a validation error when the level is out of range', (tester) async {
-    await tester.pumpWidget(wrap(FakeSchoolClassRepository()));
+  testWidgets('the year is worked out from the class name', (tester) async {
+    final fake = FakeSchoolClassRepository();
+    await tester.pumpWidget(wrap(fake));
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
+    await _pick(tester, 'Academic year', '2026-27');
 
-    await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Academic year'));
+    await tester.enterText(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), 'LKG');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('2026-27').last);
-    await tester.pumpAndSettle();
+    expect(find.widgetWithText(DropdownButtonFormField<int>, 'LKG'), findsOneWidget);
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Grade / Class (e.g. Grade 8)'), 'Grade 8');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Level (0-12)'), '15');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Enter a level between 0 and 12'), findsOneWidget);
+    expect((await fake.list()).single.level, -1);
+  });
+
+  testWidgets('a name that says nothing asks for the year', (tester) async {
+    final fake = FakeSchoolClassRepository();
+    await tester.pumpWidget(wrap(fake));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await _pick(tester, 'Academic year', '2026-27');
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), 'Rose');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose which year this is'), findsOneWidget);
+    expect(await fake.list(), isEmpty);
+
+    await _pick(tester, 'Year', 'Class 3');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect((await fake.list()).single.level, 3);
+  });
+
+  testWidgets('a year picked by hand stays when the name changes', (tester) async {
+    final fake = FakeSchoolClassRepository();
+    await tester.pumpWidget(wrap(fake));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await _pick(tester, 'Academic year', '2026-27');
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), 'Rose');
+    await _pick(tester, 'Year', 'UKG');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), 'Class 4');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect((await fake.list()).single.level, 0);
   });
 
   testWidgets('submits successfully and closes the dialog', (tester) async {
@@ -110,7 +151,7 @@ void main() {
 
     final created = await fake.list();
     expect(created, hasLength(1));
-    expect(created.single.name, 'Grade 8');
+    expect(created.single.name, 'Class 8');
     expect(created.single.level, 8);
     expect(find.byType(AddClassDialog), findsNothing);
     expect(find.text('Class created.'), findsOneWidget);

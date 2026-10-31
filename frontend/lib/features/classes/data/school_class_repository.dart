@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
+import 'models/quick_class_setup.dart';
 import 'models/school_class.dart';
 import 'school_class_api.dart';
 
@@ -45,6 +46,32 @@ class SchoolClassRepository {
   }) async {
     try {
       return await _api.create(schoolId: schoolId, academicYearId: academicYearId, name: name, level: level);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<QuickSetupOptions> quickSetupOptions() async {
+    try {
+      return await _api.quickSetupOptions();
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<QuickSetupResult> quickSetup({
+    int? schoolId,
+    required int academicYearId,
+    required List<String> classes,
+    required int sections,
+  }) async {
+    try {
+      return await _api.quickSetup(
+        schoolId: schoolId,
+        academicYearId: academicYearId,
+        classes: classes,
+        sections: sections,
+      );
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

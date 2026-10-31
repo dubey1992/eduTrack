@@ -70,8 +70,15 @@ Future<void> _fillValidForm(WidgetTester tester) async {
   await _selectDepartment(tester);
   await tester.enterText(find.widgetWithText(TextFormField, 'Code (e.g. MAT)'), 'MAT');
   await tester.enterText(find.widgetWithText(TextFormField, 'Subject name'), 'Mathematics');
-  await tester.enterText(find.widgetWithText(TextFormField, 'Min class level'), '7');
-  await tester.enterText(find.widgetWithText(TextFormField, 'Max class level'), '10');
+  await _pick(tester, 'From class', 'Nursery');
+  await _pick(tester, 'To class', 'Class 5');
+}
+
+Future<void> _pick(WidgetTester tester, String label, String item) async {
+  await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, label));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(item).last);
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -86,9 +93,10 @@ void main() {
     expect(find.text('Department is required'), findsOneWidget);
     expect(find.text('Code is required'), findsOneWidget);
     expect(find.text('Name is required'), findsOneWidget);
+    expect(find.text('Choose which year this is'), findsNWidgets(2));
   });
 
-  testWidgets('shows a validation error when the max class level is below the min', (tester) async {
+  testWidgets('shows a validation error when To class comes before From class', (tester) async {
     await tester.pumpWidget(wrap(FakeSubjectRepository()));
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
@@ -96,13 +104,13 @@ void main() {
     await _selectDepartment(tester);
     await tester.enterText(find.widgetWithText(TextFormField, 'Code (e.g. MAT)'), 'MAT');
     await tester.enterText(find.widgetWithText(TextFormField, 'Subject name'), 'Mathematics');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Min class level'), '10');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Max class level'), '7');
+    await _pick(tester, 'From class', 'Class 3');
+    await _pick(tester, 'To class', 'LKG');
 
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
-    expect(find.text('The max class level must be at or above the min class level.'), findsOneWidget);
+    expect(find.text('"To class" must be the same as or after "From class".'), findsOneWidget);
   });
 
   testWidgets('submits successfully and closes the dialog', (tester) async {
@@ -118,8 +126,8 @@ void main() {
     final created = await fake.list();
     expect(created, hasLength(1));
     expect(created.single.code, 'MAT');
-    expect(created.single.minClassLevel, 7);
-    expect(created.single.maxClassLevel, 10);
+    expect(created.single.minClassLevel, -2);
+    expect(created.single.maxClassLevel, 5);
     expect(find.byType(AddSubjectDialog), findsNothing);
     expect(find.text('Subject created.'), findsOneWidget);
   });

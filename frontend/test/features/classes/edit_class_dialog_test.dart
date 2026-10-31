@@ -51,23 +51,31 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Grade / Class (e.g. Grade 8)'), '');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), '');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
     expect(find.text('Name is required'), findsOneWidget);
   });
 
-  testWidgets('shows a validation error when the level is out of range', (tester) async {
-    await tester.pumpWidget(wrap(FakeSchoolClassRepository(classes: [_schoolClass])));
+  testWidgets('renaming keeps the year; a year picked is saved', (tester) async {
+    final fake = FakeSchoolClassRepository(classes: [_schoolClass]);
+    await tester.pumpWidget(wrap(fake));
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Level (0-12)'), '13');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), 'LKG');
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(DropdownButtonFormField<int>, 'Class 8'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Year'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Class 9').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Enter a level between 0 and 12'), findsOneWidget);
+    expect((await fake.list()).single.level, 9);
   });
 
   testWidgets('submits successfully and closes the dialog', (tester) async {
@@ -76,7 +84,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Grade / Class (e.g. Grade 8)'), 'Grade 8A');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), 'Grade 8A');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
@@ -95,7 +103,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Grade / Class (e.g. Grade 8)'), 'Grade 8A');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), 'Grade 8A');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 

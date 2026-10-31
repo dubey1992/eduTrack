@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../application/school_class_list_notifier.dart';
+import '../data/class_levels.dart';
 import '../data/models/school_class.dart';
+import 'class_level_field.dart';
 
 class EditClassDialog extends ConsumerStatefulWidget {
   const EditClassDialog({super.key, required this.schoolClass});
@@ -18,7 +20,8 @@ class EditClassDialog extends ConsumerStatefulWidget {
 class _EditClassDialogState extends ConsumerState<EditClassDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.schoolClass.name);
-  late final _levelController = TextEditingController(text: '${widget.schoolClass.level}');
+  late int? _level = widget.schoolClass.level;
+  bool _levelPicked = true;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -26,8 +29,14 @@ class _EditClassDialogState extends ConsumerState<EditClassDialog> {
   @override
   void dispose() {
     _nameController.dispose();
-    _levelController.dispose();
     super.dispose();
+  }
+
+  /// "LKG" or "Class 7" says which year it is; a year picked by hand stays.
+  void _nameChanged(String name) {
+    if (_levelPicked) return;
+    final inferred = classLevelFromName(name);
+    if (inferred != _level) setState(() => _level = inferred);
   }
 
   Future<void> _submit() async {
@@ -41,7 +50,7 @@ class _EditClassDialogState extends ConsumerState<EditClassDialog> {
     try {
       await ref
           .read(schoolClassListNotifierProvider.notifier)
-          .updateClass(widget.schoolClass, name: _nameController.text.trim(), level: int.parse(_levelController.text));
+          .updateClass(widget.schoolClass, name: _nameController.text.trim(), level: _level);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Class updated.')));
         Navigator.of(context).pop();
@@ -72,19 +81,18 @@ class _EditClassDialogState extends ConsumerState<EditClassDialog> {
                 ],
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Grade / Class (e.g. Grade 8)'),
+                  decoration: const InputDecoration(labelText: 'Class name (e.g. Class 8 or LKG)'),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                  onChanged: _nameChanged,
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _levelController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Level (0-12)'),
-                  validator: (v) {
-                    final parsed = int.tryParse(v ?? '');
-                    if (parsed == null || parsed < 0 || parsed > 12) return 'Enter a level between 0 and 12';
-                    return null;
-                  },
+                ClassLevelField(
+                  value: _level,
+                  helperText: 'Sets the class order and where promotion moves students.',
+                  onChanged: (value) => setState(() {
+                    _level = value;
+                    _levelPicked = true;
+                  }),
                 ),
               ],
             ),

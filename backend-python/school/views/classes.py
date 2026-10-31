@@ -37,12 +37,15 @@ from ..requests import (
     StoreClassSectionRequest,
     StoreHolidayRequest,
     StorePeriodRequest,
+    QUICK_SECTIONS_MAX,
+    QuickClassSetupRequest,
     StoreSchoolClassRequest,
     UpdateClassSectionRequest,
     UpdateHolidayRequest,
     UpdatePeriodRequest,
     UpdateSchoolClassRequest,
 )
+from .. import class_levels
 from ..resources import (
     class_section_resource,
     holiday_resource,
@@ -86,6 +89,29 @@ def classes(request) -> Response:
     return paginator.get_paginated_response(
         [school_class_resource(row, sections.get(row.id, [])) for row in page]
     )
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def quick_setup(request) -> Response:
+    """The standard classes, Nursery to Class 12, and their sections in one
+    step (docs/onboarding.md). GET says what is offered and what is ticked to
+    start with; POST creates the ones chosen."""
+    authorize(SchoolClassPolicy.create(request.user))
+
+    if request.method == "GET":
+        ticked = set(class_levels.DEFAULT_SELECTION)
+        return Response({
+            "classes": [
+                {"name": name, "level": level, "selected": name in ticked} for name, level in class_levels.STANDARD
+            ],
+            "sections_max": QUICK_SECTIONS_MAX,
+        })
+
+    form = QuickClassSetupRequest(data=request.data, actor=request.user)
+    form.is_valid(raise_exception=True)
+
+    return Response(SchoolClassService.quick_setup(form.validated_data, request.user), status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET", "PATCH", "DELETE"])

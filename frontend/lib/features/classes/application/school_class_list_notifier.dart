@@ -1,8 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/paged_list.dart';
+import '../data/models/quick_class_setup.dart';
 import '../data/models/school_class.dart';
 import '../data/school_class_repository.dart';
+
+final quickSetupOptionsProvider = FutureProvider.autoDispose<QuickSetupOptions>(
+  (ref) => ref.watch(schoolClassRepositoryProvider).quickSetupOptions(),
+);
 
 final schoolClassListNotifierProvider = AsyncNotifierProvider<SchoolClassListNotifier, PagedList<SchoolClass>>(
   SchoolClassListNotifier.new,
@@ -65,6 +70,20 @@ class SchoolClassListNotifier extends AsyncNotifier<PagedList<SchoolClass>> {
         .create(schoolId: schoolId, academicYearId: academicYearId, name: name, level: level);
     _page = 1;
     await refresh();
+  }
+
+  Future<QuickSetupResult> quickSetup({
+    int? schoolId,
+    required int academicYearId,
+    required List<String> classes,
+    required int sections,
+  }) async {
+    final result = await ref
+        .read(schoolClassRepositoryProvider)
+        .quickSetup(schoolId: schoolId, academicYearId: academicYearId, classes: classes, sections: sections);
+    _page = 1;
+    await refresh();
+    return result;
   }
 
   Future<void> updateClass(SchoolClass schoolClass, {String? name, int? level}) async {

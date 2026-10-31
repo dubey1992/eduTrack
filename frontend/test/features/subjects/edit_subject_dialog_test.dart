@@ -79,16 +79,19 @@ void main() {
     expect(find.text('Code is required'), findsOneWidget);
   });
 
-  testWidgets('shows a validation error when the max class level is below the min', (tester) async {
+  testWidgets('shows a validation error when From class is moved past To class', (tester) async {
     await tester.pumpWidget(wrap(FakeSubjectRepository(subjects: [_subject])));
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Min class level'), '11');
+    await tester.tap(find.widgetWithText(DropdownButtonFormField<int>, 'From class'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Class 11').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
-    expect(find.text('The max class level must be at or above the min class level.'), findsOneWidget);
+    expect(find.text('"To class" must be the same as or after "From class".'), findsOneWidget);
   });
 
   testWidgets('submits successfully and closes the dialog', (tester) async {

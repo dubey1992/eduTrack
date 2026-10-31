@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
+import 'models/quick_class_setup.dart';
 import 'models/school_class.dart';
 
 final schoolClassApiProvider = Provider<SchoolClassApi>((ref) => SchoolClassApi(ref.watch(dioClientProvider)));
@@ -37,6 +38,24 @@ class SchoolClassApi {
     );
 
     return SchoolClass.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<QuickSetupOptions> quickSetupOptions() async {
+    final response = await _dio.get('/classes/quick-setup');
+    return QuickSetupOptions.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<QuickSetupResult> quickSetup({
+    int? schoolId,
+    required int academicYearId,
+    required List<String> classes,
+    required int sections,
+  }) async {
+    final response = await _dio.post(
+      '/classes/quick-setup',
+      data: {'school_id': schoolId, 'academic_year_id': academicYearId, 'classes': classes, 'sections': sections},
+    );
+    return QuickSetupResult.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<SchoolClass> update(int schoolClassId, {String? name, int? level}) async {

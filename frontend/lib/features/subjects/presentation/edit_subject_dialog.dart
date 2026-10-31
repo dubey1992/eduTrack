@@ -8,6 +8,7 @@ import '../../departments/application/department_picker_provider.dart';
 import '../../departments/data/models/department.dart';
 import '../../users/application/teacher_picker_provider.dart';
 import '../../users/data/models/app_user.dart';
+import '../../classes/presentation/class_level_field.dart';
 import '../application/subject_list_notifier.dart';
 import '../data/models/subject.dart';
 
@@ -24,8 +25,8 @@ class _EditSubjectDialogState extends ConsumerState<EditSubjectDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _codeController = TextEditingController(text: widget.subject.code);
   late final _nameController = TextEditingController(text: widget.subject.name);
-  late final _minLevelController = TextEditingController(text: '${widget.subject.minClassLevel}');
-  late final _maxLevelController = TextEditingController(text: '${widget.subject.maxClassLevel}');
+  late int? _minLevel = widget.subject.minClassLevel;
+  late int? _maxLevel = widget.subject.maxClassLevel;
 
   late int? _departmentId = widget.subject.departmentId;
   late int? _leadTeacherId = widget.subject.leadTeacherId;
@@ -37,18 +38,16 @@ class _EditSubjectDialogState extends ConsumerState<EditSubjectDialog> {
   void dispose() {
     _codeController.dispose();
     _nameController.dispose();
-    _minLevelController.dispose();
-    _maxLevelController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_isSubmitting || !_formKey.currentState!.validate() || _departmentId == null) return;
 
-    final minLevel = int.parse(_minLevelController.text);
-    final maxLevel = int.parse(_maxLevelController.text);
+    final minLevel = _minLevel!;
+    final maxLevel = _maxLevel!;
     if (maxLevel < minLevel) {
-      setState(() => _errorMessage = 'The max class level must be at or above the min class level.');
+      setState(() => _errorMessage = '"To class" must be the same as or after "From class".');
       return;
     }
 
@@ -126,22 +125,21 @@ class _EditSubjectDialogState extends ConsumerState<EditSubjectDialog> {
                 ),
                 const SizedBox(height: 10),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: _minLevelController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Min class level'),
-                        validator: _levelValidator,
+                      child: ClassLevelField(
+                        label: 'From class',
+                        value: _minLevel,
+                        onChanged: (value) => setState(() => _minLevel = value),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: TextFormField(
-                        controller: _maxLevelController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Max class level'),
-                        validator: _levelValidator,
+                      child: ClassLevelField(
+                        label: 'To class',
+                        value: _maxLevel,
+                        onChanged: (value) => setState(() => _maxLevel = value),
                       ),
                     ),
                   ],
@@ -171,12 +169,6 @@ class _EditSubjectDialogState extends ConsumerState<EditSubjectDialog> {
         ),
       ],
     );
-  }
-
-  String? _levelValidator(String? v) {
-    final parsed = int.tryParse(v ?? '');
-    if (parsed == null || parsed < 0 || parsed > 12) return '0-12';
-    return null;
   }
 }
 

@@ -98,7 +98,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(EditClassDialog), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Grade / Class (e.g. Grade 8)'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Class name (e.g. Class 8 or LKG)'), findsOneWidget);
   });
 
   testWidgets('confirming the delete class action removes the class and shows confirmation', (tester) async {

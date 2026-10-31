@@ -8,6 +8,8 @@ import '../../academic_years/application/academic_year_picker_provider.dart';
 import '../../academic_years/data/models/academic_year.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/school_class_list_notifier.dart';
+import '../data/class_levels.dart';
+import 'class_level_field.dart';
 import '../../../core/widgets/school_picker.dart';
 
 class AddClassDialog extends ConsumerStatefulWidget {
@@ -20,10 +22,11 @@ class AddClassDialog extends ConsumerStatefulWidget {
 class _AddClassDialogState extends ConsumerState<AddClassDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _levelController = TextEditingController();
 
   int? _schoolId;
   int? _academicYearId;
+  int? _level;
+  bool _levelPicked = false;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -31,8 +34,14 @@ class _AddClassDialogState extends ConsumerState<AddClassDialog> {
   @override
   void dispose() {
     _nameController.dispose();
-    _levelController.dispose();
     super.dispose();
+  }
+
+  /// "LKG" or "Class 7" says which year it is; a year picked by hand stays.
+  void _nameChanged(String name) {
+    if (_levelPicked) return;
+    final inferred = classLevelFromName(name);
+    if (inferred != _level) setState(() => _level = inferred);
   }
 
   Future<void> _submit() async {
@@ -50,7 +59,7 @@ class _AddClassDialogState extends ConsumerState<AddClassDialog> {
             schoolId: _schoolId,
             academicYearId: _academicYearId!,
             name: _nameController.text.trim(),
-            level: int.parse(_levelController.text),
+            level: _level!,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Class created.')));
@@ -100,19 +109,18 @@ class _AddClassDialogState extends ConsumerState<AddClassDialog> {
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Grade / Class (e.g. Grade 8)'),
+                  decoration: const InputDecoration(labelText: 'Class name (e.g. Class 8 or LKG)'),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                  onChanged: _nameChanged,
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _levelController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Level (0-12)'),
-                  validator: (v) {
-                    final parsed = int.tryParse(v ?? '');
-                    if (parsed == null || parsed < 0 || parsed > 12) return 'Enter a level between 0 and 12';
-                    return null;
-                  },
+                ClassLevelField(
+                  value: _level,
+                  helperText: 'Sets the class order and where promotion moves students.',
+                  onChanged: (value) => setState(() {
+                    _level = value;
+                    _levelPicked = true;
+                  }),
                 ),
               ],
             ),

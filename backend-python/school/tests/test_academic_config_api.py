@@ -254,7 +254,7 @@ class Subjects(AcademicConfigTest):
             "/api/v1/subjects", self.payload(max_class_level=13), format="json"
         )
         too_low = self.client.post(
-            "/api/v1/subjects", self.payload(min_class_level=-1), format="json"
+            "/api/v1/subjects", self.payload(min_class_level=-4), format="json"
         )
 
         self.assertEqual(
@@ -262,7 +262,7 @@ class Subjects(AcademicConfigTest):
             too_high.data["details"]["errors"]["max_class_level"][0],
         )
         self.assertEqual(
-            "The min class level field must be at least 0.",
+            "The min class level field must be at least -3.",
             too_low.data["details"]["errors"]["min_class_level"][0],
         )
 

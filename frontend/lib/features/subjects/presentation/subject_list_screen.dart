@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../classes/data/class_levels.dart';
+
 import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/network/paged_list.dart';
@@ -112,7 +114,7 @@ class _SubjectListMobile extends StatelessWidget {
           child: ListTile(
             title: Text('${subject.code} · ${subject.name}'),
             subtitle: Text(
-              '${subject.departmentName ?? '-'} · Grades ${subject.minClassLevel}-${subject.maxClassLevel}'
+              '${subject.departmentName ?? '-'} · ${classLevelRange(subject.minClassLevel, subject.maxClassLevel)}'
               '${subject.leadTeacherName != null ? '\nLead: ${subject.leadTeacherName}' : ''}',
             ),
             isThreeLine: subject.leadTeacherName != null,
@@ -152,7 +154,7 @@ class _SubjectListDesktop extends StatelessWidget {
                     DataCell(Text(subject.code)),
                     DataCell(Text(subject.name)),
                     DataCell(Text(subject.departmentName ?? '-')),
-                    DataCell(Text('${subject.minClassLevel}-${subject.maxClassLevel}')),
+                    DataCell(Text(classLevelRange(subject.minClassLevel, subject.maxClassLevel))),
                     DataCell(Text(subject.leadTeacherName ?? '-')),
                     DataCell(canManage ? _SubjectActions(subject: subject) : const SizedBox.shrink()),
                   ],

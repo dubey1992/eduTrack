@@ -1,5 +1,6 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
+import 'package:edutrack_app/features/classes/data/models/quick_class_setup.dart';
 import 'package:edutrack_app/features/classes/data/models/school_class.dart';
 import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
 
@@ -13,6 +14,7 @@ class FakeSchoolClassRepository implements SchoolClassRepository {
     this.failListPageWith,
     this.failAddSectionWith,
     this.failUpdateSectionWith,
+    this.failQuickSetupWith,
   }) : _classes = classes ?? [];
 
   final List<SchoolClass> _classes;
@@ -21,6 +23,11 @@ class FakeSchoolClassRepository implements SchoolClassRepository {
   Failure? failListPageWith;
   Failure? failAddSectionWith;
   Failure? failUpdateSectionWith;
+  Failure? failQuickSetupWith;
+
+  /// What the last Quick setup was asked to create, in the order sent.
+  List<String>? quickSetupClasses;
+  int? quickSetupSections;
 
   List<SchoolClass> _filtered({int? schoolId, int? academicYearId}) {
     return _classes
@@ -74,6 +81,46 @@ class FakeSchoolClassRepository implements SchoolClassRepository {
     );
     _classes.add(schoolClass);
     return schoolClass;
+  }
+
+  @override
+  Future<QuickSetupOptions> quickSetupOptions() async {
+    return QuickSetupOptions(
+      classes: [
+        for (final (name, level) in const [('Playgroup', -3), ('Nursery', -2), ('LKG', -1), ('UKG', 0), ('Class 1', 1)])
+          QuickSetupOption(name: name, level: level, selected: level >= -2),
+      ],
+      sectionsMax: 6,
+    );
+  }
+
+  @override
+  Future<QuickSetupResult> quickSetup({
+    int? schoolId,
+    required int academicYearId,
+    required List<String> classes,
+    required int sections,
+  }) async {
+    if (failQuickSetupWith != null) throw failQuickSetupWith!;
+
+    quickSetupClasses = classes;
+    quickSetupSections = sections;
+    final existing = {for (final c in _classes) c.name};
+    final made = [
+      for (final name in classes)
+        if (!existing.contains(name)) name,
+    ];
+    for (final name in made) {
+      await create(schoolId: schoolId, academicYearId: academicYearId, name: name, level: 0);
+    }
+    return QuickSetupResult(
+      created: made,
+      skipped: [
+        for (final name in classes)
+          if (existing.contains(name)) name,
+      ],
+      sections: [for (var n = 0; n < sections; n++) String.fromCharCode(65 + n)],
+    );
   }
 
   @override

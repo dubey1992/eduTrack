@@ -9,6 +9,7 @@ import '../../departments/application/department_picker_provider.dart';
 import '../../departments/data/models/department.dart';
 import '../../users/application/teacher_picker_provider.dart';
 import '../../users/data/models/app_user.dart';
+import '../../classes/presentation/class_level_field.dart';
 import '../application/subject_list_notifier.dart';
 import '../../../core/widgets/school_picker.dart';
 
@@ -23,8 +24,8 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
   final _formKey = GlobalKey<FormState>();
   final _codeController = TextEditingController();
   final _nameController = TextEditingController();
-  final _minLevelController = TextEditingController();
-  final _maxLevelController = TextEditingController();
+  int? _minLevel;
+  int? _maxLevel;
 
   int? _schoolId;
   int? _departmentId;
@@ -37,18 +38,16 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
   void dispose() {
     _codeController.dispose();
     _nameController.dispose();
-    _minLevelController.dispose();
-    _maxLevelController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_isSubmitting || !_formKey.currentState!.validate() || _departmentId == null) return;
 
-    final minLevel = int.parse(_minLevelController.text);
-    final maxLevel = int.parse(_maxLevelController.text);
+    final minLevel = _minLevel!;
+    final maxLevel = _maxLevel!;
     if (maxLevel < minLevel) {
-      setState(() => _errorMessage = 'The max class level must be at or above the min class level.');
+      setState(() => _errorMessage = '"To class" must be the same as or after "From class".');
       return;
     }
 
@@ -139,22 +138,21 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
                 ),
                 const SizedBox(height: 10),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: _minLevelController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Min class level'),
-                        validator: _levelValidator,
+                      child: ClassLevelField(
+                        label: 'From class',
+                        value: _minLevel,
+                        onChanged: (value) => setState(() => _minLevel = value),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: TextFormField(
-                        controller: _maxLevelController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Max class level'),
-                        validator: _levelValidator,
+                      child: ClassLevelField(
+                        label: 'To class',
+                        value: _maxLevel,
+                        onChanged: (value) => setState(() => _maxLevel = value),
                       ),
                     ),
                   ],
@@ -184,12 +182,6 @@ class _AddSubjectDialogState extends ConsumerState<AddSubjectDialog> {
         ),
       ],
     );
-  }
-
-  String? _levelValidator(String? v) {
-    final parsed = int.tryParse(v ?? '');
-    if (parsed == null || parsed < 0 || parsed > 12) return '0-12';
-    return null;
   }
 }
 
