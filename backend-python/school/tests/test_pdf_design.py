@@ -2,9 +2,12 @@
 leaves out what has no value, escapes what people typed, and the whole page
 renders to a real PDF with a running footer - in portrait and landscape."""
 
+import base64
+import io
 import types
 from unittest import mock
 
+from PIL import Image
 from django.test import SimpleTestCase
 
 from school import pdf_design
@@ -85,8 +88,28 @@ class TheBand(SimpleTestCase):
     def test_a_logo_is_inlined_and_one_that_cannot_be_fetched_is_simply_left_out(self):
         self.assertNotIn("<img", pdf_design.school_band(school(logo_url="file:///etc/passwd"), "X"))
 
+        logo = png_uri(100, 100)
+        with mock.patch.object(pdf_design, "logo_data_uri", return_value=logo):
+            self.assertIn(f'<img src="{logo}"', pdf_design.school_band(school(logo_url="x"), "X"))
+
+    def test_a_logo_keeps_its_shape_and_sits_on_a_white_panel(self):
+        """2026-10-31: every logo was squeezed into a 60 x 60 square, so a wide
+        wordmark came out as an unreadable sliver on the blue band."""
+        cases = {(400, 100): (120, 30), (100, 100): (56, 56), (60, 300): (11, 56), (20, 10): (112, 56)}
+
+        for (width, height), expected in cases.items():
+            with self.subTest(size=(width, height)):
+                self.assertEqual(expected, pdf_design.logo_size(png_uri(width, height)))
+
+        with mock.patch.object(pdf_design, "logo_data_uri", return_value=png_uri(400, 100)):
+            band = pdf_design.school_band(school(logo_url="x"), "X")
+
+        self.assertIn('width="120" height="30"', band)
+        self.assertIn('class="logo-panel"', band)
+
+    def test_a_logo_that_cannot_be_read_is_left_out(self):
         with mock.patch.object(pdf_design, "logo_data_uri", return_value="data:image/png;base64,AAAA"):
-            self.assertIn('<img src="data:image/png;base64,AAAA"', pdf_design.school_band(school(logo_url="x"), "X"))
+            self.assertNotIn("<img", pdf_design.school_band(school(logo_url="x"), "X"))
 
     def test_only_http_logos_are_fetched(self):
         for url in (None, "", "file:///etc/passwd", "ftp://host/logo.png", "javascript:alert(1)"):
@@ -204,3 +227,10 @@ class ThePage(SimpleTestCase):
         with mock.patch.object(pdf_design.pisa, "CreatePDF", return_value=types.SimpleNamespace(err=1)):
             with self.assertRaisesMessage(RuntimeError, "Could not render payslip.pdf"):
                 pdf_design.render("<p>x</p>", "payslip.pdf")
+
+
+def png_uri(width: int, height: int) -> str:
+    out = io.BytesIO()
+    Image.new("RGB", (width, height), (10, 40, 120)).save(out, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(out.getvalue()).decode("ascii")
+

@@ -44,6 +44,7 @@ import io
 import logging
 import urllib.request
 
+from PIL import Image
 from xhtml2pdf import pisa
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,11 @@ RULE = "#E5E7EB"
 LOGO_TIMEOUT_SECONDS = 3
 LOGO_MAX_BYTES = 2 * 1024 * 1024
 LOGO_TYPES = ("image/png", "image/jpeg", "image/jpg", "image/gif")
+
+# The most room a logo takes in the band, in points. A logo keeps its own
+# shape inside it: a square badge is 56 high, a wide wordmark up to 120 wide
+# (2026-10-31 - every logo used to be squeezed into a 60 x 60 square).
+LOGO_BOX = (120, 56)
 
 # Tones a stamp, a tile or a row can take: (text, background, border).
 TONES = {
@@ -90,7 +96,10 @@ table {{ width: 100%; border-collapse: collapse; }}
 td, th {{ vertical-align: top; }}
 
 .band td {{ background-color: {BRAND}; color: #ffffff; }}
-.band .logo {{ width: 70px; padding: 14px 0 14px 16px; vertical-align: middle; }}
+.band .logo {{ padding: 14px 0 14px 16px; vertical-align: middle; }}
+/* A white panel behind the logo: most logos are drawn for a white page, and
+   a dark or coloured one is lost on the blue band without it. */
+.band .logo-panel td {{ background-color: #ffffff; padding: 6px; }}
 .band .school {{ padding: 14px 16px; vertical-align: middle; }}
 .band .title {{ width: 260px; padding: 14px 16px; text-align: right; vertical-align: middle; }}
 .school-name {{ font-size: 17pt; font-weight: bold; }}
@@ -247,6 +256,25 @@ def logo_data_uri(url: str | None) -> str | None:
     return f"data:{kind};base64,{base64.b64encode(body).decode('ascii')}"
 
 
+def logo_size(data_uri: str) -> tuple[int, int] | None:
+    """The size to draw a logo at: its own shape, fitted into LOGO_BOX - or
+    None when the image cannot be read, which costs only the logo."""
+    try:
+        raw = base64.b64decode(data_uri.split(",", 1)[1])
+        with Image.open(io.BytesIO(raw)) as image:
+            width, height = image.size
+    except Exception as error:  # noqa: BLE001 - an unreadable image means "no logo", by design
+        logger.warning("PDF: could not read the logo's size (%s)", error)
+        return None
+
+    if width <= 0 or height <= 0:
+        return None
+
+    scale = min(LOGO_BOX[0] / width, LOGO_BOX[1] / height)
+
+    return max(1, round(width * scale)), max(1, round(height * scale))
+
+
 def school_lines(school) -> list[str]:
     """A school's contact lines for the band: address, phone and email, and
     its registration number - each only when it has one."""
@@ -267,7 +295,13 @@ def band(name: str, lines: list[str], title: str, number: str | None = None, sub
     lines, and on the right the document's title, its number and a line under
     it."""
     logo = logo_data_uri(logo_url)
-    logo_cell = f'<td class="logo"><img src="{logo}" width="60" height="60"></td>' if logo else ""
+    size = logo_size(logo) if logo else None
+    logo_cell = (
+        f'<td class="logo" width="{size[0] + 28}"><table class="logo-panel"><tr><td>'
+        f'<img src="{logo}" width="{size[0]}" height="{size[1]}"></td></tr></table></td>'
+        if size
+        else ""
+    )
     shown = "<br/>".join(e(line) for line in lines if line)
     contact = f'<div class="school-line">{shown}</div>' if shown else ""
     number_line = f'<div class="doc-number">{e(number)}</div>' if number else ""
