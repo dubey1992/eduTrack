@@ -149,7 +149,8 @@ class Building(TestCase):
         written = self.build()
 
         for name in ("index.html", "404.html", "sitemap.xml", "robots.txt", "site/site.css", "site/site.js",
-                     "favicon.png", "og-image.png", "site/pages/about.html", "site/pages/privacy.html"):
+                     "site/hero-app.jpg", "favicon.png", "og-image.png", "site/pages/about.html",
+                     "site/pages/privacy.html"):
             with self.subTest(name=name):
                 self.assertIn(name, written)
                 self.assertTrue((self.root / name).exists())
@@ -172,6 +173,14 @@ class Building(TestCase):
         self.assertIn('<link rel="canonical" href="https://school365ai.com/">', home)
         self.assertIn('<script src="/site/site.js"></script>', home)
         self.assertNotIn("<script>", home)
+
+    def test_the_hero_shows_a_screenshot_of_the_app(self):
+        self.build()
+        home = self.read("index.html")
+
+        self.assertIn('<img src="/site/hero-app.jpg" width="1600" height="1000"', home)
+        self.assertIn('alt="The School365ai app:', home)
+        self.assertEqual((self.root / "site/hero-app.jpg").read_bytes()[:3], b"\xff\xd8\xff")  # a JPEG
 
     def test_its_buttons_open_the_app_and_dead_footer_links_are_left_out(self):
         self.build()

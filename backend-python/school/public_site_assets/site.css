@@ -110,6 +110,18 @@ h3 { font-size: 1.05rem; font-weight: 700; }
 
 .hero { padding: 72px 0 56px; background: linear-gradient(180deg, var(--surface), var(--background)); }
 .hero h1 { max-width: 18ch; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: center; }
+.hero-grid .stats { grid-column: 1 / -1; margin-top: 8px; }
+.hero-shot { margin: 0; }
+.hero-shot img {
+  display: block; width: 100%; max-width: 100%; height: auto; aspect-ratio: 1600 / 1000;
+  border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+  box-shadow: 0 24px 48px -20px rgba(15, 23, 42, .28);
+}
+/* Narrower screens: the picture goes under the words. */
+@media (max-width: 960px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+}
 .section { padding: 64px 0; }
 .section.tinted { background: var(--primary-light); }
 section[id], #contact { scroll-margin-top: 80px; }

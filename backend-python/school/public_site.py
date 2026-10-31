@@ -17,6 +17,7 @@ undoes the publish.
     site/help/index.html     the help centre, at /help; each article at /help/<slug>
     site/covers/...          the published blog posts' cover images
     site/site.css, site.js   the pages' styles, and the old-link forwarder
+    site/hero-app.jpg        the homepage's screenshot of the app
     sitemap.xml, robots.txt  for crawlers
     favicon.png, og-image.png
     .htaccess                only from the build_public_site command (deploy)
@@ -209,7 +210,7 @@ def build(root: Path, server_files: bool = False) -> list[str]:
     write("sitemap.xml", render_sitemap(pages, posts, articles))
     write("robots.txt", render_robots())
 
-    for name in ("site.css", "site.js"):
+    for name in ("site.css", "site.js", "hero-app.jpg"):
         write(Path("site") / name, (ASSETS / name).read_bytes())
 
     for name in ("favicon.png", "og-image.png", "logo.png"):

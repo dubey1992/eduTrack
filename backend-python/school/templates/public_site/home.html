@@ -1,15 +1,22 @@
 {% extends "public_site/base.html" %}
 {% block content %}
 <section class="hero" id="home">
-  <div class="wrap">
-    <p class="eyebrow">{{ hero.eyebrow }}</p>
-    <h1>{{ hero.headline }}</h1>
-    <p class="lead">{{ hero.body }}</p>
-    <div class="actions">
-      <a class="button primary large" href="{{ join_href }}">{{ hero.join }}</a>
-      <a class="button outline large" href="{{ demo_href }}">{{ hero.demo }}</a>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow">{{ hero.eyebrow }}</p>
+      <h1>{{ hero.headline }}</h1>
+      <p class="lead">{{ hero.body }}</p>
+      <div class="actions">
+        <a class="button primary large" href="{{ join_href }}">{{ hero.join }}</a>
+        <a class="button outline large" href="{{ demo_href }}">{{ hero.demo }}</a>
+      </div>
+      <p class="muted small">{{ hero.trust }}</p>
     </div>
-    <p class="muted small">{{ hero.trust }}</p>
+    {# A real screenshot of the app: a demo school's finished Setup Guide. #}
+    <figure class="hero-shot">
+      <img src="/site/hero-app.jpg" width="1600" height="1000" fetchpriority="high" decoding="async"
+           alt="The School365ai app: a school's Setup Guide with all six steps done - academic year, departments, classes and sections, subjects.">
+    </figure>
     <ul class="stats">
       {% for stat in hero.stats %}
       <li><strong>{{ stat.value }}</strong><span>{{ stat.label }}</span></li>
