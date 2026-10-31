@@ -108,3 +108,23 @@ The roll number field says "Blank: the next free number in the section".
 
 Known limit: reactivating a student whose number was given to someone else meanwhile is
 not refused; Renumber A-Z sorts it out.
+
+## O3 - built 2026-10-31
+
+`school/welcome_emails.py` writes the two emails; `school/jobs.py` sends them from the queue.
+
+- **School Admin welcome** (`school_admin_welcome` job) - queued by `UserService.create` for
+  every SCHOOL_ADMIN, from Add School or from Users. Subject "Welcome to School365ai -
+  {school} is ready". It names the school, the sign-in email and page, the way in, the six
+  first steps in wizard order, the help centre and the support address. With no password
+  chosen, the button is "Set your password" (the usual one-hour reset link). With a password
+  chosen, the button is "Sign in", and the password is never in the email. A Sub Admin is told
+  they are one. Other roles keep the plain "Set your password" email when no password was
+  chosen. Bus crew still get nothing.
+- **School note** (`school_welcome` job) - queued by `SchoolService.create` for every new
+  school, to the school's own email: "{school} is set up on School365ai", naming the School
+  Admin (or saying one will be added). Not sent when the school's address is the admin's,
+  since their welcome already reached it. It never carries the admin's link.
+- The set-password link is issued in one place, `jobs.issue_reset_link`, for both the
+  welcome and Forgot password. A welcome whose link is refused (one went out less than a
+  minute ago) is not sent half-done.

@@ -605,9 +605,16 @@ class SchoolService:
             )
 
             audit.created("schools", school)
+            first_admin = None
 
             if admin is not None:
-                UserService.create(actor, {**admin, "role": UserRole.SCHOOL_ADMIN, "school_id": school.id})
+                first_admin = UserService.create(
+                    actor, {**admin, "role": UserRole.SCHOOL_ADMIN, "school_id": school.id}
+                )
+
+            # The school's own address hears it is set up, unless it is the
+            # admin's and their welcome already said so (docs/onboarding.md).
+            queue.push(WELCOME_SCHOOL, {"school_id": school.id, "admin_user_id": getattr(first_admin, "id", None)})
 
         return school
 
@@ -4099,6 +4106,8 @@ class TransportTripService:
 
 
 SEND_PASSWORD_RESET = "password_reset_link"
+WELCOME_SCHOOL_ADMIN = "school_admin_welcome"
+WELCOME_SCHOOL = "school_welcome"
 
 
 class PasswordResetService:
@@ -5539,7 +5548,12 @@ class UserService:
                 updated_at=now,
             )
 
-        if not chosen and not UserRole.is_crew(user.role):
+        # A School Admin always gets the real welcome - their school, how to
+        # sign in, the first steps (docs/onboarding.md, O3). Anybody else
+        # without a password chosen gets the link to set one.
+        if user.role == UserRole.SCHOOL_ADMIN:
+            queue.push(WELCOME_SCHOOL_ADMIN, {"user_id": user.id, "set_password": not chosen})
+        elif not chosen and not UserRole.is_crew(user.role):
             queue.push(SEND_PASSWORD_RESET, {"user_id": user.id, "welcome": True})
 
         audit.created("users", user)

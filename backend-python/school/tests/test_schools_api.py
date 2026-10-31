@@ -444,9 +444,12 @@ class TheFirstSchoolAdmin(SchoolApiTest):
         self.assertEqual((UserRole.SCHOOL_ADMIN, response.data["id"]), (admin.role, admin.school_id))
         self.assertFalse(admin.is_sub_admin, "created by the platform, so the head of the school")
         self.assertTrue(StaffProfile.objects.filter(user_id=admin.id).exists())
+        # One email: the admin's address is the school's, so the welcome
+        # covers both (docs/onboarding.md, O3).
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual(["head@greenfield.invalid"], mail.outbox[0].to)
-        self.assertIn("Set your password", mail.outbox[0].subject)
+        self.assertEqual("Welcome to School365ai - Greenfield Academy is ready", mail.outbox[0].subject)
+        self.assertIn("/#/reset-password?token=", mail.outbox[0].body)
 
     def test_the_admin_may_have_an_email_of_their_own(self):
         response = self.root.post(
@@ -457,7 +460,7 @@ class TheFirstSchoolAdmin(SchoolApiTest):
         self.assertTrue(User.objects.filter(email="ada.obi@greenfield.invalid").exists())
         self.assertFalse(User.objects.filter(email="head@greenfield.invalid").exists())
 
-    def test_a_password_given_is_used_and_no_email_is_sent(self):
+    def test_a_password_given_is_used_and_the_welcome_carries_no_link(self):
         response = self.root.post(
             "/api/v1/schools", self.with_admin(admin_password="AGoodPassword2026"), format="json"
         )
@@ -465,7 +468,11 @@ class TheFirstSchoolAdmin(SchoolApiTest):
 
         self.assertEqual(201, response.status_code, response.data)
         self.assertTrue(hashing.check("AGoodPassword2026", User.objects.get(email="head@greenfield.invalid").password))
-        self.assertEqual([], mail.outbox)
+        # Still welcomed - with a sign-in button, never the password itself.
+        self.assertEqual(1, len(mail.outbox))
+        self.assertNotIn("reset-password", mail.outbox[0].body)
+        self.assertNotIn("AGoodPassword2026", mail.outbox[0].body)
+        self.assertIn("/#/login", mail.outbox[0].body)
 
     def test_without_admin_fields_only_the_school_is_created(self):
         response = self.root.post("/api/v1/schools", a_payload(), format="json")

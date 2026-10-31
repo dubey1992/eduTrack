@@ -348,14 +348,8 @@ def send_password_reset_link(user_id: int, welcome: bool = False) -> None:
     email, nowhere else - and is never logged.
     """
     import html
-    import secrets
-    from datetime import timedelta
-    from urllib.parse import quote
 
     from django.conf import settings
-
-    from . import hashing
-    from .models import PasswordResetToken
 
     user = User.objects.filter(pk=user_id).first()
 
@@ -363,25 +357,11 @@ def send_password_reset_link(user_id: int, welcome: bool = False) -> None:
         return
 
     now = timezone.now()
-    recent = PasswordResetToken.objects.filter(
-        email=user.email, created_at__gt=now - timedelta(seconds=settings.PASSWORD_RESET_THROTTLE_SECONDS)
-    ).exists()
+    link = issue_reset_link(user)
 
-    if recent:
+    if link is None:
         return
 
-    token = secrets.token_hex(32)
-
-    PasswordResetToken.objects.filter(email=user.email).delete()
-    PasswordResetToken.objects.create(email=user.email, token=hashing.make(token), created_at=now)
-
-    # The web app routes on the URL fragment (Flutter web's default), so the
-    # screen lives behind "/#/" - a plain "/reset-password" path reaches the
-    # static host instead and is a 404 there.
-    # The address is a query value, so it is percent-encoded: a "+" left
-    # bare in a query string reads back as a space, and the reset is then
-    # refused for an address nobody has.
-    link = f"{settings.FRONTEND_URL.rstrip('/')}/#/reset-password?token={token}&email={quote(user.email, safe='')}"
     name = settings.APP_NAME
     expiry = settings.PASSWORD_RESET_EXPIRE_MINUTES
 
@@ -433,6 +413,101 @@ def send_password_reset_link(user_id: int, welcome: bool = False) -> None:
     )
 
     mailer.message(subject=subject, body=text, to=[user.email], html=body).send()
+
+
+def issue_reset_link(user: User) -> str | None:
+    """A fresh set-password link for the user, or None when one went out
+    less than a minute ago (Laravel's broker rule). Issuing a token replaces
+    the old one; only its bcrypt hash is stored, and the token itself is
+    never logged."""
+    import secrets
+    from datetime import timedelta
+    from urllib.parse import quote
+
+    from django.conf import settings
+
+    from . import hashing
+    from .models import PasswordResetToken
+
+    now = timezone.now()
+    recent = PasswordResetToken.objects.filter(
+        email=user.email, created_at__gt=now - timedelta(seconds=settings.PASSWORD_RESET_THROTTLE_SECONDS)
+    ).exists()
+
+    if recent:
+        return None
+
+    token = secrets.token_hex(32)
+
+    PasswordResetToken.objects.filter(email=user.email).delete()
+    PasswordResetToken.objects.create(email=user.email, token=hashing.make(token), created_at=now)
+
+    # The web app routes on the URL fragment (Flutter web's default), so the
+    # screen lives behind "/#/" - a plain "/reset-password" path reaches the
+    # static host instead and is a 404 there.
+    # The address is a query value, so it is percent-encoded: a "+" left
+    # bare in a query string reads back as a space, and the reset is then
+    # refused for an address nobody has.
+    return f"{settings.FRONTEND_URL.rstrip('/')}/#/reset-password?token={token}&email={quote(user.email, safe='')}"
+
+
+@handler("school_admin_welcome")
+def send_school_admin_welcome(user_id: int, set_password: bool = False) -> None:
+    """A new School Admin's welcome (docs/onboarding.md, O3): their school,
+    how to sign in, the first steps. With `set_password`, nobody chose a
+    password for them, so the email carries a link to set one."""
+    from .models import School
+    from .welcome_emails import school_admin
+
+    user = User.objects.filter(pk=user_id).first()
+    school = School.objects.filter(pk=getattr(user, "school_id", None)).first()
+
+    if user is None or school is None:
+        return
+
+    link = issue_reset_link(user) if set_password else None
+
+    # A link asked for and refused (one went out under a minute ago) would
+    # leave a welcome with no way in; the link already sent is the way in.
+    if set_password and link is None:
+        return
+
+    subject, text, body = school_admin(
+        first_name=user.first_name,
+        email=user.email,
+        school_name=school.name,
+        sub_admin=bool(user.is_sub_admin),
+        set_password_link=link,
+        year=timezone.now().year,
+    )
+    mailer.message(subject=subject, body=text, to=[user.email], html=body).send()
+
+
+@handler("school_welcome")
+def send_school_welcome(school_id: int, admin_user_id: int | None = None) -> None:
+    """A note to the school's own address that its account is set up and
+    who its School Admin is (docs/onboarding.md, O3)."""
+    from .models import School
+    from .welcome_emails import school_note
+
+    school = School.objects.filter(pk=school_id).first()
+
+    if school is None or not school.email:
+        return
+
+    admin = User.objects.filter(pk=admin_user_id).first() if admin_user_id else None
+
+    # The admin's own welcome already reached this address.
+    if admin is not None and admin.email.lower() == school.email.lower():
+        return
+
+    subject, text, body = school_note(
+        school_name=school.name,
+        admin_name=f"{admin.first_name} {admin.last_name}".strip() if admin else None,
+        admin_email=admin.email if admin else None,
+        year=timezone.now().year,
+    )
+    mailer.message(subject=subject, body=text, to=[school.email], html=body).send()
 
 
 @handler("payslip_email")

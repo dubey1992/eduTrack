@@ -475,7 +475,11 @@ class ChoosingTheirOwnPassword(UserApiTest):
 
         email = mail.outbox[0]
 
-        self.assertEqual((f"Set your password for {settings.APP_NAME}", ["priya@example.invalid"]), (email.subject, email.to))
+        # A School Admin's is the full welcome (docs/onboarding.md, O3).
+        self.assertEqual(
+            (f"Welcome to {settings.APP_NAME} - {self.school.name} is ready", ["priya@example.invalid"]),
+            (email.subject, email.to),
+        )
         self.assertIn("An account has been created for you", email.body)
         self.assertIn("/#/reset-password?token=", email.body)
         self.assertIn("Forgot password", email.body)
@@ -483,7 +487,7 @@ class ChoosingTheirOwnPassword(UserApiTest):
 
         html = email.alternatives[0][0]
 
-        self.assertIn("Set Password", html)
+        self.assertIn("Set your password", html)
         self.assertIn("&amp;email=priya%40example.invalid", html)
 
     def test_the_emailed_link_sets_a_password_they_can_sign_in_with(self):
@@ -508,11 +512,13 @@ class ChoosingTheirOwnPassword(UserApiTest):
         self.assertEqual(201, response.status_code, response.data)
         self.assertEqual(1, len(mail.outbox))
 
-    def test_a_password_that_was_set_sends_no_email(self):
+    def test_a_password_that_was_set_sends_a_welcome_without_a_link(self):
         response = self.create()
 
         self.assertEqual(201, response.status_code, response.data)
-        self.assertEqual([], mail.outbox)
+        self.assertEqual(1, len(mail.outbox))
+        self.assertNotIn("reset-password", mail.outbox[0].body)
+        self.assertNotIn("AGoodPassword2026", mail.outbox[0].body)
         self.assertTrue(hashing.check("AGoodPassword2026", User.objects.get(email="priya@example.invalid").password))
 
     def test_a_short_password_is_still_refused_rather_than_ignored(self):
