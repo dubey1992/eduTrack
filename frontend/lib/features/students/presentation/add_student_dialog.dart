@@ -13,7 +13,12 @@ import '../../../core/widgets/school_picker.dart';
 import 'widgets/admission_date_field.dart';
 
 class AddStudentDialog extends ConsumerStatefulWidget {
-  const AddStudentDialog({super.key});
+  const AddStudentDialog({super.key, this.schoolId, this.classSectionId});
+
+  /// The section the Students page is showing, so the new student starts in
+  /// it (and its school, for someone who picks the school).
+  final int? schoolId;
+  final int? classSectionId;
 
   @override
   ConsumerState<AddStudentDialog> createState() => _AddStudentDialogState();
@@ -35,8 +40,8 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
   DateTime? _admissionDate;
   final _addressController = TextEditingController();
 
-  int? _schoolId;
-  int? _classSectionId;
+  late int? _schoolId = widget.schoolId;
+  late int? _classSectionId = widget.classSectionId;
   int? _routeId;
   int? _stopId;
 

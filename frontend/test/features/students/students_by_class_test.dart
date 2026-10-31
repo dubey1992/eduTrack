@@ -7,6 +7,8 @@ import 'package:edutrack_app/features/classes/data/school_class_repository.dart'
 import 'package:edutrack_app/features/students/data/models/student.dart';
 import 'package:edutrack_app/features/students/data/models/student_class_group.dart';
 import 'package:edutrack_app/features/students/data/student_repository.dart';
+import 'package:edutrack_app/features/students/application/student_list_notifier.dart';
+import 'package:edutrack_app/features/students/presentation/add_student_dialog.dart';
 import 'package:edutrack_app/features/students/presentation/student_list_screen.dart';
 import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 import 'package:flutter/material.dart';
@@ -147,6 +149,55 @@ void main() {
 
       expect(find.text('No students in Class 5 - B yet.'), findsOneWidget);
       expect(find.byKey(const Key('renumber-section')), findsNothing);
+    });
+
+    testWidgets('a section picked while empty offers Renumber once students are added to it', (tester) async {
+      _screen(tester, 1700);
+      final fake = _fake();
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Section B'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('renumber-section')), findsNothing);
+
+      // What saving the Add Student form does: the student is created and
+      // the roll is fetched again.
+      await fake.create(
+        classSectionId: 21,
+        admissionNumber: 'ADM-9',
+        firstName: 'Meera',
+        lastName: 'K',
+        guardianName: 'Guardian',
+      );
+      final container = ProviderScope.containerOf(tester.element(find.byType(StudentListScreen)));
+      await container.read(studentListNotifierProvider.notifier).refresh();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('renumber-section')), findsOneWidget);
+    });
+
+    testWidgets('Add Student starts in the section on screen', (tester) async {
+      _screen(tester, 1700);
+      await tester.pumpWidget(wrap(_fake()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Section B'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Add Student'));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<AddStudentDialog>(find.byType(AddStudentDialog)).classSectionId, 21);
+    });
+
+    testWidgets('Add Student from All students starts with no class chosen', (tester) async {
+      _screen(tester, 1700);
+      await tester.pumpWidget(wrap(_fake()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Add Student'));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<AddStudentDialog>(find.byType(AddStudentDialog)).classSectionId, isNull);
     });
   });
 

@@ -126,7 +126,9 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           Expanded(
             child: Text('${section.label} · in roll number order', style: Theme.of(context).textTheme.titleSmall),
           ),
-          if (canManage && section.students > 0)
+          // Counted from the list on screen, not from when the section was
+          // picked - a section picked while empty fills up as students are added.
+          if (canManage && (ref.watch(studentListNotifierProvider).value?.total ?? section.students) > 0)
             TextButton.icon(
               key: const Key('renumber-section'),
               onPressed: () => _renumber(section),
@@ -218,7 +220,10 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           actions: [
             if (canManage)
               FilledButton.icon(
-                onPressed: () => showDialog(context: context, builder: (_) => const AddStudentDialog()),
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (_) => AddStudentDialog(schoolId: _schoolFilter, classSectionId: _section?.id),
+                ),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add Student'),
               ),
