@@ -3,7 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/paged_list.dart';
 import '../../transport/application/route_page_notifier.dart';
 import '../data/models/student.dart';
+import '../data/models/student_class_group.dart';
 import '../data/student_repository.dart';
+
+/// The Students page's class list (docs/onboarding.md). Invalidated whenever
+/// a count can change: an admission, an import, a status change, a renumber.
+final studentClassesProvider = FutureProvider.autoDispose.family<List<StudentClassGroup>, int?>(
+  (ref, schoolId) => ref.watch(studentRepositoryProvider).classes(schoolId: schoolId),
+);
 
 final studentListNotifierProvider = AsyncNotifierProvider<StudentListNotifier, PagedList<Student>>(
   StudentListNotifier.new,
@@ -18,6 +25,9 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
   /// Null means every status. A school that has promoted a class needs to be
   /// able to find the students who finished (docs/promotion.md).
   StudentStatus? _status;
+
+  /// One section, listed by roll number; null is every student, by name.
+  int? _classSectionId;
   int _page = 1;
   int _perPage = 20;
 
@@ -33,7 +43,14 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
   Future<PagedList<Student>> _fetch() async {
     final response = await ref
         .read(studentRepositoryProvider)
-        .listPage(schoolId: _schoolId, search: _search, status: _status?.apiValue, page: _page, perPage: _perPage);
+        .listPage(
+          schoolId: _schoolId,
+          classSectionId: _classSectionId,
+          search: _search,
+          status: _status?.apiValue,
+          page: _page,
+          perPage: _perPage,
+        );
 
     return PagedList(
       items: response.items,
@@ -59,6 +76,19 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
     _schoolId = schoolId;
     _page = 1;
     await refresh();
+  }
+
+  Future<void> setSection(int? classSectionId) async {
+    _classSectionId = classSectionId;
+    _page = 1;
+    await refresh();
+  }
+
+  /// Numbers the section 1, 2, 3 ... in name order, then shows it again.
+  Future<int> renumber(int classSectionId) async {
+    final numbered = await ref.read(studentRepositoryProvider).renumber(classSectionId);
+    await refresh();
+    return numbered;
   }
 
   Future<void> setStatusFilter(StudentStatus? status) async {
@@ -124,6 +154,7 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
       address: address,
     );
     _page = 1;
+    ref.invalidate(studentClassesProvider);
     try {
       if (routeId != null && stopId != null) {
         await repository.setTransport(created.id, routeId: routeId, stopId: stopId);
@@ -172,6 +203,8 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
       address: address,
     );
 
+    if (classSectionId != null && classSectionId != student.classSectionId) ref.invalidate(studentClassesProvider);
+
     final transportChanged = routeId != student.transport?.routeId || stopId != student.transport?.stopId;
     if (transportChanged) {
       updated = await repository.setTransport(student.id, routeId: routeId, stopId: stopId);
@@ -185,6 +218,7 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
 
   Future<void> setActive(Student student, bool active) async {
     final updated = await ref.read(studentRepositoryProvider).setActive(student.id, active);
+    ref.invalidate(studentClassesProvider);
 
     state = state.whenData(
       (page) => page.withItems([for (final existing in page.items) existing.id == updated.id ? updated : existing]),

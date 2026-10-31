@@ -142,7 +142,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Roll number (optional)'), '13');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Roll number'), '13');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
@@ -159,7 +159,7 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Roll number (optional)'), '13');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Roll number'), '13');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 

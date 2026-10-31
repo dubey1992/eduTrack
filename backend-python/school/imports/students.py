@@ -7,6 +7,7 @@ in a spreadsheet knows that a section is number 37.
 
 from __future__ import annotations
 
+from .. import roll_numbers
 from ..enums import StudentStatus
 from ..models import AcademicYear, ClassSection, Student
 from ..services import StudentService
@@ -17,6 +18,11 @@ class StudentImporter:
     def __init__(self) -> None:
         # Class and section name to section id, worked out once per import.
         self._sections: dict[str, int] | None = None
+        # Roll numbers typed in the file, per section: a duplicate inside the
+        # file is refused, and a blank row is numbered past every one of them.
+        self._typed_rolls: dict[int, dict[str, str]] = {}
+        # The number the next blank row in each section gets, in file order.
+        self._next_roll: dict[int, int] = {}
 
     def label(self) -> str:
         return "Students"
@@ -96,6 +102,23 @@ class StudentImporter:
         ).exists():
             messages.append(already_taken("admission_number"))
 
+        section_id = self._section_id(row, school_id)
+        roll_number = roll_numbers.normalise(row.get("roll_number"))
+
+        if section_id is not None and roll_number is not None:
+            holder = roll_numbers.holder_of(section_id, roll_number)
+            typed = self._typed_rolls.setdefault(section_id, {})
+
+            if holder is not None:
+                messages.append(roll_numbers.taken_message(holder, roll_number))
+            elif roll_number.lower() in typed:
+                messages.append(
+                    f"Roll number {roll_number} is also on the row for {typed[roll_number.lower()]} "
+                    "in the same class and section."
+                )
+            else:
+                typed[roll_number.lower()] = f"{row['first_name']} {row['last_name']}"
+
         return messages
 
     def import_row(self, row: dict, school_id: int, actor) -> dict:
@@ -106,7 +129,7 @@ class StudentImporter:
                 "admission_number": row["admission_number"],
                 "first_name": row["first_name"],
                 "last_name": row["last_name"],
-                "roll_number": row.get("roll_number"),
+                "roll_number": row.get("roll_number") or self._next_roll_in(self._section_id(row, school_id)),
                 "guardian_name": row["guardian_name"],
                 "guardian_mobile": row.get("guardian_mobile"),
                 "address": row.get("address"),
@@ -116,6 +139,18 @@ class StudentImporter:
         )
 
         return {"id": student.id, "name": f"{student.first_name} {student.last_name}"}
+
+    def _next_roll_in(self, section_id: int) -> str:
+        """A blank roll number in the file: the next free one, in file order,
+        and past every number typed elsewhere in the file for that section."""
+        if section_id not in self._next_roll:
+            typed = [int(number) for number in self._typed_rolls.get(section_id, {}) if number.isdigit()]
+            self._next_roll[section_id] = max([roll_numbers.highest(section_id), *typed]) + 1
+
+        number = self._next_roll[section_id]
+        self._next_roll[section_id] = number + 1
+
+        return str(number)
 
     # -- resolving a class and section by name -----------------------------
 

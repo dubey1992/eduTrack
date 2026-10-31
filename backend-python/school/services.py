@@ -32,6 +32,7 @@ from . import (
     permissions,
     platform_messaging,
     queue,
+    roll_numbers,
     route_paths,
     sms,
     tokens,
@@ -6296,7 +6297,79 @@ class StudentService:
         # Changed on both backends in the same commit, deliberately - a fix
         # applied to one would have been a behaviour difference this migration
         # exists not to introduce.
+        #
+        # One section is read the way its teacher reads it: by roll number
+        # (docs/onboarding.md).
+        if filters.get("class_section_id"):
+            return students.order_by(*roll_numbers.ORDER)
+
         return students.order_by("first_name", "id")
+
+    @classmethod
+    def classes_of(cls, actor: User, school_id=None) -> list[dict]:
+        """The current year's classes and sections, in class order, with how
+        many active students each section has - the Students page's list down
+        the side (docs/onboarding.md). A teacher sees the sections they are
+        the class teacher of, and nothing else."""
+        classes = SchoolScope.for_actor(actor).apply_to(
+            SchoolClass.objects.select_related("school", "academic_year").filter(academic_year__is_current=True),
+            school_id,
+        )
+        sections = ClassSection.objects.filter(school_class__in=classes)
+
+        if actor.role == UserRole.TEACHER:
+            sections = sections.filter(class_teacher_id=actor.id)
+
+        sections = sections.annotate(
+            student_count=Count("student", filter=Q(student__status=StudentStatus.ACTIVE))
+        ).order_by("name", "id")
+
+        grouped: dict[int, list] = {}
+
+        for section in sections:
+            grouped.setdefault(section.school_class_id, []).append(
+                {"id": section.id, "name": section.name, "students": section.student_count}
+            )
+
+        return [
+            {
+                "id": school_class.id,
+                "name": school_class.name,
+                "level": school_class.level,
+                "school_id": school_class.school_id,
+                "school_name": school_class.school.name,
+                "academic_year_name": school_class.academic_year.name,
+                "sections": grouped[school_class.id],
+            }
+            for school_class in classes.order_by("school__name", "level", "name", "id")
+            if school_class.id in grouped
+        ]
+
+    @staticmethod
+    def lock_section(class_section_id) -> None:
+        """Holds the section while a number is worked out, so two admissions
+        saved at once cannot both take the next one."""
+        if class_section_id:
+            list(ClassSection.objects.select_for_update().filter(pk=class_section_id).values_list("id", flat=True))
+
+    @staticmethod
+    def renumber(section: ClassSection, actor: User) -> int:
+        """Numbers the section's active students 1, 2, 3 ... in name order
+        (docs/onboarding.md). Asked for and confirmed by a person; each
+        changed number is audited. Returns how many students it numbered."""
+        with transaction.atomic():
+            StudentService.lock_section(section.id)
+            students = list(
+                Student.objects.select_related(*StudentService.WITH)
+                .filter(class_section_id=section.id, status=StudentStatus.ACTIVE)
+                .order_by("first_name", "last_name", "id")
+            )
+
+            for number, student in enumerate(students, start=1):
+                if student.roll_number != str(number):
+                    StudentService.update(student, {"roll_number": str(number)})
+
+        return len(students)
 
     @staticmethod
     def create(data: dict, actor: User) -> Student:
@@ -6308,13 +6381,20 @@ class StudentService:
         now = timezone.now()
 
         with transaction.atomic():
+            roll_number = (data.get("roll_number") or "").strip() or None
+
+            # Left blank, the next free number in the section (docs/onboarding.md).
+            if roll_number is None and data.get("class_section_id"):
+                StudentService.lock_section(data["class_section_id"])
+                roll_number = roll_numbers.next_free(data["class_section_id"])
+
             student = Student.objects.create(
                 school_id=school_id,
                 class_section_id=data.get("class_section_id"),
                 admission_number=data["admission_number"],
                 first_name=data["first_name"],
                 last_name=data["last_name"],
-                roll_number=data.get("roll_number"),
+                roll_number=roll_number,
                 guardian_name=data["guardian_name"],
                 guardian_mobile=data.get("guardian_mobile"),
                 guardian_email=data.get("guardian_email"),
@@ -6342,8 +6422,19 @@ class StudentService:
     @staticmethod
     def update(student: Student, data: dict) -> Student:
         before = audit.fields_of(student)
+        data = dict(data)
 
         with transaction.atomic():
+            section_id = data.get("class_section_id", student.class_section_id)
+            moved = "class_section_id" in data and data["class_section_id"] != student.class_section_id
+            cleared = "roll_number" in data and roll_numbers.normalise(data["roll_number"]) is None
+
+            # A number cleared, or a move to another section with no number
+            # given, takes the next free one there (docs/onboarding.md).
+            if section_id and (cleared or (moved and "roll_number" not in data)):
+                StudentService.lock_section(section_id)
+                data["roll_number"] = roll_numbers.next_free(section_id)
+
             for field, value in data.items():
                 setattr(student, field, value)
 

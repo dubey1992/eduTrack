@@ -19,7 +19,7 @@ from .. import jobs, notifications, progress_reports
 from ..clock import DATE_TIME, SchoolClock
 from ..enums import MessageEvent, StudentStatus
 from ..errors import EmailNotSent, NoGuardianEmail, NothingToReport
-from ..models import Student
+from ..models import ClassSection, Student
 from ..pagination import LaravelPagination
 from ..performance import for_student as performance_of
 from ..policies import StudentPolicy, authorize, permitted
@@ -76,6 +76,26 @@ def store(request) -> Response:
         student_resource(reload(student.id)),
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def classes(request) -> Response:
+    """The current year's classes and sections in class order, with student
+    counts, for the Students page (docs/onboarding.md)."""
+    authorize(StudentPolicy.view_any(request.user))
+
+    return Response({"data": StudentService.classes_of(request.user, request.query_params.get("school_id"))})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def renumber(request, section_id: int) -> Response:
+    """Roll numbers 1, 2, 3 ... in name order for one section."""
+    section = get_object_or_404(ClassSection.objects.select_related("school_class"), pk=section_id)
+    authorize(StudentPolicy.renumber(request.user, section))
+
+    return Response({"numbered": StudentService.renumber(section, request.user)})
 
 
 @api_view(["GET", "PATCH"])

@@ -21,7 +21,7 @@ import decimal
 import re
 import zoneinfo
 
-from . import attendants, audit, class_levels, hashing, mailer, marketing, notices, notifications, permissions, site_pages, sms, whatsapp
+from . import attendants, audit, class_levels, hashing, roll_numbers, mailer, marketing, notices, notifications, permissions, site_pages, sms, whatsapp
 from .enums import (
     UserStatus,
     PromotionOutcome,
@@ -269,6 +269,10 @@ class StoreStudentRequest(ScopedSerializer):
         if admission_number_taken(attrs["admission_number"], school_id):
             errors["admission_number"] = [already_taken("admission_number")]
 
+        # Blank gets the next free number when the student is saved.
+        if "class_section_id" not in errors:
+            roll_number_problem(attrs["class_section_id"], attrs.get("roll_number"), None, errors)
+
         if errors:
             raise serializers.ValidationError(errors)
 
@@ -316,10 +320,24 @@ class UpdateStudentRequest(ScopedSerializer):
         ):
             errors["admission_number"] = [already_taken("admission_number")]
 
+        section_id = attrs.get("class_section_id", self.student.class_section_id)
+
+        if "roll_number" in attrs and section_id and "class_section_id" not in errors:
+            roll_number_problem(section_id, attrs["roll_number"], self.student.id, errors)
+
         if errors:
             raise serializers.ValidationError(errors)
 
         return attrs
+
+
+def roll_number_problem(class_section_id, roll_number, ignoring, errors: dict) -> None:
+    """Two active students in a section never share a roll number
+    (docs/onboarding.md); the error names who has it."""
+    holder = roll_numbers.holder_of(class_section_id, roll_number, ignoring=ignoring)
+
+    if holder is not None:
+        errors["roll_number"] = [roll_numbers.taken_message(holder, roll_number)]
 
 
 EARLIEST_ADMISSION = dt.date(1950, 1, 1)

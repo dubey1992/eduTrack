@@ -70,3 +70,41 @@ nothing.
   the year by name ("Year": Playgroup ... Class 12), filled in from the class name as it
   is typed; the subject dialogs pick "From class" / "To class" by name, and the subject
   list shows "Nursery - Class 10" instead of "-2-10".
+
+## O2 - built 2026-10-31
+
+Rules (`school/roll_numbers.py`):
+
+- **Only active students hold a roll number.** A child who left keeps theirs on record,
+  but the number is free for the next admission.
+- **Blank means the next free number**: one past the highest plain number held in the
+  section (a gap is never filled, so a register already written down does not reorder).
+  This applies to the Add Student form, to clearing the number when editing, to moving a
+  student to another section without giving a number, and to blank cells in a bulk
+  upload (in file order, numbered past any number typed elsewhere in the file for that
+  section). The section row is locked while the number is worked out.
+- **Duplicates in a section are refused**, naming who has the number ("Roll number 5 is
+  already Asha Verma's in this section"). "07" and "7" are the same number. Checked in the
+  app, not by a database constraint, because older data may hold duplicates. A bulk upload
+  also refuses the same number twice in one section of the file.
+- **One section lists by roll number**: numbers by length then value (9 before 10),
+  students without a number last, by name. "All students" stays in name order.
+
+API:
+
+- `GET /api/v1/students/classes` - the current year's classes in class order, each with
+  its sections and their count of active students. A teacher gets only the sections they
+  are class teacher of; another school's classes never appear.
+- `POST /api/v1/sections/{id}/renumber` - numbers the section's active students 1, 2, 3 ...
+  by first then last name. Needs the students write permission for that school; a teacher
+  only for their own section. Each changed number is an audited student update.
+
+Flutter: the Students page shows the class list beside the table when there are at
+least 1500px for it, and a "Class" dropdown above the list otherwise (and on phones),
+with "All students" first. A chosen section shows "Class 5 - A · in roll number order"
+and, for those who manage students, "Renumber A-Z" behind a confirmation. The table has
+a Roll column; the admission number moved under the name to keep the actions on screen.
+The roll number field says "Blank: the next free number in the section".
+
+Known limit: reactivating a student whose number was given to someone else meanwhile is
+not refused; Renumber A-Z sorts it out.

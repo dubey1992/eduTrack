@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/student.dart';
+import 'models/student_class_group.dart';
 import 'models/student_enrollment.dart';
 import 'models/student_performance.dart';
 import 'student_api.dart';
@@ -174,6 +175,22 @@ class StudentRepository {
   Future<List<StudentEnrollment>> enrollments(int studentId) async {
     try {
       return await _api.enrollments(studentId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<List<StudentClassGroup>> classes({int? schoolId}) async {
+    try {
+      return await _api.classes(schoolId: schoolId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<int> renumber(int sectionId) async {
+    try {
+      return await _api.renumber(sectionId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

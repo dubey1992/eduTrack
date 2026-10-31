@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/student.dart';
+import 'models/student_class_group.dart';
 import 'models/student_enrollment.dart';
 import 'models/student_performance.dart';
 
@@ -37,6 +38,21 @@ class StudentApi {
       },
     );
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, Student.fromJson);
+  }
+
+  /// The current year's classes and sections in class order, with counts.
+  Future<List<StudentClassGroup>> classes({int? schoolId}) async {
+    final response = await _dio.get('/students/classes', queryParameters: {'school_id': ?schoolId});
+    return [
+      for (final row in (response.data as Map<String, dynamic>)['data'] as List)
+        StudentClassGroup.fromJson(row as Map<String, dynamic>),
+    ];
+  }
+
+  /// Roll numbers 1, 2, 3 ... in name order; how many students it numbered.
+  Future<int> renumber(int sectionId) async {
+    final response = await _dio.post('/sections/$sectionId/renumber');
+    return (response.data as Map<String, dynamic>)['numbered'] as int;
   }
 
   Future<Student> create({

@@ -20,6 +20,7 @@ import 'add_student_dialog.dart';
 import 'edit_student_dialog.dart';
 import 'student_history_dialog.dart';
 import 'student_performance_dialog.dart';
+import 'widgets/student_class_panel.dart';
 
 class StudentListScreen extends ConsumerStatefulWidget {
   const StudentListScreen({super.key});
@@ -32,11 +33,176 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   final _searchController = TextEditingController();
   int? _schoolFilter;
   StudentStatus? _statusFilter;
+  StudentSectionChoice? _section;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Room for the class list beside the table, the table, and its actions.
+  static const double _panelMinWidth = 1500;
+
+  Widget _withPanel(AsyncValue<PagedList<Student>> studentsState, bool canManage) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 220,
+          child: StudentClassPanel(schoolId: _schoolFilter, selected: _section?.id, onSelected: _choose),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _search(width: 280),
+              _sectionBar(canManage),
+              const SizedBox(height: 12),
+              Expanded(child: _list(studentsState, canManage)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _withPicker(AsyncValue<PagedList<Student>> studentsState, bool canManage, double width) {
+    final narrow = width < Breakpoints.desktop;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(left: 20, right: narrow ? 20 : 0),
+              child: SizedBox(
+                width: narrow ? width - 40 : 280,
+                child: StudentClassPicker(schoolId: _schoolFilter, selected: _section?.id, onSelected: _choose),
+              ),
+            ),
+            if (narrow) _search(width: width - 40) else SizedBox(width: 280, child: _search(width: 280, padded: false)),
+          ],
+        ),
+        _sectionBar(canManage),
+        const SizedBox(height: 12),
+        Expanded(child: _list(studentsState, canManage)),
+      ],
+    );
+  }
+
+  /// Pick a section to see its students by roll number; null is everybody.
+  void _choose(StudentSectionChoice? section) {
+    setState(() => _section = section);
+    ref.read(studentListNotifierProvider.notifier).setSection(section?.id);
+  }
+
+  Widget _search({required double width, bool padded = true}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: padded ? 20 : 0),
+      child: SizedBox(
+        width: width,
+        child: DebouncedSearchField(
+          controller: _searchController,
+          label: 'Search by name / admission ID',
+          onSearch: (value) => ref.read(studentListNotifierProvider.notifier).setSearch(value),
+        ),
+      ),
+    );
+  }
+
+  /// Which section is showing, and Renumber A-Z for it.
+  Widget _sectionBar(bool canManage) {
+    final section = _section;
+    if (section == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text('${section.label} · in roll number order', style: Theme.of(context).textTheme.titleSmall),
+          ),
+          if (canManage && section.students > 0)
+            TextButton.icon(
+              key: const Key('renumber-section'),
+              onPressed: () => _renumber(section),
+              icon: const Icon(Icons.sort_by_alpha, size: 18),
+              label: const Text('Renumber A-Z'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _renumber(StudentSectionChoice section) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Renumber ${section.label}?'),
+        content: Text(
+          'The ${section.students} active students of ${section.label} get roll numbers 1 to '
+          '${section.students} in alphabetical order. Their current roll numbers are replaced.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Renumber')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final numbered = await ref.read(studentListNotifierProvider.notifier).renumber(section.id);
+      messenger.showSnackBar(SnackBar(content: Text('Renumbered $numbered students of ${section.label}.')));
+    } catch (error) {
+      final failure = error is Failure ? error : Failure.unknown(error.toString());
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+    }
+  }
+
+  Widget _list(AsyncValue<PagedList<Student>> studentsState, bool canManage) {
+    return AsyncValueView<PagedList<Student>>(
+      value: studentsState,
+      onRetry: () => ref.read(studentListNotifierProvider.notifier).refresh(),
+      isEmpty: (page) => page.items.isEmpty,
+      // Two very different emptinesses, and telling somebody their
+      // school has no students when they have simply mistyped a name is
+      // the sort of thing that gets reported as data loss.
+      emptyBuilder: (context) => Center(
+        child: Text(
+          _searchController.text.trim().isNotEmpty
+              ? 'No students match this search.'
+              : _section != null
+              ? 'No students in ${_section!.label} yet.'
+              : 'No students admitted yet.',
+        ),
+      ),
+      data: (context, page) {
+        return Column(
+          children: [
+            Expanded(
+              child: ResponsiveBuilder(
+                mobile: (context) => _StudentListMobile(students: page.items, canManage: canManage),
+                desktop: (context) => _StudentListDesktop(students: page.items, canManage: canManage),
+              ),
+            ),
+            PaginationControls(
+              currentPage: page.currentPage,
+              lastPage: page.lastPage,
+              total: page.total,
+              perPage: page.perPage,
+              onPageChanged: (p) => ref.read(studentListNotifierProvider.notifier).goToPage(p),
+              onPerPageChanged: (p) => ref.read(studentListNotifierProvider.notifier).setPerPage(p),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -61,13 +227,21 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 type: 'students',
                 title: 'Students',
                 schoolId: _schoolFilter,
-                onImported: () => ref.read(studentListNotifierProvider.notifier).refresh(),
+                onImported: () {
+                  ref.invalidate(studentClassesProvider);
+                  ref.read(studentListNotifierProvider.notifier).refresh();
+                },
               ),
             SchoolFilterDropdown(
               selected: _schoolFilter,
               onChanged: (schoolId) {
-                setState(() => _schoolFilter = schoolId);
-                ref.read(studentListNotifierProvider.notifier).setSchoolFilter(schoolId);
+                setState(() {
+                  _schoolFilter = schoolId;
+                  _section = null;
+                });
+                ref.read(studentListNotifierProvider.notifier)
+                  ..setSection(null)
+                  ..setSchoolFilter(schoolId);
               },
             ),
             SizedBox(
@@ -90,51 +264,13 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
             ),
           ],
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: SizedBox(
-            width: 280,
-            child: DebouncedSearchField(
-              controller: _searchController,
-              label: 'Search by name / admission ID',
-              onSearch: (value) => ref.read(studentListNotifierProvider.notifier).setSearch(value),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
         Expanded(
-          child: AsyncValueView<PagedList<Student>>(
-            value: studentsState,
-            onRetry: () => ref.read(studentListNotifierProvider.notifier).refresh(),
-            isEmpty: (page) => page.items.isEmpty,
-            // Two very different emptinesses, and telling somebody their
-            // school has no students when they have simply mistyped a name is
-            // the sort of thing that gets reported as data loss.
-            emptyBuilder: (context) => Center(
-              child: Text(
-                _searchController.text.trim().isEmpty ? 'No students admitted yet.' : 'No students match this search.',
-              ),
-            ),
-            data: (context, page) {
-              return Column(
-                children: [
-                  Expanded(
-                    child: ResponsiveBuilder(
-                      mobile: (context) => _StudentListMobile(students: page.items, canManage: canManage),
-                      desktop: (context) => _StudentListDesktop(students: page.items, canManage: canManage),
-                    ),
-                  ),
-                  PaginationControls(
-                    currentPage: page.currentPage,
-                    lastPage: page.lastPage,
-                    total: page.total,
-                    perPage: page.perPage,
-                    onPageChanged: (p) => ref.read(studentListNotifierProvider.notifier).goToPage(p),
-                    onPerPageChanged: (p) => ref.read(studentListNotifierProvider.notifier).setPerPage(p),
-                  ),
-                ],
-              );
-            },
+          child: LayoutBuilder(
+            // The class list sits beside the table only where the table still
+            // fits next to it; elsewhere it is a dropdown above the list.
+            builder: (context, constraints) => constraints.maxWidth >= _panelMinWidth
+                ? _withPanel(studentsState, canManage)
+                : _withPicker(studentsState, canManage, constraints.maxWidth),
           ),
         ),
       ],
@@ -158,9 +294,10 @@ class _StudentListMobile extends StatelessWidget {
         final student = students[index];
         return Card(
           child: ListTile(
-            title: Text('${student.admissionNumber} · ${student.name}'),
+            title: Text('${student.rollNumber == null ? '' : 'Roll ${student.rollNumber} · '}${student.name}'),
             subtitle: Text(
-              '${student.classSectionName ?? '-'} · Guardian: ${student.guardianName} · ${_transportLabel(student)}',
+              '${student.admissionNumber} · ${student.classSectionName ?? '-'} · Guardian: ${student.guardianName} · '
+              '${_transportLabel(student)}',
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -202,8 +339,11 @@ class _StudentListDesktop extends StatelessWidget {
       child: Card(
         child: HorizontalScrollTable(
           child: DataTable(
+            // The admission number sits under the name, so the class list
+            // beside the table leaves room for the actions (docs/onboarding.md).
+            dataRowMaxHeight: 60,
             columns: const [
-              DataColumn(label: Text('ID')),
+              DataColumn(label: Text('Roll')),
               DataColumn(label: Text('Name')),
               DataColumn(label: Text('Class')),
               DataColumn(label: Text('Parent')),
@@ -215,8 +355,17 @@ class _StudentListDesktop extends StatelessWidget {
               for (final student in students)
                 DataRow(
                   cells: [
-                    DataCell(Text(student.admissionNumber)),
-                    DataCell(Text(student.name)),
+                    DataCell(Text(student.rollNumber ?? '-')),
+                    DataCell(
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(student.name),
+                          Text(student.admissionNumber, style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
                     DataCell(Text(student.classSectionName ?? '-')),
                     DataCell(Text(student.guardianName)),
                     DataCell(Text(_transportLabel(student))),

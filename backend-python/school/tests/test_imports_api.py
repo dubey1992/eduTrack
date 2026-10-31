@@ -118,8 +118,9 @@ class AGoodFile(ImportTest):
 
         student = Student.objects.get(admission_number="ADM-1")
 
-        self.assertIsNone(student.roll_number)
         self.assertIsNone(student.guardian_mobile)
+        # A blank roll number is the next free one instead (docs/onboarding.md).
+        self.assertEqual("1", student.roll_number)
 
     def test_a_trailing_blank_line_is_not_a_row(self):
         # What every spreadsheet leaves behind.

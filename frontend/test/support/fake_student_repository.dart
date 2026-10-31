@@ -1,6 +1,7 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/students/data/models/student.dart';
+import 'package:edutrack_app/features/students/data/models/student_class_group.dart';
 import 'package:edutrack_app/features/students/data/models/student_enrollment.dart';
 import 'package:edutrack_app/features/students/data/models/student_performance.dart';
 import 'package:edutrack_app/features/students/data/student_repository.dart';
@@ -18,6 +19,7 @@ class FakeStudentRepository implements StudentRepository {
     this.failListWith,
     this.failSetTransportWith,
     this.failWith = const {},
+    this.classGroups = const [],
   }) : _students = students ?? [],
        _enrollments = enrollments ?? [],
        _performance = performance ?? fakePerformance();
@@ -51,6 +53,15 @@ class FakeStudentRepository implements StudentRepository {
   /// Which status each list call asked for - null for "any".
   final List<String?> statusCalls = [];
 
+  /// What the Students page's class list answers with.
+  final List<StudentClassGroup> classGroups;
+
+  /// Which section each list call asked for - null for every student.
+  final List<int?> sectionCalls = [];
+
+  /// The sections renumbered, in order.
+  final List<int> renumberCalls = [];
+
   List<Student> _filtered({int? schoolId, String? search}) {
     var found = schoolId == null ? _students : _students.where((s) => s.schoolId == schoolId).toList();
 
@@ -81,9 +92,11 @@ class FakeStudentRepository implements StudentRepository {
   }) async {
     searchCalls.add(search);
     statusCalls.add(status);
+    sectionCalls.add(classSectionId);
     if (failListWith != null) throw failListWith!;
 
-    final rows = _filtered(schoolId: schoolId, search: search);
+    var rows = _filtered(schoolId: schoolId, search: search);
+    if (classSectionId != null) rows = rows.where((s) => s.classSectionId == classSectionId).toList();
 
     return paginateFake(
       status == null ? rows : rows.where((student) => student.status.apiValue == status).toList(),
@@ -303,6 +316,21 @@ class FakeStudentRepository implements StudentRepository {
     if (failure != null) throw failure;
 
     return List.unmodifiable(_enrollments);
+  }
+
+  @override
+  Future<List<StudentClassGroup>> classes({int? schoolId}) async {
+    calls.add('classes');
+    if (failWith['classes'] != null) throw failWith['classes']!;
+    return classGroups;
+  }
+
+  @override
+  Future<int> renumber(int sectionId) async {
+    calls.add('renumber');
+    if (failWith['renumber'] != null) throw failWith['renumber']!;
+    renumberCalls.add(sectionId);
+    return _students.where((s) => s.classSectionId == sectionId).length;
   }
 }
 

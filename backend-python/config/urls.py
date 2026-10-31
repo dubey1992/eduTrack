@@ -378,6 +378,9 @@ urlpatterns = [
     path("api/v1/demo-requests/<int:request_id>", demo_requests.detail),
     # -- students ----------------------------------------------------------
     path("api/v1/students", students.collection),
+    # The Students page by class and section (docs/onboarding.md).
+    path("api/v1/students/classes", students.classes),
+    path("api/v1/sections/<int:section_id>/renumber", students.renumber),
     path("api/v1/students/<int:student_id>", students.detail),
     path("api/v1/students/<int:student_id>/enrollments", students.enrollments),
     path("api/v1/students/<int:student_id>/activate", students.activate),

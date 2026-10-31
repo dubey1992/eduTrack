@@ -163,7 +163,10 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
                     Expanded(
                       child: TextFormField(
                         controller: _rollNumberController,
-                        decoration: const InputDecoration(labelText: 'Roll number (optional)'),
+                        decoration: const InputDecoration(
+                          labelText: 'Roll number',
+                          helperText: 'Blank: the next free number in the section',
+                        ),
                       ),
                     ),
                   ],

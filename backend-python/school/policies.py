@@ -1286,6 +1286,17 @@ class StudentPolicy:
     def set_status(cls, actor: User, student: Student) -> bool:
         return cls._manages(actor, student)
 
+    @staticmethod
+    def renumber(actor: User, section) -> bool:
+        """Renumbering a section is managing every student in it: the same
+        write permission, and a teacher only for their own section."""
+        school_id = section.school_class.school_id
+
+        if not permitted(actor, "students", write=True, school_id=school_id) or not in_scope(actor, school_id):
+            return False
+
+        return actor.role != UserRole.TEACHER or section.class_teacher_id == actor.id
+
     @classmethod
     def _manages(cls, actor: User, student: Student) -> bool:
         return permitted(actor, "students", write=True, school_id=student.school_id) and cls._reaches(

@@ -50,7 +50,9 @@ class PreviewTestCase(TestCase):
         return client
 
     def student_row(self, admission_number: str = "ADM-1", name: str = "Aarav") -> str:
-        return f"{admission_number},{name},Sharma,Grade 8,A,12,Meera Sharma,,"
+        # Blank roll numbers: each row gets the next free one, and a number
+        # typed twice in a section is refused (docs/onboarding.md).
+        return f"{admission_number},{name},Sharma,Grade 8,A,,Meera Sharma,,"
 
     def rows(self, response) -> list[dict]:
         return response.data["details"]["rows"]

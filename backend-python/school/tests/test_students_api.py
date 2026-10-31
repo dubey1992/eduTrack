@@ -380,7 +380,9 @@ class Admitting(StudentApiTest):
 
         self.assertEqual(201, response.status_code, response.data)
         self.assertIsNone(response.data["guardian_mobile"])
-        self.assertIsNone(response.data["roll_number"])
+        self.assertIsNone(response.data["address"])
+        # Except a roll number: blank is the next free one (docs/onboarding.md).
+        self.assertEqual("1", response.data["roll_number"])
 
     def test_a_name_that_is_a_number_is_refused(self):
         response = self.client.post("/api/v1/students", self.payload(first_name=123), format="json")
