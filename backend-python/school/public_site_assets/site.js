@@ -6,9 +6,18 @@
 // sees what follows the '#', so those now arrive at the homepage. This
 // sends them on to the same screen of the app, which lives at /app/.
 // Loaded first in <head>, so the homepage never flashes on the way.
+//
+// Checked again on 'hashchange': an address typed or pasted while a public
+// page is already open changes only the part after the '#', which does not
+// reload the page, so the first check never sees it.
 (function () {
-  var hash = window.location.hash;
-  if (hash.indexOf('#/') === 0) {
-    window.location.replace('/app/' + hash);
+  function forward() {
+    var hash = window.location.hash;
+    if (hash.indexOf('#/') === 0) {
+      window.location.replace('/app/' + hash);
+    }
   }
+
+  forward();
+  window.addEventListener('hashchange', forward);
 })();
