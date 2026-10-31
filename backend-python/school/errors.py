@@ -792,6 +792,17 @@ class PageLimitReached(ApiError):
         super().__init__(f"There can be at most {limit} website pages. Delete one you no longer need first.")
 
 
+class PageNeedsSummary(ApiError):
+    """A blog post or help article published with no summary: it is the
+    line its card shows in the blog or help list, and its search snippet."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "PAGE_NEEDS_SUMMARY"
+
+    def __init__(self) -> None:
+        super().__init__("Write a summary before publishing - it is the line shown under the title in the list.")
+
+
 class PageEmpty(ApiError):
     """A draft may be blank while somebody is still deciding; a published
     page may not - a visitor would land on a title and nothing under it."""

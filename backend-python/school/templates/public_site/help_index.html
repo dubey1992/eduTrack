@@ -1,0 +1,23 @@
+{% extends "public_site/base.html" %}
+{% block content %}
+<section class="section">
+  <div class="wrap">
+    <p class="eyebrow">Help Centre</p>
+    <h1>How can we help?</h1>
+    <p class="lead">Step-by-step help with School365ai, on the web and in the apps.</p>
+    <nav class="topic-links" aria-label="Topics">
+      {% for topic in topics %}<a href="#{{ topic.key }}">{{ topic.name }}</a>{% endfor %}
+    </nav>
+    {% for topic in topics %}
+    <section class="topic" id="{{ topic.key }}">
+      <h2>{{ topic.name }}</h2>
+      <ul class="cards help-cards">
+        {% for article in topic.articles %}
+        <li><a class="card module-card" href="{{ article.path }}"><h3>{{ article.title }}</h3><p>{{ article.summary }}</p><span class="more" aria-hidden="true">Read &rarr;</span></a></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

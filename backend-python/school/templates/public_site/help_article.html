@@ -1,0 +1,23 @@
+{% extends "public_site/base.html" %}
+{% block content %}
+<article class="section">
+  <div class="wrap prose">
+    <p class="crumbs small"><a href="/help">Help Centre</a>{% if article.topic_name %} &rsaquo; <a href="/help#{{ article.topic }}">{{ article.topic_name }}</a>{% endif %}</p>
+    <h1>{{ article.title }}</h1>
+    {% if article.date %}<p class="muted small">Last updated {{ article.date }}</p>{% endif %}
+    {{ body_html|safe }}
+  </div>
+</article>
+{% if related %}
+<section class="section tinted">
+  <div class="wrap">
+    <h2>More in {{ article.topic_name }}</h2>
+    <ul class="cards help-cards">
+      {% for other in related %}
+      <li><a class="card module-card" href="{{ other.path }}"><h3>{{ other.title }}</h3><p>{{ other.summary }}</p><span class="more" aria-hidden="true">Read &rarr;</span></a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

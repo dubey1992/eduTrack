@@ -367,6 +367,7 @@ urlpatterns = [
     path("api/v1/pages/<str:slug>", site_pages.public),
     path("api/v1/site-pages", site_pages.collection),
     path("api/v1/site-pages/<str:slug>/publish", site_pages.publish),
+    path("api/v1/site-pages/<str:slug>/cover", site_pages.cover),
     path("api/v1/site-pages/<str:slug>", site_pages.detail),
     path("api/v1/early-access", early_access.collection),
     path("api/v1/early-access/<int:request_id>", early_access.detail),

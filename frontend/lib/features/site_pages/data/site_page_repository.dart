@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -37,7 +39,7 @@ class SitePageRepository {
     });
   }
 
-  /// Every page. Not paginated: the server holds at most fifty.
+  /// Every page. Not paginated: the server holds a few hundred at most.
   Future<List<SitePageSummary>> list() {
     return _call(() async {
       final response = await _dio.get('/site-pages');
@@ -53,21 +55,75 @@ class SitePageRepository {
     });
   }
 
-  /// A new page, saved as a draft. Nobody can read it until it is published.
-  Future<SitePageDetail> create({required String slug, required String title, required String body}) {
+  /// A new page, blog post or help article, saved as a draft. Nobody can
+  /// read it until it is published.
+  Future<SitePageDetail> create({
+    required String slug,
+    required String title,
+    required String body,
+    SitePageKind kind = SitePageKind.page,
+    PageDetails details = const PageDetails(),
+  }) {
     return _call(() async {
-      final response = await _dio.post('/site-pages', data: {'slug': slug, 'title': title, 'body': body});
+      final response = await _dio.post(
+        '/site-pages',
+        data: {'slug': slug, 'title': title, 'body': body, 'kind': kind.apiValue, ...details.toJson()},
+      );
       return SitePageDetail.fromJson(response.data as Map<String, dynamic>);
     });
   }
 
   /// Saves the draft. A different [newSlug] moves the page to that address
   /// at once - unlike the words, an address is not drafted.
-  Future<SitePageDetail> save(String slug, {required String newSlug, required String title, required String body}) {
+  Future<SitePageDetail> save(
+    String slug, {
+    required String newSlug,
+    required String title,
+    required String body,
+    PageDetails details = const PageDetails(),
+  }) {
     return _call(() async {
-      final response = await _dio.put('/site-pages/$slug', data: {'slug': newSlug, 'title': title, 'body': body});
+      final response = await _dio.put(
+        '/site-pages/$slug',
+        data: {'slug': newSlug, 'title': title, 'body': body, ...details.toJson()},
+      );
       return SitePageDetail.fromJson(response.data as Map<String, dynamic>);
     });
+  }
+
+  /// A blog post's new cover image. Checked and re-saved by the server, and
+  /// a draft like the text: visitors see it once the post is published.
+  Future<SitePageDetail> uploadCover(String slug, {required List<int> bytes, required String fileName}) {
+    return _call(() async {
+      final response = await _dio.post(
+        '/site-pages/$slug/cover',
+        data: FormData.fromMap({'cover': MultipartFile.fromBytes(bytes, filename: fileName)}),
+      );
+      return SitePageDetail.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  Future<SitePageDetail> removeCover(String slug) {
+    return _call(() async {
+      final response = await _dio.delete('/site-pages/$slug/cover');
+      return SitePageDetail.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  /// The draft cover's bytes, for the editor's preview; null when there is
+  /// none. Fetched through the API, signed in, because drafts are private.
+  Future<Uint8List?> coverBytes(String slug) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        '/site-pages/$slug/cover',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final data = response.data;
+      return data == null ? null : Uint8List.fromList(data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      throw failureFromDioException(e);
+    }
   }
 
   Future<SitePageDetail> publish(String slug) {
@@ -80,4 +136,16 @@ class SitePageRepository {
   Future<void> delete(String slug) {
     return _call(() => _dio.delete('/site-pages/$slug'));
   }
+}
+
+/// The details a blog post or help article carries beyond its words. Each
+/// field left null is left out, so a plain page sends none of them.
+class PageDetails {
+  const PageDetails({this.summary, this.author, this.topic});
+
+  final String? summary;
+  final String? author;
+  final String? topic;
+
+  Map<String, String> toJson() => {'summary': ?summary, 'author': ?author, 'topic': ?topic};
 }

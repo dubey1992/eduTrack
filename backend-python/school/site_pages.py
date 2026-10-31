@@ -37,7 +37,9 @@ from . import marketing, module_pages
 
 # The whole website, built-ins included. Bounded so the Super Admin's list
 # never needs paging and the footer never needs a scroll bar.
-MAX_PAGES = 50
+# A blog and a help centre are many pages, so the limit is about a runaway
+# script rather than a tidy editor (docs/seo.md, S5).
+MAX_PAGES = 300
 
 MAX_TITLE = 120
 
@@ -74,10 +76,47 @@ RESERVED_SLUGS = frozenset(
         "homepage-content", "site-pages", "profile", "module-settings", "permissions",
         # The public site's own sections and routes.
         "pages", "features", "for-schools", "mobile-app", "contact",
+        # The blog and help centre's own addresses (docs/seo.md, S5).
+        "blog", "help", "site",
         # What the web server answers before Flutter ever sees the address.
         "api", "assets", "canvaskit", "icons", "index", "admin", "www", "404",
     }
 )
+
+
+# -- kinds (docs/seo.md, S5) ----------------------------------------------------
+
+PAGE = "page"
+POST = "post"
+HELP = "help"
+KINDS = (PAGE, POST, HELP)
+
+# Where each kind is read: /about, /blog/<slug>, /help/<slug>.
+PREFIX = {PAGE: "", POST: "blog/", HELP: "help/"}
+
+DEFAULT_AUTHOR = "School365ai Team"
+MAX_SUMMARY = 300
+MAX_AUTHOR = 100
+
+# The help centre's sections, in the order its home page lists them.
+HELP_TOPICS: tuple[tuple[str, str], ...] = (
+    ("getting-started", "Getting started"),
+    ("attendance", "Attendance"),
+    ("fees", "Fees"),
+    ("transport", "School transport"),
+    ("teaching", "Timetable and teaching"),
+    ("tests", "Tests and progress reports"),
+    ("staff", "Staff, leave and payroll"),
+    ("communication", "Communication"),
+    ("apps", "The mobile apps"),
+    ("account", "Your account"),
+)
+TOPIC_NAMES = dict(HELP_TOPICS)
+
+
+def path_of(kind: str, slug: str) -> str:
+    """Where a page of this kind is read: "/about", "/blog/x", "/help/y"."""
+    return "/" + PREFIX.get(kind, "") + slug
 
 
 @dataclass(frozen=True)

@@ -2315,9 +2315,17 @@ class SitePageRequest(serializers.Serializer):
         trim_whitespace=False,
         error_messages={"invalid": "The page text must be text.", "null": "The page text must be text."},
     )
+    # A page, blog post or help article (docs/seo.md, S5): chosen when the
+    # page is created, and fixed after that - the kind decides its address.
+    kind = LaravelCharField("kind", max_length=10, required=False)
+    summary = optional_text("summary", site_pages.MAX_SUMMARY)
+    author = optional_text("author", site_pages.MAX_AUTHOR)
+    topic = optional_text("topic", 40)
 
-    def __init__(self, *args, current: str | None = None, **kwargs) -> None:
+    def __init__(self, *args, current: str | None = None, kind: str | None = None, **kwargs) -> None:
         self.current = current
+        # The kind of the page being saved; None when creating one.
+        self.page_kind = kind
 
         data = kwargs.get("data")
 
@@ -2325,7 +2333,7 @@ class SitePageRequest(serializers.Serializer):
             data = dict(data)
             # Trimmed here rather than by normalise(), which would also turn
             # an empty body into null and trim the page's own whitespace.
-            for key in ("slug", "title"):
+            for key in ("slug", "title", "kind", "summary", "author", "topic"):
                 if isinstance(data.get(key), str):
                     data[key] = data[key].strip()
             kwargs["data"] = data
@@ -2351,6 +2359,39 @@ class SitePageRequest(serializers.Serializer):
             raise serializers.ValidationError("That address is already used by another page.")
 
         return value
+
+    def validate(self, attrs):
+        """The details each kind carries, and only those."""
+        errors = {}
+        creating = self.page_kind is None
+        kind = attrs.get("kind") or site_pages.PAGE if creating else self.page_kind
+
+        if creating:
+            if kind not in site_pages.KINDS:
+                errors["kind"] = ["A page is a page, a blog post or a help article."]
+            attrs["kind"] = kind
+        else:
+            # Fixed once created: a post moving to /help/ would break every
+            # link to it.
+            attrs.pop("kind", None)
+
+        if kind == site_pages.POST:
+            if creating or "author" in attrs:
+                attrs["author"] = attrs.get("author") or site_pages.DEFAULT_AUTHOR
+        else:
+            attrs["author"] = None
+
+        if kind == site_pages.HELP:
+            topic = attrs.get("topic")
+            if (creating or "topic" in attrs) and topic not in site_pages.TOPIC_NAMES:
+                errors["topic"] = ["Choose the help centre topic this article belongs under."]
+        else:
+            attrs["topic"] = None
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
     def validate_body(self, value: str) -> str:
         # One kind of line ending, so the client's line-based reading and

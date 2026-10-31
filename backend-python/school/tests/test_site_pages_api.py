@@ -57,12 +57,12 @@ class WhoMayDoWhat(TestCase):
 
         self.assertEqual(200, client.get(ADMIN).status_code)
         self.assertEqual(
-            201, client.post(ADMIN, {"slug": "help", "title": "Help", "body": "Ask."}, format="json").status_code
+            201, client.post(ADMIN, {"slug": "faq-page", "title": "Help", "body": "Ask."}, format="json").status_code
         )
-        self.assertEqual(200, client.get(detail("help")).status_code)
-        self.assertEqual(200, client.put(detail("help"), {"title": "Help", "body": "Ask us."}, format="json").status_code)
-        self.assertEqual(200, client.post(publish_url("help")).status_code)
-        self.assertEqual(204, client.delete(detail("help")).status_code)
+        self.assertEqual(200, client.get(detail("faq-page")).status_code)
+        self.assertEqual(200, client.put(detail("faq-page"), {"title": "Help", "body": "Ask us."}, format="json").status_code)
+        self.assertEqual(200, client.post(publish_url("faq-page")).status_code)
+        self.assertEqual(204, client.delete(detail("faq-page")).status_code)
 
     def test_nobody_else_may_touch_the_editor(self):
         """A school administrator runs their own school; the product's own
@@ -161,7 +161,7 @@ class TheBuiltInPagesByDefault(TestCase):
 
         self.assertEqual(["about", "privacy", "terms", *modules, "zeta", "alpha"], [page["slug"] for page in data])
         self.assertEqual(
-            {"slug", "title", "built_in", "is_live", "published_at", "has_unpublished_changes", "updated_at"},
+            {"slug", "title", "kind", "path", "built_in", "is_live", "published_at", "has_unpublished_changes", "updated_at"},
             set(data[0]),
         )
         self.assertEqual([True] * built_ins + [False, False], [page["built_in"] for page in data])
@@ -224,7 +224,7 @@ class CreatingAPage(TestCase):
         self.assertEqual("settings", entry.module)
         self.assertEqual("site_page", entry.entity_type)
         self.assertEqual(SitePage.objects.get(slug="careers").pk, entry.entity_id)
-        self.assertEqual({"slug": "careers", "title": "Careers", "body": "Join us."}, entry.new_values)
+        self.assertEqual({"slug": "careers", "kind": "page", "title": "Careers", "body": "Join us."}, entry.new_values)
 
     def test_an_address_asked_for_before_it_existed_is_not_stuck_as_missing(self):
         """The 404 is cached; creating and publishing must clear it."""
@@ -328,7 +328,7 @@ class CreatingAPage(TestCase):
         self.assertEqual(["The page text must be 100,000 characters or fewer - it is 100,001."], errors)
         self.assertEqual(201, self.create(slug="long", title="Long", body="x" * site_pages.MAX_BODY).status_code)
 
-    def test_fifty_pages_is_the_limit_built_ins_included(self):
+    def test_the_page_limit_counts_the_built_ins(self):
         now = timezone.now()
         SitePage.objects.bulk_create(
             SitePage(slug=f"page-{n}", title=f"Page {n}", body="", created_at=now, updated_at=now) for n in range(site_pages.MAX_PAGES - len(site_pages.BUILT_IN_SLUGS))
@@ -339,7 +339,8 @@ class CreatingAPage(TestCase):
         self.assertEqual(409, response.status_code)
         self.assertEqual("PAGE_LIMIT_REACHED", response.data["code"])
         self.assertEqual(
-            "There can be at most 50 website pages. Delete one you no longer need first.", response.data["message"]
+            f"There can be at most {site_pages.MAX_PAGES} website pages. Delete one you no longer need first.",
+            response.data["message"],
         )
 
     def test_a_saved_built_in_is_not_counted_twice(self):
@@ -479,8 +480,8 @@ class SavingAndPublishing(TestCase):
 
         self.assertEqual(
             {
-                "slug", "title", "built_in", "is_live", "published_at", "has_unpublished_changes", "updated_at",
-                "body", "published_title", "published_body",
+                "slug", "title", "kind", "path", "built_in", "is_live", "published_at", "has_unpublished_changes",
+                "updated_at", "body", "summary", "author", "topic", "has_cover", "published_title", "published_body",
             },
             set(page),
         )

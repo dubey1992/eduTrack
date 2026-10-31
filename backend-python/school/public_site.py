@@ -13,6 +13,9 @@ undoes the publish.
     index.html               the homepage
     404.html                 page not found (the web server answers 404 with it)
     site/pages/<slug>.html   each published Website Page, served at /<slug>
+    site/blog/index.html     the blog, served at /blog; each post at /blog/<slug>
+    site/help/index.html     the help centre, at /help; each article at /help/<slug>
+    site/covers/...          the published blog posts' cover images
     site/site.css, site.js   the pages' styles, and the old-link forwarder
     sitemap.xml, robots.txt  for crawlers
     favicon.png, og-image.png
@@ -24,24 +27,29 @@ default - and nothing is written.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 
-from . import dates, site_markup
+from . import dates, photos, site_markup
+from . import site_pages as kinds
 from .marketing_copy import Words
 
 logger = logging.getLogger(__name__)
 
 ASSETS = Path(__file__).resolve().parent / "public_site_assets"
 PAGES_DIR = Path("site") / "pages"
+BLOG_DIR = Path("site") / "blog"
+HELP_DIR = Path("site") / "help"
+COVERS_DIR = Path("site") / "covers"
 
 # Where the app lives, under the same domain.
 APP = "/app/"
@@ -80,10 +88,27 @@ class PublicPage:
     published_at: object
     # Set on a page about one part of the product (school/module_pages.py).
     blurb: str | None = None
+    # A page, blog post or help article, and what those carry (docs/seo.md, S5).
+    kind: str = kinds.PAGE
+    summary: str | None = None
+    author: str | None = None
+    topic: str | None = None
+    # A published post's cover, in the private media storage; and where the
+    # build put its public copy.
+    cover_path: str | None = None
+    cover_url: str | None = None
 
     @property
     def path(self) -> str:
-        return f"/{self.slug}"
+        return kinds.path_of(self.kind, self.slug)
+
+    @property
+    def date(self) -> str | None:
+        return dates.us(self.published_at) if self.published_at else None
+
+    @property
+    def topic_name(self) -> str:
+        return kinds.TOPIC_NAMES.get(self.topic or "", "")
 
 
 def rebuild() -> str | None:
@@ -107,13 +132,21 @@ def build(root: Path, server_files: bool = False) -> list[str]:
     from .views import marketing_content, site_pages
 
     document = marketing_content.published()
-    pages = [
-        PublicPage(page.slug, page.published_title, page.published_body, page.published_at, blurb_of(page.slug))
+    published = [
+        PublicPage(
+            page.slug, page.published_title, page.published_body, page.published_at, blurb_of(page.slug),
+            kind=page.kind, summary=page.published_summary, author=page.published_author,
+            topic=page.published_topic, cover_path=page.published_cover_path,
+        )
         for page in site_pages.every_page()
         if page.is_live
     ]
+    pages = [page for page in published if page.kind == kinds.PAGE]
+    # Newest first: a blog is read from the top.
+    posts = sorted((page for page in published if page.kind == kinds.POST), key=newest_first)
+    articles = [page for page in published if page.kind == kinds.HELP]
     modules = [page for page in pages if page.blurb]
-    live = {page.slug for page in pages}
+    live = {page.slug for page in pages} | ({"blog"} if posts else set()) | ({"help"} if articles else set())
     written: list[str] = []
 
     def write(relative: Path | str, content: str | bytes) -> None:
@@ -135,8 +168,46 @@ def build(root: Path, server_files: bool = False) -> list[str]:
         if stale.stem not in live:
             stale.unlink()
 
+    # -- the blog (docs/seo.md, S5) --
+    covers = set()
+    with_covers = []
+    for post in posts:
+        stored = photos.read(post.cover_path) if post.cover_path else None
+        if stored is not None:
+            data, content_type = stored
+            # Named by what is in it, so a new cover is a new address and no
+            # browser keeps showing the old one.
+            extension = "png" if content_type == "image/png" else "jpg"
+            name = f"{post.slug}-{hashlib.sha256(data).hexdigest()[:12]}.{extension}"
+            write(COVERS_DIR / name, data)
+            covers.add(name)
+            post = replace(post, cover_url=f"/{COVERS_DIR.as_posix()}/{name}")
+        with_covers.append(post)
+    posts = with_covers
+
+    for post in posts:
+        write(BLOG_DIR / f"{post.slug}.html", render_post(post, posts, words, live))
+    if posts:
+        write(BLOG_DIR / "index.html", render_blog(posts, words, live))
+
+    # -- the help centre --
+    for article in articles:
+        write(HELP_DIR / f"{article.slug}.html", render_article(article, articles, words, live))
+    if articles:
+        write(HELP_DIR / "index.html", render_help(articles, words, live))
+
+    keep = {
+        BLOG_DIR: {f"{post.slug}.html" for post in posts} | ({"index.html"} if posts else set()),
+        HELP_DIR: {f"{article.slug}.html" for article in articles} | ({"index.html"} if articles else set()),
+        COVERS_DIR: covers,
+    }
+    for folder, names in keep.items():
+        for stale in (root / folder).glob("*"):
+            if stale.is_file() and stale.name not in names:
+                stale.unlink()
+
     write("404.html", render_not_found(words, live))
-    write("sitemap.xml", render_sitemap(pages))
+    write("sitemap.xml", render_sitemap(pages, posts, articles))
     write("robots.txt", render_robots())
 
     for name in ("site.css", "site.js"):
@@ -149,6 +220,10 @@ def build(root: Path, server_files: bool = False) -> list[str]:
         write(".htaccess", (ASSETS / "htaccess").read_bytes())
 
     return written
+
+
+def newest_first(page: PublicPage):
+    return -(page.published_at.timestamp() if page.published_at else 0), page.title.lower()
 
 
 def blurb_of(slug: str) -> str | None:
@@ -335,6 +410,87 @@ def render_page(page: PublicPage, words: Words, live: set[str], modules: list[Pu
     )
 
 
+def render_blog(posts: list[PublicPage], words: Words, live: set[str]) -> str:
+    return render_to_string(
+        "public_site/blog_index.html",
+        {
+            **shared(words, live),
+            "canonical": site_url() + "/blog",
+            "title": "Blog - School365ai",
+            "description": "Ideas and practical advice on running a school: attendance, fees, school transport, "
+                           "teaching and keeping families informed.",
+            "posts": posts,
+            "structured_data": structured([
+                {"@type": "Blog", "name": "School365ai Blog", "url": site_url() + "/blog"},
+            ]),
+        },
+    )
+
+
+def render_post(post: PublicPage, posts: list[PublicPage], words: Words, live: set[str]) -> str:
+    return render_to_string(
+        "public_site/post.html",
+        {
+            **shared(words, live),
+            "canonical": site_url() + post.path,
+            "title": f"{post.title} - School365ai",
+            "description": post.summary or summary(post.body),
+            "og_image": site_url() + post.cover_url if post.cover_url else None,
+            "og_type": "article",
+            "post": post,
+            "body_html": site_markup.to_html(post.body),
+            "more": [other for other in posts if other.slug != post.slug][:3],
+            "structured_data": structured([
+                breadcrumbs(post, ("Blog", "/blog")),
+                article_data(post, "BlogPosting"),
+            ]),
+        },
+    )
+
+
+def render_help(articles: list[PublicPage], words: Words, live: set[str]) -> str:
+    topics = [
+        {"key": key, "name": name, "articles": sorted(
+            (article for article in articles if article.topic == key), key=lambda article: article.title.lower()
+        )}
+        for key, name in kinds.HELP_TOPICS
+    ]
+
+    return render_to_string(
+        "public_site/help_index.html",
+        {
+            **shared(words, live),
+            "canonical": site_url() + "/help",
+            "title": "Help Centre - School365ai",
+            "description": "Step-by-step help with School365ai: setting up a school, attendance, fees, "
+                           "school transport, teaching reports, the staff and Driver apps, and more.",
+            "topics": [topic for topic in topics if topic["articles"]],
+        },
+    )
+
+
+def render_article(article: PublicPage, articles: list[PublicPage], words: Words, live: set[str]) -> str:
+    return render_to_string(
+        "public_site/help_article.html",
+        {
+            **shared(words, live),
+            "canonical": site_url() + article.path,
+            "title": f"{article.title} - School365ai Help",
+            "description": article.summary or summary(article.body),
+            "article": article,
+            "body_html": site_markup.to_html(article.body),
+            "related": sorted(
+                (other for other in articles if other.topic == article.topic and other.slug != article.slug),
+                key=lambda other: other.title.lower(),
+            ),
+            "structured_data": structured([
+                breadcrumbs(article, ("Help Centre", "/help")),
+                article_data(article, "Article"),
+            ]),
+        },
+    )
+
+
 def render_not_found(words: Words, live: set[str]) -> str:
     return render_to_string(
         "public_site/not_found.html",
@@ -390,14 +546,49 @@ def product() -> dict:
     }
 
 
-def breadcrumbs(page: PublicPage) -> dict:
+def breadcrumbs(page: PublicPage, *between: tuple[str, str]) -> dict:
+    """Home, then [between] (name, path), then the page itself."""
+    trail = [("Home", "/"), *between, (page.title, page.path)]
+
     return {
         "@type": "BreadcrumbList",
         "itemListElement": [
-            {"@type": "ListItem", "position": 1, "name": "Home", "item": site_url() + "/"},
-            {"@type": "ListItem", "position": 2, "name": page.title, "item": site_url() + page.path},
+            {"@type": "ListItem", "position": n, "name": name, "item": site_url() + path}
+            for n, (name, path) in enumerate(trail, start=1)
         ],
     }
+
+
+def article_data(page: PublicPage, kind: str) -> dict:
+    """A blog post as a BlogPosting, a help article as an Article."""
+    publisher = {
+        "@type": "Organization",
+        "name": "School365ai",
+        "logo": {"@type": "ImageObject", "url": site_url() + "/logo.png"},
+    }
+    data = {
+        "@type": kind,
+        "headline": page.title,
+        "description": page.summary or summary(page.body),
+        "mainEntityOfPage": site_url() + page.path,
+        "publisher": publisher,
+        "image": site_url() + (page.cover_url or "/og-image.png"),
+    }
+
+    if page.published_at:
+        data["datePublished"] = page.published_at.isoformat()
+
+    if page.author:
+        # The team is the organisation; anybody else is a person.
+        data["author"] = (
+            {"@type": "Organization", "name": page.author, "url": site_url() + "/"}
+            if page.author == kinds.DEFAULT_AUTHOR
+            else {"@type": "Person", "name": page.author}
+        )
+    else:
+        data["author"] = {"@type": "Organization", "name": "School365ai", "url": site_url() + "/"}
+
+    return data
 
 
 def faq(pairs: list[tuple[str, str]]) -> dict:
@@ -458,12 +649,21 @@ def plain(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def render_sitemap(pages: list[PublicPage]) -> str:
-    entries = [{"loc": site_url() + "/", "lastmod": None}]
-    entries += [
-        {"loc": site_url() + page.path, "lastmod": page.published_at.date().isoformat() if page.published_at else None}
-        for page in pages
-    ]
+def render_sitemap(pages: list[PublicPage], posts=(), articles=()) -> str:
+    def entry(path: str, page: PublicPage | None = None) -> dict:
+        published = page.published_at if page else None
+        return {"loc": site_url() + path, "lastmod": published.date().isoformat() if published else None}
+
+    entries = [entry("/")]
+    entries += [entry(page.path, page) for page in pages]
+
+    if posts:
+        entries.append(entry("/blog", posts[0]))
+        entries += [entry(post.path, post) for post in posts]
+
+    if articles:
+        entries.append(entry("/help"))
+        entries += [entry(article.path, article) for article in articles]
 
     return render_to_string("public_site/sitemap.xml", {"entries": entries})
 

@@ -49,6 +49,7 @@ import '../../features/biometric/presentation/device_list_screen.dart';
 import '../../features/schools/presentation/school_detail_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
 import '../../features/site_pages/presentation/site_page_screen.dart';
+import '../../features/site_pages/data/models/site_page.dart';
 import '../../features/site_pages/presentation/site_pages_screen.dart';
 import '../../features/staff/presentation/staff_list_screen.dart';
 import '../../features/staff_attendance/presentation/staff_attendance_screen.dart';
@@ -349,6 +350,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => SitePagesScreen(
               editing: state.uri.queryParameters['page'],
               creating: state.uri.queryParameters['new'] != null,
+              // ?new=post or ?new=help starts on that kind; ?new=1 on a page.
+              newKind: SitePageKind.fromApiValue(state.uri.queryParameters['new']),
             ),
           ),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),

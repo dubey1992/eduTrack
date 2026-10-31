@@ -41,16 +41,18 @@ class PhotoRejected(Exception):
     """The upload is not a photo we will keep. The message is for the person."""
 
 
-def prepare(upload) -> tuple[bytes, str]:
+def prepare(upload, *, max_side: int = MAX_SIDE, max_bytes: int = MAX_BYTES, noun: str = "photo") -> tuple[bytes, str]:
     """The upload, checked and re-encoded: (bytes, extension).
 
-    Raises PhotoRejected with a sentence the person can act on.
+    [max_side] and [max_bytes] are a profile photo's unless given; a blog
+    post's cover is larger (school/views/site_pages.py). [noun] names it in
+    the refusals. Raises PhotoRejected with a sentence the person can act on.
     """
     if upload is None:
-        raise PhotoRejected("Choose a photo to upload.")
+        raise PhotoRejected(f"Choose {_article(noun)} {noun} to upload.")
 
-    if upload.size > MAX_BYTES:
-        raise PhotoRejected("The photo must be 2 MB or smaller.")
+    if upload.size > max_bytes:
+        raise PhotoRejected(f"The {noun} must be {max_bytes // (1024 * 1024)} MB or smaller.")
 
     raw = upload.read()
 
@@ -62,17 +64,17 @@ def prepare(upload) -> tuple[bytes, str]:
         image = Image.open(io.BytesIO(raw))
         image.load()
     except (UnidentifiedImageError, OSError, SyntaxError, Image.DecompressionBombError):
-        raise PhotoRejected("The photo must be a JPEG or PNG image.")
+        raise PhotoRejected(f"The {noun} must be a JPEG or PNG image.")
 
     if image.format not in ACCEPTED:
-        raise PhotoRejected("The photo must be a JPEG or PNG image.")
+        raise PhotoRejected(f"The {noun} must be a JPEG or PNG image.")
 
     _content_type, extension = ACCEPTED[image.format]
 
     # A phone photo is often stored sideways with a note saying which way
     # is up; that note is about to be dropped, so the turn is applied first.
     image = ImageOps.exif_transpose(image)
-    image.thumbnail((MAX_SIDE, MAX_SIDE))
+    image.thumbnail((max_side, max_side))
 
     out = io.BytesIO()
 
@@ -84,9 +86,13 @@ def prepare(upload) -> tuple[bytes, str]:
     return out.getvalue(), extension
 
 
-def store(data: bytes, extension: str) -> str:
+def store(data: bytes, extension: str, folder: str = FOLDER) -> str:
     """Saves the prepared bytes under a fresh random name; returns the path."""
-    return default_storage.save(f"{FOLDER}/{uuid.uuid4().hex}.{extension}", ContentFile(data))
+    return default_storage.save(f"{folder}/{uuid.uuid4().hex}.{extension}", ContentFile(data))
+
+
+def _article(noun: str) -> str:
+    return "an" if noun[:1] in "aeiou" else "a"
 
 
 def remove(path: str | None) -> None:

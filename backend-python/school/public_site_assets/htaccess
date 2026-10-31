@@ -30,6 +30,13 @@
   # The homepage's sections, by the addresses the old site used.
   RewriteRule ^(features|for-schools|mobile-app|contact)/?$ /#$1 [R=301,NE,L]
 
+  # The blog and the help centre (docs/seo.md, S5): their front pages, and
+  # each post or article from the file the server wrote for it.
+  RewriteCond %{DOCUMENT_ROOT}/site/$1/index.html -f
+  RewriteRule ^(blog|help)/?$ /site/$1/index.html [L]
+  RewriteCond %{DOCUMENT_ROOT}/site/$1/$2.html -f
+  RewriteRule ^(blog|help)/([a-z0-9]+(-[a-z0-9]+)*)/?$ /site/$1/$2.html [L]
+
   # A published website page answers at its own plain address -
   # school365ai.com/about - from the file the server wrote for it. One that
   # does not exist falls through to the 404 below: a real "not found", not

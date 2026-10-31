@@ -93,7 +93,7 @@ keeps working. New emails will link to `/app/#/...` directly.
 | S2 | Static public site (**built 2026-10-30**) | See "S2 as built" below. This is the change that makes ranking possible. |
 | S3 | Pages that match searches (**built 2026-10-31**) | See "S3 as built" below. |
 | S4 | Structured data and FAQs (**built 2026-10-31**) | See "S4 as built" below. |
-| S5 | Blog and help centre | Website Pages gain a "Blog post" kind (date, author, summary, cover image) and a `/blog` index; help articles at `/help/...`. Written content is what earns links and long-tail searches ("how to track school bus attendance", "school fee receipt format"). |
+| S5 | Blog and help centre (**built 2026-10-31**) | See "S5 as built" below. |
 | S6 | Measure | Google Search Console and Bing Webmaster Tools verified (a DNS or meta-tag step), the sitemap submitted, indexing and search terms watched. Visitor analytics is a separate decision (see below). |
 
 ## S1 as built (2026-10-30)
@@ -202,6 +202,43 @@ keeps working. New emails will link to `/app/#/...` directly.
   searches and answer boxes - rather than as a results-page drop-down.
 - `<` is escaped inside every JSON-LD block, so typed text cannot end the
   script early.
+
+## S5 as built (2026-10-31)
+
+Decided with the user: a cover image per post, a typed author ("School365ai
+Team" by default), a help centre grouped by topic, and starter content -
+help articles published, blog posts as drafts for the user to review.
+
+- **Website Pages have a kind**: page, blog post or help article, chosen when
+  created and fixed after (the kind decides the address). Migration
+  `2026_11_09_090000_add_kinds_to_site_pages_table` adds `kind` and a draft
+  and published copy of each new detail - `summary` (required to publish a
+  post or article), `author` (posts), `topic` (help, from
+  `site_pages.HELP_TOPICS`) and `cover_path` (posts) - so editing a live post
+  changes nothing visitors see until it is published.
+- **Addresses**: `/blog` and `/blog/<slug>`; `/help` and `/help/<slug>`. `blog`,
+  `help` and `site` are reserved page addresses. Footer links to /blog and
+  /help appear once there is a published post or article. The page limit is
+  now 300.
+- **Covers**: `POST/DELETE/GET /site-pages/<slug>/cover`, Super Admin only.
+  Decoded and re-encoded like profile photos (up to 1600px, 5 MB), stored
+  privately; the build copies the published one to `site/covers/` under a
+  name made from its contents, so a new cover is a new address. A post
+  without one uses the School365ai share card.
+- **Public pages**: the blog lists posts newest first with covers; a post
+  shows its byline, date and cover, invites a demo and links three more
+  posts. The help centre groups articles under their topics; an article
+  links back to its topic and lists the rest of that topic. All are in the
+  sitemap, with `BlogPosting` / `Article` and breadcrumb structured data.
+- **Editor**: Website Pages filters by kind; "New" makes whichever kind is
+  shown; a post asks for a summary, an author and (once saved) a cover; an
+  article asks for a summary and a topic.
+- **Starter content**: 13 help articles (published) and 3 blog posts
+  (drafts), as Markdown files in `backend/database/content/site-pages/`,
+  inserted once by `2026_11_09_100000_add_starter_help_and_blog_pages`. Once,
+  so a deleted draft stays deleted; an address already taken is skipped.
+  Every screen and button they name was checked against the app's code, and
+  `test_starter_content.py` checks each file against the editor's rules.
 
 ## Content notes
 

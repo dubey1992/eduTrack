@@ -950,6 +950,17 @@ class SitePage(models.Model):
     )
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
+    # A page, a blog post or a help article (docs/seo.md, S5). Each detail
+    # below has a draft and a published copy, like the title and body.
+    kind = models.CharField(max_length=10, default='page')
+    summary = models.CharField(max_length=300, blank=True, null=True)
+    published_summary = models.CharField(max_length=300, blank=True, null=True)
+    author = models.CharField(max_length=100, blank=True, null=True)
+    published_author = models.CharField(max_length=100, blank=True, null=True)
+    topic = models.CharField(max_length=40, blank=True, null=True)
+    published_topic = models.CharField(max_length=40, blank=True, null=True)
+    cover_path = models.CharField(max_length=255, blank=True, null=True)
+    published_cover_path = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         managed = False

@@ -206,3 +206,26 @@ section[id], #contact { scroll-margin-top: 80px; }
 .prose ul { padding-left: 1.2em; }
 .prose li { margin-bottom: 6px; }
 
+
+/* -- the blog and the help centre (docs/seo.md, S5) -------------------------- */
+
+.crumbs { margin: 0 0 8px; }
+.crumbs a { text-decoration: none; font-weight: 600; }
+.byline { margin-top: -4px; }
+.post-hero { display: block; width: 100%; max-width: 100%; height: auto; aspect-ratio: 1200 / 630; object-fit: cover; border-radius: 14px; margin: 8px 0 24px; background: var(--primary-light); }
+
+.posts { list-style: none; padding: 0; margin: 28px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.post-card { display: flex; flex-direction: column; height: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; color: var(--text); text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+.post-card:hover { border-color: var(--primary); box-shadow: 0 8px 24px rgba(37, 99, 235, .12); }
+.post-cover { display: block; width: 100%; aspect-ratio: 1200 / 630; object-fit: cover; background: var(--primary-light); }
+.post-cover.placeholder { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
+.post-text { display: grid; gap: 6px; padding: 18px; }
+.post-text h2, .post-text h3 { font-size: 1.15rem; margin: 0; }
+.post-summary { color: var(--muted); font-size: .95rem; }
+
+.topic-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 8px; }
+.topic-links a { padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); text-decoration: none; font-size: .9rem; font-weight: 600; }
+.topic-links a:hover { border-color: var(--primary); }
+.topic { margin-top: 36px; scroll-margin-top: 80px; }
+.topic h2 { font-size: 1.4rem; }
+.cards.help-cards { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: 16px; }

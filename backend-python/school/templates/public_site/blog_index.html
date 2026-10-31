@@ -1,0 +1,24 @@
+{% extends "public_site/base.html" %}
+{% block content %}
+<section class="section">
+  <div class="wrap">
+    <p class="eyebrow">Blog</p>
+    <h1>Ideas for running a school well</h1>
+    <p class="lead">Practical advice on attendance, fees, school transport, teaching and keeping families informed.</p>
+    <ul class="posts">
+      {% for post in posts %}
+      <li>
+        <a class="post-card" href="{{ post.path }}">
+          {% if post.cover_url %}<img class="post-cover" src="{{ post.cover_url }}" alt="" loading="lazy">{% else %}<span class="post-cover placeholder" aria-hidden="true"></span>{% endif %}
+          <span class="post-text">
+            <span class="muted small">{{ post.date }}{% if post.author %} &middot; {{ post.author }}{% endif %}</span>
+            <h2>{{ post.title }}</h2>
+            <span class="post-summary">{{ post.summary }}</span>
+          </span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "public_site/base.html" %}
+{% block content %}
+<article class="section">
+  <div class="wrap prose">
+    <p class="crumbs small"><a href="/blog">Blog</a></p>
+    <h1>{{ post.title }}</h1>
+    <p class="muted small byline">{% if post.author %}By {{ post.author }} &middot; {% endif %}{{ post.date }}</p>
+    {% if post.cover_url %}<img class="post-hero" src="{{ post.cover_url }}" alt="">{% endif %}
+    {{ body_html|safe }}
+  </div>
+</article>
+<section class="band">
+  <div class="wrap narrow">
+    <h2>See School365ai with your own school's day</h2>
+    <p>Book a walkthrough and we will show you how it works for a school like yours.</p>
+    <div class="actions">
+      <a class="button light large" href="{{ demo_href }}">Request a Demo</a>
+      <a class="button on-band large" href="{{ join_href }}">Join Early Access</a>
+    </div>
+  </div>
+</section>
+{% if more %}
+<section class="section">
+  <div class="wrap">
+    <h2>More from the blog</h2>
+    <ul class="posts">
+      {% for other in more %}
+      <li>
+        <a class="post-card" href="{{ other.path }}">
+          {% if other.cover_url %}<img class="post-cover" src="{{ other.cover_url }}" alt="" loading="lazy">{% else %}<span class="post-cover placeholder" aria-hidden="true"></span>{% endif %}
+          <span class="post-text">
+            <span class="muted small">{{ other.date }}</span>
+            <h3>{{ other.title }}</h3>
+            <span class="post-summary">{{ other.summary }}</span>
+          </span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

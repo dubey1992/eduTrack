@@ -57,10 +57,10 @@ class TheHomepageKnowsWhichPagesExist(TestCase):
         self.assertIn("careers", self.pages())
 
     def test_a_deleted_page_leaves_the_list(self):
-        self.root.post("/api/v1/site-pages", {"slug": "blog", "title": "Blog", "body": "News."}, format="json")
-        self.root.post("/api/v1/site-pages/blog/publish")
-        self.assertIn("blog", self.pages())
+        self.root.post("/api/v1/site-pages", {"slug": "news", "title": "Blog", "body": "News."}, format="json")
+        self.root.post("/api/v1/site-pages/news/publish")
+        self.assertIn("news", self.pages())
 
-        self.root.delete("/api/v1/site-pages/blog")
+        self.root.delete("/api/v1/site-pages/news")
 
-        self.assertNotIn("blog", self.pages())
+        self.assertNotIn("news", self.pages())

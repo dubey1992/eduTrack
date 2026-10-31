@@ -22,14 +22,16 @@ from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import serializers
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.exceptions import NotFound
+from django.http import Http404, HttpResponse
+from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
+from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .. import audit, public_site, site_pages
+from .. import audit, photos, public_site, site_pages
 from ..enums import UserRole
-from ..errors import PageBuiltIn, PageEmpty, PageLimitReached, PageNotFound
+from ..errors import PageBuiltIn, PageEmpty, PageLimitReached, PageNeedsSummary, PageNotFound
 from ..models import SitePage
 from ..policies import authorize
 from ..requests import SitePageRequest
@@ -56,6 +58,25 @@ class Page:
     published_at: dt.datetime | None
     updated_at: dt.datetime | None
     row: SitePage | None
+    # A page, blog post or help article, and the details those carry - each
+    # a draft and a published copy (docs/seo.md, S5).
+    kind: str = site_pages.PAGE
+    summary: str | None = None
+    published_summary: str | None = None
+    author: str | None = None
+    published_author: str | None = None
+    topic: str | None = None
+    published_topic: str | None = None
+    cover_path: str | None = None
+    published_cover_path: str | None = None
+
+    @property
+    def details(self) -> tuple:
+        return (self.summary, self.author, self.topic, self.cover_path)
+
+    @property
+    def published_details(self) -> tuple:
+        return (self.published_summary, self.published_author, self.published_topic, self.published_cover_path)
 
     @property
     def built_in(self) -> bool:
@@ -67,7 +88,9 @@ class Page:
 
     @property
     def has_unpublished_changes(self) -> bool:
-        return not self.is_live or (self.title, self.body) != (self.published_title, self.published_body)
+        return not self.is_live or (self.title, self.body, *self.details) != (
+            self.published_title, self.published_body, *self.published_details
+        )
 
 
 def from_row(row: SitePage) -> Page:
@@ -80,6 +103,15 @@ def from_row(row: SitePage) -> Page:
         published_at=row.published_at,
         updated_at=row.updated_at,
         row=row,
+        kind=row.kind or site_pages.PAGE,
+        summary=row.summary,
+        published_summary=row.published_summary,
+        author=row.author,
+        published_author=row.published_author,
+        topic=row.topic,
+        published_topic=row.published_topic,
+        cover_path=row.cover_path,
+        published_cover_path=row.published_cover_path,
     )
 
 
@@ -133,6 +165,9 @@ def summary(page: Page) -> dict:
         "slug": page.slug,
         # The draft's title: what the Super Admin is working on.
         "title": page.title,
+        "kind": page.kind,
+        # Where visitors read it once it is live: /about, /blog/x, /help/y.
+        "path": site_pages.path_of(page.kind, page.slug),
         "built_in": page.built_in,
         "is_live": page.is_live,
         "published_at": iso(page.published_at),
@@ -145,6 +180,10 @@ def resource(page: Page) -> dict:
     return {
         **summary(page),
         "body": page.body,
+        "summary": page.summary,
+        "author": page.author,
+        "topic": page.topic,
+        "has_cover": page.cover_path is not None,
         "published_title": page.published_title if page.is_live else None,
         "published_body": page.published_body if page.is_live else None,
     }
@@ -218,7 +257,12 @@ def live_slugs() -> list[str]:
     if cached is not None:
         return cached
 
-    slugs = [page.slug for page in every_page() if page.is_live]
+    live = [page for page in every_page() if page.is_live]
+    slugs = [page.slug for page in live if page.kind == site_pages.PAGE]
+    # /blog and /help are pages too, once there is a post or an article.
+    for kind, index in ((site_pages.POST, "blog"), (site_pages.HELP, "help")):
+        if any(page.kind == kind for page in live):
+            slugs.append(index)
     cache.set(LIVE_SLUGS_KEY, slugs, CACHE_SECONDS)
 
     return slugs
@@ -264,6 +308,10 @@ def collection(request) -> Response:
                 slug=data["slug"],
                 title=data["title"],
                 body=data.get("body", ""),
+                kind=data["kind"],
+                summary=data.get("summary"),
+                author=data.get("author"),
+                topic=data.get("topic"),
                 created_by_id=request.user.id,
                 created_at=now,
                 updated_at=now,
@@ -282,7 +330,7 @@ def collection(request) -> Response:
         entity_type="site_page",
         entity_id=row.pk,
         school_id=None,
-        new={"slug": row.slug, "title": row.title, "body": row.body},
+        new={"slug": row.slug, "kind": row.kind, "title": row.title, "body": row.body},
     )
 
     return Response(resource(from_row(row)), status=201)
@@ -321,7 +369,7 @@ def save_draft(request, page: Page) -> Page:
     published. A new address is the exception, effective at once - the old
     one stops answering and the new one starts.
     """
-    form = SitePageRequest(data=request.data, current=page.slug)
+    form = SitePageRequest(data=request.data, current=page.slug, kind=page.kind)
     form.is_valid(raise_exception=True)
     data = form.validated_data
     row = page.row or materialise(page.slug, request.user)
@@ -330,11 +378,14 @@ def save_draft(request, page: Page) -> Page:
     row.title = data["title"]
     row.body = data.get("body", row.body)
     row.slug = data.get("slug", row.slug)
+    for detail in ("summary", "author", "topic"):
+        if detail in data:
+            setattr(row, detail, data[detail])
     row.updated_at = timezone.now()
 
     try:
         with transaction.atomic():
-            row.save(update_fields=["slug", "title", "body", "updated_at"])
+            row.save(update_fields=["slug", "title", "body", "summary", "author", "topic", "updated_at"])
     except IntegrityError:
         raise serializers.ValidationError({"slug": ["That address is already used by another page."]})
 
@@ -403,6 +454,9 @@ def delete(page: Page) -> None:
     forget(page.slug)
     public_site.rebuild()
 
+    for path in {row.cover_path, row.published_cover_path} - {None}:
+        photos.remove(path)
+
     audit.record(
         action="site_page.deleted",
         module="settings",
@@ -435,12 +489,28 @@ def publish(request, slug: str) -> Response:
     before = {"title": row.published_title, "body": row.published_body}
     now = timezone.now()
 
+    if row.kind in (site_pages.POST, site_pages.HELP) and not (row.summary or "").strip():
+        raise PageNeedsSummary()
+
+    replaced_cover = row.published_cover_path
+
     row.published_title = row.title
     row.published_body = row.body
+    row.published_summary = row.summary
+    row.published_author = row.author
+    row.published_topic = row.topic
+    row.published_cover_path = row.cover_path
     row.published_at = now
     row.published_by_id = request.user.id
     row.updated_at = now
-    row.save(update_fields=["published_title", "published_body", "published_at", "published_by", "updated_at"])
+    row.save(update_fields=[
+        "published_title", "published_body", "published_summary", "published_author", "published_topic",
+        "published_cover_path", "published_at", "published_by", "updated_at",
+    ])
+
+    # A cover the post no longer shows, and that is not its draft either.
+    if replaced_cover and replaced_cover not in (row.cover_path, row.published_cover_path):
+        photos.remove(replaced_cover)
     forget(row.slug)
     website_problem = public_site.rebuild()
 
@@ -457,3 +527,74 @@ def publish(request, slug: str) -> Response:
     # Null, or why the plain-HTML page could not be written (docs/seo.md):
     # the publish itself stands either way.
     return Response({**resource(from_row(row)), "website_problem": website_problem})
+
+
+# -- a blog post's cover image (docs/seo.md, S5) ------------------------------------
+
+# A cover is a share picture as well as a header, and those are 1200 x 630.
+COVER_SIDE = 1600
+COVER_BYTES = 5 * 1024 * 1024
+COVER_FOLDER = "site-covers"
+
+
+@api_view(["GET", "POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def cover(request, slug: str):
+    """A post's draft cover: the Super Admin's preview of it, a new one, or
+    none. Like the text, a new cover reaches visitors when it is published."""
+    authorize(request.user.role == UserRole.SUPER_ADMIN)
+
+    page = find(slug)
+
+    if page is None:
+        raise NotFound()
+
+    if request.method == "GET":
+        stored = photos.read(page.cover_path)
+
+        if stored is None:
+            raise Http404
+
+        data, content_type = stored
+        response = HttpResponse(data, content_type=content_type)
+        response["Cache-Control"] = "private, no-cache"
+
+        return response
+
+    if page.kind != site_pages.POST:
+        raise ValidationError({"cover": ["Only a blog post has a cover image."]})
+
+    row = page.row or materialise(page.slug, request.user)
+    old = row.cover_path
+
+    if request.method == "DELETE":
+        row.cover_path = None
+    else:
+        try:
+            data, extension = photos.prepare(
+                request.FILES.get("cover"), max_side=COVER_SIDE, max_bytes=COVER_BYTES, noun="cover image"
+            )
+        except photos.PhotoRejected as rejected:
+            raise ValidationError({"cover": [str(rejected)]})
+
+        row.cover_path = photos.store(data, extension, folder=COVER_FOLDER)
+
+    row.updated_at = timezone.now()
+    row.save(update_fields=["cover_path", "updated_at"])
+
+    # The old draft cover goes, unless visitors are still looking at it.
+    if old and old != row.published_cover_path:
+        photos.remove(old)
+
+    audit.record(
+        action="site_page.cover_changed" if request.method == "POST" else "site_page.cover_removed",
+        module="settings",
+        entity_type="site_page",
+        entity_id=row.pk,
+        school_id=None,
+        new={"slug": row.slug},
+    )
+
+    return Response(resource(from_row(row)))
+

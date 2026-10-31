@@ -10,8 +10,10 @@ import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../application/site_page_notifiers.dart';
 import '../data/models/site_page.dart';
+import '../data/site_page_repository.dart';
 import 'page_text_editing.dart';
 import 'site_page_links.dart';
+import 'widgets/cover_field.dart';
 import 'widgets/link_dialog.dart';
 import 'widgets/page_text_view.dart';
 
@@ -20,20 +22,24 @@ import 'widgets/page_text_view.dart';
 final _slugPattern = RegExp(r'^[a-z0-9]+(-[a-z0-9]+)*$');
 
 const _titleMax = 120;
+const _summaryMax = 300;
 const _bodyMax = 100000;
 
 /// Writing one website page: an existing one by [slug], or a new one when
 /// [slug] is null (docs/site-pages.md).
 class SitePageEditor extends ConsumerWidget {
-  const SitePageEditor({super.key, this.slug});
+  const SitePageEditor({super.key, this.slug, this.newKind = SitePageKind.page});
 
   final String? slug;
+
+  /// What a new one starts as. The writer can change it until it is saved.
+  final SitePageKind newKind;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final slug = this.slug;
 
-    if (slug == null) return const _EditorForm(page: null);
+    if (slug == null) return _EditorForm(page: null, newKind: newKind);
 
     return AsyncValueView<SitePageDetail>(
       value: ref.watch(sitePageDetailProvider(slug)),
@@ -44,10 +50,11 @@ class SitePageEditor extends ConsumerWidget {
 }
 
 class _EditorForm extends ConsumerStatefulWidget {
-  const _EditorForm({super.key, required this.page});
+  const _EditorForm({super.key, required this.page, this.newKind = SitePageKind.page});
 
   /// Null while the page is being created.
   final SitePageDetail? page;
+  final SitePageKind newKind;
 
   @override
   ConsumerState<_EditorForm> createState() => _EditorFormState();
@@ -61,12 +68,27 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
   late final _slug = TextEditingController(text: widget.page?.slug ?? '');
   late final _body = TextEditingController(text: widget.page?.body ?? '');
 
+  /// A page, blog post or help article - chosen while creating, fixed after.
+  late SitePageKind _kind = widget.page?.kind ?? widget.newKind;
+  late final _summary = TextEditingController(text: widget.page?.summary ?? '');
+  late final _author = TextEditingController(text: widget.page?.author ?? defaultAuthor);
+  late String? _topic = widget.page?.topic;
+
   /// The page as the server last answered, which is what the status card
   /// describes. Replaced after every save and publish.
   late SitePageDetail? _page = widget.page;
 
   /// What was last saved, to tell whether there is anything unsaved.
-  late var _saved = (title: _title.text, slug: _slug.text, body: _body.text);
+  late var _saved = _current;
+
+  ({String title, String slug, String body, String summary, String author, String? topic}) get _current => (
+    title: _title.text,
+    slug: _slug.text,
+    body: _body.text,
+    summary: _summary.text,
+    author: _author.text,
+    topic: _topic,
+  );
 
   /// A new page's address follows its title until somebody types one.
   bool _slugTouched = false;
@@ -83,7 +105,15 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
   bool get _busy => _saving || _publishing;
   bool get _builtIn => _page?.builtIn ?? false;
 
-  bool get _dirty => _title.text != _saved.title || _slug.text != _saved.slug || _body.text != _saved.body;
+  bool get _dirty => _current != _saved;
+
+  /// Only a blog post or help article has a summary; only a post an author,
+  /// only an article a topic. Nothing else is sent.
+  PageDetails get _pageDetails => PageDetails(
+    summary: _kind == SitePageKind.page ? null : _summary.text.trim(),
+    author: _kind == SitePageKind.post ? _author.text.trim() : null,
+    topic: _kind == SitePageKind.help ? _topic : null,
+  );
 
   @override
   void initState() {
@@ -96,6 +126,8 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
     _title.dispose();
     _slug.dispose();
     _body.dispose();
+    _summary.dispose();
+    _author.dispose();
     _bodyFocus.dispose();
     super.dispose();
   }
@@ -127,10 +159,10 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
     final slug = _slug.text.trim();
 
     final page = _creating
-        ? await notifier.create(slug: slug, title: title, body: _body.text)
-        : await notifier.save(_page!.slug, newSlug: slug, title: title, body: _body.text);
+        ? await notifier.create(slug: slug, title: title, body: _body.text, kind: _kind, details: _pageDetails)
+        : await notifier.save(_page!.slug, newSlug: slug, title: title, body: _body.text, details: _pageDetails);
 
-    _saved = (title: _title.text, slug: _slug.text, body: _body.text);
+    _saved = _current;
     return page;
   }
 
@@ -170,7 +202,7 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
     final confirmed = await confirmDialog(
       context,
       title: 'Publish "$title"?',
-      message: 'Anyone opening ${publicAddress(_slug.text.trim())} will see this version straight away.',
+      message: 'Anyone opening ${publicAddress(_slug.text.trim(), kind: _kind)} will see this version straight away.',
       confirmLabel: 'Publish',
     );
     if (!confirmed || !mounted) return;
@@ -190,7 +222,7 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
         setState(() => _page = page);
         _say(
           page.websiteProblem == null
-              ? 'Published. Visitors see it now at ${publicAddress(page.slug)}.'
+              ? 'Published. Visitors see it now at ${publicAddress(page.slug, kind: page.kind)}.'
               : 'Published, but the website copy was not updated. ${page.websiteProblem}',
         );
 
@@ -248,7 +280,7 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_title, _slug, _body]),
+      listenable: Listenable.merge([_title, _slug, _body, _summary, _author]),
       builder: (context, _) => SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -280,6 +312,26 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
       spacing: 16,
       runSpacing: 16,
       children: [
+        if (_creating)
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('What are you writing?', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 6),
+                SegmentedButton<SitePageKind>(
+                  key: const Key('page-kind'),
+                  segments: [
+                    for (final kind in SitePageKind.values) ButtonSegment(value: kind, label: Text(kind.label)),
+                  ],
+                  selected: {_kind},
+                  showSelectedIcon: false,
+                  onSelectionChanged: _busy ? null : (selection) => setState(() => _kind = selection.single),
+                ),
+              ],
+            ),
+          ),
         SizedBox(
           width: 480,
           child: TextFormField(
@@ -287,7 +339,15 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
             enabled: !_busy,
             maxLength: _titleMax,
             maxLengthEnforcement: MaxLengthEnforcement.none,
-            decoration: InputDecoration(labelText: 'Page title', errorText: _fieldErrors['title'], errorMaxLines: 3),
+            decoration: InputDecoration(
+              labelText: switch (_kind) {
+                SitePageKind.page => 'Page title',
+                SitePageKind.post => 'Post title',
+                SitePageKind.help => 'Article title',
+              },
+              errorText: _fieldErrors['title'],
+              errorMaxLines: 3,
+            ),
             validator: (value) {
               final title = (value ?? '').trim();
               if (title.isEmpty) return 'Give the page a title.';
@@ -305,7 +365,7 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
             onChanged: (_) => _slugTouched = true,
             decoration: InputDecoration(
               labelText: 'Address',
-              prefixText: '${Uri.base.host}/',
+              prefixText: '${Uri.base.host}/${_kind.prefix}',
               helperText: _builtIn
                   ? 'Built-in pages keep their address.'
                   : _creating
@@ -325,7 +385,76 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
             },
           ),
         ),
+        if (_kind != SitePageKind.page) _summaryField(),
+        if (_kind == SitePageKind.post) _authorField(),
+        if (_kind == SitePageKind.help) _topicField(),
+        if (_kind == SitePageKind.post) CoverField(page: _page, onChanged: (page) => setState(() => _page = page)),
       ],
+    );
+  }
+
+  Widget _summaryField() {
+    return SizedBox(
+      width: 976,
+      child: TextFormField(
+        key: const Key('page-summary'),
+        controller: _summary,
+        enabled: !_busy,
+        maxLength: _summaryMax,
+        maxLengthEnforcement: MaxLengthEnforcement.none,
+        minLines: 2,
+        maxLines: 3,
+        decoration: InputDecoration(
+          labelText: 'Summary',
+          helperText: _kind == SitePageKind.post
+              ? 'One or two sentences, shown under the title in the blog and in search results.'
+              : 'One sentence, shown under the title in the help centre and in search results.',
+          helperMaxLines: 2,
+          errorText: _fieldErrors['summary'],
+          errorMaxLines: 3,
+        ),
+        validator: (value) {
+          final summary = (value ?? '').trim();
+          if (summary.isEmpty) return 'Write a summary - it is shown under the title in the list.';
+          if (summary.length > _summaryMax) return 'The summary must be $_summaryMax characters or fewer.';
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _authorField() {
+    return SizedBox(
+      width: 480,
+      child: TextFormField(
+        key: const Key('page-author'),
+        controller: _author,
+        enabled: !_busy,
+        maxLength: 100,
+        decoration: InputDecoration(
+          labelText: 'Author',
+          helperText: 'Shown as "By ..." under the title. "$defaultAuthor" if left empty.',
+          errorText: _fieldErrors['author'],
+        ),
+      ),
+    );
+  }
+
+  Widget _topicField() {
+    return SizedBox(
+      width: 480,
+      child: DropdownButtonFormField<String>(
+        key: const Key('page-topic'),
+        initialValue: _topic,
+        decoration: InputDecoration(
+          labelText: 'Help centre topic',
+          helperText: 'The section of the help centre this article is listed under.',
+          errorText: _fieldErrors['topic'],
+        ),
+        items: [for (final (key, label) in helpTopics) DropdownMenuItem(value: key, child: Text(label))],
+        validator: (value) => value == null ? 'Choose the topic this article belongs under.' : null,
+        onChanged: _busy ? null : (value) => setState(() => _topic = value),
+      ),
     );
   }
 
@@ -477,7 +606,7 @@ class _EditorFormState extends ConsumerState<_EditorForm> {
         ),
         if (page != null && page.isLive)
           TextButton.icon(
-            onPressed: () => openPublishedPage(page.slug),
+            onPressed: () => openPublishedPage(page.slug, kind: page.kind),
             icon: const Icon(Icons.open_in_new),
             label: const Text('View live page'),
           ),
@@ -547,7 +676,7 @@ class _Status extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       [
-                        publicAddress(page.slug),
+                        publicAddress(page.slug, kind: page.kind),
                         if (publishedAt != null) 'Last published ${formatDateTime(publishedAt)}',
                       ].join(' · '),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.muted),

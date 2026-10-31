@@ -9,19 +9,19 @@
   {% if description %}<meta name="description" content="{{ description }}">{% endif %}
   {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% else %}<meta name="robots" content="noindex">{% endif %}
   <meta name="theme-color" content="#2563EB">
-  <meta property="og:type" content="website">
+  <meta property="og:type" content="{{ og_type|default:'website' }}">
   <meta property="og:site_name" content="School365ai">
   {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
   <meta property="og:title" content="{{ title }}">
   {% if description %}<meta property="og:description" content="{{ description }}">{% endif %}
-  <meta property="og:image" content="{{ site_url }}/og-image.png">
+  {% if og_image %}<meta property="og:image" content="{{ og_image }}">{% else %}<meta property="og:image" content="{{ site_url }}/og-image.png">
   <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta property="og:image:height" content="630">{% endif %}
   <meta property="og:image:alt" content="School365ai - school management software">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ title }}">
   {% if description %}<meta name="twitter:description" content="{{ description }}">{% endif %}
-  <meta name="twitter:image" content="{{ site_url }}/og-image.png">
+  {% if og_image %}<meta name="twitter:image" content="{{ og_image }}">{% else %}<meta name="twitter:image" content="{{ site_url }}/og-image.png">{% endif %}
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

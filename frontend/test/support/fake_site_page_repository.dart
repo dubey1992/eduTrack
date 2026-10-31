@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/features/site_pages/data/models/site_page.dart';
@@ -14,7 +15,18 @@ class FakePage {
     this.publishedTitle,
     this.publishedBody,
     this.publishedAt,
+    this.kind = SitePageKind.page,
+    this.summary,
+    this.author,
+    this.topic,
+    this.hasCover = false,
   });
+
+  final SitePageKind kind;
+  String? summary;
+  String? author;
+  String? topic;
+  bool hasCover;
 
   String slug;
   String title;
@@ -30,6 +42,11 @@ class FakePage {
   SitePageDetail toDetail() => SitePageDetail(
     slug: slug,
     title: title,
+    kind: kind,
+    summary: summary,
+    author: author,
+    topic: topic,
+    hasCover: hasCover,
     builtIn: builtIn,
     isLive: isLive,
     hasUnpublishedChanges: changed,
@@ -82,7 +99,14 @@ class FakeSitePageRepository implements SitePageRepository {
   int listCalls = 0;
   int fetchPublishedCalls = 0;
   final saves = <({String slug, String newSlug, String title, String body})>[];
-  final creates = <({String slug, String title, String body})>[];
+  final creates = <({String slug, String title, String body, SitePageKind kind, PageDetails details})>[];
+  final detailsSaved = <PageDetails>[];
+  final coverUploads = <String>[];
+  final coverRemovals = <String>[];
+
+  /// What the cover preview answers; null is "no cover".
+  Uint8List? coverPreview;
+  Failure? failCoverWith;
   final published = <String>[];
   final deleted = <String>[];
 
@@ -127,11 +151,25 @@ class FakeSitePageRepository implements SitePageRepository {
   }
 
   @override
-  Future<SitePageDetail> create({required String slug, required String title, required String body}) async {
-    creates.add((slug: slug, title: title, body: body));
+  Future<SitePageDetail> create({
+    required String slug,
+    required String title,
+    required String body,
+    SitePageKind kind = SitePageKind.page,
+    PageDetails details = const PageDetails(),
+  }) async {
+    creates.add((slug: slug, title: title, body: body, kind: kind, details: details));
     if (failSaveWith != null) throw failSaveWith!;
 
-    final page = FakePage(slug: slug, title: title, body: body);
+    final page = FakePage(
+      slug: slug,
+      title: title,
+      body: body,
+      kind: kind,
+      summary: details.summary,
+      author: details.author,
+      topic: details.topic,
+    );
     pages.add(page);
 
     return page.toDetail();
@@ -143,14 +181,19 @@ class FakeSitePageRepository implements SitePageRepository {
     required String newSlug,
     required String title,
     required String body,
+    PageDetails details = const PageDetails(),
   }) async {
     saves.add((slug: slug, newSlug: newSlug, title: title, body: body));
+    detailsSaved.add(details);
     if (failSaveWith != null) throw failSaveWith!;
 
     final page = _find(slug)!
       ..slug = newSlug
       ..title = title
-      ..body = body;
+      ..body = body
+      ..summary = details.summary ?? _find(slug)!.summary
+      ..author = details.author ?? _find(slug)!.author
+      ..topic = details.topic ?? _find(slug)!.topic;
 
     return page.toDetail();
   }
@@ -174,4 +217,28 @@ class FakeSitePageRepository implements SitePageRepository {
 
     pages.removeWhere((page) => page.slug == slug);
   }
+
+  @override
+  Future<SitePageDetail> uploadCover(String slug, {required List<int> bytes, required String fileName}) async {
+    coverUploads.add(slug);
+    if (failCoverWith != null) throw failCoverWith!;
+
+    final page = _find(slug)!..hasCover = true;
+    coverPreview = Uint8List.fromList(bytes);
+
+    return page.toDetail();
+  }
+
+  @override
+  Future<SitePageDetail> removeCover(String slug) async {
+    coverRemovals.add(slug);
+
+    final page = _find(slug)!..hasCover = false;
+    coverPreview = null;
+
+    return page.toDetail();
+  }
+
+  @override
+  Future<Uint8List?> coverBytes(String slug) async => coverPreview;
 }

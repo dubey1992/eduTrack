@@ -45,8 +45,14 @@ class SitePageListNotifier extends AsyncNotifier<List<SitePageSummary>> {
     state = await AsyncValue.guard(_repository.list);
   }
 
-  Future<SitePageDetail> create({required String slug, required String title, required String body}) async {
-    final page = await _repository.create(slug: slug, title: title, body: body);
+  Future<SitePageDetail> create({
+    required String slug,
+    required String title,
+    required String body,
+    SitePageKind kind = SitePageKind.page,
+    PageDetails details = const PageDetails(),
+  }) async {
+    final page = await _repository.create(slug: slug, title: title, body: body, kind: kind, details: details);
     await _refresh();
 
     return page;
@@ -57,8 +63,9 @@ class SitePageListNotifier extends AsyncNotifier<List<SitePageSummary>> {
     required String newSlug,
     required String title,
     required String body,
+    PageDetails details = const PageDetails(),
   }) async {
-    final page = await _repository.save(slug, newSlug: newSlug, title: title, body: body);
+    final page = await _repository.save(slug, newSlug: newSlug, title: title, body: body, details: details);
     await _refresh();
 
     // A rename takes the page off its old address at once.
@@ -74,6 +81,20 @@ class SitePageListNotifier extends AsyncNotifier<List<SitePageSummary>> {
     // The Super Admin is about to open the page to check their work, and
     // this app may still be holding what it said before.
     ref.invalidate(publishedSitePageProvider(slug));
+
+    return page;
+  }
+
+  Future<SitePageDetail> uploadCover(String slug, {required List<int> bytes, required String fileName}) async {
+    final page = await _repository.uploadCover(slug, bytes: bytes, fileName: fileName);
+    await _refresh();
+
+    return page;
+  }
+
+  Future<SitePageDetail> removeCover(String slug) async {
+    final page = await _repository.removeCover(slug);
+    await _refresh();
 
     return page;
   }

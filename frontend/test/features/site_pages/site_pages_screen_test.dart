@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:edutrack_app/core/widgets/brand_loader.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/features/site_pages/data/models/site_page.dart';
 import 'package:edutrack_app/features/site_pages/data/site_page_repository.dart';
 import 'package:edutrack_app/features/site_pages/presentation/site_page_editor.dart';
 import 'package:edutrack_app/features/site_pages/presentation/site_page_screen.dart';
@@ -388,7 +389,11 @@ void main() {
       await tester.enterText(bodyBox, 'We are hiring.');
       await tapText(tester, 'Save Draft');
 
-      expect(fake.creates.single, (slug: 'careers', title: 'Careers', body: 'We are hiring.'));
+      final created = fake.creates.single;
+      expect((created.slug, created.title, created.body), ('careers', 'Careers', 'We are hiring.'));
+      // A plain page sends no summary, author or topic.
+      expect(created.kind, SitePageKind.page);
+      expect(created.details.toJson(), isEmpty);
       expect(fake.published, isEmpty);
       expect(location, '/site-pages?page=careers');
       expect(find.text('Not published'), findsOneWidget);

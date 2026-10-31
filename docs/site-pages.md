@@ -104,3 +104,12 @@ could never be a page is refused before the cache or the database.
 **Every change visitors could see is audited** - created, renamed,
 published (with the text before and after) and deleted - under the
 `settings` module, with no school.
+
+## Blog posts and help articles (2026-10-31)
+
+A Website Page is now one of three kinds: a page (`/<slug>`), a blog post
+(`/blog/<slug>`) or a help article (`/help/<slug>`). The kind is chosen when
+it is created and never changes. Posts carry a summary, an author and a
+cover image; help articles a summary and a topic. Like the title and text,
+each is a draft until published. See docs/seo.md, "S5 as built".
+
