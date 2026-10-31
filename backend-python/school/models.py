@@ -1258,6 +1258,8 @@ class School(models.Model):
     # carries the day it ends, which only ever warns.
     category = models.CharField(max_length=20, default="live")
     trial_ends_on = models.DateField(blank=True, null=True)
+    # The setup guide was finished or hidden (docs/onboarding.md, O4).
+    setup_guide_closed_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False

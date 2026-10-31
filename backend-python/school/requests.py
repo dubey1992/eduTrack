@@ -4297,6 +4297,26 @@ def teaches_at(user_id, school_id) -> bool:
     ).exists()
 
 
+class QuickDepartmentSetupRequest(ScopedSerializer):
+    """Common departments in one step (docs/onboarding.md, O4)."""
+
+    names = serializers.ListField(
+        child=serializers.CharField(max_length=100), allow_empty=False, max_length=30,
+        error_messages={"empty": "Tick at least one department.", "not_a_list": "Tick at least one department."},
+    )
+
+    def validate(self, attrs):
+        self.validate_school_id_field()
+        attrs["school_id"] = self.resolved_school_id()
+        # Each name once, as typed, in the order given.
+        attrs["names"] = list(dict.fromkeys(name.strip() for name in attrs["names"] if name.strip()))
+
+        if not attrs["names"]:
+            raise serializers.ValidationError({"names": ["Tick at least one department."]})
+
+        return attrs
+
+
 class StoreDepartmentRequest(ScopedSerializer):
     name = LaravelCharField("name", max_length=100)
     hod_user_id = LaravelIntegerField("hod_user_id", required=False, allow_null=True)

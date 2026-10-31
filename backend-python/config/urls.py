@@ -50,6 +50,7 @@ from school.views import (
     permissions,
     profile,
     settings_modules,
+    setup_guide,
     site_pages,
     payments,
     payroll,
@@ -123,6 +124,11 @@ urlpatterns = [
     path("api/v1/holidays/<int:holiday_id>", classes.holiday),
     # -- departments and subjects ------------------------------------------
     path("api/v1/departments", academic_config.departments),
+    # The setup guide and its one-step departments (docs/onboarding.md, O4).
+    path("api/v1/departments/quick-setup", setup_guide.quick_departments),
+    path("api/v1/setup-guide", setup_guide.show),
+    path("api/v1/setup-guide/close", setup_guide.close),
+    path("api/v1/setup-guide/reopen", setup_guide.reopen),
     path("api/v1/departments/<int:department_id>", academic_config.department),
     path("api/v1/subjects", academic_config.subjects),
     path("api/v1/subjects/<int:subject_id>", academic_config.subject),

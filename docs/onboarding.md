@@ -128,3 +128,42 @@ not refused; Renumber A-Z sorts it out.
 - The set-password link is issued in one place, `jobs.issue_reset_link`, for both the
   welcome and Forgot password. A welcome whose link is refused (one went out less than a
   minute ago) is not sent half-done.
+
+## O4 - built 2026-10-31
+
+- Migration `2026_11_10_100000_add_setup_guide_closed_at_to_schools_table`:
+  `schools.setup_guide_closed_at`, null while the guide shows.
+- `school/setup_guide.py` works out the six steps from the school's own data. Each step is
+  done when the school has the thing:
+  - a current academic year;
+  - a department;
+  - classes with sections in the current year;
+  - a subject;
+  - anybody on the staff besides the admins;
+  - an active student.
+
+  A step whose prerequisite is missing says so ("Add the academic year first ...").
+  Optional extras (holidays, timetable, fees, transport) are listed but not counted.
+- API, for a SCHOOL_ADMIN of their own school only (403 for every other role, the Super
+  Admin included):
+  - `GET /api/v1/setup-guide`;
+  - `POST /api/v1/setup-guide/close` and `POST /api/v1/setup-guide/reopen`. Both are
+    audited, and a second close changes nothing.
+- `GET|POST /api/v1/departments/quick-setup`: ten common departments, six of them ticked.
+  Ones the school already has are skipped, case-insensitively. Needs the academics write
+  permission. The school is the actor's, never the client's.
+- Flutter:
+  - a **Setup Guide** sidebar entry for School Admins, always there, so a hidden guide can
+    be found again;
+  - the guide screen lists the six steps in order with ticks and summaries. Each step opens
+    its screen; "Add common departments" and "Quick setup" (classes) work right from the
+    guide;
+  - Hide asks first; once all six are done it becomes Close; a hidden guide offers "Show on
+    the dashboard again";
+  - the dashboard shows a progress card ("3 of 6 steps done. Next: Subjects") until the
+    guide is closed. The card shows nothing if the guide cannot load, so the dashboard is
+    never held up;
+  - a brand-new school (no academic year yet) is taken to the guide on sign-in, once per
+    session.
+- A Group Admin is the one role that reaches every School Admin screen except this one:
+  each branch's School Admin sets that branch up.

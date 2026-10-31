@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../setup_guide/application/setup_guide_notifier.dart';
 import '../../analytics/application/analytics_notifier.dart';
 import '../../../core/network/session_ended_notifier.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
@@ -170,6 +171,10 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     // A set-password code held from a link is no business of the next session.
     ref.invalidate(resetCodeProvider);
     ref.invalidate(schoolListNotifierProvider);
+    // One school's setup progress, and whether it already opened itself
+    // this session (docs/onboarding.md, O4).
+    ref.invalidate(setupGuideNotifierProvider);
+    ref.invalidate(setupGuideAutoOpenedProvider);
     ref.invalidate(userListNotifierProvider);
     ref.invalidate(studentListNotifierProvider);
     ref.invalidate(staffListNotifierProvider);

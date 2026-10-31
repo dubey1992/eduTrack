@@ -11,6 +11,8 @@ import '../../analytics/application/analytics_notifier.dart';
 import '../../analytics/presentation/widgets/dashboard_trends.dart';
 import '../../analytics/presentation/widgets/early_warning_banner.dart';
 import '../../auth/data/models/authenticated_user.dart';
+import '../../setup_guide/application/setup_guide_notifier.dart';
+import '../../setup_guide/presentation/setup_guide_card.dart';
 import '../application/dashboard_notifier.dart';
 import '../data/models/dashboard.dart';
 import 'widgets/attendance_trend_chart.dart';
@@ -43,6 +45,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         // screen until the new ones arrive.
         ref.invalidate(analyticsSeriesProvider);
         ref.invalidate(earlyWarningProvider);
+        // Steps done elsewhere since the dashboard was last open.
+        if (ref.read(authNotifierProvider).value?.role == UserRole.schoolAdmin) {
+          ref.read(setupGuideNotifierProvider.notifier).refresh();
+        }
       }
     });
   }
@@ -96,6 +102,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          // A School Admin's school still being set up (docs/onboarding.md).
+          if (user?.role == UserRole.schoolAdmin) const SetupGuideCard(),
           AsyncValueView<Dashboard>(
             value: state,
             onRetry: notifier.refresh,

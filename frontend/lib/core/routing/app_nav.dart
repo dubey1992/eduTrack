@@ -113,6 +113,16 @@ class AppNav {
         pageTitle: 'Dashboard',
         pageSubtitle: 'Daily school operations overview',
       ),
+      // A new school's six setup steps (docs/onboarding.md, O4). Always here,
+      // so a guide hidden from the dashboard can be found again.
+      NavItem(
+        path: '/setup-guide',
+        label: 'Setup Guide',
+        icon: Icons.checklist_outlined,
+        allowedRoles: {UserRole.schoolAdmin},
+        pageTitle: 'Setup Guide',
+        pageSubtitle: 'Get your school ready, step by step',
+      ),
       NavItem(
         path: '/reports',
         module: AppModules.reports,

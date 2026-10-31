@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/setup_guide/presentation/setup_guide_screen.dart';
 import '../../features/academic_years/presentation/academic_year_list_screen.dart';
 import '../../features/assessments/presentation/assessment_list_screen.dart';
 import '../../features/grade_scales/presentation/grade_scale_list_screen.dart';
@@ -145,6 +146,7 @@ const appRoutePaths = {
   '/change-password',
   '/maintenance',
   '/dashboard',
+  '/setup-guide',
   '/users',
   '/schools',
   '/early-access',
@@ -269,6 +271,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen()),
+          GoRoute(path: '/setup-guide', builder: (context, state) => const SetupGuideScreen()),
           GoRoute(path: '/users', builder: (context, state) => const UserListScreen()),
           GoRoute(path: '/schools', builder: (context, state) => const SchoolListScreen()),
           GoRoute(

@@ -5035,6 +5035,27 @@ class DepartmentService:
         return department
 
     @staticmethod
+    def quick_setup(data: dict, actor: User) -> dict:
+        """The departments chosen, created together; one the school already
+        has (whatever its capitals) is skipped and named."""
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.get("school_id"))
+        existing = {name.lower() for name in Department.objects.filter(school_id=school_id).values_list("name", flat=True)}
+        now = timezone.now()
+        created, skipped = [], []
+
+        with transaction.atomic():
+            for name in data["names"]:
+                if name.lower() in existing:
+                    skipped.append(name)
+                    continue
+
+                department = Department.objects.create(school_id=school_id, name=name, created_at=now, updated_at=now)
+                audit.created("academic", department)
+                created.append(name)
+
+        return {"created": created, "skipped": skipped}
+
+    @staticmethod
     def update(department: Department, data: dict) -> Department:
         before = audit.fields_of(department)
 

@@ -86,6 +86,15 @@ class _QuickClassSetupDialogState extends ConsumerState<QuickClassSetupDialog> {
   Widget build(BuildContext context) {
     final picksSchool = ref.watch(authNotifierProvider).value?.picksSchool ?? false;
     final optionsState = ref.watch(quickSetupOptionsProvider);
+    // What starts ticked, as soon as the options are here - the button's
+    // count reads it in this same build.
+    final options = optionsState.value;
+    if (_ticked == null && options != null) {
+      _ticked = {
+        for (final option in options.classes)
+          if (option.selected) option.name,
+      };
+    }
 
     return AlertDialog(
       title: const Text('Quick setup: classes & sections'),
@@ -95,10 +104,7 @@ class _QuickClassSetupDialogState extends ConsumerState<QuickClassSetupDialog> {
           value: optionsState,
           onRetry: () => ref.invalidate(quickSetupOptionsProvider),
           data: (context, options) {
-            final ticked = _ticked ??= {
-              for (final option in options.classes)
-                if (option.selected) option.name,
-            };
+            final ticked = _ticked!;
 
             return SingleChildScrollView(
               child: Form(

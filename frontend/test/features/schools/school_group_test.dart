@@ -76,6 +76,11 @@ void main() {
     // from it would be locked out of screens the API lets it use.
     test('a group admin reaches everything a school admin reaches', () {
       for (final item in AppNav.allItems) {
+        // The setup guide is one school's own: each branch has a School
+        // Admin who sets it up, and the API refuses anybody else
+        // (docs/onboarding.md, O4).
+        if (item.path == '/setup-guide') continue;
+
         if (item.allows(sessionUser(UserRole.schoolAdmin))) {
           expect(
             item.allows(sessionUser(UserRole.groupAdmin)),
