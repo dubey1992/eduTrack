@@ -59,6 +59,36 @@ GEOCODED = {
 }
 
 
+# A point beside a named place: Geocoding lists the place first, then the
+# street, with a plus code somewhere in between.
+PLUS_CODE = {"types": ["plus_code"], "formatted_address": "GQ4F+7X Pune, Maharashtra, India", "address_components": []}
+STREET = {
+    "types": ["route"],
+    "formatted_address": "Baner Rd, Baner, Pune, Maharashtra 411045, India",
+    "address_components": [
+        {"long_name": "Baner Road", "types": ["route"]},
+        {"long_name": "Baner", "types": ["sublocality_level_1", "sublocality", "political"]},
+        {"long_name": "Pune", "types": ["locality", "political"]},
+    ],
+}
+NAMED_POINT = {
+    "_status": 200,
+    "status": "OK",
+    "results": [
+        {**STREET},
+        PLUS_CODE,
+        {
+            "types": ["establishment", "point_of_interest"],
+            "formatted_address": "Balewadi High Street, Baner, Pune, India",
+            "address_components": [
+                {"long_name": "Balewadi High Street", "types": ["establishment", "point_of_interest"]},
+                {"long_name": "Baner", "types": ["sublocality_level_1", "sublocality", "political"]},
+            ],
+        },
+    ],
+}
+
+
 def signed_in_as(role, **extra) -> APIClient:
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION="Bearer " + tokens.issue(factories.UserFactory(role=role, **extra)))
@@ -231,6 +261,52 @@ class NamingAPointOnTheMap(TestCase):
 
         self.assertEqual(200, response.status_code)
         self.assertEqual("", response.data["address"])
+        self.assertEqual("", response.data["name"])
+        self.assertEqual("", response.data["area"])
+
+    def test_it_suggests_a_stop_name_and_area_from_a_landmark_beside_the_point(self):
+        with mock.patch.object(google_maps, "get", return_value=NAMED_POINT):
+            response = self.at()
+
+        self.assertEqual("Baner Rd, Baner, Pune, Maharashtra 411045, India", response.data["address"])
+        self.assertEqual("Balewadi High Street", response.data["name"])
+        self.assertEqual("Baner", response.data["area"])
+
+    def test_with_no_landmark_the_street_names_it_and_a_plus_code_never_does(self):
+        street_only = {**NAMED_POINT, "results": [PLUS_CODE, STREET]}
+
+        with mock.patch.object(google_maps, "get", return_value=street_only):
+            response = self.at()
+
+        self.assertEqual("Baner Road", response.data["name"])
+        self.assertEqual("Baner", response.data["area"])
+        self.assertNotIn("+", response.data["address"])
+
+    def test_a_plus_code_or_a_ward_inside_a_result_never_names_it(self):
+        coded = {**NAMED_POINT, "results": [{
+            "types": ["street_address", "premise"],
+            "formatted_address": "HQ2G+9RC, Ward No. 8, Pashan, Pune, India",
+            "address_components": [
+                {"long_name": "HQ2G+9RC", "types": ["plus_code"]},
+                {"long_name": "Ward No. 8", "types": ["neighborhood", "political"]},
+                {"long_name": "Pashan Road", "types": ["route"]},
+                {"long_name": "Pashan", "types": ["sublocality_level_1", "sublocality", "political"]},
+            ],
+        }]}
+
+        with mock.patch.object(google_maps, "get", return_value=coded):
+            response = self.at()
+
+        self.assertEqual("Pashan Road", response.data["name"])
+        self.assertEqual("Pashan", response.data["area"])
+
+    def test_a_house_number_is_not_a_name(self):
+        numbered = {**NAMED_POINT, "results": [{**STREET, "types": ["premise"], "address_components": [
+            {"long_name": "12", "types": ["street_number"]}, *STREET["address_components"],
+        ]}]}
+
+        with mock.patch.object(google_maps, "get", return_value=numbered):
+            self.assertEqual("Baner Road", self.at().data["name"])
 
     def test_a_pin_dragged_a_metre_is_the_same_place(self):
         """Without rounding the cache key, dragging a pin is a call a pixel."""

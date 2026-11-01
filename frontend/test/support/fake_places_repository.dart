@@ -14,6 +14,8 @@ class FakePlacesRepository implements PlacesRepository {
     this.suggestions = const [],
     this.place,
     this.address = '',
+    this.pointName = '',
+    this.pointArea = '',
     this.postalLookup = const PostalLookup.unavailable(),
   });
 
@@ -24,6 +26,10 @@ class FakePlacesRepository implements PlacesRepository {
 
   /// Empty is a real answer: the sea has no address.
   String address;
+
+  /// What a clicked point is called, and the area around it.
+  String pointName;
+  String pointArea;
 
   /// What a postal code lookup answers.
   PostalLookup postalLookup;
@@ -59,10 +65,10 @@ class FakePlacesRepository implements PlacesRepository {
   }
 
   @override
-  Future<String> describe(double latitude, double longitude) async {
+  Future<PointDescription> describe(double latitude, double longitude) async {
     describes++;
 
-    return address;
+    return PointDescription(address: address, name: pointName, area: pointArea);
   }
 
   @override

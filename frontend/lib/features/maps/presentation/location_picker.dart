@@ -33,6 +33,8 @@ class LocationPicker extends ConsumerStatefulWidget {
     this.origin,
     this.originLabel,
     this.height = 260,
+    this.onDescribed,
+    this.describeOnOpen = false,
   });
 
   /// The boxes this picker fills in. Owned by the form, not by this.
@@ -62,6 +64,16 @@ class LocationPicker extends ConsumerStatefulWidget {
 
   final double height;
 
+  /// Told what the pinned point is called each time it is looked up - after a
+  /// click, a drag, a search, or on opening. The stop form names the stop and
+  /// its landmark from it.
+  final ValueChanged<PointDescription>? onDescribed;
+
+  /// Look up the point already in the boxes as soon as the picker opens -
+  /// when somebody got here by clicking a map, the address should be there
+  /// without a second click.
+  final bool describeOnOpen;
+
   @override
   ConsumerState<LocationPicker> createState() => _LocationPickerState();
 }
@@ -73,6 +85,13 @@ class _LocationPickerState extends ConsumerState<LocationPicker> {
   List<PlaceSuggestion> _suggestions = const [];
   Timer? _debounce;
   bool _searching = false;
+
+  /// Asking the server what the pinned point is called.
+  bool _describing = false;
+
+  /// Which lookup is the latest, so a slow answer for a point the pin has
+  /// already left never overwrites the answer for where it is now.
+  int _lookups = 0;
 
   /// What the point the pin is on is called. Shown under the map so somebody
   /// can tell at a glance that they clicked the right street.
@@ -91,6 +110,13 @@ class _LocationPickerState extends ConsumerState<LocationPicker> {
     super.initState();
     widget.latitude.addListener(_typed);
     widget.longitude.addListener(_typed);
+
+    final pinned = _pinned;
+    if (widget.describeOnOpen && pinned != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _describe(pinned);
+      });
+    }
   }
 
   @override
@@ -177,15 +203,49 @@ class _LocationPickerState extends ConsumerState<LocationPicker> {
     if (place == null) return;
 
     _searchController.text = place.address.isEmpty ? place.label : place.address;
-    _moveTo(LatLng(place.latitude, place.longitude), label: place.address);
+    final position = LatLng(place.latitude, place.longitude);
+    _moveTo(position, label: place.address);
+
+    // The place they picked names itself; the area around it comes from a
+    // lookup of the same point.
+    if (widget.onDescribed != null) {
+      final around = await _lookUp(position);
+      if (around == null || !mounted) return;
+      widget.onDescribed!(
+        PointDescription(
+          address: place.address.isEmpty ? around.address : place.address,
+          name: place.label.isEmpty ? around.name : place.label,
+          area: around.area,
+        ),
+      );
+    }
   }
 
   Future<void> _droppedAt(LatLng position) async {
     _moveTo(position);
+    await _describe(position);
+  }
 
-    final address = await ref.read(placesRepositoryProvider).describe(position.latitude, position.longitude);
+  /// Looks the point up, shows its address, and tells the form.
+  Future<void> _describe(LatLng position) async {
+    final found = await _lookUp(position);
+    if (found == null || !mounted) return;
 
-    if (mounted && address.isNotEmpty) setState(() => _label = address);
+    setState(() => _label = found.address);
+    widget.onDescribed?.call(found);
+  }
+
+  /// The point's description, or null when a newer lookup has started since.
+  Future<PointDescription?> _lookUp(LatLng position) async {
+    final mine = ++_lookups;
+    setState(() => _describing = true);
+
+    final found = await ref.read(placesRepositoryProvider).describe(position.latitude, position.longitude);
+
+    if (!mounted || mine != _lookups) return null;
+    setState(() => _describing = false);
+
+    return found;
   }
 
   void _clear() {
@@ -220,7 +280,13 @@ class _LocationPickerState extends ConsumerState<LocationPicker> {
           height: widget.height,
           view: AppMapView(
             centre: pinned ?? widget.near ?? _theCountry,
-            zoom: pinned == null ? 4 : _closeUp,
+            // Near the school when there is one to start from, not the
+            // whole country.
+            zoom: pinned != null
+                ? _closeUp
+                : widget.near != null
+                ? _aroundTheSchool
+                : 4,
             markers: {
               // The origin first, so the pin being placed draws over it
               // when the two are close.
@@ -273,7 +339,9 @@ class _LocationPickerState extends ConsumerState<LocationPicker> {
           children: [
             Expanded(
               child: Text(
-                _label.isNotEmpty
+                _describing
+                    ? 'Looking up the address...'
+                    : _label.isNotEmpty
                     ? _label
                     : pinned == null
                     ? 'Search for an address, or tap the map to drop a pin.'
@@ -302,6 +370,9 @@ class _LocationPickerState extends ConsumerState<LocationPicker> {
   /// Close enough to see which side of the road the pin is on, which is the
   /// thing somebody is about to drag it to correct.
   static const _closeUp = 16.0;
+
+  /// Enough of the neighbourhood around the school to find the right street.
+  static const _aroundTheSchool = 14.0;
 }
 
 class _SearchBox extends StatelessWidget {

@@ -30,6 +30,27 @@ class PlaceSuggestion {
   final String detail;
 }
 
+/// What a point on the map is called: the whole address line, and - for
+/// naming a bus stop - a short name for the spot (a landmark beside it, else
+/// its street) and the area around it. Any of them may be empty.
+class PointDescription {
+  const PointDescription({this.address = '', this.name = '', this.area = ''});
+
+  factory PointDescription.fromJson(Map<String, dynamic> json) => PointDescription(
+    address: json['address'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    area: json['area'] as String? ?? '',
+  );
+
+  static const nothing = PointDescription();
+
+  final String address;
+  final String name;
+  final String area;
+
+  bool get isEmpty => address.isEmpty && name.isEmpty && area.isEmpty;
+}
+
 class FoundPlace {
   const FoundPlace({required this.label, required this.address, required this.latitude, required this.longitude});
 
@@ -151,19 +172,20 @@ class PlacesRepository {
     }
   }
 
-  /// A label for a point somebody clicked. Empty is a real answer - the sea
-  /// has no address - so an empty string and a failure are the same here,
+  /// What a point somebody clicked is called. Empty is a real answer - the
+  /// sea has no address - so a failure is logged and answered the same way,
   /// and the picker simply shows no label.
-  Future<String> describe(double latitude, double longitude) async {
+  Future<PointDescription> describe(double latitude, double longitude) async {
     try {
       final response = await _dio.get('/maps/geocode/reverse', queryParameters: {'lat': latitude, 'lng': longitude});
       final body = response.data;
 
-      if (body is! Map<String, dynamic>) return '';
+      if (body is! Map<String, dynamic>) return PointDescription.nothing;
 
-      return body['address'] as String? ?? '';
-    } catch (_) {
-      return '';
+      return PointDescription.fromJson(body);
+    } catch (error) {
+      debugPrint('Could not describe the point $latitude,$longitude: $error');
+      return PointDescription.nothing;
     }
   }
 

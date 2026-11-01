@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/maps/presentation/map_cover.dart';
 import '../../features/setup_guide/presentation/setup_guide_screen.dart';
 import '../../features/academic_years/presentation/academic_year_list_screen.dart';
 import '../../features/assessments/presentation/assessment_list_screen.dart';
@@ -211,6 +212,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     // `initialLocation` here would replace that with a hardcoded value on
     // every single launch, including reloads.
     refreshListenable: refreshNotifier,
+    // Lets a map ignore clicks meant for a dialog drawn over it.
+    observers: [MapCover.instance],
     routes: [
       GoRoute(
         path: '/',

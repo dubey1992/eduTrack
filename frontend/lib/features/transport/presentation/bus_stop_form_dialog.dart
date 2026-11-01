@@ -6,6 +6,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/school_picker.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../maps/data/places_repository.dart';
 import '../../maps/presentation/location_picker.dart';
 import '../application/bus_stop_page_notifier.dart';
 import '../data/models/bus_stop.dart';
@@ -56,6 +57,57 @@ class _BusStopFormDialogState extends ConsumerState<BusStopFormDialog> {
   Map<String, List<String>> _fieldErrors = const {};
 
   bool get _isEdit => widget.stop != null;
+
+  /// What the map last filled the name and landmark with. A box still
+  /// holding its suggestion follows the pin; once somebody types in it, it
+  /// is theirs and the map leaves it alone.
+  String? _suggestedName;
+  String? _suggestedLandmark;
+
+  /// Fills the name and landmark from what the pinned point is called.
+  void _described(PointDescription point) {
+    final name = _usable(point.name) ? point.name : _nameFrom(point.address);
+    final landmark = point.area == name ? '' : point.area;
+
+    setState(() {
+      if (name.isNotEmpty && _isOurs(_nameController.text, _suggestedName)) {
+        _nameController.text = name;
+        _suggestedName = name;
+      }
+      if (landmark.isNotEmpty && _isOurs(_landmarkController.text, _suggestedLandmark)) {
+        _landmarkController.text = landmark;
+        _suggestedLandmark = landmark;
+      }
+    });
+  }
+
+  /// The first part of an address a person would call a place by - not a
+  /// house number ("38/1-A") or a plus code ("GRR4+5QG").
+  static String _nameFrom(String address) {
+    for (final part in address.split(',')) {
+      final text = part.trim();
+      if (_usable(text)) return text;
+    }
+    return '';
+  }
+
+  static bool _usable(String text) {
+    final letters = RegExp('[A-Za-z]').allMatches(text).length;
+    final digits = RegExp('[0-9]').allMatches(text).length;
+
+    return text.isNotEmpty &&
+        !text.contains('+') &&
+        letters >= 3 &&
+        digits <= letters &&
+        !text.toLowerCase().startsWith('ward');
+  }
+
+  /// Empty, or exactly what the map put there last time.
+  static bool _isOurs(String text, String? suggested) => text.trim().isEmpty || text == suggested;
+
+  bool get _showsSuggestion =>
+      (_suggestedName != null && _nameController.text == _suggestedName) ||
+      (_suggestedLandmark != null && _landmarkController.text == _suggestedLandmark);
 
   @override
   void initState() {
@@ -189,6 +241,7 @@ class _BusStopFormDialogState extends ConsumerState<BusStopFormDialog> {
                     helperText: 'How people refer to it. Every stop at this school needs its own name.',
                   ),
                   maxLength: 100,
+                  onChanged: (_) => setState(() {}),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
                 ),
                 const SizedBox(height: 10),
@@ -200,7 +253,25 @@ class _BusStopFormDialogState extends ConsumerState<BusStopFormDialog> {
                     helperText: 'Optional. What you would tell a parent on the phone.',
                   ),
                   maxLength: 100,
+                  onChanged: (_) => setState(() {}),
                 ),
+                if (_showsSuggestion)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.auto_awesome_outlined, size: 14, color: context.appColors.muted),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Filled in from the map. Change it to what parents call this spot.',
+                            key: const Key('stop-suggested'),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.appColors.muted),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 10),
                 LocationPicker(
                   latitude: _latitudeController,
@@ -211,6 +282,10 @@ class _BusStopFormDialogState extends ConsumerState<BusStopFormDialog> {
                   // and the wrong city is what this catches.
                   origin: _nearTheSchool(),
                   originLabel: _schoolName(),
+                  // A new stop from a map click: look the point up at once,
+                  // so its address, name and landmark are already there.
+                  describeOnOpen: !_isEdit && widget.at != null,
+                  onDescribed: _described,
                   child: Row(
                     children: [
                       Expanded(

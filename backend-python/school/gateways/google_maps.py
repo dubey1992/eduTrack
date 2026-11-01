@@ -72,6 +72,21 @@ class PostalPlace:
 
 
 @dataclass(frozen=True)
+class PointLabel:
+    """What a clicked point is called.
+
+    `address` is the whole line. `name` is the short thing a person would
+    call the spot - a landmark next to it, else its street - and `area` is
+    the neighbourhood around it. Both are suggestions for a bus stop's name
+    and landmark, and either may be empty.
+    """
+
+    address: str
+    name: str = ""
+    area: str = ""
+
+
+@dataclass(frozen=True)
 class Place:
     place_id: str
     label: str
@@ -171,7 +186,26 @@ def place(place_id: str) -> Place:
     )
 
 
-def reverse_geocode(latitude: float, longitude: float) -> str:
+# A point's own name, best first: a named place beside it, then the street.
+NAMED_PLACE_TYPES = (
+    "point_of_interest", "establishment", "transit_station", "bus_station", "premise", "school", "park",
+)
+STREET_TYPES = ("route",)
+# The area a point is in: the locality people name first ("Pashan"), then
+# the finer and coarser ones around it.
+AREA_TYPES = ("sublocality_level_1", "sublocality", "neighborhood", "sublocality_level_2", "locality")
+
+
+def _usable(name: str) -> bool:
+    """A name a person would say: not a plus code ("HQ2G+9RC"), not a house
+    number ("38/1-A"), not a ward number."""
+    letters = sum(character.isalpha() for character in name)
+    digits = sum(character.isdigit() for character in name)
+
+    return "+" not in name and letters >= 3 and digits <= letters and not name.lower().startswith("ward")
+
+
+def reverse_geocode(latitude: float, longitude: float) -> PointLabel:
     """A label for a point somebody clicked.
 
     An empty answer is not a failure: the sea has no address, and the picker
@@ -185,9 +219,40 @@ def reverse_geocode(latitude: float, longitude: float) -> str:
     if answer.get("status") not in ("OK", "ZERO_RESULTS"):
         raise MapsUnavailable(f"Google Maps: {answer.get('error_message') or answer.get('status')}"[:255])
 
-    results = answer.get("results") or []
+    # A plus code ("8J6R+XX") is a result too, and names nothing a person
+    # would recognise.
+    results = [result for result in answer.get("results") or [] if "plus_code" not in (result.get("types") or [])]
 
-    return (results[0].get("formatted_address") or "") if results else ""
+    if not results:
+        return PointLabel(address="")
+
+    def first_part(types: tuple[str, ...]) -> str:
+        for kind in types:
+            for result in results:
+                for component in result.get("address_components") or []:
+                    name = (component.get("long_name") or "").strip()
+                    if kind in (component.get("types") or []) and _usable(name):
+                        return name
+        return ""
+
+    place_name = ""
+    for result in results:
+        if not any(kind in (result.get("types") or []) for kind in NAMED_PLACE_TYPES):
+            continue
+        parts = result.get("address_components") or []
+        candidate = (parts[0].get("long_name") or "").strip() if parts else ""
+        if _usable(candidate):
+            place_name = candidate
+            break
+
+    name = place_name or first_part(STREET_TYPES)
+    area = first_part(AREA_TYPES)
+
+    return PointLabel(
+        address=results[0].get("formatted_address") or "",
+        name=name[:100],
+        area="" if area == name else area[:100],
+    )
 
 
 # The town a postal code belongs to, in the order Google's address parts

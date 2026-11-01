@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/maps_config.dart';
 import '../data/maps_script.dart';
+import 'map_cover.dart';
 import '../../../core/widgets/brand_loader.dart';
 
 /// Where the map starts, and what it holds.
@@ -123,6 +124,61 @@ class _ReadyMap extends ConsumerStatefulWidget {
 class _ReadyMapState extends ConsumerState<_ReadyMap> {
   late final Future<void> _ready = ensureMapsReady(widget.config.browserKey);
 
+  /// The page this map is on, and when something covering it last went away.
+  ///
+  /// On the web the map is a browser element underneath Flutter's own
+  /// drawing, so a click on a dialog's Cancel button over the map reaches
+  /// the map as well - and a map that adds a stop where it is clicked then
+  /// opens a fresh form the moment the first one closes. So a map ignores
+  /// clicks while anything is open over its page, and for a moment after:
+  /// the browser's click arrives a little after the dialog has gone.
+  ModalRoute<dynamic>? _route;
+  bool _wasCovered = false;
+  DateTime _uncoveredAt = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _settle = Duration(milliseconds: 700);
+
+  /// Called again whenever the page stops or starts being the one on top -
+  /// which is how a map learns that a dialog over it has opened or closed.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
+
+    final covered = _covered;
+    if (_wasCovered && !covered) _uncoveredAt = DateTime.now();
+    _wasCovered = covered;
+  }
+
+  bool get _covered => !(_route?.isCurrent ?? true);
+
+  /// The view with its tap handler guarded against clicks meant for
+  /// something drawn over the map.
+  AppMapView get _guardedView {
+    final view = widget.view;
+    final onTap = view.onTap;
+    if (onTap == null) return view;
+
+    return AppMapView(
+      centre: view.centre,
+      zoom: view.zoom,
+      markers: view.markers,
+      polylines: view.polylines,
+      onMapCreated: view.onMapCreated,
+      onTap: (position) {
+        // `_wasCovered` is what the page looked like when it was last drawn:
+        // the browser's click can arrive after the dialog has gone but before
+        // the page has been redrawn without it.
+        if (_covered ||
+            _wasCovered ||
+            MapCover.instance.covers(_route) ||
+            DateTime.now().difference(_uncoveredAt) < _settle) {
+          return;
+        }
+        onTap(position);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<void>(
@@ -136,7 +192,7 @@ class _ReadyMapState extends ConsumerState<_ReadyMap> {
           return MapUnavailable(reason: 'Map unavailable - ${snapshot.error}');
         }
 
-        return ref.watch(mapRendererProvider).build(context, widget.view);
+        return ref.watch(mapRendererProvider).build(context, _guardedView);
       },
     );
   }

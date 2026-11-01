@@ -3,6 +3,7 @@ import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
+import 'package:edutrack_app/features/maps/data/places_repository.dart';
 import 'package:edutrack_app/features/schools/data/models/school.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:edutrack_app/features/transport/data/models/bus_stop.dart';
@@ -15,6 +16,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_map.dart';
+import '../../support/fake_places_repository.dart';
 import '../../support/fake_school_repository.dart';
 import '../../support/fake_transport_repository.dart';
 
@@ -88,9 +90,11 @@ School placedSchool() {
 }
 
 late FakeMapRenderer renderer;
+late FakePlacesRepository places;
 
-Widget wrap(FakeTransportRepository fake, {AuthenticatedUser actor = _admin}) {
+Widget wrap(FakeTransportRepository fake, {AuthenticatedUser actor = _admin, FakePlacesRepository? lookups}) {
   renderer = FakeMapRenderer();
+  places = lookups ?? FakePlacesRepository();
 
   return ProviderScope(
     overrides: [
@@ -99,6 +103,7 @@ Widget wrap(FakeTransportRepository fake, {AuthenticatedUser actor = _admin}) {
       schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository(schools: [placedSchool()])),
       ...mapIsAvailable(renderer),
       ...mapPinsAreReady(),
+      placesRepositoryProvider.overrideWithValue(places),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),
@@ -460,6 +465,152 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Renaming it or moving the pin'), findsNothing);
+    });
+  });
+
+  group('a smart stop form', () {
+    FakePlacesRepository balewadi() => FakePlacesRepository(
+      address: 'Baner Rd, Baner, Pune, Maharashtra 411045, India',
+      pointName: 'Balewadi High Street',
+      pointArea: 'Baner',
+    );
+
+    testWidgets('the school is pinned on the map, in its own colour', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()])));
+      await tester.pumpAndSettle();
+
+      final school = renderer.markersById['school'];
+      expect(school, isNotNull);
+      expect(school!.position.latitude, closeTo(28.6139, 0.0001));
+      expect(school.infoWindow.title, 'Abbey Road School');
+    });
+
+    testWidgets('a click on the map fills in the address, a name and a landmark', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()]), lookups: balewadi()));
+      await tester.pumpAndSettle();
+
+      renderer.tapAt(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+
+      expect(places.describes, 1);
+      expect(find.widgetWithText(TextFormField, 'Balewadi High Street'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Baner'), findsOneWidget);
+      expect(find.text('Baner Rd, Baner, Pune, Maharashtra 411045, India'), findsOneWidget);
+      expect(find.byKey(const Key('stop-suggested')), findsOneWidget);
+    });
+
+    testWidgets('saving sends what was filled in', (tester) async {
+      useDesktop(tester);
+      final fake = FakeTransportRepository(busStops: [_stop()]);
+      await tester.pumpWidget(wrap(fake, lookups: balewadi()));
+      await tester.pumpAndSettle();
+
+      renderer.tapAt(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall?['name'], 'Balewadi High Street');
+      expect(fake.lastCall?['landmark'], 'Baner');
+    });
+
+    testWidgets('with no name for the spot, the address names it - never a house number or plus code', (tester) async {
+      useDesktop(tester);
+      final lookups = FakePlacesRepository(address: 'GRR4+5QG, 38/1-A, Pashan Road, Pune, Maharashtra 411008, India');
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()]), lookups: lookups));
+      await tester.pumpAndSettle();
+
+      renderer.tapAt(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextFormField, 'Pashan Road'), findsOneWidget);
+    });
+
+    testWidgets('a name somebody typed is kept when the pin moves', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()]), lookups: balewadi()));
+      await tester.pumpAndSettle();
+
+      renderer.tapAt(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'Balewadi High Street'), 'Temple Gate');
+      places.pointName = 'Somewhere Else';
+
+      // The picker's own map is the one drawn last.
+      renderer.tapAt(const LatLng(28.64, 77.23));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextFormField, 'Temple Gate'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Somewhere Else'), findsNothing);
+    });
+
+    testWidgets('a place nobody can name leaves the boxes for the person to fill', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()])));
+      await tester.pumpAndSettle();
+
+      renderer.tapAt(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('stop-suggested')), findsNothing);
+      expect(find.text('Drag the pin to adjust it.'), findsOneWidget);
+    });
+
+    testWidgets('the Add Stop button looks nothing up until a point is chosen', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()]), lookups: balewadi()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('add-bus-stop')));
+      await tester.pumpAndSettle();
+
+      expect(places.describes, 0);
+      // It opens on the school's neighbourhood, not the whole country.
+      expect(renderer.lastView?.zoom, 14);
+    });
+
+    testWidgets('clicks meant for the open form never reach the map behind it', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()])));
+      await tester.pumpAndSettle();
+      final behind = renderer.lastView!;
+
+      behind.onTap!(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+      behind.onTap!(const LatLng(28.64, 77.23));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add Bus Stop'), findsOneWidget);
+    });
+
+    testWidgets('Cancel closes the form, and its click does not open another', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()])));
+      await tester.pumpAndSettle();
+      final behind = renderer.lastView!;
+
+      behind.onTap!(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      // The browser's click lands on the map just after the form has gone.
+      behind.onTap!(const LatLng(28.63, 77.22));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add Bus Stop'), findsNothing);
+    });
+
+    testWidgets('picking a stop in the list shows it on the map', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeTransportRepository(busStops: [_stop()])));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Market Square'));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<ListTile>(find.widgetWithText(ListTile, 'Market Square')).selected, isTrue);
     });
   });
 }

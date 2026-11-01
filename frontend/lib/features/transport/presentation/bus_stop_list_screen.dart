@@ -166,6 +166,7 @@ class _BusStopListScreenState extends ConsumerState<BusStopListScreen> {
               page: page,
               canManage: canManage,
               school: _school(),
+              schoolName: notifier.schoolName,
               selected: _selected,
               onSelect: (id) => setState(() => _selected = id),
               onAddAt: canManage ? (at) => _add(at: at) : null,
@@ -195,12 +196,13 @@ String messageOf(Object error) {
   }
 }
 
-class _MapAndList extends ConsumerWidget {
+class _MapAndList extends ConsumerStatefulWidget {
   const _MapAndList({
     required this.stops,
     required this.page,
     required this.canManage,
     required this.school,
+    required this.schoolName,
     required this.selected,
     required this.onSelect,
     required this.onAddAt,
@@ -214,6 +216,7 @@ class _MapAndList extends ConsumerWidget {
   final PagedList<BusStop> page;
   final bool canManage;
   final LatLng? school;
+  final String? schoolName;
   final int? selected;
   final void Function(int id) onSelect;
   final void Function(LatLng at)? onAddAt;
@@ -221,6 +224,29 @@ class _MapAndList extends ConsumerWidget {
   final void Function(BusStop stop) onRemove;
   final void Function(int page) onPageChanged;
   final void Function(int perPage) onPerPageChanged;
+
+  @override
+  ConsumerState<_MapAndList> createState() => _MapAndListState();
+}
+
+class _MapAndListState extends ConsumerState<_MapAndList> {
+  GoogleMapController? _map;
+
+  /// A stop picked in the list is shown on the map: the map moves to it and
+  /// opens its label, so "which one is that?" needs no searching.
+  @override
+  void didUpdateWidget(covariant _MapAndList old) {
+    super.didUpdateWidget(old);
+    final id = widget.selected;
+    if (id == null || id == old.selected) return;
+
+    final stop = widget.stops.where((stop) => stop.id == id).firstOrNull;
+    final at = stop == null ? null : _at(stop);
+    if (at == null) return;
+
+    _map?.animateCamera(CameraUpdate.newLatLngZoom(at, 16));
+    _map?.showMarkerInfoWindow(MarkerId('bus-stop-$id'));
+  }
 
   LatLng? _at(BusStop stop) {
     final latitude = double.tryParse(stop.latitude);
@@ -232,7 +258,11 @@ class _MapAndList extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final stops = widget.stops;
+    final school = widget.school;
+    final selected = widget.selected;
+    final canManage = widget.canManage;
     final icons = ref.watch(mapPinIconsProvider).value;
     final places = [
       for (final stop in stops)
@@ -251,8 +281,19 @@ class _MapAndList extends ConsumerWidget {
             view: AppMapView(
               centre: centre,
               zoom: places.isEmpty ? 14 : 13,
-              onTap: onAddAt,
+              onTap: widget.onAddAt,
+              onMapCreated: (controller) => _map = controller,
               markers: {
+                // The school, in its own colour: every stop is placed
+                // relative to it.
+                if (school != null)
+                  Marker(
+                    markerId: const MarkerId('school'),
+                    position: school,
+                    icon: icons?[MapPinColour.primary] ?? BitmapDescriptor.defaultMarker,
+                    infoWindow: InfoWindow(title: widget.schoolName ?? 'School', snippet: 'The school'),
+                    zIndexInt: 1,
+                  ),
                 for (final stop in stops)
                   if (_at(stop) != null)
                     Marker(
@@ -266,7 +307,7 @@ class _MapAndList extends ConsumerWidget {
                               : MapPinColour.done] ??
                           BitmapDescriptor.defaultMarker,
                       infoWindow: InfoWindow(title: stop.name, snippet: stop.landmark),
-                      onTap: () => onSelect(stop.id),
+                      onTap: () => widget.onSelect(stop.id),
                     ),
               },
             ),
@@ -278,7 +319,11 @@ class _MapAndList extends ConsumerWidget {
         if (canManage && centre != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text('Tap the map to add a stop where you tap.', style: TextStyle(color: context.appColors.muted)),
+            child: Text(
+              'Click the map where the bus should stop - the address, a name and a landmark are filled in for you. '
+              'The red pin is the school.',
+              style: TextStyle(color: context.appColors.muted),
+            ),
           ),
         Expanded(
           child: stops.isEmpty
@@ -290,19 +335,19 @@ class _MapAndList extends ConsumerWidget {
                     stop: stops[index],
                     selected: stops[index].id == selected,
                     canManage: canManage,
-                    onTap: () => onSelect(stops[index].id),
-                    onEdit: () => onEdit(stops[index]),
-                    onRemove: () => onRemove(stops[index]),
+                    onTap: () => widget.onSelect(stops[index].id),
+                    onEdit: () => widget.onEdit(stops[index]),
+                    onRemove: () => widget.onRemove(stops[index]),
                   ),
                 ),
         ),
         PaginationControls(
-          currentPage: page.currentPage,
-          lastPage: page.lastPage,
-          total: page.total,
-          perPage: page.perPage,
-          onPageChanged: onPageChanged,
-          onPerPageChanged: onPerPageChanged,
+          currentPage: widget.page.currentPage,
+          lastPage: widget.page.lastPage,
+          total: widget.page.total,
+          perPage: widget.page.perPage,
+          onPageChanged: widget.onPageChanged,
+          onPerPageChanged: widget.onPerPageChanged,
         ),
       ],
     );
@@ -320,8 +365,10 @@ class _MapAndList extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      // Stretched, so the map is given its full height rather than left to
+      // size itself - a platform view with no size of its own.
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(child: map),
           const SizedBox(width: 16),

@@ -145,13 +145,17 @@ def reverse_geocode(request) -> Response:
     key = _cache_key("reverse", round(latitude, 4), round(longitude, 4))
     cached = cache.get(key)
 
-    if cached is not None:
-        return Response({"address": cached})
+    # A cached plain string is from before the name and area were kept.
+    if isinstance(cached, dict):
+        return Response(cached)
 
-    address = _asked(lambda: google_maps.reverse_geocode(latitude, longitude))
-    cache.set(key, address, CACHE_SECONDS)
+    found = _asked(lambda: google_maps.reverse_geocode(latitude, longitude))
+    # The address line, and - for naming a bus stop - what the spot is called
+    # and the area it is in. Any of them may be empty.
+    answer = {"address": found.address, "name": found.name, "area": found.area}
+    cache.set(key, answer, CACHE_SECONDS)
 
-    return Response({"address": address})
+    return Response(answer)
 
 
 @api_view(["GET"])
