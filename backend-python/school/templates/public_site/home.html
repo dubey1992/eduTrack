@@ -49,6 +49,11 @@
     <h2>What each part does</h2>
     <p class="lead">A page for each part of School365ai: who uses it, and what it does for them.</p>
     {% include "public_site/module_cards.html" %}
+    {% if all_modules %}
+    <div class="see-all">
+      <a class="button outline" href="{{ all_modules.href }}">See all {{ all_modules.count }} features &rarr;</a>
+    </div>
+    {% endif %}
   </div>
 </section>
 {% endif %}

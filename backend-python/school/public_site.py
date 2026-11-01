@@ -55,6 +55,11 @@ COVERS_DIR = Path("site") / "covers"
 # Where the app lives, under the same domain.
 APP = "/app/"
 
+# The homepage shows this many module cards; the rest are one click away on
+# a page of their own, so the homepage stays short.
+HOME_MODULES = 4
+FEATURES_SLUG = "school-management-features"
+
 # The homepage's own sections, by the names old links use (/features,
 # ?section=features) and the anchors this page gives them.
 SECTIONS = {
@@ -147,6 +152,8 @@ def build(root: Path, server_files: bool = False) -> list[str]:
     articles = [page for page in published if page.kind == kinds.HELP]
     modules = [page for page in pages if page.blurb]
     live = {page.slug for page in pages} | ({"blog"} if posts else set()) | ({"help"} if articles else set())
+    if len(modules) > HOME_MODULES:
+        live.add(FEATURES_SLUG)
     written: list[str] = []
 
     def write(relative: Path | str, content: str | bytes) -> None:
@@ -162,6 +169,10 @@ def build(root: Path, server_files: bool = False) -> list[str]:
 
     for page in pages:
         write(PAGES_DIR / f"{page.slug}.html", render_page(page, words, live, modules))
+
+    # Every module card, for the "See all" button under the homepage's few.
+    if FEATURES_SLUG in live:
+        write(PAGES_DIR / f"{FEATURES_SLUG}.html", render_features(modules, words, live))
 
     # A page unpublished or renamed stops answering at its old address.
     for stale in (root / PAGES_DIR).glob("*.html"):
@@ -344,7 +355,10 @@ def render_home(words: Words, live: set[str], modules: list[PublicPage]) -> str:
         "public_site/home.html",
         {
             **shared(words, live),
-            "modules": modules,
+            "modules": modules[:HOME_MODULES],
+            "all_modules": (
+                {"href": f"/{FEATURES_SLUG}", "count": len(modules)} if FEATURES_SLUG in live else None
+            ),
             "structured_data": structured([*about_us(), product()]),
             "canonical": site_url() + "/",
             "title": "School365ai - School Management Software for Attendance, Fees and Transport",
@@ -385,6 +399,21 @@ def render_home(words: Words, live: set[str], modules: list[PublicPage]) -> str:
                 "join": words.text("cta.button"),
                 "demo": words.text("cta.demoButton"),
             },
+        },
+    )
+
+
+def render_features(modules: list[PublicPage], words: Words, live: set[str]) -> str:
+    """Every module card on one page - each opens its own page and FAQs."""
+    return render_to_string(
+        "public_site/features.html",
+        {
+            **shared(words, live),
+            "modules": modules,
+            "canonical": f"{site_url()}/{FEATURES_SLUG}",
+            "title": "School Management Features - School365ai",
+            "description": "Every part of School365ai: attendance, fees, school bus tracking, staff check-in, "
+                           "timetables, tests and progress reports, payroll, parent messages, reports and the apps.",
         },
     )
 
@@ -674,6 +703,9 @@ def render_sitemap(pages: list[PublicPage], posts=(), articles=()) -> str:
 
     entries = [entry("/")]
     entries += [entry(page.path, page) for page in pages]
+
+    if len([page for page in pages if page.blurb]) > HOME_MODULES:
+        entries.append(entry(f"/{FEATURES_SLUG}"))
 
     if posts:
         entries.append(entry("/blog", posts[0]))

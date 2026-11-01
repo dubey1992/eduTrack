@@ -377,12 +377,30 @@ class ModulePages(TestCase):
     def test_an_ordinary_page_does_not(self):
         self.assertNotIn("See it with your own school", self.read("site/pages/about.html"))
 
-    def test_the_homepage_links_to_every_module(self):
+    def test_the_homepage_shows_four_modules_and_a_way_to_all_of_them(self):
         home = self.read("index.html")
+        cards = re.findall(r'class="card module-card" href="(/[a-z0-9-]+)"', home)
 
         self.assertIn("What each part does", home)
-        for module in module_pages.MODULES:
-            self.assertIn(f'href="/{module.slug}"', home)
+        self.assertEqual([f"/{module.slug}" for module in module_pages.MODULES[:4]], cards)
+        self.assertIn(
+            f'<a class="button outline" href="/school-management-features">See all {len(module_pages.MODULES)} features',
+            home,
+        )
+
+    def test_the_features_page_lists_every_module_and_is_in_the_sitemap(self):
+        page = self.read("site/pages/school-management-features.html")
+        cards = re.findall(r'class="card module-card" href="(/[a-z0-9-]+)"', page)
+
+        self.assertIn("<h1>Everything School365ai does</h1>", page)
+        self.assertEqual([f"/{module.slug}" for module in module_pages.MODULES], cards)
+        self.assertIn('<link rel="canonical" href="https://school365ai.com/school-management-features">', page)
+        self.assertIn("<loc>https://school365ai.com/school-management-features</loc>", self.read("sitemap.xml"))
+
+    def test_a_rebuild_keeps_the_features_page(self):
+        public_site.build(self.root)
+
+        self.assertTrue((self.root / "site/pages/school-management-features.html").exists())
 
     def test_each_snippet_is_plain_words_from_its_first_paragraph_and_fits_a_search_result(self):
         for module in module_pages.MODULES:

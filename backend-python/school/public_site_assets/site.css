@@ -63,7 +63,9 @@ h3 { font-size: 1.05rem; font-weight: 700; }
 .button.primary:hover { background: var(--primary-dark); }
 .button.outline { border-color: var(--primary); color: var(--primary); background: var(--surface); }
 .button.outline:hover { background: var(--primary-light); }
-.button.ghost { color: var(--text); }
+/* Login: a real button beside Request a Demo and Join, not faint text. */
+.button.ghost { color: var(--text); background: var(--surface); border-color: #CBD5E1; }
+.button.ghost:hover { color: var(--primary-dark); border-color: var(--primary); background: var(--primary-light); }
 .button.light { background: #fff; color: var(--primary-dark); }
 .button.on-band { border-color: #fff; color: #fff; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 16px; }
@@ -126,6 +128,7 @@ h3 { font-size: 1.05rem; font-weight: 700; }
 .section.tinted { background: var(--primary-light); }
 section[id], #contact { scroll-margin-top: 80px; }
 
+.see-all { display: flex; justify-content: center; margin-top: 28px; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; list-style: none; padding: 0; margin: 32px 0 0; }
 .stats li { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
 .stats strong { display: block; font-size: 1.4rem; font-weight: 800; color: var(--primary-dark); }
