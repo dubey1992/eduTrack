@@ -3801,6 +3801,9 @@ class PaymentForm(serializers.Serializer):
     # Cancelled is a decision rather than a consequence of the figures.
     paid_amount = MoneyField("paid_amount", required=False, allow_null=True)
     status = LaravelCharField("status", max_length=20)
+    # Tax as a percentage of the services: 18 for 18% GST. Optional; none
+    # sent keeps the payment's rate, and a new payment has none.
+    tax_rate = MoneyField("tax_rate", minimum="0", required=False, allow_null=True)
 
     def __init__(self, *args, payment=None, **kwargs) -> None:
         if "data" in kwargs:
@@ -3820,7 +3823,21 @@ class PaymentForm(serializers.Serializer):
             if field in attrs and attrs[field] not in choices.values:
                 errors[field] = [selected_is_invalid(field)]
 
-        total = self.read_lines(attrs, errors)
+        subtotal = self.read_lines(attrs, errors)
+
+        rate = attrs.get("tax_rate")
+        if rate is not None and rate > 100:
+            errors["tax_rate"] = ["The tax cannot be more than 100%."]
+            rate = None
+
+        # What the school owes: the services plus their tax.
+        total = None
+        if subtotal is not None or (rate is not None and self.payment is not None):
+            if subtotal is None:
+                subtotal = self.payment.amount - self.payment.tax_amount
+            if rate is None:
+                rate = self.payment.tax_rate if self.payment is not None else decimal.Decimal("0")
+            total = subtotal + payment_items.tax_on(subtotal, rate)
 
         if total is None and self.payment is not None:
             total = self.payment.amount

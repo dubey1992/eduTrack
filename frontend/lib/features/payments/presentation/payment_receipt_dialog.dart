@@ -71,6 +71,11 @@ class _PaymentReceiptDialogState extends ConsumerState<PaymentReceiptDialog> {
                 for (final item in payment.items) _Row(item.label, formatCurrency(item.amount, payment.currencyCode))
               else
                 _Row('Payment Type', payment.servicesSummary),
+              // The services before tax, and the tax on them.
+              if (payment.taxAmount > 0) ...[
+                _Row('Subtotal', formatCurrency(payment.subtotal, payment.currencyCode)),
+                _Row('Tax (${_rate(payment.taxRate)}%)', formatCurrency(payment.taxAmount, payment.currencyCode)),
+              ],
               _Row('Payment Mode', payment.paymentMode.label),
               _Row('Payment Date', formatDate(payment.paymentDate)),
               _Row('Reference', payment.referenceNumber ?? '-'),
@@ -116,6 +121,12 @@ class _PaymentReceiptDialogState extends ConsumerState<PaymentReceiptDialog> {
       ],
     );
   }
+}
+
+/// 18.0 as "18", 12.5 as "12.5".
+String _rate(double rate) {
+  final text = rate.toStringAsFixed(2);
+  return text.replaceFirst(RegExp(r'\.?0+$'), '');
 }
 
 class _Row extends StatelessWidget {

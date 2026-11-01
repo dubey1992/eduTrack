@@ -308,3 +308,122 @@ class OnlyASuperAdmin(PaymentItemsTest):
 
         self.assertEqual(403, response.status_code)
         self.assertFalse(Payment.objects.exists())
+
+
+class TaxOnAPayment(PaymentItemsTest):
+    """Tax as a percentage of the services, added on top and worked out by
+    the server - rounded to the cent, half up, the way a tax invoice is."""
+
+    def test_eighteen_percent_is_added_on_top_of_the_services(self):
+        response = self.record(tax_rate="18")
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual("42000.50", response.data["subtotal_amount"])
+        self.assertEqual("18.00", response.data["tax_rate"])
+        # 42,000.50 x 18% = 7,560.09
+        self.assertEqual("7560.09", response.data["tax_amount"])
+        self.assertEqual("49560.59", response.data["amount"])
+        self.assertEqual("49560.59", response.data["paid_amount"])
+
+    def test_tax_rounds_half_up_to_the_cent(self):
+        # 999.99 x 18% = 179.9982 -> 180.00; 0.05 x 10% = 0.005 -> 0.01.
+        first = self.record([{"service": "setup_fee", "amount": "999.99"}], tax_rate="18").data
+        second = self.record([{"service": "setup_fee", "amount": "0.05"}], tax_rate="10").data
+
+        self.assertEqual(("180.00", "1179.99"), (first["tax_amount"], first["amount"]))
+        self.assertEqual(("0.01", "0.06"), (second["tax_amount"], second["amount"]))
+
+    def test_a_fractional_rate_works(self):
+        response = self.record([{"service": "setup_fee", "amount": "1000"}], tax_rate="12.5")
+
+        self.assertEqual(("125.00", "1125.00"), (response.data["tax_amount"], response.data["amount"]))
+
+    def test_no_rate_is_no_tax(self):
+        response = self.record()
+
+        self.assertEqual(("0.00", "0.00", "42000.50"), (
+            response.data["tax_rate"], response.data["tax_amount"], response.data["amount"]
+        ))
+
+    def test_a_rate_out_of_range_is_refused(self):
+        for rate in ("100.01", "-5", "abc", "18.555"):
+            with self.subTest(rate=rate):
+                response = self.record(tax_rate=rate)
+
+                self.assertEqual(422, response.status_code)
+                self.assertIn("tax_rate", response.data["details"]["errors"])
+
+    def test_a_hundred_percent_is_allowed(self):
+        response = self.record([{"service": "setup_fee", "amount": "500"}], tax_rate="100")
+
+        self.assertEqual("1000.00", response.data["amount"])
+
+    def test_received_is_measured_against_the_total_with_tax(self):
+        # Total with 18% tax: 1,180.00.
+        lines = [{"service": "setup_fee", "amount": "1000"}]
+
+        part = self.record(lines, tax_rate="18", paid_amount="1000.00", status="partial").data
+        too_much = self.record(lines, tax_rate="18", paid_amount="1180.01", status="partial")
+
+        self.assertEqual(("partial", "180.00"), (part["status"], part["remaining_amount"]))
+        self.assertEqual(422, too_much.status_code)
+        self.assertIn("paid_amount", too_much.data["details"]["errors"])
+
+    def test_changing_only_the_rate_keeps_the_services_and_works_the_total_out_again(self):
+        payment_id = self.record([{"service": "setup_fee", "amount": "1000"}], tax_rate="18").data["id"]
+
+        response = self.client.patch(f"/api/v1/payments/{payment_id}", {"tax_rate": "5"}, format="json")
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual(("1000.00", "50.00", "1050.00"), (
+            response.data["subtotal_amount"], response.data["tax_amount"], response.data["amount"]
+        ))
+        self.assertEqual(1, len(response.data["items"]))
+
+    def test_changing_the_services_keeps_the_rate(self):
+        payment_id = self.record([{"service": "setup_fee", "amount": "1000"}], tax_rate="18").data["id"]
+
+        response = self.client.patch(
+            f"/api/v1/payments/{payment_id}", {"items": [{"service": "setup_fee", "amount": "2000"}]}, format="json"
+        )
+
+        self.assertEqual(("360.00", "2360.00"), (response.data["tax_amount"], response.data["amount"]))
+
+    def test_the_receipt_shows_the_subtotal_tax_and_total(self):
+        payment_id = self.record(tax_rate="18").data["id"]
+        document = receipts.document(Payment.objects.select_related("school", "created_by").get(pk=payment_id))
+
+        self.assertIn("Subtotal", document)
+        self.assertIn("Tax (18%)", document)
+        self.assertIn("INR 7,560.09", document)
+        self.assertIn("INR 49,560.59", document)
+
+    def test_a_receipt_with_no_tax_has_no_tax_rows(self):
+        payment_id = self.record().data["id"]
+        document = receipts.document(Payment.objects.select_related("school", "created_by").get(pk=payment_id))
+
+        self.assertNotIn("Subtotal", document)
+        self.assertNotIn("Tax (", document)
+
+
+class TheReceiptSaysEachFigureOnce(PaymentItemsTest):
+    """"Amount" and "Amount received" were printed twice; only the balance
+    sits under the panel now."""
+
+    def document(self, **overrides) -> str:
+        payment_id = self.record(**overrides).data["id"]
+
+        return receipts.document(Payment.objects.select_related("school", "created_by").get(pk=payment_id))
+
+    def test_amount_received_appears_once_and_amount_not_as_its_own_row(self):
+        document = self.document()
+
+        self.assertEqual(1, document.count("Amount received"))
+        self.assertNotIn("<td>Amount</td>", document)
+        self.assertIn("<td>Balance</td>", document)
+
+    def test_a_part_payment_still_says_the_balance_due(self):
+        document = self.document(paid_amount="2000.50", status="partial")
+
+        self.assertIn("<td>Balance due</td>", document)
+        self.assertIn("INR 40,000.00", document)

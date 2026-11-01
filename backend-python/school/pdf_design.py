@@ -127,6 +127,8 @@ td, th {{ vertical-align: top; }}
 .items .idx {{ width: 24px; color: {MUTED}; }}
 .items .total td {{ background-color: {BRAND_SOFT}; font-weight: bold; color: {BRAND_DARK};
     border-top: 1px solid {BRAND_LINE}; }}
+.items .summary td {{ background-color: {BRAND_SOFT}; font-weight: bold; color: {BRAND_DARK};
+    padding: 3px 8px; border-bottom: 1px solid {BRAND_LINE}; }}
 
 .totals td {{ background-color: {BRAND_SOFT}; padding: 6px 14px; }}
 .totals .big-label {{ font-size: 11pt; font-weight: bold; color: {BRAND_DARK}; padding-top: 10px;
@@ -290,10 +292,11 @@ def school_lines(school) -> list[str]:
 
 
 def band(name: str, lines: list[str], title: str, number: str | None = None, subtitle: str | None = None,
-         logo_url: str | None = None) -> str:
+         logo_url: str | None = None, title_width: int | None = None) -> str:
     """The blue band: a logo when there is one, the issuer's name and contact
     lines, and on the right the document's title, its number and a line under
-    it."""
+    it. `title_width` narrows the title's column (260 by the stylesheet) for a
+    short title, leaving the contact lines room so they wrap less."""
     logo = logo_data_uri(logo_url)
     size = logo_size(logo) if logo else None
     logo_cell = (
@@ -311,7 +314,7 @@ def band(name: str, lines: list[str], title: str, number: str | None = None, sub
     <table class="band"><tr>
         {logo_cell}
         <td class="school"><div class="school-name">{e(name)}</div>{contact}</td>
-        <td class="title"><div class="doc-title">{e(title)}</div>{number_line}{sub_line}</td>
+        <td class="title"{f' style="width: {title_width}px"' if title_width else ""}><div class="doc-title">{e(title)}</div>{number_line}{sub_line}</td>
     </tr></table>"""
 
 
@@ -399,6 +402,21 @@ def table(headings: list[tuple[str, str | None, bool]], rows: list[list[str]], t
         f'<table class="{table_class}" repeat="1"><thead><tr>{head}</tr></thead>'
         f"<tbody>{body}{foot}</tbody></table>"
     )
+
+
+def summary_rows(rows: list[list[tuple[str, str, bool]]], table_class: str = "items") -> str:
+    """Several totals lines under a table whose columns have set widths -
+    subtotal, tax, total - as one compact table, each cell as wide as the
+    column above it (see `total_row` for why it is a table of its own)."""
+    num = ' class="num"'
+    body = "".join(
+        '<tr class="summary">'
+        + "".join(f'<td{num if numeric else ""} width="{width}">{html}</td>' for html, width, numeric in cells)
+        + "</tr>"
+        for cells in rows
+    )
+
+    return f'<table class="{table_class}">{body}</table>'
 
 
 def total_row(cells: list[tuple[str, str, bool]], table_class: str = "items") -> str:

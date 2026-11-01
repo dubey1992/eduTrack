@@ -104,6 +104,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
           .createPayment(
             schoolId: _schoolId!,
             items: _services.items,
+            taxRate: _services.taxRate,
             paidAmount: _paidAmount,
             paymentDate: _paymentDate,
             paymentMode: _paymentMode,

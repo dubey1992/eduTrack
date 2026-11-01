@@ -4358,9 +4358,12 @@ class PaymentService:
         data = dict(data)
         school = School.objects.get(pk=data["school_id"])
 
-        # The sum of the services, never a figure the client sent.
+        # The sum of the services plus their tax, never a figure the client sent.
         lines = data["items"]
-        total = payment_items.total_of(lines)
+        subtotal = payment_items.total_of(lines)
+        rate = data.get("tax_rate") or Decimal("0")
+        tax = payment_items.tax_on(subtotal, rate)
+        total = subtotal + tax
         paid = money.paid_amount_for(data, total)
         now = timezone.now()
 
@@ -4371,6 +4374,8 @@ class PaymentService:
                 # has a value; the lines are the full story.
                 payment_type=lines[0]["service"],
                 amount=total,
+                tax_rate=rate,
+                tax_amount=tax,
                 paid_amount=paid,
                 # Derived from the figures rather than taken at face value, so
                 # a payment can never read "Paid" with a balance outstanding.
@@ -4406,7 +4411,19 @@ class PaymentService:
         # New lines replace the old ones; none sent leaves them, and the total,
         # as they were.
         lines = data.pop("items", None)
-        total = payment_items.total_of(lines) if lines else money.amount(payment.amount)
+        rate = data.pop("tax_rate", None)
+
+        # New lines or a new rate work the tax and the total out again;
+        # neither leaves them as they were.
+        if lines or rate is not None:
+            subtotal = payment_items.total_of(lines) if lines else money.amount(payment.amount - payment.tax_amount)
+            rate = rate if rate is not None else money.amount(payment.tax_rate)
+            tax = payment_items.tax_on(subtotal, rate)
+            total = subtotal + tax
+        else:
+            rate, tax = payment.tax_rate, payment.tax_amount
+            total = money.amount(payment.amount)
+
         paid = money.paid_amount_for(data, total, fallback=money.amount(payment.paid_amount))
 
         before = (money.amount(payment.amount), money.amount(payment.paid_amount), payment.status, lines_before)
@@ -4420,6 +4437,8 @@ class PaymentService:
                 payment.payment_type = lines[0]["service"]
 
             payment.amount = total
+            payment.tax_rate = rate
+            payment.tax_amount = tax
             payment.paid_amount = paid
             payment.status = money.status_for(total, paid, data.get("status"))
             payment.updated_at = timezone.now()

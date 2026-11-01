@@ -23,7 +23,7 @@ class EditPaymentDialog extends ConsumerStatefulWidget {
 
 class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
   final _formKey = GlobalKey<FormState>();
-  late final _services = PaymentServicesController(items: widget.payment.items);
+  late final _services = PaymentServicesController(items: widget.payment.items, taxRate: widget.payment.taxRate);
   late final _paidAmountController = TextEditingController(text: widget.payment.paidAmount.toStringAsFixed(2));
   late final _referenceController = TextEditingController(text: widget.payment.referenceNumber ?? '');
   late final _notesController = TextEditingController(text: widget.payment.notes ?? '');
@@ -85,6 +85,7 @@ class _EditPaymentDialogState extends ConsumerState<EditPaymentDialog> {
           .updatePayment(
             widget.payment,
             items: _services.items,
+            taxRate: _services.taxRate,
             paidAmount: _paidAmount,
             paymentDate: _paymentDate,
             paymentMode: _paymentMode,

@@ -11,7 +11,10 @@ import '../../data/models/payment.dart';
 /// A [ChangeNotifier] so the dialog can redraw the total and the remaining
 /// balance as amounts are typed.
 class PaymentServicesController extends ChangeNotifier {
-  PaymentServicesController({List<PaymentItem> items = const []}) {
+  PaymentServicesController({List<PaymentItem> items = const [], double taxRate = 0}) {
+    tax.text = taxRate > 0 ? _rateText(taxRate) : '';
+    tax.addListener(notifyListeners);
+
     for (final type in PaymentType.fixed) {
       _fixed[type] = _FixedLine(TextEditingController()..addListener(notifyListeners));
     }
@@ -31,6 +34,15 @@ class PaymentServicesController extends ChangeNotifier {
   final List<_OtherLine> _others = [];
 
   static String _text(double amount) => amount.toStringAsFixed(2);
+
+  /// 18.0 as "18", 12.5 as "12.5" - a rate as people write it.
+  static String _rateText(double rate) {
+    final text = rate.toStringAsFixed(2);
+    return text.contains('.') ? text.replaceFirst(RegExp(r'\.?0+$'), '') : text;
+  }
+
+  /// The tax percentage box: empty is no tax.
+  final tax = TextEditingController();
 
   bool isTicked(PaymentType type) => _fixed[type]!.ticked;
 
@@ -64,8 +76,18 @@ class PaymentServicesController extends ChangeNotifier {
   /// True once anything at all is on the payment.
   bool get hasAny => _fixed.values.any((line) => line.ticked) || _others.isNotEmpty;
 
-  /// The sum of every amount that can be read so far.
-  double get total {
+  /// The tax rate typed so far, 0 when there is none.
+  double get taxRate => double.tryParse(tax.text.trim()) ?? 0;
+
+  /// Tax on the services, to the cent and half up - the way the server
+  /// works it out, so the figure here is the figure on the receipt.
+  double get taxAmount => (subtotal * taxRate).round() / 100;
+
+  /// What the school owes: the services plus their tax.
+  double get total => subtotal + taxAmount;
+
+  /// The sum of every service amount that can be read so far.
+  double get subtotal {
     var sum = 0.0;
     for (final line in _fixed.values) {
       if (line.ticked) sum += double.tryParse(line.amount.text) ?? 0;
@@ -87,6 +109,7 @@ class PaymentServicesController extends ChangeNotifier {
 
   @override
   void dispose() {
+    tax.dispose();
     for (final line in _fixed.values) {
       line.amount.dispose();
     }
@@ -114,6 +137,18 @@ class _OtherLine {
     name.dispose();
     amount.dispose();
   }
+}
+
+/// Empty is no tax; otherwise 0 to 100.
+String? validateTaxRate(String? value) {
+  final text = (value ?? '').trim();
+  if (text.isEmpty) return null;
+
+  final rate = double.tryParse(text);
+  if (rate == null || rate < 0) return 'Enter the tax as a percentage';
+  if (rate > 100) return 'The tax cannot be more than 100%';
+
+  return null;
 }
 
 String? validateServiceAmount(String? value) {
@@ -167,14 +202,51 @@ class PaymentServicesField extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(field.errorText!, style: TextStyle(color: context.appColors.danger, fontSize: 12)),
               ),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Text('Tax', style: theme.textTheme.titleSmall),
+                  ),
+                ),
+                SizedBox(
+                  width: _amountWidth,
+                  child: TextFormField(
+                    key: const Key('tax-rate'),
+                    controller: controller.tax,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [DecimalTextInputFormatter()],
+                    decoration: const InputDecoration(
+                      labelText: 'Tax %',
+                      hintText: 'e.g. 18',
+                      suffixText: '%',
+                      isDense: true,
+                    ),
+                    validator: validateTaxRate,
+                  ),
+                ),
+              ],
+            ),
             const Divider(),
+            // The services and the tax on them, said only when there is tax.
+            if (controller.taxRate > 0) ...[
+              _figure(context, 'Subtotal', controller.subtotal, key: const Key('services-subtotal')),
+              _figure(
+                context,
+                'Tax (${PaymentServicesController._rateText(controller.taxRate)}%)',
+                controller.taxAmount,
+                key: const Key('services-tax'),
+              ),
+              const SizedBox(height: 4),
+            ],
             Row(
               children: [
                 Expanded(child: Text('Total', style: theme.textTheme.titleMedium)),
                 Text(
-                  currencyCode.isEmpty
-                      ? controller.total.toStringAsFixed(2)
-                      : formatCurrency(controller.total, currencyCode),
+                  _money(controller.total),
                   key: const Key('services-total'),
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                 ),
@@ -182,6 +254,20 @@ class PaymentServicesField extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _money(double value) => currencyCode.isEmpty ? value.toStringAsFixed(2) : formatCurrency(value, currencyCode);
+
+  Widget _figure(BuildContext context, String label, double value, {Key? key}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(child: Text(label)),
+          Text(_money(value), key: key),
+        ],
       ),
     );
   }

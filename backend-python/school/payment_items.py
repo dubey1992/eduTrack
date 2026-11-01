@@ -9,7 +9,7 @@ lines, worked out here and never taken from the client.
 from __future__ import annotations
 
 import decimal
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.utils import timezone
 
@@ -127,6 +127,12 @@ def money_of(value, field: str, errors: dict) -> Decimal | None:
 
 def total_of(lines: list[dict]) -> Decimal:
     return sum((line["amount"] for line in lines), Decimal("0.00"))
+
+
+def tax_on(subtotal: Decimal, rate: Decimal) -> Decimal:
+    """Tax at `rate` percent of the services, rounded to the cent - half up,
+    the way a tax invoice rounds: 18% of 999.99 is 180.00, not 179.99."""
+    return (subtotal * rate / Decimal(100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def write(payment: Payment, lines: list[dict]) -> None:

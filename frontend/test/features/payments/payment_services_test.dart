@@ -329,4 +329,138 @@ void main() {
       expect(find.textContaining(RegExp(r'^\D*25,000\.00$')), findsOneWidget);
     });
   });
+
+  group('tax', () {
+    String figure(WidgetTester tester, String key) => tester.widget<Text>(find.byKey(Key(key))).data!;
+
+    testWidgets('a rate adds the tax on top: subtotal, tax and total, as you type', (tester) async {
+      _tall(tester);
+      final fake = FakePaymentRepository();
+      await tester.pumpWidget(wrap(fake, const AddPaymentDialog()));
+      await _open(tester);
+      await _chooseSchool(tester);
+      await _tick(tester, 'Setup Fee');
+      await tester.enterText(find.byKey(const Key('amount-setup_fee')), '42000.50');
+      await tester.pumpAndSettle();
+
+      // No rate yet: no subtotal or tax lines, and the total is the services.
+      expect(find.byKey(const Key('services-tax')), findsNothing);
+      expect(figure(tester, 'services-total'), contains('42,000.50'));
+
+      await tester.enterText(find.byKey(const Key('tax-rate')), '18');
+      await tester.pumpAndSettle();
+
+      expect(figure(tester, 'services-subtotal'), contains('42,000.50'));
+      expect(find.text('Tax (18%)'), findsOneWidget);
+      expect(figure(tester, 'services-tax'), contains('7,560.09'));
+      expect(figure(tester, 'services-total'), contains('49,560.59'));
+
+      await tester.tap(find.text('Save Payment'));
+      await tester.pumpAndSettle();
+
+      final saved = (await fake.list()).single;
+      expect(saved.taxRate, 18);
+      expect(saved.taxAmount, 7560.09);
+      expect(saved.amount, closeTo(49560.59, 0.001));
+    });
+
+    testWidgets('tax rounds half up to the cent, as on the receipt', (tester) async {
+      _tall(tester);
+      await tester.pumpWidget(wrap(FakePaymentRepository(), const AddPaymentDialog()));
+      await _open(tester);
+      await _chooseSchool(tester);
+      await _tick(tester, 'Setup Fee');
+      await tester.enterText(find.byKey(const Key('amount-setup_fee')), '999.99');
+      await tester.enterText(find.byKey(const Key('tax-rate')), '18');
+      await tester.pumpAndSettle();
+
+      // 999.99 x 18% = 179.9982 -> 180.00
+      expect(figure(tester, 'services-tax'), contains('180.00'));
+      expect(figure(tester, 'services-total'), contains('1,179.99'));
+    });
+
+    testWidgets('more than 100% is refused before anything is sent', (tester) async {
+      _tall(tester);
+      final fake = FakePaymentRepository();
+      await tester.pumpWidget(wrap(fake, const AddPaymentDialog()));
+      await _open(tester);
+      await _chooseSchool(tester);
+      await _tick(tester, 'Setup Fee');
+      await tester.enterText(find.byKey(const Key('amount-setup_fee')), '100');
+      await tester.enterText(find.byKey(const Key('tax-rate')), '120');
+      await tester.tap(find.text('Save Payment'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The tax cannot be more than 100%'), findsOneWidget);
+      expect(fake.createdItems, isEmpty);
+    });
+
+    testWidgets('editing opens with the rate it had, and a new rate works the total out again', (tester) async {
+      _tall(tester);
+      final payment = Payment(
+        id: 9,
+        schoolId: 1,
+        schoolName: 'Sunrise Public School',
+        paymentType: PaymentType.setupFee,
+        items: const [PaymentItem(service: PaymentType.setupFee, amount: 1000)],
+        taxRate: 18,
+        taxAmount: 180,
+        amount: 1180,
+        paidAmount: 1180,
+        remainingAmount: 0,
+        currencyCode: 'INR',
+        paymentDate: DateTime(2026, 11, 1),
+        paymentMode: PaymentMode.cash,
+        referenceNumber: null,
+        notes: null,
+        status: PaymentStatus.paid,
+        createdByName: 'Super Admin',
+      );
+      final fake = FakePaymentRepository(payments: [payment]);
+      await tester.pumpWidget(wrap(fake, EditPaymentDialog(payment: payment)));
+      await _open(tester);
+
+      expect(find.widgetWithText(TextFormField, '18'), findsOneWidget);
+      expect(figure(tester, 'services-total'), contains('1,180.00'));
+
+      await tester.enterText(find.byKey(const Key('tax-rate')), '5');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      final saved = (await fake.list()).single;
+      expect((saved.taxRate, saved.taxAmount, saved.amount), (5, 50, 1050));
+    });
+
+    testWidgets('the receipt view shows the subtotal and the tax', (tester) async {
+      _tall(tester);
+      final payment = Payment(
+        id: 3,
+        schoolId: 1,
+        schoolName: 'Sunrise Public School',
+        paymentType: PaymentType.setupFee,
+        items: const [
+          PaymentItem(service: PaymentType.setupFee, amount: 1000),
+          PaymentItem(service: PaymentType.other, name: 'Transport Fee', amount: 1000),
+        ],
+        taxRate: 18,
+        taxAmount: 360,
+        amount: 2360,
+        paidAmount: 2360,
+        remainingAmount: 0,
+        currencyCode: 'INR',
+        paymentDate: DateTime(2026, 11, 1),
+        paymentMode: PaymentMode.cash,
+        referenceNumber: null,
+        notes: null,
+        status: PaymentStatus.paid,
+        createdByName: 'Super Admin',
+      );
+      await tester.pumpWidget(wrap(FakePaymentRepository(payments: [payment]), PaymentReceiptDialog(payment: payment)));
+      await _open(tester);
+
+      expect(find.text('Subtotal'), findsOneWidget);
+      expect(find.text('Tax (18%)'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^\D*360\.00$')), findsOneWidget);
+    });
+  });
 }

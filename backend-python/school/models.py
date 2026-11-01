@@ -1022,6 +1022,10 @@ class Payment(models.Model):
     school = models.ForeignKey('School', models.DO_NOTHING)
     payment_type = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    # Tax as a percentage of the services, and what it came to. `amount` is
+    # the services plus this tax: what the school owes.
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     currency_code = models.CharField(max_length=3)
     payment_date = models.DateField()
     payment_mode = models.CharField(max_length=255)

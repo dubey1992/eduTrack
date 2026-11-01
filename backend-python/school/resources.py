@@ -984,6 +984,11 @@ def payment_resource(payment) -> dict:
         # Strings, always. Money through a JSON number is money through a
         # float, and the client formats it rather than doing arithmetic on it.
         "amount": str(payment.amount),
+        # The services before tax, the rate, and the tax itself; `amount` is
+        # their sum.
+        "subtotal_amount": str(money.amount(payment.amount) - money.amount(payment.tax_amount)),
+        "tax_rate": str(payment.tax_rate),
+        "tax_amount": str(payment.tax_amount),
         "paid_amount": str(payment.paid_amount),
         "remaining_amount": str(
             money.remaining(

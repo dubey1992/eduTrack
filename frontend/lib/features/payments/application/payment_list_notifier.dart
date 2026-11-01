@@ -58,6 +58,7 @@ class PaymentListNotifier extends AsyncNotifier<PagedList<Payment>> {
   Future<void> createPayment({
     required int schoolId,
     required List<PaymentItem> items,
+    double taxRate = 0,
     double? paidAmount,
     required DateTime paymentDate,
     required PaymentMode paymentMode,
@@ -70,6 +71,7 @@ class PaymentListNotifier extends AsyncNotifier<PagedList<Payment>> {
         .create(
           schoolId: schoolId,
           items: items,
+          taxRate: taxRate,
           paidAmount: paidAmount,
           paymentDate: paymentDate,
           paymentMode: paymentMode,
@@ -85,6 +87,7 @@ class PaymentListNotifier extends AsyncNotifier<PagedList<Payment>> {
   Future<void> updatePayment(
     Payment payment, {
     List<PaymentItem>? items,
+    double? taxRate,
     double? paidAmount,
     DateTime? paymentDate,
     PaymentMode? paymentMode,
@@ -97,6 +100,7 @@ class PaymentListNotifier extends AsyncNotifier<PagedList<Payment>> {
         .update(
           payment.id,
           items: items,
+          taxRate: taxRate,
           paidAmount: paidAmount,
           paymentDate: paymentDate,
           paymentMode: paymentMode,

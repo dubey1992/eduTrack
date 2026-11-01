@@ -90,6 +90,8 @@ class Payment {
     required this.createdByName,
     this.receiptSentAt,
     this.items = const [],
+    this.taxRate = 0,
+    this.taxAmount = 0,
   });
 
   factory Payment.fromJson(Map<String, dynamic> json) {
@@ -99,6 +101,8 @@ class Payment {
       schoolName: json['school_name'] as String?,
       paymentType: PaymentType.fromApiValue(json['payment_type'] as String),
       amount: double.parse(json['amount'] as String),
+      taxRate: double.parse(json['tax_rate'] as String? ?? '0'),
+      taxAmount: double.parse(json['tax_amount'] as String? ?? '0'),
       paidAmount: double.parse(json['paid_amount'] as String? ?? '0'),
       remainingAmount: double.parse(json['remaining_amount'] as String? ?? '0'),
       currencyCode: json['currency_code'] as String,
@@ -125,6 +129,15 @@ class Payment {
   /// The balance is computed by the API from those two, never stored, so it
   /// cannot drift out of step with them.
   final double amount;
+
+  /// Tax as a percentage of the services, and what it came to. [amount] is
+  /// the services plus this tax.
+  final double taxRate;
+  final double taxAmount;
+
+  /// The services before tax.
+  double get subtotal => amount - taxAmount;
+
   final double paidAmount;
   final double remainingAmount;
   final String currencyCode;
@@ -171,6 +184,8 @@ class Payment {
       createdByName: createdByName,
       receiptSentAt: receiptSentAt,
       items: items,
+      taxRate: taxRate,
+      taxAmount: taxAmount,
     );
   }
 }

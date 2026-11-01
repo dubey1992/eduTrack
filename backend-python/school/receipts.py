@@ -62,7 +62,9 @@ def issuer_band(receipt_no: str, issued_on: str) -> str:
 
     return pdf_design.band(
         name, [line for line in lines if line], "PAYMENT RECEIPT", receipt_no, f"Issued {issued_on}",
-        logo_url=company.logo_url,
+        # A short title: its column narrowed so the company's address and
+        # contacts wrap less and the receipt stays on one page.
+        logo_url=company.logo_url, title_width=150,
     )
 
 
@@ -71,6 +73,8 @@ def document(payment) -> str:
     from .fees.words import amount_in_words
 
     total = money.amount(payment.amount)
+    tax = money.amount(payment.tax_amount)
+    subtotal = total - tax
     paid = money.amount(payment.paid_amount)
     owed = money.remaining(total, paid, payment.status)
 
@@ -121,12 +125,23 @@ def document(payment) -> str:
         ]
     else:
         # One service: the line it has always been, school name and all.
-        rows = [["1", e(f"{kind} - {school.name}" if school else kind), e(cash(total))]]
+        rows = [["1", e(f"{kind} - {school.name}" if school else kind), e(cash(subtotal))]]
 
     items = pdf_design.table(
         [("#", "6%", False), ("Description", "64%", False), ("Amount", "30%", True)],
         rows,
     )
+
+    # Tax, when there is any: the services, the tax on them, and what is owed.
+    if tax > 0:
+        items += pdf_design.summary_rows([
+            [("", "6%", False), (e(caption), "64%", False), (e(cash(value)), "30%", True)]
+            for caption, value in (
+                ("Subtotal", subtotal),
+                (f"Tax ({rate_text(payment.tax_rate)}%)", tax),
+                ("Total", total),
+            )
+        ])
 
     try:
         words = amount_in_words(paid, payment.currency_code)
@@ -135,10 +150,10 @@ def document(payment) -> str:
 
     balance_label = "Cancelled" if cancelled else ("Balance" if settled else "Balance due")
     balance_class = "settled" if settled or cancelled else "after"
+    # Only what is left to pay: the amount owed is the table's last figure and
+    # what was received is the panel above, so neither is said twice.
     balances = f"""
     <table class="balances">
-        <tr><td>Amount</td><td class="value">{e(cash(total))}</td></tr>
-        <tr><td>Amount received</td><td class="value">{e(cash(paid))}</td></tr>
         <tr class="{balance_class}"><td>{balance_label}</td><td class="value">{e(cash(owed))}</td></tr>
     </table>"""
 
@@ -150,25 +165,26 @@ def document(payment) -> str:
         note = f"{cash(owed)} remains outstanding on this payment."
 
     issued_at = clock.format(clock.now(), DATE_TIME)
+    # Two lines, so a receipt with tax and a full company header still fits
+    # on one page.
+    issued = f"Issued electronically on {issued_at} ({school.timezone})" if school and issued_at else "Issued electronically"
     closing = [
         note,
-        "This receipt is issued electronically and is valid without a signature.",
-        f"Issued {issued_at} ({school.timezone})" if school and issued_at else "",
-        "Thank you for choosing School365ai.",
+        f"{issued} and valid without a signature. Thank you for choosing School365ai.",
     ]
 
     body = f"""
     {issuer_band(number, issued_on)}
     {stamp}
-    {pdf_design.spacer(16)}
+    {pdf_design.spacer(10)}
     {pdf_design.side_by_side(billed, details, "Billed to", "Payment")}
 
     {pdf_design.section("Details")}
     {items}
 
-    {pdf_design.spacer(12)}
+    {pdf_design.spacer(8)}
     {pdf_design.totals_panel("Amount received", cash(paid), words)}
-    {pdf_design.spacer(10)}
+    {pdf_design.spacer(4)}
     {balances}
     {notes_block(payment)}
     {pdf_design.closing([line for line in closing if line])}
@@ -184,6 +200,13 @@ def notes_block(payment) -> str:
         return ""
 
     return f'{pdf_design.section("Notes")}<div class="note">{e(payment.notes)}</div>'
+
+
+def rate_text(rate) -> str:
+    """18.00 as "18", 12.50 as "12.5" - a rate as people write it."""
+    text = f"{money.amount(rate):f}"
+
+    return text.rstrip("0").rstrip(".") if "." in text else text
 
 
 def label(choices, value: str) -> str:

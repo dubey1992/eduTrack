@@ -64,6 +64,8 @@ class FakePaymentRepository implements PaymentRepository {
 
   static double _totalOf(List<PaymentItem> items) => items.fold(0, (sum, item) => sum + item.amount);
 
+  static double _taxOn(double subtotal, double rate) => (subtotal * rate).round() / 100;
+
   List<Payment> _filtered({int? schoolId}) {
     return schoolId == null ? _payments : _payments.where((p) => p.schoolId == schoolId).toList();
   }
@@ -87,6 +89,7 @@ class FakePaymentRepository implements PaymentRepository {
   Future<Payment> create({
     required int schoolId,
     required List<PaymentItem> items,
+    double taxRate = 0,
     double? paidAmount,
     required DateTime paymentDate,
     required PaymentMode paymentMode,
@@ -97,8 +100,9 @@ class FakePaymentRepository implements PaymentRepository {
     if (failCreateWith != null) throw failCreateWith!;
     createdItems.add(items);
 
-    // The total is the sum of the services, as the API works it out.
-    final amount = _totalOf(items);
+    // The services plus their tax, as the API works it out.
+    final tax = _taxOn(_totalOf(items), taxRate);
+    final amount = _totalOf(items) + tax;
     final paid = resolvePaidAmount(amount: amount, paidAmount: paidAmount, status: status);
 
     final payment = Payment(
@@ -107,6 +111,8 @@ class FakePaymentRepository implements PaymentRepository {
       schoolName: 'Test School',
       paymentType: items.first.service,
       items: items,
+      taxRate: taxRate,
+      taxAmount: tax,
       amount: amount,
       paidAmount: paid,
       remainingAmount: resolveRemaining(amount, paid, status),
@@ -145,6 +151,7 @@ class FakePaymentRepository implements PaymentRepository {
   Future<Payment> update(
     int paymentId, {
     List<PaymentItem>? items,
+    double? taxRate,
     double? paidAmount,
     DateTime? paymentDate,
     PaymentMode? paymentMode,
@@ -155,7 +162,10 @@ class FakePaymentRepository implements PaymentRepository {
     if (failUpdateWith != null) throw failUpdateWith!;
     final index = _payments.indexWhere((p) => p.id == paymentId);
     final existing = _payments[index];
-    final newAmount = items == null ? existing.amount : _totalOf(items);
+    final subtotal = items == null ? existing.subtotal : _totalOf(items);
+    final rate = taxRate ?? existing.taxRate;
+    final tax = _taxOn(subtotal, rate);
+    final newAmount = subtotal + tax;
     final paid = resolvePaidAmount(
       amount: newAmount,
       paidAmount: paidAmount,
@@ -168,6 +178,8 @@ class FakePaymentRepository implements PaymentRepository {
       schoolName: existing.schoolName,
       paymentType: items?.first.service ?? existing.paymentType,
       items: items ?? existing.items,
+      taxRate: rate,
+      taxAmount: tax,
       amount: newAmount,
       paidAmount: paid,
       remainingAmount: resolveRemaining(newAmount, paid, status ?? existing.status),
