@@ -273,7 +273,9 @@ class FeeDueService:
             # Installments only: a late fine is not the reconcile's (F4).
             for due in StudentFeeDue.objects.filter(
                 academic_year_id=academic_year.id, student_id__in=student_ids, kind=FeeDueKind.INSTALLMENT
-            ).select_related("fee_structure"):
+            ).select_related("fee_structure").order_by("due_date", "id"):
+                # In date order, so what a run writes (credit released when a
+                # student leaves, say) comes out the same way every time.
                 dues[due.student_id].append(due)
 
             concessions: dict[int, list[FeeConcession]] = defaultdict(list)
