@@ -301,7 +301,9 @@ class WhatAPushCanReach(PushTest):
 
         row = StaffAttendance.objects.get(staff_profile_id=self.teacher.id, attendance_date=A_SCHOOL_DAY)
         self.assertEqual(StaffAttendanceStatus.LEAVE, row.status)
-        self.assertEqual(dt.time(9, 47), row.check_in)
+        # Not even a time on a day of leave - only a note that it happened.
+        self.assertIsNone(row.check_in)
+        self.assertIn("while on leave", row.remarks)
 
     def test_a_device_cannot_reach_another_schools_register(self):
         elsewhere = factories.SchoolFactory(name="Elsewhere High", timezone="Asia/Kolkata")

@@ -215,6 +215,38 @@ class ClosedDaysAndLeave(CheckInTestCase):
         self.assertEqual("ON_LEAVE", response.data["code"])
         self.assertTrue(self.call("me").data["on_leave"])
 
+    def test_leave_applied_for_today_is_refused(self):
+        """Decided 2026-11-02: asking for the day off says they are not
+        working it. Withdrawing the request is how plans change."""
+        factories.StaffLeaveFactory(
+            staff_profile=self.profile, start_date=dt.date(2026, 10, 26), end_date=dt.date(2026, 10, 26), status="pending"
+        )
+
+        response = self.check_in()
+        me = self.call("me").data
+
+        self.assertEqual(422, response.status_code, response.data)
+        self.assertEqual("LEAVE_APPLIED", response.data["code"])
+        self.assertFalse(me["can_check_in"])
+        self.assertIn("Withdraw", me["blocked_reason"])
+        self.assertFalse(StaffAttendance.objects.exists())
+
+    def test_a_half_day_applied_for_still_checks_in(self):
+        factories.StaffLeaveFactory(
+            staff_profile=self.profile, leave_type="half_day", status="pending",
+            start_date=dt.date(2026, 10, 26), end_date=dt.date(2026, 10, 26),
+        )
+
+        self.assertEqual(200, self.check_in().status_code)
+
+    def test_rejected_leave_does_not_refuse(self):
+        factories.StaffLeaveFactory(
+            staff_profile=self.profile, status="rejected",
+            start_date=dt.date(2026, 10, 26), end_date=dt.date(2026, 10, 26),
+        )
+
+        self.assertEqual(200, self.check_in().status_code)
+
 
 class AndTheOffice(CheckInTestCase):
     def office_marks(self, status):

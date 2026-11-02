@@ -391,3 +391,55 @@ class TheList(StaffAttendanceTest):
 
         self.assertEqual(["EMP-SCI"], [r["employee_id"] for r in by_department.data["data"]])
         self.assertEqual(["EMP-ART"], [r["employee_id"] for r in by_employee.data["data"]])
+
+
+class MarkingSomebodyOnLeave(StaffAttendanceTest):
+    """Decided 2026-11-02: the office is asked before marking present
+    somebody who is on leave that day, approved or applied for."""
+
+    def leave(self, profile, status="approved", leave_type="casual"):
+        return factories.StaffLeaveFactory(
+            staff_profile=profile, status=status, leave_type=leave_type,
+            start_date=A_SCHOOL_DAY, end_date=A_SCHOOL_DAY,
+        )
+
+    def test_it_is_asked_first_and_nothing_is_saved(self):
+        self.leave(self.scientist, status="pending")
+
+        response = self.client.post("/api/v1/staff-attendance", self.marks(), format="json")
+
+        self.assertEqual(409, response.status_code, response.data)
+        self.assertEqual("STAFF_ON_LEAVE", response.data["code"])
+        self.assertIn(self.scientist.user.name, response.data["message"])
+        self.assertEqual(
+            [{"staff_profile_id": self.scientist.id, "name": self.scientist.user.name, "leave_status": "pending"}],
+            response.data["details"]["staff"],
+        )
+        self.assertFalse(StaffAttendance.objects.exists())
+
+    def test_confirmed_it_is_saved(self):
+        self.leave(self.scientist)
+
+        response = self.client.post(
+            "/api/v1/staff-attendance", self.marks(confirm_leave=True), format="json"
+        )
+
+        self.assertIn(response.status_code, (200, 201), response.data)
+        self.assertEqual(2, StaffAttendance.objects.filter(status=StaffAttendanceStatus.PRESENT).count())
+
+    def test_marking_them_on_leave_or_absent_asks_nothing(self):
+        self.leave(self.scientist)
+
+        response = self.client.post(
+            "/api/v1/staff-attendance", self.marks(self.scientist, status=StaffAttendanceStatus.LEAVE), format="json"
+        )
+
+        self.assertIn(response.status_code, (200, 201), response.data)
+
+    def test_half_day_leave_and_rejected_leave_ask_nothing(self):
+        self.leave(self.scientist, leave_type="half_day")
+        self.leave(self.artist, status="rejected")
+
+        response = self.client.post("/api/v1/staff-attendance", self.marks(), format="json")
+
+        self.assertIn(response.status_code, (200, 201), response.data)

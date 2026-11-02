@@ -42,6 +42,9 @@ class TeachingReportCase(TestCase):
     def setUp(self):
         cache.clear()
         self.school = factories.SchoolFactory(timezone="Asia/Kolkata")
+        # These tests are about the reports' own rules; whether the teacher
+        # was in that day is covered in test_report_attendance_api.py.
+        factories.reports_without_attendance(self.school)
         self.science = factories.DepartmentFactory(school=self.school, name="Science")
         self.arts = factories.DepartmentFactory(school=self.school, name="Arts")
 

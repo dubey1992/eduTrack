@@ -482,6 +482,34 @@ class NoStaffRecord(ApiError):
     error_code = "NO_STAFF_RECORD"
 
 
+class AttendanceRequired(ApiError):
+    """A teaching report for a day its teacher was not marked present, or was
+    on leave. Its code says which, so the app can offer to check in."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ATTENDANCE_REQUIRED"
+
+    def __init__(self, message: str, code: str = "ATTENDANCE_REQUIRED", details: dict | None = None) -> None:
+        super().__init__(message, details)
+        self.error_code = code
+
+
+class StaffOnLeave(ApiError):
+    """The office marking somebody present on a day of their leave. Sent
+    again with `confirm_leave` it goes through - the office may know better."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "STAFF_ON_LEAVE"
+
+
+class WorkedOnLeaveDay(ApiError):
+    """Approving leave for a day the person was at work - checked in, punched
+    in or marked present. Sent again with `confirm` it goes through."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "WORKED_ON_LEAVE_DAY"
+
+
 class SettingRefused(ApiError):
     """A write that a module's own setting forbids (docs/settings.md): a
     register marked too long after the day, leave asked for at too short

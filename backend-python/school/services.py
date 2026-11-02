@@ -93,6 +93,8 @@ from .errors import (
     WrongPasscode,
     NoStaffRecord,
     SettingRefused,
+    StaffOnLeave,
+    WorkedOnLeaveDay,
     AccountInactive,
     AccountLocked,
     AttendanceAlreadySubmitted,
@@ -1022,10 +1024,52 @@ class StaffAttendanceService:
     def update(cls, school_id: int, data: dict, actor: User) -> dict:
         return cls.save(school_id, data, actor)
 
+    @staticmethod
+    def assert_nobody_on_leave(date, records) -> None:
+        """Marking somebody present on a day of their leave - approved or
+        applied for - is asked about first (decided 2026-11-02)."""
+        at_work = [
+            record["staff_profile_id"]
+            for record in records
+            if record["status"] in (StaffAttendanceStatus.PRESENT, StaffAttendanceStatus.HALF_DAY)
+        ]
+        if not at_work:
+            return
+
+        leaves = list(
+            StaffLeave.objects.select_related("staff_profile__user")
+            .filter(
+                staff_profile_id__in=at_work,
+                status__in=[LeaveStatus.APPROVED, LeaveStatus.PENDING],
+                start_date__lte=date,
+                end_date__gte=date,
+            )
+            .exclude(leave_type=LeaveType.HALF_DAY)
+        )
+        if not leaves:
+            return
+
+        people = [
+            {
+                "staff_profile_id": leave.staff_profile_id,
+                "name": leave.staff_profile.user.name,
+                "leave_status": leave.status,
+            }
+            for leave in leaves
+        ]
+        names = ", ".join(person["name"] for person in people)
+        raise StaffOnLeave(
+            f"{names} {'is' if len(people) == 1 else 'are'} on leave that day. Mark present anyway?",
+            {"staff": people},
+        )
+
     @classmethod
     def save(cls, school_id: int, data: dict, actor: User) -> dict:
         AttendanceService.assert_school_is_open(school_id, data["attendance_date"])
         assert_not_too_late(school_id, "staff_attendance", data["attendance_date"])
+
+        if not data.get("confirm_leave"):
+            cls.assert_nobody_on_leave(data["attendance_date"], data["records"])
 
         with transaction.atomic():
             before = dict(
@@ -1191,6 +1235,44 @@ class StaffLeaveService:
                 cls.sync_attendance(leave, actor)
 
             return cls.fresh(leave)
+
+    @staticmethod
+    def assert_not_worked(leave) -> None:
+        """Approving full-day leave for a day the person was at work - checked
+        in, punched in or marked present - is asked about first (decided
+        2026-11-02). That day becomes leave if the approver goes ahead."""
+        if leave.leave_type == LeaveType.HALF_DAY:
+            return
+
+        worked = {}
+        for row in StaffAttendance.objects.filter(
+            staff_profile_id=leave.staff_profile_id,
+            attendance_date__gte=leave.start_date,
+            attendance_date__lte=leave.end_date,
+        ).filter(
+            Q(check_in__isnull=False)
+            | Q(status__in=[StaffAttendanceStatus.PRESENT, StaffAttendanceStatus.HALF_DAY])
+        ):
+            worked[row.attendance_date] = (
+                f"checked in at {working_hours.clock(row.check_in)}" if row.check_in else "marked present"
+            )
+
+        for punch in BiometricPunch.objects.filter(
+            staff_profile_id=leave.staff_profile_id,
+            local_date__gte=leave.start_date,
+            local_date__lte=leave.end_date,
+        ).order_by("punched_at"):
+            worked.setdefault(punch.local_date, "punched in on the fingerprint reader")
+
+        if not worked:
+            return
+
+        name = leave.staff_profile.user.name if leave.staff_profile_id else "This person"
+        days = "; ".join(f"{dates.us(day)} ({how})" for day, how in sorted(worked.items()))
+        raise WorkedOnLeaveDay(
+            f"{name} was at work on {days}. Approve the leave anyway? Those days will be marked leave.",
+            {"days": [day.isoformat() for day in sorted(worked)]},
+        )
 
     @classmethod
     def approve(cls, leave, actor: User, remarks):
@@ -1611,6 +1693,12 @@ class DailyTeachingReportService:
             raise TeachingReportAlreadySubmitted(
                 "A report has already been submitted for this period and date."
             )
+
+        # The teacher's own attendance that day (decided 2026-11-02).
+        if modules.setting(entry.school_id, "teaching_reports", "needs_attendance"):
+            from .presence import assert_present_for_report
+
+            assert_present_for_report(actor, entry.school_id, as_date(data["report_date"]))
 
         # The school's filing window (module settings): 0 means no limit.
         window = modules.setting(entry.school_id, "teaching_reports", "filing_window_days")

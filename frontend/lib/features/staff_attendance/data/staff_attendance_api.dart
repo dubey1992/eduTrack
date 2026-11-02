@@ -41,6 +41,7 @@ class StaffAttendanceApi {
     int? departmentId,
     required String attendanceDate,
     required List<Map<String, dynamic>> records,
+    bool confirmLeave = false,
   }) async {
     final response = await _dio.post(
       '/staff-attendance',
@@ -49,6 +50,7 @@ class StaffAttendanceApi {
         'department_id': departmentId,
         'attendance_date': attendanceDate,
         'records': records,
+        if (confirmLeave) 'confirm_leave': true,
       },
     );
     return StaffAttendanceRegister.fromJson(response.data as Map<String, dynamic>);
@@ -59,6 +61,7 @@ class StaffAttendanceApi {
     int? departmentId,
     required String attendanceDate,
     required List<Map<String, dynamic>> records,
+    bool confirmLeave = false,
   }) async {
     final response = await _dio.patch(
       '/staff-attendance',
@@ -67,6 +70,7 @@ class StaffAttendanceApi {
         'department_id': departmentId,
         'attendance_date': attendanceDate,
         'records': records,
+        if (confirmLeave) 'confirm_leave': true,
       },
     );
     return StaffAttendanceRegister.fromJson(response.data as Map<String, dynamic>);

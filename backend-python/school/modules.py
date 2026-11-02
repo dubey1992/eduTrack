@@ -132,6 +132,13 @@ MODULES: tuple[Module, ...] = (
                 help="A report may be filed this many days after the period. 0 means no limit.",
                 min=0, max=90,
             ),
+            # Decided 2026-11-02: a teacher checks in before reporting what
+            # they taught that day. On by default; a school may switch it off.
+            Setting(
+                "needs_attendance", "Teachers must be marked present to file reports", "bool", True,
+                help="A teacher files reports only for days they are marked present - checked in, "
+                     "punched in, or marked by the office - and never for a day of leave.",
+            ),
         ),
     ),
     Module("syllabus", "Syllabus", "Topic outlines and what has been covered."),

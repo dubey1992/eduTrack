@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/features/auth/application/school_clock_provider.dart';
 import 'package:edutrack_app/core/utils/date_period.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
@@ -110,6 +111,64 @@ void main() {
     // status badge now that it's been reviewed.
     expect(find.text('Approved'), findsNWidgets(2));
     expect(find.text('Leave request approved.'), findsOneWidget);
+  });
+
+  group('approving leave for a day they were at work (decided 2026-11-02)', () {
+    const worked = Failure(
+      code: 'WORKED_ON_LEAVE_DAY',
+      message: 'Priya Sharma was at work on 09/15/2026 (checked in at 09:05). Approve the leave anyway?',
+      details: {
+        'days': ['2026-09-15'],
+      },
+    );
+
+    Future<FakeStaffLeaveRepository> approveOnce(WidgetTester tester, {Failure? refuse}) async {
+      final fake = FakeStaffLeaveRepository(leaves: [_pendingLeave])..refuseUnconfirmedApproveWith = refuse;
+      await tester.pumpWidget(wrap(_schoolAdmin, staffLeave: fake));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Approve'));
+      await tester.pumpAndSettle();
+
+      return fake;
+    }
+
+    testWidgets('asks first, naming the day', (tester) async {
+      final fake = await approveOnce(tester, refuse: worked);
+
+      expect(find.text('At work that day'), findsOneWidget);
+      expect(find.textContaining('checked in at 09:05'), findsOneWidget);
+      expect(fake.lastApprovedId, isNull);
+    });
+
+    testWidgets('approving anyway sends it again, confirmed', (tester) async {
+      final fake = await approveOnce(tester, refuse: worked);
+
+      await tester.tap(find.text('Approve anyway'));
+      await tester.pumpAndSettle();
+
+      expect(fake.approveCallCount, 2);
+      expect(fake.lastApproveConfirmed, isTrue);
+      expect(fake.lastApprovedId, 1);
+      expect(find.text('Leave request approved.'), findsOneWidget);
+    });
+
+    testWidgets('cancelling leaves it pending', (tester) async {
+      final fake = await approveOnce(tester, refuse: worked);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(fake.approveCallCount, 1);
+      expect(fake.lastApprovedId, isNull);
+      expect(find.text('Leave request approved.'), findsNothing);
+    });
+
+    testWidgets('an ordinary approval asks nothing', (tester) async {
+      final fake = await approveOnce(tester);
+
+      expect(find.text('At work that day'), findsNothing);
+      expect(fake.lastApproveConfirmed, isFalse);
+    });
   });
 
   testWidgets('rejecting a leave request updates its status badge', (tester) async {

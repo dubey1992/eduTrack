@@ -110,7 +110,9 @@ class StaffAttendanceRegisterNotifier extends AsyncNotifier<StaffAttendanceRegis
   /// that a day is submitted for the whole roster at once.
   bool get isComplete => state.value?.staff.every((s) => s.status != null) ?? false;
 
-  Future<void> submitOrUpdate() async {
+  /// [confirmLeave] marks present somebody who is on leave that day, once
+  /// the office has been asked (the server answers STAFF_ON_LEAVE first).
+  Future<void> submitOrUpdate({bool confirmLeave = false}) async {
     final current = state.value;
     if (current == null || !isComplete) return;
 
@@ -132,12 +134,14 @@ class StaffAttendanceRegisterNotifier extends AsyncNotifier<StaffAttendanceRegis
             departmentId: params.departmentId,
             attendanceDate: current.attendanceDate,
             records: records,
+            confirmLeave: confirmLeave,
           )
         : await repository.submit(
             schoolId: params.schoolId,
             departmentId: params.departmentId,
             attendanceDate: current.attendanceDate,
             records: records,
+            confirmLeave: confirmLeave,
           );
 
     state = AsyncData(result);

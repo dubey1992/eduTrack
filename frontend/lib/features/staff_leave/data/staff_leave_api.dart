@@ -59,8 +59,11 @@ class StaffLeaveApi {
     return StaffLeaveSummary.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<StaffLeave> approve(int leaveId, {String? remarks}) async {
-    final response = await _dio.patch('/leaves/$leaveId/approve', data: {'remarks': remarks});
+  Future<StaffLeave> approve(int leaveId, {String? remarks, bool confirm = false}) async {
+    final response = await _dio.patch(
+      '/leaves/$leaveId/approve',
+      data: {'remarks': remarks, if (confirm) 'confirm': true},
+    );
     return StaffLeave.fromJson(response.data as Map<String, dynamic>);
   }
 

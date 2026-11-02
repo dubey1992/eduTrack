@@ -27,6 +27,12 @@ class FakeStaffLeaveRepository implements StaffLeaveRepository {
 
   Map<String, dynamic>? lastApplyPayload;
 
+  /// The server's WORKED_ON_LEAVE_DAY: thrown by approve() until it is sent
+  /// again with `confirm`.
+  Failure? refuseUnconfirmedApproveWith;
+  int approveCallCount = 0;
+  bool? lastApproveConfirmed;
+
   /// Whether the last list() asked for the caller's own requests only.
   bool? lastListMine;
   Failure? failListWith;
@@ -97,8 +103,11 @@ class FakeStaffLeaveRepository implements StaffLeaveRepository {
   Future<StaffLeaveSummary> summary({int? schoolId}) async => summaryData;
 
   @override
-  Future<StaffLeave> approve(int leaveId, {String? remarks}) async {
+  Future<StaffLeave> approve(int leaveId, {String? remarks, bool confirm = false}) async {
+    approveCallCount++;
+    lastApproveConfirmed = confirm;
     if (failReviewWith != null) throw failReviewWith!;
+    if (refuseUnconfirmedApproveWith != null && !confirm) throw refuseUnconfirmedApproveWith!;
     lastApprovedId = leaveId;
     return _reviewed(leaveId, LeaveStatus.approved, remarks);
   }

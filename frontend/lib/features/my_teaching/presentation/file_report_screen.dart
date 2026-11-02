@@ -72,6 +72,11 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
   bool _tried = false;
   String? _problem;
 
+  /// The teacher has not checked in today, so the school will not take the
+  /// report yet (decided 2026-11-02). Today, where the check-in is, is one
+  /// step back.
+  bool _needsCheckIn = false;
+
   @override
   void initState() {
     super.initState();
@@ -105,6 +110,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
     setState(() {
       _sending = true;
       _problem = null;
+      _needsCheckIn = false;
     });
 
     try {
@@ -139,7 +145,12 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
       context.pop(true);
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _problem = _say(failure));
+      if (mounted) {
+        setState(() {
+          _problem = _say(failure);
+          _needsCheckIn = failure.code == 'CHECK_IN_REQUIRED';
+        });
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -153,6 +164,9 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
     'NETWORK_ERROR' => 'No connection. Nothing was sent - try again when you have signal.',
     'FORBIDDEN' => 'This period is no longer yours on the timetable, so it cannot be reported from here.',
     'TEACHING_REPORT_NOT_RETURNED' => 'This report is no longer waiting for changes - it may have been reviewed.',
+    'CHECK_IN_REQUIRED' =>
+      'Check in first. Your teaching reports open once you are marked present today. '
+          'What you typed is kept until you leave this screen.',
     _ => failure.message,
   };
 
@@ -193,6 +207,18 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                       decoration: BoxDecoration(color: colors.dangerContainer, borderRadius: BorderRadius.circular(8)),
                       child: Text(_problem!, style: TextStyle(color: colors.onDangerContainer, height: 1.35)),
                     ),
+                    if (_needsCheckIn) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FilledButton.tonalIcon(
+                          key: const Key('report-go-check-in'),
+                          onPressed: () => context.pop(false),
+                          icon: const Icon(Icons.login, size: 18),
+                          label: const Text('Back to Today to check in'),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                   ],
                   TextFormField(

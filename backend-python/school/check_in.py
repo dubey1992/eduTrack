@@ -61,6 +61,8 @@ from .services import AttendanceService, HolidayService, _is_late, holiday_summa
 
 MODULE = "staff_attendance"
 
+APPLIED_MESSAGE = "You have applied for leave today. Withdraw the request to check in."
+
 # How old a location fix may be, in seconds, and still count as "now".
 STALE_AFTER_S = 120
 
@@ -104,6 +106,26 @@ def _approved_leave(profile: StaffProfile, date) -> StaffLeave | None:
     return StaffLeave.objects.filter(
         staff_profile_id=profile.id, status=LeaveStatus.APPROVED, start_date__lte=date, end_date__gte=date
     ).first()
+
+
+def full_day_leave(profile: StaffProfile, date) -> StaffLeave | None:
+    """Leave covering the whole of `date` that is approved or still waiting
+    for a decision. A half day is not one: the person works the other half.
+
+    Applied-for counts (decided 2026-11-02): somebody who has asked for the
+    day off has said they are not working it, so the app does not let them
+    check in to it - they withdraw the request first if plans change."""
+    return (
+        StaffLeave.objects.filter(
+            staff_profile_id=profile.id,
+            status__in=[LeaveStatus.APPROVED, LeaveStatus.PENDING],
+            start_date__lte=date,
+            end_date__gte=date,
+        )
+        .exclude(leave_type=LeaveType.HALF_DAY)
+        .order_by("-status")
+        .first()
+    )
 
 
 def _leave_today(profile: StaffProfile, today, row: StaffAttendance | None) -> tuple[bool, bool]:
@@ -183,6 +205,10 @@ def _assert_day(profile: StaffProfile, today, row: StaffAttendance | None) -> bo
 
     if full:
         raise CheckInRefused("ON_LEAVE", "You are on leave today, so there is nothing to check in to.")
+
+    applied = full_day_leave(profile, today)
+    if applied is not None and applied.status == LeaveStatus.PENDING:
+        raise CheckInRefused("LEAVE_APPLIED", APPLIED_MESSAGE)
 
     return half
 
@@ -337,6 +363,8 @@ class CheckInService:
             reason = f"No attendance today: {holiday.name}." if holiday else "The school is closed today."
         elif on_leave:
             reason = "You are on leave today."
+        elif (applied := full_day_leave(profile, today)) is not None and applied.status == LeaveStatus.PENDING:
+            reason = APPLIED_MESSAGE
         elif not has_pin:
             reason = "Your school has not set its location yet, so the app cannot check you in. Ask the office."
 

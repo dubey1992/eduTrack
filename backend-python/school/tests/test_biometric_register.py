@@ -251,7 +251,10 @@ class ADayNobodyHasMarked(RegisterFromPunches):
 
         row = self.row()
         self.assertEqual(StaffAttendanceStatus.LEAVE, row.status)
-        self.assertEqual(dt.time(9, 2), row.check_in)
+        # A punch on a day of leave puts no times on the register; the row
+        # says it happened, for the office (decided 2026-11-02).
+        self.assertIsNone(row.check_in)
+        self.assertIn("Fingerprint punch at 09:02 while on leave.", row.remarks)
         self.assertFalse(self.whose(self.screen(), self.teacher)["marked_by_device"])
 
 
@@ -390,3 +393,52 @@ class AnotherSchool(RegisterFromPunches):
 
         self.assertFalse(StaffAttendance.objects.filter(staff_profile_id=self.teacher.id).exists())
         self.assertEqual(dt.time(9, 2), StaffAttendance.objects.get(staff_profile_id=theirs.id).check_in)
+
+
+class ADayOfLeave(RegisterFromPunches):
+    """Decided 2026-11-02: a punch on a day of leave - approved or applied
+    for - is kept, but marks nobody present. The office is told instead."""
+
+    def leave(self, status, leave_type="casual"):
+        return factories.StaffLeaveFactory(
+            staff_profile=self.teacher, status=status, leave_type=leave_type,
+            start_date=A_SCHOOL_DAY, end_date=A_SCHOOL_DAY,
+        )
+
+    def test_leave_applied_for_is_not_turned_into_present(self):
+        self.leave("pending")
+
+        response = self.upload([f"17,{ITS_DATE} 09:02", f"17,{ITS_DATE} 17:31"])
+
+        self.assertEqual(0, response.data["register_marked"])
+        self.assertFalse(StaffAttendance.objects.filter(staff_profile_id=self.teacher.id).exists())
+
+    def test_it_is_audited_as_a_punch_on_leave(self):
+        self.leave("pending")
+
+        self.upload([f"17,{ITS_DATE} 09:02"])
+
+        entry = AuditLog.objects.get(action="staff_attendance.punch_on_leave")
+        self.assertEqual([self.teacher.id], entry.new_values["staff_profile_ids"])
+
+    def test_the_note_is_written_once(self):
+        self.mark(status=StaffAttendanceStatus.LEAVE)
+
+        self.upload([f"17,{ITS_DATE} 09:02"])
+        self.upload([f"17,{ITS_DATE} 09:02", f"17,{ITS_DATE} 13:10"])
+
+        self.assertEqual(1, self.row().remarks.count("Fingerprint punch at"))
+
+    def test_a_half_day_of_leave_is_still_marked_from_the_punch(self):
+        self.leave("approved", leave_type="half_day")
+
+        self.upload([f"17,{ITS_DATE} 09:02", f"17,{ITS_DATE} 13:00"])
+
+        self.assertEqual(dt.time(9, 2), self.row().check_in)
+
+    def test_somebody_else_that_day_is_marked_as_usual(self):
+        self.leave("pending")
+
+        self.upload([f"17,{ITS_DATE} 09:02", f"88,{ITS_DATE} 09:10"])
+
+        self.assertEqual(StaffAttendanceStatus.PRESENT, self.row(self.other).status)

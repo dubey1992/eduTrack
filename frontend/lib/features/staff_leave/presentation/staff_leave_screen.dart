@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/school_clock_provider.dart';
+import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/period_filter.dart';
 import '../../../core/utils/date_period.dart';
 import '../../../core/errors/failure.dart';
@@ -202,10 +203,16 @@ class _LeaveStatusBadge extends StatelessWidget {
   }
 }
 
-Future<void> _review(BuildContext context, WidgetRef ref, {required StaffLeave leave, required bool approve}) async {
+Future<void> _review(
+  BuildContext context,
+  WidgetRef ref, {
+  required StaffLeave leave,
+  required bool approve,
+  bool confirm = false,
+}) async {
   try {
     if (approve) {
-      await ref.read(staffLeaveListNotifierProvider.notifier).approve(leave);
+      await ref.read(staffLeaveListNotifierProvider.notifier).approve(leave, confirm: confirm);
     } else {
       await ref.read(staffLeaveListNotifierProvider.notifier).reject(leave);
     }
@@ -215,7 +222,22 @@ Future<void> _review(BuildContext context, WidgetRef ref, {required StaffLeave l
     }
   } catch (error) {
     final failure = error is Failure ? error : Failure.unknown(error.toString());
-    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+    if (!context.mounted) return;
+
+    // Leave for a day the person was at work is asked about first
+    // (decided 2026-11-02); the server names the days.
+    if (failure.code == 'WORKED_ON_LEAVE_DAY' && !confirm) {
+      final goAhead = await confirmDialog(
+        context,
+        title: 'At work that day',
+        message: failure.message,
+        confirmLabel: 'Approve anyway',
+      );
+      if (goAhead && context.mounted) await _review(context, ref, leave: leave, approve: true, confirm: true);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
   }
 }
 

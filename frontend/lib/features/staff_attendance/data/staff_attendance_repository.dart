@@ -37,6 +37,7 @@ class StaffAttendanceRepository {
     int? departmentId,
     required String attendanceDate,
     required List<Map<String, dynamic>> records,
+    bool confirmLeave = false,
   }) async {
     try {
       return await _api.submit(
@@ -44,6 +45,7 @@ class StaffAttendanceRepository {
         departmentId: departmentId,
         attendanceDate: attendanceDate,
         records: records,
+        confirmLeave: confirmLeave,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);
@@ -55,6 +57,7 @@ class StaffAttendanceRepository {
     int? departmentId,
     required String attendanceDate,
     required List<Map<String, dynamic>> records,
+    bool confirmLeave = false,
   }) async {
     try {
       return await _api.update(
@@ -62,6 +65,7 @@ class StaffAttendanceRepository {
         departmentId: departmentId,
         attendanceDate: attendanceDate,
         records: records,
+        confirmLeave: confirmLeave,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);

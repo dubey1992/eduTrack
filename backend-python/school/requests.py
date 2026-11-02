@@ -1028,6 +1028,8 @@ class StaffAttendanceRegisterRequest(StaffAttendanceScopedRequest):
 class MarkStaffAttendanceRequest(StaffAttendanceScopedRequest):
     attendance_date = SchoolDateField("attendance_date")
     records = StaffAttendanceRecordSerializer(many=True)
+    # Mark present somebody who is on leave that day, having been told.
+    confirm_leave = LaravelBooleanField("confirm_leave", required=False)
 
     def validate_records(self, value):
         if not value:
@@ -3511,10 +3513,12 @@ class ApplyStaffLeaveRequest(ScopedSerializer):
 
 
 class ReviewStaffLeaveRequest(ScopedSerializer):
-    """Approving or rejecting. The decision itself is the route, so the only
-    thing the body carries is why."""
+    """Approving or rejecting. The decision itself is the route, so the body
+    carries why - and, for leave on a day the person was at work, that the
+    approver saw that and approves anyway."""
 
     remarks = optional_text("remarks", 500)
+    confirm = LaravelBooleanField("confirm", required=False)
 
 
 # -- teachers and staff -----------------------------------------------------

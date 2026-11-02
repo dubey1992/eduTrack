@@ -64,9 +64,9 @@ class StaffLeaveRepository {
     }
   }
 
-  Future<StaffLeave> approve(int leaveId, {String? remarks}) async {
+  Future<StaffLeave> approve(int leaveId, {String? remarks, bool confirm = false}) async {
     try {
-      return await _api.approve(leaveId, remarks: remarks);
+      return await _api.approve(leaveId, remarks: remarks, confirm: confirm);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

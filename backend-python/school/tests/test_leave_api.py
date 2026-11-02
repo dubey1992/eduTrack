@@ -26,6 +26,7 @@ import datetime as dt
 
 from django.core.cache import cache
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from school import factories, tokens
@@ -560,3 +561,70 @@ class MyOwnLeave(StaffLeaveTest):
         factories.StaffLeaveFactory(staff_profile=self.teacher_profile, status="approved")
 
         self.assertEqual([pending.id], self.ids(self.teacher, status="pending"))
+
+
+class ApprovingADayTheyWorked(StaffLeaveTest):
+    """Decided 2026-11-02: approving leave for a day the person was at work
+    is asked about first; confirmed, those days become leave."""
+
+    def worked(self, date, **fields):
+        return StaffAttendance.objects.create(
+            school=self.school, staff_profile=self.teacher_profile, attendance_date=date,
+            status=fields.pop("status", "present"), marked_by=self.admin,
+            created_at=timezone.now(), updated_at=timezone.now(), **fields,
+        )
+
+    def approve(self, **body):
+        leave = factories.StaffLeaveFactory(
+            staff_profile=self.teacher_profile, start_date=A_MONDAY, end_date=A_TUESDAY
+        )
+
+        return leave, self.as_user(self.admin).patch(f"/api/v1/leaves/{leave.id}/approve", body, format="json")
+
+    def test_it_is_asked_first_and_nothing_changes(self):
+        self.worked(A_TUESDAY, check_in=dt.time(9, 5))
+
+        leave, response = self.approve()
+
+        self.assertEqual(409, response.status_code, response.data)
+        self.assertEqual("WORKED_ON_LEAVE_DAY", response.data["code"])
+        self.assertIn("checked in at 09:05", response.data["message"])
+        self.assertEqual([A_TUESDAY.isoformat()], response.data["details"]["days"])
+        leave.refresh_from_db()
+        self.assertEqual(LeaveStatus.PENDING, leave.status)
+        self.assertFalse(StaffAttendance.objects.filter(status="leave").exists())
+
+    def test_a_day_marked_present_by_the_office_is_named_too(self):
+        self.worked(A_MONDAY)
+
+        _, response = self.approve()
+
+        self.assertIn("marked present", response.data["message"])
+
+    def test_confirmed_the_days_become_leave(self):
+        self.worked(A_TUESDAY, check_in=dt.time(9, 5))
+
+        leave, response = self.approve(confirm=True)
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual(LeaveStatus.APPROVED, response.data["status"])
+        self.assertEqual(
+            "leave", StaffAttendance.objects.get(staff_profile_id=self.teacher_profile.id, attendance_date=A_TUESDAY).status
+        )
+
+    def test_a_day_marked_absent_asks_nothing(self):
+        self.worked(A_MONDAY, status="absent")
+
+        _, response = self.approve()
+
+        self.assertEqual(200, response.status_code, response.data)
+
+    def test_rejecting_asks_nothing(self):
+        self.worked(A_TUESDAY, check_in=dt.time(9, 5))
+        leave = factories.StaffLeaveFactory(
+            staff_profile=self.teacher_profile, start_date=A_MONDAY, end_date=A_TUESDAY
+        )
+
+        response = self.as_user(self.admin).patch(f"/api/v1/leaves/{leave.id}/reject", {}, format="json")
+
+        self.assertEqual(200, response.status_code, response.data)

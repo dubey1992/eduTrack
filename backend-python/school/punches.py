@@ -27,11 +27,11 @@ import zoneinfo
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
-from . import audit, dates, modules
+from . import audit, dates, modules, working_hours
 from .clock import SchoolClock
-from .enums import StaffAttendanceStatus
+from .enums import LeaveStatus, LeaveType, StaffAttendanceStatus
 from .fields import as_utc
-from .models import BiometricPunch, StaffAttendance, StaffProfile
+from .models import BiometricPunch, StaffAttendance, StaffLeave, StaffProfile
 
 DEVICE = "device"
 UPLOAD = "upload"
@@ -223,12 +223,23 @@ def fill_register(school_id: int, landed) -> tuple[int, int]:
         }
         # Asked once for the day, not once per person.
         may_mark = _may_mark(school_id, date)
+        on_leave = _on_leave(date, profile_ids)
         touched = []
         made = []
+        flagged = []
 
         for profile_id in sorted(times):
             want = times[profile_id]
             row = existing.get(profile_id)
+
+            # A punch on a day of leave - approved or applied for - is kept,
+            # but marks nobody present and puts no times on the register
+            # (decided 2026-11-02). The row says it happened, for the office.
+            if profile_id in on_leave or (row is not None and row.status == StaffAttendanceStatus.LEAVE):
+                if row is not None and _note_leave_punch(row, want["check_in"]):
+                    touched.append(profile_id)
+                flagged.append(profile_id)
+                continue
 
             if row is None:
                 if may_mark and _mark_present(school_id, date, profile_id, want):
@@ -253,7 +264,11 @@ def fill_register(school_id: int, landed) -> tuple[int, int]:
         # and a hundred near-identical rows would bury it. Marking and
         # re-timing are separate actions because they are different things
         # to find later.
-        for action, who in (("staff_attendance.marked_by_device", made), ("staff_attendance.times_from_device", touched)):
+        for action, who in (
+            ("staff_attendance.marked_by_device", made),
+            ("staff_attendance.times_from_device", touched),
+            ("staff_attendance.punch_on_leave", flagged),
+        ):
             if who:
                 audit.record(
                     action=action,
@@ -268,6 +283,37 @@ def fill_register(school_id: int, landed) -> tuple[int, int]:
         marked += len(made)
 
     return filled, marked
+
+
+LEAVE_PUNCH = "Fingerprint punch at {time} while on leave."
+
+
+def _on_leave(date, profile_ids) -> set[int]:
+    """Who has full-day leave on `date`, approved or applied for."""
+    return set(
+        StaffLeave.objects.filter(
+            staff_profile_id__in=profile_ids,
+            status__in=[LeaveStatus.APPROVED, LeaveStatus.PENDING],
+            start_date__lte=date,
+            end_date__gte=date,
+        )
+        .exclude(leave_type=LeaveType.HALF_DAY)
+        .values_list("staff_profile_id", flat=True)
+    )
+
+
+def _note_leave_punch(row: StaffAttendance, at) -> bool:
+    """Says on a leave row that the person punched in anyway - once."""
+    note = LEAVE_PUNCH.format(time=working_hours.clock(at))
+
+    if row.remarks and "Fingerprint punch at" in row.remarks:
+        return False
+
+    row.remarks = f"{row.remarks} {note}".strip()[:255] if row.remarks else note
+    row.updated_at = timezone.now()
+    row.save(update_fields=["remarks", "updated_at"])
+
+    return True
 
 
 def _may_mark(school_id: int, date) -> bool:

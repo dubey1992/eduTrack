@@ -165,6 +165,63 @@ void main() {
     expect(find.textContaining('No connection. Nothing was sent'), findsOneWidget);
   });
 
+  group('the teacher has not checked in today (decided 2026-11-02)', () {
+    const notIn = Failure(
+      code: 'CHECK_IN_REQUIRED',
+      message: 'Check in first. Your teaching reports open once you are marked present today.',
+    );
+
+    testWidgets('says so, keeps what was typed, and offers the way back to check in', (tester) async {
+      reports.failStoreWith = notIn;
+      await pump(tester);
+      await tester.enterText(find.byKey(const Key('report-topic')), 'Fractions');
+      await submit(tester);
+
+      expect(find.textContaining('Check in first'), findsOneWidget);
+      expect(find.text('Fractions'), findsOneWidget);
+      expect(find.byKey(const Key('report-go-check-in')), findsOneWidget);
+      expect(popped, isFalse);
+    });
+
+    testWidgets('the way back goes to Today without filing anything', (tester) async {
+      reports.failStoreWith = notIn;
+      await pump(tester);
+      await tester.enterText(find.byKey(const Key('report-topic')), 'Fractions');
+      await submit(tester);
+
+      await tester.tap(find.byKey(const Key('report-go-check-in')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('open'), findsOneWidget, reason: 'back on Today');
+      expect(popped, isFalse, reason: 'nothing was filed');
+    });
+
+    testWidgets('a leave refusal is shown as it came, with no check-in offered', (tester) async {
+      reports.failStoreWith = const Failure(
+        code: 'LEAVE_APPLIED',
+        message: 'You have applied for leave today. Withdraw the request and check in to file reports for it.',
+      );
+      await pump(tester);
+      await tester.enterText(find.byKey(const Key('report-topic')), 'Fractions');
+      await submit(tester);
+
+      expect(find.textContaining('Withdraw the request'), findsOneWidget);
+      expect(find.byKey(const Key('report-go-check-in')), findsNothing);
+    });
+
+    testWidgets('once a later try fails for another reason, the check-in offer is gone', (tester) async {
+      reports.failStoreWith = notIn;
+      await pump(tester);
+      await tester.enterText(find.byKey(const Key('report-topic')), 'Fractions');
+      await submit(tester);
+
+      reports.failStoreWith = Failure.network();
+      await submit(tester);
+
+      expect(find.byKey(const Key('report-go-check-in')), findsNothing);
+    });
+  });
+
   testWidgets('a period no longer theirs is explained', (tester) async {
     reports.failStoreWith = const Failure(code: 'FORBIDDEN', message: 'This action is unauthorized.');
     await pump(tester);

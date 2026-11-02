@@ -280,7 +280,7 @@ class ModuleOwnSettings(SettingsTest):
             school=self.school, class_section=self.section, period=factories.PeriodFactory(school=self.school),
             day_of_week="wednesday", subject=subject, teacher=self.teacher,
         )
-        self.switch("teaching_reports", settings={"filing_window_days": 1})
+        self.switch("teaching_reports", settings={"filing_window_days": 1, "needs_attendance": False})
 
         response = self.as_user(self.teacher).post("/api/v1/teaching-reports", {
             "timetable_entry_id": entry.id, "report_date": "2026-09-09", "topic_taught": "Newton's laws",

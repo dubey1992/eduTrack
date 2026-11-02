@@ -106,8 +106,10 @@ class StaffLeaveListNotifier extends AsyncNotifier<PagedList<StaffLeave>> {
     return created;
   }
 
-  Future<void> approve(StaffLeave leave, {String? remarks}) async {
-    final updated = await ref.read(staffLeaveRepositoryProvider).approve(leave.id, remarks: remarks);
+  /// [confirm] approves leave for a day the person was at work, once the
+  /// approver has been asked (the server answers WORKED_ON_LEAVE_DAY first).
+  Future<void> approve(StaffLeave leave, {String? remarks, bool confirm = false}) async {
+    final updated = await ref.read(staffLeaveRepositoryProvider).approve(leave.id, remarks: remarks, confirm: confirm);
     _replace(updated);
     ref.invalidate(staffLeaveSummaryNotifierProvider);
   }

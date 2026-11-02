@@ -546,3 +546,10 @@ class BusStopFactory(DjangoModelFactory):
 
     created_at = factory.LazyFunction(now)
     updated_at = factory.LazyFunction(now)
+
+
+def reports_without_attendance(school) -> None:
+    """Switches off "teachers must be marked present to file reports" for a
+    school (decided 2026-11-02, on by default) - for the tests about other
+    report rules, whose teachers are never checked in."""
+    ModuleSettingFactory(school=school, module="teaching_reports", settings={"needs_attendance": False})

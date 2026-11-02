@@ -37,6 +37,11 @@ class FakeStaffAttendanceRepository implements StaffAttendanceRepository {
   Map<String, dynamic>? lastSubmitPayload;
   Map<String, dynamic>? lastUpdatePayload;
 
+  /// The server's STAFF_ON_LEAVE: thrown by submit/update until they are
+  /// sent again with `confirmLeave`.
+  Failure? refuseUnlessLeaveConfirmed;
+  int submitCallCount = 0;
+
   @override
   Future<StaffAttendanceRegister> register({int? schoolId, int? departmentId, required String date}) async {
     registerCallCount++;
@@ -51,13 +56,17 @@ class FakeStaffAttendanceRepository implements StaffAttendanceRepository {
     int? departmentId,
     required String attendanceDate,
     required List<Map<String, dynamic>> records,
+    bool confirmLeave = false,
   }) async {
+    submitCallCount++;
     if (failSubmitWith != null) throw failSubmitWith!;
+    if (refuseUnlessLeaveConfirmed != null && !confirmLeave) throw refuseUnlessLeaveConfirmed!;
     lastSubmitPayload = {
       'school_id': schoolId,
       'department_id': departmentId,
       'attendance_date': attendanceDate,
       'records': records,
+      if (confirmLeave) 'confirm_leave': true,
     };
     _register = StaffAttendanceRegister(
       schoolId: _register!.schoolId,
@@ -74,7 +83,9 @@ class FakeStaffAttendanceRepository implements StaffAttendanceRepository {
     int? departmentId,
     required String attendanceDate,
     required List<Map<String, dynamic>> records,
+    bool confirmLeave = false,
   }) async {
+    if (refuseUnlessLeaveConfirmed != null && !confirmLeave) throw refuseUnlessLeaveConfirmed!;
     lastUpdatePayload = {
       'school_id': schoolId,
       'department_id': departmentId,

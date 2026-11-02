@@ -125,6 +125,11 @@ def decide(request, leave_id: int, decision) -> Response:
 
     authorize(StaffLeavePolicy.review(request.user, leave))
 
+    # Leave for a day the person was at work is asked about first.
+    if decision == StaffLeaveService.approve and not form.validated_data.get("confirm"):
+        StaffLeaveService.assert_pending(leave)
+        StaffLeaveService.assert_not_worked(leave)
+
     reviewed = decision(leave, request.user, form.validated_data.get("remarks"))
 
     return Response(staff_leave_resource(reviewed))

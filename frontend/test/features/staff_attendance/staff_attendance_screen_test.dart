@@ -374,6 +374,64 @@ void main() {
     expect(find.text('Attendance submitted.'), findsOneWidget);
   });
 
+  group('marking present somebody on leave (decided 2026-11-02)', () {
+    const onLeave = Failure(
+      code: 'STAFF_ON_LEAVE',
+      message: 'Asha Rao is on leave that day. Mark present anyway?',
+      details: {'staff': []},
+    );
+
+    Future<void> submitAll(WidgetTester tester, FakeStaffAttendanceRepository fake) async {
+      await tester.pumpWidget(wrap(staffAttendance: fake));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mark All Present'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Submit Attendance'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('asks first, naming who', (tester) async {
+      final fake = FakeStaffAttendanceRepository(register: _register)..refuseUnlessLeaveConfirmed = onLeave;
+      await submitAll(tester, fake);
+
+      expect(find.text('On leave that day'), findsOneWidget);
+      expect(find.textContaining('Asha Rao is on leave'), findsOneWidget);
+      expect(fake.lastSubmitPayload, isNull, reason: 'nothing saved yet');
+    });
+
+    testWidgets('going ahead sends it again, confirmed, and saves', (tester) async {
+      final fake = FakeStaffAttendanceRepository(register: _register)..refuseUnlessLeaveConfirmed = onLeave;
+      await submitAll(tester, fake);
+
+      await tester.tap(find.text('Mark present anyway'));
+      await tester.pumpAndSettle();
+
+      expect(fake.submitCallCount, 2);
+      expect(fake.lastSubmitPayload!['confirm_leave'], isTrue);
+      expect(find.text('Attendance submitted.'), findsOneWidget);
+    });
+
+    testWidgets('cancelling saves nothing and says nothing', (tester) async {
+      final fake = FakeStaffAttendanceRepository(register: _register)..refuseUnlessLeaveConfirmed = onLeave;
+      await submitAll(tester, fake);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(fake.submitCallCount, 1);
+      expect(fake.lastSubmitPayload, isNull);
+      expect(find.text('Attendance submitted.'), findsNothing);
+    });
+
+    testWidgets('nobody on leave is never asked', (tester) async {
+      final fake = FakeStaffAttendanceRepository(register: _register);
+      await submitAll(tester, fake);
+
+      expect(find.text('On leave that day'), findsNothing);
+      expect(fake.lastSubmitPayload!.containsKey('confirm_leave'), isFalse);
+    });
+  });
+
   testWidgets('shows the error state with a Retry button when the register fails to load', (tester) async {
     final fake = FakeStaffAttendanceRepository(
       register: _register,
