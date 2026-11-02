@@ -6,10 +6,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../classes/application/class_section_picker_provider.dart';
+import '../application/break_list_notifier.dart';
+import '../application/break_planner.dart';
 import '../application/period_list_notifier.dart';
 import '../application/timetable_grid_notifier.dart';
 import '../data/models/day_of_week.dart';
 import '../data/models/period.dart';
+import '../data/models/school_break.dart';
 import '../data/models/timetable_entry.dart';
 import 'widgets/edit_entry_dialog.dart';
 import 'widgets/manage_periods_dialog.dart';
@@ -111,7 +114,7 @@ class _TimetableScreenState extends ConsumerState<TimetableScreen> {
                 builder: (_) => ManagePeriodsDialog(schoolId: _schoolId),
               ),
               icon: const Icon(Icons.schedule_outlined, size: 18),
-              label: const Text('Manage Periods'),
+              label: const Text('Periods & Breaks'),
             ),
           ],
         ),
@@ -157,6 +160,7 @@ class _ClassSectionGrid extends ConsumerWidget {
     final params = TimetableGridParams.forClassSection(classSectionId);
     final periodsState = ref.watch(periodListNotifierProvider(schoolId));
     final entriesState = ref.watch(timetableGridProvider(params));
+    final breaks = ref.watch(breakListNotifierProvider(schoolId)).value ?? const <SchoolBreak>[];
 
     return AsyncValueView<List<Period>>(
       value: periodsState,
@@ -177,6 +181,7 @@ class _ClassSectionGrid extends ConsumerWidget {
             return _TimetableGrids(
               schoolId: schoolId,
               periods: periods,
+              breaks: breaks,
               cellLabel: (entry) => '${entry.subjectName ?? ''}\n${entry.teacherName ?? ''}',
               entryFor: (periodId, day) => entries
                   .where((e) => e.periodId == periodId && e.dayOfWeek == day)
@@ -210,6 +215,7 @@ class _MyScheduleGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final params = TimetableGridParams.forTeacher(teacherId);
     final entriesState = ref.watch(timetableGridProvider(params));
+    final breaks = ref.watch(breakListNotifierProvider(null)).value ?? const <SchoolBreak>[];
 
     return AsyncValueView<List<TimetableEntry>>(
       value: entriesState,
@@ -235,8 +241,8 @@ class _MyScheduleGrid extends ConsumerWidget {
                     schoolId: 0,
                     periodNumber: e.value.periodNumber ?? 0,
                     dayShape: e.value.periodDayShape,
-                    startTime: '',
-                    endTime: '',
+                    startTime: e.value.periodStartTime,
+                    endTime: e.value.periodEndTime,
                   ),
                 )
                 .toList()
@@ -245,6 +251,7 @@ class _MyScheduleGrid extends ConsumerWidget {
         return _TimetableGrids(
           schoolId: null,
           periods: syntheticPeriods,
+          breaks: breaks,
           cellLabel: (entry) => '${entry.subjectName ?? ''}\n${entry.classSectionName ?? ''}',
           entryFor: (periodId, day) =>
               entries.where((e) => e.periodId == periodId && e.dayOfWeek == day).cast<TimetableEntry?>().firstOrNull,
@@ -271,6 +278,7 @@ class _TimetableGrids extends ConsumerWidget {
   const _TimetableGrids({
     required this.schoolId,
     required this.periods,
+    this.breaks = const [],
     required this.cellLabel,
     required this.entryFor,
     required this.onCellTap,
@@ -278,6 +286,9 @@ class _TimetableGrids extends ConsumerWidget {
 
   final int? schoolId;
   final List<Period> periods;
+
+  /// Lunch, short breaks - drawn in their place between the periods.
+  final List<SchoolBreak> breaks;
   final String Function(TimetableEntry entry) cellLabel;
   final TimetableEntry? Function(int periodId, DayOfWeek day) entryFor;
   final void Function(Period period, DayOfWeek day, TimetableEntry? existing)? onCellTap;
@@ -295,6 +306,7 @@ class _TimetableGrids extends ConsumerWidget {
           _TimetableGrid(
             days: DayOfWeek.of(week),
             periods: periods.where((period) => !period.isHalfDay).toList(),
+            breaks: breaks.where((found) => found.dayShape == WorkingWeek.fullDay).toList(),
             cellLabel: cellLabel,
             entryFor: entryFor,
             onCellTap: onCellTap,
@@ -352,6 +364,7 @@ class _TimetableGrids extends ConsumerWidget {
     return _TimetableGrid(
       days: days,
       periods: forShape,
+      breaks: breaks.where((found) => found.dayShape == shape).toList(),
       cellLabel: cellLabel,
       entryFor: entryFor,
       onCellTap: onCellTap,
@@ -383,12 +396,14 @@ class _TimetableGrid extends StatelessWidget {
   const _TimetableGrid({
     required this.days,
     required this.periods,
+    this.breaks = const [],
     required this.cellLabel,
     required this.entryFor,
     required this.onCellTap,
   });
 
   final List<Period> periods;
+  final List<SchoolBreak> breaks;
   final String Function(TimetableEntry entry) cellLabel;
   final TimetableEntry? Function(int periodId, DayOfWeek day) entryFor;
   final void Function(Period period, DayOfWeek day, TimetableEntry? existing)? onCellTap;
@@ -414,21 +429,47 @@ class _TimetableGrid extends StatelessWidget {
               decoration: BoxDecoration(color: colors.infoContainer),
               children: [const _HeaderCell('Period'), for (final day in days) _HeaderCell(day.label)],
             ),
-            for (final period in periods)
-              TableRow(
-                children: [
-                  _HeaderCell(
-                    period.startTime.isEmpty
-                        ? 'P${period.periodNumber}'
-                        : 'P${period.periodNumber}\n${period.startTime}',
-                  ),
-                  for (final day in days) _buildCell(context, period, day),
-                ],
-              ),
+            for (final row in _rows())
+              if (row is Period)
+                TableRow(
+                  children: [
+                    _HeaderCell(
+                      row.startTime.isEmpty ? 'P${row.periodNumber}' : 'P${row.periodNumber}\n${row.startTime}',
+                    ),
+                    for (final day in days) _buildCell(context, row, day),
+                  ],
+                )
+              else if (row is SchoolBreak)
+                TableRow(
+                  key: ValueKey('break-${row.id}'),
+                  decoration: BoxDecoration(color: colors.warningContainer.withValues(alpha: 0.5)),
+                  children: [
+                    _HeaderCell('${row.startTime}\n${row.endTime}'),
+                    for (final _ in days)
+                      Container(
+                        height: 40,
+                        alignment: Alignment.center,
+                        child: Text(
+                          row.name,
+                          style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: colors.muted),
+                        ),
+                      ),
+                  ],
+                ),
           ],
         ),
       ),
     );
+  }
+
+  /// Periods and breaks in the order the day rings them. Without bell times
+  /// (an older server) the periods keep their number order and breaks stay out.
+  List<Object> _rows() {
+    if (breaks.isEmpty || periods.any((period) => period.startTime.isEmpty)) return [...periods];
+
+    int startOf(Object row) => minutesOf(row is Period ? row.startTime : (row as SchoolBreak).startTime);
+
+    return <Object>[...periods, ...breaks]..sort((a, b) => startOf(a).compareTo(startOf(b)));
   }
 
   Widget _buildCell(BuildContext context, Period period, DayOfWeek day) {

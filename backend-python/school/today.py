@@ -25,7 +25,7 @@ import datetime as dt
 from . import week
 from .clock import SchoolClock
 from .enums import LeaveStatus
-from .models import Attendance, ClassSection, DailyTeachingReport, School, StaffLeave, User
+from .models import Attendance, ClassSection, DailyTeachingReport, School, SchoolBreak, StaffLeave, User
 from .services import HolidayService, TimetableService, holiday_summary
 
 DONE = "done"
@@ -77,6 +77,8 @@ def day_for(teacher: User, at: dt.datetime | None = None) -> dict:
             "holiday": holiday_summary(holiday) if holiday is not None else None,
         },
         "periods": periods,
+        # Lunch and short breaks, so the day reads as the school rings it.
+        "breaks": breaks_for(teacher, shape, now.time()) if is_open else [],
         "registers": registers,
         "leave": leave,
         "owed": {
@@ -84,6 +86,21 @@ def day_for(teacher: User, at: dt.datetime | None = None) -> dict:
             "registers": sum(1 for r in registers if not r["submitted"]) if owes else 0,
         },
     }
+
+
+def breaks_for(teacher: User, shape: str, now: dt.time) -> list[dict]:
+    """Today's breaks at the teacher's school, earliest first."""
+    found = SchoolBreak.objects.filter(school_id=teacher.school_id, day_shape=shape).order_by("start_time", "id")
+
+    return [
+        {
+            "name": row.name,
+            "start_time": row.start_time.strftime("%H:%M"),
+            "end_time": row.end_time.strftime("%H:%M"),
+            "state": period_state(row.start_time, row.end_time, now),
+        }
+        for row in found
+    ]
 
 
 def periods_for(teacher: User, today: dt.date, shape: str, now: dt.time) -> list[dict]:

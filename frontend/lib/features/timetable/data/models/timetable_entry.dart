@@ -13,6 +13,8 @@ class TimetableEntry {
     required this.periodNumber,
     required this.dayOfWeek,
     this.periodDayShape = WorkingWeek.fullDay,
+    this.periodStartTime = '',
+    this.periodEndTime = '',
     required this.subjectId,
     required this.subjectName,
     required this.teacherId,
@@ -29,6 +31,8 @@ class TimetableEntry {
       periodNumber: json['period_number'] as int?,
       dayOfWeek: DayOfWeek.fromApiValue(json['day_of_week'] as String),
       periodDayShape: json['period_day_shape'] as String? ?? WorkingWeek.fullDay,
+      periodStartTime: json['period_start_time'] as String? ?? '',
+      periodEndTime: json['period_end_time'] as String? ?? '',
       subjectId: json['subject_id'] as int,
       subjectName: json['subject_name'] as String?,
       teacherId: json['teacher_id'] as int,
@@ -49,6 +53,10 @@ class TimetableEntry {
   /// periods - so without this a half day's period would be laid out
   /// among the full day's and land under a column that is not there.
   final String periodDayShape;
+
+  /// The period's bell times, HH:mm - empty from an older server.
+  final String periodStartTime;
+  final String periodEndTime;
   final int subjectId;
   final String? subjectName;
   final int teacherId;

@@ -21,7 +21,7 @@ import decimal
 import re
 import zoneinfo
 
-from . import attendants, audit, class_levels, hashing, roll_numbers, mailer, marketing, notices, notifications, payment_items, permissions, site_pages, sms, whatsapp
+from . import attendants, audit, class_levels, hashing, roll_numbers, mailer, marketing, notices, notifications, payment_items, permissions, school_breaks, site_pages, sms, whatsapp
 from .enums import (
     UserStatus,
     PromotionOutcome,
@@ -3993,8 +3993,96 @@ class PeriodForm(ScopedSerializer):
 
         if start is not None and end is not None and end <= start:
             errors["end_time"] = [must_be_after("end_time", "start_time")]
+        elif start is not None and end is not None and school_id is not None:
+            clash = school_breaks.clash_for_period(
+                school_id, attrs.get("day_shape") or week.FULL_DAY, start, end
+            )
+            if clash:
+                errors["start_time"] = [clash]
 
         return errors
+
+
+class BreakForm(ScopedSerializer):
+    """A break in the school day - lunch, a short break (school/school_breaks.py)."""
+
+    name = LaravelCharField("name", max_length=50)
+    day_shape = LaravelCharField("day_shape", max_length=8, required=False)
+    start_time = serializers.TimeField(
+        format="%H:%M",
+        input_formats=["%H:%M"],
+        error_messages={"invalid": "The start time field must match the format H:i."},
+    )
+    end_time = serializers.TimeField(
+        format="%H:%M",
+        input_formats=["%H:%M"],
+        error_messages={"invalid": "The end time field must match the format H:i."},
+    )
+    # Move every later period and break back to make room for this one.
+    make_room = LaravelBooleanField("make_room", required=False)
+
+    def validate_day_shape(self, value: str) -> str:
+        if value not in week.SHAPES:
+            raise serializers.ValidationError(selected_is_invalid("day_shape"))
+
+        return value
+
+    def validate_name(self, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError(required("name"))
+
+        return value
+
+    def check(self, attrs, school_id, ignoring=None) -> dict:
+        start, end = attrs["start_time"], attrs["end_time"]
+
+        if end <= start:
+            return {"end_time": [must_be_after("end_time", "start_time")]}
+
+        found = school_breaks.problem(
+            school_id, attrs.get("day_shape") or week.FULL_DAY, start, end,
+            make_room=bool(attrs.get("make_room")), ignoring=ignoring,
+        )
+
+        return {"start_time": [found]} if found else {}
+
+
+class StoreBreakRequest(BreakForm):
+    def validate(self, attrs):
+        self.validate_school_id_field()
+
+        school_id = self.resolved_school_id()
+        errors = self.check(attrs, school_id)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["school_id"] = school_id
+
+        return attrs
+
+
+class UpdateBreakRequest(BreakForm):
+    def __init__(self, *args, record=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.record = record
+
+        for field in self.fields.values():
+            field.required = False
+
+    def validate(self, attrs):
+        # Whatever was not sent is what the break already has.
+        attrs.setdefault("start_time", self.record.start_time)
+        attrs.setdefault("end_time", self.record.end_time)
+        attrs.setdefault("day_shape", self.record.day_shape)
+
+        errors = self.check(attrs, self.record.school_id, ignoring=self.record.pk)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
 
 class BiometricDeviceForm(ScopedSerializer):

@@ -15,7 +15,7 @@ from rest_framework.test import APIClient
 
 from school import factories, tokens
 from school.enums import UserRole
-from school.models import Attendance, Holiday
+from school.models import Attendance, Holiday, SchoolBreak
 
 UTC = dt.timezone.utc
 MONDAY_1015_IST = dt.datetime(2026, 10, 26, 4, 45, tzinfo=UTC)
@@ -254,3 +254,32 @@ class Access(TodayTestCase):
 
     def test_signed_out_is_refused(self):
         self.assertEqual(401, APIClient().get("/api/v1/timetable/today").status_code)
+
+
+class TheDaysBreaks(TodayTestCase):
+    """Lunch and short breaks, so the teacher's day reads as the school rings it."""
+
+    def brk(self, name, start, end, shape="full"):
+        return SchoolBreak.objects.create(
+            school=self.school, name=name, day_shape=shape, start_time=start, end_time=end,
+            created_at=real_now(), updated_at=real_now(),
+        )
+
+    def test_todays_breaks_come_with_the_day_each_with_its_state(self):
+        self.brk("Short break", dt.time(9, 45), dt.time(10, 0))
+        self.brk("Lunch break", dt.time(12, 0), dt.time(12, 40))
+        self.brk("Saturday snack", dt.time(10, 0), dt.time(10, 15), shape="half")
+
+        day = self.today()
+
+        self.assertEqual(
+            [("Short break", "09:45", "10:00", "done"), ("Lunch break", "12:00", "12:40", "upcoming")],
+            [(b["name"], b["start_time"], b["end_time"], b["state"]) for b in day["breaks"]],
+        )
+
+    def test_a_break_never_counts_as_a_period(self):
+        self.brk("Short break", dt.time(9, 45), dt.time(10, 0))
+
+        day = self.today()
+
+        self.assertEqual(2, len(day["periods"]))

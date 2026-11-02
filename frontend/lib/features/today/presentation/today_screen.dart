@@ -89,8 +89,11 @@ class _DayView extends StatelessWidget {
           if (day.periods.isEmpty)
             const _EmptyPeriods()
           else
-            for (final period in day.periods) ...[
-              _PeriodCard(period: period, date: day.date),
+            // The teacher's periods with the school's breaks in between, in
+            // the order the day rings them.
+            for (final item in _inOrder(day)) ...[
+              if (item is TodayPeriod) _PeriodCard(period: item, date: day.date),
+              if (item is TodayBreak) _BreakLine(found: item),
               const SizedBox(height: 8),
             ],
         ],
@@ -104,6 +107,48 @@ class _DayView extends StatelessWidget {
 }
 
 String _time(String hhmm) => formatClock(hhmm);
+
+/// Periods and breaks by start time ("08:45" sorts as text).
+List<Object> _inOrder(TeacherDay day) {
+  String startOf(Object item) => item is TodayPeriod ? item.startTime : (item as TodayBreak).startTime;
+
+  return <Object>[...day.periods, ...day.breaks]..sort((a, b) => startOf(a).compareTo(startOf(b)));
+}
+
+/// A break between periods: one quiet line, marked while it is on.
+class _BreakLine extends StatelessWidget {
+  const _BreakLine({required this.found});
+
+  final TodayBreak found;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final now = found.state == PeriodState.current;
+
+    return Container(
+      key: Key('today-break-${found.startTime}'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.warningContainer.withValues(alpha: now ? 0.9 : 0.4),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.free_breakfast_outlined, size: 18, color: colors.muted),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              now ? '${found.name} - now' : found.name,
+              style: TextStyle(fontWeight: now ? FontWeight.w700 : FontWeight.w500),
+            ),
+          ),
+          Text('${_time(found.startTime)} - ${_time(found.endTime)}', style: TextStyle(color: colors.muted)),
+        ],
+      ),
+    );
+  }
+}
 
 String _leaveLabel(String apiValue) {
   for (final type in LeaveType.values) {

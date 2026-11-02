@@ -1160,6 +1160,24 @@ class Period(models.Model):
         db_table = 'periods'
         unique_together = (('school', 'day_shape', 'period_number'),)
 
+class SchoolBreak(models.Model):
+    """A break in the school day - lunch, a short break - shown in its place
+    in the timetable. Never a period: nothing that counts periods sees it."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.CASCADE)
+    day_shape = models.CharField(max_length=8, default=week.FULL_DAY)
+    name = models.CharField(max_length=50)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'school_breaks'
+
+
 class PersonalAccessToken(models.Model):
     """The one framework table this backend describes.
 

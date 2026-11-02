@@ -8,16 +8,19 @@ import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:edutrack_app/features/subjects/data/subject_repository.dart';
 import 'package:edutrack_app/features/schools/data/models/working_week.dart';
 import 'package:edutrack_app/features/timetable/data/models/period.dart';
+import 'package:edutrack_app/features/timetable/data/models/school_break.dart';
 import 'package:edutrack_app/features/timetable/data/period_repository.dart';
 import 'package:edutrack_app/features/timetable/data/timetable_repository.dart';
 import 'package:edutrack_app/features/timetable/presentation/timetable_screen.dart';
 import 'package:edutrack_app/features/timetable/presentation/widgets/edit_entry_dialog.dart';
 import 'package:edutrack_app/features/timetable/presentation/widgets/manage_periods_dialog.dart';
 import 'package:edutrack_app/features/users/data/user_repository.dart';
+import 'package:edutrack_app/features/timetable/data/break_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_break_repository.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_period_repository.dart';
 import '../../support/fake_school_class_repository.dart';
@@ -57,6 +60,7 @@ Widget wrap(
   FakeSchoolClassRepository? schoolClasses,
   FakePeriodRepository? periods,
   FakeTimetableRepository? timetable,
+  FakeBreakRepository? breaks,
 }) {
   return ProviderScope(
     overrides: [
@@ -65,6 +69,7 @@ Widget wrap(
       schoolClassRepositoryProvider.overrideWithValue(schoolClasses ?? FakeSchoolClassRepository()),
       userRepositoryProvider.overrideWithValue(FakeUserRepository()),
       subjectRepositoryProvider.overrideWithValue(FakeSubjectRepository()),
+      breakRepositoryProvider.overrideWithValue(breaks ?? FakeBreakRepository()),
       periodRepositoryProvider.overrideWithValue(periods ?? FakePeriodRepository()),
       timetableRepositoryProvider.overrideWithValue(timetable ?? FakeTimetableRepository()),
     ],
@@ -76,13 +81,73 @@ Widget wrap(
 }
 
 void main() {
+  group('breaks in the grid', () {
+    const p1 = Period(id: 11, schoolId: 1, periodNumber: 1, startTime: '08:00', endTime: '08:45');
+    const p2 = Period(id: 12, schoolId: 1, periodNumber: 2, startTime: '08:45', endTime: '09:30');
+    const p3 = Period(id: 13, schoolId: 1, periodNumber: 3, startTime: '09:45', endTime: '10:30');
+
+    testWidgets('a break sits between the periods it falls between, on every day', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        wrap(
+          _schoolAdmin,
+          schoolClasses: FakeSchoolClassRepository(classes: [_schoolClass]),
+          periods: FakePeriodRepository(periods: [p3, p1, p2]),
+          timetable: FakeTimetableRepository(),
+          breaks: FakeBreakRepository(
+            breaks: [const SchoolBreak(id: 1, schoolId: 1, name: 'Short break', startTime: '09:30', endTime: '09:45')],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      final p2Row = tester.getTopLeft(find.text('P2\n08:45')).dy;
+      final breakRow = tester.getTopLeft(find.text('09:30\n09:45')).dy;
+      final p3Row = tester.getTopLeft(find.text('P3\n09:45')).dy;
+      expect(p2Row < breakRow && breakRow < p3Row, isTrue);
+      // Named under every day's column, and nothing to tap there.
+      expect(find.text('Short break'), findsNWidgets(5));
+    });
+
+    testWidgets('a half day break stays off the full day grid', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          _schoolAdmin,
+          schoolClasses: FakeSchoolClassRepository(classes: [_schoolClass]),
+          periods: FakePeriodRepository(periods: [p1, p2]),
+          timetable: FakeTimetableRepository(),
+          breaks: FakeBreakRepository(
+            breaks: [
+              const SchoolBreak(
+                id: 2,
+                schoolId: 1,
+                name: 'Snack',
+                dayShape: WorkingWeek.halfDay,
+                startTime: '08:45',
+                endTime: '09:00',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await pickTheSection(tester);
+
+      expect(find.text('Snack'), findsNothing);
+    });
+  });
+
   testWidgets('a school admin sees the admin controls (class picker, manage periods)', (tester) async {
     await tester.pumpWidget(wrap(_schoolAdmin));
     await tester.pumpAndSettle();
 
     expect(find.text('Class schedules and period management.'), findsOneWidget);
     expect(find.widgetWithText(DropdownButtonFormField<int>, 'Class'), findsOneWidget);
-    expect(find.text('Manage Periods'), findsOneWidget);
+    expect(find.text('Periods & Breaks'), findsOneWidget);
     expect(find.text('Pick a class section to view its timetable.'), findsOneWidget);
   });
 
@@ -92,7 +157,7 @@ void main() {
 
     expect(find.text('Your weekly teaching schedule.'), findsOneWidget);
     expect(find.widgetWithText(DropdownButtonFormField<int>, 'Class'), findsNothing);
-    expect(find.text('Manage Periods'), findsNothing);
+    expect(find.text('Periods & Breaks'), findsNothing);
     expect(find.text('No periods assigned to you yet.'), findsOneWidget);
   });
 
@@ -126,11 +191,11 @@ void main() {
     await tester.pumpWidget(wrap(_schoolAdmin));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Manage Periods'));
+    await tester.tap(find.text('Periods & Breaks'));
     await tester.pumpAndSettle();
 
     expect(find.byType(ManagePeriodsDialog), findsOneWidget);
-    expect(find.widgetWithText(AlertDialog, 'Manage Periods'), findsOneWidget);
+    expect(find.widgetWithText(AlertDialog, 'Periods & Breaks'), findsOneWidget);
   });
 
   group('the columns follow the week the school keeps', () {

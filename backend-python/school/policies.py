@@ -907,6 +907,10 @@ class PeriodPolicy(SchoolOwnedPolicy):
     pass
 
 
+class BreakPolicy(SchoolOwnedPolicy):
+    """Whoever sets the periods sets the breaks between them."""
+
+
 class ClassSectionPolicy:
     """A section has no school of its own - it reaches one through its class.
 

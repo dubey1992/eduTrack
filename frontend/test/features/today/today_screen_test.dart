@@ -58,6 +58,31 @@ void main() {
     expect(find.descendant(of: find.byKey(const Key('today-period-13')), matching: find.text('Now')), findsOneWidget);
   });
 
+  testWidgets("the school's breaks sit between the periods", (tester) async {
+    await pump(
+      tester,
+      FakeTodayRepository(
+        days: [
+          teacherDay(
+            breaks: const [
+              TodayBreak(name: 'Short break', startTime: '10:30', endTime: '10:45', state: PeriodState.done),
+              TodayBreak(name: 'Lunch break', startTime: '12:30', endTime: '13:10', state: PeriodState.upcoming),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    double top(Key key) => tester.getTopLeft(find.byKey(key)).dy;
+    expect(top(const Key('today-period-11')) < top(const Key('today-break-10:30')), isTrue);
+    expect(top(const Key('today-break-10:30')) < top(const Key('today-period-13')), isTrue);
+    expect(top(const Key('today-period-13')) < top(const Key('today-break-12:30')), isTrue);
+    expect(top(const Key('today-break-12:30')) < top(const Key('today-period-15')), isTrue);
+    expect(find.text('Lunch break'), findsOneWidget);
+    // A break never counts as a period.
+    expect(find.text('Your periods (3)'), findsOneWidget);
+  });
+
   testWidgets('says what each period owes: filed, owed, or nothing yet', (tester) async {
     await pump(tester, FakeTodayRepository());
 

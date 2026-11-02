@@ -11,6 +11,7 @@ class TeacherDay {
     required this.holidayName,
     required this.isHalfDay,
     required this.periods,
+    this.breaks = const [],
     required this.registers,
     required this.leaveToday,
     required this.leaveThisWeek,
@@ -31,6 +32,9 @@ class TeacherDay {
       holidayName: holiday?['name'] as String?,
       isHalfDay: day['shape'] == 'half',
       periods: [for (final item in json['periods'] as List) TodayPeriod.fromJson(item as Map<String, dynamic>)],
+      breaks: [
+        for (final item in json['breaks'] as List? ?? const []) TodayBreak.fromJson(item as Map<String, dynamic>),
+      ],
       registers: [for (final item in json['registers'] as List) ClassRegister.fromJson(item as Map<String, dynamic>)],
       leaveToday: leave['today'] == null ? null : LeaveSpan.fromJson(leave['today'] as Map<String, dynamic>),
       leaveThisWeek: [for (final item in leave['this_week'] as List) LeaveSpan.fromJson(item as Map<String, dynamic>)],
@@ -51,6 +55,9 @@ class TeacherDay {
   final bool isHalfDay;
 
   final List<TodayPeriod> periods;
+
+  /// Lunch and short breaks at the school today, earliest first.
+  final List<TodayBreak> breaks;
   final List<ClassRegister> registers;
 
   final LeaveSpan? leaveToday;
@@ -79,6 +86,25 @@ enum PeriodState {
 
   static PeriodState fromApiValue(String value) =>
       PeriodState.values.firstWhere((state) => state.apiValue == value, orElse: () => PeriodState.upcoming);
+}
+
+/// A break in today's school day - lunch, a short break.
+class TodayBreak {
+  const TodayBreak({required this.name, required this.startTime, required this.endTime, required this.state});
+
+  factory TodayBreak.fromJson(Map<String, dynamic> json) => TodayBreak(
+    name: json['name'] as String,
+    startTime: json['start_time'] as String,
+    endTime: json['end_time'] as String,
+    state: PeriodState.fromApiValue(json['state'] as String),
+  );
+
+  final String name;
+
+  /// HH:mm.
+  final String startTime;
+  final String endTime;
+  final PeriodState state;
 }
 
 class TodayPeriod {

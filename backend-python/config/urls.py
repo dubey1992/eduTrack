@@ -120,6 +120,9 @@ urlpatterns = [
 
     path("api/v1/periods", classes.periods),
     path("api/v1/periods/<int:period_id>", classes.period),
+    # Lunch, short breaks: shown in their place in the timetable.
+    path("api/v1/breaks", classes.breaks),
+    path("api/v1/breaks/<int:break_id>", classes.school_break),
     path("api/v1/holidays", classes.holidays),
     path("api/v1/holidays/<int:holiday_id>", classes.holiday),
     # -- departments and subjects ------------------------------------------

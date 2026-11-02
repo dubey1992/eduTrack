@@ -159,6 +159,10 @@ def timetable_entry_resource(entry) -> dict:
         # periods - so without this a half day's period would be laid out
         # among the full day's and land under a column that is not there.
         "period_day_shape": entry.period.day_shape if entry.period_id else None,
+        # The bell times, so a teacher's own schedule - drawn from entries
+        # alone - can put the day's breaks in their place.
+        "period_start_time": entry.period.start_time.strftime("%H:%M") if entry.period_id else None,
+        "period_end_time": entry.period.end_time.strftime("%H:%M") if entry.period_id else None,
         "day_of_week": entry.day_of_week,
         "subject_id": entry.subject_id,
         "subject_name": entry.subject.name if entry.subject_id else None,
@@ -1041,6 +1045,18 @@ def period_resource(period) -> dict:
         # rendered the way the timetable shows it.
         "start_time": period.start_time.strftime("%H:%M"),
         "end_time": period.end_time.strftime("%H:%M"),
+    }
+
+
+def break_resource(found) -> dict:
+    """A break in the school day, shown in its place in the timetable."""
+    return {
+        "id": found.id,
+        "school_id": found.school_id,
+        "day_shape": found.day_shape,
+        "name": found.name,
+        "start_time": found.start_time.strftime("%H:%M"),
+        "end_time": found.end_time.strftime("%H:%M"),
     }
 
 

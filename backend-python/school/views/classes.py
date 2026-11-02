@@ -24,9 +24,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..models import ClassSection, Holiday, Period, SchoolClass
+from ..models import ClassSection, Holiday, Period, SchoolBreak, SchoolClass
 from ..pagination import LaravelPagination
 from ..policies import (
+    BreakPolicy,
     ClassSectionPolicy,
     HolidayPolicy,
     PeriodPolicy,
@@ -34,6 +35,8 @@ from ..policies import (
     authorize,
 )
 from ..requests import (
+    StoreBreakRequest,
+    UpdateBreakRequest,
     StoreClassSectionRequest,
     StoreHolidayRequest,
     StorePeriodRequest,
@@ -47,12 +50,13 @@ from ..requests import (
 )
 from .. import class_levels
 from ..resources import (
+    break_resource,
     class_section_resource,
     holiday_resource,
     period_resource,
     school_class_resource,
 )
-from ..services import HolidayService, PeriodService, SchoolClassService
+from ..services import BreakService, HolidayService, PeriodService, SchoolClassService
 
 # -- classes ----------------------------------------------------------------
 
@@ -251,6 +255,53 @@ def period(request, period_id: int) -> Response:
     PeriodService.update(record, form.validated_data)
 
     return Response(period_resource(Period.objects.get(pk=record.id)))
+
+
+# -- breaks -----------------------------------------------------------------
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def breaks(request) -> Response:
+    """Lunch, a short break: the school day's breaks (school/school_breaks.py)."""
+    if request.method == "POST":
+        authorize(BreakPolicy.create(request.user))
+
+        form = StoreBreakRequest(data=request.data, actor=request.user)
+        form.is_valid(raise_exception=True)
+
+        created = BreakService.create(form.validated_data, request.user)
+
+        return Response(break_resource(created), status=status.HTTP_201_CREATED)
+
+    authorize(BreakPolicy.view_any(request.user))
+
+    found = BreakService.visible_to(request.user, {"school_id": request.query_params.get("school_id")})
+
+    # A bare array, like periods: a school has two or three.
+    return Response([break_resource(row) for row in found])
+
+
+@api_view(["PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
+def school_break(request, break_id: int) -> Response:
+    record = get_object_or_404(SchoolBreak, pk=break_id)
+
+    if request.method == "DELETE":
+        authorize(BreakPolicy.delete(request.user, record))
+
+        BreakService.delete(record)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    authorize(BreakPolicy.update(request.user, record))
+
+    form = UpdateBreakRequest(data=request.data, actor=request.user, record=record)
+    form.is_valid(raise_exception=True)
+
+    BreakService.update(record, form.validated_data)
+
+    return Response(break_resource(SchoolBreak.objects.get(pk=record.id)))
 
 
 # -- holidays ---------------------------------------------------------------

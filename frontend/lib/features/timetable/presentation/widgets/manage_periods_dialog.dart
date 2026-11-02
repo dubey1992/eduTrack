@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failure.dart';
 import '../../../../core/widgets/async_value_view.dart';
+import '../../application/break_list_notifier.dart';
 import '../../application/period_list_notifier.dart';
+import '../../data/models/school_break.dart';
+import 'edit_break_dialog.dart';
 import '../../../schools/application/school_week_provider.dart';
 import '../../../schools/data/models/working_week.dart';
 import '../../data/models/period.dart';
@@ -21,9 +24,10 @@ class ManagePeriodsDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final periodsState = ref.watch(periodListNotifierProvider(schoolId));
+    final breaks = ref.watch(breakListNotifierProvider(schoolId)).value ?? const <SchoolBreak>[];
 
     return AlertDialog(
-      title: const Text('Manage Periods'),
+      title: const Text('Periods & Breaks'),
       content: SizedBox(
         width: 420,
         child: AsyncValueView<List<Period>>(
@@ -36,7 +40,21 @@ class ManagePeriodsDialog extends ConsumerWidget {
             return SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [for (final period in periods) _PeriodRow(schoolId: schoolId, period: period)],
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final period in periods) _PeriodRow(schoolId: schoolId, period: period),
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Text('Breaks', style: Theme.of(context).textTheme.titleSmall),
+                  ),
+                  if (breaks.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Text('No breaks yet. Add lunch and short breaks so the timetable shows them.'),
+                    ),
+                  for (final found in breaks) _BreakRow(schoolId: schoolId, found: found),
+                ],
               ),
             );
           },
@@ -49,6 +67,14 @@ class ManagePeriodsDialog extends ConsumerWidget {
             builder: (_) => _EditPeriodDialog(schoolId: schoolId),
           ),
           child: const Text('Add Period'),
+        ),
+        TextButton(
+          key: const Key('add-break'),
+          onPressed: () => showDialog(
+            context: context,
+            builder: (_) => EditBreakDialog(schoolId: schoolId),
+          ),
+          child: const Text('Add Break'),
         ),
         FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
       ],
@@ -85,6 +111,52 @@ class _PeriodRow extends ConsumerWidget {
             onPressed: () async {
               try {
                 await ref.read(periodListNotifierProvider(schoolId).notifier).delete(period);
+              } catch (error) {
+                if (context.mounted) {
+                  final failure = error is Failure ? error : Failure.unknown(error.toString());
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BreakRow extends ConsumerWidget {
+  const _BreakRow({required this.schoolId, required this.found});
+
+  final int? schoolId;
+  final SchoolBreak found;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListTile(
+      dense: true,
+      leading: const Icon(Icons.free_breakfast_outlined, size: 18),
+      title: Text(found.name),
+      subtitle: Text(
+        '${found.startTime} - ${found.endTime}${found.dayShape == WorkingWeek.halfDay ? ' · half days' : ''}',
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            tooltip: 'Edit',
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => EditBreakDialog(schoolId: schoolId, existing: found),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 18),
+            tooltip: 'Remove',
+            onPressed: () async {
+              try {
+                await ref.read(breakListNotifierProvider(schoolId).notifier).delete(found);
               } catch (error) {
                 if (context.mounted) {
                   final failure = error is Failure ? error : Failure.unknown(error.toString());

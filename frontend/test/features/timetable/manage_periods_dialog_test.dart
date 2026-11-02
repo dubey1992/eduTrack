@@ -5,10 +5,12 @@ import 'package:edutrack_app/features/schools/data/models/working_week.dart';
 import 'package:edutrack_app/features/timetable/data/models/period.dart';
 import 'package:edutrack_app/features/timetable/data/period_repository.dart';
 import 'package:edutrack_app/features/timetable/presentation/widgets/manage_periods_dialog.dart';
+import 'package:edutrack_app/features/timetable/data/break_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_break_repository.dart';
 import '../../support/fake_period_repository.dart';
 
 const _period = Period(id: 1, schoolId: 1, periodNumber: 1, startTime: '08:30', endTime: '09:15');
@@ -20,6 +22,7 @@ const _period = Period(id: 1, schoolId: 1, periodNumber: 1, startTime: '08:30', 
 Widget wrap(FakePeriodRepository fake, {int? schoolId, String week = '1111100'}) {
   return ProviderScope(
     overrides: [
+      breakRepositoryProvider.overrideWithValue(FakeBreakRepository()),
       periodRepositoryProvider.overrideWithValue(fake),
       // The school's own week, which decides whether there is a half day to
       // put periods on at all.
@@ -90,7 +93,7 @@ void main() {
     // includes the newly-created period as confirmation.
     expect(find.widgetWithText(TextFormField, 'Period number'), findsNothing);
     expect(find.text('Period 3'), findsOneWidget);
-    expect(find.text('Manage Periods'), findsOneWidget);
+    expect(find.text('Periods & Breaks'), findsOneWidget);
   });
 
   testWidgets('shows the failure message and keeps the add-period dialog open on error', (tester) async {

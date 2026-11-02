@@ -35,6 +35,7 @@ from . import (
     queue,
     roll_numbers,
     route_paths,
+    school_breaks,
     sms,
     tokens,
     whatsapp,
@@ -147,6 +148,7 @@ from .models import (
     Payment,
     PaymentItem,
     Period,
+    SchoolBreak,
     StaffAttendance,
     StaffLeave,
     SyllabusTopic,
@@ -4594,6 +4596,68 @@ class PeriodService:
 
         audit.deleted("timetable", period)
         period.delete()
+
+
+class BreakService:
+    """Breaks in the school day (school/school_breaks.py). Not paginated - a
+    school has two or three."""
+
+    @staticmethod
+    def visible_to(actor: User, filters: dict):
+        found = SchoolScope.for_actor(actor).apply_to(SchoolBreak.objects.all(), filters.get("school_id"))
+
+        return found.order_by("day_shape", "start_time", "id")
+
+    @staticmethod
+    def create(data: dict, actor: User) -> SchoolBreak:
+        data = dict(data)
+        school_id = SchoolScope.for_actor(actor).writable_school_id(data.pop("school_id", None))
+        shape = data.get("day_shape") or week.FULL_DAY
+        now = timezone.now()
+
+        with transaction.atomic():
+            if data.get("make_room"):
+                school_breaks.make_room(school_id, shape, data["start_time"], data["end_time"])
+
+            created = SchoolBreak.objects.create(
+                school_id=school_id,
+                day_shape=shape,
+                name=data["name"],
+                start_time=data["start_time"],
+                end_time=data["end_time"],
+                created_at=now,
+                updated_at=now,
+            )
+            audit.created("timetable", created)
+
+        return created
+
+    @staticmethod
+    def update(record: SchoolBreak, data: dict) -> SchoolBreak:
+        data = dict(data)
+        make_room = data.pop("make_room", False)
+        before = audit.fields_of(record)
+
+        with transaction.atomic():
+            if make_room:
+                school_breaks.make_room(
+                    record.school_id, data.get("day_shape", record.day_shape), data["start_time"], data["end_time"],
+                    ignoring=record.pk,
+                )
+
+            for field, value in data.items():
+                setattr(record, field, value)
+
+            record.updated_at = timezone.now()
+            record.save()
+            audit.updated("timetable", record, before)
+
+        return record
+
+    @staticmethod
+    def delete(record: SchoolBreak) -> None:
+        audit.deleted("timetable", record)
+        record.delete()
 
 
 class BiometricDeviceService:
