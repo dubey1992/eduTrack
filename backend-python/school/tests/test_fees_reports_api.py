@@ -561,3 +561,39 @@ class DashboardCards(FeeReportsTestCase):
             self.paid(student=self.charged(name), amount="100.00", receipt_date="2026-07-02")
 
         self.assertEqual(few, queries())
+
+
+class FeeRing(DashboardCards):
+    """How much of what has fallen due is collected (decided 2026-11-04) -
+    the ring and the Outstanding card are the same figure."""
+
+    def ring(self, user, **params):
+        response = self.as_user(user).get("/api/v1/dashboard", params)
+        self.assertEqual(200, response.status_code, response.data)
+
+        return next((ring for ring in response.data["breakdowns"] if ring["key"] == "fee_collection"), None)
+
+    def test_it_agrees_with_the_outstanding_card(self):
+        self.paid(amount="960.00", receipt_date="2026-07-02")
+        self.charged("Bina", last_name="Rao")
+
+        ring = self.ring(self.admin)
+        owed = self.dashboard(self.admin)["fees_outstanding"]["value"]
+        segments = {segment["key"]: segment for segment in ring["segments"]}
+
+        self.assertEqual("Fees collected", ring["title"])
+        self.assertEqual(owed, segments["outstanding"]["display"])
+        self.assertEqual("INR 960.00", segments["collected"]["display"])
+        self.assertTrue(ring["headline"].endswith("%"))
+
+    def test_the_accountant_sees_it_and_a_teacher_does_not(self):
+        self.paid(amount="960.00", receipt_date="2026-07-02")
+        teacher = factories.UserFactory(school=self.school, role=UserRole.TEACHER)
+
+        self.assertIsNotNone(self.ring(self.accountant))
+        self.assertIsNone(self.ring(teacher))
+
+    def test_nothing_fallen_due_has_no_ring(self):
+        StudentFeeDue.objects.filter(school=self.school).delete()
+
+        self.assertIsNone(self.ring(self.admin))

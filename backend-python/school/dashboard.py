@@ -20,6 +20,7 @@ from .fees import ledger as fee_ledger
 from .reports.performance import term_summary
 from .enums import (
     AttendanceStatus,
+    FeeDueStatus,
     FeeReceiptStatus,
     LeaveStatus,
     MessageChannel,
@@ -29,6 +30,7 @@ from .enums import (
     PayslipStatus,
     SchoolCategory,
     SchoolStatus,
+    StaffAttendanceStatus,
     StudentStatus,
     TransportStatus,
     TripStatus,
@@ -46,6 +48,7 @@ from .models import (
     PayrollRun,
     Payslip,
     School,
+    StaffAttendance,
     StaffLeave,
     StaffProfile,
     Student,
@@ -96,6 +99,8 @@ class DashboardService:
 
         holiday = None if school_id is None else HolidayService.holiday_on(school_id, today)
 
+        breakdowns = cls._breakdowns(actor, school_id, today, fee_schools)
+
         return {
             "role": role,
             "school_id": school_id,
@@ -103,6 +108,7 @@ class DashboardService:
             "is_working_day": school_id is not None and HolidayService.is_working_day(school_id, today),
             "holiday": holiday.name if holiday else None,
             **payload,
+            "breakdowns": breakdowns,
         }
 
     # -- per role -----------------------------------------------------------
@@ -370,6 +376,31 @@ class DashboardService:
         return [candidate for candidate in candidates if modules.is_enabled(candidate, "fees")]
 
     @staticmethod
+    def _breakdowns(actor: User, school_id: int | None, today: dt.date, fee_schools: list[int]) -> list[dict]:
+        """The dashboard's rings (decided 2026-11-04): today's register
+        split for students and for staff, and how much of what has fallen due
+        in fees is collected. One school in view only - a split across a
+        group would hide which branch is behind - and each only where the
+        module is on and the matrix lets the role read it."""
+        if school_id is None:
+            return []
+
+        rings = []
+
+        if actor.role in ADMIN_ROLES:
+            if modules.is_enabled(school_id, "attendance") and permissions.may_view(actor, "attendance"):
+                rings.append(student_attendance_breakdown(school_id, today))
+
+            if modules.is_enabled(school_id, "staff_attendance") and permissions.may_view(actor, "staff_attendance"):
+                rings.append(staff_attendance_breakdown(school_id, today))
+
+        # The fee cards' own gate, so the ring and the cards never disagree.
+        if fee_schools == [school_id]:
+            rings.append(fee_collection_breakdown(school_id, today))
+
+        return [ring for ring in rings if ring is not None]
+
+    @staticmethod
     def _school_id_for(actor: User, school_filter) -> int | None:
         """`(int) $filters['school_id']` when one was sent - an empty value
         was already nothing by the time Laravel's controller saw it."""
@@ -473,6 +504,23 @@ def school_attendance_rate(school_id: int, date: dt.date) -> float | None:
     return attendance_rate(Attendance.objects.filter(school_id=school_id), date)
 
 
+# Attendance bands, decided 2026-11-04 for the dashboard's colours: at or
+# above GOOD is green, below POOR is red, between is amber. The app's
+# AttendanceBands holds the same two numbers for the bars it colours itself.
+ATTENDANCE_GOOD = 90
+ATTENDANCE_POOR = 75
+
+
+def attendance_tone(rate: float | None) -> str:
+    if rate is None:
+        return "neutral"
+
+    if rate >= ATTENDANCE_GOOD:
+        return "ok"
+
+    return "caution" if rate >= ATTENDANCE_POOR else "warning"
+
+
 def attendance_card(rate: float | None) -> dict:
     # `$rate.'%'`: PHP writes a whole float without its ".0".
     return card(
@@ -480,6 +528,123 @@ def attendance_card(rate: float | None) -> dict:
         "Attendance today",
         "-" if rate is None else f"{php_number(rate)}%",
         "not marked yet" if rate is None else "of students present",
+        attendance_tone(rate),
+    )
+
+
+# -- the rings ----------------------------------------------------------------
+
+ADMIN_ROLES = (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN)
+
+
+def segment(key: str, label: str, value, display: str | None = None) -> dict:
+    return {"key": key, "label": label, "value": float(value), "display": display or str(value)}
+
+
+def breakdown(key: str, title: str, headline: str, caption: str, segments: list[dict]) -> dict:
+    return {"key": key, "title": title, "headline": headline, "caption": caption, "segments": segments}
+
+
+def share(part, whole) -> str:
+    return "-" if not whole else f"{php_number(php_round_1(part / whole * 100))}%"
+
+
+def student_attendance_breakdown(school_id: int, today: dt.date) -> dict | None:
+    """Today's students: present, absent, on leave, and still unmarked.
+    The headline is the attendance rate - present of those marked - the
+    figure the Attendance card states, so the two never disagree."""
+    if not HolidayService.is_working_day(school_id, today):
+        return None
+
+    counts = dict(
+        Attendance.objects.filter(school_id=school_id, attendance_date=today)
+        .values("status")
+        .annotate(total=Count("id"))
+        .values_list("status", "total")
+    )
+    on_roll = Student.objects.filter(school_id=school_id, status=StudentStatus.ACTIVE).count()
+    marked = sum(counts.values())
+
+    if on_roll == 0 and marked == 0:
+        return None
+
+    present = counts.get(AttendanceStatus.PRESENT, 0)
+
+    return breakdown(
+        "student_attendance_today",
+        "Students today",
+        share(present, marked),
+        f"present of {marked} marked" if marked else "no register marked yet",
+        [
+            segment("present", "Present", present),
+            segment("absent", "Absent", counts.get(AttendanceStatus.ABSENT, 0)),
+            segment("leave", "On leave", counts.get(AttendanceStatus.LEAVE, 0)),
+            segment("not_marked", "Not marked yet", max(on_roll - marked, 0)),
+        ],
+    )
+
+
+def staff_attendance_breakdown(school_id: int, today: dt.date) -> dict | None:
+    """Today's staff register the same way, with half days of their own."""
+    if not HolidayService.is_working_day(school_id, today):
+        return None
+
+    counts = dict(
+        StaffAttendance.objects.filter(school_id=school_id, attendance_date=today)
+        .values("status")
+        .annotate(total=Count("id"))
+        .values_list("status", "total")
+    )
+    staff = StaffProfile.objects.filter(school_id=school_id).count()
+    marked = sum(counts.values())
+
+    if staff == 0 and marked == 0:
+        return None
+
+    at_work = counts.get(StaffAttendanceStatus.PRESENT, 0) + counts.get(StaffAttendanceStatus.HALF_DAY, 0)
+
+    return breakdown(
+        "staff_attendance_today",
+        "Staff today",
+        share(at_work, marked),
+        f"at work of {marked} marked" if marked else "no one marked yet",
+        [
+            segment("present", "Present", counts.get(StaffAttendanceStatus.PRESENT, 0)),
+            segment("half_day", "Half day", counts.get(StaffAttendanceStatus.HALF_DAY, 0)),
+            segment("absent", "Absent", counts.get(StaffAttendanceStatus.ABSENT, 0)),
+            segment("leave", "On leave", counts.get(StaffAttendanceStatus.LEAVE, 0)),
+            segment("not_marked", "Not marked yet", max(staff - marked, 0)),
+        ],
+    )
+
+
+def fee_collection_breakdown(school_id: int, today: dt.date) -> dict | None:
+    """Of the fees that have fallen due (on or before today), how much is
+    paid and how much is still owed - the Outstanding fees card's own
+    figure. One school, so one currency: the school's own."""
+    dues = StudentFeeDue.objects.filter(school_id=school_id, due_date__lte=today).exclude(
+        status__in=(FeeDueStatus.CANCELLED, FeeDueStatus.WAIVED)
+    )
+    collected = dues.aggregate(total=Sum("paid_amount"))["total"] or Decimal("0")
+    outstanding = (
+        fee_ledger.owed(dues).aggregate(total=Sum(F("amount") - F("discount_amount") - F("paid_amount")))["total"]
+        or Decimal("0")
+    )
+
+    if collected == 0 and outstanding == 0:
+        return None
+
+    currency = School.objects.filter(pk=school_id).values_list("currency_code", flat=True).first() or ""
+
+    return breakdown(
+        "fee_collection",
+        "Fees collected",
+        share(collected, collected + outstanding),
+        f"of {money.formatted(collected + outstanding, currency)} fallen due",
+        [
+            segment("collected", "Collected", collected, money.formatted(collected, currency)),
+            segment("outstanding", "Still owed", outstanding, money.formatted(outstanding, currency)),
+        ],
     )
 
 

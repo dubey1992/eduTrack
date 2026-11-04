@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/chart_palette.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -16,6 +18,7 @@ import '../../setup_guide/presentation/setup_guide_card.dart';
 import '../application/dashboard_notifier.dart';
 import '../data/models/dashboard.dart';
 import 'widgets/attendance_trend_chart.dart';
+import 'widgets/breakdown_ring.dart';
 
 /// Phase 18 - the landing screen: the figures for whoever is looking, what
 /// wants attention, and the way through to the reports behind them.
@@ -135,6 +138,14 @@ class _DashboardBody extends StatelessWidget {
         if (!dashboard.isWorkingDay && dashboard.schoolId != null) _ClosedBanner(dashboard: dashboard),
         EarlyWarningBanner(schoolId: schoolId),
         Wrap(spacing: 12, runSpacing: 12, children: [for (final card in dashboard.cards) _StatCard(card: card)]),
+        if (dashboard.breakdowns.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [for (final ring in dashboard.breakdowns) BreakdownRingCard(breakdown: ring)],
+          ),
+        ],
         const SizedBox(height: 16),
         DashboardTrends(schoolId: schoolId),
         if (dashboard.attention.isNotEmpty) ...[const SizedBox(height: 16), _AttentionList(notes: dashboard.attention)],
@@ -198,9 +209,23 @@ class _StatCard extends StatelessWidget {
 
   final DashboardCard card;
 
+  /// Colour by meaning first: a figure to act on is red, one between the
+  /// bands amber, a settled one green. A plain count keeps the body colour -
+  /// its own hue is already on the card.
+  static Color valueColour(BuildContext context, DashboardCard card) {
+    final colours = context.appColors;
+
+    if (card.isWarning) return colours.danger;
+    if (card.isCaution) return colours.warning;
+    if (card.isOk) return colours.success;
+
+    return Theme.of(context).colorScheme.onSurface;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final hue = ChartPalette.hueFor(card.key);
     final lines = card.valueLines;
     // Several currencies share the space one figure normally has, so each is
     // drawn smaller - and every line shrinks to fit rather than wrapping, so a
@@ -208,12 +233,16 @@ class _StatCard extends StatelessWidget {
     final valueStyle = TextStyle(
       fontSize: lines.length > 1 ? 18 : 26,
       fontWeight: FontWeight.w800,
-      color: card.isWarning ? scheme.error : scheme.onSurface,
+      color: valueColour(context, card),
     );
 
     return SizedBox(
       width: width,
       child: Card(
+        key: Key('stat-card-${card.key}'),
+        // The figure's own colour, softly, so the row reads as a set of
+        // different things at a glance.
+        color: hue.soft(context),
         child: ConstrainedBox(
           // Enough for a card holding three currencies, so a row of cards stays
           // level in the common case instead of one towering over the rest.
@@ -223,7 +252,19 @@ class _StatCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(card.label, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(card.label, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                    ),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(color: hue.strong(context), borderRadius: BorderRadius.circular(10)),
+                      child: Icon(ChartPalette.iconFor(card.key), size: 19, color: scheme.surface),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 6),
                 for (final line in lines)
                   FittedBox(

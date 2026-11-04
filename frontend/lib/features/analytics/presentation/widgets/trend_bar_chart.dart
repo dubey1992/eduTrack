@@ -17,7 +17,15 @@ class TrendBar {
 /// does well. A gap - a holiday week, a period before the first recording -
 /// is a hairline and a dash, never a bar of nought.
 class TrendBarChart extends StatelessWidget {
-  const TrendBarChart({super.key, required this.bars, required this.maxValue, this.height = 200, this.compact = false});
+  const TrendBarChart({
+    super.key,
+    required this.bars,
+    required this.maxValue,
+    this.height = 200,
+    this.compact = false,
+    this.colour,
+    this.colourOf,
+  });
 
   final List<TrendBar> bars;
 
@@ -29,6 +37,13 @@ class TrendBarChart extends StatelessWidget {
   /// The dashboard's small version: no figure above each bar - the card
   /// states the latest one - so the bars can be narrow.
   final bool compact;
+
+  /// The bars' colour; the theme's primary when none is given.
+  final Color? colour;
+
+  /// A colour per bar from its value - attendance by band on the dashboard
+  /// (decided 2026-11-04). Wins over [colour].
+  final Color Function(double value)? colourOf;
 
   /// Narrower than this and the labels stop being readable, so the chart
   /// scrolls sideways instead - a year of weeks on a phone.
@@ -49,7 +64,12 @@ class TrendBarChart extends StatelessWidget {
             children: [
               for (final bar in bars)
                 Expanded(
-                  child: _Bar(bar: bar, maxValue: maxValue, compact: compact),
+                  child: _Bar(
+                    bar: bar,
+                    maxValue: maxValue,
+                    compact: compact,
+                    colour: bar.value == null ? null : colourOf?.call(bar.value!) ?? colour,
+                  ),
                 ),
             ],
           ),
@@ -65,11 +85,12 @@ class TrendBarChart extends StatelessWidget {
 }
 
 class _Bar extends StatelessWidget {
-  const _Bar({required this.bar, required this.maxValue, required this.compact});
+  const _Bar({required this.bar, required this.maxValue, required this.compact, this.colour});
 
   final TrendBar bar;
   final double maxValue;
   final bool compact;
+  final Color? colour;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +128,7 @@ class _Bar extends StatelessWidget {
                     child: Container(
                       height: value == null ? 2 : (constraints.maxHeight * share).clamp(2, constraints.maxHeight),
                       decoration: BoxDecoration(
-                        color: value == null ? scheme.outlineVariant : scheme.primary,
+                        color: value == null ? scheme.outlineVariant : colour ?? scheme.primary,
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                       ),
                     ),

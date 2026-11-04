@@ -15,7 +15,7 @@ from rest_framework.test import APIClient
 
 from school import factories, tokens
 from school.enums import UserRole
-from school.models import Attendance, Holiday, Payment, TransportTrip
+from school.models import Attendance, Holiday, ModuleSetting, Payment, StaffAttendance, TransportTrip
 
 # Monday 14 September 2026, midday UTC.
 NOW = dt.datetime(2026, 9, 14, 12, 0, tzinfo=dt.timezone.utc)
@@ -80,7 +80,8 @@ class SchoolAdmin(DashboardTestCase):
                 {"key": "students", "label": "Students", "value": "3", "hint": "on the roll", "tone": "neutral"},
                 {"key": "staff", "label": "Teachers & staff", "value": "1", "hint": "on the payroll", "tone": "neutral"},
                 # Two of three, to one decimal, written as PHP writes a float.
-                {"key": "attendance", "label": "Attendance today", "value": "66.7%", "hint": "of students present", "tone": "neutral"},
+                # Below 75% is the red band (decided 2026-11-04).
+                {"key": "attendance", "label": "Attendance today", "value": "66.7%", "hint": "of students present", "tone": "warning"},
                 {"key": "transport", "label": "Trips today", "value": "0", "hint": "1 active routes", "tone": "neutral"},
                 # A school that has not set its terms out has no results to
                 # show - and a dash rather than a 0% that would read as
@@ -441,3 +442,97 @@ class ResultsThisTerm(DashboardTestCase):
         self.publish(100, subject=elsewhere)
 
         self.assertEqual("40%", self.card(hod)["value"], "History is in no department they head")
+
+
+class Colours(DashboardTestCase):
+    """The dashboard's colours (decided 2026-11-04): the attendance card says
+    which band it is in, and one school in view gets rings - today's
+    students, today's staff - split by what the register says."""
+
+    def students(self, count):
+        return [factories.StudentFactory(class_section=self.section) for _ in range(count)]
+
+    def rings(self, user, **params) -> dict:
+        return {ring["key"]: ring for ring in self.dashboard(user, **params)["breakdowns"]}
+
+    @staticmethod
+    def segments(ring) -> list:
+        return [(segment["key"], segment["value"]) for segment in ring["segments"]]
+
+    def test_the_attendance_card_is_green_amber_or_red_by_band(self):
+        from school.dashboard import attendance_tone
+
+        self.assertEqual(
+            ["neutral", "ok", "ok", "caution", "caution", "warning"],
+            [attendance_tone(rate) for rate in (None, 100, 90, 89.9, 75, 74.9)],
+        )
+
+    def test_students_today_are_split_by_the_register(self):
+        present, absent, leave, _unmarked = self.students(4)
+        self.mark(present, TODAY, "present")
+        self.mark(absent, TODAY, "absent")
+        self.mark(leave, TODAY, "leave")
+
+        ring = self.rings(self.admin)["student_attendance_today"]
+
+        self.assertEqual("Students today", ring["title"])
+        self.assertEqual(("33.3%", "present of 3 marked"), (ring["headline"], ring["caption"]))
+        self.assertEqual(
+            [("present", 1.0), ("absent", 1.0), ("leave", 1.0), ("not_marked", 1.0)], self.segments(ring)
+        )
+
+    def test_nothing_marked_yet_is_said_rather_than_drawn_as_nought(self):
+        self.students(2)
+
+        ring = self.rings(self.admin)["student_attendance_today"]
+
+        self.assertEqual(("-", "no register marked yet"), (ring["headline"], ring["caption"]))
+        self.assertEqual(2.0, dict(self.segments(ring))["not_marked"])
+
+    def test_staff_today_count_a_half_day_as_at_work(self):
+        mine = factories.StaffProfileFactory(user=self.teacher)
+        other = factories.StaffProfileFactory(school=self.school)
+        factories.StaffProfileFactory(school=self.school)
+        for profile, status in ((mine, "present"), (other, "half_day")):
+            StaffAttendance.objects.create(
+                school=self.school, staff_profile=profile, attendance_date=TODAY, status=status,
+                marked_by=self.admin, created_at=NOW, updated_at=NOW,
+            )
+
+        ring = self.rings(self.admin)["staff_attendance_today"]
+
+        self.assertEqual(("100%", "at work of 2 marked"), (ring["headline"], ring["caption"]))
+        self.assertEqual(
+            [("present", 1.0), ("half_day", 1.0), ("absent", 0.0), ("leave", 0.0), ("not_marked", 1.0)],
+            self.segments(ring),
+        )
+
+    def test_a_closed_day_has_no_attendance_rings(self):
+        self.students(1)
+        Holiday.objects.create(
+            school=self.school, name="Founders Day", type="school", start_date=TODAY, end_date=TODAY,
+            created_at=NOW, updated_at=NOW,
+        )
+
+        self.assertEqual({}, self.rings(self.admin))
+
+    def test_a_teacher_gets_no_rings(self):
+        self.students(1)
+
+        self.assertEqual([], self.dashboard(self.teacher)["breakdowns"])
+
+    def test_a_super_admin_sees_them_for_a_school_and_not_across_the_platform(self):
+        self.students(1)
+        root = factories.UserFactory(school=None, role=UserRole.SUPER_ADMIN)
+
+        self.assertIn("student_attendance_today", self.rings(root, school_id=self.school.id))
+        self.assertEqual([], self.dashboard(root)["breakdowns"])
+
+    def test_a_school_with_attendance_switched_off_has_no_student_ring(self):
+        self.students(1)
+        ModuleSetting.objects.create(
+            school=self.school, module="attendance", school_enabled=False, created_at=NOW, updated_at=NOW,
+        )
+        cache.clear()
+
+        self.assertNotIn("student_attendance_today", self.rings(self.admin))

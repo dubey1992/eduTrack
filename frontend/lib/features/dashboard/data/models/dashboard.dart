@@ -13,6 +13,7 @@ class Dashboard {
     required this.cards,
     required this.attendanceTrend,
     required this.attention,
+    this.breakdowns = const [],
     this.schoolId,
   });
 
@@ -32,6 +33,9 @@ class Dashboard {
       attention: (json['attention'] as List<dynamic>? ?? [])
           .map((note) => AttentionNote.fromJson(note as Map<String, dynamic>))
           .toList(),
+      breakdowns: (json['breakdowns'] as List<dynamic>? ?? [])
+          .map((ring) => DashboardBreakdown.fromJson(ring as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -48,6 +52,10 @@ class Dashboard {
   final List<DashboardCard> cards;
   final List<TrendPoint> attendanceTrend;
   final List<AttentionNote> attention;
+
+  /// The rings: today's students and staff split by the register, and fees
+  /// collected of what has fallen due. One school in view only.
+  final List<DashboardBreakdown> breakdowns;
 }
 
 class DashboardCard {
@@ -85,6 +93,12 @@ class DashboardCard {
   final String tone;
 
   bool get isWarning => tone == 'warning';
+
+  /// Amber: not bad enough to warn about, not good enough to leave - an
+  /// attendance rate between the bands (decided 2026-11-04).
+  bool get isCaution => tone == 'caution';
+
+  bool get isOk => tone == 'ok';
 }
 
 class TrendPoint {
@@ -115,4 +129,61 @@ class AttentionNote {
 
   final String key;
   final String message;
+}
+
+/// A whole split into parts, drawn as a ring: the server says what the parts
+/// are and how big; the app only draws them.
+class DashboardBreakdown {
+  const DashboardBreakdown({
+    required this.key,
+    required this.title,
+    required this.headline,
+    required this.caption,
+    required this.segments,
+  });
+
+  factory DashboardBreakdown.fromJson(Map<String, dynamic> json) {
+    return DashboardBreakdown(
+      key: json['key'] as String,
+      title: json['title'] as String,
+      headline: json['headline'] as String,
+      caption: json['caption'] as String,
+      segments: (json['segments'] as List<dynamic>? ?? [])
+          .map((segment) => BreakdownSegment.fromJson(segment as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  final String key;
+  final String title;
+
+  /// The figure in the middle of the ring, e.g. "84%".
+  final String headline;
+
+  /// What the headline is of, e.g. "present of 250 marked".
+  final String caption;
+  final List<BreakdownSegment> segments;
+
+  double get total => segments.fold(0, (sum, segment) => sum + segment.value);
+}
+
+class BreakdownSegment {
+  const BreakdownSegment({required this.key, required this.label, required this.value, required this.display});
+
+  factory BreakdownSegment.fromJson(Map<String, dynamic> json) {
+    return BreakdownSegment(
+      key: json['key'] as String,
+      label: json['label'] as String,
+      value: (json['value'] as num).toDouble(),
+      display: json['display'] as String,
+    );
+  }
+
+  final String key;
+  final String label;
+  final double value;
+
+  /// The value as a person reads it: a count, or an amount in the school's
+  /// currency.
+  final String display;
 }

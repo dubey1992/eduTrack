@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/chart_palette.dart';
 import '../../data/models/dashboard.dart';
 
 /// A small bar chart of attendance over the last working days.
@@ -40,6 +41,12 @@ class AttendanceTrendChart extends StatelessWidget {
               'Weekends and holidays are left out - they are not days anyone was due in.',
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
             ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 14,
+              runSpacing: 4,
+              children: [for (final band in AttendanceBand.values) _BandKey(band: band)],
+            ),
             const SizedBox(height: 16),
             SizedBox(
               height: 150,
@@ -64,8 +71,6 @@ class _Bar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final rate = point.attendanceRate;
-    // Below 75% is the figure a head teacher is looking for.
-    final poor = rate != null && rate < 75;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -90,7 +95,8 @@ class _Bar extends StatelessWidget {
                   // empty column would read as nobody having turned up.
                   height: rate == null ? 2 : (constraints.maxHeight * (rate / 100)).clamp(2, constraints.maxHeight),
                   decoration: BoxDecoration(
-                    color: rate == null ? scheme.outlineVariant : (poor ? scheme.error : scheme.primary),
+                    // Green, amber or red by band (decided 2026-11-04).
+                    color: rate == null ? scheme.outlineVariant : AttendanceBands.of(rate).colour(context),
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                   ),
                 ),
@@ -106,6 +112,29 @@ class _Bar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// One band in the chart's key: its colour and the range it stands for.
+class _BandKey extends StatelessWidget {
+  const _BandKey({required this.band});
+
+  final AttendanceBand band;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: band.colour(context), borderRadius: BorderRadius.circular(3)),
+        ),
+        const SizedBox(width: 6),
+        Text(band.label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      ],
     );
   }
 }

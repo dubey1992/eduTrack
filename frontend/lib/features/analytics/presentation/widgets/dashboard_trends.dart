@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/chart_palette.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/routing/app_nav.dart';
 import '../../../auth/application/auth_notifier.dart';
@@ -153,12 +154,14 @@ class _TrendCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final hue = ChartPalette.hueFor(measure.key);
     final series = ref.watch(analyticsSeriesProvider(query));
 
     return SizedBox(
       width: width,
       height: height,
       child: Card(
+        key: Key('trend-card-${measure.key}'),
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -176,6 +179,13 @@ class _TrendCard extends ConsumerWidget {
               children: [
                 Row(
                   children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(color: hue.soft(context), borderRadius: BorderRadius.circular(8)),
+                      child: Icon(ChartPalette.iconFor(measure.key), size: 16, color: hue.strong(context)),
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(measure.label, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
                     ),
@@ -253,6 +263,12 @@ class _TrendFigures extends StatelessWidget {
             compact: true,
             height: double.infinity,
             maxValue: line.scale,
+            colour: ChartPalette.hueFor(measure.key).strong(context),
+            // An attendance rate says how it is doing by its colour; any other
+            // figure keeps its own.
+            colourOf: AttendanceBands.measures.contains(measure.key)
+                ? (value) => AttendanceBands.of(value).colour(context)
+                : null,
             bars: [
               for (var i = 0; i < series.points.length; i++)
                 TrendBar(
