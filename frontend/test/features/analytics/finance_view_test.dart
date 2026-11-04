@@ -9,6 +9,8 @@ import 'package:edutrack_app/features/analytics/presentation/widgets/finance_vie
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
+import 'package:edutrack_app/core/theme/app_colors.dart';
+import 'package:edutrack_app/core/theme/chart_palette.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -147,6 +149,32 @@ void main() {
 
       expect(find.text('Finance'), findsNothing);
       expect(find.text('Subjects & classes'), findsOneWidget);
+    });
+  });
+
+  group('colours (decided 2026-11-04)', () {
+    Set<Color> textColours(WidgetTester tester) =>
+        tester.widgetList<Text>(find.byType(Text)).map((text) => text.style?.color).whereType<Color>().toSet();
+
+    testWidgets('overdue warms with age, collection is green, and more in than out is green', (tester) async {
+      _tall(tester);
+      await tester.pumpWidget(_view(FakeAnalyticsRepository()));
+      await tester.pumpAndSettle();
+
+      final colours = textColours(tester);
+      expect(colours, containsAll([AppColors.light.warning, ChartPalette.orange.light, AppColors.light.danger]));
+      // Fees and payroll: 1,000 in, 800 out.
+      final difference = tester.widget<Text>(find.text(formatCurrency(200, 'INR')));
+      expect(difference.style?.color, AppColors.light.success);
+    });
+
+    testWidgets('each section has its heading icon', (tester) async {
+      _tall(tester);
+      await tester.pumpWidget(_view(FakeAnalyticsRepository()));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.payments_outlined), findsWidgets);
+      expect(find.byIcon(Icons.schedule_outlined), findsWidgets);
     });
   });
 }

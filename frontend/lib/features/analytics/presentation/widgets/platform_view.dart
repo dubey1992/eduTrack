@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'coloured_heading.dart';
+import '../../../../core/theme/chart_palette.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/network/paginated_response.dart';
 import '../../../../core/widgets/async_value_view.dart';
@@ -66,6 +68,8 @@ class _TotalsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: 'Now',
+      hue: ChartPalette.teal,
+      icon: Icons.insights_outlined,
       note:
           'Live and in-trial schools only: students and staff on roll, and accounts that can sign in. '
           'Demo and testing schools are left out of every figure on this page.',
@@ -73,12 +77,12 @@ class _TotalsCard extends StatelessWidget {
         spacing: 32,
         runSpacing: 12,
         children: [
-          _Fact(label: 'Active schools', value: '${totals.schoolsActive}'),
-          _Fact(label: 'Inactive schools', value: '${totals.schoolsInactive}'),
-          _Fact(label: 'Demo & testing (not counted)', value: '${totals.schoolsNotCounted}'),
-          _Fact(label: 'Students', value: '${totals.students}'),
-          _Fact(label: 'Staff', value: '${totals.staff}'),
-          _Fact(label: 'Accounts', value: '${totals.users}'),
+          _Fact(label: 'Active schools', value: '${totals.schoolsActive}', hue: ChartPalette.green),
+          _Fact(label: 'Inactive schools', value: '${totals.schoolsInactive}', hue: ChartPalette.rose),
+          _Fact(label: 'Demo & testing (not counted)', value: '${totals.schoolsNotCounted}', hue: ChartPalette.amber),
+          _Fact(label: 'Students', value: '${totals.students}', hue: ChartPalette.blue),
+          _Fact(label: 'Staff', value: '${totals.staff}', hue: ChartPalette.violet),
+          _Fact(label: 'Accounts', value: '${totals.users}', hue: ChartPalette.indigo),
         ],
       ),
     );
@@ -94,6 +98,8 @@ class _MonthsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: 'Month by month',
+      hue: ChartPalette.blue,
+      icon: Icons.calendar_month_outlined,
       note:
           'People signing in counts each person once a month. Messages are those sent or failed; '
           'payments are those received from schools, each currency on its own.',
@@ -167,6 +173,8 @@ class _SchoolsCardState extends ConsumerState<_SchoolsCard> {
 
     return _Section(
       title: 'Each school',
+      hue: ChartPalette.teal,
+      icon: Icons.apartment_outlined,
       note:
           'Busiest first over the last $days days; a school near the bottom of the active ones has gone quiet. '
           'Demo and testing schools come after the customers, and inactive schools last.',
@@ -272,6 +280,8 @@ class _ModulesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: 'Modules in use',
+      hue: ChartPalette.violet,
+      icon: Icons.extension_outlined,
       note: 'How many active schools have each module switched on.',
       child: _Table(
         columns: const ['Module', 'Schools using it'],
@@ -284,11 +294,13 @@ class _ModulesCard extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.note, required this.child});
+  const _Section({required this.title, required this.note, required this.child, required this.hue, required this.icon});
 
   final String title;
   final String note;
   final Widget child;
+  final ChartHue hue;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -298,8 +310,8 @@ class _Section extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
+            ColouredHeading(title: title, hue: hue, icon: icon),
+            const SizedBox(height: 6),
             Text(note, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 12),
             child,
@@ -335,22 +347,33 @@ class _Table extends StatelessWidget {
   }
 }
 
+/// One platform figure on a tile of its own colour.
 class _Fact extends StatelessWidget {
-  const _Fact({required this.label, required this.value});
+  const _Fact({required this.label, required this.value, required this.hue});
 
   final String label;
   final String value;
+  final ChartHue hue;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        const SizedBox(height: 2),
-        Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-      ],
+    return Container(
+      constraints: const BoxConstraints(minWidth: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(color: hue.soft(context), borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700, color: hue.strong(context)),
+          ),
+        ],
+      ),
     );
   }
 }

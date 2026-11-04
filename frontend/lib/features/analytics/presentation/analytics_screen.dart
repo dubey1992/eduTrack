@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'widgets/coloured_heading.dart';
+import '../../../core/widgets/attendance_band_key.dart';
+import '../../../core/theme/chart_palette.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/utils/date_format.dart';
@@ -236,6 +240,13 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       children: [
                         for (final option in measures)
                           ChoiceChip(
+                            avatar: Icon(
+                              ChartPalette.iconFor(option.key),
+                              size: 16,
+                              color: ChartPalette.hueFor(option.key).strong(context),
+                            ),
+                            showCheckmark: false,
+                            selectedColor: ChartPalette.hueFor(option.key).soft(context),
                             label: Text(option.label),
                             selected: option.key == measure.key,
                             onSelected: (_) => setState(() => _measure = option.key),
@@ -356,24 +367,40 @@ class _LineCard extends StatelessWidget {
     final highest = known.isEmpty ? null : known.reduce((a, b) => b.value > a.value ? b : a);
     final lowest = known.isEmpty ? null : known.reduce((a, b) => b.value < a.value ? b : a);
 
+    final key = series.measure;
+    final hue = ChartPalette.hueFor(key);
+    final banded = AttendanceBands.measures.contains(key);
+    final change = latest != null && previous != null ? latest.value - previous.value : null;
+
     return Card(
+      key: Key('line-card-$key'),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              line.currencyCode == null ? series.label : '${series.label} (${line.currencyCode})',
-              style: Theme.of(context).textTheme.titleMedium,
+            ColouredHeading(
+              title: line.currencyCode == null ? series.label : '${series.label} (${line.currencyCode})',
+              hue: hue,
+              icon: ChartPalette.iconFor(key),
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 24,
               runSpacing: 8,
               children: [
-                if (latest != null) _Fact(label: 'Latest (${_when(latest.point)})', value: line.format(latest.value)),
-                if (latest != null && previous != null)
-                  _Fact(label: 'Change on the period before', value: line.formatChange(latest.value - previous.value)),
+                if (latest != null)
+                  _Fact(
+                    label: 'Latest (${_when(latest.point)})',
+                    value: line.format(latest.value),
+                    colour: banded ? AttendanceBands.of(latest.value).colour(context) : hue.strong(context),
+                  ),
+                if (change != null)
+                  _Fact(
+                    label: 'Change on the period before',
+                    value: line.formatChange(change),
+                    colour: _changeColour(context, key, change),
+                  ),
                 if (highest != null)
                   _Fact(label: 'Highest (${_when(highest.point)})', value: line.format(highest.value)),
                 if (lowest != null) _Fact(label: 'Lowest (${_when(lowest.point)})', value: line.format(lowest.value)),
@@ -381,9 +408,12 @@ class _LineCard extends StatelessWidget {
                   _Fact(label: 'Total in range', value: line.format(known.fold<double>(0, (sum, k) => sum + k.value))),
               ],
             ),
+            if (banded) ...[const SizedBox(height: 12), const AttendanceBandKey()],
             const SizedBox(height: 16),
             TrendBarChart(
               maxValue: line.scale,
+              colour: hue.strong(context),
+              colourOf: banded ? (value) => AttendanceBands.of(value).colour(context) : null,
               bars: [
                 for (var i = 0; i < points.length; i++)
                   TrendBar(
@@ -444,11 +474,22 @@ class _PointsTable extends StatelessWidget {
   }
 }
 
+/// Green when the figure moved the good way, red the bad way; no change, no
+/// colour. For most figures up is good; for money still owed, down is.
+Color? _changeColour(BuildContext context, String key, double change) {
+  if (change == 0) return null;
+
+  final better = ChartPalette.lowerIsBetter.contains(key) ? change < 0 : change > 0;
+
+  return better ? context.appColors.success : context.appColors.danger;
+}
+
 class _Fact extends StatelessWidget {
-  const _Fact({required this.label, required this.value});
+  const _Fact({required this.label, required this.value, this.colour});
 
   final String label;
   final String value;
+  final Color? colour;
 
   @override
   Widget build(BuildContext context) {
@@ -458,7 +499,10 @@ class _Fact extends StatelessWidget {
       children: [
         Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         const SizedBox(height: 2),
-        Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: colour),
+        ),
       ],
     );
   }

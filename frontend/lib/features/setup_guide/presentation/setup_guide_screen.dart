@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'widgets/setup_progress_bar.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../classes/presentation/quick_class_setup_dialog.dart';
@@ -158,10 +159,7 @@ class _Progress extends StatelessWidget {
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(value: guide.done / guide.total, minHeight: 8),
-            ),
+            SetupProgressBar(done: guide.done, total: guide.total, height: 10),
           ],
         ),
       ),

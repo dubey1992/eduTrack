@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'coloured_heading.dart';
+import '../../../../core/theme/chart_palette.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/horizontal_scroll_table.dart';
 import '../../application/analytics_notifier.dart';
@@ -58,6 +60,8 @@ class _LateStopsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: 'Stops most often late',
+      hue: ChartPalette.rose,
+      icon: Icons.running_with_errors_outlined,
       note:
           'Over the last twelve months. A bus is late at a stop when it arrives more than '
           '${overview.lateAfterMinutes} minutes after the stop\'s scheduled time; early is never late.',
@@ -91,6 +95,8 @@ class _RouteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: route.route,
+      hue: ChartPalette.amber,
+      icon: Icons.directions_bus_outlined,
       note:
           'Days run are out of the school\'s working days. Riders on the bus are those marked boarded or '
           'dropped; no-shows were marked absent.',
@@ -128,11 +134,13 @@ class _RouteCard extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.note, required this.child});
+  const _Section({required this.title, required this.note, required this.child, required this.hue, required this.icon});
 
   final String title;
   final String note;
   final Widget child;
+  final ChartHue hue;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -142,8 +150,8 @@ class _Section extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
+            ColouredHeading(title: title, hue: hue, icon: icon),
+            const SizedBox(height: 6),
             Text(note, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 12),
             child,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/chart_palette.dart';
+import '../../../../core/widgets/attendance_band_key.dart';
 import '../../data/models/dashboard.dart';
 
 /// A small bar chart of attendance over the last working days.
@@ -42,11 +43,7 @@ class AttendanceTrendChart extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 14,
-              runSpacing: 4,
-              children: [for (final band in AttendanceBand.values) _BandKey(band: band)],
-            ),
+            const AttendanceBandKey(),
             const SizedBox(height: 16),
             SizedBox(
               height: 150,
@@ -112,29 +109,6 @@ class _Bar extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// One band in the chart's key: its colour and the range it stands for.
-class _BandKey extends StatelessWidget {
-  const _BandKey({required this.band});
-
-  final AttendanceBand band;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: band.colour(context), borderRadius: BorderRadius.circular(3)),
-        ),
-        const SizedBox(width: 6),
-        Text(band.label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      ],
     );
   }
 }

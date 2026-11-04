@@ -12,6 +12,9 @@ import 'package:edutrack_app/features/analytics/presentation/series_line.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
+import 'package:edutrack_app/core/theme/app_colors.dart';
+import 'package:edutrack_app/core/theme/chart_palette.dart';
+import 'package:edutrack_app/features/analytics/presentation/widgets/trend_bar_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -323,5 +326,82 @@ void main() {
     expect(periodLabel(cut, AnalyticsInterval.month), 'Sep 2026');
     // A first week cut short at Wednesday the 2nd is still the week of the 31st.
     expect(periodLabel(cut, AnalyticsInterval.week), '08/31');
+  });
+
+  group('colours (decided 2026-11-04)', () {
+    Color? valueColour(WidgetTester tester, String text) => tester
+        .widget<Text>(
+          // The first is the Latest figure; the same text also labels a bar.
+          find
+              .descendant(of: find.byKey(const Key('line-card-student_attendance_rate')), matching: find.text(text))
+              .first,
+        )
+        .style
+        ?.color;
+
+    testWidgets('attendance is coloured by band, with the key, and a fall is red', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_wrap(_FakeAnalyticsRepository()));
+      await tester.pumpAndSettle();
+
+      // September's 88% sits in the amber band; the fall from 91.5 is bad news.
+      expect(valueColour(tester, '88%'), AppColors.light.warning);
+      expect(valueColour(tester, '-3.5 pts'), AppColors.light.danger);
+      expect(find.text('90% and above'), findsOneWidget);
+
+      final bars = tester
+          .widgetList<Container>(find.descendant(of: find.byType(TrendBarChart), matching: find.byType(Container)))
+          .map((box) => (box.decoration as BoxDecoration?)?.color)
+          .whereType<Color>()
+          .toSet();
+      expect(bars, containsAll([AppColors.light.success, AppColors.light.warning]));
+    });
+
+    testWidgets('each figure chip carries its own icon and colour', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_wrap(_FakeAnalyticsRepository()));
+      await tester.pumpAndSettle();
+
+      final chip = tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Fees collected'));
+      expect((chip.avatar! as Icon).color, ChartPalette.green.light);
+      expect(chip.selectedColor, ChartPalette.green.lightSoft);
+    });
+
+    testWidgets('money is drawn in its own colour, and no band key is shown for it', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_wrap(_FakeAnalyticsRepository()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Fees collected'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('90% and above'), findsNothing);
+      final bars = tester
+          .widgetList<Container>(
+            find.descendant(of: find.byType(TrendBarChart).first, matching: find.byType(Container)),
+          )
+          .map((box) => (box.decoration as BoxDecoration?)?.color)
+          .whereType<Color>()
+          .toSet();
+      expect(bars, contains(ChartPalette.green.light));
+    });
+
+    test('money still owed counts a fall as the good news', () {
+      expect(ChartPalette.lowerIsBetter, containsAll(['fee_outstanding', 'fee_overdue']));
+      expect(ChartPalette.lowerIsBetter, isNot(contains('fees_collected')));
+    });
+
+    testWidgets('the platform figures sit on tiles of their own colour', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_wrap(_FakeAnalyticsRepository(), actor: _root));
+      await tester.pumpAndSettle();
+
+      final colours = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((text) => text.style?.color)
+          .whereType<Color>()
+          .toSet();
+      expect(colours, containsAll([ChartPalette.green.light, ChartPalette.blue.light, ChartPalette.violet.light]));
+    });
   });
 }

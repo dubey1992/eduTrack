@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'coloured_heading.dart';
+import '../../../../core/theme/chart_palette.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/horizontal_scroll_table.dart';
@@ -50,12 +52,28 @@ class _AcademicViewState extends ConsumerState<AcademicView> {
           else if (overview.isEmpty)
             const _Notice('No class test results have been published this year yet.')
           else ...[
-            _LinesCard(title: 'By subject', overview: overview, lines: overview.subjects, firstColumn: 'Subject'),
+            _LinesCard(
+              title: 'By subject',
+              hue: ChartPalette.indigo,
+              icon: Icons.menu_book_outlined,
+              overview: overview,
+              lines: overview.subjects,
+              firstColumn: 'Subject',
+            ),
             const SizedBox(height: 16),
-            _LinesCard(title: 'By class', overview: overview, lines: overview.classes, firstColumn: 'Class'),
+            _LinesCard(
+              title: 'By class',
+              hue: ChartPalette.blue,
+              icon: Icons.class_outlined,
+              overview: overview,
+              lines: overview.classes,
+              firstColumn: 'Class',
+            ),
             const SizedBox(height: 16),
             _LinesCard(
               title: 'Each class, by subject',
+              hue: ChartPalette.violet,
+              icon: Icons.grid_view_outlined,
               overview: overview,
               lines: overview.cells,
               firstColumn: 'Class',
@@ -121,6 +139,8 @@ class _Header extends StatelessWidget {
 class _LinesCard extends StatelessWidget {
   const _LinesCard({
     required this.title,
+    required this.hue,
+    required this.icon,
     required this.overview,
     required this.lines,
     required this.firstColumn,
@@ -129,6 +149,8 @@ class _LinesCard extends StatelessWidget {
   });
 
   final String title;
+  final ChartHue hue;
+  final IconData icon;
   final AcademicOverview overview;
   final List<AcademicLine> lines;
   final String firstColumn;
@@ -150,7 +172,7 @@ class _LinesCard extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+            child: ColouredHeading(title: title, hue: hue, icon: icon),
           ),
           HorizontalScrollTable(
             child: DataTable(

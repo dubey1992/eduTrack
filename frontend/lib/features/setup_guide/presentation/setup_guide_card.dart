@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'widgets/setup_progress_bar.dart';
 import '../application/setup_guide_notifier.dart';
 import '../data/models/setup_guide.dart';
 
@@ -54,10 +55,7 @@ class SetupGuideCard extends ConsumerWidget {
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(value: guide.done / guide.total, minHeight: 6),
-              ),
+              SetupProgressBar(done: guide.done, total: guide.total, height: 8),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,

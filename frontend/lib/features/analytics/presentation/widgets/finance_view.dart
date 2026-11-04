@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'coloured_heading.dart';
+import '../../../../core/theme/chart_palette.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_format.dart';
 import '../../../../core/widgets/async_value_view.dart';
@@ -83,12 +86,15 @@ class _CollectionCard extends StatelessWidget {
 
     return _Section(
       title: 'Collected by month',
+      hue: ChartPalette.green,
+      icon: Icons.payments_outlined,
       note:
           '"Paid so far" is how much of what fell due that month has been paid by today, so an old month '
           'keeps rising as families pay late.',
       children: [
         TrendBarChart(
           maxValue: top,
+          colour: ChartPalette.green.strong(context),
           bars: [
             for (var i = 0; i < months.length; i++)
               TrendBar(label: _month(months[i].from), value: collected[i], valueLabel: _money(collected[i], code)),
@@ -123,6 +129,8 @@ class _UpcomingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: 'Falling due next',
+      hue: ChartPalette.amber,
+      icon: Icons.event_outlined,
       note: 'What the fee plans schedule for the next three months and is not yet paid - not a forecast.',
       children: [
         Wrap(
@@ -140,7 +148,8 @@ class _UpcomingCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     _money(month.currency(code)?['due'] ?? 0, code),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700, color: ChartPalette.amber.strong(context)),
                   ),
                 ],
               ),
@@ -163,6 +172,8 @@ class _AgesCard extends StatelessWidget {
 
     return _Section(
       title: 'Overdue by age',
+      hue: ChartPalette.rose,
+      icon: Icons.schedule_outlined,
       note:
           'At the last recorded night of each month. Recorded nightly from when this was switched on, so '
           'earlier months have no figure.',
@@ -172,6 +183,13 @@ class _AgesCard extends StatelessWidget {
         else
           _Table(
             columns: const ['Month', '1-30 days', '31-60 days', '61+ days'],
+            // Warmer the longer it has been owed.
+            colourOf: (row, column) => switch (column) {
+              1 => context.appColors.warning,
+              2 => ChartPalette.orange.strong(context),
+              3 => context.appColors.danger,
+              _ => null,
+            },
             rows: [
               for (final month in recorded.reversed)
                 [
@@ -199,6 +217,8 @@ class _ByClassCard extends StatelessWidget {
 
     return _Section(
       title: 'By class, today',
+      hue: ChartPalette.blue,
+      icon: Icons.class_outlined,
       note:
           'Everything that has fallen due so far this year, by the class each student is in now. '
           'Most owed first.',
@@ -208,6 +228,11 @@ class _ByClassCard extends StatelessWidget {
         else
           _Table(
             columns: const ['Class', 'Charged', 'Paid', 'Owed', 'Overdue', 'Collected'],
+            colourOf: (row, column) => switch (column) {
+              2 => context.appColors.success,
+              4 => context.appColors.danger,
+              _ => null,
+            },
             rows: [
               for (final row in rows)
                 [
@@ -237,10 +262,20 @@ class _PayrollCard extends StatelessWidget {
 
     return _Section(
       title: 'Fees and payroll',
+      hue: ChartPalette.violet,
+      icon: Icons.receipt_long_outlined,
       note: 'Fees collected in each month against the payroll finalized for it (net pay).',
       children: [
         _Table(
           columns: const ['Month', 'Fees in', 'Payroll out', 'Difference'],
+          // More in than out is green; more out than in is red.
+          colourOf: (row, column) {
+            if (column != 3) return null;
+            final line = months.reversed.elementAt(row).currency(code);
+            final difference = (line?['fees_in'] ?? 0) - (line?['payroll_out'] ?? 0);
+
+            return difference < 0 ? context.appColors.danger : context.appColors.success;
+          },
           rows: [
             for (final month in months.reversed)
               () {
@@ -258,11 +293,19 @@ class _PayrollCard extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.note, required this.children});
+  const _Section({
+    required this.title,
+    required this.note,
+    required this.children,
+    required this.hue,
+    required this.icon,
+  });
 
   final String title;
   final String note;
   final List<Widget> children;
+  final ChartHue hue;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -272,8 +315,8 @@ class _Section extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
+            ColouredHeading(title: title, hue: hue, icon: icon),
+            const SizedBox(height: 6),
             Text(note, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 12),
             ...children,
@@ -285,10 +328,13 @@ class _Section extends StatelessWidget {
 }
 
 class _Table extends StatelessWidget {
-  const _Table({required this.columns, required this.rows});
+  const _Table({required this.columns, required this.rows, this.colourOf});
 
   final List<String> columns;
   final List<List<String>> rows;
+
+  /// A colour for a cell by its column and text; null leaves it plain.
+  final Color? Function(int row, int column)? colourOf;
 
   @override
   Widget build(BuildContext context) {
@@ -296,7 +342,21 @@ class _Table extends StatelessWidget {
       child: DataTable(
         columns: [for (var i = 0; i < columns.length; i++) DataColumn(label: Text(columns[i]), numeric: i > 0)],
         rows: [
-          for (final row in rows) DataRow(cells: [for (final cell in row) DataCell(Text(cell))]),
+          for (final (rowIndex, row) in rows.indexed)
+            DataRow(
+              cells: [
+                for (var i = 0; i < row.length; i++)
+                  DataCell(
+                    Text(
+                      row[i],
+                      style: () {
+                        final colour = colourOf?.call(rowIndex, i);
+                        return colour == null ? null : TextStyle(color: colour, fontWeight: FontWeight.w600);
+                      }(),
+                    ),
+                  ),
+              ],
+            ),
         ],
       ),
     );

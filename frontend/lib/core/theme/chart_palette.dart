@@ -116,7 +116,18 @@ abstract final class ChartPalette {
     'unpaid': (rose, Icons.request_quote_outlined),
     'leave': (cyan, Icons.event_busy_outlined),
     'inbox': (blue, Icons.mail_outline),
+    // Charted on the Analytics page only.
+    'teaching_coverage_rate': (indigo, Icons.edit_note_outlined),
+    'syllabus_topics_completed': (cyan, Icons.menu_book_outlined),
+    'test_average': (violet, Icons.emoji_events_outlined),
+    'active_staff': (violet, Icons.badge_outlined),
+    'fee_outstanding': (orange, Icons.account_balance_wallet_outlined),
+    'fee_overdue': (rose, Icons.schedule_outlined),
   };
+
+  /// Figures where a fall is the good news, so a change is coloured the
+  /// other way round.
+  static const lowerIsBetter = {'fee_outstanding', 'fee_overdue'};
 
   static ChartHue hueFor(String key) => _byKey[key]?.$1 ?? _sequence[key.hashCode.abs() % _sequence.length];
 
