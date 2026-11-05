@@ -10,6 +10,7 @@ class SyllabusChecklistItem {
     required this.completed,
     required this.completedByName,
     required this.completedAt,
+    this.classLevel,
   });
 
   factory SyllabusChecklistItem.fromJson(Map<String, dynamic> json) {
@@ -20,6 +21,7 @@ class SyllabusChecklistItem {
       completed: json['completed'] as bool,
       completedByName: json['completed_by_name'] as String?,
       completedAt: json['completed_at'] as String?,
+      classLevel: json['class_level'] as int?,
     );
   }
 
@@ -29,6 +31,12 @@ class SyllabusChecklistItem {
   final bool completed;
   final String? completedByName;
   final String? completedAt;
+
+  /// Null for a topic written before topics had classes, which every class
+  /// follows (decided 2026-11-05).
+  final int? classLevel;
+
+  bool get isForEveryClass => classLevel == null;
 }
 
 /// A subject's full outline, each topic paired with one class section's
@@ -43,6 +51,8 @@ class SyllabusChecklist {
     required this.completedTopics,
     required this.progressPercent,
     required this.topics,
+    this.classLevel,
+    this.classLevelName,
   });
 
   factory SyllabusChecklist.fromJson(Map<String, dynamic> json) {
@@ -54,6 +64,8 @@ class SyllabusChecklist {
       completedTopics: json['completed_topics'] as int,
       progressPercent: json['progress_percent'] as int,
       topics: (json['topics'] as List).cast<Map<String, dynamic>>().map(SyllabusChecklistItem.fromJson).toList(),
+      classLevel: json['class_level'] as int?,
+      classLevelName: json['class_level_name'] as String?,
     );
   }
 
@@ -64,4 +76,9 @@ class SyllabusChecklist {
   final int completedTopics;
   final int progressPercent;
   final List<SyllabusChecklistItem> topics;
+
+  /// Whose syllabus this is - the section's class. A topic added from this
+  /// screen is filed for it, and every section of the class shares it.
+  final int? classLevel;
+  final String? classLevelName;
 }

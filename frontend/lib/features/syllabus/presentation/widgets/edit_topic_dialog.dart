@@ -8,10 +8,15 @@ import '../../data/models/syllabus_checklist.dart';
 import '../../data/syllabus_topic_repository.dart';
 
 class EditTopicDialog extends ConsumerStatefulWidget {
-  const EditTopicDialog({super.key, required this.topic, required this.params});
+  const EditTopicDialog({super.key, required this.topic, required this.params, this.classLevel, this.classLevelName});
 
   final SyllabusChecklistItem topic;
   final SyllabusChecklistParams params;
+
+  /// The class being viewed. A topic can be moved to it alone, or back to
+  /// every class - how a topic written before topics had classes gets one.
+  final int? classLevel;
+  final String? classLevelName;
 
   @override
   ConsumerState<EditTopicDialog> createState() => _EditTopicDialogState();
@@ -22,6 +27,7 @@ class _EditTopicDialogState extends ConsumerState<EditTopicDialog> {
   late final _titleController = TextEditingController(text: widget.topic.title);
   late final _sequenceController = TextEditingController(text: '${widget.topic.sequenceNumber}');
 
+  late bool _forEveryClass = widget.topic.isForEveryClass;
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -47,6 +53,8 @@ class _EditTopicDialogState extends ConsumerState<EditTopicDialog> {
             widget.topic.id,
             title: _titleController.text.trim(),
             sequenceNumber: int.parse(_sequenceController.text.trim()),
+            setClass: _forEveryClass != widget.topic.isForEveryClass,
+            classLevel: _forEveryClass ? null : widget.classLevel,
           );
       await ref.read(syllabusChecklistProvider(widget.params).notifier).refresh();
       if (mounted) {
@@ -91,6 +99,23 @@ class _EditTopicDialogState extends ConsumerState<EditTopicDialog> {
                   return (parsed == null || parsed < 1) ? 'Enter a valid position' : null;
                 },
               ),
+              if (widget.classLevelName != null) ...[
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Followed by', style: TextStyle(fontSize: 12, color: context.appColors.muted)),
+                ),
+                const SizedBox(height: 6),
+                SegmentedButton<bool>(
+                  key: const Key('edit-topic-class'),
+                  segments: [
+                    ButtonSegment(value: false, label: Text('${widget.classLevelName} only')),
+                    const ButtonSegment(value: true, label: Text('All classes')),
+                  ],
+                  selected: {_forEveryClass},
+                  onSelectionChanged: _isSubmitting ? null : (choice) => setState(() => _forEveryClass = choice.first),
+                ),
+              ],
             ],
           ),
         ),

@@ -101,6 +101,7 @@ class _SubmitReportDialogState extends ConsumerState<SubmitReportDialog> {
                 const SizedBox(height: 10),
                 _TopicPicker(
                   subjectId: widget.entry.subjectId,
+                  timetableEntryId: widget.entry.id,
                   value: _syllabusTopicId,
                   onChanged: (id) => setState(() => _syllabusTopicId = id),
                 ),
@@ -148,14 +149,26 @@ class _SubmitReportDialogState extends ConsumerState<SubmitReportDialog> {
 /// real lesson that belongs to no chapter, and "Topic taught" still says what
 /// happened. A subject with no syllabus shows nothing rather than an empty
 /// box somebody has to wonder about.
-final _topicsProvider = FutureProvider.autoDispose.family<List<SyllabusTopic>, int>((ref, subjectId) {
-  return ref.watch(syllabusTopicRepositoryProvider).list(subjectId: subjectId);
+///
+/// Only the topics this period's class follows - its own and those for every
+/// class (decided 2026-11-05).
+final _topicsProvider = FutureProvider.autoDispose.family<List<SyllabusTopic>, ({int subjectId, int entryId})>((
+  ref,
+  period,
+) {
+  return ref.watch(syllabusTopicRepositoryProvider).list(subjectId: period.subjectId, timetableEntryId: period.entryId);
 });
 
 class _TopicPicker extends ConsumerWidget {
-  const _TopicPicker({required this.subjectId, required this.value, required this.onChanged});
+  const _TopicPicker({
+    required this.subjectId,
+    required this.timetableEntryId,
+    required this.value,
+    required this.onChanged,
+  });
 
   final int subjectId;
+  final int timetableEntryId;
   final int? value;
   final ValueChanged<int?> onChanged;
 
@@ -164,7 +177,7 @@ class _TopicPicker extends ConsumerWidget {
     // A syllabus that cannot be loaded must not stop a report being filed,
     // so a failure here shows nothing rather than an error.
     return ref
-        .watch(_topicsProvider(subjectId))
+        .watch(_topicsProvider((subjectId: subjectId, entryId: timetableEntryId)))
         .maybeWhen(
           data: (topics) {
             if (topics.isEmpty) return const SizedBox.shrink();

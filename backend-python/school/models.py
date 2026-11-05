@@ -1582,6 +1582,8 @@ class SyllabusTopic(models.Model):
     id = models.BigAutoField(primary_key=True)
     school = models.ForeignKey(School, models.DO_NOTHING)
     subject = models.ForeignKey(Subject, models.DO_NOTHING)
+    # The class it is for (school/syllabus_scope.py); null is every class.
+    class_level = models.SmallIntegerField(blank=True, null=True)
     title = models.CharField(max_length=255)
     sequence_number = models.IntegerField()
     created_at = UtcDateTimeField(blank=True, null=True)
@@ -1590,7 +1592,7 @@ class SyllabusTopic(models.Model):
     class Meta:
         managed = False
         db_table = 'syllabus_topics'
-        unique_together = (('subject', 'sequence_number'),)
+        unique_together = (('subject', 'class_level', 'sequence_number'),)
 
 class SyllabusTopicProgress(models.Model):
     id = models.BigAutoField(primary_key=True)

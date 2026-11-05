@@ -12,6 +12,7 @@ from collections import Counter
 
 from django.db.models import Count
 
+from .. import syllabus_scope
 from ..models import DailyTeachingReport, Subject, SyllabusTopic, SyllabusTopicProgress, TimetableEntry
 from ..services import TimetableService, php_number
 from .range import ReportRange, rate_of
@@ -151,9 +152,13 @@ class TeachingCoverageReport:
         Not bounded by the range: a syllabus is cumulative progress through a
         year, and "35% covered" means 35% of the course, not of one month.
         """
-        totals = SyllabusTopic.objects.filter(school_id=report_range.school_id).values("subject_id").annotate(
-            total=Count("id")
-        )
+        totals = SyllabusTopic.objects.filter(school_id=report_range.school_id)
+
+        # One class: only the topics that class follows (school/syllabus_scope.py).
+        if filters.get("class_section_id"):
+            totals = syllabus_scope.for_level(totals, syllabus_scope.level_of_section(filters["class_section_id"]))
+
+        totals = totals.values("subject_id").annotate(total=Count("id"))
 
         completed = SyllabusTopicProgress.objects.filter(school_id=report_range.school_id)
 

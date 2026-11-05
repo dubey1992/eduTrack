@@ -51,6 +51,7 @@ class FakeSyllabusProgressRepository implements SyllabusProgressRepository {
             completed: completed,
             completedByName: completed ? 'Test Teacher' : null,
             completedAt: completed ? '2026-09-11T10:00:00Z' : null,
+            classLevel: item.classLevel,
           )
         else
           item,
@@ -65,6 +66,8 @@ class FakeSyllabusProgressRepository implements SyllabusProgressRepository {
       completedTopics: completedCount,
       progressPercent: _checklist.totalTopics == 0 ? 0 : (completedCount / _checklist.totalTopics * 100).round(),
       topics: updatedItems,
+      classLevel: _checklist.classLevel,
+      classLevelName: _checklist.classLevelName,
     );
     return _checklist;
   }

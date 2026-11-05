@@ -43,11 +43,15 @@ const _topics = [
   SyllabusTopic(id: 2, schoolId: 1, subjectId: 3, subjectName: 'Mathematics', title: 'Trigonometry', sequenceNumber: 2),
 ];
 
-Widget wrap(FakeTeachingReportRepository fake, {List<SyllabusTopic> topics = _topics}) {
+Widget wrap(
+  FakeTeachingReportRepository fake, {
+  List<SyllabusTopic> topics = _topics,
+  FakeSyllabusTopicRepository? topicRepository,
+}) {
   return ProviderScope(
     overrides: [
       teachingReportRepositoryProvider.overrideWithValue(fake),
-      syllabusTopicRepositoryProvider.overrideWithValue(FakeSyllabusTopicRepository(topics: topics)),
+      syllabusTopicRepositoryProvider.overrideWithValue(topicRepository ?? FakeSyllabusTopicRepository(topics: topics)),
     ],
     child: MaterialApp(
       theme: AppTheme.light(),
@@ -120,6 +124,42 @@ void main() {
   });
 
   group('the syllabus topic', () {
+    testWidgets("offers only the topics of this period's class (decided 2026-11-05)", (tester) async {
+      final topicRepository = FakeSyllabusTopicRepository(
+        topics: const [
+          SyllabusTopic(
+            id: 1,
+            schoolId: 1,
+            subjectId: 3,
+            subjectName: 'Mathematics',
+            title: 'Vectors',
+            sequenceNumber: 1,
+            classLevel: 8,
+          ),
+          SyllabusTopic(
+            id: 2,
+            schoolId: 1,
+            subjectId: 3,
+            subjectName: 'Mathematics',
+            title: 'Counting to ten',
+            sequenceNumber: 1,
+            classLevel: -3,
+          ),
+        ],
+      )..levelForScope = 8;
+      await tester.pumpWidget(wrap(FakeTeachingReportRepository(), topicRepository: topicRepository));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(topicRepository.lastListScope?.timetableEntryId, _entry.id);
+
+      await tester.tap(find.byKey(const Key('report-syllabus-topic')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Vectors'), findsWidgets);
+      expect(find.text('Counting to ten'), findsNothing);
+    });
+
     testWidgets("offers the subject's topics, and ticking one goes with the report", (tester) async {
       final fake = FakeTeachingReportRepository();
       await tester.pumpWidget(wrap(fake));
@@ -217,7 +257,7 @@ void main() {
 /// depend on it.
 class _BrokenSyllabusRepository extends FakeSyllabusTopicRepository {
   @override
-  Future<List<SyllabusTopic>> list({required int subjectId}) async {
+  Future<List<SyllabusTopic>> list({required int subjectId, int? classSectionId, int? timetableEntryId}) async {
     throw const Failure(code: 'SERVER_ERROR', message: 'nope');
   }
 }

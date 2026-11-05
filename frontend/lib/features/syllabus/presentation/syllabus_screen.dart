@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/status_badge.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
@@ -211,6 +212,14 @@ class _Checklist extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (checklist.classLevelName != null) ...[
+                            Text(
+                              '${checklist.classLevelName} syllabus - shared by every section of the class',
+                              key: const Key('syllabus-whose'),
+                              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
                           Text(
                             '${checklist.completedTopics} of ${checklist.totalTopics} topics covered',
                             style: const TextStyle(fontWeight: FontWeight.w700),
@@ -243,9 +252,9 @@ class _Checklist extends ConsumerWidget {
                       schoolId: schoolId,
                       subjectId: subjectId,
                       params: params,
-                      nextSequenceNumber: checklist.topics.isEmpty
-                          ? 1
-                          : checklist.topics.map((t) => t.sequenceNumber).reduce((a, b) => a > b ? a : b) + 1,
+                      classLevel: checklist.classLevel,
+                      classLevelName: checklist.classLevelName,
+                      nextSequenceNumber: _nextNumber(checklist),
                     ),
                   ),
                   icon: const Icon(Icons.add, size: 18),
@@ -274,7 +283,27 @@ class _Checklist extends ConsumerWidget {
                         value: topic.completed,
                         onChanged: (value) => _toggle(context, ref, params, topic.id, value ?? false),
                       ),
-                      title: Text('${topic.sequenceNumber}. ${topic.title}'),
+                      title: Text.rich(
+                        TextSpan(
+                          text: '${topic.sequenceNumber}. ${topic.title}',
+                          children: [
+                            // Written before topics had classes: every class
+                            // follows it until it is given one (Edit).
+                            if (topic.isForEveryClass && checklist.classLevel != null)
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: StatusBadge(
+                                    key: Key('topic-all-classes-${topic.id}'),
+                                    label: 'All classes',
+                                    tone: BadgeTone.neutral,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                       subtitle: topic.completed && topic.completedByName != null
                           ? Text('Completed by ${topic.completedByName}')
                           : null,
@@ -287,7 +316,12 @@ class _Checklist extends ConsumerWidget {
                                   tooltip: 'Edit',
                                   onPressed: () => showDialog(
                                     context: context,
-                                    builder: (_) => EditTopicDialog(topic: topic, params: params),
+                                    builder: (_) => EditTopicDialog(
+                                      topic: topic,
+                                      params: params,
+                                      classLevel: checklist.classLevel,
+                                      classLevelName: checklist.classLevelName,
+                                    ),
                                   ),
                                 ),
                                 IconButton(
@@ -306,6 +340,17 @@ class _Checklist extends ConsumerWidget {
         );
       },
     );
+  }
+
+  /// Next after the last of this class's own topics: each class numbers
+  /// its topics from 1, and the ones for every class keep their own order.
+  static int _nextNumber(SyllabusChecklist checklist) {
+    final own = [
+      for (final topic in checklist.topics)
+        if (topic.classLevel == checklist.classLevel) topic.sequenceNumber,
+    ];
+
+    return own.isEmpty ? 1 : own.reduce((a, b) => a > b ? a : b) + 1;
   }
 
   Future<void> _toggle(

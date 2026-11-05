@@ -21,6 +21,7 @@ import zoneinfo
 
 from django.db.models import Count
 
+from .. import syllabus_scope
 from ..clock import SchoolClock
 from ..models import ClassSection, Subject, SyllabusTopic, SyllabusTopicProgress, TimetableEntry
 from ..services import php_number
@@ -56,7 +57,8 @@ class SyllabusProgressReport:
             subjects = subjects.filter(department_id__in=filters["department_ids"])
         subjects = list(subjects.order_by("name", "id"))
 
-        topics = self._topics_per_subject(school_id)
+        # Per subject per class (school/syllabus_scope.py).
+        topics = syllabus_scope.counts([subject.id for subject in subjects])
         progress = self._progress(report_range, [section.id for section in sections])
         zone = zoneinfo.ZoneInfo(SchoolClock.for_school(school_id).timezone())
         teachers = self._teachers(school_id, [section.id for section in sections])
@@ -66,7 +68,7 @@ class SyllabusProgressReport:
             level = section.school_class.level
 
             for subject in subjects:
-                total = topics.get(subject.id, 0)
+                total = syllabus_scope.total_for(topics, subject.id, level)
                 if total == 0 or not subject.min_class_level <= level <= subject.max_class_level:
                     continue
 
@@ -138,15 +140,6 @@ class SyllabusProgressReport:
             "syllabus_completion": php_number(rate_of(completed, topics)),
             "completed_in_period": sum(row["completed_in_period"] for row in rows),
         }
-
-    @staticmethod
-    def _topics_per_subject(school_id: int) -> dict[int, int]:
-        return dict(
-            SyllabusTopic.objects.filter(school_id=school_id)
-            .values("subject_id")
-            .annotate(total=Count("id"))
-            .values_list("subject_id", "total")
-        )
 
     @staticmethod
     def _progress(report_range: ReportRange, section_ids: list[int]) -> dict[tuple, dict]:

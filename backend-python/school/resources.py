@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from . import dates, mailer, modules, money, payment_items, permissions, sms, whatsapp, working_hours
+from . import dates, mailer, modules, money, payment_items, permissions, sms, syllabus_scope, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
 from .enums import SchoolCategory, DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
@@ -214,6 +214,8 @@ def syllabus_topic_resource(topic) -> dict:
         "school_id": topic.school_id,
         "subject_id": topic.subject_id,
         "subject_name": topic.subject.name,
+        "class_level": topic.class_level,
+        "class_level_name": syllabus_scope.level_name(topic.class_level),
         "title": topic.title,
         "sequence_number": topic.sequence_number,
     }

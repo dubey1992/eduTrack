@@ -141,6 +141,12 @@ void main() {
     expect(reports.lastStorePayload!['syllabus_topic_id'], 102);
   });
 
+  testWidgets("asks for the topics of this period's class only (decided 2026-11-05)", (tester) async {
+    await pump(tester);
+
+    expect(topics.lastListScope?.timetableEntryId, period.timetableEntryId);
+  });
+
   testWidgets('a second report for the period is refused in plain words, and the form stays', (tester) async {
     reports.failStoreWith = const Failure(
       code: 'TEACHING_REPORT_ALREADY_SUBMITTED',

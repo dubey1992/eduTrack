@@ -94,6 +94,9 @@ class OutlineTest(SyllabusTestCase):
                 "school_id": self.school.id,
                 "subject_id": self.subject.id,
                 "subject_name": "Algebra",
+                # Sent without a class: an older app's topic, for every class.
+                "class_level": None,
+                "class_level_name": "All classes",
                 "title": "Chapter 1: Whole numbers",
                 "sequence_number": 1,
             },

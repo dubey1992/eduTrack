@@ -37,6 +37,7 @@ from . import (
     route_paths,
     school_breaks,
     sms,
+    syllabus_scope,
     tokens,
     whatsapp,
     working_hours,
@@ -1985,11 +1986,13 @@ class SyllabusTopicService:
     """A subject's outline: its topics, in teaching order."""
 
     @staticmethod
-    def for_subject(subject_id: int):
-        return (
-            SyllabusTopic.objects.select_related("subject")
-            .filter(subject_id=subject_id)
-            .order_by("sequence_number")
+    def for_subject(subject_id: int, level: int | None = None):
+        """The subject's outline - one class's, with `level` (its own topics
+        and those for every class), or every topic without."""
+        topics = SyllabusTopic.objects.select_related("subject").filter(subject_id=subject_id)
+
+        return syllabus_scope.for_level(topics, level).order_by(
+            F("class_level").asc(nulls_first=True), "sequence_number"
         )
 
     @staticmethod
@@ -1999,6 +2002,7 @@ class SyllabusTopicService:
         topic = SyllabusTopic.objects.create(
             school_id=subject.school_id,
             subject_id=subject.id,
+            class_level=data.get("class_level"),
             title=data["title"],
             sequence_number=data["sequence_number"],
             created_at=now,
@@ -2061,12 +2065,8 @@ class SyllabusProgressService:
         }
 
         subject_ids = {subject_id for _, subject_id in pairs}
-        totals = dict(
-            SyllabusTopic.objects.filter(subject_id__in=subject_ids)
-            .values("subject_id")
-            .annotate(n=Count("id"))
-            .values_list("subject_id", "n")
-        )
+        per_level = syllabus_scope.counts(subject_ids)
+        levels = syllabus_scope.levels_of_sections({section_id for section_id, _ in pairs})
         ticked = {
             (row["class_section_id"], row["syllabus_topic__subject_id"]): row["n"]
             for row in SyllabusTopicProgress.objects.filter(
@@ -2079,7 +2079,7 @@ class SyllabusProgressService:
 
         rows = []
         for key, row in pairs.items():
-            total = totals.get(row["subject_id"], 0)
+            total = syllabus_scope.total_for(per_level, row["subject_id"], levels.get(key[0]))
             done = ticked.get(key, 0)
             rows.append({**row, "total_topics": total, "completed_topics": done,
                          "progress_percent": percent_of(done, total)})
@@ -2090,7 +2090,12 @@ class SyllabusProgressService:
     def checklist(subject, section) -> dict:
         """A subject's topics in order, each with this section's completion
         mark or none - the syllabus equivalent of the attendance register."""
-        topics = list(SyllabusTopic.objects.filter(subject_id=subject.id).order_by("sequence_number"))
+        level = section.school_class.level if section.school_class_id else None
+        topics = list(
+            syllabus_scope.for_level(SyllabusTopic.objects.filter(subject_id=subject.id), level).order_by(
+                F("class_level").asc(nulls_first=True), "sequence_number"
+            )
+        )
 
         marks = {
             mark.syllabus_topic_id: mark
@@ -2103,6 +2108,10 @@ class SyllabusProgressService:
             "subject_id": subject.id,
             "subject_name": subject.name,
             "class_section_id": section.id,
+            # Which class's syllabus this is, so a topic added here is filed
+            # for it (school/syllabus_scope.py).
+            "class_level": level,
+            "class_level_name": syllabus_scope.level_name(level),
             "total_topics": len(topics),
             "completed_topics": len(marks),
             "progress_percent": percent_of(len(marks), len(topics)),
@@ -2111,6 +2120,8 @@ class SyllabusProgressService:
                     "id": topic.id,
                     "title": topic.title,
                     "sequence_number": topic.sequence_number,
+                    # Null: written before topics had classes, for every class.
+                    "class_level": topic.class_level,
                     "completed": topic.id in marks,
                     "completed_by_name": (
                         marks[topic.id].completed_by.name if topic.id in marks else None
@@ -2352,7 +2363,7 @@ class HodReportService:
         for subject_id, section_id in dict.fromkeys(
             (entry["subject_id"], entry["class_section_id"]) for entry in entries
         ):
-            topics_total += syllabus["totals"].get(subject_id, 0)
+            topics_total += syllabus["totals"].get((subject_id, section_id), 0)
             topics_completed += syllabus["completed"].get((subject_id, section_id), 0)
 
         return {
@@ -2432,11 +2443,16 @@ class HodReportService:
         if not subject_ids:
             return {"totals": {}, "completed": {}}
 
-        totals = dict(
-            SyllabusTopic.objects.filter(subject_id__in=subject_ids)
-            .values_list("subject_id")
-            .annotate(total=Count("id"))
-        )
+        per_level = syllabus_scope.counts(subject_ids)
+        levels = syllabus_scope.levels_of_sections(section_ids)
+        # Keyed by (subject, section): a subject has as many syllabuses as
+        # it has classes.
+        totals = {
+            (entry["subject_id"], entry["class_section_id"]): syllabus_scope.total_for(
+                per_level, entry["subject_id"], levels.get(entry["class_section_id"])
+            )
+            for entry in entries
+        }
 
         completed = {
             (row["syllabus_topic__subject_id"], row["class_section_id"]): row["done"]

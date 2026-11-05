@@ -21,7 +21,7 @@ import decimal
 import re
 import zoneinfo
 
-from . import attendants, audit, class_levels, hashing, roll_numbers, mailer, marketing, notices, notifications, payment_items, permissions, school_breaks, site_pages, sms, whatsapp
+from . import attendants, audit, class_levels, hashing, roll_numbers, mailer, marketing, notices, notifications, payment_items, permissions, school_breaks, site_pages, sms, syllabus_scope, whatsapp
 from .enums import (
     UserStatus,
     PromotionOutcome,
@@ -1252,6 +1252,13 @@ class StoreDailyTeachingReportRequest(ScopedSerializer):
                 "The topic must belong to the subject this period teaches."
             )
 
+        if entry is not None and not syllabus_scope.applies_to(
+            topic, syllabus_scope.level_of_section(entry.class_section_id)
+        ):
+            raise serializers.ValidationError(
+                f"That topic is in the {syllabus_scope.level_name(topic.class_level)} syllabus, not this class's."
+            )
+
         return value
 
     def validate_report_date(self, value):
@@ -1360,6 +1367,14 @@ def as_id(value):
 
 class SyllabusTopicListRequest(serializers.Serializer):
     subject_id = LaravelIntegerField("subject_id")
+    # Either names the class whose topics are wanted - its own and those for
+    # every class (school/syllabus_scope.py). Neither is the whole outline.
+    class_section_id = LaravelIntegerField("class_section_id", required=False, allow_null=True)
+    class_level = LaravelIntegerField(
+        "class_level", min_value=class_levels.LOWEST, max_value=class_levels.HIGHEST, required=False, allow_null=True
+    )
+    # Or the period a report is being filed for - what the teacher app knows.
+    timetable_entry_id = LaravelIntegerField("timetable_entry_id", required=False, allow_null=True)
 
     def validate_subject_id(self, value):
         if not Subject.objects.filter(pk=value).exists():
@@ -1367,9 +1382,73 @@ class SyllabusTopicListRequest(serializers.Serializer):
 
         return value
 
+    def validate_timetable_entry_id(self, value):
+        if value is not None and not TimetableEntry.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(selected_is_invalid("timetable_entry_id"))
+
+        return value
+
+    def validate_class_section_id(self, value):
+        if value is not None and not ClassSection.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(selected_is_invalid("class_section_id"))
+
+        return value
+
+    def level(self) -> int | None:
+        data = self.validated_data
+        if data.get("timetable_entry_id") is not None:
+            entry = TimetableEntry.objects.get(pk=data["timetable_entry_id"])
+            return syllabus_scope.level_of_section(entry.class_section_id)
+        if data.get("class_section_id") is not None:
+            return syllabus_scope.level_of_section(data["class_section_id"])
+
+        return data.get("class_level")
+
+
+def check_topic_level(subject_id, level, errors: dict) -> None:
+    """A topic's class must be one that takes the subject: Computer Science
+    taught from Class 3 has no Playgroup syllabus."""
+    if level is None:
+        return
+
+    subject = Subject.objects.filter(pk=subject_id).first()
+    if subject is None:
+        return
+
+    low, high = subject.min_class_level, subject.max_class_level
+    if (low is not None and level < low) or (high is not None and level > high):
+        errors.setdefault("class_level", []).append(
+            f"{subject.name} is not taught in {syllabus_scope.level_name(level)}."
+        )
+
+
+def sent_level(data) -> int | None:
+    """The class level as sent, before the field itself is checked - it may
+    be below zero (Playgroup is -3), so not an id."""
+    try:
+        value = data.get("class_level")
+        return None if value in (None, "") else int(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def sequence_taken(subject_id, level, number, ignoring=None) -> bool:
+    """Topic order is per subject per class: two classes may each have a
+    topic 1."""
+    taken = SyllabusTopic.objects.filter(subject_id=subject_id, class_level=level, sequence_number=number)
+    if ignoring is not None:
+        taken = taken.exclude(pk=ignoring)
+
+    return taken.exists()
+
 
 class StoreSyllabusTopicRequest(ScopedSerializer):
     subject_id = LaravelIntegerField("subject_id")
+    # The class the topic is for. Optional only so an app from before this
+    # keeps working; the Syllabus screen always sends it.
+    class_level = LaravelIntegerField(
+        "class_level", min_value=class_levels.LOWEST, max_value=class_levels.HIGHEST, required=False, allow_null=True
+    )
     title = LaravelCharField("title", max_length=255)
     sequence_number = LaravelIntegerField("sequence_number", min_value=1)
 
@@ -1382,19 +1461,22 @@ class StoreSyllabusTopicRequest(ScopedSerializer):
         return value
 
     def validate_sequence_number(self, value):
-        # Against the subject as sent, as Laravel's rule reads it: unique
-        # within a subject, so every subject can start at 1.
-        taken = SyllabusTopic.objects.filter(
-            subject_id=as_id(self.initial_data.get("subject_id")), sequence_number=value
-        ).exists()
-
-        if taken:
+        # A field check, so a taken number is reported beside any other
+        # field's problem rather than after it. Unique within a subject's
+        # class, so every class can start at 1.
+        if sequence_taken(as_id(self.initial_data.get("subject_id")), sent_level(self.initial_data), value):
             raise serializers.ValidationError(already_taken("sequence_number"))
 
         return value
 
     def validate(self, attrs):
         self.validate_school_id_field()
+
+        errors = {}
+        check_topic_level(attrs["subject_id"], attrs.get("class_level"), errors)
+
+        if errors:
+            raise serializers.ValidationError(errors)
 
         return attrs
 
@@ -1405,6 +1487,11 @@ class UpdateSyllabusTopicRequest(serializers.Serializer):
 
     title = LaravelCharField("title", max_length=255, required=False)
     sequence_number = LaravelIntegerField("sequence_number", min_value=1, required=False)
+    # Moving a topic to its class - how one written before topics had classes
+    # gets one. Null puts it back to every class.
+    class_level = LaravelIntegerField(
+        "class_level", min_value=class_levels.LOWEST, max_value=class_levels.HIGHEST, required=False, allow_null=True
+    )
 
     def __init__(self, *args, topic=None, **kwargs) -> None:
         if "data" in kwargs:
@@ -1413,17 +1500,21 @@ class UpdateSyllabusTopicRequest(serializers.Serializer):
         super().__init__(*args, **kwargs)
         self.topic = topic
 
-    def validate_sequence_number(self, value):
-        taken = (
-            SyllabusTopic.objects.filter(subject_id=self.topic.subject_id, sequence_number=value)
-            .exclude(pk=self.topic.pk)
-            .exists()
-        )
+    def validate(self, attrs):
+        errors = {}
+        level = attrs["class_level"] if "class_level" in attrs else self.topic.class_level
+        number = attrs.get("sequence_number", self.topic.sequence_number)
+        check_topic_level(self.topic.subject_id, level, errors)
 
-        if taken:
-            raise serializers.ValidationError(already_taken("sequence_number"))
+        if ("class_level" in attrs or "sequence_number" in attrs) and sequence_taken(
+            self.topic.subject_id, level, number, ignoring=self.topic.pk
+        ):
+            errors["sequence_number"] = [already_taken("sequence_number")]
 
-        return value
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
 
 
 class SyllabusChecklistRequest(serializers.Serializer):
@@ -1473,6 +1564,11 @@ class ToggleSyllabusProgressRequest(serializers.Serializer):
 
         if not in_that_school:
             raise serializers.ValidationError(selected_is_invalid("class_section_id"))
+
+        if not syllabus_scope.applies_to(topic, syllabus_scope.level_of_section(value)):
+            raise serializers.ValidationError(
+                f"That topic is in the {syllabus_scope.level_name(topic.class_level)} syllabus, not this class's."
+            )
 
         return value
 
@@ -5071,9 +5167,15 @@ class AssessmentFields(ScopedSerializer):
                 f"The date must fall inside {term.name} ({term.start_date} to {term.end_date})."
             ]
 
-    def check_topic(self, topic, subject, errors: dict) -> None:
+    def check_topic(self, topic, subject, errors: dict, section=None) -> None:
         if topic is not None and subject is not None and topic.subject_id != subject.id:
             errors["syllabus_topic_id"] = [f'"{topic.title}" is not a topic of {subject.name}.']
+        elif topic is not None and section is not None and not syllabus_scope.applies_to(
+            topic, syllabus_scope.level_of_section(section.id)
+        ):
+            errors["syllabus_topic_id"] = [
+                f"\"{topic.title}\" is in the {syllabus_scope.level_name(topic.class_level)} syllabus, not this class's."
+            ]
 
     def to_internal_value(self, data):
         """Field checks and cross-record checks together.
@@ -5187,7 +5289,7 @@ class StoreAssessmentRequest(AssessmentFields):
         self.check_the_pieces_belong_together(
             {**attrs, "assessment_date": self.given_date(attrs)}, section, subject, term, errors
         )
-        self.check_topic(topic, subject, errors)
+        self.check_topic(topic, subject, errors, section)
         self.check_weightage(attrs, section, subject, term, errors)
 
         if section is not None:
@@ -5245,7 +5347,7 @@ class UpdateAssessmentRequest(AssessmentFields):
         check_pass_marks(merged, errors)
         check_weightage_range(merged, errors)
         self.check_the_pieces_belong_together(merged, section, subject, term, errors)
-        self.check_topic(topic, subject, errors)
+        self.check_topic(topic, subject, errors, section)
         self.check_weightage(merged, section, subject, term, errors)
 
 

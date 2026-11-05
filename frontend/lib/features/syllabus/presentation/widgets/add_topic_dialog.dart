@@ -17,12 +17,19 @@ class AddTopicDialog extends ConsumerStatefulWidget {
     required this.subjectId,
     required this.params,
     required this.nextSequenceNumber,
+    this.classLevel,
+    this.classLevelName,
   });
 
   final int? schoolId;
   final int subjectId;
   final SyllabusChecklistParams params;
   final int nextSequenceNumber;
+
+  /// The class the topic is filed for - the one being viewed - and every
+  /// section of it shares the topic (decided 2026-11-05).
+  final int? classLevel;
+  final String? classLevelName;
 
   @override
   ConsumerState<AddTopicDialog> createState() => _AddTopicDialogState();
@@ -59,6 +66,7 @@ class _AddTopicDialogState extends ConsumerState<AddTopicDialog> {
             subjectId: widget.subjectId,
             title: _titleController.text.trim(),
             sequenceNumber: int.parse(_sequenceController.text.trim()),
+            classLevel: widget.classLevel,
           );
       await ref.read(syllabusChecklistProvider(widget.params).notifier).refresh();
       if (mounted) {
@@ -87,6 +95,17 @@ class _AddTopicDialogState extends ConsumerState<AddTopicDialog> {
               if (_errorMessage != null) ...[
                 Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                 const SizedBox(height: 12),
+              ],
+              if (widget.classLevelName != null) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'For ${widget.classLevelName} - every section of it, and no other class.',
+                    key: const Key('add-topic-for'),
+                    style: TextStyle(fontSize: 13, color: context.appColors.muted),
+                  ),
+                ),
+                const SizedBox(height: 10),
               ],
               TextFormField(
                 controller: _titleController,

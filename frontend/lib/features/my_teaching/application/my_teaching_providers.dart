@@ -153,11 +153,16 @@ final mySyllabusProvider = FutureProvider.autoDispose<List<MySyllabusClass>>(
   retry: (retryCount, error) => null,
 );
 
-/// A subject's topics, for the report form's "Syllabus topic" choice.
-final subjectTopicsProvider = FutureProvider.autoDispose.family<List<SyllabusTopic>, int>(
-  (ref, subjectId) => ref.read(syllabusTopicRepositoryProvider).list(subjectId: subjectId),
-  retry: (retryCount, error) => null,
-);
+/// The topics a period's class follows in its subject, for the report
+/// form's "Syllabus topic" choice - that class's own and those for every
+/// class, never another class's (decided 2026-11-05).
+final subjectTopicsProvider = FutureProvider.autoDispose
+    .family<List<SyllabusTopic>, ({int subjectId, int timetableEntryId})>(
+      (ref, period) => ref
+          .read(syllabusTopicRepositoryProvider)
+          .list(subjectId: period.subjectId, timetableEntryId: period.timetableEntryId),
+      retry: (retryCount, error) => null,
+    );
 
 /// The class tests of the classes the teacher teaches, newest first.
 class MyTests {

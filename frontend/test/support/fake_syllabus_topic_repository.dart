@@ -20,12 +20,24 @@ class FakeSyllabusTopicRepository implements SyllabusTopicRepository {
   Failure? failListWith;
 
   Map<String, dynamic>? lastCreatePayload;
+  Map<String, dynamic>? lastUpdatePayload;
   int? lastDeletedId;
 
+  /// What the last list() was narrowed by - a class, or a period's class.
+  ({int? classSectionId, int? timetableEntryId})? lastListScope;
+
+  /// The class level a section or period stands for, when a test narrows.
+  int? levelForScope;
+
   @override
-  Future<List<SyllabusTopic>> list({required int subjectId}) async {
+  Future<List<SyllabusTopic>> list({required int subjectId, int? classSectionId, int? timetableEntryId}) async {
     if (failListWith != null) throw failListWith!;
-    return _topics.where((t) => t.subjectId == subjectId).toList()
+    lastListScope = (classSectionId: classSectionId, timetableEntryId: timetableEntryId);
+    final narrowed = classSectionId != null || timetableEntryId != null;
+    return _topics
+        .where((t) => t.subjectId == subjectId)
+        .where((t) => !narrowed || levelForScope == null || t.classLevel == null || t.classLevel == levelForScope)
+        .toList()
       ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
   }
 
@@ -35,9 +47,15 @@ class FakeSyllabusTopicRepository implements SyllabusTopicRepository {
     required int subjectId,
     required String title,
     required int sequenceNumber,
+    int? classLevel,
   }) async {
     if (failCreateWith != null) throw failCreateWith!;
-    lastCreatePayload = {'subject_id': subjectId, 'title': title, 'sequence_number': sequenceNumber};
+    lastCreatePayload = {
+      'subject_id': subjectId,
+      'title': title,
+      'sequence_number': sequenceNumber,
+      'class_level': classLevel,
+    };
 
     final created = SyllabusTopic(
       id: _topics.length + 1,
@@ -46,14 +64,22 @@ class FakeSyllabusTopicRepository implements SyllabusTopicRepository {
       subjectName: 'Mathematics',
       title: title,
       sequenceNumber: sequenceNumber,
+      classLevel: classLevel,
     );
     _topics = [..._topics, created];
     return created;
   }
 
   @override
-  Future<SyllabusTopic> update(int topicId, {String? title, int? sequenceNumber}) async {
+  Future<SyllabusTopic> update(
+    int topicId, {
+    String? title,
+    int? sequenceNumber,
+    bool setClass = false,
+    int? classLevel,
+  }) async {
     if (failUpdateWith != null) throw failUpdateWith!;
+    lastUpdatePayload = {'title': ?title, 'sequence_number': ?sequenceNumber, if (setClass) 'class_level': classLevel};
 
     final existing = _topics.firstWhere((t) => t.id == topicId);
     final updated = SyllabusTopic(
@@ -63,6 +89,7 @@ class FakeSyllabusTopicRepository implements SyllabusTopicRepository {
       subjectName: existing.subjectName,
       title: title ?? existing.title,
       sequenceNumber: sequenceNumber ?? existing.sequenceNumber,
+      classLevel: setClass ? classLevel : existing.classLevel,
     );
     _topics = [for (final t in _topics) t.id == topicId ? updated : t];
     return updated;

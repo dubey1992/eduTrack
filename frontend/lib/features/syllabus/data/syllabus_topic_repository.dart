@@ -14,9 +14,9 @@ class SyllabusTopicRepository {
 
   final SyllabusTopicApi _api;
 
-  Future<List<SyllabusTopic>> list({required int subjectId}) async {
+  Future<List<SyllabusTopic>> list({required int subjectId, int? classSectionId, int? timetableEntryId}) async {
     try {
-      return await _api.list(subjectId: subjectId);
+      return await _api.list(subjectId: subjectId, classSectionId: classSectionId, timetableEntryId: timetableEntryId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }
@@ -27,17 +27,36 @@ class SyllabusTopicRepository {
     required int subjectId,
     required String title,
     required int sequenceNumber,
+    int? classLevel,
   }) async {
     try {
-      return await _api.create(schoolId: schoolId, subjectId: subjectId, title: title, sequenceNumber: sequenceNumber);
+      return await _api.create(
+        schoolId: schoolId,
+        subjectId: subjectId,
+        title: title,
+        sequenceNumber: sequenceNumber,
+        classLevel: classLevel,
+      );
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }
   }
 
-  Future<SyllabusTopic> update(int topicId, {String? title, int? sequenceNumber}) async {
+  Future<SyllabusTopic> update(
+    int topicId, {
+    String? title,
+    int? sequenceNumber,
+    bool setClass = false,
+    int? classLevel,
+  }) async {
     try {
-      return await _api.update(topicId, title: title, sequenceNumber: sequenceNumber);
+      return await _api.update(
+        topicId,
+        title: title,
+        sequenceNumber: sequenceNumber,
+        setClass: setClass,
+        classLevel: classLevel,
+      );
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

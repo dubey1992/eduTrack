@@ -69,7 +69,10 @@ def topics(request) -> Response:
 
     # A bare list: an outline is a few dozen topics, read whole.
     return Response(
-        [syllabus_topic_resource(topic) for topic in SyllabusTopicService.for_subject(subject.id)]
+        [
+            syllabus_topic_resource(topic)
+            for topic in SyllabusTopicService.for_subject(subject.id, level=form.level())
+        ]
     )
 
 

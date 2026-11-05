@@ -21,6 +21,8 @@ from __future__ import annotations
 import datetime as dt
 import decimal
 
+from django.db.models import F
+from .. import syllabus_scope
 from ..enums import AssessmentStatus, AssessmentType
 from ..models import AcademicTerm, Assessment, ClassSection, GradeScale, Subject, SyllabusTopic
 from ..services import AssessmentService
@@ -172,8 +174,10 @@ class AssessmentImporter:
 
         topic_title = row.get("topic")
 
-        if topic_title is not None and subject is not None and self._topic_id(topic_title, subject) is None:
-            messages.append(f'"{topic_title}" is not a topic of {subject.name}.')
+        section_id = section[0] if section is not None else None
+
+        if topic_title is not None and subject is not None and self._topic_id(topic_title, subject, section_id) is None:
+            messages.append(f'"{topic_title}" is not a topic of {subject.name} for "{row["class"]}".')
 
         return messages
 
@@ -196,7 +200,7 @@ class AssessmentImporter:
                 "academic_term_id": term.id,
                 "class_section_id": section_id,
                 "subject_id": subject.id,
-                "syllabus_topic_id": self._topic_id(topic_title, subject) if topic_title else None,
+                "syllabus_topic_id": self._topic_id(topic_title, subject, section_id) if topic_title else None,
                 "grade_scale_id": self._scale_id(scale_name, school_id) if scale_name else None,
                 "type": (row["type"] or "").lower(),
                 "title": row["title"],
@@ -264,8 +268,13 @@ class AssessmentImporter:
         return self._scales.get((name or "").strip().lower())
 
     @staticmethod
-    def _topic_id(title: str, subject):
-        topic = SyllabusTopic.objects.filter(subject_id=subject.id, title__iexact=(title or "").strip()).first()
+    def _topic_id(title: str, subject, section_id=None):
+        """A topic of this subject by its title - among those the row's class
+        follows, when the class is known (school/syllabus_scope.py)."""
+        topics = SyllabusTopic.objects.filter(subject_id=subject.id, title__iexact=(title or "").strip())
+        if section_id is not None:
+            topics = syllabus_scope.for_level(topics, syllabus_scope.level_of_section(section_id))
+        topic = topics.order_by(F("class_level").asc(nulls_last=True)).first()
 
         return topic.id if topic is not None else None
 

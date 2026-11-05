@@ -244,6 +244,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                   if (period.subjectId != null && widget.changing == null)
                     _SyllabusTopicChoice(
                       subjectId: period.subjectId!,
+                      timetableEntryId: period.timetableEntryId,
                       value: _syllabusTopicId,
                       enabled: !_sending,
                       onChanged: (id) => setState(() => _syllabusTopicId = id),
@@ -297,12 +298,14 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
 class _SyllabusTopicChoice extends ConsumerWidget {
   const _SyllabusTopicChoice({
     required this.subjectId,
+    required this.timetableEntryId,
     required this.value,
     required this.enabled,
     required this.onChanged,
   });
 
   final int subjectId;
+  final int timetableEntryId;
   final int? value;
   final bool enabled;
   final ValueChanged<int?> onChanged;
@@ -312,7 +315,7 @@ class _SyllabusTopicChoice extends ConsumerWidget {
     final colors = context.appColors;
 
     return ref
-        .watch(subjectTopicsProvider(subjectId))
+        .watch(subjectTopicsProvider((subjectId: subjectId, timetableEntryId: timetableEntryId)))
         .when(
           loading: () => const Padding(padding: EdgeInsets.only(bottom: 16), child: LinearProgressIndicator()),
           error: (_, _) => Padding(
