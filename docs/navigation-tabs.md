@@ -38,6 +38,101 @@ that used to be a sidebar row.
 On a phone the drawer holds the same short list, and the tabs become a strip
 under the top bar that scrolls sideways.
 
+## Alternatives (asked for 2026-11-05)
+
+Areas with tabs is one way to shorten the menu. Here are the others worth
+weighing. Every one keeps the rules below: same addresses, same
+permissions, screens untouched.
+
+### Structures (pick one)
+
+**S1. Areas + tabs across the top** (the idea above).
+One click to the area, one to the tab. Tabs show the related screens side
+by side. It is crowded when an area has 7 tabs (Academic Setup), so those
+scroll.
+
+**S2. Icon rail + second panel** (the Slack, Zoho and Odoo pattern).
+
+```
++--+---------------+-------------------------------------+
+|# | Fees          |                                     |
+|$ | Student Fees  |   (page)                            |
+|@ | Receipts      |                                     |
+|% | Discounts     |                                     |
+|  | Fee Setup     |                                     |
++--+---------------+-------------------------------------+
+```
+
+A thin rail of area icons, and next to it a short list of the chosen area's
+screens. The second panel folds away for wide tables. It handles 7 screens
+in an area better than tabs, and is familiar from business software. It
+takes more width on a laptop, and the icons need labels on hover.
+
+**S3. Accordion sidebar** (smallest change).
+Today's groups, but folded: only the current page's group is open. Nothing
+moves, so there is nothing to relearn and almost nothing to build. The
+panel stays long once a group is open, and it doesn't group related
+screens any better than today.
+
+**S4. Top menu with drop-downs** (the classic ERP bar).
+Areas across the top, and each opens a menu of its screens. The page gets
+the full width. Hover menus don't work on touch screens, and 11 areas don't
+fit across a laptop, so it needs a "More". Weak on phones.
+
+**S5. App launcher home** (like Google Workspace or Odoo's app grid).
+The home page is a grid of large tiles, one per area, with counts on them
+("3 leave requests"). Each tile opens the area with its tabs or panel. It
+is the friendliest for non-technical staff, but adds a click for people who
+already know where they're going, so it pairs well with search.
+
+**S6. Organised by job, not by module** (the most radical).
+Top level: *Today* (what needs doing: register, reports, approvals, fees
+due), *People*, *Teaching*, *Money*, *Transport*, *Setup*. "Today" becomes
+the main screen for most roles. It is the closest to how a school thinks,
+but it is the biggest change for schools already live and needs
+retraining.
+
+### Add-ons (work with any structure)
+
+| Add-on | What | Build |
+|---|---|---|
+| **Search / Ctrl+K** | One box finds a screen, a student, a member of staff or a class. Ctrl+K opens it from anywhere | M |
+| **Pinned and recent** | Each user pins their frequent screens to the top of the panel. "Recent" lists the last 5 opened | S |
+| **Phone bottom bar** | Home · Attendance · Messages · Search · More, with the rest under More | S |
+| **Setup screens step back** | Once the Setup Guide is finished, Academic Setup moves under Settings. Year-once screens stop taking daily space | S |
+| **Simple mode** | A per-user switch that shows only that role's daily screens. "Show everything" is one tap away | S |
+| **"Today" panel per role** | Dashboard buttons for the jobs each role opens the app for (also in N4) | M |
+
+### Comparison
+
+| | S1 Tabs | S2 Rail + panel | S3 Accordion | S4 Top menu | S5 Launcher | S6 By job |
+|---|---|---|---|---|---|---|
+| Menu length for an admin | 11 | 11 icons | 8 groups, 1 open | 11 across | 11 tiles | 6 |
+| Clicks to a screen | 2 | 2 | 1–2 | 2 | 2–3 | 2 |
+| Related screens together | yes | yes | no | yes | yes | yes |
+| Areas with 7 screens | crowded | fine | fine | fine | fine | fine |
+| Phone | good | adapts (drawer) | as today | weak | very good | good |
+| Relearning for live schools | small | small | none | medium | small | large |
+| Build | M | M | S | M | M | L |
+
+### Recommendation
+
+**S2 (icon rail + second panel) on desktop and tablet, the bottom bar on
+phones, plus Search/Ctrl+K and "Setup screens step back".**
+- S2 groups screens like S1, but copes with large areas and keeps wide
+  tables wide.
+- Search covers people who know what they want.
+- The bottom bar is how phone users expect an app to work.
+- Moving the year-once setup screens out of daily view cuts the most noise
+  for the least work.
+
+S5 (a tile home) can be added later for the least confident users without
+changing the rest.
+
+If the owner prefers what is already on paper, S1 (tabs) is a close
+second. Everything under "How it is built" applies to either, with the
+TabBar swapped for the second panel.
+
 ## What does not change (so nothing breaks)
 
 1. **Every address stays the same.** `/fee-receipts` still opens Receipts,
@@ -177,6 +272,7 @@ No backend or database changes for N1 and N2.
 
 ## Decisions needed from the user
 
+- **N-D0:** Which structure - S1 tabs, S2 rail + panel (recommended), S3 accordion, S4 top menu, S5 launcher, S6 by job - and which add-ons?
 - **N-D1:** Are the areas and names above right? In particular, should
   Staff Leave sit under Attendance (proposed) or be its own area?
 - **N-D2:** Should Setup Guide be a Dashboard tab only while setup is
