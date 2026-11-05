@@ -45,3 +45,22 @@ final classSectionPickerProvider = FutureProvider.autoDispose.family<List<ClassS
         ),
   ];
 });
+
+/// One academic year's sections - for a screen that follows the top bar's
+/// year (decided 2026-11-05) rather than always the current one.
+final classSectionsOfYearProvider = FutureProvider.autoDispose.family<List<ClassSectionOption>, int>((
+  ref,
+  academicYearId,
+) async {
+  final classes = await ref.watch(schoolClassRepositoryProvider).list(academicYearId: academicYearId);
+
+  return [
+    for (final schoolClass in classes)
+      for (final section in schoolClass.sections)
+        ClassSectionOption(
+          id: section.id,
+          label: '${schoolClass.name} ${section.name}',
+          classTeacherId: section.classTeacherId,
+        ),
+  ];
+});

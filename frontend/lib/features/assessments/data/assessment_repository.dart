@@ -21,6 +21,7 @@ class AssessmentRepository {
 
   Future<PaginatedResponse<Assessment>> listPage({
     int? schoolId,
+    int? academicYearId,
     int? academicTermId,
     int? classSectionId,
     int? subjectId,
@@ -38,6 +39,7 @@ class AssessmentRepository {
         dateFrom: dateFrom,
         dateTo: dateTo,
         schoolId: schoolId,
+        academicYearId: academicYearId,
         academicTermId: academicTermId,
         classSectionId: classSectionId,
         subjectId: subjectId,

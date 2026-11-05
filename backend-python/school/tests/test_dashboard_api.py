@@ -536,3 +536,40 @@ class Colours(DashboardTestCase):
         cache.clear()
 
         self.assertNotIn("student_attendance_today", self.rings(self.admin))
+
+
+class AnotherYear(DashboardTestCase):
+    """The top bar's year (decided 2026-11-05) moves only the Results card:
+    a past year's shows how that year ended; today's cards stay today's."""
+
+    def test_the_results_card_reads_the_last_term_of_a_past_year(self):
+        from school.dashboard import results_day
+
+        last = factories.AcademicYearFactory(
+            school=self.school, name="2025-26", start_date=dt.date(2025, 4, 1), end_date=dt.date(2026, 3, 31),
+            is_current=False,
+        )
+        today = dt.date(2026, 9, 14)
+
+        self.assertEqual(dt.date(2026, 3, 31), results_day(last, today))
+        self.assertEqual(today, results_day(None, today))
+        self.year.is_current = True
+        self.assertEqual(today, results_day(self.year, today))
+
+    def test_a_year_is_accepted_and_today_cards_stay(self):
+        last = factories.AcademicYearFactory(
+            school=self.school, name="2025-26", start_date=dt.date(2025, 4, 1), end_date=dt.date(2026, 3, 31),
+            is_current=False,
+        )
+
+        data = self.dashboard(self.admin, academic_year_id=last.id)
+
+        self.assertEqual(TODAY, data["as_of"])
+        self.assertIn("attendance", self.cards(data))
+
+    def test_another_schools_year_is_refused(self):
+        theirs = factories.AcademicYearFactory(school=factories.SchoolFactory())
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Bearer " + tokens.issue(self.admin))
+
+        self.assertEqual(422, client.get("/api/v1/dashboard", {"academic_year_id": theirs.id}).status_code)

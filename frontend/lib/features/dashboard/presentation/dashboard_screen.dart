@@ -15,6 +15,8 @@ import '../../analytics/presentation/widgets/early_warning_banner.dart';
 import '../../auth/data/models/authenticated_user.dart';
 import '../../setup_guide/application/setup_guide_notifier.dart';
 import '../../setup_guide/presentation/setup_guide_card.dart';
+import '../../academic_years/application/viewed_year.dart';
+import '../../auth/application/school_clock_provider.dart';
 import '../application/dashboard_notifier.dart';
 import '../data/models/dashboard.dart';
 import 'widgets/attendance_trend_chart.dart';
@@ -136,6 +138,7 @@ class _DashboardBody extends StatelessWidget {
         // school there is no single set of opening hours to be closed, and
         // saying "the school is closed" of all seven at once is nonsense.
         if (!dashboard.isWorkingDay && dashboard.schoolId != null) _ClosedBanner(dashboard: dashboard),
+        if (schoolId == null) const _YearNote(),
         EarlyWarningBanner(schoolId: schoolId),
         Wrap(spacing: 12, runSpacing: 12, children: [for (final card in dashboard.cards) _StatCard(card: card)]),
         if (dashboard.breakdowns.isNotEmpty) ...[
@@ -348,6 +351,39 @@ class _ReportsLink extends StatelessWidget {
         onPressed: () => context.go('/reports'),
         icon: const Icon(Icons.insights_outlined, size: 18),
         label: const Text('Open reports'),
+      ),
+    );
+  }
+}
+
+/// Says which year the dashboard is showing when it is not the current one
+/// (decided 2026-11-05): its trends and results are that year's, while the
+/// day's own figures - attendance, trips, fees due - are always today's.
+class _YearNote extends ConsumerWidget {
+  const _YearNote();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authNotifierProvider).value;
+    if (user == null || user.picksSchool) return const SizedBox.shrink();
+
+    final year = ref.watch(viewedYearProvider).value;
+    final period = yearPeriod(year, ref.watch(schoolClockProvider).today);
+    if (year == null || period == null) return const SizedBox.shrink();
+
+    final colours = context.appColors;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        key: const Key('dashboard-year-note'),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(color: colours.warningContainer, borderRadius: BorderRadius.circular(10)),
+        child: Text(
+          'Showing ${year.name}: trends and results are for that year. '
+          "Today's attendance, trips and fees are always today's.",
+          style: TextStyle(color: colours.onWarningContainer, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }

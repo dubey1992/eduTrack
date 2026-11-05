@@ -66,7 +66,7 @@ from .services import DailyTeachingReportService, HolidayService, TimetableServi
 
 class DashboardService:
     @classmethod
-    def for_user(cls, actor: User, school_filter) -> dict:
+    def for_user(cls, actor: User, school_filter, year=None) -> dict:
         school_id = cls._school_id_for(actor, school_filter)
         clock = SchoolClock.platform() if school_id is None else SchoolClock.for_school(school_id)
         today = clock.now().date()
@@ -74,14 +74,18 @@ class DashboardService:
         role = actor.role
 
         if role == UserRole.SUPER_ADMIN:
-            payload = cls._platform() if school_id is None else cls._school(school_id, today)
+            payload = cls._platform() if school_id is None else cls._school(school_id, today, results_day(year, today))
         elif role in (UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN):
             # A branch they named, or the group as a whole. An admin of a
             # standalone school never reaches the group arm: their scope is one
             # school, so it has already been resolved for them.
-            payload = cls._group(actor, today) if school_id is None else cls._school(school_id, today)
+            payload = (
+                cls._group(actor, today)
+                if school_id is None
+                else cls._school(school_id, today, results_day(year, today))
+            )
         elif role == UserRole.HOD:
-            payload = cls._hod(actor, today)
+            payload = cls._hod(actor, today, results_day(year, today))
         elif role == UserRole.TEACHER:
             payload = cls._teacher(actor, today)
         elif role == UserRole.TRANSPORT_MANAGER:
@@ -188,7 +192,7 @@ class DashboardService:
         }
 
     @classmethod
-    def _school(cls, school_id: int, today: dt.date) -> dict:
+    def _school(cls, school_id: int, today: dt.date, results_on: dt.date | None = None) -> dict:
         students = Student.objects.filter(school_id=school_id, status=StudentStatus.ACTIVE).count()
         staff = StaffProfile.objects.filter(school_id=school_id).count()
         rate = school_attendance_rate(school_id, today)
@@ -201,14 +205,14 @@ class DashboardService:
                 card("staff", "Teachers & staff", str(staff), "on the payroll"),
                 attendance_card(rate),
                 card("transport", "Trips today", str(trips_today), f"{routes} active routes"),
-                performance_card(term_summary(school_id, today)),
+                performance_card(term_summary(school_id, results_on or today)),
             ],
             "attendance_trend": attendance_trend(school_id, today),
             "attention": school_attention(school_id, today),
         }
 
     @classmethod
-    def _hod(cls, actor: User, today: dt.date) -> dict:
+    def _hod(cls, actor: User, today: dt.date, results_on: dt.date | None = None) -> dict:
         school_id = actor.school_id
         department_ids = list(
             Department.objects.filter(school_id=school_id, hod_user_id=actor.id).values_list("id", flat=True)
@@ -230,7 +234,7 @@ class DashboardService:
                     "warning" if pending_reviews > 0 else "ok",
                 ),
                 # Their own departments' results, not the school's.
-                performance_card(term_summary(school_id, today, department_ids)),
+                performance_card(term_summary(school_id, results_on or today, department_ids)),
             ],
             "attendance_trend": attendance_trend(school_id, today),
             "attention": (
@@ -646,6 +650,16 @@ def fee_collection_breakdown(school_id: int, today: dt.date) -> dict | None:
             segment("outstanding", "Still owed", outstanding, money.formatted(outstanding, currency)),
         ],
     )
+
+
+def results_day(year, today: dt.date) -> dt.date:
+    """The day whose term the Results card reads (decided 2026-11-05): a
+    past year's last day, so the card shows how that year ended; today
+    otherwise. Today's own cards always read today."""
+    if year is None or year.is_current or year.start_date > today:
+        return today
+
+    return min(year.end_date, today)
 
 
 def performance_card(summary: dict) -> dict:

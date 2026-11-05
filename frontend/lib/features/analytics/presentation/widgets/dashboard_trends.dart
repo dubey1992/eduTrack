@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../academic_years/application/viewed_year.dart';
 import '../../../../core/theme/chart_palette.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/routing/app_nav.dart';
@@ -81,10 +82,16 @@ class DashboardTrends extends ConsumerWidget {
     final schoolName = schools?.where((school) => school.id == schoolId).firstOrNull?.name;
 
     final today = ref.watch(schoolClockProvider).today;
-    final from = DateTime(today.year, today.month - (months - 1));
+    // Another year in the top bar (decided 2026-11-05): its months, not the
+    // last six.
+    final year = this.schoolId == null && !user.picksSchool ? ref.watch(viewedYearProvider).value : null;
+    final period = yearPeriod(year, today);
+    final from = period?.from ?? DateTime(today.year, today.month - (months - 1));
+    final to = period?.to ?? today;
 
     return _Section(
       schoolName: schoolName,
+      yearName: period == null ? null : year?.name,
       child: Wrap(
         spacing: 12,
         runSpacing: 12,
@@ -97,7 +104,7 @@ class DashboardTrends extends ConsumerWidget {
                 measure: measure.key,
                 schoolId: schoolId,
                 from: DateFormat('yyyy-MM-dd').format(from),
-                to: DateFormat('yyyy-MM-dd').format(today),
+                to: DateFormat('yyyy-MM-dd').format(to),
               ),
             ),
         ],
@@ -107,12 +114,15 @@ class DashboardTrends extends ConsumerWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.child, this.schoolName});
+  const _Section({required this.child, this.schoolName, this.yearName});
 
   final Widget child;
 
   /// Said when the trends are one school's under a dashboard showing more.
   final String? schoolName;
+
+  /// A year other than the current one, whose months the trends cover.
+  final String? yearName;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +133,8 @@ class _Section extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                schoolName == null ? 'Trends, last 6 months' : 'Trends, last 6 months - $schoolName',
+                [yearName == null ? 'Trends, last 6 months' : 'Trends, $yearName', ?schoolName].join(' - '),
+                key: const Key('trends-title'),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),

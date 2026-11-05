@@ -7,6 +7,8 @@ import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../academic_years/application/viewed_year.dart';
+import '../../academic_years/data/models/academic_year.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../auth/application/school_clock_provider.dart';
 import '../../classes/application/class_section_picker_provider.dart';
@@ -37,16 +39,34 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   /// is first mounted.
   DateTime? _pickedDate;
 
-  DateTime get _date => _pickedDate ?? ref.read(schoolClockProvider).today;
+  DateTime get _date => _pickedDate ?? _lastDay;
 
   String get _formattedDate => DateFormat('yyyy-MM-dd').format(_date);
+
+  /// The top bar's year (decided 2026-11-05), for somebody who has one. A
+  /// Super Admin picking a school sees that school's current year.
+  AcademicYear? get _year => _schoolId == null ? ref.read(viewedYearProvider).value : null;
+
+  /// The latest day a register can be read: today, or the last day of a
+  /// year that has ended.
+  DateTime get _lastDay {
+    final today = ref.read(schoolClockProvider).today;
+    final year = _year;
+    return year != null && year.endDate.isBefore(today) ? year.endDate : today;
+  }
+
+  /// A year that has not begun has no register to read yet.
+  bool get _yearNotBegun {
+    final year = _year;
+    return year != null && year.startDate.isAfter(ref.read(schoolClockProvider).today);
+  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime(2020),
-      lastDate: ref.read(schoolClockProvider).today,
+      firstDate: _year?.startDate ?? DateTime(2020),
+      lastDate: _lastDay,
     );
     if (picked != null) setState(() => _pickedDate = picked);
   }
@@ -55,6 +75,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   Widget build(BuildContext context) {
     final actor = ref.watch(authNotifierProvider).value;
     final picksSchool = actor?.picksSchool ?? false;
+    ref.watch(viewedYearProvider);
+    // Another year: its own sections and days, nothing carried over.
+    ref.listen(viewedYearIdProvider, (previous, next) {
+      setState(() {
+        _pickedDate = null;
+        _classSectionId = null;
+      });
+    });
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -93,12 +121,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       width: 240,
                       child: _ClassSectionPicker(
                         schoolId: _schoolId,
+                        year: _year,
                         selected: _classSectionId,
                         onChanged: (value) => setState(() => _classSectionId = value),
                       ),
                     ),
                   OutlinedButton.icon(
-                    onPressed: _pickDate,
+                    key: const Key('attendance-date'),
+                    onPressed: _yearNotBegun ? null : _pickDate,
                     icon: const Icon(Icons.calendar_today_outlined, size: 18),
                     label: Text(formatDate(_date)),
                   ),
@@ -107,7 +137,15 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          if (_classSectionId != null)
+          if (_yearNotBegun)
+            Card(
+              key: const Key('attendance-year-not-begun'),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('${_year?.name} has not begun yet, so it has no attendance to show.'),
+              ),
+            )
+          else if (_classSectionId != null)
             _RegisterView(
               key: ValueKey('$_classSectionId-$_formattedDate'),
               params: AttendanceRegisterParams(classSectionId: _classSectionId!, date: _formattedDate),
@@ -119,9 +157,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 }
 
 class _ClassSectionPicker extends ConsumerWidget {
-  const _ClassSectionPicker({required this.schoolId, required this.selected, required this.onChanged});
+  const _ClassSectionPicker({required this.schoolId, required this.selected, required this.onChanged, this.year});
 
   final int? schoolId;
+
+  /// A year other than the current one lists that year's sections.
+  final AcademicYear? year;
   final int? selected;
   final ValueChanged<int?> onChanged;
 
@@ -129,7 +170,10 @@ class _ClassSectionPicker extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(authNotifierProvider).value?.role;
     final userId = ref.watch(authNotifierProvider).value?.id;
-    final optionsState = ref.watch(classSectionPickerProvider(schoolId));
+    final other = year != null && !year!.isCurrent;
+    final optionsState = other
+        ? ref.watch(classSectionsOfYearProvider(year!.id))
+        : ref.watch(classSectionPickerProvider(schoolId));
 
     return AsyncValueView<List<ClassSectionOption>>(
       value: optionsState,

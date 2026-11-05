@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/paged_list.dart';
+import '../../academic_years/application/viewed_year.dart';
 import '../data/assessment_repository.dart';
 import '../data/models/assessment.dart';
 
@@ -25,13 +26,24 @@ class AssessmentListNotifier extends AsyncNotifier<PagedList<Assessment>> {
   int _perPage = 20;
 
   @override
-  Future<PagedList<Assessment>> build() => _fetch();
+  Future<PagedList<Assessment>> build() {
+    // The top bar's year (decided 2026-11-05). A term or section picked in
+    // one year is none of another's, so a new year starts afresh.
+    ref.listen(viewedYearIdProvider, (previous, next) {
+      _page = 1;
+      _termId = null;
+      _sectionId = null;
+    });
+    ref.watch(viewedYearIdProvider);
+    return _fetch();
+  }
 
   Future<PagedList<Assessment>> _fetch() async {
     final response = await ref
         .read(assessmentRepositoryProvider)
         .listPage(
           schoolId: _schoolId,
+          academicYearId: _schoolId == null ? ref.read(viewedYearIdProvider) : null,
           academicTermId: _termId,
           classSectionId: _sectionId,
           subjectId: _subjectId,

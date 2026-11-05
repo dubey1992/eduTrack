@@ -72,9 +72,13 @@ class FakeAssessmentRepository implements AssessmentRepository {
     if (failure != null) throw failure;
   }
 
+  /// The academic year each listPage() asked for (the top bar's).
+  final List<int?> yearFilters = [];
+
   @override
   Future<PaginatedResponse<Assessment>> listPage({
     int? schoolId,
+    int? academicYearId,
     int? academicTermId,
     int? classSectionId,
     int? subjectId,
@@ -87,6 +91,7 @@ class FakeAssessmentRepository implements AssessmentRepository {
     required int perPage,
   }) async {
     _enter('listPage');
+    yearFilters.add(academicYearId);
     lastMine = mine;
     lastRange = (dateFrom, dateTo);
     lastSectionFilter = classSectionId;

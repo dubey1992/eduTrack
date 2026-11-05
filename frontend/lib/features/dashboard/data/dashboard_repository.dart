@@ -14,9 +14,9 @@ class DashboardRepository {
 
   final DashboardApi _api;
 
-  Future<Dashboard> fetch({int? schoolId}) async {
+  Future<Dashboard> fetch({int? schoolId, int? academicYearId}) async {
     try {
-      return await _api.fetch(schoolId: schoolId);
+      return await _api.fetch(schoolId: schoolId, academicYearId: academicYearId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

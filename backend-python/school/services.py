@@ -5950,6 +5950,9 @@ class AssessmentService:
             if filters.get(field):
                 found = found.filter(**{field: filters[field]})
 
+        if filters.get("year") is not None:
+            found = found.filter(academic_term__academic_year_id=filters["year"].id)
+
         if filters.get("date_from"):
             found = found.filter(assessment_date__gte=filters["date_from"])
 

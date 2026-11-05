@@ -14,7 +14,7 @@ class _SlowDashboardRepository extends FakeDashboardRepository {
   Completer<Dashboard>? pending;
 
   @override
-  Future<Dashboard> fetch({int? schoolId}) {
+  Future<Dashboard> fetch({int? schoolId, int? academicYearId}) {
     lastSchoolId = schoolId;
     pending = Completer<Dashboard>();
 

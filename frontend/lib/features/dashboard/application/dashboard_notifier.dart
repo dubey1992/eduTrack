@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../academic_years/application/viewed_year.dart';
 import '../data/dashboard_repository.dart';
 import '../data/models/dashboard.dart';
 
@@ -13,9 +14,15 @@ class DashboardNotifier extends AsyncNotifier<Dashboard> {
   int? get schoolId => _schoolId;
 
   @override
-  Future<Dashboard> build() => _fetch();
+  Future<Dashboard> build() {
+    // The top bar's year (decided 2026-11-05) moves the Results card.
+    ref.watch(viewedYearIdProvider);
+    return _fetch();
+  }
 
-  Future<Dashboard> _fetch() => ref.read(dashboardRepositoryProvider).fetch(schoolId: _schoolId);
+  Future<Dashboard> _fetch() => ref
+      .read(dashboardRepositoryProvider)
+      .fetch(schoolId: _schoolId, academicYearId: _schoolId == null ? ref.read(viewedYearIdProvider) : null);
 
   /// Re-reads the figures.
   ///

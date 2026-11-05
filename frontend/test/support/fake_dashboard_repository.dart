@@ -9,15 +9,17 @@ class FakeDashboardRepository implements DashboardRepository {
   Failure? failWith;
   int fetchCalls = 0;
   int? lastSchoolId;
+  int? lastYearId;
 
   set dashboard(Dashboard value) => _dashboard = value;
 
   @override
-  Future<Dashboard> fetch({int? schoolId}) async {
+  Future<Dashboard> fetch({int? schoolId, int? academicYearId}) async {
     if (failWith != null) throw failWith!;
 
     fetchCalls++;
     lastSchoolId = schoolId;
+    lastYearId = academicYearId;
 
     return _dashboard;
   }

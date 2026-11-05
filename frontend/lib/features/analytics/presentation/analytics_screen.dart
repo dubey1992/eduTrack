@@ -12,6 +12,7 @@ import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
+import '../../academic_years/application/viewed_year.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../auth/application/school_clock_provider.dart';
 import '../application/analytics_notifier.dart';
@@ -85,8 +86,15 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     }
   }
 
+  /// The top bar's year when it is not the current one (decided
+  /// 2026-11-05): the charts cover the whole of it until a period is picked.
+  ({DateTime from, DateTime to})? get _yearPeriod =>
+      _schoolId == null ? yearPeriod(ref.read(viewedYearProvider).value, ref.read(schoolClockProvider).today) : null;
+
   String get _rangeLabel {
     if (_from == null || _to == null) {
+      final year = _yearPeriod;
+      if (year != null) return 'Whole of ${ref.read(viewedYearProvider).value?.name}';
       return _interval == AnalyticsInterval.week ? 'Last 12 weeks' : 'Last 12 months';
     }
 
@@ -95,6 +103,13 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(viewedYearProvider);
+    ref.listen(viewedYearIdProvider, (previous, next) {
+      setState(() {
+        _from = null;
+        _to = null;
+      });
+    });
     final actor = ref.watch(authNotifierProvider).value;
     // Someone who spans schools charts one at a time (A1): the whole group
     // is not a figure the server gives yet.
@@ -270,8 +285,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                           measure: measure.key,
                           interval: _interval,
                           schoolId: _schoolId,
-                          from: _from == null ? null : _iso(_from!),
-                          to: _to == null ? null : _iso(_to!),
+                          from: (_from ?? _yearPeriod?.from) == null ? null : _iso((_from ?? _yearPeriod?.from)!),
+                          to: (_to ?? _yearPeriod?.to) == null ? null : _iso((_to ?? _yearPeriod?.to)!),
                         ),
                       ),
                   ],

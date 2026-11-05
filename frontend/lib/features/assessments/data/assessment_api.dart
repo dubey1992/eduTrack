@@ -19,6 +19,7 @@ class AssessmentApi {
 
   Future<PaginatedResponse<Assessment>> list({
     int? schoolId,
+    int? academicYearId,
     int? academicTermId,
     int? classSectionId,
     int? subjectId,
@@ -34,6 +35,7 @@ class AssessmentApi {
       '/assessments',
       queryParameters: {
         'school_id': ?schoolId,
+        'academic_year_id': ?academicYearId,
         'academic_term_id': ?academicTermId,
         'class_section_id': ?classSectionId,
         'subject_id': ?subjectId,

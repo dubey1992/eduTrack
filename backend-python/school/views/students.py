@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -23,12 +23,10 @@ from ..models import AcademicYear, ClassSection, Student, StudentEnrollment
 from ..pagination import LaravelPagination
 from ..performance import for_student as performance_of
 from ..policies import StudentPolicy, authorize, permitted
-from ..requests import php_int
 from ..requests import StoreStudentRequest, StudentPerformanceRequest, StudentRemarkRequest, UpdateStudentRequest
 from ..resources import student_enrollment_resource, student_resource
-from ..scope import SchoolScope
 from ..services import StudentEnrollmentService, StudentService, TermRemarkService
-from ..validation import selected_is_invalid
+from ..years import year_in_view
 from ..throttling import SendDocumentThrottle
 
 # What a student is rendered with - the same list Laravel's StudentController
@@ -71,20 +69,6 @@ def index(request) -> Response:
         as_then(rows, year)
 
     return paginator.get_paginated_response(rows)
-
-
-def year_in_view(request) -> AcademicYear | None:
-    """The `academic_year_id` asked for, which must be a year of a school
-    the actor answers for - another school's is refused, not ignored."""
-    raw = request.query_params.get("academic_year_id")
-    if raw in (None, ""):
-        return None
-
-    year = AcademicYear.objects.filter(pk=php_int(raw)).first()
-    if year is None or not SchoolScope.for_actor(request.user).allows(year.school_id):
-        raise serializers.ValidationError({"academic_year_id": [selected_is_invalid("academic_year_id")]})
-
-    return year
 
 
 def as_then(rows: list[dict], year: AcademicYear) -> None:

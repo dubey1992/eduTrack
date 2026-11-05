@@ -25,6 +25,7 @@ from .. import csv_export, dates
 from ..imports import marks as marks_import
 from ..models import Assessment, Student
 from ..pagination import LaravelPagination
+from ..years import year_in_view
 from ..policies import AssessmentPolicy, authorize
 from ..requests import SaveMarksRequest, StoreAssessmentRequest, UpdateAssessmentRequest
 from ..resources import assessment_resource, assessment_sheet_resource
@@ -57,6 +58,8 @@ def index(request) -> Response:
             "mine": request.query_params.get("mine") in ("1", "true"),
             "date_from": dates.iso_or_none(request.query_params.get("date_from")),
             "date_to": dates.iso_or_none(request.query_params.get("date_to")),
+            # The top bar's year: tests set in any of its terms.
+            "year": year_in_view(request),
         },
     )
 

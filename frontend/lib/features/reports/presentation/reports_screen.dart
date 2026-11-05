@@ -11,6 +11,7 @@ import '../../../core/utils/file_saver.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
+import '../../academic_years/application/viewed_year.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../auth/application/school_clock_provider.dart';
 import '../application/report_notifier.dart';
@@ -88,11 +89,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   String _iso(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
+  String? _iso2(DateTime? date) => date == null ? null : _iso(date);
+
+  /// The top bar's year when it is not the current one (decided
+  /// 2026-11-05): the report covers the whole of it until a period is picked.
+  ({DateTime from, DateTime to})? get _yearPeriod =>
+      _schoolId == null ? yearPeriod(ref.read(viewedYearProvider).value, ref.read(schoolClockProvider).today) : null;
+
   ReportQuery get _query => ReportQuery(
     kind: _kind,
     schoolId: _schoolId,
-    from: _from == null ? null : _iso(_from!),
-    to: _to == null ? null : _iso(_to!),
+    from: _iso2(_from ?? _yearPeriod?.from),
+    to: _iso2(_to ?? _yearPeriod?.to),
     compare: _compare,
     // Only the student report narrows to chronic absentees.
     below: _takesBelow ? _below : null,
@@ -158,6 +166,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(viewedYearProvider);
+    // Another year: its own period, not one picked for the last.
+    ref.listen(viewedYearIdProvider, (previous, next) {
+      setState(() {
+        _from = null;
+        _to = null;
+      });
+    });
     final actor = ref.watch(authNotifierProvider).value;
     final role = actor?.role;
     // The fee reports only where the school uses Fee Management and this
@@ -203,7 +219,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     onPressed: _pickRange,
                     icon: const Icon(Icons.date_range, size: 18),
                     label: Text(
-                      _from == null || _to == null ? 'This month' : '${formatDate(_from!)} - ${formatDate(_to!)}',
+                      _from != null && _to != null
+                          ? '${formatDate(_from!)} - ${formatDate(_to!)}'
+                          : _yearPeriod != null
+                          ? 'Whole of ${ref.read(viewedYearProvider).value?.name}'
+                          : 'This month',
+                      key: const Key('report-period'),
                     ),
                   ),
                   for (final format in ExportFormat.values)
