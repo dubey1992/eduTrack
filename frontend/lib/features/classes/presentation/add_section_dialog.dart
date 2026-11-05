@@ -8,6 +8,7 @@ import '../../users/application/teacher_picker_provider.dart';
 import '../../users/data/models/app_user.dart';
 import '../application/school_class_list_notifier.dart';
 import '../data/models/school_class.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 class AddSectionDialog extends ConsumerStatefulWidget {
   const AddSectionDialog({super.key, required this.schoolClass});
@@ -133,7 +134,7 @@ class _ClassTeacherPicker extends ConsumerWidget {
     return AsyncValueView<List<AppUser>>(
       value: teachersState,
       data: (context, teachers) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           decoration: const InputDecoration(labelText: 'Class teacher (optional)'),
           items: [

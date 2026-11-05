@@ -16,6 +16,7 @@ import '../application/message_page_notifier.dart';
 import '../application/template_notifier.dart';
 import '../data/models/message.dart';
 import '../../../core/widgets/dialog_message.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// How long the form waits after the last change before counting the
 /// audience again, so typing a name does not fire a request per keystroke.
@@ -611,7 +612,7 @@ class _ClassSectionPicker extends ConsumerWidget {
     final state = ref.watch(classSectionPickerProvider(schoolId));
     final options = state.value ?? const <ClassSectionOption>[];
 
-    return DropdownButtonFormField<int>(
+    return SearchableDropdown<int>(
       key: ValueKey('notice-class-${options.length}'),
       initialValue: options.any((o) => o.id == selected) ? selected : null,
       isExpanded: true,
@@ -641,7 +642,7 @@ class _DepartmentPicker extends ConsumerWidget {
     final state = ref.watch(departmentPickerProvider(schoolId));
     final departments = state.value ?? [];
 
-    return DropdownButtonFormField<int>(
+    return SearchableDropdown<int>(
       key: ValueKey('notice-department-${departments.length}'),
       initialValue: departments.any((d) => d.id == selected) ? selected : null,
       isExpanded: true,

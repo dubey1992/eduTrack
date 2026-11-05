@@ -10,6 +10,7 @@ import '../application/student_list_notifier.dart';
 import '../data/models/student.dart';
 import 'widgets/student_transport_picker.dart';
 import 'widgets/admission_date_field.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 class EditStudentDialog extends ConsumerStatefulWidget {
   const EditStudentDialog({super.key, required this.student});
@@ -212,7 +213,7 @@ class _ClassSectionPicker extends ConsumerWidget {
     return AsyncValueView<List<ClassSectionOption>>(
       value: optionsState,
       data: (context, options) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Class'),

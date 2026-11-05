@@ -19,6 +19,7 @@ import 'widgets/manage_periods_dialog.dart';
 import '../../../core/widgets/school_picker.dart';
 import '../../schools/application/school_week_provider.dart';
 import '../../schools/data/models/working_week.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// Phase 10 - a class section's weekly (Mon-Fri x period) subject/teacher
 /// grid, matching the prototype's "Timetable & Period Management" screen.
@@ -137,7 +138,7 @@ class _ClassSectionPicker extends ConsumerWidget {
     return AsyncValueView<List<ClassSectionOption>>(
       value: optionsState,
       data: (context, options) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: options.any((o) => o.id == selected) ? selected : null,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Class'),

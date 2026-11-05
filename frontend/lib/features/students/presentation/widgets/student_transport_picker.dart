@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../transport/application/transport_pickers.dart';
 import '../../../transport/data/models/transport_route.dart';
+import '../../../../core/widgets/searchable_dropdown.dart';
 
 /// The prototype's "No Transport / Bus 04 - Green Park" pick on the
 /// student form, followed by that route's stop once a route is chosen.
@@ -86,7 +87,7 @@ class _StopPicker extends ConsumerWidget {
         ? 'Loading stops…'
         : (stopsState.hasValue && stops.isEmpty ? 'This route has no stops yet - add stops first.' : null);
 
-    return DropdownButtonFormField<int>(
+    return SearchableDropdown<int>(
       key: ValueKey('stops-$routeId-${stops.length}'),
       initialValue: stops.any((s) => s.id == selected) ? selected : null,
       isExpanded: true,

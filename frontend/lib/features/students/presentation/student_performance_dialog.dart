@@ -11,6 +11,7 @@ import '../application/student_performance_notifier.dart';
 import '../data/models/student.dart';
 import '../data/student_repository.dart';
 import '../data/models/student_performance.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// What one student's marks add up to (docs/assessments.md).
 ///
@@ -358,7 +359,7 @@ class _TermBar extends ConsumerWidget {
         if (performance.terms.isNotEmpty)
           SizedBox(
             width: 220,
-            child: DropdownButtonFormField<int>(
+            child: SearchableDropdown<int>(
               key: const Key('performance-term'),
               initialValue: performance.term?.id,
               isExpanded: true,

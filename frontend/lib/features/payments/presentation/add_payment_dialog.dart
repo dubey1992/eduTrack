@@ -13,6 +13,7 @@ import '../data/models/payment.dart';
 import 'widgets/payment_services_field.dart';
 import 'widgets/remaining_line.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 class AddPaymentDialog extends ConsumerStatefulWidget {
   const AddPaymentDialog({super.key});
@@ -146,7 +147,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                   value: schoolsState,
                   data: (context, schools) {
                     final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
-                    return DropdownButtonFormField<int>(
+                    return SearchableDropdown<int>(
                       initialValue: _schoolId,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'School'),

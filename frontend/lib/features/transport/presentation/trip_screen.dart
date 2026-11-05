@@ -20,6 +20,7 @@ import '../data/models/transport_trip.dart';
 import 'widgets/trip_detail_view.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/dialog_message.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// Phase 15 - the prototype's "School Transport" page: pick a route, start
 /// today's pickup/drop trip, mark stops reached and students boarded /
@@ -136,7 +137,7 @@ class _RoutePicker extends ConsumerWidget {
     final routesState = ref.watch(routePickerProvider(schoolId));
     final routes = routesState.value ?? const <TransportRoute>[];
 
-    return DropdownButtonFormField<int>(
+    return SearchableDropdown<int>(
       key: ValueKey('trip-route-${routes.length}'),
       initialValue: routes.any((r) => r.id == selected) ? selected : null,
       isExpanded: true,

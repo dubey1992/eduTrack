@@ -6,6 +6,7 @@ import '../../features/schools/application/school_list_notifier.dart';
 import '../../features/schools/data/models/school.dart';
 import '../models/user_role.dart';
 import 'async_value_view.dart';
+import 'searchable_dropdown.dart';
 
 /// "Which school does this record belong to?", for the forms and filters that
 /// have to ask.
@@ -39,7 +40,7 @@ class SchoolPicker extends ConsumerWidget {
       data: (context, schools) {
         final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
 
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           isExpanded: true,
           decoration: InputDecoration(labelText: label),

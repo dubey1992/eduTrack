@@ -8,6 +8,7 @@ import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/horizontal_scroll_table.dart';
 import '../../application/analytics_notifier.dart';
 import '../../data/models/academic_overview.dart';
+import '../../../../core/widgets/searchable_dropdown.dart';
 
 /// "Subjects & classes" on the Analytics page (docs/analytics.md, A4): each
 /// subject and each class, term by term through one year, and every class's
@@ -105,7 +106,7 @@ class _Header extends StatelessWidget {
         if (overview.years.isNotEmpty)
           SizedBox(
             width: 240,
-            child: DropdownButtonFormField<int>(
+            child: SearchableDropdown<int>(
               initialValue: overview.yearId,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Academic year', isDense: true),

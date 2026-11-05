@@ -12,6 +12,7 @@ import '../../departments/application/department_picker_provider.dart';
 import '../application/announcement_page_notifier.dart';
 import '../data/models/announcement.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// The prototype's "New Announcement" modal: audience, channel, title and
 /// message, plus an optional expiry and a live count of who it reaches.
@@ -336,7 +337,7 @@ class _ClassPicker extends ConsumerWidget {
     final state = ref.watch(classSectionPickerProvider(schoolId));
     final options = state.value ?? const <ClassSectionOption>[];
 
-    return DropdownButtonFormField<int>(
+    return SearchableDropdown<int>(
       key: ValueKey('announcement-class-${options.length}'),
       initialValue: options.any((o) => o.id == selected) ? selected : null,
       isExpanded: true,
@@ -370,7 +371,7 @@ class _DepartmentPicker extends ConsumerWidget {
         ? all
         : all.where((department) => department.hodUserId == onlyHeadedBy).toList();
 
-    return DropdownButtonFormField<int>(
+    return SearchableDropdown<int>(
       key: ValueKey('announcement-department-${departments.length}'),
       initialValue: departments.any((d) => d.id == selected) ? selected : null,
       isExpanded: true,

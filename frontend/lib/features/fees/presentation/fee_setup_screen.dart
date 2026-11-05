@@ -13,6 +13,7 @@ import '../../academic_years/data/models/academic_year.dart';
 import '../../auth/application/auth_notifier.dart';
 import 'widgets/fee_heads_tab.dart';
 import 'widgets/fee_structures_tab.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// Fee Setup (docs/fees.md, F1): the kinds of fee a school charges, and
 /// what each class and each bus route pays for an academic year, split into
@@ -90,7 +91,7 @@ class _FeeSetupScreenState extends ConsumerState<FeeSetupScreen> {
 
         return SizedBox(
           width: 200,
-          child: DropdownButtonFormField<int>(
+          child: SearchableDropdown<int>(
             // A new school is a new list of years; start it afresh.
             key: ValueKey(_schoolId),
             initialValue: selected.id,

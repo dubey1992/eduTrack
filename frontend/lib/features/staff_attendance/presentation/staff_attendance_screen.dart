@@ -23,6 +23,7 @@ import '../data/models/staff_attendance_register.dart';
 import '../data/models/staff_attendance_status.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/school_picker.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// Mark or edit a school's daily staff attendance register - Phase 8,
 /// reusing the existing school/department pickers from Super Admin (Phase 2)
@@ -260,7 +261,7 @@ class _DepartmentPicker extends ConsumerWidget {
     return AsyncValueView<List<Department>>(
       value: departmentsState,
       data: (context, departments) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: departments.any((d) => d.id == selected) ? selected : null,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Department'),

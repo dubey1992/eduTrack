@@ -11,6 +11,7 @@ import '../../users/data/models/app_user.dart';
 import '../../classes/presentation/class_level_field.dart';
 import '../application/subject_list_notifier.dart';
 import '../data/models/subject.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 class EditSubjectDialog extends ConsumerStatefulWidget {
   const EditSubjectDialog({super.key, required this.subject});
@@ -186,7 +187,7 @@ class _DepartmentPicker extends ConsumerWidget {
     return AsyncValueView<List<Department>>(
       value: departmentsState,
       data: (context, departments) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Department'),
@@ -215,7 +216,7 @@ class _LeadTeacherPicker extends ConsumerWidget {
     return AsyncValueView<List<AppUser>>(
       value: teachersState,
       data: (context, teachers) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Lead teacher (optional)'),

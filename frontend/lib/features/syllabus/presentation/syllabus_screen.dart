@@ -17,6 +17,7 @@ import '../data/syllabus_topic_repository.dart';
 import 'widgets/add_topic_dialog.dart';
 import 'widgets/edit_topic_dialog.dart';
 import '../../../core/widgets/school_picker.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// Phase 12 - a subject's curriculum outline (ordered topics) plus one
 /// class section's completion checklist against it. Outline management
@@ -133,7 +134,7 @@ class _SubjectPicker extends ConsumerWidget {
     return AsyncValueView<List<Subject>>(
       value: subjectsState,
       data: (context, subjects) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: subjects.any((s) => s.id == selected) ? selected : null,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Subject'),
@@ -165,7 +166,7 @@ class _ClassSectionPicker extends ConsumerWidget {
     return AsyncValueView<List<ClassSectionOption>>(
       value: optionsState,
       data: (context, options) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: options.any((o) => o.id == selected) ? selected : null,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Class'),

@@ -8,6 +8,7 @@ import '../../users/application/teacher_picker_provider.dart';
 import '../../users/data/models/app_user.dart';
 import '../application/department_list_notifier.dart';
 import '../data/models/department.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 class EditDepartmentDialog extends ConsumerStatefulWidget {
   const EditDepartmentDialog({super.key, required this.department});
@@ -119,7 +120,7 @@ class _HodPicker extends ConsumerWidget {
     return AsyncValueView<List<AppUser>>(
       value: teachersState,
       data: (context, teachers) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'HOD (optional)'),

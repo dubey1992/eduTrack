@@ -13,6 +13,7 @@ import '../../timetable/application/subject_picker_provider.dart';
 import '../application/assessment_list_notifier.dart';
 import '../data/models/assessment.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// Set a class test, or edit one (docs/assessments.md).
 ///
@@ -187,7 +188,7 @@ class _AssessmentDialogState extends ConsumerState<AssessmentDialog> {
                     ),
                   )
                 else ...[
-                  DropdownButtonFormField<int>(
+                  SearchableDropdown<int>(
                     initialValue: _sectionId,
                     isExpanded: true,
                     decoration: InputDecoration(labelText: 'Class', errorText: _serverError('class_section_id')),
@@ -198,7 +199,7 @@ class _AssessmentDialogState extends ConsumerState<AssessmentDialog> {
                     onChanged: (value) => setState(() => _sectionId = value),
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<int>(
+                  SearchableDropdown<int>(
                     initialValue: _subjectId,
                     isExpanded: true,
                     decoration: InputDecoration(labelText: 'Subject', errorText: _serverError('subject_id')),
@@ -210,7 +211,7 @@ class _AssessmentDialogState extends ConsumerState<AssessmentDialog> {
                   ),
                   const SizedBox(height: 10),
                 ],
-                DropdownButtonFormField<int>(
+                SearchableDropdown<int>(
                   initialValue: _termId,
                   isExpanded: true,
                   decoration: InputDecoration(labelText: 'Term', errorText: _serverError('academic_term_id')),

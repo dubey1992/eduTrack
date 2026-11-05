@@ -11,6 +11,7 @@ import '../data/models/staff_profile.dart';
 import 'attendant_sign_in_dialog.dart';
 import 'widgets/staff_email_text.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 class EditStaffProfileDialog extends ConsumerStatefulWidget {
   const EditStaffProfileDialog({super.key, required this.profile});
@@ -211,7 +212,7 @@ class _DepartmentPicker extends ConsumerWidget {
     return AsyncValueView<List<Department>>(
       value: departmentsState,
       data: (context, departments) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           decoration: const InputDecoration(labelText: 'Department (optional)'),
           items: [

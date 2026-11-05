@@ -21,6 +21,7 @@ import '../application/student_fees_providers.dart';
 import '../data/models/student_fees.dart';
 import '../data/money_text.dart';
 import 'widgets/student_statement_view.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// Student Fees (docs/fees.md, F2): what each student owes for a year, and
 /// each one's statement. The student being looked at is in the address
@@ -149,7 +150,7 @@ class _StudentFeesScreenState extends ConsumerState<StudentFeesScreen> {
             children: [
               SizedBox(
                 width: 180,
-                child: DropdownButtonFormField<int>(
+                child: SearchableDropdown<int>(
                   key: ValueKey('year-$_schoolId'),
                   initialValue: year.id,
                   isExpanded: true,

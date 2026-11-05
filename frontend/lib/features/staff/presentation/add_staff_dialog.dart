@@ -15,6 +15,7 @@ import '../../departments/data/models/department.dart';
 import '../application/staff_list_notifier.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/school_picker.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 const _staffRoles = [
   UserRole.teacher,
@@ -385,7 +386,7 @@ class _DepartmentPicker extends ConsumerWidget {
     return AsyncValueView<List<Department>>(
       value: departmentsState,
       data: (context, departments) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           decoration: const InputDecoration(labelText: 'Department (optional)'),
           items: [

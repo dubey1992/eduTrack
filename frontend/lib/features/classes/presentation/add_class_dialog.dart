@@ -11,6 +11,7 @@ import '../application/school_class_list_notifier.dart';
 import '../data/class_levels.dart';
 import 'class_level_field.dart';
 import '../../../core/widgets/school_picker.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 class AddClassDialog extends ConsumerStatefulWidget {
   const AddClassDialog({super.key});
@@ -158,7 +159,7 @@ class _AcademicYearPicker extends ConsumerWidget {
     return AsyncValueView<List<AcademicYear>>(
       value: yearsState,
       data: (context, years) {
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           decoration: const InputDecoration(labelText: 'Academic year'),
           items: [for (final year in years) DropdownMenuItem(value: year.id, child: Text(year.name))],

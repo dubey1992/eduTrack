@@ -15,6 +15,7 @@ import '../data/models/transport_route.dart';
 import 'widgets/route_map.dart';
 import 'widgets/submit_button.dart';
 import 'widgets/transport_list_scaffold.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// The ordered stops of one route - add, edit and delete, like the
 /// timetable's Manage Periods dialog. [canManage] is false for the
@@ -525,7 +526,7 @@ class _BusStopField extends ConsumerWidget {
           );
         }
 
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           key: const Key('bus-stop-field'),
           initialValue: selected,
           isExpanded: true,

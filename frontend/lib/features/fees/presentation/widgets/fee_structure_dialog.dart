@@ -12,6 +12,7 @@ import '../../data/models/fee_head.dart';
 import '../../data/models/fee_structure.dart';
 import '../../data/money_text.dart';
 import 'fee_structures_tab.dart';
+import '../../../../core/widgets/searchable_dropdown.dart';
 
 /// Adds a fee for one class or bus route, or changes [existing]. Returns the
 /// saved fee, or null if cancelled.
@@ -367,7 +368,7 @@ class _FeeStructureDialogState extends ConsumerState<_FeeStructureDialog> {
         if (head.isActive && !head.isTransport && !widget.takenHeadIds.contains(head.id)) head,
     ];
 
-    return DropdownButtonFormField<int>(
+    return SearchableDropdown<int>(
       initialValue: _headId,
       isExpanded: true,
       decoration: InputDecoration(

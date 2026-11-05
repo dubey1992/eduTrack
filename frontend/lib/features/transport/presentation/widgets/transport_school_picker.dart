@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../schools/application/school_list_notifier.dart';
 import '../../../schools/data/models/school.dart';
+import '../../../../core/widgets/searchable_dropdown.dart';
 
 /// The required "School" dropdown a SUPER_ADMIN gets on every transport
 /// form (a SCHOOL_ADMIN is scoped server-side and never sees it).
@@ -21,7 +22,7 @@ class TransportSchoolPicker extends ConsumerWidget {
       value: schoolsState,
       data: (context, schools) {
         final activeSchools = schools.where((s) => s.status == SchoolStatus.active);
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: selected,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'School'),

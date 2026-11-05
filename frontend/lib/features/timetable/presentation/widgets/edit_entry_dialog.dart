@@ -11,6 +11,7 @@ import '../../application/timetable_grid_notifier.dart';
 import '../../data/models/day_of_week.dart';
 import '../../data/models/timetable_entry.dart';
 import '../../../../core/widgets/brand_loader.dart';
+import '../../../../core/widgets/searchable_dropdown.dart';
 
 /// Assigns (or clears) the subject/teacher for one class section's single
 /// day+period cell - the prototype's "Edit Timetable" interaction, done one
@@ -183,7 +184,7 @@ class _EditEntryDialogState extends ConsumerState<EditEntryDialog> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DropdownButtonFormField<int>(
+        SearchableDropdown<int>(
           initialValue: subjects.any((s) => s.id == _subjectId) ? _subjectId : null,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Subject'),
@@ -192,7 +193,7 @@ class _EditEntryDialogState extends ConsumerState<EditEntryDialog> {
           validator: (v) => v == null ? 'Subject is required' : null,
         ),
         const SizedBox(height: 10),
-        DropdownButtonFormField<int>(
+        SearchableDropdown<int>(
           initialValue: teachers.any((t) => t.id == _teacherId) ? _teacherId : null,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Teacher'),

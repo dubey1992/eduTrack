@@ -17,6 +17,7 @@ import '../data/models/attendance_register.dart';
 import '../data/models/attendance_status.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/school_picker.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// Mark or edit a class's daily attendance register - the Teacher/Admin
 /// workflow behind CLAUDE.md's Phase 7 (Student Attendance), reusing the
@@ -183,7 +184,7 @@ class _ClassSectionPicker extends ConsumerWidget {
         // rather than standing up a parallel "my sections" endpoint.
         final visible = role == UserRole.teacher ? options.where((o) => o.classTeacherId == userId).toList() : options;
 
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           initialValue: visible.any((o) => o.id == selected) ? selected : null,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Class'),

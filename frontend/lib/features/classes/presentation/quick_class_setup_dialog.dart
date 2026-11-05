@@ -10,6 +10,7 @@ import '../../academic_years/data/models/academic_year.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/school_class_list_notifier.dart';
 import '../data/models/quick_class_setup.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 
 /// Nursery to Class 10 - or whichever standard classes are ticked - and
 /// their sections, in one step (docs/onboarding.md). Classes the year
@@ -135,7 +136,7 @@ class _QuickClassSetupDialogState extends ConsumerState<QuickClassSetupDialog> {
                       onChanged: (value) => setState(() => _academicYearId = value),
                     ),
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<int>(
+                    SearchableDropdown<int>(
                       initialValue: _sections,
                       decoration: const InputDecoration(
                         labelText: 'Sections in each class',
@@ -243,7 +244,7 @@ class _YearPickerState extends ConsumerState<_YearPicker> {
           WidgetsBinding.instance.addPostFrameCallback((_) => widget.onChanged(current.id));
         }
 
-        return DropdownButtonFormField<int>(
+        return SearchableDropdown<int>(
           key: ValueKey(widget.selected),
           initialValue: widget.selected,
           decoration: const InputDecoration(labelText: 'Academic year'),
