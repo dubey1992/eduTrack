@@ -11,6 +11,10 @@
       <button type="button" class="close" data-close aria-label="Close">&times;</button>
     </div>
     <p class="muted small">Tell us when suits you and we will confirm a time for a live walkthrough.</p>
+    <a class="wa-inline" href="{{ whatsapp.href }}" target="_blank" rel="noopener">
+      {% include "public_site/whatsapp_icon.html" %}
+      <span><strong>Rather chat? Book it on WhatsApp.</strong> Send one message to <span class="wa-number">{{ whatsapp.number }}</span> and we will fix a time with you.</span>
+    </a>
     <div class="form-problem" role="alert" hidden></div>
     <div class="grid two">
       <label><span class="caption">Your name</span><input name="contact_name" id="demo-contact_name" required maxlength="150" autocomplete="name"></label>

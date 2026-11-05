@@ -14,6 +14,7 @@ import json
 import re
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote
 from unittest import mock
 
 from django.core.cache import cache
@@ -171,8 +172,49 @@ class Building(TestCase):
         self.assertIn("<h1>Schools, &lt;run&gt; better</h1>", home)
         self.assertIn("Powerful Features for Modern Schools", home)
         self.assertIn('<link rel="canonical" href="https://school365ai.com/">', home)
-        self.assertIn('<script src="/site/site.js"></script>', home)
+        self.assertRegex(home, r'<script src="/site/site\.js\?v=[0-9a-f]{10}"></script>')
         self.assertNotIn("<script>", home)
+
+    def test_the_styles_and_script_carry_a_fingerprint_that_changes_with_them(self):
+        # Browsers keep /site/ files for a week: a changed stylesheet needs a
+        # new address, or returning visitors get new pages with old styles.
+        self.build()
+        version = public_site.asset_version()
+
+        self.assertIn(f'href="/site/site.css?v={version}"', self.read("index.html"))
+        self.assertIn(f'src="/site/site.js?v={version}"', self.read("index.html"))
+
+        with mock.patch.object(Path, "read_bytes", side_effect=[b"a {}", b"js"]):
+            self.assertNotEqual(public_site.asset_version(), version)
+
+    def test_every_page_offers_a_demo_on_whatsapp(self):
+        self.build()
+        expected = "https://wa.me/919205313831?text="
+
+        for name in ("index.html", "404.html", "site/pages/about.html"):
+            with self.subTest(name=name):
+                page = self.read(name)
+                self.assertIn(f'<a class="wa-float" href="{expected}', page)
+                self.assertIn('target="_blank" rel="noopener"', page)
+                self.assertIn("Book a free live demo", page)
+                self.assertIn("+91-9205313831", page)
+
+    def test_the_whatsapp_message_is_a_ready_demo_request(self):
+        link = public_site.whatsapp_demo()["href"]
+        message = unquote(link.split("?text=", 1)[1])
+
+        self.assertTrue(link.startswith("https://wa.me/919205313831?text="))
+        self.assertIn("free live demo of School365ai", message)
+        self.assertIn("School name:", message)
+        self.assertNotIn(" ", link)  # spaces and line breaks are encoded
+
+    def test_the_demo_form_and_the_hero_point_to_whatsapp_too(self):
+        self.build()
+        home = self.read("index.html")
+
+        self.assertIn('<a class="wa-inline" href="https://wa.me/919205313831?text=', home)
+        self.assertIn("Rather chat? Book it on WhatsApp.", home)
+        self.assertIn('<p class="wa-line"><a href="https://wa.me/919205313831?text=', home)
 
     def test_the_hero_shows_a_screenshot_of_the_app(self):
         self.build()

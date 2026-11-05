@@ -35,6 +35,7 @@ import os
 import re
 from dataclasses import dataclass, replace
 from pathlib import Path
+from urllib.parse import quote
 
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -308,6 +309,38 @@ def leads_somewhere(url: str | None, live: set[str]) -> bool:
 # -- pages ---------------------------------------------------------------------
 
 
+def asset_version() -> str:
+    """A short fingerprint of the styles and script, put on their addresses.
+
+    Browsers keep /site/ files for a week, so without it a returning visitor
+    gets new pages with last week's styles.
+    """
+    digest = hashlib.sha256()
+    for name in ("site.css", "site.js"):
+        digest.update((ASSETS / name).read_bytes())
+
+    return digest.hexdigest()[:10]
+
+
+# What a visitor's WhatsApp opens with when they ask for a demo (asked for
+# 2026-11-05): ready to send, so the school only fills in the blanks.
+WHATSAPP_DEMO_MESSAGE = (
+    "Hello School365ai team! I would like a free live demo of School365ai for my school. "
+    "Please show me how attendance, fees, timetables, the school bus and parent alerts "
+    "run from one app.\n\nSchool name:\nCity:\nNumber of students:"
+)
+
+
+def whatsapp_demo() -> dict:
+    """The WhatsApp chat with School365ai, opened on a demo request."""
+    number = kinds.SUPPORT_PHONE_DIAL.lstrip("+")
+
+    return {
+        "href": f"https://wa.me/{number}?text={quote(WHATSAPP_DEMO_MESSAGE)}",
+        "number": kinds.SUPPORT_PHONE,
+    }
+
+
 def shared(words: Words, live: set[str]) -> dict:
     """What every page carries: the bar across the top and the footer."""
     columns = []
@@ -332,6 +365,8 @@ def shared(words: Words, live: set[str]) -> dict:
         "demo_href": "#request-a-demo",
         "api_url": api_url(),
         "login_href": APP + "#/login",
+        "whatsapp": whatsapp_demo(),
+        "asset_version": asset_version(),
         "about_href": "/about" if "about" in live else None,
         "nav": {
             "wordmark": words.text("nav.wordmark"),

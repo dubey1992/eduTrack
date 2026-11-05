@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {# Before anything else: an old school365ai.com/#/... link belongs to the app. #}
-  <script src="/site/site.js"></script>
+  <script src="/site/site.js?v={{ asset_version }}"></script>
   <title>{{ title }}</title>
   {% if description %}<meta name="description" content="{{ description }}">{% endif %}
   {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% else %}<meta name="robots" content="noindex">{% endif %}
@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="/site/site.css">
+  <link rel="stylesheet" href="/site/site.css?v={{ asset_version }}">
   {% for block in structured_data %}<script type="application/ld+json">{{ block }}</script>
   {% endfor %}
 </head>
@@ -80,6 +80,12 @@
       <span>{{ footer.tagline }}</span>
     </div>
   </footer>
+
+  {# A demo is one WhatsApp message away on every page (asked for 2026-11-05). #}
+  <a class="wa-float" href="{{ whatsapp.href }}" target="_blank" rel="noopener" aria-label="Book a free live demo on WhatsApp, {{ whatsapp.number }}">
+    <span class="wa-bubble"><strong>Book a free live demo</strong><span>WhatsApp {{ whatsapp.number }}</span></span>
+    <span class="wa-icon">{% include "public_site/whatsapp_icon.html" %}</span>
+  </a>
 
   {% include "public_site/forms.html" %}
 </body>
