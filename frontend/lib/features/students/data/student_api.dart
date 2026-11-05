@@ -20,6 +20,7 @@ class StudentApi {
 
   Future<PaginatedResponse<Student>> list({
     int? schoolId,
+    int? academicYearId,
     int? classSectionId,
     String? search,
     String? status,
@@ -30,6 +31,7 @@ class StudentApi {
       '/students',
       queryParameters: {
         'school_id': ?schoolId,
+        'academic_year_id': ?academicYearId,
         'class_section_id': ?classSectionId,
         'search': ?search,
         'status': ?status,
@@ -40,9 +42,13 @@ class StudentApi {
     return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, Student.fromJson);
   }
 
-  /// The current year's classes and sections in class order, with counts.
-  Future<List<StudentClassGroup>> classes({int? schoolId}) async {
-    final response = await _dio.get('/students/classes', queryParameters: {'school_id': ?schoolId});
+  /// A year's classes and sections in class order, with counts - the
+  /// current year's when [academicYearId] is not given.
+  Future<List<StudentClassGroup>> classes({int? schoolId, int? academicYearId}) async {
+    final response = await _dio.get(
+      '/students/classes',
+      queryParameters: {'school_id': ?schoolId, 'academic_year_id': ?academicYearId},
+    );
     return [
       for (final row in (response.data as Map<String, dynamic>)['data'] as List)
         StudentClassGroup.fromJson(row as Map<String, dynamic>),

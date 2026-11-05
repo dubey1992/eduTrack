@@ -27,6 +27,7 @@ import '../../support/fake_school_class_repository.dart';
 import '../../support/fake_school_repository.dart';
 import '../../support/fake_transport_repository.dart';
 import '../../support/transport_fixtures.dart';
+import '../../support/viewed_year_overrides.dart';
 
 const class8 = SchoolClass(
   id: 1,
@@ -53,6 +54,7 @@ Widget wrap(
   return ProviderScope(
     retry: (retryCount, error) => null,
     overrides: [
+      ...viewedYearIs(null),
       feeRepositoryProvider.overrideWithValue(fees),
       academicYearRepositoryProvider.overrideWithValue(FakeAcademicYearRepository(years: years ?? [fakeYear()])),
       schoolClassRepositoryProvider.overrideWithValue(FakeSchoolClassRepository(classes: List.of(classes))),

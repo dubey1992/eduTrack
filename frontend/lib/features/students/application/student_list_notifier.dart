@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/paged_list.dart';
+import '../../academic_years/application/viewed_year.dart';
 import '../../transport/application/route_page_notifier.dart';
 import '../data/models/student.dart';
 import '../data/models/student_class_group.dart';
@@ -8,9 +9,13 @@ import '../data/student_repository.dart';
 
 /// The Students page's class list (docs/onboarding.md). Invalidated whenever
 /// a count can change: an admission, an import, a status change, a renumber.
-final studentClassesProvider = FutureProvider.autoDispose.family<List<StudentClassGroup>, int?>(
-  (ref, schoolId) => ref.watch(studentRepositoryProvider).classes(schoolId: schoolId),
-);
+///
+/// The top bar's year (decided 2026-11-05) for whoever has one; a Super Admin
+/// picking a school sees that school's current year.
+final studentClassesProvider = FutureProvider.autoDispose.family<List<StudentClassGroup>, int?>((ref, schoolId) {
+  final yearId = schoolId == null ? ref.watch(viewedYearIdProvider) : null;
+  return ref.watch(studentRepositoryProvider).classes(schoolId: schoolId, academicYearId: yearId);
+});
 
 final studentListNotifierProvider = AsyncNotifierProvider<StudentListNotifier, PagedList<Student>>(
   StudentListNotifier.new,
@@ -38,13 +43,24 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
   int _fetchId = 0;
 
   @override
-  Future<PagedList<Student>> build() => _fetch();
+  Future<PagedList<Student>> build() {
+    // The top bar's year (decided 2026-11-05). Another year starts afresh:
+    // a section picked in one year is no section of the next.
+    ref.listen(viewedYearIdProvider, (previous, next) {
+      _page = 1;
+      _classSectionId = null;
+    });
+    ref.watch(viewedYearIdProvider);
+    return _fetch();
+  }
 
   Future<PagedList<Student>> _fetch() async {
+    final yearId = _schoolId == null ? ref.read(viewedYearIdProvider) : null;
     final response = await ref
         .read(studentRepositoryProvider)
         .listPage(
           schoolId: _schoolId,
+          academicYearId: yearId,
           classSectionId: _classSectionId,
           search: _search,
           status: _status?.apiValue,

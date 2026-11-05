@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../setup_guide/application/setup_guide_notifier.dart';
 import '../../analytics/application/analytics_notifier.dart';
 import '../../../core/network/session_ended_notifier.dart';
+import '../../academic_years/application/viewed_year.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
 import '../../assessments/application/assessment_list_notifier.dart';
 import '../../platform_messaging/application/platform_messaging_notifier.dart';
@@ -183,6 +184,8 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(subjectListNotifierProvider);
     ref.invalidate(schoolClassListNotifierProvider);
     ref.invalidate(academicYearListNotifierProvider);
+    // The year in view is the next person's own choice, read afresh.
+    ref.invalidate(viewedYearIdProvider);
     ref.invalidate(gradeScaleListNotifierProvider);
     ref.invalidate(assessmentListNotifierProvider);
     // A half-finished promotion belongs to the person who started it, and to

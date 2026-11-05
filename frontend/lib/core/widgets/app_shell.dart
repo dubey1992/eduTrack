@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/academic_years/presentation/year_switch.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/change_password_dialog.dart';
 import '../../features/auth/presentation/signed_in_devices_dialog.dart';
@@ -32,6 +33,7 @@ class AppShell extends ConsumerWidget {
         appBar: AppBar(
           title: Text(heading?.title ?? ''),
           actions: [
+            const YearSwitch(compact: true),
             const _ProfileButton(),
             // The phone's only way out - the desktop topbar's actions are not
             // shown here, and a bus attendant lives on the phone layout.
@@ -91,6 +93,9 @@ class _Topbar extends ConsumerWidget {
               ],
             ),
           ),
+          // The year every year-based screen is showing (decided 2026-11-05).
+          const YearSwitch(),
+          const SizedBox(width: 8),
           if (user != null) ...[
             _Pill(text: user.role.label),
             const SizedBox(width: 8),

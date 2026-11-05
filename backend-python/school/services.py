@@ -6527,13 +6527,27 @@ class StudentService:
 
         students = SchoolScope.for_actor(actor).apply_to(students, filters.get("school_id"))
 
-        # A teacher only ever sees students in sections they are the class
-        # teacher of - never another class, regardless of filters.
-        if actor.role == UserRole.TEACHER:
-            students = students.filter(class_section__class_teacher_id=actor.id)
+        year = filters.get("year")
 
-        if filters.get("class_section_id"):
-            students = students.filter(class_section_id=filters["class_section_id"])
+        if year is not None and not year.is_current:
+            # Another year (decided 2026-11-05): who was enrolled then, in
+            # the class they were in then. One filter() call, so the year,
+            # the class and a teacher's own classes all test the same
+            # enrollment row rather than any row of the student's.
+            then = {"enrollments__academic_year_id": year.id}
+            if actor.role == UserRole.TEACHER:
+                then["enrollments__class_section__class_teacher_id"] = actor.id
+            if filters.get("class_section_id"):
+                then["enrollments__class_section_id"] = filters["class_section_id"]
+            students = students.filter(**then)
+        else:
+            # A teacher only ever sees students in sections they are the class
+            # teacher of - never another class, regardless of filters.
+            if actor.role == UserRole.TEACHER:
+                students = students.filter(class_section__class_teacher_id=actor.id)
+
+            if filters.get("class_section_id"):
+                students = students.filter(class_section_id=filters["class_section_id"])
 
         if filters.get("status"):
             students = students.filter(status=filters["status"])
@@ -6569,13 +6583,18 @@ class StudentService:
         return students.order_by("first_name", "id")
 
     @classmethod
-    def classes_of(cls, actor: User, school_id=None) -> list[dict]:
+    def classes_of(cls, actor: User, school_id=None, year=None) -> list[dict]:
         """The current year's classes and sections, in class order, with how
         many active students each section has - the Students page's list down
         the side (docs/onboarding.md). A teacher sees the sections they are
-        the class teacher of, and nothing else."""
+        the class teacher of, and nothing else.
+
+        Another `year` (the top bar's, decided 2026-11-05) lists that year's
+        classes, each section counting the students enrolled in it then."""
+        then = year is not None and not year.is_current
+        in_year = Q(academic_year_id=year.id) if then else Q(academic_year__is_current=True)
         classes = SchoolScope.for_actor(actor).apply_to(
-            SchoolClass.objects.select_related("school", "academic_year").filter(academic_year__is_current=True),
+            SchoolClass.objects.select_related("school", "academic_year").filter(in_year),
             school_id,
         )
         sections = ClassSection.objects.filter(school_class__in=classes)
@@ -6583,9 +6602,14 @@ class StudentService:
         if actor.role == UserRole.TEACHER:
             sections = sections.filter(class_teacher_id=actor.id)
 
-        sections = sections.annotate(
-            student_count=Count("student", filter=Q(student__status=StudentStatus.ACTIVE))
-        ).order_by("name", "id")
+        if then:
+            sections = sections.annotate(
+                student_count=Count("studentenrollment", filter=Q(studentenrollment__academic_year_id=year.id))
+            ).order_by("name", "id")
+        else:
+            sections = sections.annotate(
+                student_count=Count("student", filter=Q(student__status=StudentStatus.ACTIVE))
+            ).order_by("name", "id")
 
         grouped: dict[int, list] = {}
 

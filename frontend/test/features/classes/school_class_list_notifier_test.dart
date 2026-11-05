@@ -4,10 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_school_class_repository.dart';
+import '../../support/viewed_year_overrides.dart';
 
 void main() {
   ProviderContainer makeContainer(FakeSchoolClassRepository fake) {
-    return ProviderContainer(overrides: [schoolClassRepositoryProvider.overrideWithValue(fake)]);
+    return ProviderContainer(overrides: [schoolClassRepositoryProvider.overrideWithValue(fake), ...viewedYearIs(null)]);
   }
 
   test('createClass() adds the new class and returns to page 1', () async {

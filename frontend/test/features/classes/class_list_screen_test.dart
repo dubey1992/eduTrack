@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_school_class_repository.dart';
 import '../../support/fake_user_repository.dart';
+import '../../support/viewed_year_overrides.dart';
 
 const _classTeacher = AppUser(
   id: 9,
@@ -53,6 +54,7 @@ const _schoolClass = SchoolClass(
 Widget wrap(FakeSchoolClassRepository fake) {
   return ProviderScope(
     overrides: [
+      ...viewedYearIs(null),
       schoolClassRepositoryProvider.overrideWithValue(fake),
       userRepositoryProvider.overrideWithValue(FakeUserRepository(users: const [_classTeacher])),
       authRepositoryProvider.overrideWithValue(

@@ -50,6 +50,10 @@ class FakeStudentRepository implements StudentRepository {
   /// - and how many times - has to look here.
   final List<String?> searchCalls = [];
 
+  /// The academic year each list() and classes() asked for (the top bar's).
+  final List<int?> yearCalls = [];
+  final List<int?> classesYearCalls = [];
+
   /// Which status each list call asked for - null for "any".
   final List<String?> statusCalls = [];
 
@@ -84,12 +88,14 @@ class FakeStudentRepository implements StudentRepository {
   @override
   Future<PaginatedResponse<Student>> listPage({
     int? schoolId,
+    int? academicYearId,
     int? classSectionId,
     String? search,
     String? status,
     required int page,
     required int perPage,
   }) async {
+    yearCalls.add(academicYearId);
     searchCalls.add(search);
     statusCalls.add(status);
     sectionCalls.add(classSectionId);
@@ -319,8 +325,9 @@ class FakeStudentRepository implements StudentRepository {
   }
 
   @override
-  Future<List<StudentClassGroup>> classes({int? schoolId}) async {
+  Future<List<StudentClassGroup>> classes({int? schoolId, int? academicYearId}) async {
     calls.add('classes');
+    classesYearCalls.add(academicYearId);
     if (failWith['classes'] != null) throw failWith['classes']!;
     return classGroups;
   }

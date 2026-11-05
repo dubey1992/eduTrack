@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -19,13 +19,16 @@ from .. import jobs, notifications, progress_reports
 from ..clock import DATE_TIME, SchoolClock
 from ..enums import MessageEvent, StudentStatus
 from ..errors import EmailNotSent, NoGuardianEmail, NothingToReport
-from ..models import ClassSection, Student
+from ..models import AcademicYear, ClassSection, Student, StudentEnrollment
 from ..pagination import LaravelPagination
 from ..performance import for_student as performance_of
 from ..policies import StudentPolicy, authorize, permitted
+from ..requests import php_int
 from ..requests import StoreStudentRequest, StudentPerformanceRequest, StudentRemarkRequest, UpdateStudentRequest
 from ..resources import student_enrollment_resource, student_resource
+from ..scope import SchoolScope
 from ..services import StudentEnrollmentService, StudentService, TermRemarkService
+from ..validation import selected_is_invalid
 from ..throttling import SendDocumentThrottle
 
 # What a student is rendered with - the same list Laravel's StudentController
@@ -48,6 +51,7 @@ def collection(request) -> Response:
 def index(request) -> Response:
     authorize(StudentPolicy.view_any(request.user))
 
+    year = year_in_view(request)
     students = StudentService.visible_to(
         request.user,
         {
@@ -55,13 +59,53 @@ def index(request) -> Response:
             "class_section_id": request.query_params.get("class_section_id"),
             "status": request.query_params.get("status"),
             "search": request.query_params.get("search"),
+            "year": year,
         },
     )
 
     paginator = LaravelPagination()
     page = paginator.paginate_queryset(students, request)
+    rows = [student_resource(student) for student in page]
 
-    return paginator.get_paginated_response([student_resource(student) for student in page])
+    if year is not None and not year.is_current:
+        as_then(rows, year)
+
+    return paginator.get_paginated_response(rows)
+
+
+def year_in_view(request) -> AcademicYear | None:
+    """The `academic_year_id` asked for, which must be a year of a school
+    the actor answers for - another school's is refused, not ignored."""
+    raw = request.query_params.get("academic_year_id")
+    if raw in (None, ""):
+        return None
+
+    year = AcademicYear.objects.filter(pk=php_int(raw)).first()
+    if year is None or not SchoolScope.for_actor(request.user).allows(year.school_id):
+        raise serializers.ValidationError({"academic_year_id": [selected_is_invalid("academic_year_id")]})
+
+    return year
+
+
+def as_then(rows: list[dict], year: AcademicYear) -> None:
+    """Each student's class and roll number in `year`, in place of today's."""
+    enrollments = {
+        row.student_id: row
+        for row in StudentEnrollment.objects.select_related("school_class", "class_section").filter(
+            academic_year_id=year.id, student_id__in=[row["id"] for row in rows]
+        )
+    }
+
+    for row in rows:
+        enrollment = enrollments.get(row["id"])
+        if enrollment is None:
+            continue
+        section = enrollment.class_section
+        row["class_section_id"] = enrollment.class_section_id
+        row["class_section_name"] = (
+            f"{enrollment.school_class.name} {section.name}".strip() if section else enrollment.school_class.name
+        )
+        row["roll_number"] = enrollment.roll_number
 
 
 def store(request) -> Response:
@@ -85,7 +129,9 @@ def classes(request) -> Response:
     counts, for the Students page (docs/onboarding.md)."""
     authorize(StudentPolicy.view_any(request.user))
 
-    return Response({"data": StudentService.classes_of(request.user, request.query_params.get("school_id"))})
+    return Response(
+        {"data": StudentService.classes_of(request.user, request.query_params.get("school_id"), year_in_view(request))}
+    )
 
 
 @api_view(["POST"])

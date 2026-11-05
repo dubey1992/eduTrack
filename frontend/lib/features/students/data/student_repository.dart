@@ -29,6 +29,7 @@ class StudentRepository {
 
   Future<PaginatedResponse<Student>> listPage({
     int? schoolId,
+    int? academicYearId,
     int? classSectionId,
     String? search,
     String? status,
@@ -38,6 +39,7 @@ class StudentRepository {
     try {
       return await _api.list(
         schoolId: schoolId,
+        academicYearId: academicYearId,
         classSectionId: classSectionId,
         search: search,
         status: status,
@@ -180,9 +182,9 @@ class StudentRepository {
     }
   }
 
-  Future<List<StudentClassGroup>> classes({int? schoolId}) async {
+  Future<List<StudentClassGroup>> classes({int? schoolId, int? academicYearId}) async {
     try {
-      return await _api.classes(schoolId: schoolId);
+      return await _api.classes(schoolId: schoolId, academicYearId: academicYearId);
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

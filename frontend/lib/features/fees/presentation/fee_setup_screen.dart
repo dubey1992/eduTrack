@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../academic_years/application/viewed_year.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
@@ -107,8 +108,11 @@ class _FeeSetupScreenState extends ConsumerState<FeeSetupScreen> {
   AcademicYear? _selectedYear(List<AcademicYear> years) {
     if (years.isEmpty) return null;
 
+    // The one picked here, else the top bar's year (decided 2026-11-05) -
+    // only for the school the top bar is about - else the current one.
+    final viewed = _schoolId == null ? ref.watch(viewedYearIdProvider) : null;
     for (final year in years) {
-      if (year.id == _yearId) return year;
+      if (year.id == (_yearId ?? viewed)) return year;
     }
     for (final year in years) {
       if (year.isCurrent) return year;

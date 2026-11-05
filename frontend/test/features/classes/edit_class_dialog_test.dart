@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_school_class_repository.dart';
+import '../../support/viewed_year_overrides.dart';
 
 const _schoolClass = SchoolClass(
   id: 1,
@@ -27,7 +28,7 @@ const _schoolClass = SchoolClass(
 /// and all) instead of just the dialog.
 Widget wrap(FakeSchoolClassRepository fake) {
   return ProviderScope(
-    overrides: [schoolClassRepositoryProvider.overrideWithValue(fake)],
+    overrides: [schoolClassRepositoryProvider.overrideWithValue(fake), ...viewedYearIs(null)],
     child: MaterialApp(
       theme: AppTheme.light(),
       home: Scaffold(

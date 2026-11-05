@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_school_class_repository.dart';
 import '../../support/fake_user_repository.dart';
+import '../../support/viewed_year_overrides.dart';
 
 const _section = ClassSection(
   id: 1,
@@ -39,6 +40,7 @@ const _schoolClass = SchoolClass(
 Widget wrap(FakeSchoolClassRepository fake) {
   return ProviderScope(
     overrides: [
+      ...viewedYearIs(null),
       schoolClassRepositoryProvider.overrideWithValue(fake),
       userRepositoryProvider.overrideWithValue(FakeUserRepository()),
     ],
