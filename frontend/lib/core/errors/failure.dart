@@ -7,6 +7,15 @@ class Failure {
   factory Failure.network() =>
       const Failure(code: 'NETWORK_ERROR', message: 'Could not reach the server. Check your connection and try again.');
 
+  /// The server was reached but did not answer in time - busy, or working
+  /// through a large report. The same code as [Failure.network], so anything
+  /// that queues and resends on a network failure still does; only what the
+  /// person reads differs, since their connection is not the problem.
+  factory Failure.timeout() => const Failure(
+    code: 'NETWORK_ERROR',
+    message: 'The server is taking longer than usual to answer. Try again in a moment.',
+  );
+
   factory Failure.unknown([String? message]) =>
       Failure(code: 'UNKNOWN_ERROR', message: message ?? 'Something went wrong. Please try again.');
 

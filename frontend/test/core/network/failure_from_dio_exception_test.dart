@@ -57,6 +57,32 @@ void main() {
     );
 
     expect(failure.code, 'NETWORK_ERROR');
+    expect(failure.message, contains('Could not reach the server'));
+  });
+
+  test('a server too slow to answer says so, not that the connection is down', () {
+    final failure = failureFromDioException(
+      DioException(
+        requestOptions: RequestOptions(path: '/analytics/series'),
+        type: DioExceptionType.receiveTimeout,
+      ),
+    );
+
+    // The same code, so anything that resends on a network failure still does.
+    expect(failure.code, 'NETWORK_ERROR');
+    expect(failure.message, contains('taking longer than usual'));
+    expect(failure.message, isNot(contains('connection')));
+  });
+
+  test('a connection that never opened is still a connection problem', () {
+    final failure = failureFromDioException(
+      DioException(
+        requestOptions: RequestOptions(path: '/x'),
+        type: DioExceptionType.connectionTimeout,
+      ),
+    );
+
+    expect(failure.message, contains('Could not reach the server'));
   });
 
   group("a response that is not the app's error envelope", () {

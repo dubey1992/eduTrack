@@ -22,7 +22,9 @@ final dioClientProvider = Provider<Dio>((ref) {
       baseUrl: Env.apiBaseUrl,
       headers: {'Accept': 'application/json'},
       connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
+      // Long enough for the heaviest screens - six months of trends, a big
+      // report - on a busy shared host; a timeout still says so plainly.
+      receiveTimeout: const Duration(seconds: 30),
     ),
   );
 
@@ -61,9 +63,10 @@ final dioClientProvider = Provider<Dio>((ref) {
 
 /// Converts a [DioException] into the app's standard [Failure] type.
 Failure failureFromDioException(DioException e) {
-  if (e.type == DioExceptionType.connectionError ||
-      e.type == DioExceptionType.connectionTimeout ||
-      e.type == DioExceptionType.receiveTimeout) {
+  if (e.type == DioExceptionType.receiveTimeout) {
+    return Failure.timeout();
+  }
+  if (e.type == DioExceptionType.connectionError || e.type == DioExceptionType.connectionTimeout) {
     return Failure.network();
   }
 

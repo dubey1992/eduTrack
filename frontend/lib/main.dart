@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/env.dart';
+import 'core/errors/startup_focus_error.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 
 void main() {
   Env.checkReleaseConfiguration();
+  installStartupFocusErrorFilter();
   runApp(const ProviderScope(child: EduTrackApp()));
 }
 
