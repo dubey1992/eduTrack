@@ -1,4 +1,5 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/theme/app_colors.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/departments/data/department_repository.dart';
 import 'package:edutrack_app/features/setup_guide/data/setup_guide_repository.dart';
@@ -83,6 +84,27 @@ void main() {
       expect(find.text('Academic year summary'), findsOneWidget);
       expect(find.textContaining('2 of 6 done'), findsOneWidget);
       expect(find.text('Quick setup'), findsOneWidget);
+    });
+
+    testWidgets('a done step is ticked in green, a step to do keeps its number', (tester) async {
+      _tall(tester);
+      await tester.pumpWidget(wrap(FakeSetupGuideRepository(doneSteps: 2)));
+      await tester.pumpAndSettle();
+
+      final done = tester.widget<CircleAvatar>(find.byKey(const Key('setup-step-badge-departments')));
+      final toDo = tester.widget<CircleAvatar>(find.byKey(const Key('setup-step-badge-classes')));
+      final green = tester.element(find.byType(SetupGuideScreen)).appColors.success;
+
+      expect(done.backgroundColor, green);
+      expect(
+        find.descendant(of: find.byKey(const Key('setup-step-badge-departments')), matching: find.byIcon(Icons.check)),
+        findsOneWidget,
+      );
+      expect(toDo.backgroundColor, isNot(green));
+      expect(
+        find.descendant(of: find.byKey(const Key('setup-step-badge-classes')), matching: find.text('3')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a step opens the screen where it is done', (tester) async {

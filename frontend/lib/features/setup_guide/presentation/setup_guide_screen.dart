@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'widgets/setup_progress_bar.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../classes/presentation/quick_class_setup_dialog.dart';
 import '../application/setup_guide_notifier.dart';
@@ -190,10 +191,13 @@ class _StepCard extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // A done step's tick is green, like the finished progress bar
+            // (asked for 2026-11-05).
             CircleAvatar(
+              key: Key('setup-step-badge-${step.key}'),
               radius: 16,
-              backgroundColor: step.done ? scheme.primary : scheme.surfaceContainerHighest,
-              foregroundColor: step.done ? scheme.onPrimary : scheme.onSurfaceVariant,
+              backgroundColor: step.done ? context.appColors.success : scheme.surfaceContainerHighest,
+              foregroundColor: step.done ? Colors.white : scheme.onSurfaceVariant,
               child: step.done ? const Icon(Icons.check, size: 18) : Text('$number'),
             ),
             const SizedBox(width: 14),
