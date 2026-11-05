@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/searchable_dropdown.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -193,7 +194,7 @@ class _VehiclePicker extends ConsumerWidget {
 
     // A menu opened while the list is still loading would never fill in -
     // keep it closed until the options are known.
-    return DropdownButtonFormField<int?>(
+    return SearchableDropdown<int?>(
       key: ValueKey('vehicle-${vehicles.length}'),
       initialValue: options.containsKey(selected) ? selected : null,
       isExpanded: true,
@@ -230,7 +231,7 @@ class _DriverPicker extends ConsumerWidget {
       options[current!.driverId!] = '${current!.driverName} (inactive)';
     }
 
-    return DropdownButtonFormField<int?>(
+    return SearchableDropdown<int?>(
       key: ValueKey('driver-${drivers.length}'),
       initialValue: options.containsKey(selected) ? selected : null,
       isExpanded: true,
@@ -285,7 +286,7 @@ class _AttendantPicker extends ConsumerWidget {
       helperText = 'No Bus Attendants yet - add one in Teachers & Staff.';
     }
 
-    return DropdownButtonFormField<int?>(
+    return SearchableDropdown<int?>(
       key: ValueKey('attendant-${attendants.length}'),
       initialValue: options.containsKey(selected) ? selected : null,
       isExpanded: true,

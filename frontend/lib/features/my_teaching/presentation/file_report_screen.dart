@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/searchable_dropdown.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
@@ -332,7 +333,7 @@ class _SyllabusTopicChoice extends ConsumerWidget {
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: DropdownButtonFormField<int?>(
+              child: SearchableDropdown<int?>(
                 key: const Key('report-syllabus-topic'),
                 initialValue: value,
                 isExpanded: true,

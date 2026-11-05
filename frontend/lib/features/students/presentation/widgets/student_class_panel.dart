@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/searchable_dropdown.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../application/student_list_notifier.dart';
 import '../../data/models/student_class_group.dart';
@@ -103,7 +104,7 @@ class StudentClassPicker extends ConsumerWidget {
               StudentSectionChoice(id: section.id, label: group.labelFor(section), students: section.students),
         ];
 
-        return DropdownButtonFormField<int?>(
+        return SearchableDropdown<int?>(
           key: ValueKey(selected),
           initialValue: selected,
           isExpanded: true,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/searchable_dropdown.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../syllabus/data/models/syllabus_topic.dart';
@@ -182,7 +183,7 @@ class _TopicPicker extends ConsumerWidget {
           data: (topics) {
             if (topics.isEmpty) return const SizedBox.shrink();
 
-            return DropdownButtonFormField<int?>(
+            return SearchableDropdown<int?>(
               key: const Key('report-syllabus-topic'),
               initialValue: value,
               isExpanded: true,

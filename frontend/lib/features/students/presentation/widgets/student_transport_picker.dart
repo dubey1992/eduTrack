@@ -44,7 +44,7 @@ class StudentTransportPicker extends ConsumerWidget {
       children: [
         // Disabled while loading: a menu opened before the routes arrive
         // would only ever show "No Transport".
-        DropdownButtonFormField<int?>(
+        SearchableDropdown<int?>(
           key: ValueKey('route-$routeId-${routes.length}'),
           initialValue: routeId,
           isExpanded: true,

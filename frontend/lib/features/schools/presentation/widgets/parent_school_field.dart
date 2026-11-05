@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/searchable_dropdown.dart';
 import '../../application/school_list_notifier.dart';
 import '../../data/models/school.dart';
 
@@ -31,7 +32,7 @@ class ParentSchoolField extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    return DropdownButtonFormField<int?>(
+    return SearchableDropdown<int?>(
       initialValue: candidates.any((s) => s.id == value) ? value : null,
       isExpanded: true,
       decoration: const InputDecoration(

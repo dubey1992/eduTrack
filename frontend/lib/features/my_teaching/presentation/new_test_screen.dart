@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/searchable_dropdown.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
@@ -224,7 +225,7 @@ class _FormState extends ConsumerState<_Form> {
             ),
             const SizedBox(height: 12),
           ],
-          DropdownButtonFormField<TaughtClass>(
+          SearchableDropdown<TaughtClass>(
             key: const Key('new-test-class'),
             initialValue: _class,
             isExpanded: true,

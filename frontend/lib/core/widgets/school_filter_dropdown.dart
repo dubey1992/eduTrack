@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'searchable_dropdown.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/schools/application/school_list_notifier.dart';
 import '../../features/schools/data/models/school.dart';
@@ -33,7 +34,7 @@ class SchoolFilterDropdown extends ConsumerWidget {
 
     return SizedBox(
       width: 220,
-      child: DropdownButtonFormField<int?>(
+      child: SearchableDropdown<int?>(
         initialValue: selected,
         isExpanded: true,
         decoration: InputDecoration(labelText: isGroup ? 'Filter by branch' : 'Filter by school', isDense: true),
