@@ -1,6 +1,6 @@
 # Fewer Menu Items, Tabs Inside: Navigation Plan
 
-**Status (2026-11-05): plan only. Nothing is built until the user approves it.**
+**Status (2026-11-06): S2 chosen and built (icon strip + list, prototype colours). Bottom bar, search and "setup screens step back" not built yet.**
 
 ## The problem
 

@@ -13,7 +13,7 @@ void main() {
   final item = AppNav.findByPath('/messaging-settings')!;
 
   test('sits right after Email Settings, with its own title', () {
-    final paths = AppNav.administration.items.map((i) => i.path).toList();
+    final paths = AppNav.platform.items.map((i) => i.path).toList();
 
     expect(paths.indexOf('/messaging-settings'), paths.indexOf('/mail-settings') + 1);
     expect(item.label, 'Messaging');

@@ -29,7 +29,7 @@ class AppShell extends ConsumerWidget {
 
     return ResponsiveBuilder(
       mobile: (context) => Scaffold(
-        drawer: Drawer(child: SidebarNav(onNavigate: () => Navigator.of(context).pop())),
+        drawer: Drawer(width: 304, child: SidebarNav(inDrawer: true, onNavigate: () => Navigator.of(context).pop())),
         appBar: AppBar(
           title: Text(heading?.title ?? ''),
           actions: [
@@ -49,7 +49,9 @@ class AppShell extends ConsumerWidget {
       desktop: (context) => Scaffold(
         body: Row(
           children: [
-            SizedBox(width: 255, child: SidebarNav()),
+            // Sizes itself: the icon strip, plus the list of screens unless
+            // it has been folded away.
+            const SidebarNav(),
             const VerticalDivider(width: 1),
             Expanded(
               child: Column(

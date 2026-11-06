@@ -195,7 +195,7 @@ void main() {
 
       // Back where they belong, not left sitting on the maintenance page.
       expect(find.text("We're making School365ai better."), findsNothing);
-      expect(find.text('Reports'), findsWidgets);
+      expect(find.byKey(const Key('nav-area-Schools')), findsOneWidget);
     });
   });
 
@@ -300,10 +300,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Reports sits at the top of the sidebar and is admin-only, so it is
-    // both on screen and a genuine test of the role gate. "Admin Users" is
-    // further down a lazily-built list and may not be built at all.
-    expect(find.text('Reports'), findsWidgets);
+    // The platform's own areas are a Super Admin's alone.
+    expect(find.byKey(const Key('nav-area-Schools')), findsOneWidget);
+    expect(find.byKey(const Key('nav-area-Platform')), findsOneWidget);
+    expect(find.byKey(const Key('nav-area-Settings')), findsOneWidget);
   });
 
   testWidgets('a teacher does not see the admin-only navigation', (tester) async {
@@ -326,6 +326,8 @@ void main() {
     // A teacher marks their own register rather than pulling a school-wide
     // report, so the entry is not offered at all.
     expect(find.text('Reports'), findsNothing);
+    expect(find.byKey(const Key('nav-area-Schools')), findsNothing);
+    expect(find.byKey(const Key('nav-area-Settings')), findsNothing);
   });
 
   testWidgets('a non-super-admin is redirected away from /users back to the dashboard', (tester) async {

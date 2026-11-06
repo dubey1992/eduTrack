@@ -1,4 +1,5 @@
 import 'package:edutrack_app/core/models/user_role.dart';
+import 'package:edutrack_app/core/routing/app_nav.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/core/widgets/sidebar_nav.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
@@ -10,182 +11,272 @@ import 'package:go_router/go_router.dart';
 
 import '../../support/fake_auth_repository.dart';
 
-Widget wrap(UserRole role) {
+AuthenticatedUser _user(UserRole role) =>
+    AuthenticatedUser(id: 1, name: 'Actor', email: 'actor@example.com', role: role);
+
+/// Every screen the menu offers [role], whichever area it sits in.
+Set<String> _offered(UserRole role) {
+  final user = _user(role);
+  return {
+    for (final group in AppNav.groupsFor(user))
+      for (final item in group.itemsFor(user)) item.label,
+  };
+}
+
+/// The menu on a page of its own, starting at [start]; every screen of the
+/// app is a route, so opening an area really navigates.
+Widget _menu(UserRole role, {String start = '/dashboard', bool inDrawer = false}) {
   return ProviderScope(
-    overrides: [
-      authRepositoryProvider.overrideWithValue(
-        FakeAuthRepository(
-          sessionOnRestore: AuthenticatedUser(id: 1, name: 'Actor', email: 'actor@example.com', role: role),
-        ),
-      ),
-    ],
+    overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _user(role)))],
     child: MaterialApp.router(
       theme: AppTheme.light(),
       routerConfig: GoRouter(
+        initialLocation: start,
         routes: [
-          GoRoute(
-            path: '/',
-            builder: (context, state) => const Scaffold(body: SidebarNav()),
-          ),
+          for (final item in AppNav.allItems)
+            GoRoute(
+              path: item.path,
+              builder: (context, state) => Scaffold(
+                body: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (inDrawer) SizedBox(width: 304, child: SidebarNav(inDrawer: inDrawer)) else const SidebarNav(),
+                    Expanded(child: Center(child: Text('Page ${item.path}'))),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     ),
   );
 }
 
-/// The sidebar's ListView only mounts elements within the viewport + cache
-/// extent (true of every Sliver-based scrollable, not just .builder ones) -
-/// the default 800x600 test surface is too short to fit every group as the
-/// nav grows, which would silently make find.text() miss items further down
-/// without this. Tall enough for the sidebar to render in full - raised from
-/// 1800 when the Fees group (docs/fees.md) pushed Audit Log past the edge,
-/// with headroom for the groups still to come.
-void _useTallViewport(WidgetTester tester) {
-  tester.view.physicalSize = const Size(800, 2600);
+Finder _inPanel(String label) => find.descendant(of: find.byKey(const Key('nav-panel')), matching: find.text(label));
+
+void _useDesktop(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1400, 1400);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
 void main() {
-  testWidgets('a super admin sees Schools, Payments, Users, Teachers & Staff and Students', (tester) async {
-    _useTallViewport(tester);
-    await tester.pumpWidget(wrap(UserRole.superAdmin));
-    await tester.pumpAndSettle();
+  group('who is offered what', () {
+    // The same rules as before the menu became areas (2026-11-06): each
+    // screen keeps its own access rule, wherever it now sits.
+    test('a super admin has Schools, Payments, Users, Teachers & Staff and Students', () {
+      expect(
+        _offered(UserRole.superAdmin),
+        containsAll(['Schools', 'Payments', 'Admin Users', 'Teachers & Staff', 'Students']),
+      );
+    });
 
-    expect(find.text('Schools'), findsOneWidget);
-    expect(find.text('Payments'), findsOneWidget);
-    expect(find.text('Admin Users'), findsOneWidget);
-    expect(find.text('Teachers & Staff'), findsOneWidget);
-    expect(find.text('Students'), findsOneWidget);
-  });
+    test('a school admin has Users, Teachers & Staff and Students but not Schools or Payments', () {
+      final offered = _offered(UserRole.schoolAdmin);
 
-  testWidgets('a school admin sees Users, Teachers & Staff and Students but not Schools or Payments', (tester) async {
-    _useTallViewport(tester);
-    await tester.pumpWidget(wrap(UserRole.schoolAdmin));
-    await tester.pumpAndSettle();
+      expect(offered, containsAll(['Admin Users', 'Teachers & Staff', 'Students']));
+      expect(offered, isNot(contains('Schools')));
+      expect(offered, isNot(contains('Payments')));
+    });
 
-    expect(find.text('Admin Users'), findsOneWidget);
-    expect(find.text('Teachers & Staff'), findsOneWidget);
-    expect(find.text('Students'), findsOneWidget);
-    expect(find.text('Schools'), findsNothing);
-    expect(find.text('Payments'), findsNothing);
-  });
+    test('a teacher has the academic screens and Students, but no administration or Teachers & Staff', () {
+      final offered = _offered(UserRole.teacher);
 
-  testWidgets('a teacher sees Academics and Students but not Administration or Teachers & Staff', (tester) async {
-    _useTallViewport(tester);
-    await tester.pumpWidget(wrap(UserRole.teacher));
-    await tester.pumpAndSettle();
+      expect(offered, containsAll(['Dashboard', 'Academic Years', 'Departments', 'Subjects', 'Classes & Sections']));
+      expect(offered, containsAll(['Students', 'Timetable']));
+      for (final label in ['Admin Users', 'Schools', 'Payments', 'Teachers & Staff']) {
+        expect(offered, isNot(contains(label)), reason: label);
+      }
+    });
 
-    expect(find.text('Dashboard'), findsOneWidget);
-    expect(find.text('Academic Years'), findsOneWidget);
-    expect(find.text('Departments'), findsOneWidget);
-    expect(find.text('Subjects'), findsOneWidget);
-    expect(find.text('Classes & Sections'), findsOneWidget);
-    expect(find.text('Students'), findsOneWidget);
-    expect(find.text('Admin Users'), findsNothing);
-    expect(find.text('Schools'), findsNothing);
-    expect(find.text('Payments'), findsNothing);
-    expect(find.text('Teachers & Staff'), findsNothing);
-  });
+    test('a staff member has Staff Leave, and neither Students nor Staff Attendance', () {
+      final offered = _offered(UserRole.staff);
 
-  testWidgets('a staff member does not see Students', (tester) async {
-    _useTallViewport(tester);
-    await tester.pumpWidget(wrap(UserRole.staff));
-    await tester.pumpAndSettle();
+      expect(offered, contains('Staff Leave'));
+      expect(offered, isNot(contains('Students')));
+      expect(offered, isNot(contains('Staff Attendance')));
+    });
 
-    expect(find.text('Students'), findsNothing);
-  });
+    test('an accountant has what every employee has, plus Reports, and nothing of admin or teaching', () {
+      final offered = _offered(UserRole.accountant);
 
-  testWidgets('a staff member sees Staff Leave but not Staff Attendance', (tester) async {
-    _useTallViewport(tester);
-    await tester.pumpWidget(wrap(UserRole.staff));
-    await tester.pumpAndSettle();
+      for (final label in ['Dashboard', 'Reports', 'Staff Leave', 'My Inbox', 'Timetable']) {
+        expect(offered, contains(label), reason: '$label is for every employee');
+      }
+      for (final label in [
+        'Students',
+        'Student Attendance',
+        'Staff Attendance',
+        'Teachers & Staff',
+        'Trips',
+        'Payments',
+      ]) {
+        expect(offered, isNot(contains(label)), reason: '$label is not for an accountant');
+      }
+    });
 
-    expect(find.text('Staff Leave'), findsOneWidget);
-    expect(find.text('Staff Attendance'), findsNothing);
-  });
-
-  testWidgets('an accountant sees what every employee sees, plus Reports, and nothing of admin or teaching', (
-    tester,
-  ) async {
-    _useTallViewport(tester);
-    await tester.pumpWidget(wrap(UserRole.accountant));
-    await tester.pumpAndSettle();
-
-    for (final label in ['Dashboard', 'Reports', 'Staff Leave', 'My Inbox', 'Timetable']) {
-      expect(find.text(label), findsOneWidget, reason: '$label is for every employee');
-    }
-    for (final label in [
-      'Students',
-      'Student Attendance',
-      'Staff Attendance',
-      'Teachers & Staff',
-      'Trips',
-      'Payments',
+    for (final (role, payroll, payslips) in [
+      (UserRole.accountant, true, true),
+      (UserRole.schoolAdmin, true, true),
+      (UserRole.groupAdmin, true, true),
+      (UserRole.superAdmin, true, false),
+      (UserRole.teacher, false, true),
+      (UserRole.hod, false, true),
+      (UserRole.transportManager, false, true),
+      (UserRole.staff, false, true),
     ]) {
-      expect(find.text(label), findsNothing, reason: '$label is not for an accountant');
+      test('payroll for a ${role.label}', () {
+        expect(_offered(role).contains('Payroll'), payroll);
+        expect(_offered(role).contains('My Payslips'), payslips);
+      });
     }
+
+    for (final (role, auditLog) in [
+      (UserRole.superAdmin, true),
+      (UserRole.groupAdmin, true),
+      (UserRole.schoolAdmin, true),
+      (UserRole.hod, false),
+      (UserRole.teacher, false),
+      (UserRole.staff, false),
+      (UserRole.transportManager, false),
+      (UserRole.accountant, false),
+    ]) {
+      test('audit log for a ${role.label}', () {
+        expect(_offered(role).contains('Audit Log'), auditLog);
+      });
+    }
+
+    test('an hod has both Staff Attendance and Staff Leave', () {
+      expect(_offered(UserRole.hod), containsAll(['Staff Attendance', 'Staff Leave']));
+    });
   });
 
-  // Payroll is run by an accountant or an admin and read by a super admin;
-  // every employee has payslips. One test per role - a ProviderScope keeps the
-  // first session it was given, so re-pumping cannot switch roles.
-  for (final (role, payroll, payslips) in [
-    (UserRole.accountant, true, true),
-    (UserRole.schoolAdmin, true, true),
-    (UserRole.groupAdmin, true, true),
-    (UserRole.superAdmin, true, false),
-    (UserRole.teacher, false, true),
-    (UserRole.hod, false, true),
-    (UserRole.transportManager, false, true),
-    (UserRole.staff, false, true),
-  ]) {
-    testWidgets('payroll in the sidebar for a ${role.label}', (tester) async {
-      _useTallViewport(tester);
-      await tester.pumpWidget(wrap(role));
-      await tester.pumpAndSettle();
+  group('the areas', () {
+    test('every screen of the menu sits in exactly one area', () {
+      final paths = [for (final group in AppNav.groups) ...group.items.map((item) => item.path)];
 
-      expect(find.text('Payroll'), payroll ? findsOneWidget : findsNothing);
-      expect(find.text('My Payslips'), payslips ? findsOneWidget : findsNothing);
+      expect(paths.toSet(), hasLength(paths.length));
     });
-  }
 
-  // The audit trail is read by the admins the audit-log API lets through, and
-  // nobody else. One test per role, for the same reason as above.
-  for (final (role, auditLog) in [
-    (UserRole.superAdmin, true),
-    (UserRole.groupAdmin, true),
-    (UserRole.schoolAdmin, true),
-    (UserRole.hod, false),
-    (UserRole.teacher, false),
-    (UserRole.staff, false),
-    (UserRole.transportManager, false),
-    (UserRole.accountant, false),
-  ]) {
-    testWidgets('audit log in the sidebar for a ${role.label}', (tester) async {
-      _useTallViewport(tester);
-      await tester.pumpWidget(wrap(role));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Audit Log'), auditLog ? findsOneWidget : findsNothing);
+    test('related screens sit together', () {
+      expect(AppNav.groupOf('/fee-receipts')!.label, 'Fees');
+      expect(AppNav.groupOf('/leaves')!.label, 'Attendance');
+      expect(AppNav.groupOf('/timetable')!.label, 'Teaching');
+      expect(AppNav.groupOf('/transport/drivers')!.label, 'Transport');
+      expect(AppNav.groupOf('/profile'), isNull);
     });
-  }
 
-  testWidgets('an hod sees both Staff Attendance and Staff Leave', (tester) async {
-    _useTallViewport(tester);
-    await tester.pumpWidget(wrap(UserRole.hod));
-    await tester.pumpAndSettle();
+    test('a role sees only the areas it has a screen in', () {
+      final teacher = AppNav.groupsFor(_user(UserRole.teacher)).map((group) => group.label);
 
-    expect(find.text('Staff Attendance'), findsOneWidget);
-    expect(find.text('Staff Leave'), findsOneWidget);
+      expect(teacher, containsAll(['Dashboard', 'People', 'Attendance', 'Teaching', 'Academic Setup', 'Messages']));
+      expect(teacher, isNot(contains('Fees')));
+      expect(teacher, isNot(contains('Settings')));
+      expect(teacher, isNot(contains('Schools')));
+    });
+
+    test("a teacher's Payroll area holds only their own payslips", () {
+      final teacher = _user(UserRole.teacher);
+
+      expect(AppNav.payroll.itemsFor(teacher).map((item) => item.label), ['My Payslips']);
+    });
   });
 
-  testWidgets('a teacher sees Timetable under Academics', (tester) async {
-    _useTallViewport(tester);
-    await tester.pumpWidget(wrap(UserRole.teacher));
-    await tester.pumpAndSettle();
+  group('the menu on screen', () {
+    testWidgets("shows the strip of areas and the open page's area", (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin, start: '/attendance'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Timetable'), findsOneWidget);
+      expect(find.byKey(const Key('nav-area-Fees')), findsOneWidget);
+      expect(find.byKey(const Key('nav-area-Schools')), findsNothing);
+      expect(_inPanel('ATTENDANCE'), findsOneWidget);
+      expect(_inPanel('Student Attendance'), findsOneWidget);
+      expect(_inPanel('Staff Leave'), findsOneWidget);
+      expect(_inPanel('Students'), findsNothing);
+    });
+
+    testWidgets("an area's icon opens its first screen", (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('nav-area-Fees')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page /student-fees'), findsOneWidget);
+      expect(_inPanel('Receipts'), findsOneWidget);
+    });
+
+    testWidgets('a screen in the list opens it', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin, start: '/student-fees'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(_inPanel('Receipts'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page /fee-receipts'), findsOneWidget);
+    });
+
+    testWidgets('the list folds away and comes back', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('nav-panel-toggle')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('nav-panel')), findsNothing);
+      expect(find.byKey(const Key('nav-area-Fees')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('nav-panel-toggle')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('nav-panel')), findsOneWidget);
+    });
+
+    testWidgets('folded away, picking an area opens the list again', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('nav-panel-toggle')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('nav-area-Fees')));
+      await tester.pumpAndSettle();
+
+      expect(_inPanel('Receipts'), findsOneWidget);
+    });
+
+    testWidgets("in the phone's drawer an area shows its list without leaving the page", (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin, inDrawer: true));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('nav-panel-toggle')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('nav-area-Fees')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page /dashboard'), findsOneWidget);
+      expect(_inPanel('Receipts'), findsOneWidget);
+
+      await tester.tap(_inPanel('Receipts'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page /fee-receipts'), findsOneWidget);
+    });
+
+    testWidgets('an area with nothing left for the user is not drawn', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.staff));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('nav-area-Fees')), findsNothing);
+      expect(find.byKey(const Key('nav-area-Settings')), findsNothing);
+      expect(find.byKey(const Key('nav-area-Attendance')), findsOneWidget);
+    });
   });
 }
