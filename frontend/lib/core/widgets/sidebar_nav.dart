@@ -146,13 +146,19 @@ class _Rail extends ConsumerWidget {
       child: Column(
         children: [
           const SizedBox(height: 14),
+          // The logo goes home, as a logo does (asked for 2026-11-06).
           Tooltip(
-            message: 'School365ai',
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: _SidebarColors.primary, borderRadius: BorderRadius.circular(11)),
-              child: const Icon(Icons.school, color: Colors.white, size: 22),
+            message: 'Go to the Dashboard',
+            child: InkWell(
+              key: const Key('nav-logo'),
+              borderRadius: BorderRadius.circular(11),
+              onTap: () => context.go('/dashboard'),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: _SidebarColors.primary, borderRadius: BorderRadius.circular(11)),
+                child: const Icon(Icons.school, color: Colors.white, size: 22),
+              ),
             ),
           ),
           const SizedBox(height: 10),

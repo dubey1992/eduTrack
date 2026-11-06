@@ -206,7 +206,8 @@ void main() {
       await pump(tester, FakeAuthRepository());
 
       expect(find.byType(TeacherWelcomeScreen), findsOneWidget);
-      expect(find.textContaining('Welcome to a Smarter School'), findsNothing, reason: "the web's marketing panel");
+      expect(find.textContaining('Run your whole school day'), findsNothing, reason: "the web's marketing panel");
+      expect(find.byKey(const Key('who-signs-in')), findsNothing);
       expect(find.textContaining('Bus attendant?'), findsNothing);
     });
 

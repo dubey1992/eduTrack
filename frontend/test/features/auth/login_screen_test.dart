@@ -4,6 +4,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/dio_client.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/presentation/login_screen.dart';
+import 'package:edutrack_app/features/auth/presentation/widgets/website_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -114,26 +115,98 @@ void main() {
     expect(checkbox.value, isTrue);
   });
 
-  testWidgets('shows the brand panel with its feature checklist on a wide screen', (tester) async {
-    tester.view.physicalSize = const Size(1400, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  group('the redesigned page (2026-11-06)', () {
+    late List<Uri> opened;
 
-    await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
-    await tester.pumpAndSettle();
+    setUp(() {
+      opened = [];
+      WebsiteLinks.opener = (address) async => opened.add(address);
+    });
 
-    expect(find.text('Smarter Schools. Brighter Futures.'), findsOneWidget);
-    expect(find.text('Easy to use'), findsOneWidget);
-    // The form itself is still reachable alongside the brand panel.
-    expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
-  });
+    void useDesktop(WidgetTester tester) {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
 
-  testWidgets('hides the brand panel on a narrow (mobile) screen', (tester) async {
-    await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
-    await tester.pumpAndSettle();
+    testWidgets('says what it is and which account it wants', (tester) async {
+      await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Smarter Schools. Brighter Futures.'), findsNothing);
-    expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
+      expect(find.text('Sign in to School365ai'), findsOneWidget);
+      expect(find.text('Use the email and password your school set up for you.'), findsOneWidget);
+      expect(find.text('Welcome Back'), findsNothing);
+    });
+
+    testWidgets('lets the browser fill in a saved email and password', (tester) async {
+      await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
+      await tester.pumpAndSettle();
+
+      final fields = tester.widgetList<TextField>(find.byType(TextField)).toList();
+
+      expect(fields[0].autofillHints, contains(AutofillHints.email));
+      expect(fields[1].autofillHints, contains(AutofillHints.password));
+      expect(find.byType(AutofillGroup), findsOneWidget);
+    });
+
+    testWidgets('on a wide screen, explains who signs in where, beside a picture of the app', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Smarter Schools. Brighter Futures.'), findsOneWidget);
+      expect(find.text('Run your whole school day from one sign-in.'), findsOneWidget);
+      expect(find.byKey(const Key('who-signs-in')), findsOneWidget);
+      for (final who in ['School staff. ', 'Bus attendants. ', 'Parents. ']) {
+        expect(find.textContaining(who, findRichText: true), findsOneWidget, reason: who);
+      }
+      expect(find.byType(Image), findsOneWidget);
+      // The form itself is still reachable alongside the panel.
+      expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
+    });
+
+    testWidgets('the logo takes you to the website', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Go to the School365ai website'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('login-logo')));
+      await tester.pump();
+
+      expect(opened.single.path, '/');
+    });
+
+    testWidgets('a new school can book a demo, and anyone stuck can ask on WhatsApp', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('login-book-demo')));
+      await tester.tap(find.byKey(const Key('login-whatsapp-help')));
+      await tester.pump();
+
+      expect(opened.first.fragment, 'request-a-demo');
+      expect(opened.last.toString(), startsWith('https://wa.me/919205313831?text='));
+    });
+
+    testWidgets("the bus attendant's way in is a real button", (tester) async {
+      await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(OutlinedButton, 'Bus attendant? Sign in with your mobile number'), findsOneWidget);
+    });
+
+    testWidgets('on a phone, the form comes first, under the logo, with a word for parents', (tester) async {
+      await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('who-signs-in')), findsNothing);
+      expect(find.text('Smarter Schools. Brighter Futures.'), findsNothing);
+      expect(find.byKey(const Key('login-logo')), findsOneWidget);
+      expect(find.textContaining("Parent? You don't need to sign in."), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
+    });
   });
 }

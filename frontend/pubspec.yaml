@@ -108,6 +108,10 @@ flutter:
     # driver_splash_screen.dart). Drawn for this app, so it carries the
     # app's own palette and costs nothing to license.
     - assets/driver/shuttle-run.gif
+    # A real screenshot of the app (a demo school's finished Setup Guide),
+    # shown beside the sign-in form - the same picture as the website's
+    # homepage.
+    - assets/images/app-preview.jpg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

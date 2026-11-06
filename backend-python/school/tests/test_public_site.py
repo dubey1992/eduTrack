@@ -220,7 +220,7 @@ class Building(TestCase):
         self.build()
         home = self.read("index.html")
 
-        self.assertIn('<img src="/site/hero-app.jpg?v=2" width="1600" height="1000"', home)
+        self.assertIn('<img src="/site/hero-app.jpg?v=3" width="1600" height="1000"', home)
         self.assertIn('alt="The School365ai app:', home)
         self.assertEqual((self.root / "site/hero-app.jpg").read_bytes()[:3], b"\xff\xd8\xff")  # a JPEG
 
