@@ -165,7 +165,7 @@ void main() {
       final image = (photo.decoration! as BoxDecoration).image!.image as AssetImage;
       expect(image.assetName, 'assets/images/login-classroom.jpg');
       // Over the photo, what the app does in a school day.
-      for (final moment in ['Attendance marked', 'Bus 3 reached school', 'Fee received ₹12,500']) {
+      for (final moment in ['Attendance marked', 'Bus 3 reached school', 'Fee received ₹XXXXX']) {
         expect(find.text(moment), findsOneWidget, reason: moment);
       }
       // Bus attendants are pointed at the button under the form, not given a second one.
