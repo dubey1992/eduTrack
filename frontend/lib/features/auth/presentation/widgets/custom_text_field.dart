@@ -15,8 +15,11 @@ class CustomTextField extends StatelessWidget {
     this.obscureText = false,
     this.keyboardType,
     this.suffixIcon,
+    this.prefixIcon,
     this.validator,
     this.onFieldSubmitted,
+    this.autofillHints,
+    this.textInputAction,
   });
 
   final TextEditingController controller;
@@ -24,8 +27,14 @@ class CustomTextField extends StatelessWidget {
   final bool obscureText;
   final TextInputType? keyboardType;
   final Widget? suffixIcon;
+  final IconData? prefixIcon;
   final FormFieldValidator<String>? validator;
   final ValueChanged<String>? onFieldSubmitted;
+
+  /// What the browser or the phone may fill in - a saved email and
+  /// password, so nobody has to type them every morning.
+  final Iterable<String>? autofillHints;
+  final TextInputAction? textInputAction;
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +46,15 @@ class CustomTextField extends StatelessWidget {
       keyboardType: keyboardType,
       validator: validator,
       onFieldSubmitted: onFieldSubmitted,
+      autofillHints: autofillHints,
+      textInputAction: textInputAction,
       style: TextStyle(color: palette.text, fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: palette.subtle),
         floatingLabelStyle: TextStyle(color: palette.primary),
         suffixIcon: suffixIcon,
+        prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, size: 20, color: palette.subtle),
         filled: true,
         fillColor: palette.surface,
         border: OutlineInputBorder(

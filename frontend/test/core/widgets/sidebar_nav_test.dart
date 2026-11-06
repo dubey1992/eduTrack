@@ -209,6 +209,17 @@ void main() {
       expect(_inPanel('Receipts'), findsOneWidget);
     });
 
+    testWidgets('the logo goes to the Dashboard', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin, start: '/fee-receipts'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('nav-logo')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page /dashboard'), findsOneWidget);
+    });
+
     testWidgets('a screen in the list opens it', (tester) async {
       _useDesktop(tester);
       await tester.pumpWidget(_menu(UserRole.schoolAdmin, start: '/student-fees'));

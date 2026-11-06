@@ -1,6 +1,7 @@
 import '../../../core/network/session_ended_notifier.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,6 +12,7 @@ import '../application/auth_notifier.dart';
 import 'widgets/auth_palette.dart';
 import 'widgets/brand_panel.dart';
 import 'widgets/login_card.dart';
+import 'widgets/website_links.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key, this.offersAttendantSignIn = true});
@@ -83,6 +85,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = _emailController.text.trim();
     await ref.read(authNotifierProvider.notifier).login(email: email, password: _passwordController.text);
 
+    // Signed in: the browser may now offer to save the password.
+    if (ref.read(authNotifierProvider).value != null) TextInput.finishAutofillContext();
+
     final tokenStorage = ref.read(authTokenStorageProvider);
     if (_rememberMe) {
       await tokenStorage.saveRememberedEmail(email);
@@ -105,6 +110,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     });
 
+    final attendantSignIn = widget.offersAttendantSignIn ? () => context.go('/attendant-login') : null;
+
     final loginCard = LoginCard(
       formKey: _formKey,
       emailController: _emailController,
@@ -116,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       isSubmitting: _isSubmitting,
       onSubmit: _submit,
       onForgotPassword: () => context.push('/forgot-password'),
-      onAttendantSignIn: widget.offersAttendantSignIn ? () => context.go('/attendant-login') : null,
+      onAttendantSignIn: attendantSignIn,
     );
 
     return Scaffold(
@@ -138,8 +145,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     // on screen - the hero copy and illustration are
                     // decorative and would otherwise bury the actual form
                     // below the fold.
-                    mobile: (context) =>
-                        ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440), child: loginCard),
+                    mobile: (context) => ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Align(alignment: Alignment.centerLeft, child: BrandMark()),
+                          const SizedBox(height: 16),
+                          loginCard,
+                          const SizedBox(height: 16),
+                          const _ParentNote(),
+                          const SizedBox(height: 8),
+                          const _HelpLinks(),
+                        ],
+                      ),
+                    ),
                     // Flexible hero + a fixed-width card, matching the
                     // prototype's `grid-template-columns: 1fr 430px`.
                     desktop: (context) => ConstrainedBox(
@@ -147,9 +168,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Expanded(child: BrandPanel()),
+                          Expanded(child: BrandPanel(onAttendantSignIn: attendantSignIn)),
                           const SizedBox(width: 60),
-                          SizedBox(width: 430, child: loginCard),
+                          SizedBox(
+                            width: 430,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [loginCard, const SizedBox(height: 16), const _HelpLinks()],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -160,6 +187,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// For a phone, where most parents arrive: the desktop explains who signs in
+/// beside the form, a phone has room for this one line.
+class _ParentNote extends StatelessWidget {
+  const _ParentNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AuthPalette.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.family_restroom_outlined, size: 18, color: palette.subtle),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            "Parent? You don't need to sign in. Your school sends updates to your phone.",
+            style: TextStyle(fontSize: 13, height: 1.4, color: palette.muted),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Under the form: a school that is not on School365ai yet, and anybody
+/// who cannot get in.
+class _HelpLinks extends StatelessWidget {
+  const _HelpLinks();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AuthPalette.of(context);
+    final style = TextButton.styleFrom(
+      foregroundColor: palette.primary,
+      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+    );
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 12,
+      children: [
+        TextButton(
+          key: const Key('login-book-demo'),
+          style: style,
+          onPressed: () => WebsiteLinks.open(WebsiteLinks.bookDemo),
+          child: const Text('New school? Book a free demo'),
+        ),
+        TextButton.icon(
+          key: const Key('login-whatsapp-help'),
+          style: style,
+          onPressed: () => WebsiteLinks.open(WebsiteLinks.whatsApp),
+          icon: const Icon(Icons.chat_outlined, size: 16),
+          label: const Text('Need help? WhatsApp ${WebsiteLinks.supportPhone}'),
+        ),
+      ],
     );
   }
 }

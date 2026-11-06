@@ -40,7 +40,7 @@ void main() {
     await tester.tap(find.widgetWithText(OutlinedButton, 'Login'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome Back'), findsOneWidget);
-    expect(find.text('Sign in to continue to School365ai'), findsOneWidget);
+    expect(find.text('Sign in to School365ai'), findsOneWidget);
+    expect(find.text('Use the email and password your school set up for you.'), findsOneWidget);
   });
 }
