@@ -56,6 +56,9 @@ class LoginCard extends StatelessWidget {
           key: formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            // Centred when the page stretches the card to the height of
+            // what sits beside it.
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Says what this is and which account it wants, rather than

@@ -163,18 +163,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     // Flexible hero + a fixed-width card, matching the
                     // prototype's `grid-template-columns: 1fr 430px`.
+                    // The header across the top; under it the "who signs in"
+                    // guide and the photo beside the form, the form's card as
+                    // tall as the two of them (asked for 2026-11-06).
                     desktop: (context) => ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1400),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                      constraints: const BoxConstraints(maxWidth: 1320),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(child: BrandPanel(onAttendantSignIn: attendantSignIn)),
-                          const SizedBox(width: 60),
-                          SizedBox(
-                            width: 430,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [loginCard, const SizedBox(height: 16), const _HelpLinks()],
+                          const BrandHeader(),
+                          const SizedBox(height: 28),
+                          // As tall as the form needs; the guide and the photo
+                          // stretch to match it.
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const Expanded(child: BrandDetails()),
+                                const SizedBox(width: 32),
+                                SizedBox(
+                                  width: 430,
+                                  child: Column(
+                                    children: [
+                                      Expanded(child: loginCard),
+                                      const SizedBox(height: 10),
+                                      const _HelpLinks(),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
