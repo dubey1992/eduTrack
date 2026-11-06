@@ -129,12 +129,17 @@ void main() {
 
       Finder inSidebar(String label) => find.descendant(of: find.byType(SidebarNav), matching: find.text(label));
 
+      // The Transport list holds their own trips and none of the office's.
       expect(inSidebar('My Trip'), findsOneWidget);
-      for (final label in ['Dashboard', 'Staff Leave', 'My Inbox']) {
-        expect(inSidebar(label), findsOneWidget, reason: label);
-      }
-      for (final label in ['Vehicles', 'Drivers', 'Routes', 'Trips', 'Students', 'Timetable']) {
+      for (final label in ['Vehicles', 'Crew', 'Routes', 'Trips', 'Bus Stops']) {
         expect(inSidebar(label), findsNothing, reason: label);
+      }
+      // Their dashboard, leave and inbox are areas of their own.
+      for (final area in ['Dashboard', 'Attendance', 'Messages']) {
+        expect(find.byKey(Key('nav-area-$area')), findsOneWidget, reason: area);
+      }
+      for (final area in ['People', 'Teaching']) {
+        expect(find.byKey(Key('nav-area-$area')), findsNothing, reason: area);
       }
     });
 

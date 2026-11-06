@@ -563,7 +563,7 @@ void main() {
     });
 
     test('sits right after Early Access', () {
-      final paths = AppNav.administration.items.map((item) => item.path).toList();
+      final paths = AppNav.platformSchools.items.map((item) => item.path).toList();
 
       expect(paths.indexOf('/demo-requests'), paths.indexOf('/early-access') + 1);
     });

@@ -73,19 +73,37 @@ class NavItem {
   }
 }
 
+/// One area of the app: an icon in the side strip, and the list of its
+/// screens beside it (docs/navigation-tabs.md, S2 - chosen 2026-11-06).
 class NavGroup {
-  const NavGroup({required this.label, required this.items});
+  const NavGroup({required this.label, required this.icon, required this.items});
 
   final String label;
+  final IconData icon;
   final List<NavItem> items;
+
+  /// The screens [user] may open here, in menu order.
+  List<NavItem> itemsFor(AuthenticatedUser user) => items.where((item) => item.allows(user)).toList();
 }
 
-/// The app's navigation structure. Grows one group/item at a time as each
-/// phase lands its screens - matches the prototype's grouped sidebar
-/// (docs/prototype/school_management_prototype_v4_themes.html), just
-/// sparser for now since most modules don't exist yet.
+/// The app's navigation structure: about a dozen areas, each holding the
+/// screens that belong together, in the order a school uses them. Who sees
+/// a screen is still each [NavItem]'s own rule; an area simply disappears
+/// when none of its screens is left for the user.
 class AppNav {
   const AppNav._();
+
+  /// The areas [user] has at least one screen in.
+  static List<NavGroup> groupsFor(AuthenticatedUser user) =>
+      groups.where((group) => group.items.any((item) => item.allows(user))).toList();
+
+  /// The area holding [path], or null for a page outside the menu.
+  static NavGroup? groupOf(String path) {
+    for (final group in groups) {
+      if (group.items.any((item) => item.path == path)) return group;
+    }
+    return null;
+  }
 
   static const _allRoles = {
     UserRole.superAdmin,
@@ -102,8 +120,22 @@ class AppNav {
   /// person's own: the landing page and their inbox.
   static const _everyone = {..._allRoles, UserRole.busAttendant, UserRole.driver};
 
-  static const overview = NavGroup(
-    label: 'Overview',
+  static const _transportViewerRoles = {
+    UserRole.superAdmin,
+    UserRole.groupAdmin,
+    UserRole.schoolAdmin,
+    UserRole.hod,
+    UserRole.teacher,
+    UserRole.transportManager,
+  };
+
+  /// Transport's fleet and trip screens are the office's; the bus crew run
+  /// their own routes from My Trip instead.
+  static const _notAttendants = {UserRole.busAttendant, UserRole.driver};
+
+  static const dashboard = NavGroup(
+    label: 'Dashboard',
+    icon: Icons.dashboard_outlined,
     items: [
       NavItem(
         path: '/dashboard',
@@ -123,6 +155,56 @@ class AppNav {
         pageTitle: 'Setup Guide',
         pageSubtitle: 'Get your school ready, step by step',
       ),
+    ],
+  );
+
+  static const platformSchools = NavGroup(
+    label: 'Schools',
+    icon: Icons.apartment_outlined,
+    items: [
+      NavItem(
+        path: '/schools',
+        label: 'Schools',
+        icon: Icons.apartment_outlined,
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Schools',
+        pageSubtitle: 'Onboard and manage schools on the platform',
+      ),
+      NavItem(
+        path: '/payments',
+        label: 'Payments',
+        icon: Icons.payments_outlined,
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Payments',
+        pageSubtitle: 'Payments received from schools',
+      ),
+      NavItem(
+        path: '/early-access',
+        label: 'Early Access',
+        icon: Icons.mark_email_unread_outlined,
+        // Schools asking to be let in - platform business, same as
+        // onboarding and payments. See docs/early-access.md.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Early Access Requests',
+        pageSubtitle: 'Schools that have asked to join the platform',
+      ),
+      NavItem(
+        path: '/demo-requests',
+        label: 'Demo Requests',
+        icon: Icons.event_available_outlined,
+        // Schools asking to be shown the product - platform business, the
+        // same as early access.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Demo Requests',
+        pageSubtitle: 'Schools that have asked for a demo',
+      ),
+    ],
+  );
+
+  static const insights = NavGroup(
+    label: 'Insights',
+    icon: Icons.insights_outlined,
+    items: [
       NavItem(
         path: '/reports',
         module: AppModules.reports,
@@ -177,234 +259,34 @@ class AppNav {
     ],
   );
 
-  static const administration = NavGroup(
-    label: 'Administration',
+  static const people = NavGroup(
+    label: 'People',
+    icon: Icons.groups_2_outlined,
     items: [
       NavItem(
-        path: '/schools',
-        label: 'Schools',
-        icon: Icons.apartment_outlined,
-        allowedRoles: {UserRole.superAdmin},
-        pageTitle: 'Schools',
-        pageSubtitle: 'Onboard and manage schools on the platform',
-      ),
-      NavItem(
-        path: '/early-access',
-        label: 'Early Access',
-        icon: Icons.mark_email_unread_outlined,
-        // Schools asking to be let in - platform business, same as
-        // onboarding and payments. See docs/early-access.md.
-        allowedRoles: {UserRole.superAdmin},
-        pageTitle: 'Early Access Requests',
-        pageSubtitle: 'Schools that have asked to join the platform',
-      ),
-      NavItem(
-        path: '/demo-requests',
-        label: 'Demo Requests',
-        icon: Icons.event_available_outlined,
-        // Schools asking to be shown the product - platform business, the
-        // same as early access.
-        allowedRoles: {UserRole.superAdmin},
-        pageTitle: 'Demo Requests',
-        pageSubtitle: 'Schools that have asked for a demo',
-      ),
-      NavItem(
-        path: '/payments',
-        label: 'Payments',
-        icon: Icons.payments_outlined,
-        allowedRoles: {UserRole.superAdmin},
-        pageTitle: 'Payments',
-        pageSubtitle: 'Payments received from schools',
-      ),
-      NavItem(
-        path: '/users',
-        label: 'Admin Users',
-        icon: Icons.group_outlined,
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
-        pageTitle: 'Admin Users',
-        pageSubtitle: 'School admin accounts and access',
-      ),
-      NavItem(
-        path: '/audit-log',
-        label: 'Audit Log',
-        icon: Icons.history,
-        // The roles the audit-log API lets through. A Super Admin reads every
-        // school's trail and the platform's own; an admin reads their school's
-        // (or their group's).
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
-        pageTitle: 'Audit Log',
-        pageSubtitle: 'Who changed what, and when',
-      ),
-      NavItem(
-        path: '/module-settings',
-        label: 'Module Settings',
-        icon: Icons.tune,
-        // A Super Admin grants a module to a school; a School Admin keeps it
-        // on and tunes its settings. See docs/settings.md.
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
-        pageTitle: 'Module Settings',
-        pageSubtitle: 'Which modules this school uses, and their settings',
-      ),
-      NavItem(
-        path: '/permissions',
-        label: 'Permissions',
-        icon: Icons.admin_panel_settings_outlined,
-        // The Super Admin edits the matrix; every administrator reads it.
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
-        pageTitle: 'Roles & Permissions',
-        pageSubtitle: 'What each role may see and do',
-      ),
-      NavItem(
-        path: '/homepage-content',
-        label: 'Homepage Content',
-        icon: Icons.web_outlined,
-        // The words on the product's public front page, not any school's.
-        allowedRoles: {UserRole.superAdmin},
-        pageTitle: 'Homepage Content',
-        pageSubtitle: 'The words visitors read on the public homepage',
-      ),
-      NavItem(
-        path: '/site-pages',
-        label: 'Website Pages',
-        icon: Icons.article_outlined,
-        // About Us, the privacy policy, the terms - the product's, not a
-        // school's (docs/site-pages.md).
-        allowedRoles: {UserRole.superAdmin},
-        pageTitle: 'Website Pages',
-        pageSubtitle: 'About, privacy, terms and other public pages',
-      ),
-      NavItem(
-        path: '/company-details',
-        label: 'Company Details',
-        icon: Icons.business_outlined,
-        // School365ai as a business - the issuer on its own receipts.
-        allowedRoles: {UserRole.superAdmin},
-        pageTitle: 'Company Details',
-        pageSubtitle: 'Who issues the receipts schools get for paying the platform',
-      ),
-      NavItem(
-        path: '/mail-settings',
-        label: 'Email Settings',
-        icon: Icons.outgoing_mail,
-        // The platform's own SMTP server, not any one school's.
-        allowedRoles: {UserRole.superAdmin},
-        pageTitle: 'Email Settings',
-        pageSubtitle: 'The SMTP server the platform sends through',
-      ),
-      NavItem(
-        path: '/messaging-settings',
-        label: 'Messaging',
-        icon: Icons.sms_outlined,
-        // School365ai's own Twilio account, which sends every school's SMS
-        // and WhatsApp (docs/platform-messaging.md). Schools only switch
-        // channels on or off.
-        allowedRoles: {UserRole.superAdmin},
-        pageTitle: 'Messaging',
-        pageSubtitle: "SMS and WhatsApp for every school, through School365ai's Twilio account",
-      ),
-    ],
-  );
-
-  static const academics = NavGroup(
-    label: 'Academics',
-    items: [
-      NavItem(
-        path: '/academic-years',
-        module: AppModules.academics,
-        label: 'Academic Years',
-        icon: Icons.calendar_today_outlined,
-        allowedRoles: _allRoles,
-        pageTitle: 'Academic Years',
-        pageSubtitle: 'Academic year setup and rollover',
-      ),
-      NavItem(
-        path: '/assessments',
-        module: AppModules.assessments,
-        label: 'Class Tests',
-        icon: Icons.fact_check_outlined,
-        // The roles the API lets in. A teacher sees the tests of the classes
-        // the timetable gives them, an HOD their department's subjects - the
-        // narrowing is the server's, not this menu's.
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
-        pageTitle: 'Class Tests',
-        pageSubtitle: 'Tests, assignments and quizzes',
-      ),
-      NavItem(
-        path: '/grade-scales',
-        module: AppModules.academics,
-        label: 'Grade Scales',
-        icon: Icons.workspace_premium_outlined,
-        // Every role reads them: a teacher entering marks needs to know what
-        // an 81 will be called. Only an administrator may write one, which
-        // the screen and the API both enforce.
-        allowedRoles: _allRoles,
-        pageTitle: 'Grade Scales',
-        pageSubtitle: 'How a percentage becomes a grade',
-      ),
-      NavItem(
-        path: '/holidays',
-        module: AppModules.academics,
-        label: 'Holidays',
-        icon: Icons.beach_access_outlined,
-        allowedRoles: _allRoles,
-        pageTitle: 'Holiday Calendar',
-        pageSubtitle: 'School holidays and breaks that pause attendance, leave and teaching',
-      ),
-      NavItem(
-        path: '/departments',
-        module: AppModules.academics,
-        label: 'Departments',
-        icon: Icons.corporate_fare_outlined,
-        allowedRoles: _allRoles,
-        pageTitle: 'Departments',
-        pageSubtitle: 'Academic departments and HOD assignment',
-      ),
-      NavItem(
-        path: '/subjects',
-        module: AppModules.academics,
-        label: 'Subjects',
-        icon: Icons.menu_book_outlined,
-        allowedRoles: _allRoles,
-        pageTitle: 'Subjects',
-        pageSubtitle: 'Subject setup and lead teacher assignment',
-      ),
-      NavItem(
-        path: '/classes',
-        module: AppModules.academics,
-        label: 'Classes & Sections',
+        path: '/students',
+        module: AppModules.students,
+        label: 'Students',
         icon: Icons.school_outlined,
-        allowedRoles: _allRoles,
-        pageTitle: 'Classes & Sections',
-        pageSubtitle: 'Class structure and teacher assignment',
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.teacher},
+        pageTitle: 'Student Management',
+        pageSubtitle: 'Admissions, profiles and class assignments',
       ),
       NavItem(
-        path: '/promotion',
-        module: AppModules.academics,
-        // Deciding that a child repeats a year is staff work, so the API
-        // refuses everyone else - including the Super Admin, who is not a
-        // member of staff (docs/promotion.md).
-        requiredLevel: PermissionLevel.manage,
-        deniedRoles: {UserRole.superAdmin},
-        label: 'Class Promotion',
-        icon: Icons.move_up_outlined,
-        allowedRoles: {UserRole.groupAdmin, UserRole.schoolAdmin},
-        pageTitle: 'Class Promotion',
-        pageSubtitle: 'Move a class into the next academic year',
-      ),
-      NavItem(
-        path: '/timetable',
-        module: AppModules.timetable,
-        label: 'Timetable',
-        icon: Icons.calendar_view_week_outlined,
-        allowedRoles: _allRoles,
-        pageTitle: 'Timetable',
-        pageSubtitle: 'Class schedules and period management',
+        path: '/staff',
+        module: AppModules.staff,
+        label: 'Teachers & Staff',
+        icon: Icons.groups_2_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Teachers & Staff',
+        pageSubtitle: 'Employee records, departments and assignments',
       ),
     ],
   );
 
-  static const attendanceHr = NavGroup(
-    label: 'Attendance & HR',
+  static const attendance = NavGroup(
+    label: 'Attendance',
+    icon: Icons.fact_check_outlined,
     items: [
       NavItem(
         path: '/attendance',
@@ -423,19 +305,6 @@ class AppNav {
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod},
         pageTitle: 'Staff Attendance',
         pageSubtitle: 'Daily teacher and staff attendance register',
-      ),
-      NavItem(
-        path: '/biometric-devices',
-        module: AppModules.biometric,
-        label: 'Biometric Devices',
-        icon: Icons.fingerprint,
-        // Its own module, switched off until a school asks for it: a school
-        // with no readers on the wall would find screens that can only ever
-        // be empty. An HOD marks the staff register but does not buy the
-        // hardware, which is why this is not the register's own row.
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
-        pageTitle: 'Biometric Devices',
-        pageSubtitle: 'Fingerprint readers, and which staff are enrolled on them',
       ),
       NavItem(
         path: '/leaves',
@@ -458,6 +327,35 @@ class AppNav {
         pageSubtitle: 'Leave requests, approvals and attendance sync',
       ),
       NavItem(
+        path: '/biometric-devices',
+        module: AppModules.biometric,
+        label: 'Biometric Devices',
+        icon: Icons.fingerprint,
+        // Its own module, switched off until a school asks for it: a school
+        // with no readers on the wall would find screens that can only ever
+        // be empty. An HOD marks the staff register but does not buy the
+        // hardware, which is why this is not the register's own row.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Biometric Devices',
+        pageSubtitle: 'Fingerprint readers, and which staff are enrolled on them',
+      ),
+    ],
+  );
+
+  static const teaching = NavGroup(
+    label: 'Teaching',
+    icon: Icons.menu_book_outlined,
+    items: [
+      NavItem(
+        path: '/timetable',
+        module: AppModules.timetable,
+        label: 'Timetable',
+        icon: Icons.calendar_view_week_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Timetable',
+        pageSubtitle: 'Class schedules and period management',
+      ),
+      NavItem(
         path: '/teaching-reports',
         module: AppModules.teachingReports,
         label: 'Teaching Reports',
@@ -476,6 +374,18 @@ class AppNav {
         pageSubtitle: 'Curriculum outline and per-class coverage',
       ),
       NavItem(
+        path: '/assessments',
+        module: AppModules.assessments,
+        label: 'Class Tests',
+        icon: Icons.fact_check_outlined,
+        // The roles the API lets in. A teacher sees the tests of the classes
+        // the timetable gives them, an HOD their department's subjects - the
+        // narrowing is the server's, not this menu's.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
+        pageTitle: 'Class Tests',
+        pageSubtitle: 'Tests, assignments and quizzes',
+      ),
+      NavItem(
         path: '/hod-reports',
         module: AppModules.hod,
         label: 'HOD Reports',
@@ -484,6 +394,145 @@ class AppNav {
         pageTitle: 'HOD / Staff Reports',
         pageSubtitle: 'Attendance and teaching performance by department',
       ),
+    ],
+  );
+
+  static const academicSetup = NavGroup(
+    label: 'Academic Setup',
+    icon: Icons.school_outlined,
+    items: [
+      NavItem(
+        path: '/classes',
+        module: AppModules.academics,
+        label: 'Classes & Sections',
+        icon: Icons.school_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Classes & Sections',
+        pageSubtitle: 'Class structure and teacher assignment',
+      ),
+      NavItem(
+        path: '/subjects',
+        module: AppModules.academics,
+        label: 'Subjects',
+        icon: Icons.menu_book_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Subjects',
+        pageSubtitle: 'Subject setup and lead teacher assignment',
+      ),
+      NavItem(
+        path: '/departments',
+        module: AppModules.academics,
+        label: 'Departments',
+        icon: Icons.corporate_fare_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Departments',
+        pageSubtitle: 'Academic departments and HOD assignment',
+      ),
+      NavItem(
+        path: '/academic-years',
+        module: AppModules.academics,
+        label: 'Academic Years',
+        icon: Icons.calendar_today_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Academic Years',
+        pageSubtitle: 'Academic year setup and rollover',
+      ),
+      NavItem(
+        path: '/holidays',
+        module: AppModules.academics,
+        label: 'Holidays',
+        icon: Icons.beach_access_outlined,
+        allowedRoles: _allRoles,
+        pageTitle: 'Holiday Calendar',
+        pageSubtitle: 'School holidays and breaks that pause attendance, leave and teaching',
+      ),
+      NavItem(
+        path: '/grade-scales',
+        module: AppModules.academics,
+        label: 'Grade Scales',
+        icon: Icons.workspace_premium_outlined,
+        // Every role reads them: a teacher entering marks needs to know what
+        // an 81 will be called. Only an administrator may write one, which
+        // the screen and the API both enforce.
+        allowedRoles: _allRoles,
+        pageTitle: 'Grade Scales',
+        pageSubtitle: 'How a percentage becomes a grade',
+      ),
+      NavItem(
+        path: '/promotion',
+        module: AppModules.academics,
+        // Deciding that a child repeats a year is staff work, so the API
+        // refuses everyone else - including the Super Admin, who is not a
+        // member of staff (docs/promotion.md).
+        requiredLevel: PermissionLevel.manage,
+        deniedRoles: {UserRole.superAdmin},
+        label: 'Class Promotion',
+        icon: Icons.move_up_outlined,
+        allowedRoles: {UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Class Promotion',
+        pageSubtitle: 'Move a class into the next academic year',
+      ),
+    ],
+  );
+
+  static const fees = NavGroup(
+    label: 'Fees',
+    icon: Icons.request_quote_outlined,
+    items: [
+      NavItem(
+        path: '/student-fees',
+        module: AppModules.fees,
+        requiredLevel: PermissionLevel.view,
+        label: 'Student Fees',
+        icon: Icons.receipt_long_outlined,
+        // What each student owes - the same people as Fee Setup.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Student Fees',
+        pageSubtitle: 'What each student has been charged, has paid and still owes',
+      ),
+      NavItem(
+        path: '/fee-receipts',
+        module: AppModules.fees,
+        requiredLevel: PermissionLevel.view,
+        label: 'Receipts',
+        icon: Icons.receipt_outlined,
+        // Every receipt the school has issued - the same people as Fee Setup.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Receipts',
+        pageSubtitle: 'Every fee payment recorded, with its receipt',
+      ),
+      NavItem(
+        path: '/fee-discounts',
+        module: AppModules.fees,
+        requiredLevel: PermissionLevel.view,
+        label: 'Discounts',
+        icon: Icons.percent,
+        // Every discount the school has given - the same people as Fee Setup.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Discounts',
+        pageSubtitle: 'Discounts given on student fees, and why',
+      ),
+      NavItem(
+        path: '/fee-setup',
+        module: AppModules.fees,
+        requiredLevel: PermissionLevel.view,
+        label: 'Fee Setup',
+        icon: Icons.request_quote_outlined,
+        // The roles with fees in the default matrix - only consulted when
+        // the session carries no matrix at all; otherwise the matrix decides,
+        // so a school that gives its front desk fees sees them here. A Super
+        // Admin reads; the screen offers changes only at "manage".
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Fee Setup',
+        pageSubtitle: 'Fee types, class and bus route fees, and installments',
+      ),
+    ],
+  );
+
+  static const payroll = NavGroup(
+    label: 'Payroll',
+    icon: Icons.account_balance_wallet_outlined,
+    items: [
       NavItem(
         path: '/payroll',
         module: AppModules.payroll,
@@ -522,45 +571,9 @@ class AppNav {
     ],
   );
 
-  static const people = NavGroup(
-    label: 'People',
-    items: [
-      NavItem(
-        path: '/staff',
-        module: AppModules.staff,
-        label: 'Teachers & Staff',
-        icon: Icons.groups_2_outlined,
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
-        pageTitle: 'Teachers & Staff',
-        pageSubtitle: 'Employee records, departments and assignments',
-      ),
-      NavItem(
-        path: '/students',
-        module: AppModules.students,
-        label: 'Students',
-        icon: Icons.school_outlined,
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.teacher},
-        pageTitle: 'Student Management',
-        pageSubtitle: 'Admissions, profiles and class assignments',
-      ),
-    ],
-  );
-
-  static const _transportViewerRoles = {
-    UserRole.superAdmin,
-    UserRole.groupAdmin,
-    UserRole.schoolAdmin,
-    UserRole.hod,
-    UserRole.teacher,
-    UserRole.transportManager,
-  };
-
-  /// Transport's fleet and trip screens are the office's; the bus crew run
-  /// their own routes from My Trip instead.
-  static const _notAttendants = {UserRole.busAttendant, UserRole.driver};
-
   static const transport = NavGroup(
     label: 'Transport',
+    icon: Icons.directions_bus_outlined,
     items: [
       NavItem(
         path: '/my-trip',
@@ -573,6 +586,38 @@ class AppNav {
         allowedRoles: {UserRole.busAttendant, UserRole.driver},
         pageTitle: 'My Trip',
         pageSubtitle: "Today's trips on your routes",
+      ),
+      NavItem(
+        path: '/transport/trips',
+        module: AppModules.transport,
+        deniedRoles: _notAttendants,
+        label: 'Trips',
+        icon: Icons.route_outlined,
+        allowedRoles: _transportViewerRoles,
+        pageTitle: 'School Transport',
+        pageSubtitle: 'Live bus operations and student trip events',
+      ),
+      NavItem(
+        path: '/transport/routes',
+        module: AppModules.transport,
+        deniedRoles: _notAttendants,
+        label: 'Routes',
+        icon: Icons.alt_route_outlined,
+        allowedRoles: _transportViewerRoles,
+        pageTitle: 'Routes & Stops',
+        pageSubtitle: 'Bus routes, stops and the students riding them',
+      ),
+      NavItem(
+        path: '/transport/bus-stops',
+        module: AppModules.transport,
+        deniedRoles: _notAttendants,
+        label: 'Bus Stops',
+        icon: Icons.location_on_outlined,
+        allowedRoles: _transportViewerRoles,
+        pageTitle: 'Bus Stops',
+        // The places, as opposed to one route calling at one of them -
+        // which is what Routes & Stops below is about (docs/maps.md).
+        pageSubtitle: 'The places the buses stop at',
       ),
       NavItem(
         path: '/transport/vehicles',
@@ -594,111 +639,20 @@ class AppNav {
         pageTitle: 'Bus crew',
         pageSubtitle: 'Drivers and attendants, their licences and their phones',
       ),
-      NavItem(
-        path: '/transport/bus-stops',
-        module: AppModules.transport,
-        deniedRoles: _notAttendants,
-        label: 'Bus Stops',
-        icon: Icons.location_on_outlined,
-        allowedRoles: _transportViewerRoles,
-        pageTitle: 'Bus Stops',
-        // The places, as opposed to one route calling at one of them -
-        // which is what Routes & Stops below is about (docs/maps.md).
-        pageSubtitle: 'The places the buses stop at',
-      ),
-      NavItem(
-        path: '/transport/routes',
-        module: AppModules.transport,
-        deniedRoles: _notAttendants,
-        label: 'Routes',
-        icon: Icons.alt_route_outlined,
-        allowedRoles: _transportViewerRoles,
-        pageTitle: 'Routes & Stops',
-        pageSubtitle: 'Bus routes, stops and the students riding them',
-      ),
-      NavItem(
-        path: '/transport/trips',
-        module: AppModules.transport,
-        deniedRoles: _notAttendants,
-        label: 'Trips',
-        icon: Icons.route_outlined,
-        allowedRoles: _transportViewerRoles,
-        pageTitle: 'School Transport',
-        pageSubtitle: 'Live bus operations and student trip events',
-      ),
     ],
   );
 
-  /// The prototype's Operations group sits next to Transport. The message
-  /// log holds guardians' numbers, so only admins see it; the inbox is every
-  /// user's own mail and is open to all.
-  /// Fee Management (docs/fees.md). Each slice adds its screen here - F1 is
-  /// the set-up.
-  static const fees = NavGroup(
-    label: 'Fees',
+  static const messages = NavGroup(
+    label: 'Messages',
+    icon: Icons.forum_outlined,
     items: [
       NavItem(
-        path: '/fee-setup',
-        module: AppModules.fees,
-        requiredLevel: PermissionLevel.view,
-        label: 'Fee Setup',
-        icon: Icons.request_quote_outlined,
-        // The roles with fees in the default matrix - only consulted when
-        // the session carries no matrix at all; otherwise the matrix decides,
-        // so a school that gives its front desk fees sees them here. A Super
-        // Admin reads; the screen offers changes only at "manage".
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
-        pageTitle: 'Fee Setup',
-        pageSubtitle: 'Fee types, class and bus route fees, and installments',
-      ),
-      NavItem(
-        path: '/student-fees',
-        module: AppModules.fees,
-        requiredLevel: PermissionLevel.view,
-        label: 'Student Fees',
-        icon: Icons.receipt_long_outlined,
-        // What each student owes - the same people as Fee Setup.
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
-        pageTitle: 'Student Fees',
-        pageSubtitle: 'What each student has been charged, has paid and still owes',
-      ),
-      NavItem(
-        path: '/fee-receipts',
-        module: AppModules.fees,
-        requiredLevel: PermissionLevel.view,
-        label: 'Receipts',
-        icon: Icons.receipt_outlined,
-        // Every receipt the school has issued - the same people as Fee Setup.
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
-        pageTitle: 'Receipts',
-        pageSubtitle: 'Every fee payment recorded, with its receipt',
-      ),
-      NavItem(
-        path: '/fee-discounts',
-        module: AppModules.fees,
-        requiredLevel: PermissionLevel.view,
-        label: 'Discounts',
-        icon: Icons.percent,
-        // Every discount the school has given - the same people as Fee Setup.
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
-        pageTitle: 'Discounts',
-        pageSubtitle: 'Discounts given on student fees, and why',
-      ),
-    ],
-  );
-
-  static const operations = NavGroup(
-    label: 'Operations',
-    items: [
-      NavItem(
-        path: '/communication',
-        module: AppModules.communication,
-        requiredLevel: PermissionLevel.manage,
-        label: 'Communication',
-        icon: Icons.forum_outlined,
-        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
-        pageTitle: 'Communication',
-        pageSubtitle: 'SMS, alerts and announcements',
+        path: '/inbox',
+        label: 'My Inbox',
+        icon: Icons.inbox_outlined,
+        allowedRoles: _everyone,
+        pageTitle: 'My Inbox',
+        pageSubtitle: 'Messages the school sent you',
       ),
       NavItem(
         path: '/announcements',
@@ -710,17 +664,141 @@ class AppNav {
         pageSubtitle: 'Notices published to the school',
       ),
       NavItem(
-        path: '/inbox',
-        label: 'My Inbox',
-        icon: Icons.inbox_outlined,
-        allowedRoles: _everyone,
-        pageTitle: 'My Inbox',
-        pageSubtitle: 'Messages the school sent you',
+        path: '/communication',
+        module: AppModules.communication,
+        requiredLevel: PermissionLevel.manage,
+        label: 'Communication',
+        icon: Icons.forum_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Communication',
+        pageSubtitle: 'SMS, alerts and announcements',
       ),
     ],
   );
 
-  static const groups = [overview, people, attendanceHr, academics, transport, operations, fees, administration];
+  static const website = NavGroup(
+    label: 'Website',
+    icon: Icons.web_outlined,
+    items: [
+      NavItem(
+        path: '/homepage-content',
+        label: 'Homepage Content',
+        icon: Icons.web_outlined,
+        // The words on the product's public front page, not any school's.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Homepage Content',
+        pageSubtitle: 'The words visitors read on the public homepage',
+      ),
+      NavItem(
+        path: '/site-pages',
+        label: 'Website Pages',
+        icon: Icons.article_outlined,
+        // About Us, the privacy policy, the terms - the product's, not a
+        // school's (docs/site-pages.md).
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Website Pages',
+        pageSubtitle: 'About, privacy, terms and other public pages',
+      ),
+    ],
+  );
+
+  static const platform = NavGroup(
+    label: 'Platform',
+    icon: Icons.tune,
+    items: [
+      NavItem(
+        path: '/company-details',
+        label: 'Company Details',
+        icon: Icons.business_outlined,
+        // School365ai as a business - the issuer on its own receipts.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Company Details',
+        pageSubtitle: 'Who issues the receipts schools get for paying the platform',
+      ),
+      NavItem(
+        path: '/mail-settings',
+        label: 'Email Settings',
+        icon: Icons.outgoing_mail,
+        // The platform's own SMTP server, not any one school's.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Email Settings',
+        pageSubtitle: 'The SMTP server the platform sends through',
+      ),
+      NavItem(
+        path: '/messaging-settings',
+        label: 'Messaging',
+        icon: Icons.sms_outlined,
+        // School365ai's own Twilio account, which sends every school's SMS
+        // and WhatsApp (docs/platform-messaging.md). Schools only switch
+        // channels on or off.
+        allowedRoles: {UserRole.superAdmin},
+        pageTitle: 'Messaging',
+        pageSubtitle: "SMS and WhatsApp for every school, through School365ai's Twilio account",
+      ),
+    ],
+  );
+
+  static const settings = NavGroup(
+    label: 'Settings',
+    icon: Icons.settings_outlined,
+    items: [
+      NavItem(
+        path: '/users',
+        label: 'Admin Users',
+        icon: Icons.group_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Admin Users',
+        pageSubtitle: 'School admin accounts and access',
+      ),
+      NavItem(
+        path: '/permissions',
+        label: 'Permissions',
+        icon: Icons.admin_panel_settings_outlined,
+        // The Super Admin edits the matrix; every administrator reads it.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Roles & Permissions',
+        pageSubtitle: 'What each role may see and do',
+      ),
+      NavItem(
+        path: '/module-settings',
+        label: 'Module Settings',
+        icon: Icons.tune,
+        // A Super Admin grants a module to a school; a School Admin keeps it
+        // on and tunes its settings. See docs/settings.md.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Module Settings',
+        pageSubtitle: 'Which modules this school uses, and their settings',
+      ),
+      NavItem(
+        path: '/audit-log',
+        label: 'Audit Log',
+        icon: Icons.history,
+        // The roles the audit-log API lets through. A Super Admin reads every
+        // school's trail and the platform's own; an admin reads their school's
+        // (or their group's).
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Audit Log',
+        pageSubtitle: 'Who changed what, and when',
+      ),
+    ],
+  );
+
+  static const groups = [
+    dashboard,
+    platformSchools,
+    insights,
+    people,
+    attendance,
+    teaching,
+    academicSetup,
+    fees,
+    payroll,
+    transport,
+    messages,
+    website,
+    platform,
+    settings,
+  ];
 
   static List<NavItem> get allItems => groups.expand((g) => g.items).toList();
 

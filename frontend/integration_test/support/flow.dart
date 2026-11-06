@@ -1,11 +1,13 @@
+import 'package:edutrack_app/core/routing/app_nav.dart';
 import 'package:edutrack_app/core/widgets/sidebar_nav.dart';
 import 'package:edutrack_app/core/widgets/status_badge.dart';
 import 'package:edutrack_app/main.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 /// The steps every end-to-end workflow shares: a desktop-sized window, the
-/// app from its landing page, signing in and out, and the sidebar.
+/// app from its landing page, signing in and out, and the menu.
 ///
 /// The accounts come from the backend's fixtures, all with the password
 /// "password":
@@ -44,57 +46,50 @@ Future<void> logout(WidgetTester tester) async {
   await tester.pumpAndSettle(const Duration(seconds: 3));
 }
 
-/// Opens a page from the sidebar, scrolling to it first - a Super Admin's
-/// sidebar is longer than the window, and a lazy list does not build what is
-/// off screen.
+/// Opens a page from the menu the way a person does: the area's icon in
+/// the strip, then the screen in its list (docs/navigation-tabs.md, S2).
 Future<void> openPage(WidgetTester tester, String label) async {
-  final sidebar = find.byType(SidebarNav);
-  final item = find.descendant(of: sidebar, matching: find.text(label));
-  final scrollable = find.descendant(of: sidebar, matching: find.byType(Scrollable)).first;
+  final item = await _findInMenu(tester, label);
+  if (item == null) fail('The menu does not offer "$label".');
 
-  // Back to the top first, then down: a flow that has already opened a page
-  // near the bottom leaves the sidebar scrolled there, and searching only
-  // downwards can never reach an item above it.
-  await scrollSidebarToTop(tester);
-  await tester.scrollUntilVisible(item, 120, scrollable: scrollable);
-  // Let the scroll finish first: a tap aimed while the list is still moving
-  // lands where the item was, and misses without failing.
+  await tester.ensureVisible(item);
   await tester.pumpAndSettle();
   await tester.tap(item);
   await tester.pumpAndSettle(const Duration(seconds: 2));
 }
 
-/// Winds the sidebar back to the top.
-Future<void> scrollSidebarToTop(WidgetTester tester) async {
-  final scrollable = find.descendant(of: find.byType(SidebarNav), matching: find.byType(Scrollable)).first;
+/// Whether the menu offers a screen, looked for the way a person looks:
+/// each area that could hold it, opened in turn. Opening an area opens its
+/// first screen, so the page the flow was on is opened again afterwards.
+Future<bool> sidebarShows(WidgetTester tester, String label) async {
+  final router = GoRouter.of(tester.element(find.byType(SidebarNav)));
+  final startedOn = router.routerDelegate.currentConfiguration.uri.toString();
 
-  for (var i = 0; i < 5; i++) {
-    await tester.drag(scrollable, const Offset(0, 600));
-    await tester.pumpAndSettle();
+  final shown = await _findInMenu(tester, label) != null;
+
+  if (router.routerDelegate.currentConfiguration.uri.toString() != startedOn) {
+    router.go(startedOn);
+    await tester.pumpAndSettle(const Duration(seconds: 2));
   }
+
+  return shown;
 }
 
-/// Whether the sidebar offers an entry, looked for the way a person looks:
-/// from the top of the list all the way down.
-///
-/// A finder on its own cannot answer this. The sidebar is a lazy list, so
-/// it builds only the entries currently in view - an entry that is simply
-/// scrolled past reads exactly like one that is not there at all, which
-/// makes a bare `findsNothing` pass for the wrong reason.
-Future<bool> sidebarShows(WidgetTester tester, String label) async {
-  final item = find.descendant(of: find.byType(SidebarNav), matching: find.text(label));
-  final scrollable = find.descendant(of: find.byType(SidebarNav), matching: find.byType(Scrollable)).first;
+/// The screen [label] in the menu's list, after opening the area it is in,
+/// or null when no area the user has offers it.
+Future<Finder?> _findInMenu(WidgetTester tester, String label) async {
+  for (final group in AppNav.groups.where((group) => group.items.any((item) => item.label == label))) {
+    final area = find.byKey(Key('nav-area-${group.label}'));
+    if (area.evaluate().isEmpty) continue;
 
-  await scrollSidebarToTop(tester);
+    await tester.tap(area);
+    await tester.pumpAndSettle(const Duration(seconds: 2));
 
-  for (var step = 0; step < 20; step++) {
-    if (item.evaluate().isNotEmpty) return true;
-
-    await tester.drag(scrollable, const Offset(0, -120));
-    await tester.pumpAndSettle();
+    final item = find.descendant(of: find.byKey(const Key('nav-panel')), matching: find.text(label));
+    if (item.evaluate().isNotEmpty) return item;
   }
 
-  return item.evaluate().isNotEmpty;
+  return null;
 }
 
 /// Picks an item from a labelled dropdown. The chosen text is built twice

@@ -27,11 +27,13 @@ Widget _sidebarFor(AuthenticatedUser user) {
     child: MaterialApp.router(
       theme: AppTheme.light(),
       routerConfig: GoRouter(
+        initialLocation: '/dashboard',
         routes: [
-          GoRoute(
-            path: '/',
-            builder: (context, state) => const Scaffold(body: SidebarNav()),
-          ),
+          for (final item in AppNav.allItems)
+            GoRoute(
+              path: item.path,
+              builder: (context, state) => const Scaffold(body: Row(children: [SidebarNav()])),
+            ),
         ],
       ),
     ),
@@ -268,9 +270,11 @@ void main() {
       _useDesktopViewport(tester);
       await tester.pumpWidget(_sidebarFor(sessionUser(UserRole.teacher, modules: {AppModules.attendance: false})));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('nav-area-Attendance')));
+      await tester.pumpAndSettle();
 
       expect(find.text('Student Attendance'), findsNothing);
-      // The rest of the group is still there.
+      // The rest of the area is still there.
       expect(find.text('Staff Leave'), findsOneWidget);
     });
 
@@ -281,15 +285,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Students was a teacher's only screen under People.
+      expect(find.byKey(const Key('nav-area-People')), findsNothing);
       expect(find.text('Students'), findsNothing);
     });
 
-    testWidgets('drops a whole group when nothing in it is left', (tester) async {
+    testWidgets('drops a whole area when nothing in it is left', (tester) async {
       _useDesktopViewport(tester);
       await tester.pumpWidget(_sidebarFor(sessionUser(UserRole.hod, modules: {AppModules.transport: false})));
       await tester.pumpAndSettle();
 
-      expect(find.text('TRANSPORT'), findsNothing);
+      expect(find.byKey(const Key('nav-area-Transport')), findsNothing);
       expect(find.text('Vehicles'), findsNothing);
     });
   });
