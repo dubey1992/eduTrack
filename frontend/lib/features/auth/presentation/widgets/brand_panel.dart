@@ -265,7 +265,7 @@ class _SchoolPhoto extends StatelessWidget {
                     _AppMoment(
                       icon: Icons.receipt_long_outlined,
                       colour: Color(0xFF2563EB),
-                      title: 'Fee received ₹12,500',
+                      title: 'Fee received ₹XXXXX',
                       detail: 'Receipt sent to the parent',
                     ),
                   ],
