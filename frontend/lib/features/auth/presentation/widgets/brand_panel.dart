@@ -3,15 +3,11 @@ import 'package:flutter/material.dart';
 import 'auth_palette.dart';
 import 'website_links.dart';
 
-/// The desktop sign-in page's left half (redesigned 2026-11-06): the logo
-/// back to the website, what School365ai is in one line, who signs in
-/// where, and a real picture of the app. Only shown on wide screens -
-/// [LoginScreen] keeps a phone to the form and [BrandMark].
-class BrandPanel extends StatelessWidget {
-  const BrandPanel({super.key, this.onAttendantSignIn});
-
-  /// Opens the bus attendant's sign-in; null hides that row's button.
-  final VoidCallback? onAttendantSignIn;
+/// The top of the desktop sign-in page (redesigned 2026-11-06): the logo
+/// back to the website and what School365ai is in one line. Only shown on
+/// wide screens - [LoginScreen] keeps a phone to the form and [BrandMark].
+class BrandHeader extends StatelessWidget {
+  const BrandHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -19,48 +15,55 @@ class BrandPanel extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Below ~1400px (a "tablet"-ish width for this two-column layout,
-        // since the shared app-wide desktop cutoff is 1100) the type and the
-        // picture shrink rather than crowding the form.
-        final isCompact = constraints.maxWidth < 1400;
+        final isCompact = constraints.maxWidth < 1300;
 
-        return Padding(
-          padding: EdgeInsets.symmetric(vertical: isCompact ? 24 : 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const BrandMark(showTagline: true),
-              SizedBox(height: isCompact ? 24 : 36),
-              Text(
-                'SCHOOL MANAGEMENT, ALL IN ONE PLACE',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.4, color: palette.primary),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const BrandMark(showTagline: true),
+            SizedBox(height: isCompact ? 24 : 32),
+            Text(
+              'SCHOOL MANAGEMENT, ALL IN ONE PLACE',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.4, color: palette.primary),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Run your whole school day from one sign-in.',
+              style: TextStyle(
+                fontSize: isCompact ? 36 : 46,
+                height: 1.12,
+                letterSpacing: -0.8,
+                fontWeight: FontWeight.w800,
+                color: palette.text,
               ),
-              const SizedBox(height: 10),
-              Text(
-                'Run your whole school day from one sign-in.',
-                style: TextStyle(
-                  fontSize: isCompact ? 36 : 46,
-                  height: 1.12,
-                  letterSpacing: -0.8,
-                  fontWeight: FontWeight.w800,
-                  color: palette.text,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Attendance, timetables, fees, the school bus and messages to parents, '
-                'for everyone who works at the school.',
-                style: TextStyle(fontSize: 17, color: palette.muted, height: 1.45),
-              ),
-              SizedBox(height: isCompact ? 20 : 28),
-              _WhoSignsIn(onAttendantSignIn: onAttendantSignIn),
-              SizedBox(height: isCompact ? 20 : 28),
-              const _AppPreview(),
-            ],
-          ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Attendance, timetables, fees, the school bus and messages to parents, '
+              'for everyone who works at the school.',
+              style: TextStyle(fontSize: 17, color: palette.muted, height: 1.45),
+            ),
+          ],
         );
       },
+    );
+  }
+}
+
+/// Beside the form: who signs in where, over a real school photograph.
+class BrandDetails extends StatelessWidget {
+  const BrandDetails({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _WhoSignsIn(),
+        SizedBox(height: 20),
+        Expanded(child: _SchoolPhoto()),
+      ],
     );
   }
 }
@@ -115,9 +118,7 @@ class BrandMark extends StatelessWidget {
 
 /// Which way in is whose: the question people get wrong most often here.
 class _WhoSignsIn extends StatelessWidget {
-  const _WhoSignsIn({required this.onAttendantSignIn});
-
-  final VoidCallback? onAttendantSignIn;
+  const _WhoSignsIn();
 
   @override
   Widget build(BuildContext context) {
@@ -145,17 +146,10 @@ class _WhoSignsIn extends StatelessWidget {
             detail:
                 'Admins, teachers, accountants and office staff: the email and password your school set up for you.',
           ),
-          _WhoRow(
+          const _WhoRow(
             icon: Icons.directions_bus_outlined,
             title: 'Bus attendants',
-            detail: 'Your mobile number and passcode, not an email.',
-            action: onAttendantSignIn == null
-                ? null
-                : TextButton(
-                    onPressed: onAttendantSignIn,
-                    style: TextButton.styleFrom(foregroundColor: palette.primary),
-                    child: const Text('Sign in with mobile'),
-                  ),
+            detail: 'Your mobile number and passcode, not an email: use the button under the form.',
           ),
           const _WhoRow(
             icon: Icons.family_restroom_outlined,
@@ -169,12 +163,11 @@ class _WhoSignsIn extends StatelessWidget {
 }
 
 class _WhoRow extends StatelessWidget {
-  const _WhoRow({required this.icon, required this.title, required this.detail, this.action});
+  const _WhoRow({required this.icon, required this.title, required this.detail});
 
   final IconData icon;
   final String title;
   final String detail;
-  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -206,40 +199,137 @@ class _WhoRow extends StatelessWidget {
               style: TextStyle(fontSize: 14, height: 1.45, color: palette.muted),
             ),
           ),
-          if (action != null) ...[const SizedBox(width: 8), action!],
         ],
       ),
     );
   }
 }
 
-/// A real screenshot of the app rather than a drawing of one: what the
-/// person is about to sign in to.
-class _AppPreview extends StatelessWidget {
-  const _AppPreview();
+/// A real classroom rather than a picture of the software (asked for
+/// 2026-11-06): a student at the blackboard in Bengaluru. Photo by Nikhita S
+/// on Unsplash, free to use under the Unsplash License.
+class _SchoolPhoto extends StatelessWidget {
+  const _SchoolPhoto();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AuthPalette.of(context);
+
+    // A background, not an Image: it fills the room the form leaves beside
+    // it and never decides the row's height itself.
+    return Semantics(
+      image: true,
+      label: 'A student in school uniform writing on a classroom blackboard',
+      child: Container(
+        key: const Key('login-photo'),
+        constraints: const BoxConstraints(minHeight: 220),
+        decoration: BoxDecoration(
+          color: palette.primaryLight,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 24, offset: const Offset(0, 8))],
+          image: const DecorationImage(
+            image: AssetImage('assets/images/login-classroom.jpg'),
+            fit: BoxFit.cover,
+            alignment: Alignment(0.3, -0.1),
+          ),
+        ),
+        // What the app does in that classroom's day, over the blackboard
+        // (asked for 2026-11-06: the photo alone did not say). Positioned
+        // only, so the photo still never sets the row's height; whatever does
+        // not fit a short photo is clipped by its rounded corners.
+        child: const ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+          child: Stack(
+            children: [
+              Positioned(
+                left: 20,
+                top: 20,
+                child: Column(
+                  key: Key('login-photo-moments'),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _AppMoment(
+                      icon: Icons.fact_check_outlined,
+                      colour: Color(0xFF16A34A),
+                      title: 'Attendance marked',
+                      detail: 'Class 7 A · 38 of 40 present',
+                    ),
+                    SizedBox(height: 10),
+                    _AppMoment(
+                      icon: Icons.directions_bus_outlined,
+                      colour: Color(0xFFEA580C),
+                      title: 'Bus 3 reached school',
+                      detail: '8:02 am · parents told on WhatsApp',
+                    ),
+                    SizedBox(height: 10),
+                    _AppMoment(
+                      icon: Icons.receipt_long_outlined,
+                      colour: Color(0xFF2563EB),
+                      title: 'Fee received ₹12,500',
+                      detail: 'Receipt sent to the parent',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One thing the app just did, drawn like the app's own notices.
+class _AppMoment extends StatelessWidget {
+  const _AppMoment({required this.icon, required this.colour, required this.title, required this.detail});
+
+  final IconData icon;
+  final Color colour;
+  final String title;
+  final String detail;
 
   @override
   Widget build(BuildContext context) {
     final palette = AuthPalette.of(context);
 
     return Container(
+      width: 300,
+      padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.border),
-        boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 24, offset: const Offset(0, 8))],
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 16, offset: Offset(0, 6))],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: AspectRatio(
-          aspectRatio: 16 / 6.4,
-          child: Image.asset(
-            'assets/images/app-preview.jpg',
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-            semanticLabel: "The School365ai app: a school's finished Setup Guide",
-            errorBuilder: (context, error, stack) => ColoredBox(color: palette.primaryLight),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(color: colour.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(9)),
+            child: Icon(icon, size: 19, color: colour),
           ),
-        ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: palette.text),
+                ),
+                Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: palette.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -150,7 +150,7 @@ void main() {
       expect(find.byType(AutofillGroup), findsOneWidget);
     });
 
-    testWidgets('on a wide screen, explains who signs in where, beside a picture of the app', (tester) async {
+    testWidgets('on a wide screen, explains who signs in where, beside a school photograph', (tester) async {
       useDesktop(tester);
       await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
       await tester.pumpAndSettle();
@@ -161,7 +161,15 @@ void main() {
       for (final who in ['School staff. ', 'Bus attendants. ', 'Parents. ']) {
         expect(find.textContaining(who, findRichText: true), findsOneWidget, reason: who);
       }
-      expect(find.byType(Image), findsOneWidget);
+      final photo = tester.widget<Container>(find.byKey(const Key('login-photo')));
+      final image = (photo.decoration! as BoxDecoration).image!.image as AssetImage;
+      expect(image.assetName, 'assets/images/login-classroom.jpg');
+      // Over the photo, what the app does in a school day.
+      for (final moment in ['Attendance marked', 'Bus 3 reached school', 'Fee received ₹12,500']) {
+        expect(find.text(moment), findsOneWidget, reason: moment);
+      }
+      // Bus attendants are pointed at the button under the form, not given a second one.
+      expect(find.text('Sign in with mobile'), findsNothing);
       // The form itself is still reachable alongside the panel.
       expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
     });
@@ -183,9 +191,12 @@ void main() {
       await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('login-book-demo')));
-      await tester.tap(find.byKey(const Key('login-whatsapp-help')));
-      await tester.pump();
+      for (final link in ['login-book-demo', 'login-whatsapp-help']) {
+        await tester.ensureVisible(find.byKey(Key(link)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key(link)));
+        await tester.pump();
+      }
 
       expect(opened.first.fragment, 'request-a-demo');
       expect(opened.last.toString(), startsWith('https://wa.me/919205313831?text='));
