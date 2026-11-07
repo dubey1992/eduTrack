@@ -99,6 +99,10 @@ def results_for(student: Student, term_id: int | None = None) -> dict:
         "terms": [performance.StudentPerformance.term_resource(row) for row in performance.terms_of(student)],
         "term": performance.StudentPerformance.term_resource(term),
         "shows_class_average": averages_shown,
+        # The school's own line for a weak result (Class Tests & Assessments
+        # settings): the app marks a result red only below it. A "B" is not
+        # a failure, whatever the attendance colours say about 70%.
+        "weak_below_percentage": modules.setting(student.school_id, "assessments", "weak_below_percentage"),
         "subjects": list(subjects.values()),
         "remark": remark_of(student, term),
         "progress_report": report_availability(term, today),

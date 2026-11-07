@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
-import 'models/family_day.dart';
 import 'models/family_learning.dart';
 import 'models/family_records.dart';
 
@@ -14,9 +13,10 @@ class FamilyApi {
 
   final Dio _dio;
 
-  Future<FamilyToday> today(int childId) async {
+  /// The day as the server sent it, so the repository can keep a copy.
+  Future<Map<String, dynamic>> today(int childId) async {
     final response = await _dio.get('/family/children/$childId/today');
-    return FamilyToday.fromJson(response.data as Map<String, dynamic>);
+    return response.data as Map<String, dynamic>;
   }
 
   Future<AttendanceMonth> attendance(int childId, String month) async {

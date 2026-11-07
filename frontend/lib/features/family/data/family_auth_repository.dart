@@ -78,6 +78,16 @@ class FamilyAuthRepository {
     }
   }
 
+  /// Who this phone last saw signed in, without asking the server - so the
+  /// app opens at once on a weak signal, as the staff app does. Null when
+  /// nobody is signed in here.
+  Future<FamilyAccount?> savedAccount() async {
+    if (await _tokenStorage.readToken() == null) return null;
+
+    final saved = await _deviceStorage.readSession();
+    return saved == null ? null : FamilyAccount.fromJson(saved);
+  }
+
   /// Who is signed in, from the server - or, with no signal, as the server
   /// last said. Null when nobody is.
   Future<FamilyAccount?> restore() async {

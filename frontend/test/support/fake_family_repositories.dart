@@ -10,7 +10,11 @@ import 'package:edutrack_app/features/family/data/models/family_records.dart';
 const aarav = FamilyChild(id: 11, firstName: 'Aarav', lastName: 'Sharma', className: 'Class 6 A', rollNumber: '4');
 const diya = FamilyChild(id: 12, firstName: 'Diya', lastName: 'Sharma', className: 'Class 3 B', rollNumber: '9');
 
-FamilyAccount familyAccount({List<FamilyChild> children = const [aarav], String? phone = '+91 80 4000 1234'}) {
+FamilyAccount familyAccount({
+  List<FamilyChild> children = const [aarav],
+  String? phone = '+91 80 4000 1234',
+  FamilyFeatures features = FamilyFeatures.all,
+}) {
   return FamilyAccount(
     id: 5,
     name: 'Meera Sharma',
@@ -21,6 +25,7 @@ FamilyAccount familyAccount({List<FamilyChild> children = const [aarav], String?
     schoolPhone: phone,
     schoolEmail: 'office@greenfield.example',
     schoolAddress: 'MG Road, Pune',
+    features: features,
   );
 }
 
@@ -226,6 +231,9 @@ class FakeFamilyRepository implements FamilyRepository {
       familyResults(term: termId == 1 ? term1 : term2, reportAvailable: termId == 1);
   Failure? failReportWith;
   final List<int?> resultsAskedFor = [];
+
+  /// What the phone has saved, for a Home opened with no signal.
+  ({FamilyToday today, DateTime at})? savedTodayValue;
   final List<int?> reportsAskedFor = [];
 
   final List<int> todayAskedFor = [];
@@ -233,6 +241,9 @@ class FakeFamilyRepository implements FamilyRepository {
   final List<int> markedRead = [];
   int markAllReadCalls = 0;
   final List<(String, bool)> saved = [];
+
+  @override
+  Future<({FamilyToday today, DateTime at})?> savedToday(int childId) async => savedTodayValue;
 
   @override
   Future<FamilyToday> today(int childId) async {
@@ -293,12 +304,16 @@ class FakeFamilyRepository implements FamilyRepository {
 
 /// The family sign-in, in memory.
 class FakeFamilyAuthRepository implements FamilyAuthRepository {
-  FakeFamilyAuthRepository({this.account, this.device, this.failWith});
+  FakeFamilyAuthRepository({this.account, this.device, this.failWith, this.saved});
 
   /// Who `restore` finds signed in; null for nobody.
   FamilyAccount? account;
   FamilyDevice? device;
   Failure? failWith;
+
+  /// What the phone last saw - the app opens on it without asking.
+  FamilyAccount? saved;
+  int restores = 0;
 
   final List<Map<String, String>> setups = [];
   final List<Map<String, String>> logins = [];
@@ -325,7 +340,13 @@ class FakeFamilyAuthRepository implements FamilyAuthRepository {
   }
 
   @override
-  Future<FamilyAccount?> restore() async => account;
+  Future<FamilyAccount?> savedAccount() async => saved;
+
+  @override
+  Future<FamilyAccount?> restore() async {
+    restores++;
+    return account;
+  }
 
   @override
   Future<void> logout() async {

@@ -32,9 +32,24 @@ class FamilyTodayNotifier extends AsyncNotifier<Fetched<FamilyToday>> {
 
   final int childId;
 
+  /// The day from the server; with no signal, the last copy on the phone,
+  /// marked as old. Only with neither is it an error.
   @override
-  Future<Fetched<FamilyToday>> build() async =>
-      Fetched(await ref.read(familyRepositoryProvider).today(childId), DateTime.now());
+  Future<Fetched<FamilyToday>> build() async {
+    final repository = ref.read(familyRepositoryProvider);
+    try {
+      return Fetched(await repository.today(childId), DateTime.now());
+    } on Failure catch (failure) {
+      if (!_isNoSignal(failure)) rethrow;
+
+      final saved = await repository.savedToday(childId);
+      if (saved == null) rethrow;
+      return Fetched(saved.today, saved.at, refreshFailure: failure);
+    }
+  }
+
+  static bool _isNoSignal(Failure failure) =>
+      failure.code == Failure.network().code || failure.code == Failure.timeout().code;
 
   /// Pull to refresh. With no signal the last copy stays on screen, marked
   /// as old, rather than the day disappearing.

@@ -107,6 +107,7 @@ class FamilyResults {
     required this.remark,
     required this.reportAvailable,
     required this.reportFrom,
+    this.weakBelow = 40,
   });
 
   factory FamilyResults.fromJson(Map<String, dynamic> json) {
@@ -121,6 +122,7 @@ class FamilyResults {
       remark: json['remark'] as String?,
       reportAvailable: report['available'] as bool,
       reportFrom: DateTime.tryParse(report['from'] as String? ?? ''),
+      weakBelow: (json['weak_below_percentage'] as num?)?.toDouble() ?? 40,
     );
   }
 
@@ -138,6 +140,9 @@ class FamilyResults {
 
   /// When the term's progress report will be ready.
   final DateTime? reportFrom;
+
+  /// The school's line for a weak result: only below it is a mark red.
+  final double weakBelow;
 }
 
 class WeekPeriod {

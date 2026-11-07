@@ -6,8 +6,9 @@ from __future__ import annotations
 
 from django.utils import timezone
 
+from . import modules
 from .fields import as_utc
-from .models import FamilyCredential, FamilyDevice, Guardian, GuardianStudent, Student, User
+from .models import FamilyCredential, FamilyDevice, Guardian, GuardianStudent, Student, StudentTransportAssignment, User
 from .resources import timestamp
 
 
@@ -73,6 +74,9 @@ def family_child_resource(student: Student) -> dict:
         "class_section_id": student.class_section_id,
         "class_name": f"{section.school_class.name} {section.name}".strip() if section else None,
         "roll_number": student.roll_number,
+        # Whether the school carries this child, so the app shows a Bus tab
+        # only to a family it means something to.
+        "has_transport": StudentTransportAssignment.objects.filter(student_id=student.id).exists(),
     }
 
 
@@ -96,6 +100,15 @@ def family_me_resource(user: User, children) -> dict:
             "address": ", ".join(part for part in (school.address, school.city, school.state) if part) or None,
         } if school else None,
         "children": [family_child_resource(child) for child in children],
+        # Which parts of the app the school uses: a tab for something the
+        # school has switched off would only ever say "nothing here".
+        "features": {
+            "fees": modules.is_enabled(user.school_id, "fees"),
+            "transport": modules.is_enabled(user.school_id, "transport"),
+            "results": modules.is_enabled(user.school_id, "assessments"),
+            "timetable": modules.is_enabled(user.school_id, "timetable"),
+            "syllabus": modules.is_enabled(user.school_id, "syllabus"),
+        } if user.school_id else {},
     }
 
 

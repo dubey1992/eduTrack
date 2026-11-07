@@ -98,6 +98,32 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
     }
   }
 
+  /// A forgotten passcode is reset the way it was first set: a new letter
+  /// from the school office, whose code lets the parent choose a new one.
+  /// (A code sent to the mobile comes once sending is approved.)
+  Future<void> _forgotPasscode() async {
+    final hasCode = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('family-forgot-dialog'),
+        title: const Text('Forgot your passcode?'),
+        content: const Text(
+          "Ask your child's school office for a new Family app letter. It has a new setup code: enter it here "
+          'with your mobile number, and choose a new passcode. Your phone stays the same.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Close')),
+          FilledButton(
+            key: const Key('family-have-new-code'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('I have a new code'),
+          ),
+        ],
+      ),
+    );
+    if (hasCode == true && mounted) _switchTo(FamilySignInMode.register);
+  }
+
   void _switchTo(FamilySignInMode mode) => setState(() {
     _mode = mode;
     _problem = null;
@@ -206,6 +232,12 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
             ),
           ),
           const SizedBox(height: 10),
+          if (!registering)
+            TextButton(
+              key: const Key('family-forgot-passcode'),
+              onPressed: _submitting ? null : _forgotPasscode,
+              child: const Text('Forgot your passcode?'),
+            ),
           if (!registering)
             TextButton(
               key: const Key('family-use-new-code'),

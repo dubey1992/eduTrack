@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/session_ended_notifier.dart';
@@ -18,7 +19,29 @@ class FamilySessionNotifier extends AsyncNotifier<FamilyAccount?> {
       if (ended) _endedByServer();
     });
 
-    return ref.read(familyAuthRepositoryProvider).restore();
+    final repository = ref.read(familyAuthRepositoryProvider);
+
+    // Open on what this phone last saw, and ask the server behind it: a
+    // parent at the school gate on one bar of signal is not kept on the
+    // splash. If the server has ended the session, the refresh signs out.
+    final saved = await repository.savedAccount();
+    if (saved != null) {
+      Future.microtask(_refreshQuietly);
+      return saved;
+    }
+
+    return repository.restore();
+  }
+
+  Future<void> _refreshQuietly() async {
+    try {
+      final account = await ref.read(familyAuthRepositoryProvider).restore();
+      state = AsyncData(account);
+    } on Object catch (error) {
+      // Kept on the saved account; the next screen's own request will say
+      // what is wrong.
+      debugPrint('Could not refresh the family account: $error');
+    }
   }
 
   /// A sign-in screen has signed somebody in.

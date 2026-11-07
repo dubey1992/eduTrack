@@ -1,20 +1,25 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import 'family_api.dart';
+import 'family_today_cache.dart';
 import 'models/family_day.dart';
 import 'models/family_learning.dart';
 import 'models/family_records.dart';
 
-final familyRepositoryProvider = Provider<FamilyRepository>((ref) => FamilyRepository(ref.watch(familyApiProvider)));
+final familyRepositoryProvider = Provider<FamilyRepository>(
+  (ref) => FamilyRepository(ref.watch(familyApiProvider), ref.watch(familyTodayCacheProvider)),
+);
 
 /// The parent's screens' data, with every failure turned into the app's
 /// [Failure].
 class FamilyRepository {
-  FamilyRepository(this._api);
+  FamilyRepository(this._api, this._todayCache);
 
   final FamilyApi _api;
+  final FamilyTodayCache _todayCache;
 
   Future<T> _call<T>(Future<T> Function() request) async {
     try {
@@ -24,7 +29,25 @@ class FamilyRepository {
     }
   }
 
-  Future<FamilyToday> today(int childId) => _call(() => _api.today(childId));
+  /// The child's day from the server, kept on the phone as it comes.
+  Future<FamilyToday> today(int childId) async {
+    final json = await _call(() => _api.today(childId));
+    await _todayCache.save(childId, json, DateTime.now());
+    return FamilyToday.fromJson(json);
+  }
+
+  /// The last day this phone saw for the child, and when; null when none.
+  Future<({FamilyToday today, DateTime at})?> savedToday(int childId) async {
+    final saved = await _todayCache.read(childId);
+    if (saved == null) return null;
+
+    try {
+      return (today: FamilyToday.fromJson(saved.json), at: saved.at);
+    } on Object catch (error) {
+      debugPrint('Discarding a saved Home that no longer reads: $error');
+      return null;
+    }
+  }
 
   Future<AttendanceMonth> attendance(int childId, String month) => _call(() => _api.attendance(childId, month));
 

@@ -5,7 +5,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/chart_palette.dart';
 import '../../../core/theme/family_brand.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/utils/file_saver.dart';
@@ -63,11 +62,13 @@ class _LearningScaffold extends ConsumerWidget {
   }
 }
 
-/// A percentage's colour: the dashboard's bands, so 90% reads green here
-/// as it does for attendance.
-Color _bandColour(BuildContext context, String? percent) {
+/// A mark's colour: red only below the school's own line for a weak result,
+/// the ordinary text colour otherwise - a "B" is not a failure and is not
+/// painted like one, and no line is invented here that the school did not set.
+Color? _markColour(BuildContext context, String? percent, double weakBelow) {
   final value = double.tryParse(percent ?? '');
-  return value == null ? context.appColors.muted : AttendanceBands.of(value).colour(context);
+  if (value == null) return context.appColors.muted;
+  return value < weakBelow ? context.appColors.danger : null;
 }
 
 // -- Results ------------------------------------------------------------------------
@@ -180,7 +181,11 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
                         )
                       else
                         for (final subject in results.subjects) ...[
-                          _SubjectCard(subject: subject, showsAverage: results.showsClassAverage),
+                          _SubjectCard(
+                            subject: subject,
+                            showsAverage: results.showsClassAverage,
+                            weakBelow: results.weakBelow,
+                          ),
                           const SizedBox(height: 12),
                         ],
                     ],
@@ -245,15 +250,16 @@ class _ReportCard extends StatelessWidget {
 }
 
 class _SubjectCard extends StatelessWidget {
-  const _SubjectCard({required this.subject, required this.showsAverage});
+  const _SubjectCard({required this.subject, required this.showsAverage, required this.weakBelow});
 
   final SubjectResults subject;
   final bool showsAverage;
+  final double weakBelow;
 
   @override
   Widget build(BuildContext context) {
     final muted = context.appColors.muted;
-    final colour = _bandColour(context, subject.average);
+    final colour = _markColour(context, subject.average, weakBelow);
 
     return FamilyCard(
       key: Key('family-subject-${subject.subject}'),
@@ -283,7 +289,9 @@ class _SubjectCard extends StatelessWidget {
               if (subject.grade != null) Text('Grade ${subject.grade}', style: TextStyle(color: muted, fontSize: 12)),
             ],
           ),
-          children: [for (final test in subject.tests) _TestRow(test: test, showsAverage: showsAverage)],
+          children: [
+            for (final test in subject.tests) _TestRow(test: test, showsAverage: showsAverage, weakBelow: weakBelow),
+          ],
         ),
       ),
     );
@@ -291,10 +299,11 @@ class _SubjectCard extends StatelessWidget {
 }
 
 class _TestRow extends StatelessWidget {
-  const _TestRow({required this.test, required this.showsAverage});
+  const _TestRow({required this.test, required this.showsAverage, required this.weakBelow});
 
   final TestResult test;
   final bool showsAverage;
+  final double weakBelow;
 
   @override
   Widget build(BuildContext context) {
@@ -330,7 +339,7 @@ class _TestRow extends StatelessWidget {
                 test.score,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: test.isAbsent ? context.appColors.warning : _bandColour(context, test.percentage),
+                  color: test.isAbsent ? context.appColors.warning : _markColour(context, test.percentage, weakBelow),
                 ),
               ),
               if (test.grade != null) Text(test.grade!, style: TextStyle(color: muted, fontSize: 12)),

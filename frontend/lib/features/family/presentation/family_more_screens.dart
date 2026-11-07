@@ -32,6 +32,34 @@ class FamilyMoreScreen extends ConsumerWidget {
     final account = ref.watch(familySessionProvider).value;
     final unread = ref.watch(familyNoticesProvider).value?.unreadCount ?? 0;
     final muted = context.appColors.muted;
+    final features = account?.features ?? FamilyFeatures.all;
+    // Only what the school uses: no Results row at a school without tests.
+    final learning = [
+      if (features.results)
+        _MoreRow(
+          key: const Key('family-more-results'),
+          icon: Icons.grade_rounded,
+          title: 'Results',
+          subtitle: 'Test marks and the progress report',
+          onTap: () => context.push('/results'),
+        ),
+      if (features.timetable)
+        _MoreRow(
+          key: const Key('family-more-timetable'),
+          icon: Icons.schedule_rounded,
+          title: 'Timetable',
+          subtitle: "The class's week",
+          onTap: () => context.push('/timetable'),
+        ),
+      if (features.syllabus)
+        _MoreRow(
+          key: const Key('family-more-syllabus'),
+          icon: Icons.menu_book_rounded,
+          title: 'Syllabus',
+          subtitle: 'How far each subject has got',
+          onTap: () => context.push('/syllabus'),
+        ),
+    ];
 
     return ListView(
       key: const Key('family-more'),
@@ -62,36 +90,14 @@ class FamilyMoreScreen extends ConsumerWidget {
               ],
             ),
           ),
-        const SizedBox(height: 12),
-        FamilyCard(
-          key: const Key('family-more-learning'),
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            children: [
-              _MoreRow(
-                key: const Key('family-more-results'),
-                icon: Icons.grade_rounded,
-                title: 'Results',
-                subtitle: 'Test marks and the progress report',
-                onTap: () => context.push('/results'),
-              ),
-              _MoreRow(
-                key: const Key('family-more-timetable'),
-                icon: Icons.schedule_rounded,
-                title: 'Timetable',
-                subtitle: "The class's week",
-                onTap: () => context.push('/timetable'),
-              ),
-              _MoreRow(
-                key: const Key('family-more-syllabus'),
-                icon: Icons.menu_book_rounded,
-                title: 'Syllabus',
-                subtitle: 'How far each subject has got',
-                onTap: () => context.push('/syllabus'),
-              ),
-            ],
+        if (learning.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          FamilyCard(
+            key: const Key('family-more-learning'),
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(children: learning),
           ),
-        ),
+        ],
         const SizedBox(height: 12),
         FamilyCard(
           padding: const EdgeInsets.symmetric(vertical: 6),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/family_brand.dart';
+import '../application/family_notifiers.dart';
 import '../application/family_session_notifier.dart';
 import '../data/models/family_account.dart';
 import 'widgets/family_widgets.dart';
@@ -25,8 +26,29 @@ enum FamilyPlace {
   final IconData selectedIcon;
 }
 
-/// Every tab's frame: the child switcher at the top, the bottom bar below.
-/// [showsChild] is false on More, which is about the parent, not a child.
+/// The tabs this family has: Bus only when the school runs transport and
+/// carries one of their children; Fees only when the school uses fees. A tab
+/// that can only ever say "nothing here" is left out, as the staff app does.
+List<FamilyPlace> placesFor(FamilyAccount? account) {
+  if (account == null) return FamilyPlace.values;
+
+  return [
+    for (final place in FamilyPlace.values)
+      if (switch (place) {
+        FamilyPlace.bus => account.features.transport && account.anyChildOnTransport,
+        FamilyPlace.fees => account.features.fees,
+        _ => true,
+      })
+        place,
+  ];
+}
+
+/// Every tab's frame: the child switcher and the bell at the top, the
+/// bottom bar below. [showsChild] is false on More, which is about the
+/// parent, not a child.
+///
+/// Android's back button goes Home from any other tab, and only leaves the
+/// app from Home - the way a phone app is expected to behave.
 class FamilyFrame extends ConsumerWidget {
   const FamilyFrame({super.key, required this.place, required this.child, this.showsChild = true});
 
@@ -38,30 +60,76 @@ class FamilyFrame extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final account = ref.watch(familySessionProvider).value;
     final children = account?.children ?? const <FamilyChild>[];
+    final places = placesFor(account);
+    final index = places.indexOf(place);
 
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            if (showsChild && children.isNotEmpty) _ChildSwitcher(children: children) else _PlainHeader(place: place),
-            Expanded(child: child),
+    return PopScope(
+      canPop: place == FamilyPlace.home,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go(FamilyPlace.home.path);
+      },
+      child: Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: showsChild && children.isNotEmpty
+                        ? _ChildSwitcher(children: children)
+                        : _PlainHeader(place: place),
+                  ),
+                  const Padding(padding: EdgeInsets.only(right: 8), child: _NoticesBell()),
+                ],
+              ),
+              Expanded(child: child),
+            ],
+          ),
+        ),
+        bottomNavigationBar: NavigationBar(
+          key: const Key('family-nav'),
+          // A hidden tab reached by its address still shows; the bar then
+          // simply has nothing lit.
+          selectedIndex: index < 0 ? 0 : index,
+          indicatorColor: index < 0 ? Colors.transparent : null,
+          onDestinationSelected: (chosen) => context.go(places[chosen].path),
+          destinations: [
+            for (final item in places)
+              NavigationDestination(
+                key: Key('family-nav-${item.name}'),
+                icon: Icon(item.icon),
+                selectedIcon: Icon(item.selectedIcon),
+                label: item.label,
+              ),
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        key: const Key('family-nav'),
-        selectedIndex: place.index,
-        onDestinationSelected: (index) => context.go(FamilyPlace.values[index].path),
-        destinations: [
-          for (final item in FamilyPlace.values)
-            NavigationDestination(
-              key: Key('family-nav-${item.name}'),
-              icon: Icon(item.icon),
-              selectedIcon: Icon(item.selectedIcon),
-              label: item.label,
-            ),
-        ],
+    );
+  }
+}
+
+/// The school's messages, with how many are unread - on every tab, as the
+/// staff app's bell is, because they are why a parent opens the app.
+class _NoticesBell extends ConsumerWidget {
+  const _NoticesBell();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(familyNoticesProvider).value?.unreadCount ?? 0;
+
+    return IconButton(
+      key: const Key('family-bell'),
+      tooltip: unread > 0 ? '$unread new notices' : 'Notices',
+      onPressed: () async {
+        await context.push('/notices');
+        // Read again on the way back: some were opened there.
+        ref.invalidate(familyNoticesProvider);
+      },
+      icon: Badge(
+        isLabelVisible: unread > 0,
+        label: Text(unread > 9 ? '9+' : '$unread'),
+        child: const Icon(Icons.notifications_outlined, size: 26),
       ),
     );
   }
@@ -98,7 +166,7 @@ class _ChildSwitcher extends ConsumerWidget {
     final several = children.length > 1;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      padding: const EdgeInsets.fromLTRB(16, 10, 0, 6),
       child: Material(
         color: FamilyBrand.childColour(index).withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(16),

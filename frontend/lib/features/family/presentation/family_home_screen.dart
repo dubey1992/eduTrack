@@ -9,6 +9,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_format.dart';
 import '../application/family_notifiers.dart';
 import '../application/family_session_notifier.dart';
+import '../data/models/family_account.dart';
 import '../data/models/family_day.dart';
 import 'widgets/family_widgets.dart';
 
@@ -57,7 +58,13 @@ class _TodayList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final day = fetched.data;
     final parent = ref.watch(familySessionProvider).value;
-    final updated = DateFormat('h:mm a').format(fetched.at);
+    final now = DateTime.now();
+    final sameDay = fetched.at.year == now.year && fetched.at.month == now.month && fetched.at.day == now.day;
+    // A copy saved on the phone may be yesterday's: then the date says so.
+    final updated = sameDay
+        ? DateFormat('h:mm a').format(fetched.at)
+        : '${formatDate(fetched.at)} ${DateFormat('h:mm a').format(fetched.at)}';
+    final features = parent?.features ?? FamilyFeatures.all;
 
     return ListView(
       key: const Key('family-home'),
@@ -80,8 +87,8 @@ class _TodayList extends ConsumerWidget {
         ),
         const SizedBox(height: 14),
         _AttendanceCard(day: day, name: childFirstName),
-        if (day.bus != null) ...[const SizedBox(height: 12), _BusCard(bus: day.bus!)],
-        if (day.fee != null) ...[const SizedBox(height: 12), _FeeCard(fee: day.fee!)],
+        if (features.transport && day.bus != null) ...[const SizedBox(height: 12), _BusCard(bus: day.bus!)],
+        if (features.fees && day.fee != null) ...[const SizedBox(height: 12), _FeeCard(fee: day.fee!)],
         const SizedBox(height: 12),
         const _LatestNoticeCard(),
         if (day.periods.isNotEmpty) ...[const SizedBox(height: 12), _TimetableCard(day: day)],

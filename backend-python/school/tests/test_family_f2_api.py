@@ -66,6 +66,7 @@ class AParentSeesPublishedResults(LearningTest):
         data = self.results()
 
         self.assertEqual("Term 1", data["term"]["name"])
+        self.assertEqual(40, data["weak_below_percentage"])
         [subject] = data["subjects"]
         [test] = subject["tests"]
         self.assertEqual(("Mathematics", "Fractions", "18.00", "20.00", "A"), (

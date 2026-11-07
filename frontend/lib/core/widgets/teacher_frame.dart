@@ -81,60 +81,68 @@ class TeacherFrame extends ConsumerWidget {
           ]
         : shown;
 
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: Row(
-          children: [
-            const TeacherMark(size: 34, tile: true),
-            const SizedBox(width: 12),
-            Flexible(child: Text(user?.name ?? 'School365ai', maxLines: 1, overflow: TextOverflow.ellipsis)),
+    // Android's back button goes to Home from any other tab, and only leaves
+    // the app from Home.
+    return PopScope(
+      canPop: place == TeacherPlace.today,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go(TeacherPlace.today.path);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          titleSpacing: 16,
+          title: Row(
+            children: [
+              const TeacherMark(size: 34, tile: true),
+              const SizedBox(width: 12),
+              Flexible(child: Text(user?.name ?? 'School365ai', maxLines: 1, overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+          actions: [
+            const _InboxBell(),
+            if (meUpTop)
+              IconButton(
+                key: const Key('teacher-profile'),
+                tooltip: 'Me',
+                isSelected: place == TeacherPlace.profile,
+                icon: const Icon(Icons.person_outline),
+                selectedIcon: const Icon(Icons.person),
+                onPressed: place == TeacherPlace.profile ? null : () => context.go(TeacherPlace.profile.path),
+              ),
+            IconButton(
+              key: const Key('teacher-logout'),
+              icon: const Icon(Icons.logout),
+              tooltip: 'Log out',
+              onPressed: () => confirmLogout(context, ref),
+            ),
           ],
         ),
-        actions: [
-          const _InboxBell(),
-          if (meUpTop)
-            IconButton(
-              key: const Key('teacher-profile'),
-              tooltip: 'Me',
-              isSelected: place == TeacherPlace.profile,
-              icon: const Icon(Icons.person_outline),
-              selectedIcon: const Icon(Icons.person),
-              onPressed: place == TeacherPlace.profile ? null : () => context.go(TeacherPlace.profile.path),
-            ),
-          IconButton(
-            key: const Key('teacher-logout'),
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => confirmLogout(context, ref),
+        // One column everywhere. A tablet in a staff room gets a readable
+        // width in the middle rather than a register stretched edge to edge;
+        // a phone is narrower than this and sees no difference.
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: child),
           ),
-        ],
-      ),
-      // One column everywhere. A tablet in a staff room gets a readable
-      // width in the middle rather than a register stretched edge to edge;
-      // a phone is narrower than this and sees no difference.
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: child),
         ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        key: const Key('teacher-nav'),
-        // On Me, when Me is up top, the bar keeps Today lit rather than nothing.
-        selectedIndex: places.contains(place) ? places.indexOf(place) : 0,
-        onDestinationSelected: (index) {
-          final chosen = places[index];
-          if (chosen != place) context.go(chosen.path);
-        },
-        destinations: [
-          for (final destination in places)
-            NavigationDestination(
-              key: Key('teacher-nav-${destination.name}'),
-              icon: Icon(destination.icon),
-              selectedIcon: Icon(destination.selectedIcon),
-              label: destination.label,
-            ),
-        ],
+        bottomNavigationBar: NavigationBar(
+          key: const Key('teacher-nav'),
+          // On Me, when Me is up top, the bar keeps Today lit rather than nothing.
+          selectedIndex: places.contains(place) ? places.indexOf(place) : 0,
+          onDestinationSelected: (index) {
+            final chosen = places[index];
+            if (chosen != place) context.go(chosen.path);
+          },
+          destinations: [
+            for (final destination in places)
+              NavigationDestination(
+                key: Key('teacher-nav-${destination.name}'),
+                icon: Icon(destination.icon),
+                selectedIcon: Icon(destination.selectedIcon),
+                label: destination.label,
+              ),
+          ],
+        ),
       ),
     );
   }

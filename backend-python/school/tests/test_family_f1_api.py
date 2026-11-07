@@ -147,6 +147,18 @@ class AParentSeesToday(FamilyAppTest):
         self.assertIsNone(self.parent.get(f"{FAMILY}/children/{self.child.id}/today").data["bus"])
 
 
+class TheAppKnowsWhatTheSchoolUses(FamilyAppTest):
+    def test_me_says_which_parts_are_on_and_which_child_takes_the_bus(self):
+        ModuleSetting.objects.create(school=self.school, module="fees", platform_enabled=False, school_enabled=True,
+                                     created_at=timezone.now(), updated_at=timezone.now())
+
+        me = self.parent.get(f"{FAMILY}/me").data
+
+        self.assertFalse(me["features"]["fees"])
+        self.assertTrue(me["features"]["transport"])
+        self.assertFalse(me["children"][0]["has_transport"])
+
+
 class AParentSeesOnlyTheirOwnChildren(FamilyAppTest):
     def test_another_familys_child_is_not_found(self):
         stranger = self.other_family_child()
