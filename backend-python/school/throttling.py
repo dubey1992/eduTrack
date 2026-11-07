@@ -151,6 +151,22 @@ class AttendantAddressThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
 
 
+class FamilyThrottle(AttendantThrottle):
+    """One parent's number being guessed at (docs/parent-student-app.md). The
+    passcode's own 15-minute lock is the real guard; this stops a script
+    hammering it."""
+
+    scope = "family-login"
+
+
+class FamilyAddressThrottle(AttendantAddressThrottle):
+    """A school gate on one network at pick-up time, as opposed to one
+    attacker."""
+
+    scope = "family-login-address"
+    rate = "60/min"
+
+
 class MapsLookupThrottle(SimpleRateThrottle):
     """Every call here costs money (docs/maps.md).
 

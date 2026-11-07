@@ -24,13 +24,18 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from school import audit, check_in, factories, platform_messaging, promotion, services, tokens
+from school import audit, check_in, factories, family_accounts, platform_messaging, promotion, services, tokens
 from school.enums import AttendanceStatus, UserRole
 from school.models import AuditLog
 
 # Methods that write without an entry of their own, and why. Anything not
 # here that writes must record.
 NOT_RECORDED = {
+    # Steps of adding, editing or unlinking a guardian, or of saving the
+    # student, each of which records the whole change. Lifting an expired
+    # family lock only notes that the 15 minutes passed.
+    "GuardianService.find_or_make", "GuardianService.make_primary", "GuardianService.follow_student",
+    "GuardianService.account_of", "FamilyAuthService.assert_not_locked",
     # Called by entry points that record the change as a whole.
     "AttendanceService.submit", "AttendanceService.update", "StaffAttendanceService.submit",
     "StaffAttendanceService.update", "AcademicYearService._clear_current_for", "UserService.deactivate",
@@ -67,7 +72,7 @@ WRITES = ("objects.create(", ".save(", ".delete()", "update_or_create(", "get_or
 # Every module that writes school data. A module left off this list is not
 # swept at all, which is how an unrecorded write gets in - promotion.py spent
 # one slice invisible to this test for exactly that reason.
-SWEPT = (services, promotion, check_in, platform_messaging)
+SWEPT = (services, promotion, check_in, platform_messaging, family_accounts)
 
 
 class EveryWriteIsRecorded(TestCase):

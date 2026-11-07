@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from django.db.models import Q
 
-from .enums import MessageChannel, NoticeAudience, NoticeRecipients, StudentStatus, UserRole, UserStatus
+from .enums import FAMILY_ROLES, MessageChannel, NoticeAudience, NoticeRecipients, StudentStatus, UserRole, UserStatus
 from .models import ClassSection, Department, Student, User
 from .notifications import channel_enabled
 
@@ -38,7 +38,8 @@ def users_for(school_id: int, audience: str, target):
     if not NoticeAudience.reaches_staff(audience):
         return User.objects.none()
 
-    users = User.objects.filter(school_id=school_id, status=UserStatus.ACTIVE)
+    # Staff only: a parent's or student's account is not an audience here.
+    users = User.objects.filter(school_id=school_id, status=UserStatus.ACTIVE).exclude(role__in=FAMILY_ROLES)
 
     if audience == NoticeAudience.STAFF_MEMBER:
         return users.filter(pk=target)
@@ -58,7 +59,7 @@ def target_exists(school_id: int, audience: str, target) -> bool:
         return Student.objects.filter(pk=target, school_id=school_id).exists()
 
     if audience == NoticeAudience.STAFF_MEMBER:
-        return User.objects.filter(pk=target, school_id=school_id).exists()
+        return User.objects.filter(pk=target, school_id=school_id).exclude(role__in=FAMILY_ROLES).exists()
 
     if audience == NoticeAudience.CLASS_SECTION:
         return ClassSection.objects.filter(pk=target, school_class__school_id=school_id).exists()

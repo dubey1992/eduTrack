@@ -810,6 +810,92 @@ class AttendantDevice(models.Model):
         db_table = 'attendant_devices'
 
 
+class Guardian(models.Model):
+    """A parent or guardian of one or more students in a school
+    (docs/parent-student-app.md, F0). The sign-in account, once there is one,
+    is `user`; consent to the Family app is recorded with who noted it."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    user = models.OneToOneField('User', models.DO_NOTHING, related_name='guardian', blank=True, null=True)
+    name = models.CharField(max_length=150)
+    login_mobile = models.CharField(max_length=20, blank=True, null=True)
+    email = models.CharField(max_length=255, blank=True, null=True)
+    consent_at = UtcDateTimeField(blank=True, null=True)
+    consent_recorded_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='consent_recorded_by', related_name='+', blank=True, null=True
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'guardians'
+        unique_together = (('school', 'login_mobile'),)
+
+
+class GuardianStudent(models.Model):
+    """Which guardians belong to which students, and how. `is_primary` marks
+    the contact the student's own guardian columns describe."""
+
+    id = models.BigAutoField(primary_key=True)
+    guardian = models.ForeignKey(Guardian, models.DO_NOTHING, related_name='links')
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='guardian_links')
+    relationship = models.CharField(max_length=20, default='guardian')
+    is_primary = models.BooleanField(default=False)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'guardian_student'
+        unique_together = (('guardian', 'student'),)
+
+
+class FamilyCredential(models.Model):
+    """How a family account signs in (school/family.py): mobile, passcode
+    hash, wrong guesses and the time of the lock, and the current one-time
+    setup code (hashed) with its expiry."""
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.OneToOneField('User', models.DO_NOTHING, related_name='family_credential')
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    login_mobile = models.CharField(max_length=20)
+    passcode = models.CharField(max_length=255, blank=True, null=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_at = UtcDateTimeField(blank=True, null=True)
+    setup_code = models.CharField(max_length=255, blank=True, null=True)
+    setup_code_expires_at = UtcDateTimeField(blank=True, null=True)
+    setup_code_issued_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='setup_code_issued_by', related_name='+', blank=True, null=True
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'family_credentials'
+        unique_together = (('school', 'login_mobile'),)
+
+
+class FamilyDevice(models.Model):
+    """A phone registered to a family account. Only a SHA-256 of its secret
+    is kept; the secret lives on the phone."""
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey('User', models.DO_NOTHING, related_name='family_devices')
+    name = models.CharField(max_length=120)
+    secret = models.CharField(unique=True, max_length=64)
+    last_used_at = UtcDateTimeField(blank=True, null=True)
+    revoked_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'family_devices'
+
+
 class TransportTripLocation(models.Model):
     """A position reported by the phone of whoever runs a trip, while it is
     in progress. Kept 30 days (manage.py purge_trip_locations)."""

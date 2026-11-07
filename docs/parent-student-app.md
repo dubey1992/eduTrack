@@ -117,6 +117,10 @@ the next one starts.
 - **Push for families:** the existing alerts (absence, boarding, fee reminder, results, announcements) can go to the app first, and to SMS only when the app isn't installed. This cuts the school's SMS cost.
 - **Tests:** isolation ALLOW/DENY, sign-in lockout, guardian-linking rules.
 
+**As built (2026-11-07).** Sign-in works the way the bus crew's does. The office notes the guardian's consent, then either prints a sign-in letter or reads out a code. The code is 8 digits, works for 7 days on one phone, and issuing a new one cancels the old one. On the phone, the parent enters their mobile number and the code, then chooses a 6-digit passcode. The app keeps a secret tied to that phone. Five wrong passcodes lock the account for 15 minutes, and a session ends after 30 days unused. Sign-in by a code sent to the mobile comes later, once sending is approved.
+
+A family account works only on `/api/v1/family/...` and on the public pages (privacy, terms). Every staff URL refuses it with `FAMILY_APP_ONLY`, and family accounts never appear in staff lists or counts. The switch is the module "Family App", which is off unless the platform grants it. Mobile numbers already on student records became guardians: one guardian per school and number, so siblings share theirs. Still to do in F0: push for families, and the switch for student logins (it waits for F6).
+
 ### Phase F1: The parent app's core (read only)
 
 - Sign-in, child switcher, **Home "Today"**: attendance today, bus status, the next fee due, the latest notice, today's timetable at a glance.

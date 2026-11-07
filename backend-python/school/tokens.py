@@ -35,6 +35,7 @@ import secrets
 from django.conf import settings
 from django.utils import timezone
 
+from . import family
 from .fields import as_utc
 from .enums import UserRole
 from .models import PersonalAccessToken, User
@@ -179,6 +180,14 @@ def has_expired(token: PersonalAccessToken, holder: User | None = None) -> bool:
         return False
 
     began = as_utc(token.created_at) if token.created_at else None
+
+    # A family's phone holds a passcode-on-a-device session like the crew's,
+    # but nobody needs a parent's app signed in for ever: it ends after 30
+    # days unused, never merely for being old (docs/parent-student-app.md).
+    if holder is not None and UserRole.is_family(holder.role):
+        last_seen = as_utc(token.last_used_at) if token.last_used_at else began
+        return last_seen is not None and last_seen + dt.timedelta(days=family.IDLE_DAYS) <= now
+
     if began is not None and began + dt.timedelta(days=settings.SESSION_MAX_DAYS) <= now:
         return True
 

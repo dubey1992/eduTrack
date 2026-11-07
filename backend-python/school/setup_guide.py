@@ -11,7 +11,7 @@ Whether the guide still shows is remembered for the whole school
 
 from __future__ import annotations
 
-from .enums import StudentStatus, UserRole
+from .enums import FAMILY_ROLES, StudentStatus, UserRole
 from .models import AcademicYear, ClassSection, Department, SchoolClass, Student, Subject, User
 
 # Everybody on the staff list - not the admins setting the school up.
@@ -39,7 +39,7 @@ def steps_for(school_id: int) -> list[dict]:
     sections = ClassSection.objects.filter(school_class__in=classes).count()
     departments = Department.objects.filter(school_id=school_id).count()
     subjects = Subject.objects.filter(school_id=school_id).count()
-    staff = User.objects.filter(school_id=school_id).exclude(role__in=NOT_STAFF).count()
+    staff = User.objects.filter(school_id=school_id).exclude(role__in=NOT_STAFF + FAMILY_ROLES).count()
     students = Student.objects.filter(school_id=school_id, status=StudentStatus.ACTIVE).count()
     class_count = classes.count()
 

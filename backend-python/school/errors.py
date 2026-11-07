@@ -450,6 +450,51 @@ class PasscodeLocked(ApiError):
         super().__init__("Too many wrong tries. Ask your school office to unlock your account.")
 
 
+class FamilyLocked(ApiError):
+    """Five wrong family passcodes: the account opens again by itself after
+    15 minutes (school/family.py)."""
+
+    status_code = status.HTTP_423_LOCKED
+    error_code = "ACCOUNT_LOCKED"
+
+    def __init__(self, minutes: int) -> None:
+        super().__init__(
+            f"Too many wrong tries. Try again in {minutes} {'minute' if minutes == 1 else 'minutes'}.",
+            {"retry_after_minutes": minutes},
+        )
+
+
+class FamilyAppOnly(ApiError):
+    """A family account calling anything but the Family app's own API. Kept
+    in one place (school/authentication.py) so no staff screen, report or
+    list can be reached with a parent's session, whatever its own checks."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+    error_code = "FAMILY_APP_ONLY"
+
+    def __init__(self) -> None:
+        super().__init__("This account is for the School365ai Family app only.")
+
+
+class NotAFamilyAccount(ApiError):
+    """Somebody other than a parent or student calling the Family app's API."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+    error_code = "NOT_A_FAMILY_ACCOUNT"
+
+    def __init__(self) -> None:
+        super().__init__("Only parents and students use the Family app.")
+
+
+class GuardianProblem(ApiError):
+    """Something the school office asked of a guardian that cannot be done:
+    no mobile number to sign in with, consent not recorded, the Family app
+    switched off for the school."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "GUARDIAN_PROBLEM"
+
+
 class UsePasscodeSignIn(ApiError):
     """A Bus Attendant tried the email and password form."""
 

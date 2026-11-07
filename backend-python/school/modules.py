@@ -116,6 +116,14 @@ MODULES: tuple[Module, ...] = (
         ),
     ),
     Module(
+        "family_app", "Family App",
+        "The School365ai Family app for parents: their children's day, the bus, fees and notices.",
+        # Off until the platform grants it: a school starts by issuing letters
+        # to parents, and nobody should get one before the school is ready
+        # (docs/parent-student-app.md, F0).
+        granted_by_default=False,
+    ),
+    Module(
         "biometric", "Biometric Attendance",
         "Fingerprint readers, the punch log, and the times they put on the staff register.",
         # Off until somebody asks for it: it needs readers on the wall, and a

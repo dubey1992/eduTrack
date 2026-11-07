@@ -61,6 +61,8 @@ from school.views import (
     staff,
     staff_attendance,
     students,
+    family,
+    guardians,
     syllabus,
     teaching_reports,
     timetable,
@@ -98,6 +100,19 @@ urlpatterns = [
     path("api/v1/assessments/<int:assessment_id>/reopen", assessments.reopen),
     # -- class promotion, on this backend only. docs/promotion.md ----------
     path("api/v1/students/<int:student_id>/performance", students.performance),
+    # A student's guardians and their Family app sign-in (docs/parent-student-app.md, F0).
+    path("api/v1/students/<int:student_id>/guardians", guardians.collection),
+    path("api/v1/students/<int:student_id>/guardians/<int:link_id>", guardians.item),
+    path("api/v1/students/<int:student_id>/guardians/<int:link_id>/family-access", guardians.access),
+    path("api/v1/students/<int:student_id>/guardians/<int:link_id>/family-access/setup-code", guardians.setup_code),
+    path("api/v1/students/<int:student_id>/guardians/<int:link_id>/family-access/letter", guardians.letter),
+    path("api/v1/students/<int:student_id>/guardians/<int:link_id>/family-access/devices/<int:device_id>",
+         guardians.device),
+    # The Family app's own API: the only part a family account can reach.
+    path("api/v1/family/auth/setup", family.setup),
+    path("api/v1/family/auth/login", family.login),
+    path("api/v1/family/auth/logout", family.logout),
+    path("api/v1/family/me", family.me),
     path("api/v1/students/<int:student_id>/remark", students.remark),
     path("api/v1/students/<int:student_id>/progress-report", students.progress_report),
     path("api/v1/students/<int:student_id>/progress-report/send", students.send_progress_report),

@@ -19,6 +19,7 @@ from .clock import SchoolClock
 from .fees import ledger as fee_ledger
 from .reports.performance import term_summary
 from .enums import (
+    FAMILY_ROLES,
     AttendanceStatus,
     FeeDueStatus,
     FeeReceiptStatus,
@@ -149,7 +150,11 @@ class DashboardService:
                 ),
                 card(
                     "users", "User accounts",
-                    str(User.objects.filter(status=UserStatus.ACTIVE, school__category__in=SchoolCategory.counted()).count()),
+                    str(
+                        User.objects.filter(status=UserStatus.ACTIVE, school__category__in=SchoolCategory.counted())
+                        .exclude(role__in=FAMILY_ROLES)
+                        .count()
+                    ),
                     "active",
                 ),
                 card("collected", "Collected", collected or "-", "money received"),

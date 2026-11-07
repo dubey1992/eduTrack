@@ -125,7 +125,8 @@ class Reading(ProfileTest):
 
 class ChangingDetails(ProfileTest):
     def test_every_role_updates_their_own_name_and_mobile(self):
-        for role in UserRole.values:
+        # Family accounts have no staff profile: the Family app is theirs.
+        for role in [role for role in UserRole.values if not UserRole.is_family(role)]:
             with self.subTest(role=role):
                 school = None if role == UserRole.SUPER_ADMIN else self.school
                 user = factories.UserFactory(school=school, role=role)

@@ -16,8 +16,14 @@ from __future__ import annotations
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 
 from . import audit, tokens
-from .enums import UserStatus
+from .enums import UserRole, UserStatus
 from .models import User
+
+# Everything the Family app calls lives under here.
+FAMILY_API = "/api/v1/family/"
+
+# Public pages - privacy, terms - which anybody may read, a family included.
+PUBLIC_PAGES = "/api/v1/pages/"
 
 
 class SanctumTokenAuthentication(BaseAuthentication):
@@ -71,6 +77,17 @@ class SanctumTokenAuthentication(BaseAuthentication):
         # signed in until its holder happens to sign out.
         if user.status != UserStatus.ACTIVE:
             return None
+
+        # A parent's or student's session reaches the Family app's own API and
+        # nothing else - no staff screen, report or list, whatever that view's
+        # own checks would say (docs/parent-student-app.md, F0). One rule
+        # here, so a staff endpoint added later cannot forget it.
+        if UserRole.is_family(user.role) and not request.path.startswith((FAMILY_API, PUBLIC_PAGES)):
+            # Imported here: school.errors imports DRF's views, which are still
+            # loading when DRF reads this class from its settings.
+            from .errors import FamilyAppOnly
+
+            raise FamilyAppOnly()
 
         tokens.touch(token)
         audit.set_actor(user)

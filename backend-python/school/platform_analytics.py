@@ -32,7 +32,7 @@ from django.db.models import Count, Max, Q, Sum
 from . import modules
 from .analytics import MONTH, periods
 from .clock import DATE, SchoolClock
-from .enums import MessageStatus, PaymentStatus, SchoolCategory, SchoolStatus, StudentStatus, UserStatus
+from .enums import FAMILY_ROLES, MessageStatus, PaymentStatus, SchoolCategory, SchoolStatus, StudentStatus, UserRole, UserStatus
 from .models import (
     AuditLog,
     DemoRequest,
@@ -89,7 +89,7 @@ def _totals() -> dict:
         "schools_not_counted": School.objects.exclude(category__in=SchoolCategory.counted()).count(),
         "students": Student.objects.filter(status=StudentStatus.ACTIVE, **COUNTED).count(),
         "staff": StaffProfile.objects.filter(user__status=UserStatus.ACTIVE, **COUNTED).count(),
-        "users": User.objects.filter(status=UserStatus.ACTIVE, **COUNTED).count(),
+        "users": User.objects.filter(status=UserStatus.ACTIVE, **COUNTED).exclude(role__in=FAMILY_ROLES).count(),
     }
 
 

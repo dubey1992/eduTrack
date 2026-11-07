@@ -14,6 +14,7 @@ import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../imports/presentation/bulk_import_button.dart';
+import '../../guardians/presentation/guardians_dialog.dart';
 import '../application/student_list_notifier.dart';
 import '../data/models/student.dart';
 import 'add_student_dialog.dart';
@@ -316,6 +317,15 @@ class _StudentListMobile extends StatelessWidget {
                     builder: (_) => StudentHistoryDialog(student: student),
                   ),
                 ),
+                if (canManage)
+                  IconButton(
+                    icon: const Icon(Icons.family_restroom_outlined, size: 20),
+                    tooltip: 'Guardians',
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => GuardiansDialog(studentId: student.id, studentName: student.name),
+                    ),
+                  ),
               ],
             ),
             onTap: canManage
@@ -450,6 +460,18 @@ class _StudentActions extends ConsumerWidget {
             onPressed: () => showDialog(
               context: context,
               builder: (_) => StudentPerformanceDialog(student: student),
+            ),
+          ),
+        // Guardians are looked after by whoever may edit the student
+        // (docs/parent-student-app.md, F0).
+        if (canManage)
+          IconButton(
+            key: Key('student-guardians-${student.id}'),
+            icon: const Icon(Icons.family_restroom_outlined, size: 20),
+            tooltip: 'Guardians',
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => GuardiansDialog(studentId: student.id, studentName: student.name),
             ),
           ),
         if (canManage)

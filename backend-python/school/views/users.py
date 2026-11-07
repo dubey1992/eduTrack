@@ -16,13 +16,20 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..enums import UserStatus
+from ..enums import FAMILY_ROLES, UserRole, UserStatus
 from ..models import User
 from ..pagination import LaravelPagination
 from ..policies import UserPolicy, authorize
 from ..requests import StoreUserRequest, UpdateUserRequest
 from ..resources import user_resource
 from ..services import AuthService, UserService
+
+
+def staff_account(user_id: int) -> User:
+    """A staff account by id. A family's account is not one, so it is not
+    found here: guardians are looked after on the student
+    (docs/parent-student-app.md)."""
+    return get_object_or_404(User.objects.select_related("school").exclude(role__in=FAMILY_ROLES), pk=user_id)
 
 
 @api_view(["GET", "POST"])
@@ -72,7 +79,7 @@ def store(request) -> Response:
 @api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
 def detail(request, user_id: int) -> Response:
-    user = get_object_or_404(User.objects.select_related("school"), pk=user_id)
+    user = staff_account(user_id)
 
     if request.method == "PATCH":
         return update(request, user)
@@ -113,7 +120,7 @@ def unlock(request, user_id: int) -> Response:
     Whoever may switch the account on and off may unlock it - the same
     decision about the same person.
     """
-    user = get_object_or_404(User.objects.select_related("school"), pk=user_id)
+    user = staff_account(user_id)
 
     authorize(UserPolicy.set_status(request.user, user))
 
@@ -123,7 +130,7 @@ def unlock(request, user_id: int) -> Response:
 
 
 def set_status(request, user_id: int, status_value: str) -> Response:
-    user = get_object_or_404(User.objects.select_related("school"), pk=user_id)
+    user = staff_account(user_id)
 
     authorize(UserPolicy.set_status(request.user, user))
 

@@ -42,6 +42,17 @@ class UserRole(models.TextChoices):
     # a record the office keeps (docs/driver-app.md, D10).
     DRIVER = "DRIVER"
 
+    # The Family app's people (docs/parent-student-app.md): not staff, and
+    # kept out of every staff screen and API (school/authentication.py).
+    # A parent signs in with a mobile number and passcode on a registered
+    # phone; students sign in from Phase F6.
+    PARENT = "PARENT"
+    STUDENT = "STUDENT"
+
+    @classmethod
+    def is_family(cls, role) -> bool:
+        return role in FAMILY_ROLES
+
     @classmethod
     def is_crew(cls, role) -> bool:
         """Works on the bus - driver or attendant - and signs in with a mobile
@@ -61,6 +72,11 @@ class UserRole(models.TextChoices):
         """
         return role in (cls.SCHOOL_ADMIN, cls.GROUP_ADMIN)
 
+
+
+# The Family app's roles (see UserRole.PARENT). Outside the enum, where a
+# tuple is a tuple rather than one more member.
+FAMILY_ROLES = (UserRole.PARENT, UserRole.STUDENT)
 
 class UserStatus(models.TextChoices):
     ACTIVE = "active"

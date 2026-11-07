@@ -49,6 +49,7 @@ from .fields import as_utc
 from . import punches, week
 from .week import WorkingWeek
 from .enums import (
+    FAMILY_ROLES,
     AssessmentStatus,
     AssessmentType,
     EnrollmentStatus,
@@ -77,6 +78,7 @@ from .enums import (
     UserRole,
     UserStatus,
 )
+from .family_accounts import GuardianService
 from .errors import (
     AssessmentNotPublished,
     StudentHasFinished,
@@ -3206,9 +3208,9 @@ class AnnouncementService:
 
     @staticmethod
     def users(school_id: int, audience: str, target):
-        """Active accounts of this school only - never the platform's Super
-        Admins, who belong to none."""
-        users = User.objects.filter(school_id=school_id, status=UserStatus.ACTIVE)
+        """Active staff accounts of this school only - never the platform's
+        Super Admins, who belong to none, nor a family's accounts."""
+        users = User.objects.filter(school_id=school_id, status=UserStatus.ACTIVE).exclude(role__in=FAMILY_ROLES)
 
         if audience == AnnouncementAudience.TEACHERS:
             users = users.filter(role__in=(UserRole.TEACHER, UserRole.HOD))
@@ -5711,7 +5713,9 @@ class GradeScaleService:
 class UserService:
     @staticmethod
     def visible_to(actor: User, filters: dict):
-        users = User.objects.select_related("school")
+        # Staff accounts: a family's are the guardians' business, on the
+        # student (docs/parent-student-app.md).
+        users = User.objects.select_related("school").exclude(role__in=FAMILY_ROLES)
 
         # Never trust a client-supplied school filter: the scope decides what
         # is reachable and the filter can only narrow within it.
@@ -6698,6 +6702,10 @@ class StudentService:
             )
 
             audit.created("students", student)
+            # The guardian named on the form becomes a guardian, linked as the
+            # primary contact - the same person as a sibling's when the number
+            # matches (docs/parent-student-app.md).
+            GuardianService.follow_student(student)
             # The history follows the student row, always through one service
             # (docs/promotion.md).
             StudentEnrollmentService.sync_current_year(student)
@@ -6708,6 +6716,9 @@ class StudentService:
 
     # A change to any of these can change what the student is charged.
     FEE_FIELDS = ("class_section_id", "status", "admission_date")
+
+    # The primary guardian link follows these (school/family_accounts.py).
+    GUARDIAN_FIELDS = ("guardian_name", "guardian_mobile", "guardian_email")
 
     @staticmethod
     def update(student: Student, data: dict) -> Student:
@@ -6731,6 +6742,9 @@ class StudentService:
             student.updated_at = timezone.now()
             student.save()
             audit.updated("students", student, before)
+
+            if any(before.get(field) != getattr(student, field) for field in StudentService.GUARDIAN_FIELDS):
+                GuardianService.follow_student(student)
             # Moving a student between sections, or renumbering them, changes
             # what this year's row should say.
             StudentEnrollmentService.sync_current_year(student)
