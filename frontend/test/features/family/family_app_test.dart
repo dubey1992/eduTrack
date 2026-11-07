@@ -239,6 +239,8 @@ void main() {
 
       expect(find.text('This school year'), findsOneWidget);
       expect(find.text('90%'), findsOneWidget);
+      expect(find.text('Present 108 of 120 days · absent 10 · leave 2'), findsOneWidget);
+      expect(find.text('4 school days not marked by the school'), findsOneWidget);
       expect(find.byKey(const Key('family-day-2026-11-04')), findsOneWidget);
       await tester.scrollUntilVisible(
         find.byKey(const Key('family-missed-days')),

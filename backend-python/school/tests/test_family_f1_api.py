@@ -226,6 +226,16 @@ class AParentSeesTheAttendanceCalendar(FamilyAppTest):
         self.assertNotIn("present", [days[(monday + dt.timedelta(days=2)).isoformat()]["kind"]])
         self.assertIn("absent", marked)
 
+    def test_a_day_the_school_never_marked_does_not_count_against_the_child(self):
+        self.mark(self.child, self.today(), AttendanceStatus.PRESENT)
+        # Yesterday was a working day too, and nobody marked the register.
+
+        summary = self.parent.get(f"{FAMILY}/children/{self.child.id}/attendance").data["month_summary"]
+
+        if summary["working_days"] > 1:
+            self.assertGreaterEqual(summary["not_marked"], 1)
+        self.assertEqual((1, 100.0), (summary["marked_days"], summary["rate"]))
+
     def test_a_badly_written_month_is_refused(self):
         response = self.parent.get(f"{FAMILY}/children/{self.child.id}/attendance", {"month": "Nov 2026"})
 

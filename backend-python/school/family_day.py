@@ -214,8 +214,12 @@ def breaks_for(school_id, shape: str, now: dt.time) -> list[dict]:
 def counts(student: Student, working: list[dt.date]) -> dict:
     """Present, absent and leave over these working days, and the rate.
 
-    The Phase 18 rule: the denominator is working days, and a mark on a day
-    that later became a holiday stops counting. Leave is not present.
+    A mark on a day that later became a holiday stops counting, as in the
+    Phase 18 reports, and leave is not present. But for a parent the rate is
+    over the days the register was *marked*: a day the school never marked
+    is the school's gap, not the child's absence, and counting it would show
+    a child who came every day at 15%. How many were not marked is sent too,
+    so the app can say so.
     """
     marks = Attendance.objects.filter(student_id=student.id, attendance_date__in=working).values_list(
         "status", flat=True
@@ -226,13 +230,15 @@ def counts(student: Student, working: list[dt.date]) -> dict:
             tally[status] += 1
 
     days = len(working)
+    marked = sum(tally.values())
     return {
         "working_days": days,
+        "marked_days": marked,
         "present": tally[PRESENT],
         "absent": tally[ABSENT],
         "leave": tally[LEAVE],
-        "not_marked": max(0, days - sum(tally.values())),
-        "rate": rate_of(tally[PRESENT], days) if days else None,
+        "not_marked": max(0, days - marked),
+        "rate": rate_of(tally[PRESENT], marked) if marked else None,
     }
 
 

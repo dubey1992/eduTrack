@@ -130,6 +130,26 @@ A family account works only on `/api/v1/family/...` and on the public pages (pri
 - **Notifications** with per-type switches (absence, bus, fees, results, notices).
 - Profile, sign-out, help and a "Contact the school" card (call / WhatsApp the office).
 
+**As built (2026-11-07).** The app is its own build: flavour `family`, `com.school365ai.family`, `lib/main_family.dart`. It asks only for the internet and notifications. It has a bottom bar (Home, Attendance, Bus, Fees, More) and a child switcher that gives each child a colour.
+
+- **Home** shows:
+  - attendance today, in plain words;
+  - the bus trip;
+  - the next fee due;
+  - the latest message;
+  - today's classes.
+
+  With no signal, it keeps showing the last copy and says when that copy is from.
+- **Attendance** shows the month as a calendar coloured by day, the month's and the year's rate in the 90/75 bands, and the teacher's note on every absence.
+- **Bus** and **Fees** show today's facts. The map comes in F4, the statement in F3.
+- **More** holds Notices, the school calendar, the notification switches, Contact the school (call, WhatsApp, email the office) and sign-out.
+
+Decisions taken while building:
+
+- **The parent's rate is out of the days the register was marked.** A working day the school never marked doesn't count against the child, and the app says how many such days there were. The staff reports keep the Phase 18 rule (working days).
+- **The school's messages reach the app as well as the phone.** A guardian with the app gets an in-app copy of each message the school sends them (school/family_inbox.py), addressed to them by name. Their own switches decide which kinds arrive; an emergency always does. A whole-school notice arrives once, however many children they have at the school. SMS and WhatsApp go out exactly as before. "The app instead of SMS" is still to come.
+- **Push** reuses the staff app's Firebase code through `family/devices`. It needs `com.school365ai.family` added to the business's Firebase project. Until then the app has no push, and notices still arrive inside it.
+
 ### Phase F2: Academics
 
 - **Results:** each published test with the mark, the grade and the class average (if the school allows), term by term.

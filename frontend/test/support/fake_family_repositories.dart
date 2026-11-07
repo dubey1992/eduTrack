@@ -67,7 +67,9 @@ AttendanceMonth attendanceMonth({List<AttendanceDay>? days, double? rate = 92.5}
         ],
     monthSummary: AttendanceSummary(workingDays: 7, present: 6, absent: 1, leave: 0, rate: rate),
     yearSummary: const AttendanceSummary(
-      workingDays: 120,
+      workingDays: 124,
+      markedDays: 120,
+      notMarked: 4,
       present: 108,
       absent: 10,
       leave: 2,

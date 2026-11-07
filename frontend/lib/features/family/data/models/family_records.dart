@@ -43,6 +43,8 @@ class AttendanceDay {
 class AttendanceSummary {
   const AttendanceSummary({
     required this.workingDays,
+    this.markedDays,
+    this.notMarked = 0,
     required this.present,
     required this.absent,
     required this.leave,
@@ -52,6 +54,8 @@ class AttendanceSummary {
 
   factory AttendanceSummary.fromJson(Map<String, dynamic> json) => AttendanceSummary(
     workingDays: json['working_days'] as int,
+    markedDays: json['marked_days'] as int?,
+    notMarked: json['not_marked'] as int? ?? 0,
     present: json['present'] as int,
     absent: json['absent'] as int,
     leave: json['leave'] as int,
@@ -60,6 +64,11 @@ class AttendanceSummary {
   );
 
   final int workingDays;
+
+  /// The days the register was marked: what the rate is out of. A day the
+  /// school never marked does not count against the child.
+  final int? markedDays;
+  final int notMarked;
   final int present;
   final int absent;
   final int leave;

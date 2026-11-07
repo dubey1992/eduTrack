@@ -151,12 +151,18 @@ class _RateCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   rate == null
-                      ? 'No school days yet.'
-                      : 'Present ${summary.present} of ${summary.workingDays} school days'
+                      ? 'No register marked yet.'
+                      : 'Present ${summary.present} of ${summary.markedDays ?? summary.workingDays} days'
                             '${summary.absent > 0 ? ' · absent ${summary.absent}' : ''}'
                             '${summary.leave > 0 ? ' · leave ${summary.leave}' : ''}',
                   style: TextStyle(color: muted, fontSize: 13),
                 ),
+                if (summary.notMarked > 0)
+                  Text(
+                    '${summary.notMarked} school ${summary.notMarked == 1 ? 'day' : 'days'} not marked by the school',
+                    key: const Key('family-not-marked'),
+                    style: TextStyle(color: muted, fontSize: 12),
+                  ),
               ],
             ),
           ),
