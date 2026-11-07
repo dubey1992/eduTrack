@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>School365ai One-Pager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="brochure.css">
+<style>
+.one { padding: 0; gap: 0; }
+.band { background: var(--navy); color: #fff; padding: 12mm 14mm 10mm; display: grid; grid-template-columns: 1fr 64mm; gap: 8mm; align-items: center; }
+.band .words { display: grid; gap: 3.5mm; }
+.band .eyebrow { color: var(--gold); }
+.band h1 { font-size: 25pt; color: #fff; }
+.band h1 em { font-style: normal; color: #93C5FD; }
+.band .lead { color: #CBD5E1; font-size: 10.5pt; }
+.band .photo { height: 54mm; border-radius: 4mm; background: url("images/classroom.jpg") 70% 35% / cover no-repeat; position: relative; }
+.band .photo .moment { position: absolute; left: -6mm; bottom: 5mm; width: 56mm; }
+.body { padding: 8mm 14mm 0; display: grid; gap: 6mm; }
+.modules { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4.2mm 6mm; }
+.module { display: grid; grid-template-columns: auto 1fr; gap: 3mm; align-items: start; }
+.module h3 { font-size: 10.5pt; margin-top: .5mm; }
+.module p { font-size: 8.6pt; color: var(--muted); line-height: 1.45; margin-top: .4mm; }
+.mid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 6mm; align-items: center; }
+.why { display: grid; gap: 2.4mm; }
+.why li { display: flex; gap: 2.5mm; font-size: 9pt; color: var(--muted); align-items: flex-start; }
+.why .icon { color: var(--green); font-size: 11pt; margin-top: .5mm; }
+.why b { color: var(--ink); font-weight: 600; }
+.one .cta { margin: 6mm 14mm 0; }
+.one .foot { margin: auto 14mm 10mm; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+    <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 .7V2l-1 .7-3-2-3 2-3-2-3 2-3-2z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+    <symbol id="i-bus" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="15" rx="3"/><line x1="4" y1="11" x2="20" y2="11"/><line x1="7" y1="21" x2="7" y2="18"/><line x1="17" y1="21" x2="17" y2="18"/><circle cx="8" cy="14.5" r=".6"/><circle cx="16" cy="14.5" r=".6"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
+    <symbol id="i-ok" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
+    <symbol id="i-whatsapp" viewBox="0 0 24 24"><path d="M3 21l1.65-4.8A8.5 8.5 0 1 1 8 19.6z"/><path d="M9 8.5c0 3.5 3 6.5 6.5 6.5l1-1.6-2-1-1 .9c-1.3-.5-2.3-1.5-2.8-2.8l.9-1-1-2z"/></symbol>
+    <symbol id="i-call" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+  </defs>
+</svg>
+
+<section class="page one">
+  <div class="band on-dark">
+    <div class="words">
+      <div class="brand"><img src="images/logo.png" alt=""><div><strong>School365ai</strong><span>Smarter Schools. Brighter Futures.</span></div></div>
+      <p class="eyebrow">School management, all in one place</p>
+      <h1>Run your whole school day from <em>one app</em>.</h1>
+      <p class="lead">Attendance, timetables, fees, the school bus and messages to parents - on the web and on Android.</p>
+    </div>
+    <div class="photo" role="img" aria-label="A student writing on a classroom blackboard">
+      <div class="moment"><span class="chip c-green"><svg class="icon"><use href="#i-check"/></svg></span><div><strong>Attendance marked</strong><span>Class 7 A · 38 of 40 present</span></div></div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="modules">
+      <div class="module"><span class="chip c-green"><svg class="icon"><use href="#i-check"/></svg></span><div><h3>Student attendance</h3><p>Class registers on web and phone, even without signal, with absence alerts to parents.</p></div></div>
+      <div class="module"><span class="chip c-teal"><svg class="icon"><use href="#i-pin"/></svg></span><div><h3>Staff attendance</h3><p>Check in from the phone, only at school. Late arrivals worked out, leave on the register.</p></div></div>
+      <div class="module"><span class="chip c-blue"><svg class="icon"><use href="#i-calendar"/></svg></span><div><h3>Timetable and teaching</h3><p>Clash-free timetables, daily teaching reports, and a syllabus that ticks itself.</p></div></div>
+      <div class="module"><span class="chip c-purple"><svg class="icon"><use href="#i-award"/></svg></span><div><h3>Tests and progress</h3><p>Marks, grade scales, results to guardians, PDF progress reports and early warning.</p></div></div>
+      <div class="module"><span class="chip c-blue"><svg class="icon"><use href="#i-receipt"/></svg></span><div><h3>Fees</h3><p>Fee plans, numbered receipts, part payments, reminders and late fines, in your currency.</p></div></div>
+      <div class="module"><span class="chip c-gold"><svg class="icon"><use href="#i-briefcase"/></svg></span><div><h3>Payroll and leave</h3><p>Monthly payroll from attendance, PDF payslips, and leave from apply to approve.</p></div></div>
+      <div class="module"><span class="chip c-orange"><svg class="icon"><use href="#i-bus"/></svg></span><div><h3>School transport</h3><p>Routes and stops on the map, trips run from the crew's phone, boarding alerts, SOS.</p></div></div>
+      <div class="module"><span class="chip c-red"><svg class="icon"><use href="#i-chat"/></svg></span><div><h3>Messages and reports</h3><p>SMS, WhatsApp, email and app alerts; twelve reports in PDF and CSV, and trends.</p></div></div>
+    </div>
+
+    <div class="mid">
+      <div class="shot"><div class="bar"><i></i><i></i><i></i><b>school365ai.com · Dashboard</b></div><img src="images/dashboard.jpg" alt="The School365ai dashboard"></div>
+      <ul class="why">
+        <li><svg class="icon"><use href="#i-ok"/></svg><span><b>One sign-in for everyone</b> - admins, teachers, accountants and the transport team, each seeing their own part.</span></li>
+        <li><svg class="icon"><use href="#i-ok"/></svg><span><b>Two Android apps</b>: one for staff, one for drivers and bus attendants.</span></li>
+        <li><svg class="icon"><use href="#i-ok"/></svg><span><b>Parents need no app</b> - updates reach their phone.</span></li>
+        <li><svg class="icon"><use href="#i-ok"/></svg><span><b>Each school's data kept apart</b>, every change in an audit log.</span></li>
+        <li><svg class="icon"><use href="#i-ok"/></svg><span><b>Quick to start</b>: a six-step Setup Guide and spreadsheet import.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="cta">
+    <div><h3>Book a free live demo</h3><p>See School365ai run a school day like yours.</p></div>
+    <div class="ways">
+      <div><svg class="icon"><use href="#i-whatsapp"/></svg><b>WhatsApp</b> +91-9205313831</div>
+      <div><svg class="icon"><use href="#i-mail"/></svg>support@school365ai.com</div>
+      <div><svg class="icon"><use href="#i-globe"/></svg>school365ai.com</div>
+    </div>
+  </div>
+
+  <div class="foot"><span>NextWebGen Infotech Private Limited · Gurgaon, Haryana, India</span><span>Screens show example data. Photo: Nikhita S, Unsplash.</span></div>
+</section>
+
+</body>
+</html>
