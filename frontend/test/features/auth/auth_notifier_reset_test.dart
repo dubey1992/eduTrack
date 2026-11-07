@@ -23,7 +23,16 @@ void main() {
     //   marketingContentProvider    the public homepage's words
     //   mapPinIconsProvider         three drawn pins, identical for all,
     //                               and expensive to raster again
-    const exempt = {'authNotifierProvider', 'timezoneListProvider', 'marketingContentProvider', 'mapPinIconsProvider'};
+    // The Family app's session is its own, not the staff sign-in's: it is
+    // reset by FamilySessionNotifier's own sign-out.
+    const exempt = {
+      'authNotifierProvider',
+      'timezoneListProvider',
+      'marketingContentProvider',
+      'mapPinIconsProvider',
+      'familySessionProvider',
+      'selectedChildIndexProvider',
+    };
 
     final missing = <String>[];
     for (final file in Directory('lib/features').listSync(recursive: true).whereType<File>()) {

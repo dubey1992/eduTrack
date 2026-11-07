@@ -14,22 +14,27 @@ class DeviceRepository {
 
   /// Tells the server this install of the app belongs to the signed-in
   /// person. Throws the server's Failure.
+  ///
+  /// The Family app registers through its own door, `/family/devices`: a
+  /// family account reaches nothing outside `/family/` (docs/parent-student-app.md).
   Future<void> register(String token, {required String app}) async {
     try {
-      await _dio.post('/devices', data: {'token': token, 'platform': platformName, 'app': app});
+      await _dio.post(pathFor(app), data: {'token': token, 'platform': platformName, 'app': app});
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }
   }
 
   /// Takes this install off the signed-in person, at sign-out.
-  Future<void> forget(String token) async {
+  Future<void> forget(String token, {String app = 'staff'}) async {
     try {
-      await _dio.delete('/devices', data: {'token': token});
+      await _dio.delete(pathFor(app), data: {'token': token});
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }
   }
+
+  static String pathFor(String app) => app == 'family' ? '/family/devices' : '/devices';
 
   static String get platformName => switch (defaultTargetPlatform) {
     _ when kIsWeb => 'web',
@@ -44,12 +49,14 @@ class PushRegistration {
 
   final Ref _ref;
   String? _token;
+  String _app = 'staff';
 
   String? get token => _token;
 
   Future<void> register(String token, {required String app}) async {
     await _ref.read(deviceRepositoryProvider).register(token, app: app);
     _token = token;
+    _app = app;
   }
 
   /// Forgets this phone on the server. Never stands in the way of signing
@@ -61,7 +68,7 @@ class PushRegistration {
     if (token == null) return;
 
     try {
-      await _ref.read(deviceRepositoryProvider).forget(token);
+      await _ref.read(deviceRepositoryProvider).forget(token, app: _app);
     } catch (error) {
       debugPrint('Could not forget this phone for push: $error');
     }

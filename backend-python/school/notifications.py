@@ -32,7 +32,7 @@ from dataclasses import dataclass
 
 from django.utils import timezone
 
-from . import attendants, dates, modules, platform_messaging, queue
+from . import attendants, dates, family_inbox, modules, platform_messaging, queue
 from .clock import SchoolClock
 from .enums import (
     AttendanceAlertMode,
@@ -255,7 +255,7 @@ def notify_guardian(
         **tokens,
     }
 
-    return record(
+    messages = record(
         event,
         school_id=student.school_id,
         recipient=Recipient(
@@ -268,6 +268,35 @@ def notify_guardian(
         subject=subject,
         carrier=carrier,
     )
+
+    return [*messages, *copy_to_family_app(event, student, tokens, actor, announcement, subject)]
+
+
+def copy_to_family_app(event: str, student, tokens: dict, actor=None, announcement=None, subject=None) -> list[Message]:
+    """The same words in the Family app of each of the student's guardians
+    who has it (school/family_inbox.py). Separate from the channels above:
+    a school with SMS switched off still reaches a parent who has the app.
+    The school's own switches apply all the same."""
+    if student.school_id is None or not modules.is_enabled(student.school_id, "communication"):
+        return []
+
+    if switched_off(event, settings_for(student.school_id)):
+        return []
+
+    template = body_for(student.school_id, event)
+
+    def render_for(guardian) -> str:
+        # Addressed to this guardian, not to the student's primary one.
+        return render(template, {**tokens, "guardian_name": guardian.name, "recipient_name": guardian.name})
+
+    copies = family_inbox.copy_to_family(
+        event, student, render_for, subject=subject, announcement=announcement, actor=actor
+    )
+
+    for message in copies:
+        queue.push(SEND_MESSAGE, {"message_id": message.id})
+
+    return copies
 
 
 def notify_student(event: str, student, tokens: dict, actor=None, channels=None, announcement=None, subject=None):

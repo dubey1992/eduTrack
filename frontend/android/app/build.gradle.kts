@@ -70,6 +70,7 @@ android {
     //
     //     flutter build apk --flavor driver  --target lib/main_driver.dart
     //     flutter build apk --flavor teacher --target lib/main_teacher.dart
+    //     flutter build apk --flavor family  --target lib/main_family.dart
     flavorDimensions += "app"
     productFlavors {
         create("driver") {
@@ -86,6 +87,13 @@ android {
             // build only. Its name, icon and the permissions it does *not*
             // ask for live in src/teacher/, merged over src/main/.
             applicationId = "com.school365ai"
+        }
+        create("family") {
+            dimension = "app"
+            // School365ai Family, for parents (docs/parent-student-app.md).
+            // Permanent from its first upload, like the other two. Its name,
+            // icon and the permissions it does not ask for live in src/family/.
+            applicationId = "com.school365ai.family"
         }
     }
 

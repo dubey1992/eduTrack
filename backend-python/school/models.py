@@ -896,6 +896,25 @@ class FamilyDevice(models.Model):
         db_table = 'family_devices'
 
 
+class FamilyNotificationSetting(models.Model):
+    """Which kinds of message a parent wants on the Family app. No row means
+    every kind on (docs/parent-student-app.md, F1)."""
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.OneToOneField('User', models.DO_NOTHING, related_name='family_notification_setting')
+    attendance = models.BooleanField(default=True)
+    transport = models.BooleanField(default=True)
+    fee = models.BooleanField(default=True)
+    result = models.BooleanField(default=True)
+    notices = models.BooleanField(default=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'family_notification_settings'
+
+
 class TransportTripLocation(models.Model):
     """A position reported by the phone of whoever runs a trip, while it is
     in progress. Kept 30 days (manage.py purge_trip_locations)."""

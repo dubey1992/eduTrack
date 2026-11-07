@@ -307,12 +307,15 @@ jobs:
       - name: Build the teacher app
         run: flutter build apk --debug --flavor teacher --target lib/main_teacher.dart
 
+      - name: Build the Family app
+        run: flutter build apk --debug --flavor family --target lib/main_family.dart
+
       - name: Say what came out
         # Two application ids, two names: the proof the flavours did their
         # one job. A teacher app that reported com.school365ai.app would be
         # the driver app wearing a different icon.
         run: |
-          for flavour in driver teacher; do
+          for flavour in driver teacher family; do
             apk=build/app/outputs/flutter-apk/app-$flavour-debug.apk
             ls -lh "$apk"
             "$ANDROID_HOME"/build-tools/*/aapt2 dump badging "$apk" | grep -E "^package|application-label:" | head -2

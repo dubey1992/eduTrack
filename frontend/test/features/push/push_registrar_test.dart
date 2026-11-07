@@ -65,7 +65,7 @@ class FakeDevices implements DeviceRepository {
   }
 
   @override
-  Future<void> forget(String token) async {
+  Future<void> forget(String token, {String app = 'staff'}) async {
     if (failForgetWith != null) throw failForgetWith!;
     forgotten.add(token);
   }

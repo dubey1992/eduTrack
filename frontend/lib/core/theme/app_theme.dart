@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
+import 'family_brand.dart';
 import 'teacher_brand.dart';
 
 /// App theme. Palette is "Slate Monochrome" - near-black/white, high
@@ -81,6 +82,33 @@ class AppTheme {
     brightness: Brightness.dark,
     primary: TeacherBrand.tealBright,
     primarySoft: TeacherBrand.tealNight,
+    background: _darkBackground,
+    surface: _darkSurface,
+    text: _darkText,
+    border: _darkBorder,
+    appColors: AppColors.dark,
+  );
+
+  // ---- The Family app (docs/parent-student-app.md) ----
+  //
+  // The same theme in the School365ai blue, on a soft off-white ground so the
+  // white cards stand off it. Status colours unchanged: "Absent" is the same
+  // red a teacher sees.
+  static ThemeData familyLight() => _build(
+    brightness: Brightness.light,
+    primary: FamilyBrand.blue,
+    primarySoft: FamilyBrand.mist,
+    background: FamilyBrand.ground,
+    surface: _lightSurface,
+    text: _lightText,
+    border: _lightBorder,
+    appColors: AppColors.light,
+  );
+
+  static ThemeData familyDark() => _build(
+    brightness: Brightness.dark,
+    primary: FamilyBrand.blueBright,
+    primarySoft: FamilyBrand.blueNight,
     background: _darkBackground,
     surface: _darkSurface,
     text: _darkText,

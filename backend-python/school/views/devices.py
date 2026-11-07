@@ -17,7 +17,9 @@ from rest_framework.response import Response
 from ..models import DeviceToken
 
 PLATFORMS = ("android", "ios", "web")
-APPS = ("staff", "driver")
+# The Family app registers through family/devices, the only door a family
+# account has (school/authentication.py), onto this same view.
+APPS = ("staff", "driver", "family")
 
 
 class RegisterDeviceRequest(serializers.Serializer):

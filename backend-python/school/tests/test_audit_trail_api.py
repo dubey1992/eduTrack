@@ -132,6 +132,9 @@ class EveryWriteIsRecorded(TestCase):
             "audit", "queue", "jobs", "notifications", "security", "attendants",
             "tokens", "notices", "receipts", "photos", "dashboard", "modules", "permissions",
             "analytics",
+            # The Family app's copies of the school's messages: rows of the
+            # message log, which is the record, like notifications'.
+            "family_inbox",
         }
 
         self.assertEqual(set(), writes - swept - exempt, "add these to SWEPT, or say why they are exempt")

@@ -36,7 +36,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from django.conf import settings
 from django.core.cache import cache
 
-from .enums import MessageCategory, MessageEvent
+from .enums import MessageCategory, MessageEvent, UserRole
 from .gateways import http
 from .models import DeviceToken, Message
 
@@ -133,7 +133,15 @@ def access_token(account: dict) -> str | None:
     return token
 
 
+# Where a tapped notification opens in the Family app: its notices, whatever
+# the kind (docs/parent-student-app.md, F1).
+FAMILY_ROUTE = "/notices"
+
+
 def route_for(message: Message) -> str:
+    if message.user_id and UserRole.is_family(message.user.role):
+        return FAMILY_ROUTE
+
     return ROUTES.get(message.category, DEFAULT_ROUTE)
 
 

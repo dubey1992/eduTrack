@@ -85,6 +85,30 @@ def family_me_resource(user: User, children) -> dict:
         "role": user.role,
         "name": user.name,
         "mobile": user.mobile,
-        "school": {"id": school.id, "name": school.name, "currency_code": school.currency_code} if school else None,
+        "school": {
+            "id": school.id,
+            "name": school.name,
+            "currency_code": school.currency_code,
+            # For "Contact the school": the office's own details, nothing
+            # about any member of staff.
+            "phone": school.phone or None,
+            "email": school.email or None,
+            "address": ", ".join(part for part in (school.address, school.city, school.state) if part) or None,
+        } if school else None,
         "children": [family_child_resource(child) for child in children],
+    }
+
+
+def family_notice_resource(message) -> dict:
+    """One of the school's messages, as the Family app lists it. Only what a
+    parent needs: never the channel log's addresses or statuses."""
+    return {
+        "id": message.id,
+        "category": message.category,
+        "title": message.subject or None,
+        "body": message.body,
+        "student_id": message.student_id,
+        "student_name": message.student_name,
+        "created_at": message.created_at.isoformat() if message.created_at else None,
+        "read": message.read_at is not None,
     }

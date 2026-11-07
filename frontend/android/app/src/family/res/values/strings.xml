@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The Family app's name, over the driver's in src/main
+         (docs/parent-student-app.md, decision D9). -->
+    <string name="app_name">School365ai Family</string>
+</resources>

@@ -35,5 +35,6 @@ class SessionEndedNotifier extends Notifier<bool> {
 bool endsSession({required int? status, required String path, required bool carriedSession}) {
   if (status != 401 || !carriedSession) return false;
 
-  return !path.startsWith('/auth/');
+  // The Family app signs in through its own door, with the same meaning.
+  return !path.startsWith('/auth/') && !path.startsWith('/family/auth/');
 }
