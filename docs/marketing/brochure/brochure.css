@@ -1,0 +1,127 @@
+/* School365ai print pieces: the brochure and the one-pager (2026-11-07).
+   A4 pages in the website's palette and type, rendered to PDF by render.js. */
+
+@page { size: A4; margin: 0; }
+
+:root {
+  --blue: #2563EB;
+  --blue-dark: #1D4ED8;
+  --blue-light: #DBEAFE;
+  --blue-wash: #EFF4FF;
+  --navy: #0F172A;
+  --ink: #0F172A;
+  --muted: #475569;
+  --subtle: #64748B;
+  --line: #E2E8F0;
+  --paper: #FFFFFF;
+  --ground: #F8FAFC;
+  --gold: #FBBF24;
+  --green: #16A34A;
+  --orange: #EA580C;
+  --purple: #7C3AED;
+  --red: #DC2626;
+  --teal: #0D9488;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #CBD5E1; }
+body {
+  font-family: "Poppins", "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  font-size: 10.5pt;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page {
+  width: 210mm;
+  height: 297mm;
+  overflow: hidden;
+  position: relative;
+  background: var(--paper);
+  page-break-after: always;
+  break-after: page;
+  padding: 16mm 15mm 14mm;
+  display: flex;
+  flex-direction: column;
+  gap: 7mm;
+}
+.page:last-child { page-break-after: auto; break-after: auto; }
+@media screen { .page { margin: 10mm auto; box-shadow: 0 6px 30px rgba(15, 23, 42, .18); } }
+
+h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: 30pt; line-height: 1.08; font-weight: 800; }
+h2 { font-size: 20pt; line-height: 1.15; font-weight: 800; }
+h3 { font-size: 11.5pt; line-height: 1.3; font-weight: 700; }
+p { margin: 0; }
+ul { margin: 0; padding: 0; list-style: none; }
+
+.eyebrow { font-size: 8pt; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--blue); }
+.lead { font-size: 11.5pt; color: var(--muted); max-width: 150mm; }
+.muted { color: var(--muted); }
+.small { font-size: 8.5pt; }
+
+.icon { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.chip {
+  width: 9mm; height: 9mm; border-radius: 2.4mm;
+  display: grid; place-items: center; flex: none;
+  font-size: 13pt;
+}
+.c-blue { background: #E0EAFF; color: var(--blue); }
+.c-green { background: #DCFCE7; color: var(--green); }
+.c-orange { background: #FFEDD5; color: var(--orange); }
+.c-purple { background: #EDE9FE; color: var(--purple); }
+.c-teal { background: #CCFBF1; color: var(--teal); }
+.c-red { background: #FEE2E2; color: var(--red); }
+.c-gold { background: #FEF3C7; color: #B45309; }
+
+/* -- the brand mark ------------------------------------------------------- */
+.brand { display: flex; align-items: center; gap: 3mm; }
+.brand img { width: 11mm; height: 11mm; }
+.brand strong { display: block; font-size: 14pt; font-weight: 700; line-height: 1.1; }
+.brand span { display: block; font-size: 8pt; color: var(--subtle); }
+.on-dark .brand span { color: #94A3B8; }
+
+/* -- a screenshot in a browser frame ----------------------------------- */
+.shot { border-radius: 3mm; overflow: hidden; border: 1px solid var(--line); background: var(--paper); box-shadow: 0 4mm 10mm rgba(15, 23, 42, .12); }
+.shot .bar { height: 5mm; background: #F1F5F9; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 1.4mm; padding: 0 2.5mm; }
+.shot .bar i { width: 1.8mm; height: 1.8mm; border-radius: 50%; background: #CBD5E1; }
+.shot .bar b { margin-left: 2mm; font-size: 6.5pt; font-weight: 500; color: var(--subtle); }
+.shot img { display: block; width: 100%; height: auto; }
+/* Only the top of a screenshot whose lower half is empty. */
+.shot.crop img { height: var(--crop, 40mm); object-fit: cover; object-position: top left; }
+.caption { font-size: 8pt; color: var(--subtle); margin-top: 2mm; }
+
+/* -- the app's own notices, as on the sign-in page ---------------------- */
+.moment { display: flex; align-items: center; gap: 2.5mm; background: #fff; color: var(--ink); border-radius: 2.5mm; padding: 2.2mm 3mm 2.2mm 2.4mm; box-shadow: 0 2mm 6mm rgba(0, 0, 0, .25); width: 64mm; }
+.moment .chip { width: 7.5mm; height: 7.5mm; font-size: 11pt; border-radius: 2mm; }
+.moment div strong { display: block; font-size: 8.5pt; line-height: 1.25; }
+.moment div span { display: block; font-size: 7.5pt; color: var(--muted); line-height: 1.3; }
+
+/* -- lists of what a part does ------------------------------------------ */
+.ticks li { position: relative; padding-left: 5.5mm; margin-top: 1.6mm; font-size: 9.5pt; color: var(--muted); }
+.ticks li::before { content: ""; position: absolute; left: 0; top: 1.6mm; width: 2.6mm; height: 1.4mm; border-left: 2px solid var(--blue); border-bottom: 2px solid var(--blue); transform: rotate(-45deg); }
+.ticks b { color: var(--ink); font-weight: 600; }
+
+.feature { display: grid; grid-template-columns: auto 1fr; gap: 3mm; align-items: start; }
+.feature h3 { margin-top: .8mm; }
+
+.panel { border: 1px solid var(--line); border-radius: 3.5mm; padding: 5mm; background: var(--paper); }
+.panel.wash { background: var(--blue-wash); border-color: #D6E2FF; }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+.three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+
+/* -- footer on every inside page ----------------------------------------- */
+.foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; padding-top: 3mm; border-top: 1px solid var(--line); font-size: 7.5pt; color: var(--subtle); }
+.foot b { color: var(--ink); font-weight: 600; }
+
+/* -- the call to book a demo --------------------------------------------- */
+.cta { background: var(--navy); color: #fff; border-radius: 4mm; padding: 6mm 7mm; display: grid; grid-template-columns: 1fr auto; gap: 6mm; align-items: center; }
+.cta h3 { font-size: 14pt; }
+.cta p { color: #CBD5E1; font-size: 9pt; margin-top: 1mm; }
+.cta .ways { display: grid; gap: 1.6mm; font-size: 9pt; }
+.cta .ways div { display: flex; align-items: center; gap: 2.4mm; white-space: nowrap; }
+.cta .ways .icon { color: var(--gold); font-size: 11pt; }
+.cta .ways b { font-weight: 600; }
