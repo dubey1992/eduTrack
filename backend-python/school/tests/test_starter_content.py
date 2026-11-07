@@ -18,6 +18,8 @@ from django.test import SimpleTestCase
 from school import site_pages
 
 CONTENT = Path(__file__).resolve().parents[3] / "backend" / "database" / "content" / "site-pages"
+# Three more posts, published by their own migration (2026-11-07).
+NOVEMBER_POSTS = CONTENT.parent / "site-pages-2026-11"
 FRONT = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.S)
 
 
@@ -36,10 +38,11 @@ def read(path: Path) -> tuple[dict, str]:
 
 class TheStarterContent(SimpleTestCase):
     def setUp(self):
-        self.files = sorted(CONTENT.glob("*.md"))
+        # Every rule below holds for the later posts too.
+        self.files = sorted(CONTENT.glob("*.md")) + sorted(NOVEMBER_POSTS.glob("*.md"))
 
     def test_there_are_help_articles_and_draft_posts(self):
-        kinds = [read(path)[0].get("kind") for path in self.files]
+        kinds = [read(path)[0].get("kind") for path in sorted(CONTENT.glob("*.md"))]
 
         self.assertGreaterEqual(kinds.count("help"), 12)
         self.assertEqual(3, kinds.count("post"))
@@ -102,3 +105,24 @@ class TheStarterContent(SimpleTestCase):
                 for claim in ("parent app", "student app", "ai-powered", "artificial intelligence", "payment gateway",
                               "app store", "ios app", "hall ticket"):
                     self.assertNotIn(claim, text)
+
+
+class TheNovemberPosts(SimpleTestCase):
+    """Published by 2026_11_15_090000_publish_november_blog_posts."""
+
+    def test_three_posts_with_an_author_each(self):
+        files = sorted(NOVEMBER_POSTS.glob("*.md"))
+
+        self.assertEqual(3, len(files))
+        for path in files:
+            with self.subTest(file=path.name):
+                meta = read(path)[0]
+                self.assertEqual(site_pages.POST, meta["kind"])
+                self.assertEqual("School365ai Team", meta["author"])
+
+    def test_no_address_is_taken_by_an_earlier_page(self):
+        earlier = {read(path)[0]["slug"] for path in CONTENT.glob("*.md")}
+
+        for path in NOVEMBER_POSTS.glob("*.md"):
+            with self.subTest(file=path.name):
+                self.assertNotIn(read(path)[0]["slug"], earlier)
