@@ -159,6 +159,22 @@ class Building(TestCase):
         self.assertNotIn(".htaccess", written)
         self.assertFalse((self.root / "site/pages/terms.html").exists())
 
+    def test_the_icons_come_at_sizes_google_shows_in_search_results(self):
+        # Google uses a favicon only at a square multiple of 48px, and
+        # crawlers ask for /favicon.ico whether or not a page names it.
+        from PIL import Image
+
+        self.build()
+        home = self.read("index.html")
+
+        for name, size in (("favicon-48.png", 48), ("favicon-192.png", 192), ("apple-touch-icon.png", 180)):
+            with self.subTest(name=name):
+                self.assertEqual(Image.open(self.root / name).size, (size, size))
+        self.assertEqual((self.root / "favicon.ico").read_bytes()[:4], bytes([0, 0, 1, 0]))  # an .ico
+        self.assertIn('<link rel="icon" href="/favicon.ico" sizes="48x48">', home)
+        self.assertIn('<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">', home)
+        self.assertIn('<link rel="apple-touch-icon" href="/apple-touch-icon.png">', home)
+
     def test_the_htaccess_only_from_the_deploy_command(self):
         self.assertIn(".htaccess", self.build(server_files=True))
         self.assertIn("ErrorDocument 404 /404.html", self.read(".htaccess"))

@@ -225,7 +225,17 @@ def build(root: Path, server_files: bool = False) -> list[str]:
     for name in ("site.css", "site.js", "hero-app.jpg"):
         write(Path("site") / name, (ASSETS / name).read_bytes())
 
-    for name in ("favicon.png", "og-image.png", "logo.png"):
+    # The icons at the sizes Google shows beside a search result - a square
+    # multiple of 48px - plus /favicon.ico, which crawlers ask for unprompted.
+    for name in (
+        "favicon.png",
+        "favicon.ico",
+        "favicon-48.png",
+        "favicon-192.png",
+        "apple-touch-icon.png",
+        "og-image.png",
+        "logo.png",
+    ):
         write(name, (ASSETS / name).read_bytes())
 
     if server_files:
