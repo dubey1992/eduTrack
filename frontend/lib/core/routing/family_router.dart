@@ -8,6 +8,7 @@ import '../../features/family/presentation/family_attendance_screen.dart';
 import '../../features/family/presentation/family_bus_fees_screens.dart';
 import '../../features/family/presentation/family_frame.dart';
 import '../../features/family/presentation/family_home_screen.dart';
+import '../../features/family/presentation/family_learning_screens.dart';
 import '../../features/family/presentation/family_more_screens.dart';
 import '../../features/family/presentation/family_sign_in_screen.dart';
 import '../network/maintenance_notifier.dart';
@@ -22,7 +23,19 @@ import '../network/maintenance_notifier.dart';
 /// Every address a signed-in parent may be at, kept as one list beside the
 /// routes, for the reason the teacher router gives: a redirect written as
 /// "anything else goes home" bounces screens pushed over the tabs.
-const familyPaths = {'/home', '/attendance', '/bus', '/fees', '/more', '/notices', '/calendar', '/notifications'};
+const familyPaths = {
+  '/home',
+  '/attendance',
+  '/bus',
+  '/fees',
+  '/more',
+  '/notices',
+  '/calendar',
+  '/notifications',
+  '/results',
+  '/timetable',
+  '/syllabus',
+};
 
 final familyRouterProvider = Provider<GoRouter>((ref) {
   final refresh = _SessionRefresh(ref);
@@ -50,6 +63,9 @@ final familyRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/notices', builder: (context, state) => const FamilyNoticesScreen()),
       GoRoute(path: '/calendar', builder: (context, state) => const FamilyCalendarScreen()),
       GoRoute(path: '/notifications', builder: (context, state) => const FamilyNotificationsScreen()),
+      GoRoute(path: '/results', builder: (context, state) => const FamilyResultsScreen()),
+      GoRoute(path: '/timetable', builder: (context, state) => const FamilyTimetableScreen()),
+      GoRoute(path: '/syllabus', builder: (context, state) => const FamilySyllabusScreen()),
       GoRoute(path: '/maintenance', builder: (context, state) => const MaintenanceScreen()),
     ],
     redirect: (context, state) {

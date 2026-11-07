@@ -4,6 +4,7 @@ import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_account.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
+import 'package:edutrack_app/features/family/data/models/family_learning.dart';
 import 'package:edutrack_app/features/family/data/models/family_records.dart';
 
 const aarav = FamilyChild(id: 11, firstName: 'Aarav', lastName: 'Sharma', className: 'Class 6 A', rollNumber: '4');
@@ -96,6 +97,81 @@ FamilyNotice familyNotice({
   );
 }
 
+final term1 = SchoolTerm(id: 1, name: 'Term 1', start: DateTime(2026, 4, 1), end: DateTime(2026, 9, 30));
+final term2 = SchoolTerm(id: 2, name: 'Term 2', start: DateTime(2026, 10, 1), end: DateTime(2027, 1, 31));
+
+FamilyResults familyResults({bool showsAverage = false, bool reportAvailable = false, SchoolTerm? term}) {
+  return FamilyResults(
+    terms: [term2, term1],
+    term: term ?? term2,
+    showsClassAverage: showsAverage,
+    subjects: [
+      SubjectResults(
+        subject: 'Mathematics',
+        average: '90.00',
+        grade: 'A',
+        classAverage: showsAverage ? '71.50' : null,
+        tests: [
+          TestResult(
+            id: 31,
+            title: 'Fractions',
+            type: 'class_test',
+            date: DateTime(2026, 10, 20),
+            maxMarks: '20.00',
+            marksObtained: '18.00',
+            isAbsent: false,
+            percentage: '90.00',
+            grade: 'A',
+            remarks: null,
+            classAverage: showsAverage ? '70.00' : null,
+          ),
+          TestResult(
+            id: 32,
+            title: 'Decimals',
+            type: 'class_test',
+            date: DateTime(2026, 11, 3),
+            maxMarks: '20.00',
+            marksObtained: null,
+            isAbsent: true,
+            percentage: null,
+            grade: null,
+            remarks: null,
+            classAverage: null,
+          ),
+        ],
+      ),
+    ],
+    remark: 'Aarav works hard and helps others.',
+    reportAvailable: reportAvailable,
+    reportFrom: DateTime(2027, 2, 1),
+  );
+}
+
+const familyWeek = FamilyWeek(
+  today: 'monday',
+  days: [
+    SchoolDay(
+      day: 'monday',
+      isHalfDay: false,
+      periods: [
+        WeekPeriod(startTime: '08:00', endTime: '08:40', subject: 'Mathematics', teacher: 'Ms Joshi'),
+        WeekPeriod(startTime: '09:00', endTime: '09:40', subject: 'Science', teacher: 'Mr Rao'),
+      ],
+      breaks: [(name: 'Short break', startTime: '08:40', endTime: '09:00')],
+    ),
+    SchoolDay(
+      day: 'saturday',
+      isHalfDay: true,
+      periods: [WeekPeriod(startTime: '08:00', endTime: '08:40', subject: 'Art', teacher: null)],
+      breaks: [],
+    ),
+  ],
+);
+
+const familySyllabus = [
+  SubjectSyllabus(subject: 'Science', total: 22, covered: 14, percent: 64, nextTopics: ['Light', 'Sound']),
+];
+
 /// The parent's screens' data, in memory.
 class FakeFamilyRepository implements FamilyRepository {
   FakeFamilyRepository({
@@ -146,6 +222,12 @@ class FakeFamilyRepository implements FamilyRepository {
     notices: true,
   );
 
+  FamilyResults Function(int? termId) resultsFor = (termId) =>
+      familyResults(term: termId == 1 ? term1 : term2, reportAvailable: termId == 1);
+  Failure? failReportWith;
+  final List<int?> resultsAskedFor = [];
+  final List<int?> reportsAskedFor = [];
+
   final List<int> todayAskedFor = [];
   final List<String> monthsAskedFor = [];
   final List<int> markedRead = [];
@@ -188,6 +270,25 @@ class FakeFamilyRepository implements FamilyRepository {
     settingsValue = settingsValue.withValue(key, value);
     return settingsValue;
   }
+
+  @override
+  Future<FamilyResults> results(int childId, {int? termId}) async {
+    resultsAskedFor.add(termId);
+    return resultsFor(termId);
+  }
+
+  @override
+  Future<List<int>> progressReport(int childId, {int? termId}) async {
+    reportsAskedFor.add(termId);
+    if (failReportWith != null) throw failReportWith!;
+    return const [37, 80, 68, 70];
+  }
+
+  @override
+  Future<FamilyWeek> timetable(int childId) async => familyWeek;
+
+  @override
+  Future<List<SubjectSyllabus>> syllabus(int childId) async => familySyllabus;
 }
 
 /// The family sign-in, in memory.

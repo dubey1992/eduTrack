@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import 'models/family_day.dart';
+import 'models/family_learning.dart';
 import 'models/family_records.dart';
 
 final familyApiProvider = Provider<FamilyApi>((ref) => FamilyApi(ref.watch(dioClientProvider)));
@@ -52,5 +53,30 @@ class FamilyApi {
   Future<FamilyNotificationSettings> saveSetting(String key, bool value) async {
     final response = await _dio.patch('/family/notification-settings', data: {key: value});
     return FamilyNotificationSettings.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<FamilyResults> results(int childId, {int? termId}) async {
+    final response = await _dio.get('/family/children/$childId/results', queryParameters: {'term_id': ?termId});
+    return FamilyResults.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<int>> progressReport(int childId, {int? termId}) async {
+    final response = await _dio.get<List<int>>(
+      '/family/children/$childId/progress-report',
+      queryParameters: {'term_id': ?termId},
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return response.data ?? const [];
+  }
+
+  Future<FamilyWeek> timetable(int childId) async {
+    final response = await _dio.get('/family/children/$childId/timetable');
+    return FamilyWeek.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<SubjectSyllabus>> syllabus(int childId) async {
+    final response = await _dio.get('/family/children/$childId/syllabus');
+    final json = response.data as Map<String, dynamic>;
+    return [for (final s in json['subjects'] as List<dynamic>) SubjectSyllabus.fromJson(s as Map<String, dynamic>)];
   }
 }

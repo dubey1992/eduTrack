@@ -7,6 +7,7 @@ import 'package:edutrack_app/features/family/data/family_auth_repository.dart';
 import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
+import 'package:edutrack_app/features/family/presentation/family_learning_screens.dart';
 import 'package:edutrack_app/features/family/presentation/family_more_screens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +22,7 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
   FakeFamilyRepository? data,
   FakeFamilyAuthRepository? auth,
   String? goTo,
+  PdfHandOff? onPdf,
 }) async {
   tester.view.physicalSize = const Size(420, 900);
   tester.view.devicePixelRatio = 1;
@@ -35,6 +37,7 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
     overrides: [
       familyRepositoryProvider.overrideWithValue(repository),
       familyAuthRepositoryProvider.overrideWithValue(session),
+      if (onPdf != null) pdfHandOffProvider.overrideWithValue(onPdf),
       externalOpenerProvider.overrideWithValue((uri) async {
         opened.add(uri);
         return true;
@@ -302,6 +305,8 @@ void main() {
   group('More', () {
     testWidgets('calls, WhatsApps and emails the school office', (tester) async {
       final (_, _, opened) = await pumpFamilyApp(tester, goTo: '/more');
+      await tester.drag(find.byKey(const Key('family-more')), const Offset(0, -400));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('family-call-school')));
       await tester.tap(find.byKey(const Key('family-whatsapp-school')));

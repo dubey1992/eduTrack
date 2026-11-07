@@ -1032,3 +1032,14 @@ def as_list(value) -> list:
         return [f"{key}: {' '.join(str(item) for item in as_list(inner))}" for key, inner in value.items()]
 
     return [value]
+
+
+class ProgressReportNotReady(ApiError):
+    """A parent asked for a term's progress report before the term is over,
+    or for a term that is not their child's (docs/parent-student-app.md, F2)."""
+
+    status_code = status.HTTP_404_NOT_FOUND
+    error_code = "PROGRESS_REPORT_NOT_READY"
+
+    def __init__(self) -> None:
+        super().__init__("The progress report is ready once the term is over.")

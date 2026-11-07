@@ -122,6 +122,13 @@ MODULES: tuple[Module, ...] = (
         # to parents, and nobody should get one before the school is ready
         # (docs/parent-student-app.md, F0).
         granted_by_default=False,
+        settings=(
+            Setting(
+                "show_class_average", "Show parents the class average", "bool", False,
+                help="Beside each published test, the average of everyone who sat it. Off by default: "
+                     "a school decides whether its parents see how a class did.",
+            ),
+        ),
     ),
     Module(
         "biometric", "Biometric Attendance",

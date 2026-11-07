@@ -21,22 +21,29 @@ another child's id is a 404, the same as one that does not exist:
 - POST family/notices/{id}/read, family/notices/read-all
 - GET/PATCH family/notification-settings - their per-kind switches
 - POST/DELETE family/devices - this phone, for push
+
+Learning (F2):
+- GET  family/children/{id}/results[?term_id=] - published tests, term by term
+- GET  family/children/{id}/progress-report[?term_id=] - the PDF, once the term is over
+- GET  family/children/{id}/timetable - the class's week
+- GET  family/children/{id}/syllabus - topics covered per subject
 """
 
 from __future__ import annotations
 
 import re
 
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .. import family_day, family_inbox
+from .. import family_day, family_inbox, family_learning
 from ..clock import SchoolClock
 from ..enums import UserRole
-from ..errors import NotAFamilyAccount
+from ..errors import NotAFamilyAccount, ProgressReportNotReady
 from ..family_accounts import FamilyAuthService, assert_family_app_on
 from ..family_requests import FamilyLoginRequest, FamilySetupRequest
 from ..family_resources import family_me_resource, family_notice_resource
@@ -222,3 +229,56 @@ def notification_settings(request) -> Response:
     form.is_valid(raise_exception=True)
 
     return Response(family_inbox.save_settings(user, form.validated_data))
+
+
+# -- learning (F2) ---------------------------------------------------------------
+
+
+def term_id_of(request) -> int | None:
+    raw = request.query_params.get("term_id")
+    if raw is None:
+        return None
+
+    if not raw.isdigit():
+        raise serializers.ValidationError({"term_id": ["The term must be a number."]})
+
+    return int(raw)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_results(request, child_id: int) -> Response:
+    user = family_reader(request)
+
+    return Response(family_learning.results_for(child_of(user, child_id), term_id_of(request)))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_progress_report(request, child_id: int):
+    user = family_reader(request)
+    found = family_learning.progress_report_of(child_of(user, child_id), term_id_of(request))
+
+    if found is None:
+        raise ProgressReportNotReady()
+
+    document, file_name = found
+    response = HttpResponse(document, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_timetable(request, child_id: int) -> Response:
+    user = family_reader(request)
+
+    return Response(family_learning.timetable_for(child_of(user, child_id)))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_syllabus(request, child_id: int) -> Response:
+    user = family_reader(request)
+
+    return Response(family_learning.syllabus_for(child_of(user, child_id)))

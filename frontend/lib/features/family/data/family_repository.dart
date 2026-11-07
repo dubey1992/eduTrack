@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import 'family_api.dart';
 import 'models/family_day.dart';
+import 'models/family_learning.dart';
 import 'models/family_records.dart';
 
 final familyRepositoryProvider = Provider<FamilyRepository>((ref) => FamilyRepository(ref.watch(familyApiProvider)));
@@ -38,4 +39,13 @@ class FamilyRepository {
   Future<FamilyNotificationSettings> settings() => _call(_api.settings);
 
   Future<FamilyNotificationSettings> saveSetting(String key, bool value) => _call(() => _api.saveSetting(key, value));
+
+  Future<FamilyResults> results(int childId, {int? termId}) => _call(() => _api.results(childId, termId: termId));
+
+  Future<List<int>> progressReport(int childId, {int? termId}) =>
+      _call(() => _api.progressReport(childId, termId: termId));
+
+  Future<FamilyWeek> timetable(int childId) => _call(() => _api.timetable(childId));
+
+  Future<List<SubjectSyllabus>> syllabus(int childId) => _call(() => _api.syllabus(childId));
 }
