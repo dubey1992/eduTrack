@@ -45,8 +45,9 @@
       </a>
       <nav class="nav-links" aria-label="Main">
         <a href="{{ features_href }}">Features</a>
-        <a href="/#for-schools">For Schools</a>
+        <a href="/#for-schools">Web Dashboard</a>
         <a href="/#mobile-app">Mobile App</a>
+        {% if blog_href %}<a href="{{ blog_href }}">Blog</a>{% endif %}
         {% if about_href %}<a href="{{ about_href }}">About</a>{% endif %}
         <a href="/contact">Contact</a>
       </nav>
