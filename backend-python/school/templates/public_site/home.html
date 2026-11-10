@@ -92,6 +92,21 @@
   </div>
 </section>
 
+{% if latest_posts %}
+<section class="section" id="from-the-blog">
+  <div class="wrap">
+    <p class="eyebrow">From the blog</p>
+    <h2>Ideas for running a school day</h2>
+    <ul class="post-links">
+      {% for post in latest_posts %}
+      <li><a href="{{ post.path }}">{{ post.title }}</a>{% if post.summary %}<span class="muted">{{ post.summary }}</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <p><a href="/blog">Every post</a></p>
+  </div>
+</section>
+{% endif %}
+
 <section class="band">
   <div class="wrap narrow">
     <h2>{{ cta.headline }}</h2>

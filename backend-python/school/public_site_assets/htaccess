@@ -27,9 +27,29 @@
   # Screens of the app that people type or link as plain addresses.
   RewriteRule ^(login|forgot-password)/?$ /app/#/$1 [R=302,NE,L]
 
-  # The homepage's sections, by the addresses the old site used.
-  # (/contact is a page of its own since 2026-10-31.)
-  RewriteRule ^(features|for-schools|mobile-app)/?$ /#$1 [R=301,NE,L]
+  # The old site's addresses. Each goes to the page that now says the same
+  # thing - not to a homepage section: a search engine drops the part after
+  # '#', so "/#features" read to Google as "redirects to the homepage".
+  RewriteRule ^features/?$ /school-management-features [R=301,L]
+  RewriteRule ^mobile-app/?$ /school-staff-and-driver-apps [R=301,L]
+  RewriteRule ^for-schools/?$ /#for-schools [R=301,NE,L]
+
+  # One address per page (docs/seo.md). The homepage is "/", never
+  # "/index.html"; a page is "/about", never "/about/"; and the files the
+  # server writes under /site/ are reached through their plain addresses
+  # only. THE_REQUEST is what the visitor asked for, so the internal
+  # rewrites below cannot loop back into these.
+  RewriteCond %{THE_REQUEST} \s/index\.html[\s?]
+  RewriteRule ^index\.html$ / [R=301,L]
+  RewriteCond %{THE_REQUEST} \s/site/pages/([a-z0-9-]+)\.html[\s?]
+  RewriteRule ^ /%1 [R=301,L]
+  RewriteCond %{THE_REQUEST} \s/site/(blog|help)/index\.html[\s?]
+  RewriteRule ^ /%1 [R=301,L]
+  RewriteCond %{THE_REQUEST} \s/site/(blog|help)/([a-z0-9-]+)\.html[\s?]
+  RewriteRule ^ /%1/%2 [R=301,L]
+  RewriteCond %{REQUEST_URI} !^/app/
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.+)/$ /$1 [R=301,L]
 
   # The blog and the help centre (docs/seo.md, S5): their front pages, and
   # each post or article from the file the server wrote for it.
