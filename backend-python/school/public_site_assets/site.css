@@ -277,9 +277,15 @@ section[id], #contact { scroll-margin-top: 80px; }
 .wa-inline svg { width: 24px; height: 24px; fill: #15803D; flex: none; }
 
 .wa-line { margin: -4px 0 12px; }
-.wa-line a { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; color: #15803D; text-decoration: none; }
-.wa-line a:hover { text-decoration: underline; }
-.wa-line svg { width: 20px; height: 20px; fill: #25D366; flex: none; }
+.wa-line a { display: inline-flex; gap: 12px; align-items: center; color: #15803D; text-decoration: none; }
+.wa-line a:hover strong { text-decoration: underline; }
+.wa-line svg { width: 34px; height: 34px; fill: #25D366; flex: none; }
+/* Two lines that belong together: what it is, then how - never the number
+   cut off into a column of its own. */
+.wa-words { display: grid; gap: 2px; line-height: 1.35; }
+.wa-words strong { font-size: 1rem; font-weight: 700; }
+.wa-words > span { font-size: .92rem; color: #166534; }
+.wa-number { white-space: nowrap; font-weight: 700; }
 
 .button.wa { background: #25D366; color: #052E16; display: inline-flex; align-items: center; gap: 8px; }
 .button.wa:hover { background: #1EBE5A; }
