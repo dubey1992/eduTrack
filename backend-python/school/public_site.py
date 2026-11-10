@@ -166,7 +166,7 @@ def build(root: Path, server_files: bool = False) -> list[str]:
         written.append(str(relative).replace(os.sep, "/"))
 
     words = Words(document)
-    write("index.html", render_home(words, live, modules))
+    write("index.html", render_home(words, live, modules, posts))
 
     for page in pages:
         write(PAGES_DIR / f"{page.slug}.html", render_page(page, words, live, modules))
@@ -198,15 +198,15 @@ def build(root: Path, server_files: bool = False) -> list[str]:
     posts = with_covers
 
     for post in posts:
-        write(BLOG_DIR / f"{post.slug}.html", render_post(post, posts, words, live))
+        write(BLOG_DIR / f"{post.slug}.html", render_post(post, posts, words, live, modules))
     if posts:
-        write(BLOG_DIR / "index.html", render_blog(posts, words, live))
+        write(BLOG_DIR / "index.html", render_blog(posts, words, live, modules))
 
     # -- the help centre --
     for article in articles:
-        write(HELP_DIR / f"{article.slug}.html", render_article(article, articles, words, live))
+        write(HELP_DIR / f"{article.slug}.html", render_article(article, articles, words, live, modules))
     if articles:
-        write(HELP_DIR / "index.html", render_help(articles, words, live))
+        write(HELP_DIR / "index.html", render_help(articles, words, live, modules))
 
     keep = {
         BLOG_DIR: {f"{post.slug}.html" for post in posts} | ({"index.html"} if posts else set()),
@@ -218,7 +218,7 @@ def build(root: Path, server_files: bool = False) -> list[str]:
             if stale.is_file() and stale.name not in names:
                 stale.unlink()
 
-    write("404.html", render_not_found(words, live))
+    write("404.html", render_not_found(words, live, modules))
     write("sitemap.xml", render_sitemap(pages, posts, articles))
     write("robots.txt", render_robots())
 
@@ -351,8 +351,13 @@ def whatsapp_demo() -> dict:
     }
 
 
-def shared(words: Words, live: set[str]) -> dict:
-    """What every page carries: the bar across the top and the footer."""
+def shared(words: Words, live: set[str], modules=()) -> dict:
+    """What every page carries: the bar across the top and the footer.
+
+    The footer lists every product page, on every page: a page only linked
+    from one other page is one search engines find late and rank low
+    (docs/seo.md). Two of them were linked from nowhere but the features page.
+    """
     columns = []
 
     for title_key, list_key in (
@@ -367,6 +372,12 @@ def shared(words: Words, live: set[str]) -> dict:
         ]
         columns.append({"title": words.text(title_key), "links": links})
 
+    if modules:
+        columns.insert(0, {
+            "title": "Features",
+            "links": [{"label": page.title, "href": page.path} for page in modules],
+        })
+
     return {
         "site_url": site_url(),
         "app": APP,
@@ -378,6 +389,9 @@ def shared(words: Words, live: set[str]) -> dict:
         "whatsapp": whatsapp_demo(),
         "asset_version": asset_version(),
         "about_href": "/about" if "about" in live else None,
+        # The bar's Features link goes to the features page itself when there
+        # is one, so every page links to it, rather than to a homepage section.
+        "features_href": f"/{FEATURES_SLUG}" if FEATURES_SLUG in live else "/#features",
         "nav": {
             "wordmark": words.text("nav.wordmark"),
             "tagline": words.text("nav.tagline"),
@@ -395,12 +409,14 @@ def shared(words: Words, live: set[str]) -> dict:
     }
 
 
-def render_home(words: Words, live: set[str], modules: list[PublicPage]) -> str:
+def render_home(words: Words, live: set[str], modules: list[PublicPage], posts=()) -> str:
     return render_to_string(
         "public_site/home.html",
         {
-            **shared(words, live),
+            **shared(words, live, modules),
             "modules": modules[:HOME_MODULES],
+            # The newest posts, linked from the page search engines visit most.
+            "latest_posts": list(posts)[:3],
             "all_modules": (
                 {"href": f"/{FEATURES_SLUG}", "count": len(modules)} if FEATURES_SLUG in live else None
             ),
@@ -453,7 +469,7 @@ def render_features(modules: list[PublicPage], words: Words, live: set[str]) -> 
     return render_to_string(
         "public_site/features.html",
         {
-            **shared(words, live),
+            **shared(words, live, modules),
             "modules": modules,
             "canonical": f"{site_url()}/{FEATURES_SLUG}",
             "title": "School Management Features - School365ai",
@@ -467,7 +483,7 @@ def render_page(page: PublicPage, words: Words, live: set[str], modules: list[Pu
     return render_to_string(
         "public_site/page.html",
         {
-            **shared(words, live),
+            **shared(words, live, modules),
             # A module page invites a demo and points at the other parts.
             "is_module": bool(page.blurb),
             "structured_data": structured(
@@ -484,11 +500,11 @@ def render_page(page: PublicPage, words: Words, live: set[str], modules: list[Pu
     )
 
 
-def render_blog(posts: list[PublicPage], words: Words, live: set[str]) -> str:
+def render_blog(posts: list[PublicPage], words: Words, live: set[str], modules=()) -> str:
     return render_to_string(
         "public_site/blog_index.html",
         {
-            **shared(words, live),
+            **shared(words, live, modules),
             "canonical": site_url() + "/blog",
             "title": "Blog - School365ai",
             "description": "Ideas and practical advice on running a school: attendance, fees, school transport, "
@@ -501,11 +517,11 @@ def render_blog(posts: list[PublicPage], words: Words, live: set[str]) -> str:
     )
 
 
-def render_post(post: PublicPage, posts: list[PublicPage], words: Words, live: set[str]) -> str:
+def render_post(post: PublicPage, posts: list[PublicPage], words: Words, live: set[str], modules=()) -> str:
     return render_to_string(
         "public_site/post.html",
         {
-            **shared(words, live),
+            **shared(words, live, modules),
             "canonical": site_url() + post.path,
             "title": f"{post.title} - School365ai",
             "description": post.summary or summary(post.body),
@@ -522,7 +538,7 @@ def render_post(post: PublicPage, posts: list[PublicPage], words: Words, live: s
     )
 
 
-def render_help(articles: list[PublicPage], words: Words, live: set[str]) -> str:
+def render_help(articles: list[PublicPage], words: Words, live: set[str], modules=()) -> str:
     topics = [
         {"key": key, "name": name, "articles": sorted(
             (article for article in articles if article.topic == key), key=lambda article: article.title.lower()
@@ -533,7 +549,7 @@ def render_help(articles: list[PublicPage], words: Words, live: set[str]) -> str
     return render_to_string(
         "public_site/help_index.html",
         {
-            **shared(words, live),
+            **shared(words, live, modules),
             "canonical": site_url() + "/help",
             "title": "Help Centre - School365ai",
             "description": "Step-by-step help with School365ai: setting up a school, attendance, fees, "
@@ -543,11 +559,11 @@ def render_help(articles: list[PublicPage], words: Words, live: set[str]) -> str
     )
 
 
-def render_article(article: PublicPage, articles: list[PublicPage], words: Words, live: set[str]) -> str:
+def render_article(article: PublicPage, articles: list[PublicPage], words: Words, live: set[str], modules=()) -> str:
     return render_to_string(
         "public_site/help_article.html",
         {
-            **shared(words, live),
+            **shared(words, live, modules),
             "canonical": site_url() + article.path,
             "title": f"{article.title} - School365ai Help",
             "description": article.summary or summary(article.body),
@@ -565,10 +581,10 @@ def render_article(article: PublicPage, articles: list[PublicPage], words: Words
     )
 
 
-def render_not_found(words: Words, live: set[str]) -> str:
+def render_not_found(words: Words, live: set[str], modules=()) -> str:
     return render_to_string(
         "public_site/not_found.html",
-        {**shared(words, live), "canonical": None, "title": "Page not found - School365ai", "description": ""},
+        {**shared(words, live, modules), "canonical": None, "title": "Page not found - School365ai", "description": ""},
     )
 
 

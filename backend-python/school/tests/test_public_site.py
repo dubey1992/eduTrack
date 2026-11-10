@@ -486,6 +486,48 @@ class ModulePages(TestCase):
 LD_JSON = re.compile(r'<script type="application/ld\+json">(.*?)</script>', re.S)
 
 
+class EveryPageIsFoundAndHasOneAddress(TestCase):
+    """What Search Console reported on 2026-11-10 (docs/seo.md): pages linked
+    from nowhere but the features page, an old address redirecting to a
+    homepage section, and the same page answering at several addresses."""
+
+    def setUp(self):
+        cache.clear()
+        self.root = Path(tempfile.mkdtemp())
+        public_site.build(self.root, server_files=True)
+
+    def read(self, name: str) -> str:
+        return (self.root / name).read_text(encoding="utf-8")
+
+    def test_every_page_links_every_product_page_from_its_footer(self):
+        for name in ("index.html", "site/pages/about.html", "404.html"):
+            footer = self.read(name).split("<footer", 1)[1]
+            for module in module_pages.MODULES:
+                with self.subTest(page=name, module=module.slug):
+                    self.assertIn(f'href="/{module.slug}"', footer)
+
+    def test_the_features_link_goes_to_the_features_page(self):
+        nav = self.read("site/pages/about.html").split('aria-label="Main"', 1)[1].split("</nav>", 1)[0]
+
+        self.assertIn('href="/school-management-features"', nav)
+        self.assertNotIn('href="/#features"', nav)
+
+    def test_the_old_addresses_go_to_pages_not_homepage_sections(self):
+        rules = self.read(".htaccess")
+
+        self.assertIn("RewriteRule ^features/?$ /school-management-features [R=301,L]", rules)
+        self.assertIn("RewriteRule ^mobile-app/?$ /school-staff-and-driver-apps [R=301,L]", rules)
+        self.assertNotIn("^(features|for-schools|mobile-app)/?$ /#$1", rules)
+
+    def test_one_address_per_page(self):
+        rules = self.read(".htaccess")
+
+        for rule in ("RewriteRule ^index\.html$ / [R=301,L]", "RewriteRule ^(.+)/$ /$1 [R=301,L]",
+                     "\s/site/pages/([a-z0-9-]+)\.html[\s?]"):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, rules)
+
+
 class StructuredData(TestCase):
     """What search engines read beside each page (docs/seo.md, S4)."""
 
