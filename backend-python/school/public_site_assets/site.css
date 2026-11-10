@@ -81,12 +81,20 @@ h3 { font-size: 1.05rem; font-weight: 700; }
 .brand-words { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-words strong { font-size: 1.15rem; font-weight: 800; }
 .brand-words small { color: var(--subtle); font-size: .72rem; }
-.nav-links { display: flex; gap: 16px; margin-left: auto; white-space: nowrap; }
+/* The menu in the middle of the free space between the logo and Login,
+   with room between the words (asked 2026-11-10). */
+.nav-links { display: flex; gap: 32px; margin: 0 auto; padding-inline: 24px; white-space: nowrap; }
 .nav-links a { color: var(--muted); text-decoration: none; font-weight: 500; font-size: .95rem; }
 .nav-links a:hover { color: var(--primary); }
 .nav-actions { display: flex; gap: 8px; flex: none; }
 
-@media (max-width: 1240px) {
+/* Only Login sits beside the menu now, so the menu fits down to a small
+   laptop; below that the bar is the logo and Login. */
+@media (max-width: 1020px) {
+  .nav-links { gap: 20px; padding-inline: 12px; }
+}
+
+@media (max-width: 860px) {
   .nav-links { display: none; }
   .nav-actions { margin-left: auto; }
 }
