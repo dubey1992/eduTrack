@@ -50,10 +50,10 @@
         {% if about_href %}<a href="{{ about_href }}">About</a>{% endif %}
         <a href="/contact">Contact</a>
       </nav>
+      <!-- Only the way in. Early access and a demo are asked for on the page
+           itself and by WhatsApp, not shouted from the bar (asked 2026-11-10). -->
       <div class="nav-actions">
-        <a class="button ghost" href="{{ login_href }}">{{ nav.login }}</a>
-        <a class="button outline hide-narrow" href="{{ demo_href }}">{{ nav.demo }}</a>
-        <a class="button primary" href="{{ join_href }}">{{ nav.join }}</a>
+        <a class="button outline" href="{{ login_href }}">{{ nav.login }}</a>
       </div>
     </div>
   </header>

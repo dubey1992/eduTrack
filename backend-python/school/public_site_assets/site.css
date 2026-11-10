@@ -163,12 +163,18 @@ section[id], #contact { scroll-margin-top: 80px; }
 .footer-brand { color: #fff; font-size: 1.2rem; font-weight: 800; margin: 0 0 8px; }
 .footer .muted { color: #94A3B8; }
 .footer-title { color: #fff; font-weight: 700; margin: 0 0 10px; }
-.footer-links { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; font-size: .92rem; }
+.footer-links { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; font-size: .92rem; line-height: 1.4; }
+/* Each link behind a small arrow, a long name wrapping under its own text
+   rather than under the arrow - so a column reads as a list, not a jumble. */
+.footer-links li { position: relative; padding-left: 16px; }
+.footer-links li::before { content: "\203A"; position: absolute; left: 0; top: -1px; color: #60A5FA; font-weight: 700; }
 .footer-base { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; border-top: 1px solid #334155; margin-top: 32px; padding-top: 16px; font-size: .85rem; color: #94A3B8; }
 
 @media (max-width: 760px) {
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .footer-grid > :first-child { grid-column: 1 / -1; }
+  /* The product list is the long one: on a phone it gets the full width. */
+  .footer-grid > :nth-child(2) { grid-column: 1 / -1; }
 }
 
 /* -- the two apps --------------------------------------------------------- */
