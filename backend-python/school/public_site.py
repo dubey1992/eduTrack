@@ -422,10 +422,10 @@ def render_home(words: Words, live: set[str], modules: list[PublicPage], posts=(
             ),
             "structured_data": structured([*about_us(), product()]),
             "canonical": site_url() + "/",
-            "title": "School365ai - School Management Software for Attendance, Fees and Transport",
+            "title": "School365ai - School Management Software: Attendance, Fees, Bus",
             "description": (
-                "School365ai is school management software for attendance, fees, school bus tracking, "
-                "timetables, payroll, parent SMS and WhatsApp alerts, and reports - on the web and on Android."
+                "School management software for attendance, fees, school bus tracking, timetables, payroll "
+                "and parent alerts - on the web and on Android."
             ),
             "hero": {
                 "eyebrow": words.text("hero.eyebrow"),
@@ -473,6 +473,7 @@ def render_features(modules: list[PublicPage], words: Words, live: set[str]) -> 
             "modules": modules,
             "canonical": f"{site_url()}/{FEATURES_SLUG}",
             "title": "School Management Features - School365ai",
+            "structured_data": structured([collection("School Management Features", f"/{FEATURES_SLUG}", modules)]),
             "description": "Every part of School365ai: attendance, fees, school bus tracking, staff check-in, "
                            "timetables, tests and progress reports, payroll, parent messages, reports and the apps.",
         },
@@ -491,8 +492,8 @@ def render_page(page: PublicPage, words: Words, live: set[str], modules: list[Pu
             ),
             "other_modules": [module for module in modules if module.slug != page.slug],
             "canonical": site_url() + page.path,
-            "title": f"{page.title} - School365ai",
-            "description": summary(page.body),
+            "title": titled(page.title),
+            "description": snippet(page.summary or page.body),
             "page_title": page.title,
             "body_html": site_markup.to_html(page.body),
             "updated": dates.us(page.published_at) if page.published_at else None,
@@ -523,13 +524,13 @@ def render_post(post: PublicPage, posts: list[PublicPage], words: Words, live: s
         {
             **shared(words, live, modules),
             "canonical": site_url() + post.path,
-            "title": f"{post.title} - School365ai",
-            "description": post.summary or summary(post.body),
+            "title": titled(post.title),
+            "description": snippet(post.summary or post.body),
             "og_image": site_url() + post.cover_url if post.cover_url else None,
             "og_type": "article",
             "post": post,
             "body_html": site_markup.to_html(post.body),
-            "more": [other for other in posts if other.slug != post.slug][:3],
+            "more": neighbours(posts, post),
             "structured_data": structured([
                 breadcrumbs(post, ("Blog", "/blog")),
                 article_data(post, "BlogPosting"),
@@ -555,6 +556,7 @@ def render_help(articles: list[PublicPage], words: Words, live: set[str], module
             "description": "Step-by-step help with School365ai: setting up a school, attendance, fees, "
                            "school transport, teaching reports, the staff and Driver apps, and more.",
             "topics": [topic for topic in topics if topic["articles"]],
+            "structured_data": structured([collection("Help Centre", "/help", articles)]),
         },
     )
 
@@ -565,14 +567,11 @@ def render_article(article: PublicPage, articles: list[PublicPage], words: Words
         {
             **shared(words, live, modules),
             "canonical": site_url() + article.path,
-            "title": f"{article.title} - School365ai Help",
-            "description": article.summary or summary(article.body),
+            "title": titled(article.title, "School365ai Help"),
+            "description": snippet(article.summary or article.body),
             "article": article,
             "body_html": site_markup.to_html(article.body),
-            "related": sorted(
-                (other for other in articles if other.topic == article.topic and other.slug != article.slug),
-                key=lambda other: other.title.lower(),
-            ),
+            "related": related_articles(article, articles),
             "structured_data": structured([
                 breadcrumbs(article, ("Help Centre", "/help")),
                 article_data(article, "Article"),
@@ -651,6 +650,23 @@ def product() -> dict:
             "teaching reports, payroll, parent alerts and reports."
         ),
         "publisher": {"@type": "Organization", "name": "School365ai", "url": site_url() + "/"},
+    }
+
+
+def collection(name: str, path: str, pages: list[PublicPage]) -> dict:
+    """A page that is a list of other pages - the features page, the help
+    centre - as search engines read one."""
+    return {
+        "@type": "CollectionPage",
+        "name": name,
+        "url": site_url() + path,
+        "mainEntity": {
+            "@type": "ItemList",
+            "itemListElement": [
+                {"@type": "ListItem", "position": n, "name": page.title, "url": site_url() + page.path}
+                for n, page in enumerate(pages, start=1)
+            ],
+        },
     }
 
 
@@ -786,6 +802,50 @@ def render_robots() -> str:
         "Disallow: /app/\n"
         f"\nSitemap: {site_url()}/sitemap.xml\n"
     )
+
+
+TITLE_LIMIT = 65
+
+
+def titled(name: str, brand: str = "School365ai") -> str:
+    """A page's <title>: "Name - School365ai", or just the name when the
+    two together run past what a search result shows (about 65 characters)
+    and the brand would be cut off anyway."""
+    full = f"{name} - {brand}"
+    return full if len(full) <= TITLE_LIMIT else name
+
+
+def snippet(text: str) -> str:
+    """A meta description no longer than a search result shows: a written
+    summary is kept to the same 155 characters a page's first words are."""
+    return summary(text)
+
+
+def neighbours(items: list, current, count: int = 3) -> list:
+    """The [count] items after [current] in the list, going round: every
+    post is then linked from three others, the oldest included - not only
+    the newest three from everywhere (docs/seo.md)."""
+    start = next((i for i, item in enumerate(items) if item.slug == current.slug), 0)
+    ordered = items[start + 1:] + items[:start]
+    return [item for item in ordered if item.slug != current.slug][:count]
+
+
+def related_articles(article: PublicPage, articles: list[PublicPage], count: int = 3) -> list[PublicPage]:
+    """Three articles to read next: up to two on the same topic, then the
+    articles after it in the help centre. The "after it" part is what makes
+    every article linked from at least one other, so none is reachable from
+    the index alone (docs/seo.md)."""
+    same = sorted(
+        (other for other in articles if other.topic == article.topic and other.slug != article.slug),
+        key=lambda other: other.title.lower(),
+    )
+    chosen = same[: count - 1]
+    for other in neighbours(articles, article, count=len(articles)):
+        if len(chosen) >= count:
+            break
+        if other not in chosen:
+            chosen.append(other)
+    return chosen
 
 
 def summary(body: str, limit: int = 155) -> str:

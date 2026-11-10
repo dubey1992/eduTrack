@@ -528,6 +528,40 @@ class EveryPageIsFoundAndHasOneAddress(TestCase):
                 self.assertIn(rule, rules)
 
 
+class NoPageIsLeftAlone(SimpleTestCase):
+    """The rules behind what the full crawl of 2026-11-10 checked: every
+    post and article linked from others, and titles a result can show."""
+
+    def pages(self, n, topic=None):
+        return [public_site.PublicPage(f"p{i}", f"Page {i}", "", None, kind="help", topic=topic or f"t{i}")
+                for i in range(n)]
+
+    def test_every_post_is_someone_elses_next_three(self):
+        posts = self.pages(6)
+        linked = {other.slug for post in posts for other in public_site.neighbours(posts, post)}
+
+        self.assertEqual({post.slug for post in posts}, linked)
+        self.assertNotIn(posts[0], public_site.neighbours(posts, posts[0]))
+
+    def test_every_article_is_linked_from_another_even_in_a_crowded_topic(self):
+        articles = self.pages(5, topic="same") + self.pages(3)
+        articles = [public_site.PublicPage(f"a{i}", f"Article {i}", "", None, kind="help", topic=a.topic)
+                    for i, a in enumerate(articles)]
+        linked = {other.slug for article in articles for other in public_site.related_articles(article, articles)}
+
+        self.assertEqual({article.slug for article in articles}, linked)
+        for article in articles:
+            self.assertEqual(3, len(public_site.related_articles(article, articles)))
+
+    def test_a_long_title_drops_the_brand_rather_than_being_cut(self):
+        self.assertEqual("Fees - School365ai", public_site.titled("Fees"))
+        long = "Spotting students who are slipping, before the report card"
+        self.assertEqual(long, public_site.titled(long))
+
+    def test_a_written_summary_is_kept_to_a_snippet(self):
+        self.assertLessEqual(len(public_site.snippet("word " * 80)), 158)
+
+
 class StructuredData(TestCase):
     """What search engines read beside each page (docs/seo.md, S4)."""
 
