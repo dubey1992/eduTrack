@@ -389,6 +389,8 @@ def shared(words: Words, live: set[str], modules=()) -> dict:
         "whatsapp": whatsapp_demo(),
         "asset_version": asset_version(),
         "about_href": "/about" if "about" in live else None,
+        # In the bar only once there is a post to read.
+        "blog_href": "/blog" if "blog" in live else None,
         # The bar's Features link goes to the features page itself when there
         # is one, so every page links to it, rather than to a homepage section.
         "features_href": f"/{FEATURES_SLUG}" if FEATURES_SLUG in live else "/#features",

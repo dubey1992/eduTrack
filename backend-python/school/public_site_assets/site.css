@@ -101,6 +101,10 @@ h3 { font-size: 1.05rem; font-weight: 700; }
 
 @media (max-width: 720px) {
   .hide-narrow { display: none; }
+}
+
+/* The tagline under the name goes before the menu is cramped. */
+@media (max-width: 960px) {
   .brand-words small { display: none; }
 }
 
