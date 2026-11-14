@@ -1,20 +1,29 @@
 {% extends "public_site/base.html" %}
 {% block content %}
-<article class="section">
-  <div class="wrap prose">
-    <p class="crumbs small"><a href="/help">Help Centre</a>{% if article.topic_name %} &rsaquo; <a href="/help#{{ article.topic }}">{{ article.topic_name }}</a>{% endif %}</p>
+<header class="page-head">
+  <div class="wrap prose-wrap">
+    <p class="crumbs"><a href="/help">Help Centre</a>{% if article.topic_name %} &rsaquo; <a href="/help#{{ article.topic }}">{{ article.topic_name }}</a>{% endif %}</p>
     <h1>{{ article.title }}</h1>
     {% if article.date %}<p class="muted small">Last updated {{ article.date }}</p>{% endif %}
-    {{ body_html|safe }}
+  </div>
+</header>
+<article class="section tight">
+  <div class="wrap prose-wrap">
+    <div class="prose-card prose">
+      {{ body_html|safe }}
+    </div>
   </div>
 </article>
 {% if related %}
 <section class="section tinted">
   <div class="wrap">
-    <h2>More in {{ article.topic_name }}</h2>
-    <ul class="cards help-cards">
+    <div class="section-intro">
+      <p class="eyebrow">Keep going</p>
+      <h2>More from the Help Centre</h2>
+    </div>
+    <ul class="grid-3">
       {% for other in related %}
-      <li><a class="card module-card" href="{{ other.path }}"><h3>{{ other.title }}</h3><p>{{ other.summary }}</p><span class="more" aria-hidden="true">Read &rarr;</span></a></li>
+      <li><a class="card feature-card module-card" href="{{ other.path }}"><h3>{{ other.title }}</h3><p>{{ other.summary }}</p><span class="more">Read <span aria-hidden="true">&rarr;</span></span></a></li>
       {% endfor %}
     </ul>
   </div>

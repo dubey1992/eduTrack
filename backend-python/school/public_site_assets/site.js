@@ -208,6 +208,111 @@
       });
   }
 
+  // -- the bar: the Product menu, the phone's menu, the page you are on ----------
+  //
+  // 3. Both menus are buttons that show and hide a list, and say so with
+  //    aria-expanded. Escape or a click elsewhere closes them; following a
+  //    link inside closes the phone's menu so the page underneath shows.
+
+  function setOpen(button, panel, isOpen) {
+    button.setAttribute('aria-expanded', String(isOpen));
+    panel.hidden = !isOpen;
+  }
+
+  function wireMenus() {
+    var productButton = document.querySelector('[data-menu]');
+    var productPanel = productButton && document.getElementById(productButton.getAttribute('aria-controls'));
+    var phoneButton = document.querySelector('[data-mobile-menu]');
+    var phonePanel = phoneButton && document.getElementById(phoneButton.getAttribute('aria-controls'));
+
+    if (productButton && productPanel) {
+      productButton.addEventListener('click', function () {
+        setOpen(productButton, productPanel, productPanel.hidden);
+      });
+      productPanel.addEventListener('click', function (event) {
+        if (event.target.closest('a')) setOpen(productButton, productPanel, false);
+      });
+    }
+
+    if (phoneButton && phonePanel) {
+      phoneButton.addEventListener('click', function () {
+        var isOpen = phonePanel.hidden;
+        setOpen(phoneButton, phonePanel, isOpen);
+        phoneButton.setAttribute('aria-label', isOpen ? 'Close the menu' : 'Open the menu');
+      });
+      phonePanel.addEventListener('click', function (event) {
+        if (event.target.closest('a')) {
+          setOpen(phoneButton, phonePanel, false);
+          phoneButton.setAttribute('aria-label', 'Open the menu');
+        }
+      });
+    }
+
+    document.addEventListener('click', function (event) {
+      if (productButton && productPanel && !productPanel.hidden && !event.target.closest('.nav-menu')) {
+        setOpen(productButton, productPanel, false);
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Escape') return;
+      if (productPanel && !productPanel.hidden) {
+        setOpen(productButton, productPanel, false);
+        productButton.focus();
+      }
+      if (phonePanel && !phonePanel.hidden) {
+        setOpen(phoneButton, phonePanel, false);
+        phoneButton.focus();
+      }
+    });
+
+    // The page you are on is marked in the bar.
+    var here = window.location.pathname.replace(/\/+$/, '') || '/';
+    document.querySelectorAll('.nav-links > a, .mobile-menu a').forEach(function (link) {
+      var path = link.getAttribute('href');
+      if (path && path.charAt(0) === '/' && path.indexOf('#') === -1 && path.replace(/\/+$/, '') === here) {
+        link.setAttribute('aria-current', 'page');
+      }
+    });
+  }
+
+  // -- the homepage's role tabs ---------------------------------------------------
+  //
+  // 4. The tab pattern: one panel showing, the others hidden; arrow keys,
+  //    Home and End move between tabs, as screen-reader users expect.
+
+  function wireTabs() {
+    document.querySelectorAll('[role="tablist"]').forEach(function (list) {
+      var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
+
+      function select(tab) {
+        tabs.forEach(function (other) {
+          var chosen = other === tab;
+          other.setAttribute('aria-selected', String(chosen));
+          other.tabIndex = chosen ? 0 : -1;
+          var panel = document.getElementById(other.getAttribute('aria-controls'));
+          if (panel) panel.hidden = !chosen;
+        });
+      }
+
+      tabs.forEach(function (tab, index) {
+        tab.addEventListener('click', function () { select(tab); });
+        tab.addEventListener('keydown', function (event) {
+          var next = null;
+          if (event.key === 'ArrowRight') next = tabs[(index + 1) % tabs.length];
+          if (event.key === 'ArrowLeft') next = tabs[(index - 1 + tabs.length) % tabs.length];
+          if (event.key === 'Home') next = tabs[0];
+          if (event.key === 'End') next = tabs[tabs.length - 1];
+          if (next) {
+            event.preventDefault();
+            select(next);
+            next.focus();
+          }
+        });
+      });
+    });
+  }
+
   // -- wiring --------------------------------------------------------------------
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -234,6 +339,8 @@
       });
     });
 
+    wireMenus();
+    wireTabs();
     openFromHash();
   });
 })();

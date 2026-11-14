@@ -1,6 +1,6 @@
 {% extends "public_site/base.html" %}
 {% block content %}
-<section class="section">
+<header class="page-head">
   <div class="wrap">
     <p class="eyebrow">Help Centre</p>
     <h1>How can we help?</h1>
@@ -8,16 +8,30 @@
     <nav class="topic-links" aria-label="Topics">
       {% for topic in topics %}<a href="#{{ topic.key }}">{{ topic.name }}</a>{% endfor %}
     </nav>
+  </div>
+</header>
+<section class="section tight">
+  <div class="wrap">
     {% for topic in topics %}
     <section class="topic" id="{{ topic.key }}">
-      <h2>{{ topic.name }}</h2>
-      <ul class="cards help-cards">
+      <div class="feature-group-head"><h2>{{ topic.name }}</h2></div>
+      <ul class="grid-3">
         {% for article in topic.articles %}
-        <li><a class="card module-card" href="{{ article.path }}"><h3>{{ article.title }}</h3><p>{{ article.summary }}</p><span class="more" aria-hidden="true">Read &rarr;</span></a></li>
+        <li><a class="card feature-card module-card" href="{{ article.path }}"><h3>{{ article.title }}</h3><p>{{ article.summary }}</p><span class="more">Read <span aria-hidden="true">&rarr;</span></span></a></li>
         {% endfor %}
       </ul>
     </section>
     {% endfor %}
+  </div>
+</section>
+<section class="band">
+  <div class="wrap narrow">
+    <h2>Still stuck?</h2>
+    <p>Write to us or send a WhatsApp message, and we will help you through it.</p>
+    <div class="actions">
+      <a class="button light large" href="mailto:{{ support.email }}">Email {{ support.email }}</a>
+      <a class="button wa large" href="{{ whatsapp.href }}" target="_blank" rel="noopener">{% include "public_site/whatsapp_icon.html" %}WhatsApp us</a>
+    </div>
   </div>
 </section>
 {% endblock %}

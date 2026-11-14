@@ -435,12 +435,11 @@ class ModulePages(TestCase):
     def test_an_ordinary_page_does_not(self):
         self.assertNotIn("See it with your own school", self.read("site/pages/about.html"))
 
-    def test_the_homepage_shows_four_modules_and_a_way_to_all_of_them(self):
+    def test_the_homepage_shows_six_modules_and_a_way_to_all_of_them(self):
         home = self.read("index.html")
-        cards = re.findall(r'class="card module-card" href="(/[a-z0-9-]+)"', home)
+        cards = re.findall(r'class="card feature-card[^"]*" href="(/[a-z0-9-]+)"', home)
 
-        self.assertIn("What each part does", home)
-        self.assertEqual([f"/{module.slug}" for module in module_pages.MODULES[:4]], cards)
+        self.assertEqual([f"/{module.slug}" for module in module_pages.MODULES[:6]], cards)
         self.assertIn(
             f'<a class="button outline" href="/school-management-features">See all {len(module_pages.MODULES)} features',
             home,
@@ -448,10 +447,12 @@ class ModulePages(TestCase):
 
     def test_the_features_page_lists_every_module_and_is_in_the_sitemap(self):
         page = self.read("site/pages/school-management-features.html")
-        cards = re.findall(r'class="card module-card" href="(/[a-z0-9-]+)"', page)
+        cards = re.findall(r'class="card feature-card module-card[^"]*" href="(/[a-z0-9-]+)"', page)
 
         self.assertIn("<h1>Everything School365ai does</h1>", page)
-        self.assertEqual([f"/{module.slug}" for module in module_pages.MODULES], cards)
+        # Grouped by the part of the school day, every one of them once.
+        self.assertEqual(sorted(f"/{module.slug}" for module in module_pages.MODULES), sorted(cards))
+        self.assertIn("Students and academics", page)
         self.assertIn('<link rel="canonical" href="https://school365ai.com/school-management-features">', page)
         self.assertIn("<loc>https://school365ai.com/school-management-features</loc>", self.read("sitemap.xml"))
 
@@ -562,6 +563,60 @@ class NoPageIsLeftAlone(SimpleTestCase):
         self.assertLessEqual(len(public_site.snippet("word " * 80)), 158)
 
 
+class TheWarmEditorialDesign(TestCase):
+    """The redesign of 2026-11-14 (school365ai_alternative_b_warm_editorial.html):
+    what it must keep doing, and what it must never claim."""
+
+    def setUp(self):
+        cache.clear()
+        self.root = Path(tempfile.mkdtemp())
+        public_site.build(self.root)
+
+    def read(self, name: str) -> str:
+        return (self.root / name).read_text(encoding="utf-8")
+
+    def test_the_role_tabs_have_a_panel_each_and_one_shows(self):
+        home = self.read("index.html")
+        tabs = re.findall(r'role="tab" id="role-tab-([a-z]+)"', home)
+        panels = re.findall(r'role="tabpanel" id="role-([a-z]+)"[^>]*?(hidden)?>', home)
+
+        self.assertEqual(["leaders", "teachers", "office", "transport"], tabs)
+        self.assertEqual([("leaders", ""), ("teachers", "hidden"), ("office", "hidden"), ("transport", "hidden")],
+                         panels)
+
+    def test_the_homepage_makes_no_claim_it_cannot_show(self):
+        home = self.read("index.html")
+
+        for invented in ("(Target)", "Trusted by", "testimonial", "certified", "ISO"):
+            self.assertNotIn(invented, home)
+        # What is not built yet says so.
+        self.assertIn("Ideas we are exploring, not yet available", home)
+
+    def test_every_page_has_the_bar_the_menu_and_both_forms(self):
+        for name in ("index.html", "site/pages/about.html", "404.html"):
+            with self.subTest(page=name):
+                page = self.read(name)
+                self.assertIn('aria-controls="product-menu"', page)
+                self.assertIn('id="mobile-menu"', page)
+                self.assertIn('id="request-a-demo"', page)
+                self.assertIn('id="join-early-access"', page)
+                self.assertIn('href="#request-a-demo">Book a demo</a>', page)
+
+    def test_a_headline_splits_into_two_lines(self):
+        self.assertEqual({"first": "One platform.", "second": "Every school day."},
+                         public_site.split_headline("One platform. Every school day."))
+        self.assertEqual({"first": "Run your school", "second": "smarter."},
+                         public_site.split_headline("Run your school\nsmarter."))
+        self.assertEqual({"first": "Run Your School Smarter, Together.", "second": ""},
+                         public_site.split_headline("Run Your School Smarter, Together."))
+
+    def test_required_fields_are_marked(self):
+        home = self.read("index.html")
+
+        self.assertIn('<span class="caption">Email <span class="required" aria-hidden="true">*</span></span>', home)
+        self.assertIn("are required.", home)
+
+
 class StructuredData(TestCase):
     """What search engines read beside each page (docs/seo.md, S4)."""
 
@@ -578,7 +633,7 @@ class StructuredData(TestCase):
     def test_the_homepage_says_who_publishes_it_and_what_the_product_is(self):
         blocks = {block["@type"]: block for block in self.blocks("index.html")}
 
-        self.assertEqual({"Organization", "WebSite", "SoftwareApplication"}, set(blocks))
+        self.assertEqual({"Organization", "WebSite", "SoftwareApplication", "FAQPage"}, set(blocks))
         self.assertEqual("https://school365ai.com/logo.png", blocks["Organization"]["logo"])
         self.assertEqual("Web, Android", blocks["SoftwareApplication"]["operatingSystem"])
         self.assertTrue((self.root / "logo.png").exists())

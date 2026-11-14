@@ -1,10 +1,23 @@
 {% extends "public_site/base.html" %}
 {% block content %}
-<article class="section">
-  <div class="wrap prose">
+<header class="page-head">
+  <div class="wrap prose-wrap">
+    {% if is_module %}<p class="crumbs"><a href="{{ features_href }}">Features</a></p>{% endif %}
     <h1>{{ page_title }}</h1>
     {% if updated %}<p class="muted small">Last updated {{ updated }}</p>{% endif %}
-    {{ body_html|safe }}
+    {% if is_module %}
+    <div class="actions">
+      <a class="button primary" href="{{ demo_href }}">Request a Demo</a>
+      <a class="button outline" href="{{ join_href }}">Join Early Access</a>
+    </div>
+    {% endif %}
+  </div>
+</header>
+<article class="section tight">
+  <div class="wrap prose-wrap">
+    <div class="prose-card prose">
+      {{ body_html|safe }}
+    </div>
   </div>
 </article>
 {% if is_module %}
@@ -14,7 +27,7 @@
     <p>Book a walkthrough and we will show you this on a school like yours.</p>
     <div class="actions">
       <a class="button light large" href="{{ demo_href }}">Request a Demo</a>
-      <a class="button on-band large" href="{{ join_href }}">Join Early Access</a>
+      <a class="button on-dark large" href="{{ join_href }}">Join Early Access</a>
       <a class="button wa large" href="{{ whatsapp.href }}" target="_blank" rel="noopener">{% include "public_site/whatsapp_icon.html" %}WhatsApp us</a>
     </div>
   </div>
@@ -22,7 +35,10 @@
 {% if other_modules %}
 <section class="section">
   <div class="wrap">
-    <h2>Explore more of School365ai</h2>
+    <div class="section-intro">
+      <p class="eyebrow">Keep exploring</p>
+      <h2>Explore more of School365ai</h2>
+    </div>
     {% include "public_site/module_cards.html" with modules=other_modules %}
   </div>
 </section>
