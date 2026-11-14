@@ -8,7 +8,7 @@
   <title>{{ title }}</title>
   {% if description %}<meta name="description" content="{{ description }}">{% endif %}
   {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% else %}<meta name="robots" content="noindex">{% endif %}
-  <meta name="theme-color" content="#2563EB">
+  <meta name="theme-color" content="#FFF8EF">
   <meta property="og:type" content="{{ og_type|default:'website' }}">
   <meta property="og:site_name" content="School365ai">
   {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
@@ -29,34 +29,63 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap">
   <link rel="stylesheet" href="/site/site.css?v={{ asset_version }}">
   {% for block in structured_data %}<script type="application/ld+json">{{ block }}</script>
   {% endfor %}
 </head>
 <body data-api="{{ api_url }}">
-  <header class="nav">
+  <p class="announcement">Now welcoming schools to the early-access programme. <a href="{{ join_href }}">Join early access &rarr;</a></p>
+
+  <header class="site-header">
     <div class="wrap nav-row">
       <a class="brand" href="/" aria-label="{{ nav.wordmark }} home">
         <span class="mark" aria-hidden="true">
-          <svg viewBox="0 0 100 100"><path d="M30 50 L30 66 Q50 78 70 66 L70 50 Z" fill="#fff" fill-opacity=".82"/><path d="M50 24 L86 41 L50 58 L14 41 Z" fill="#fff"/><line x1="50" y1="41" x2="78" y2="45" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/><line x1="78" y1="45" x2="78" y2="65" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/><circle cx="78" cy="65" r="4.5" fill="#FBBF24"/><circle cx="50" cy="41" r="3" fill="#FBBF24"/></svg>
+          <svg viewBox="0 0 100 100"><path d="M30 50 L30 66 Q50 78 70 66 L70 50 Z" fill="#fff" fill-opacity=".82"/><path d="M50 24 L86 41 L50 58 L14 41 Z" fill="#fff"/><line x1="50" y1="41" x2="78" y2="45" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/><line x1="78" y1="45" x2="78" y2="65" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/><circle cx="78" cy="65" r="4.5" fill="#FFE0AA"/><circle cx="50" cy="41" r="3" fill="#FFE0AA"/></svg>
         </span>
-        <span class="brand-words"><strong>{{ nav.wordmark }}</strong><small>{{ nav.tagline }}</small></span>
+        <span class="brand-words"><strong>{{ wordmark.main }}{% if wordmark.ai %}<span class="ai">{{ wordmark.ai }}</span>{% endif %}</strong><small>{{ nav.tagline }}</small></span>
       </a>
+
       <nav class="nav-links" aria-label="Main">
-        <a href="{{ features_href }}">Features</a>
-        <a href="/#for-schools">Web Dashboard</a>
-        <a href="/#mobile-app">Mobile App</a>
+        <div class="nav-menu">
+          <button type="button" aria-expanded="false" aria-controls="product-menu" data-menu>
+            Product <svg class="chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="nav-panel" id="product-menu" hidden>
+            {% for item in product_menu %}<a href="{{ item.href }}"><strong>{{ item.label }}</strong><span>{{ item.note }}</span></a>
+            {% endfor %}
+          </div>
+        </div>
         {% if blog_href %}<a href="{{ blog_href }}">Blog</a>{% endif %}
+        {% if help_href %}<a href="{{ help_href }}">Help</a>{% endif %}
         {% if about_href %}<a href="{{ about_href }}">About</a>{% endif %}
         <a href="/contact">Contact</a>
       </nav>
-      <!-- Only the way in. Early access and a demo are asked for on the page
-           itself and by WhatsApp, not shouted from the bar (asked 2026-11-10). -->
+
       <div class="nav-actions">
-        <a class="button outline" href="{{ login_href }}">{{ nav.login }}</a>
+        <a class="button outline small" href="{{ login_href }}">{{ nav.login }}</a>
+        <a class="button primary small" href="{{ demo_href }}">Book a demo</a>
       </div>
+
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open the menu" data-mobile-menu>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
     </div>
+
+    <nav class="mobile-menu" id="mobile-menu" aria-label="Menu" hidden>
+      <p class="group-label">Product</p>
+      {% for item in product_menu %}<a href="{{ item.href }}">{{ item.label }}</a>
+      {% endfor %}
+      <p class="group-label">Company</p>
+      {% if blog_href %}<a href="{{ blog_href }}">Blog</a>{% endif %}
+      {% if help_href %}<a href="{{ help_href }}">Help Centre</a>{% endif %}
+      {% if about_href %}<a href="{{ about_href }}">About</a>{% endif %}
+      <a href="/contact">Contact</a>
+      <div class="actions">
+        <a class="button outline" href="{{ login_href }}">{{ nav.login }}</a>
+        <a class="button primary" href="{{ demo_href }}">Book a demo</a>
+      </div>
+    </nav>
   </header>
 
   <main>
@@ -66,8 +95,18 @@
   <footer class="footer" id="contact">
     <div class="wrap footer-grid">
       <div>
-        <p class="footer-brand">{{ footer.wordmark }}</p>
-        <p class="muted">{{ footer.blurb }}</p>
+        <a class="brand" href="/" aria-label="{{ nav.wordmark }} home">
+          <span class="mark" aria-hidden="true">
+            <svg viewBox="0 0 100 100"><path d="M30 50 L30 66 Q50 78 70 66 L70 50 Z" fill="#fff" fill-opacity=".82"/><path d="M50 24 L86 41 L50 58 L14 41 Z" fill="#fff"/><line x1="50" y1="41" x2="78" y2="45" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/><line x1="78" y1="45" x2="78" y2="65" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/><circle cx="78" cy="65" r="4.5" fill="#FFE0AA"/></svg>
+          </span>
+          <span class="brand-words"><strong>{{ wordmark.main }}{% if wordmark.ai %}<span class="ai">{{ wordmark.ai }}</span>{% endif %}</strong></span>
+        </a>
+        <p class="footer-blurb">{{ footer.blurb }}</p>
+        <ul class="footer-contact">
+          <li><a href="mailto:{{ support.email }}">{{ support.email }}</a></li>
+          <li><a href="tel:{{ support.phone_dial }}">{{ support.phone }}</a></li>
+          <li><a href="{{ whatsapp.href }}" target="_blank" rel="noopener">WhatsApp us</a></li>
+        </ul>
       </div>
       {% for column in footer.columns %}
       <div>
@@ -82,6 +121,11 @@
     </div>
     <div class="wrap footer-base">
       <span>{{ footer.copyright }}</span>
+      <nav aria-label="Legal">
+        {% if privacy_href %}<a href="{{ privacy_href }}">Privacy</a>{% endif %}
+        {% if terms_href %}<a href="{{ terms_href }}">Terms</a>{% endif %}
+        <a href="/contact">Contact</a>
+      </nav>
       <span>{{ footer.tagline }}</span>
     </div>
   </footer>

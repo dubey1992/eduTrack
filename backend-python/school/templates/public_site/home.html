@@ -3,53 +3,114 @@
 <section class="hero" id="home">
   <div class="wrap hero-grid">
     <div class="hero-copy">
-      <p class="eyebrow">{{ hero.eyebrow }}</p>
-      <h1>{{ hero.headline }}</h1>
+      <p class="tag"><span class="dot" aria-hidden="true"></span>{{ hero.eyebrow }}</p>
+      <h1>{{ headline.first }}{% if headline.second %} <em>{{ headline.second }}</em>{% endif %}</h1>
       <p class="lead">{{ hero.body }}</p>
       <div class="actions">
-        <a class="button primary large" href="{{ join_href }}">{{ hero.join }}</a>
-        <a class="button outline large" href="{{ demo_href }}">{{ hero.demo }}</a>
+        <a class="button primary large" href="{{ demo_href }}">{{ hero.demo }}</a>
+        <a class="button outline large" href="{{ features_href }}">Explore features <span aria-hidden="true">&rarr;</span></a>
       </div>
       <p class="wa-line"><a href="{{ whatsapp.href }}" target="_blank" rel="noopener">{% include "public_site/whatsapp_icon.html" %}<span class="wa-words"><strong>See it live on your own school</strong><span>Book a free demo on WhatsApp &middot; <span class="wa-number">{{ whatsapp.number }}</span></span></span></a></p>
-      <p class="muted small">{{ hero.trust }}</p>
+      <p class="hero-note"><span class="check" aria-hidden="true">&#10003;</span> Built for school leaders, teachers and office teams <span aria-hidden="true">&middot;</span> Early access open</p>
     </div>
-    {# A real screenshot of the app: a demo school's finished Setup Guide. Bump ?v= with the picture. #}
-    <figure class="hero-shot">
-      <img src="/site/hero-app.jpg?v=3" width="1600" height="1000" fetchpriority="high" decoding="async"
-           alt="The School365ai app: a school's Setup Guide with all six steps done - academic year, departments, classes and sections, subjects.">
-    </figure>
-    <ul class="stats">
-      {% for stat in hero.stats %}
-      <li><strong>{{ stat.value }}</strong><span>{{ stat.label }}</span></li>
-      {% endfor %}
-    </ul>
+    <div class="hero-visual">
+      <div class="float-card float-top"><i aria-hidden="true">&#10003;</i><div>One connected view<small>Office, classroom and bus</small></div></div>
+      {# A real screenshot of the app: a demo school's finished Setup Guide. Bump ?v= with the picture. #}
+      <figure class="browser">
+        <div class="browser-top" aria-hidden="true"><i></i><i></i><i></i><span class="browser-address">school365ai.com/app</span></div>
+        <img src="/site/hero-app.jpg?v=3" width="1600" height="1000" fetchpriority="high" decoding="async"
+             alt="The School365ai app: a school's Setup Guide with all six steps done - academic year, departments, classes and sections, subjects.">
+      </figure>
+      <div class="float-card float-bottom"><i aria-hidden="true">&#8599;</i><div>From classroom to bus<small>The same day, connected</small></div></div>
+      <p class="visual-note">A real School365ai screen, from a demo school</p>
+    </div>
   </div>
 </section>
 
-<section class="section" id="features">
+<div class="trust-strip">
+  <ul class="wrap trust-items">
+    <li>Web dashboard for the office</li>
+    <li>Android apps for staff and bus crews</li>
+    <li>Alerts to families by SMS and WhatsApp</li>
+    <li>Early access open</li>
+  </ul>
+</div>
+
+<section class="section" id="problems">
   <div class="wrap">
-    <p class="eyebrow">{{ features.eyebrow }}</p>
-    <h2>{{ features.title }}</h2>
-    <p class="lead">{{ features.body }}</p>
-    <ul class="cards">
-      {% for item in features.items %}
-      <li class="card">
-        <span class="icon" aria-hidden="true">{{ item.icon }}</span>
-        <h3>{{ item.title }}</h3>
-        <p>{{ item.body }}</p>
+    <div class="section-intro">
+      <p class="eyebrow">The everyday challenge</p>
+      <h2>Running a school shouldn't mean juggling five different tools.</h2>
+      <p>When the register, the fee book and the bus list live in separate places, even simple questions take a phone call to answer.</p>
+    </div>
+    <ul class="grid-3">
+      <li class="card problem-card">
+        <p class="num">01 / Disconnected records</p>
+        <h3>Student information, scattered</h3>
+        <p>Staff spend valuable time hunting for attendance, class details and family contacts.</p>
       </li>
-      {% endfor %}
+      <li class="card problem-card">
+        <p class="num">02 / Manual admin work</p>
+        <h3>Too much repetitive paperwork</h3>
+        <p>Fee follow-ups, staff registers, reports and timetables mean the same work done twice.</p>
+      </li>
+      <li class="card problem-card">
+        <p class="num">03 / Missed updates</p>
+        <h3>Everyone asks for the latest</h3>
+        <p>Leaders, staff and families need to know what is happening today, without a round of calls.</p>
+      </li>
     </ul>
+    <p class="after-note">One platform. A simpler way forward. <span aria-hidden="true">&nbsp;&#8600;</span></p>
+  </div>
+</section>
+
+<section class="section tinted" id="solutions">
+  <div class="wrap">
+    <div class="section-intro">
+      <p class="eyebrow">Made for your team</p>
+      <h2>Different roles. One connected school.</h2>
+      <p>Choose a role to see how School365ai fits into a real school day.</p>
+    </div>
+    <div class="role-switch" role="tablist" aria-label="Choose a role">
+      {% for role in roles %}<button type="button" role="tab" id="role-tab-{{ role.key }}" aria-controls="role-{{ role.key }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"{% if not forloop.first %} tabindex="-1"{% endif %}>{{ role.tab }}</button>{% endfor %}
+    </div>
+    {% for role in roles %}
+    <div class="role-panel" role="tabpanel" id="role-{{ role.key }}" aria-labelledby="role-tab-{{ role.key }}"{% if not forloop.first %} hidden{% endif %}>
+      <div>
+        <p class="eyebrow">{{ role.eyebrow }}</p>
+        <h3>{{ role.title }}</h3>
+        <p class="lead">{{ role.body }}</p>
+        <ul class="ticks">{% for point in role.points %}<li>{{ point }}</li>{% endfor %}</ul>
+        <div class="actions"><a class="button outline" href="{{ demo_href }}">See this in a demo <span aria-hidden="true">&rarr;</span></a></div>
+      </div>
+      <div>
+        <div class="role-art">
+          <div class="sample-card">
+            <p class="sample-top">{{ role.card }} <span>Sample view</span></p>
+            {% for label, value in role.rows %}<p class="sample-row"><span>{{ label }}</span><strong>{{ value }}</strong></p>{% endfor %}
+            <p class="sample-foot">{{ role.foot }} &rarr;</p>
+          </div>
+        </div>
+        <p class="art-note">An illustration of the workflow, not a screenshot</p>
+      </div>
+    </div>
+    {% endfor %}
   </div>
 </section>
 
 {% if modules %}
-<section class="section" id="modules">
+<section class="section" id="features">
   <div class="wrap">
-    <p class="eyebrow">In detail</p>
-    <h2>What each part does</h2>
-    <p class="lead">A page for each part of School365ai: who uses it, and what it does for them.</p>
-    {% include "public_site/module_cards.html" %}
+    <div class="section-intro">
+      <p class="eyebrow">{{ features.eyebrow }}</p>
+      <h2>{{ features.title }}</h2>
+      <p>{{ features.body }}</p>
+    </div>
+    <ul class="grid-3">
+      {% for module in modules %}
+      <li><a class="card feature-card {{ module.look.tone }}" href="{{ module.path }}"><span class="feature-icon">{{ module.look.icon }}</span><h3>{{ module.title }}</h3><p>{{ module.blurb }}</p><span class="more">Learn more <span aria-hidden="true">&rarr;</span></span></a></li>
+      {% endfor %}
+    </ul>
     {% if all_modules %}
     <div class="see-all">
       <a class="button outline" href="{{ all_modules.href }}">See all {{ all_modules.count }} features &rarr;</a>
@@ -59,61 +120,179 @@
 </section>
 {% endif %}
 
-<section class="section tinted" id="mobile-app">
-  <div class="wrap narrow">
-    <p class="eyebrow">{{ mobile.eyebrow }}</p>
-    <h2>{{ mobile.headline|linebreaksbr }}</h2>
-    <p class="lead">{{ mobile.body }}</p>
+<section class="section dark" id="how-it-works">
+  <div class="wrap">
+    <div class="section-intro">
+      <p class="eyebrow">How the day connects</p>
+      <h2>See how one school day flows.</h2>
+      <p>The same morning, seen from the classroom, the family, the bus and the office.</p>
+    </div>
+    <ol class="journey">
+      <li><span class="step" aria-hidden="true">1</span><h3>A teacher takes the register</h3><p>On the School365ai staff app, in the first period - even without signal.</p></li>
+      <li><span class="step" aria-hidden="true">2</span><h3>Families hear the same morning</h3><p>An absent child's guardian gets an SMS or WhatsApp message, if the school switches it on.</p></li>
+      <li><span class="step" aria-hidden="true">3</span><h3>The bus crew marks every child</h3><p>Boarded and dropped, from the School365ai Driver app, with the bus's location shared.</p></li>
+      <li><span class="step" aria-hidden="true">4</span><h3>The office sees the whole day</h3><p>Attendance, fees and trips on one dashboard, with reports to download.</p></li>
+    </ol>
+    <p class="journey-note">A typical day. What runs at your school depends on the parts you switch on.</p>
+  </div>
+</section>
+
+<section class="section" id="for-schools">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow">{{ web.eyebrow }}</p>
+      <h2>{{ web.headline|linebreaksbr }}</h2>
+      <p class="lead">{{ web.body }}</p>
+      <ul class="ticks">{% for bullet in web.bullets %}<li>{{ bullet.text }}</li>{% endfor %}</ul>
+      <div class="actions"><a class="button primary" href="{{ login_href }}">{{ web.button }}</a></div>
+    </div>
+    <div class="panel-shot">
+      <div class="idea-card">
+        <h3>On the office dashboard</h3>
+        <ul class="ticks">
+          <li>Today's attendance, register by register</li>
+          <li>Fees collected and still due</li>
+          <li>Bus trips running now</li>
+          <li>The setup steps still to finish</li>
+          <li>Reports to download as PDF or CSV</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section soft" id="mobile-app">
+  <div class="wrap split reverse">
+    <div>
+      <p class="eyebrow">{{ mobile.eyebrow }}</p>
+      <h2>{{ mobile.headline|linebreaksbr }}</h2>
+      <p class="lead">{{ mobile.body }}</p>
+    </div>
     {# The two apps that exist today, described plainly (2026-10-31). #}
-    <ul class="apps">
+    <ul class="app-list">
       <li class="app-card">
+        <span class="feature-icon">{{ icons.phone }}</span>
         <h3>School365ai</h3>
-        <p class="muted small">For teachers, heads of department and office staff</p>
+        <p class="who">For teachers, heads of department and office staff</p>
         <p>Take the class register, see the day's timetable, file teaching reports, apply for leave and check in at school.</p>
       </li>
-      <li class="app-card">
+      <li class="app-card tone-gold">
+        <span class="feature-icon">{{ icons.bus }}</span>
         <h3>School365ai Driver</h3>
-        <p class="muted small">For drivers and bus attendants</p>
+        <p class="who">For drivers and bus attendants</p>
         <p>Run the day's trips, mark each child boarded or dropped off, share the bus's live location and call a parent from the bus.</p>
       </li>
     </ul>
   </div>
 </section>
 
-<section class="section" id="for-schools">
-  <div class="wrap narrow">
-    <p class="eyebrow">{{ web.eyebrow }}</p>
-    <h2>{{ web.headline|linebreaksbr }}</h2>
-    <p class="lead">{{ web.body }}</p>
-    <ul class="ticks">
-      {% for bullet in web.bullets %}<li>{{ bullet.text }}</li>{% endfor %}
-    </ul>
-    <a class="button primary" href="{{ login_href }}">{{ web.button }}</a>
+<section class="section" id="insights">
+  <div class="wrap">
+    <div class="insight-panel">
+      <div>
+        <p class="eyebrow">Smart insights, explained</p>
+        <h2>Help where it is needed, with clear expectations.</h2>
+        <p class="lead">School365ai reads the attendance and marks a school already keeps, and points out what deserves a teacher's attention - always with the numbers behind it, so nothing is a black box.</p>
+        <p class="status-pill live">Available today</p>
+        <ul class="ticks">
+          <li>Students whose attendance or marks are slipping</li>
+          <li>Weak subjects and topics, class by class</li>
+          <li>A suggested next step for each</li>
+        </ul>
+      </div>
+      <div class="idea-card">
+        <p class="status-pill">Ideas we are exploring, not yet available</p>
+        <h3>What could come next</h3>
+        <div class="idea-row"><b>01</b><div>Fewer manual steps<span>Follow-ups that today a member of staff chases by hand</span></div></div>
+        <div class="idea-row"><b>02</b><div>Reports in plain words<span>Figures that come with a short explanation</span></div></div>
+        <div class="idea-row"><b>03</b><div>Built with schools<span>Tell us what you would most like to make easier</span></div></div>
+        <div class="actions"><a class="button primary" href="{{ demo_href }}">Share your priorities</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tinted" id="trust">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow">Trust starts with transparency</p>
+      <h2>A real conversation before a big decision.</h2>
+      <p class="lead">Choosing school software matters. See it working on a day like yours, ask what is ready today, and decide with the full picture.</p>
+      <div class="proof-list">
+        <div class="proof-item"><span class="feature-icon">{{ icons.check }}</span><div><h3>Walk through your own day</h3><p>Attendance, fees, transport or academics - shown the way your school runs them.</p></div></div>
+        <div class="proof-item"><span class="feature-icon">{{ icons.chat }}</span><div><h3>Ask what is ready</h3><p>Which parts are available now, what is being built, and how getting started works.</p></div></div>
+        <div class="proof-item"><span class="feature-icon">{{ icons.shield }}</span><div><h3>Bring your data questions</h3><p>Who sees what, where records live, and how access is controlled.</p></div></div>
+      </div>
+    </div>
+    <div class="care-card">
+      <p class="eyebrow">How records are looked after</p>
+      <h3>Your school's data, handled with care</h3>
+      <ul class="ticks">
+        <li>Each school sees only its own records</li>
+        <li>Staff see only what their role allows</li>
+        <li>Every change to a record is logged with who made it and when</li>
+        <li>Sign-in locks after repeated wrong passwords, and idle sessions end</li>
+        <li>Messaging account passwords are stored encrypted</li>
+      </ul>
+    </div>
   </div>
 </section>
 
 {% if latest_posts %}
 <section class="section" id="from-the-blog">
   <div class="wrap">
-    <p class="eyebrow">From the blog</p>
-    <h2>Ideas for running a school day</h2>
-    <ul class="post-links">
+    <div class="section-intro">
+      <p class="eyebrow">From the blog</p>
+      <h2>Ideas for running a school day</h2>
+    </div>
+    <ul class="posts">
       {% for post in latest_posts %}
-      <li><a href="{{ post.path }}">{{ post.title }}</a>{% if post.summary %}<span class="muted">{{ post.summary }}</span>{% endif %}</li>
+      <li><a class="post-card" href="{{ post.path }}"><span class="post-cover placeholder" aria-hidden="true"></span><span class="post-text"><h3>{{ post.title }}</h3>{% if post.summary %}<span class="post-summary">{{ post.summary }}</span>{% endif %}<span class="more">Read the post <span aria-hidden="true">&rarr;</span></span></span></a></li>
       {% endfor %}
     </ul>
-    <p><a href="/blog">Every post</a></p>
+    <div class="see-all"><a class="button outline" href="/blog">Every post &rarr;</a></div>
   </div>
 </section>
 {% endif %}
 
-<section class="band">
-  <div class="wrap narrow">
-    <h2>{{ cta.headline }}</h2>
-    <p>{{ cta.body|linebreaksbr }}</p>
-    <div class="actions">
-      <a class="button light large" href="{{ join_href }}">{{ cta.join }}</a>
-      <a class="button on-band large" href="{{ demo_href }}">{{ cta.demo }}</a>
+<section class="section soft" id="faq">
+  <div class="wrap">
+    <div class="section-intro">
+      <p class="eyebrow">Common questions</p>
+      <h2>Know what to expect.</h2>
+    </div>
+    <div class="faq-list">
+      {% for question, answer in faq %}
+      <details{% if forloop.first %} open{% endif %}><summary>{{ question }}</summary><p>{{ answer }}</p></details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="cta" id="get-started">
+  <div class="wrap cta-grid">
+    <div>
+      <p class="eyebrow">Take the next step</p>
+      <h2>{{ cta.headline }}</h2>
+      <p class="lead">{{ cta.body|linebreaksbr }}</p>
+      <ul class="cta-points">
+        <li>A live walkthrough on a school like yours</li>
+        <li>Ask what is ready today and what is coming</li>
+        <li>Start with the parts you need</li>
+      </ul>
+    </div>
+    <div class="choice-card">
+      <div class="choice">
+        <h3>Book a live demo</h3>
+        <p>Pick a day, and we will walk you through School365ai on a school day like yours.</p>
+        <a class="button primary" href="{{ demo_href }}">{{ cta.demo }}</a>
+      </div>
+      <div class="choice">
+        <h3>Join early access</h3>
+        <p>Tell us about your school, and we will be in touch about getting started.</p>
+        <a class="button outline" href="{{ join_href }}">{{ cta.join }}</a>
+      </div>
+      <a class="wa-inline" href="{{ whatsapp.href }}" target="_blank" rel="noopener">{% include "public_site/whatsapp_icon.html" %}<span><strong>Prefer to chat?</strong> WhatsApp <span class="wa-number">{{ whatsapp.number }}</span></span></a>
     </div>
   </div>
 </section>

@@ -15,20 +15,21 @@
       {% include "public_site/whatsapp_icon.html" %}
       <span><strong>Rather chat? Book it on WhatsApp.</strong> Send one message to <span class="wa-number">{{ whatsapp.number }}</span> and we will fix a time with you.</span>
     </a>
+    <p class="muted small">Fields marked <span class="required" aria-hidden="true">*</span> are required.</p>
     <div class="form-problem" role="alert" hidden></div>
     <div class="grid two">
-      <label><span class="caption">Your name</span><input name="contact_name" id="demo-contact_name" required maxlength="150" autocomplete="name"></label>
-      <label><span class="caption">School name</span><input name="school_name" id="demo-school_name" required maxlength="150" autocomplete="organization"></label>
+      <label><span class="caption">Your name <span class="required" aria-hidden="true">*</span></span><input name="contact_name" id="demo-contact_name" required maxlength="150" autocomplete="name"></label>
+      <label><span class="caption">School name <span class="required" aria-hidden="true">*</span></span><input name="school_name" id="demo-school_name" required maxlength="150" autocomplete="organization"></label>
     </div>
-    <label><span class="caption">Email</span><input type="email" name="email" id="demo-email" required maxlength="255" autocomplete="email"></label>
-    <label><span class="caption">Phone <span class="optional">(with country code)</span></span><input type="tel" name="phone" id="demo-phone" required maxlength="20" placeholder="+91 9876543210" autocomplete="tel"></label>
+    <label><span class="caption">Email <span class="required" aria-hidden="true">*</span></span><input type="email" name="email" id="demo-email" required maxlength="255" autocomplete="email"></label>
+    <label><span class="caption">Phone <span class="optional">(with country code)</span> <span class="required" aria-hidden="true">*</span></span><input type="tel" name="phone" id="demo-phone" required maxlength="20" placeholder="+91 9876543210" autocomplete="tel"></label>
     <div class="grid two">
       <label><span class="caption">City <span class="optional">(optional)</span></span><input name="city" id="demo-city" maxlength="100" autocomplete="address-level2"></label>
-      <label><span class="caption">Country</span><input name="country" id="demo-country" required maxlength="100" autocomplete="country-name"></label>
+      <label><span class="caption">Country <span class="required" aria-hidden="true">*</span></span><input name="country" id="demo-country" required maxlength="100" autocomplete="country-name"></label>
     </div>
     <label><span class="caption">Roughly how many students? <span class="optional">(optional)</span></span><input type="number" name="expected_students" id="demo-expected_students" min="1" max="200000" inputmode="numeric"></label>
     <div class="grid two">
-      <label><span class="caption">Preferred day</span><input type="date" name="preferred_date" id="demo-preferred_date" required></label>
+      <label><span class="caption">Preferred day <span class="required" aria-hidden="true">*</span></span><input type="date" name="preferred_date" id="demo-preferred_date" required></label>
       <label><span class="caption">Time of day <span class="optional">(optional)</span></span>
         <select name="preferred_time" id="demo-preferred_time">
           <option value="">Any time</option>
@@ -58,17 +59,18 @@
       <button type="button" class="close" data-close aria-label="Close">&times;</button>
     </div>
     <p class="muted small">Tell us about your school and we will be in touch about getting started.</p>
+    <p class="muted small">Fields marked <span class="required" aria-hidden="true">*</span> are required.</p>
     <div class="form-problem" role="alert" hidden></div>
     <div class="grid two">
-      <label><span class="caption">School name</span><input name="school_name" id="join-school_name" required maxlength="150" autocomplete="organization"></label>
-      <label><span class="caption">Your name</span><input name="contact_name" id="join-contact_name" required maxlength="150" autocomplete="name"></label>
+      <label><span class="caption">School name <span class="required" aria-hidden="true">*</span></span><input name="school_name" id="join-school_name" required maxlength="150" autocomplete="organization"></label>
+      <label><span class="caption">Your name <span class="required" aria-hidden="true">*</span></span><input name="contact_name" id="join-contact_name" required maxlength="150" autocomplete="name"></label>
     </div>
     <label><span class="caption">Your role <span class="optional">(optional)</span></span><input name="contact_role" id="join-contact_role" maxlength="100" placeholder="Principal, administrator..." autocomplete="organization-title"></label>
-    <label><span class="caption">Email</span><input type="email" name="email" id="join-email" required maxlength="255" autocomplete="email"></label>
-    <label><span class="caption">Phone <span class="optional">(with country code)</span></span><input type="tel" name="phone" id="join-phone" required maxlength="20" placeholder="+91 9876543210" autocomplete="tel"></label>
+    <label><span class="caption">Email <span class="required" aria-hidden="true">*</span></span><input type="email" name="email" id="join-email" required maxlength="255" autocomplete="email"></label>
+    <label><span class="caption">Phone <span class="optional">(with country code)</span> <span class="required" aria-hidden="true">*</span></span><input type="tel" name="phone" id="join-phone" required maxlength="20" placeholder="+91 9876543210" autocomplete="tel"></label>
     <div class="grid two">
-      <label><span class="caption">City</span><input name="city" id="join-city" required maxlength="100" autocomplete="address-level2"></label>
-      <label><span class="caption">Country</span><input name="country" id="join-country" required maxlength="100" autocomplete="country-name"></label>
+      <label><span class="caption">City <span class="required" aria-hidden="true">*</span></span><input name="city" id="join-city" required maxlength="100" autocomplete="address-level2"></label>
+      <label><span class="caption">Country <span class="required" aria-hidden="true">*</span></span><input name="country" id="join-country" required maxlength="100" autocomplete="country-name"></label>
     </div>
     <div class="grid two">
       <label><span class="caption">Roughly how many students? <span class="optional">(optional)</span></span><input type="number" name="expected_students" id="join-expected_students" min="1" max="200000" inputmode="numeric"></label>

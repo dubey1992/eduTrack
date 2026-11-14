@@ -1,6 +1,6 @@
-{# A card per module page (school/module_pages.py), each a link to it. #}
-<ul class="cards modules">
+{# A card per product page (school/module_pages.py), each a link to it. #}
+<ul class="grid-3 modules">
   {% for module in modules %}
-  <li><a class="card module-card" href="{{ module.path }}"><h3>{{ module.title }}</h3><p>{{ module.blurb }}</p><span class="more" aria-hidden="true">Read more &rarr;</span></a></li>
+  <li><a class="card feature-card module-card {{ module.look.tone }}" href="{{ module.path }}"><span class="feature-icon">{{ module.look.icon }}</span><h3>{{ module.title }}</h3><p>{{ module.blurb }}</p><span class="more">Read more <span aria-hidden="true">&rarr;</span></span></a></li>
   {% endfor %}
 </ul>

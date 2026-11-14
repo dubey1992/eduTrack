@@ -1,13 +1,15 @@
 {% extends "public_site/base.html" %}
 {% block content %}
-<section class="section">
-  <div class="wrap prose">
+<header class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Error 404</p>
     <h1>Page not found</h1>
-    <p>There is no page at this address. It may have moved, or the link may be mistyped.</p>
+    <p class="lead">There is no page at this address. It may have moved, or the link may be mistyped.</p>
     <div class="actions">
       <a class="button primary" href="/">Go to the homepage</a>
-      <a class="button outline" href="{{ login_href }}">Sign in</a>
+      <a class="button outline" href="{{ features_href }}">Explore features</a>
+      <a class="button ghost" href="{{ login_href }}">Sign in</a>
     </div>
   </div>
-</section>
+</header>
 {% endblock %}

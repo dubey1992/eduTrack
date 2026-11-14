@@ -41,7 +41,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 
-from . import dates, photos, site_markup
+from . import dates, photos, public_site_content, site_markup
 from . import site_pages as kinds
 from .marketing_copy import Words
 
@@ -58,7 +58,8 @@ APP = "/app/"
 
 # The homepage shows this many module cards; the rest are one click away on
 # a page of their own, so the homepage stays short.
-HOME_MODULES = 4
+# The homepage's feature cards: two rows of three, the prototype's grid.
+HOME_MODULES = 6
 FEATURES_SLUG = "school-management-features"
 
 # The homepage's own sections, by the names old links use (/features,
@@ -107,6 +108,11 @@ class PublicPage:
     @property
     def path(self) -> str:
         return kinds.path_of(self.kind, self.slug)
+
+    @property
+    def look(self) -> dict:
+        """The icon and tint its card wears (school/public_site_content.py)."""
+        return public_site_content.module_look(self.slug)
 
     @property
     def date(self) -> str | None:
@@ -389,6 +395,16 @@ def shared(words: Words, live: set[str], modules=()) -> dict:
         "whatsapp": whatsapp_demo(),
         "asset_version": asset_version(),
         "about_href": "/about" if "about" in live else None,
+        "help_href": "/help" if "help" in live else None,
+        "privacy_href": "/privacy" if "privacy" in live else None,
+        "terms_href": "/terms" if "terms" in live else None,
+        "support": {
+            "email": kinds.SUPPORT_EMAIL,
+            "phone": kinds.SUPPORT_PHONE,
+            "phone_dial": kinds.SUPPORT_PHONE_DIAL,
+        },
+        "wordmark": wordmark(words.text("nav.wordmark")),
+        "product_menu": product_menu(live),
         # In the bar only once there is a post to read.
         "blog_href": "/blog" if "blog" in live else None,
         # The bar's Features link goes to the features page itself when there
@@ -411,6 +427,40 @@ def shared(words: Words, live: set[str], modules=()) -> dict:
     }
 
 
+def wordmark(name: str) -> dict:
+    """The name in the bar, its closing "ai" in the accent colour."""
+    if name.lower().endswith("ai") and len(name) > 2:
+        return {"main": name[:-2], "ai": name[-2:]}
+    return {"main": name, "ai": ""}
+
+
+def product_menu(live: set[str]) -> list[dict]:
+    """The bar's Product menu: the features page and the homepage's parts."""
+    features = f"/{FEATURES_SLUG}" if FEATURES_SLUG in live else "/#features"
+    return [
+        {"label": "All features", "note": "Every part of School365ai, one page each", "href": features},
+        {"label": "By role", "note": "Leaders, teachers, the office and the bus", "href": "/#solutions"},
+        {"label": "How a day flows", "note": "From the register to the bus", "href": "/#how-it-works"},
+        {"label": "Web dashboard", "note": "Run the school from any browser", "href": "/#for-schools"},
+        {"label": "Mobile apps", "note": "For staff, drivers and bus attendants", "href": "/#mobile-app"},
+    ]
+
+
+def split_headline(headline: str) -> dict:
+    """The hero headline in two parts, the second set in italic rose: at a
+    line break if the Super Admin wrote one, otherwise after its first
+    sentence ("One platform. Every school day."). One sentence stays whole."""
+    if "\n" in headline.strip():
+        first, second = headline.strip().split("\n", 1)
+        return {"first": first.strip(), "second": second.strip()}
+
+    match = re.match(r"^(.+?[.!?])\s+(\S.*)$", headline.strip())
+    if match:
+        return {"first": match.group(1), "second": match.group(2)}
+
+    return {"first": headline.strip(), "second": ""}
+
+
 def render_home(words: Words, live: set[str], modules: list[PublicPage], posts=()) -> str:
     return render_to_string(
         "public_site/home.html",
@@ -422,8 +472,12 @@ def render_home(words: Words, live: set[str], modules: list[PublicPage], posts=(
             "all_modules": (
                 {"href": f"/{FEATURES_SLUG}", "count": len(modules)} if FEATURES_SLUG in live else None
             ),
-            "structured_data": structured([*about_us(), product()]),
+            "structured_data": structured([*about_us(), product(), faq(list(public_site_content.HOME_FAQ))]),
             "canonical": site_url() + "/",
+            "headline": split_headline(words.text("hero.headline")),
+            "roles": public_site_content.ROLES,
+            "faq": public_site_content.HOME_FAQ,
+            "icons": public_site_content.ICONS,
             "title": "School365ai - School Management Software: Attendance, Fees, Bus",
             "description": (
                 "School management software for attendance, fees, school bus tracking, timetables, payroll "
@@ -473,6 +527,8 @@ def render_features(modules: list[PublicPage], words: Words, live: set[str]) -> 
         {
             **shared(words, live, modules),
             "modules": modules,
+            # Grouped the way a school thinks about its day.
+            "groups": public_site_content.grouped(modules),
             "canonical": f"{site_url()}/{FEATURES_SLUG}",
             "title": "School Management Features - School365ai",
             "structured_data": structured([collection("School Management Features", f"/{FEATURES_SLUG}", modules)]),
