@@ -121,11 +121,7 @@
     </div>
     <div class="wrap footer-base">
       <span>{{ footer.copyright }}</span>
-      <nav aria-label="Legal">
-        {% if privacy_href %}<a href="{{ privacy_href }}">Privacy</a>{% endif %}
-        {% if terms_href %}<a href="{{ terms_href }}">Terms</a>{% endif %}
-        <a href="/contact">Contact</a>
-      </nav>
+      {% if terms_href %}<nav aria-label="Legal"><a href="{{ terms_href }}">Terms</a></nav>{% endif %}
       <span>{{ footer.tagline }}</span>
     </div>
   </footer>

@@ -575,6 +575,21 @@ class TheWarmEditorialDesign(TestCase):
     def read(self, name: str) -> str:
         return (self.root / name).read_text(encoding="utf-8")
 
+    def test_cards_and_the_footer_use_the_short_names_but_the_page_keeps_the_long_one(self):
+        home = self.read("index.html")
+        page = self.read("site/pages/school-fee-management-software.html")
+
+        self.assertIn("<h3>Fees</h3>", home)
+        self.assertNotIn("<h3>School Fee Management Software</h3>", home)
+        self.assertIn('<a href="/school-fee-management-software">Fees</a>', home)
+        self.assertIn("<h1>School Fee Management Software</h1>", page)
+
+    def test_the_footer_base_has_no_privacy_or_contact_link(self):
+        base = self.read("index.html").split('class="wrap footer-base"', 1)[1]
+
+        self.assertNotIn(">Privacy<", base)
+        self.assertNotIn(">Contact<", base)
+
     def test_the_role_tabs_have_a_panel_each_and_one_shows(self):
         home = self.read("index.html")
         tabs = re.findall(r'role="tab" id="role-tab-([a-z]+)"', home)

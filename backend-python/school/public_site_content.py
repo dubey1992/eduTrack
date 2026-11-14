@@ -57,6 +57,27 @@ MODULE_ICONS = {
 }
 
 
+# The name a product page's card, and the footer, show: a word or two a school
+# recognises. The page's own heading and <title> keep the long name, which is
+# what people search for.
+SHORT_NAMES = {
+    "school-attendance-software": "Attendance",
+    "school-fee-management-software": "Fees",
+    "school-bus-tracking-software": "School Bus",
+    "staff-attendance-software": "Staff Check-in",
+    "school-timetable-software": "Timetable",
+    "student-progress-reports": "Tests & Results",
+    "school-payroll-software": "Payroll & Leave",
+    "school-communication-software": "Messages",
+    "school-reports-and-analytics": "Reports",
+    "student-information-system": "Records",
+    "school-staff-and-driver-apps": "Mobile Apps",
+}
+
+
+def short_name(slug: str, title: str) -> str:
+    return SHORT_NAMES.get(slug, title)
+
 def module_look(slug: str) -> dict:
     icon, tone = MODULE_ICONS.get(slug, ("check", ""))
     return {"icon": ICONS[icon], "tone": tone}
