@@ -129,7 +129,7 @@ class _UpcomingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: 'Falling due next',
-      hue: ChartPalette.amber,
+      hue: ChartPalette.gold,
       icon: Icons.event_outlined,
       note: 'What the fee plans schedule for the next three months and is not yet paid - not a forecast.',
       children: [
@@ -149,7 +149,7 @@ class _UpcomingCard extends StatelessWidget {
                   Text(
                     _money(month.currency(code)?['due'] ?? 0, code),
                     style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700, color: ChartPalette.amber.strong(context)),
+                        ?.copyWith(fontWeight: FontWeight.w700, color: ChartPalette.gold.strong(context)),
                   ),
                 ],
               ),
@@ -172,7 +172,7 @@ class _AgesCard extends StatelessWidget {
 
     return _Section(
       title: 'Overdue by age',
-      hue: ChartPalette.rose,
+      hue: ChartPalette.berry,
       icon: Icons.schedule_outlined,
       note:
           'At the last recorded night of each month. Recorded nightly from when this was switched on, so '
@@ -186,7 +186,7 @@ class _AgesCard extends StatelessWidget {
             // Warmer the longer it has been owed.
             colourOf: (row, column) => switch (column) {
               1 => context.appColors.warning,
-              2 => ChartPalette.orange.strong(context),
+              2 => ChartPalette.coral.strong(context),
               3 => context.appColors.danger,
               _ => null,
             },
@@ -217,7 +217,7 @@ class _ByClassCard extends StatelessWidget {
 
     return _Section(
       title: 'By class, today',
-      hue: ChartPalette.blue,
+      hue: ChartPalette.plum,
       icon: Icons.class_outlined,
       note:
           'Everything that has fallen due so far this year, by the class each student is in now. '
@@ -262,7 +262,7 @@ class _PayrollCard extends StatelessWidget {
 
     return _Section(
       title: 'Fees and payroll',
-      hue: ChartPalette.violet,
+      hue: ChartPalette.rose,
       icon: Icons.receipt_long_outlined,
       note: 'Fees collected in each month against the payroll finalized for it (net pay).',
       children: [

@@ -31,8 +31,8 @@ class DriverApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'School365ai Driver',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.crewLight(),
+      darkTheme: AppTheme.crewDark(),
       themeMode: ThemeMode.system,
       routerConfig: ref.watch(driverRouterProvider),
       // **No SelectionArea here**, unlike the web app.

@@ -165,10 +165,7 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
         children: [
           const DriverMark(size: 48),
           const SizedBox(height: 12),
-          Text(
-            registering ? 'Register this phone' : 'Bus attendant sign in',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: palette.text),
-          ),
+          Text(registering ? 'Register this phone' : 'Bus attendant sign in', style: palette.heading(24)),
           const SizedBox(height: 4),
           Text(
             registering

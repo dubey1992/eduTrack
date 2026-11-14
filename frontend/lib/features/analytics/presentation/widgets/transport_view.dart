@@ -60,7 +60,7 @@ class _LateStopsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: 'Stops most often late',
-      hue: ChartPalette.rose,
+      hue: ChartPalette.berry,
       icon: Icons.running_with_errors_outlined,
       note:
           'Over the last twelve months. A bus is late at a stop when it arrives more than '
@@ -95,7 +95,7 @@ class _RouteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: route.route,
-      hue: ChartPalette.amber,
+      hue: ChartPalette.gold,
       icon: Icons.directions_bus_outlined,
       note:
           'Days run are out of the school\'s working days. Riders on the bus are those marked boarded or '

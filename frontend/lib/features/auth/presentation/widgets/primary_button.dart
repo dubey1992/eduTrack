@@ -26,17 +26,17 @@ class PrimaryButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: palette.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: palette.onPrimary,
           disabledBackgroundColor: palette.primary,
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 2, color: palette.onPrimary),
               )
             : Text(label),
       ),

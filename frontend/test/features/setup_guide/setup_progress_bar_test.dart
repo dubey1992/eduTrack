@@ -37,24 +37,24 @@ void main() {
   testWidgets('under halfway the done steps are orange and the rest grey', (tester) async {
     await pump(tester, 2);
 
-    expect(stepColour(tester, 0), ChartPalette.orange.light);
-    expect(stepColour(tester, 1), ChartPalette.orange.light);
-    expect(stepColour(tester, 2), isNot(ChartPalette.orange.light));
+    expect(stepColour(tester, 0), ChartPalette.coral.light);
+    expect(stepColour(tester, 1), ChartPalette.coral.light);
+    expect(stepColour(tester, 2), isNot(ChartPalette.coral.light));
     expect(stepColour(tester, 5), stepColour(tester, 2), reason: 'every step still to do looks the same');
   });
 
   testWidgets('from halfway they turn blue', (tester) async {
     await pump(tester, 3);
 
-    expect(stepColour(tester, 2), ChartPalette.blue.light);
-    expect(stepColour(tester, 3), isNot(ChartPalette.blue.light));
+    expect(stepColour(tester, 2), ChartPalette.plum.light);
+    expect(stepColour(tester, 3), isNot(ChartPalette.plum.light));
   });
 
   testWidgets('every step done is green all the way', (tester) async {
     await pump(tester, 6);
 
     for (var step = 0; step < 6; step++) {
-      expect(stepColour(tester, step), AppColors.light.success);
+      expect(stepColour(tester, step), AppColors.warmLight.success);
     }
   });
 
@@ -65,13 +65,13 @@ void main() {
     for (var step = 1; step < 6; step++) {
       expect(stepColour(tester, step), grey);
     }
-    expect(grey, isNot(anyOf(ChartPalette.orange.light, ChartPalette.blue.light, AppColors.light.success)));
+    expect(grey, isNot(anyOf(ChartPalette.coral.light, ChartPalette.plum.light, AppColors.warmLight.success)));
   });
 
   testWidgets('takes the dark shades in the dark theme', (tester) async {
     await pump(tester, 1, theme: AppTheme.dark());
 
-    expect(stepColour(tester, 0), ChartPalette.orange.dark);
+    expect(stepColour(tester, 0), ChartPalette.coral.dark);
   });
 
   testWidgets('says how far it has got to a screen reader', (tester) async {

@@ -98,11 +98,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         child: ElevatedButton(
                           onPressed: _isSubmitting ? null : _submit,
                           child: _isSubmitting
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                               : const Text('Reset Password'),
                         ),
                       ),

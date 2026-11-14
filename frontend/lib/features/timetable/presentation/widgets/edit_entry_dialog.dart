@@ -115,7 +115,7 @@ class _EditEntryDialogState extends ConsumerState<EditEntryDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_errorMessage != null) ...[
-                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                 const SizedBox(height: 12),
               ],
               _buildPickers(subjectsState, teachersState),

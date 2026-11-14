@@ -1,83 +1,149 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import 'auth_palette.dart';
+import '../../../../core/theme/brand_tokens.dart';
+import '../../../../core/widgets/school365_mark.dart';
 import 'website_links.dart';
 
-/// The top of the desktop sign-in page (redesigned 2026-11-06): the logo
-/// back to the website and what School365ai is in one line. Only shown on
-/// wide screens - [LoginScreen] keeps a phone to the form and [BrandMark].
-class BrandHeader extends StatelessWidget {
-  const BrandHeader({super.key});
+/// The left half of the desktop sign-in page (Warm Editorial, 2026-11-14,
+/// after the redesign prototype's `.login-art`): the plum panel with the
+/// name, one sentence about the product, and who signs in where. Only shown
+/// on wide screens - [LoginScreen] keeps a phone to the form and [BrandMark].
+class LoginStoryPanel extends StatelessWidget {
+  const LoginStoryPanel({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final palette = AuthPalette.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 1300;
+    return Container(
+      key: const Key('login-story'),
+      color: dark ? const Color(0xFF2C1A31) : BrandColors.plum,
+      child: Stack(
+        children: [
+          // The prototype's two soft circles, rose at the top right and coral
+          // at the bottom left. Decoration only.
+          const Positioned(top: -240, right: -245, child: _Glow(size: 540, colour: Color(0x38A33D63))),
+          const Positioned(bottom: -240, left: -130, child: _Glow(size: 380, colour: Color(0x30E69568))),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final roomy = constraints.maxHeight > 760;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const BrandMark(showTagline: true),
-            SizedBox(height: isCompact ? 24 : 32),
-            Text(
-              'SCHOOL MANAGEMENT, ALL IN ONE PLACE',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.4, color: palette.primary),
+                return SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(horizontal: constraints.maxWidth > 640 ? 64 : 40, vertical: 40),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight - 80),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const BrandMark(showTagline: true, onDark: true),
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: roomy ? 40 : 28),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 540),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'SCHOOL MANAGEMENT, ALL IN ONE PLACE',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 2,
+                                    color: const Color(0xFFFFD5B4),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                const _Headline(),
+                                const SizedBox(height: 18),
+                                Text(
+                                  'Attendance, timetables, fees, the school bus and messages to parents, '
+                                  'for everyone who works at the school.',
+                                  style: GoogleFonts.dmSans(fontSize: 16, height: 1.55, color: const Color(0xFFF0E1ED)),
+                                ),
+                                SizedBox(height: roomy ? 32 : 24),
+                                const _WhoSignsIn(),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Text('© School365ai', style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFFD6BBD6))),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Run your whole school day from one sign-in.',
-              style: TextStyle(
-                fontSize: isCompact ? 36 : 46,
-                height: 1.12,
-                letterSpacing: -0.8,
-                fontWeight: FontWeight.w800,
-                color: palette.text,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Attendance, timetables, fees, the school bus and messages to parents, '
-              'for everyone who works at the school.',
-              style: TextStyle(fontSize: 17, color: palette.muted, height: 1.45),
-            ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// Beside the form: who signs in where, over a real school photograph.
-class BrandDetails extends StatelessWidget {
-  const BrandDetails({super.key});
+/// "Every school day, a little simpler." - the second half in italic coral,
+/// as the website sets its headlines.
+class _Headline extends StatelessWidget {
+  const _Headline();
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _WhoSignsIn(),
-        SizedBox(height: 20),
-        Expanded(child: _SchoolPhoto()),
-      ],
+    final width = MediaQuery.sizeOf(context).width;
+    final style = GoogleFonts.gelasio(
+      fontSize: width > 1400 ? 56 : 44,
+      height: 1.08,
+      letterSpacing: -1.2,
+      fontWeight: FontWeight.w500,
+      color: Colors.white,
+    );
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          const TextSpan(text: 'Every school day,\na little '),
+          TextSpan(
+            text: 'simpler.',
+            style: style.copyWith(fontStyle: FontStyle.italic, color: const Color(0xFFF5B18C)),
+          ),
+        ],
+      ),
+      key: const Key('login-headline'),
+      style: style,
     );
   }
 }
 
-/// The School365ai logo, which takes you to the website's homepage.
+class _Glow extends StatelessWidget {
+  const _Glow({required this.size, required this.colour});
+
+  final double size;
+  final Color colour;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: colour),
+      ),
+    );
+  }
+}
+
+/// The School365ai mark and name, which take you to the website's homepage.
 class BrandMark extends StatelessWidget {
-  const BrandMark({super.key, this.showTagline = false});
+  const BrandMark({super.key, this.showTagline = false, this.onDark = false});
 
   final bool showTagline;
 
+  /// On the plum panel rather than the ivory page.
+  final bool onDark;
+
   @override
   Widget build(BuildContext context) {
-    final palette = AuthPalette.of(context);
-
     return Tooltip(
       message: 'Go to the School365ai website',
       child: InkWell(
@@ -86,29 +152,11 @@ class BrandMark extends StatelessWidget {
         onTap: () => WebsiteLinks.open(WebsiteLinks.home),
         child: Padding(
           padding: const EdgeInsets.all(4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: palette.primary, borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.school, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'School365ai',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: palette.text),
-                  ),
-                  if (showTagline)
-                    Text('Smarter Schools. Brighter Futures.', style: TextStyle(fontSize: 13, color: palette.subtle)),
-                ],
-              ),
-            ],
+          child: School365Wordmark(
+            markSize: 42,
+            fontSize: 21,
+            onDark: onDark,
+            tagline: showTagline ? 'Smarter Schools. Brighter Futures.' : null,
           ),
         ),
       ),
@@ -122,22 +170,20 @@ class _WhoSignsIn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AuthPalette.of(context);
-
     return Container(
       key: const Key('who-signs-in'),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
       decoration: BoxDecoration(
-        color: palette.surface,
-        border: Border.all(color: palette.border),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0x14FFFFFF),
+        border: Border.all(color: const Color(0x2EFFFFFF)),
+        borderRadius: BorderRadius.circular(BrandRadii.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Who signs in here?',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: palette.text),
+            style: GoogleFonts.gelasio(fontSize: 19, fontWeight: FontWeight.w600, color: Colors.white),
           ),
           const SizedBox(height: 6),
           const _WhoRow(
@@ -171,8 +217,6 @@ class _WhoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AuthPalette.of(context);
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -181,8 +225,8 @@ class _WhoRow extends StatelessWidget {
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(color: palette.primaryLight, borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 20, color: palette.primary),
+            decoration: BoxDecoration(color: const Color(0x24FFFFFF), borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, size: 19, color: const Color(0xFFFFD5B4)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -191,142 +235,12 @@ class _WhoRow extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: '$title. ',
-                    style: TextStyle(fontWeight: FontWeight.w700, color: palette.text),
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
                   ),
                   TextSpan(text: detail),
                 ],
               ),
-              style: TextStyle(fontSize: 14, height: 1.45, color: palette.muted),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A real classroom rather than a picture of the software (asked for
-/// 2026-11-06): a student at the blackboard in Bengaluru. Photo by Nikhita S
-/// on Unsplash, free to use under the Unsplash License.
-class _SchoolPhoto extends StatelessWidget {
-  const _SchoolPhoto();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AuthPalette.of(context);
-
-    // A background, not an Image: it fills the room the form leaves beside
-    // it and never decides the row's height itself.
-    return Semantics(
-      image: true,
-      label: 'A student in school uniform writing on a classroom blackboard',
-      child: Container(
-        key: const Key('login-photo'),
-        constraints: const BoxConstraints(minHeight: 220),
-        decoration: BoxDecoration(
-          color: palette.primaryLight,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 24, offset: const Offset(0, 8))],
-          image: const DecorationImage(
-            image: AssetImage('assets/images/login-classroom.jpg'),
-            fit: BoxFit.cover,
-            alignment: Alignment(0.3, -0.1),
-          ),
-        ),
-        // What the app does in that classroom's day, over the blackboard
-        // (asked for 2026-11-06: the photo alone did not say). Positioned
-        // only, so the photo still never sets the row's height; whatever does
-        // not fit a short photo is clipped by its rounded corners.
-        child: const ClipRRect(
-          borderRadius: BorderRadius.all(Radius.circular(16)),
-          child: Stack(
-            children: [
-              Positioned(
-                left: 20,
-                top: 20,
-                child: Column(
-                  key: Key('login-photo-moments'),
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _AppMoment(
-                      icon: Icons.fact_check_outlined,
-                      colour: Color(0xFF16A34A),
-                      title: 'Attendance marked',
-                      detail: 'Class 7 A · 38 of 40 present',
-                    ),
-                    SizedBox(height: 10),
-                    _AppMoment(
-                      icon: Icons.directions_bus_outlined,
-                      colour: Color(0xFFEA580C),
-                      title: 'Bus 3 reached school',
-                      detail: '8:02 am · parents told on WhatsApp',
-                    ),
-                    SizedBox(height: 10),
-                    _AppMoment(
-                      icon: Icons.receipt_long_outlined,
-                      colour: Color(0xFF2563EB),
-                      title: 'Fee received ₹XXXXX',
-                      detail: 'Receipt sent to the parent',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// One thing the app just did, drawn like the app's own notices.
-class _AppMoment extends StatelessWidget {
-  const _AppMoment({required this.icon, required this.colour, required this.title, required this.detail});
-
-  final IconData icon;
-  final Color colour;
-  final String title;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AuthPalette.of(context);
-
-    return Container(
-      width: 300,
-      padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 16, offset: Offset(0, 6))],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(color: colour.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(9)),
-            child: Icon(icon, size: 19, color: colour),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: palette.text),
-                ),
-                Text(
-                  detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: palette.muted),
-                ),
-              ],
+              style: GoogleFonts.dmSans(fontSize: 14, height: 1.45, color: const Color(0xFFE8D7E6)),
             ),
           ),
         ],

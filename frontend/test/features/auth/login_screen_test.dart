@@ -150,24 +150,20 @@ void main() {
       expect(find.byType(AutofillGroup), findsOneWidget);
     });
 
-    testWidgets('on a wide screen, explains who signs in where, beside a school photograph', (tester) async {
+    testWidgets('on a wide screen, the plum story panel explains who signs in where', (tester) async {
       useDesktop(tester);
       await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
       await tester.pumpAndSettle();
 
+      expect(find.byKey(const Key('login-story')), findsOneWidget);
       expect(find.text('Smarter Schools. Brighter Futures.'), findsOneWidget);
-      expect(find.text('Run your whole school day from one sign-in.'), findsOneWidget);
+      expect(find.textContaining('Every school day,', findRichText: true), findsOneWidget);
       expect(find.byKey(const Key('who-signs-in')), findsOneWidget);
       for (final who in ['School staff. ', 'Bus attendants. ', 'Parents. ']) {
         expect(find.textContaining(who, findRichText: true), findsOneWidget, reason: who);
       }
-      final photo = tester.widget<Container>(find.byKey(const Key('login-photo')));
-      final image = (photo.decoration! as BoxDecoration).image!.image as AssetImage;
-      expect(image.assetName, 'assets/images/login-classroom.jpg');
-      // Over the photo, what the app does in a school day.
-      for (final moment in ['Attendance marked', 'Bus 3 reached school', 'Fee received ₹XXXXX']) {
-        expect(find.text(moment), findsOneWidget, reason: moment);
-      }
+      // No sample figures or made-up activity on the sign-in page.
+      expect(find.byKey(const Key('login-photo')), findsNothing);
       // Bus attendants are pointed at the button under the form, not given a second one.
       expect(find.text('Sign in with mobile'), findsNothing);
       // The form itself is still reachable alongside the panel.
@@ -181,6 +177,17 @@ void main() {
 
       expect(find.byTooltip('Go to the School365ai website'), findsOneWidget);
       await tester.tap(find.byKey(const Key('login-logo')));
+      await tester.pump();
+
+      expect(opened.single.path, '/');
+    });
+
+    testWidgets('a wide screen also has a way back to the website beside the form', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('login-visit-website')));
       await tester.pump();
 
       expect(opened.single.path, '/');

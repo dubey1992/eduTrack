@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../application/break_list_notifier.dart';
@@ -276,7 +277,7 @@ class _EditPeriodDialogState extends ConsumerState<_EditPeriodDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_errorMessage != null) ...[
-                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                 const SizedBox(height: 12),
               ],
               if (widget.period == null && hasHalfDays) ...[

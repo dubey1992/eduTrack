@@ -126,85 +126,108 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       onAttendantSignIn: attendantSignIn,
     );
 
+    final palette = AuthPalette.of(context);
+
     return Scaffold(
-      backgroundColor: AuthPalette.of(context).background,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, viewport) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              // Matches the prototype's `min-height:100vh; align-items:center`
-              // - short content (mobile card, or a desktop window taller than
-              // the login content) centers vertically in the viewport;
-              // content taller than the viewport just scrolls normally.
+      backgroundColor: palette.background,
+      body: ResponsiveBuilder(
+        // A phone keeps the form as the first thing on screen - the story
+        // panel is for wide screens and would bury the form below the fold.
+        mobile: (context) => SafeArea(
+          child: LayoutBuilder(
+            builder: (context, viewport) => SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: viewport.maxHeight - 48),
                 child: Center(
-                  child: ResponsiveBuilder(
-                    // A phone screen keeps the login card as the only thing
-                    // on screen - the hero copy and illustration are
-                    // decorative and would otherwise bury the actual form
-                    // below the fold.
-                    mobile: (context) => ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Align(alignment: Alignment.centerLeft, child: BrandMark()),
-                          const SizedBox(height: 16),
-                          loginCard,
-                          const SizedBox(height: 16),
-                          const _ParentNote(),
-                          const SizedBox(height: 8),
-                          const _HelpLinks(),
-                        ],
-                      ),
-                    ),
-                    // Flexible hero + a fixed-width card, matching the
-                    // prototype's `grid-template-columns: 1fr 430px`.
-                    // The header across the top; under it the "who signs in"
-                    // guide and the photo beside the form, the form's card as
-                    // tall as the two of them (asked for 2026-11-06).
-                    desktop: (context) => ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1320),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const BrandHeader(),
-                          const SizedBox(height: 28),
-                          // As tall as the form needs; the guide and the photo
-                          // stretch to match it.
-                          IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const Expanded(child: BrandDetails()),
-                                const SizedBox(width: 32),
-                                SizedBox(
-                                  width: 430,
-                                  child: Column(
-                                    children: [
-                                      Expanded(child: loginCard),
-                                      const SizedBox(height: 10),
-                                      const _HelpLinks(),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Align(alignment: Alignment.centerLeft, child: BrandMark()),
+                        const SizedBox(height: 18),
+                        loginCard,
+                        const SizedBox(height: 16),
+                        const _ParentNote(),
+                        const SizedBox(height: 8),
+                        const _HelpLinks(),
+                      ],
                     ),
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          ),
+        ),
+        // The redesign prototype's split screen (Warm Editorial,
+        // 2026-11-14): the plum story on the left, the form on warm ivory on
+        // the right.
+        desktop: (context) => Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Expanded(child: LoginStoryPanel()),
+            Expanded(
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(24, 20, 28, 0),
+                      child: Align(alignment: Alignment.centerRight, child: _VisitWebsite()),
+                    ),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, viewport) => SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: viewport.maxHeight - 48),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 440),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [loginCard, const SizedBox(height: 14), const _HelpLinks()],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+/// Back to school365ai.com, at the top of the form's side.
+class _VisitWebsite extends StatelessWidget {
+  const _VisitWebsite();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AuthPalette.of(context);
+
+    return OutlinedButton.icon(
+      key: const Key('login-visit-website'),
+      onPressed: () => WebsiteLinks.open(WebsiteLinks.home),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: palette.primary,
+        backgroundColor: palette.surface,
+        side: BorderSide(color: palette.border),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: const StadiumBorder(),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+      ),
+      icon: const Icon(Icons.arrow_back, size: 16),
+      label: const Text('Visit website'),
     );
   }
 }

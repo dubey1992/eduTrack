@@ -107,20 +107,20 @@ void main() {
       final students = tester.widget<Card>(find.byKey(const Key('stat-card-students')));
       final staff = tester.widget<Card>(find.byKey(const Key('stat-card-staff')));
 
-      expect(students.color, ChartPalette.blue.lightSoft);
-      expect(staff.color, ChartPalette.violet.lightSoft);
+      expect(students.color, ChartPalette.plum.lightSoft);
+      expect(staff.color, ChartPalette.rose.lightSoft);
       expect(students.color, isNot(staff.color));
     });
 
     testWidgets('a value is green, amber or red by what it means, and a plain count stays plain', (tester) async {
       await pump(tester, _colourful);
 
-      expect(_valueColour(tester, 'attendance', '82%'), AppColors.light.warning);
-      expect(_valueColour(tester, 'fees_overdue', '4'), AppColors.light.danger);
-      expect(_valueColour(tester, 'performance', '71%'), AppColors.light.success);
+      expect(_valueColour(tester, 'attendance', '82%'), AppColors.warmLight.warning);
+      expect(_valueColour(tester, 'fees_overdue', '4'), AppColors.warmLight.danger);
+      expect(_valueColour(tester, 'performance', '71%'), AppColors.warmLight.success);
       expect(
         _valueColour(tester, 'students', '842'),
-        isNot(anyOf(AppColors.light.success, AppColors.light.warning, AppColors.light.danger)),
+        isNot(anyOf(AppColors.warmLight.success, AppColors.warmLight.warning, AppColors.warmLight.danger)),
       );
     });
 
@@ -132,7 +132,7 @@ void main() {
     testWidgets('they take the dark shades in the dark theme', (tester) async {
       await pump(tester, _colourful, theme: AppTheme.dark());
 
-      expect(tester.widget<Card>(find.byKey(const Key('stat-card-students'))).color, ChartPalette.blue.darkSoft);
+      expect(tester.widget<Card>(find.byKey(const Key('stat-card-students'))).color, ChartPalette.plum.darkSoft);
       expect(tester.takeException(), isNull);
     });
   });
@@ -235,7 +235,10 @@ void main() {
           .map((box) => (box.decoration as BoxDecoration?)?.color)
           .toSet();
 
-      expect(colours, containsAll([AppColors.light.success, AppColors.light.warning, AppColors.light.danger]));
+      expect(
+        colours,
+        containsAll([AppColors.warmLight.success, AppColors.warmLight.warning, AppColors.warmLight.danger]),
+      );
       expect(find.text('90% and above'), findsOneWidget);
       expect(find.text('75-89%'), findsOneWidget);
       expect(find.text('Below 75%'), findsOneWidget);
