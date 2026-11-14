@@ -18,7 +18,7 @@ class SetupProgressBar extends StatelessWidget {
   static Color colourFor(BuildContext context, int done, int total) {
     if (total > 0 && done >= total) return context.appColors.success;
 
-    return done * 2 >= total ? ChartPalette.blue.strong(context) : ChartPalette.orange.strong(context);
+    return done * 2 >= total ? ChartPalette.plum.strong(context) : ChartPalette.coral.strong(context);
   }
 
   @override

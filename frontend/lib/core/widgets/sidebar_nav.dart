@@ -5,22 +5,25 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/data/models/authenticated_user.dart';
 import '../routing/app_nav.dart';
+import '../theme/brand_tokens.dart';
+import 'school365_mark.dart';
 
-/// The prototype's sidebar colours (`--sidebar:#111827` and friends in its
-/// default theme, docs/prototype/school_management_prototype_v4_themes.html):
-/// a fixed dark surface whatever the app's light/dark mode, so they are not
-/// taken from [Theme.of(context).colorScheme].
+/// The sidebar's colours (Warm Editorial, 2026-11-14): a plum surface
+/// whatever the app's light/dark mode, as in the redesign prototype, so they
+/// are not taken from [Theme.of(context).colorScheme]. What is open is
+/// white with plum text; every text colour reads at 4.5:1 on the plum.
 class _SidebarColors {
   const _SidebarColors._();
 
-  static const background = Color(0xFF111827);
-  static const text = Color(0xFFCBD5E1);
-  static const subtext = Color(0xFF94A3B8);
-  static const groupLabel = Color(0xFF64748B);
-  static const activeBackground = Color(0xFF1F2937);
-  static const activeText = Colors.white;
-  // The prototype's --primary: marks the area that is open.
-  static const primary = Color(0xFF2563EB);
+  static const background = BrandColors.plum;
+  static const text = Color(0xFFF0E4EF);
+  static const subtext = Color(0xFFD9C4DC);
+  static const groupLabel = Color(0xFFD4B9D8);
+  static const hover = Color(0x1FFFFFFF);
+  static const divider = Color(0x24FFFFFF);
+  static const activeBackground = Colors.white;
+  static const activeText = BrandColors.plum;
+  static const heading = Colors.white;
 }
 
 /// Whether the list of an area's screens is showing beside the icon strip.
@@ -88,7 +91,7 @@ class _SidebarNavState extends ConsumerState<SidebarNav> {
               onSelect: (group) => _openArea(group, user, shown),
             ),
             if (panelOpen) ...[
-              const VerticalDivider(width: 1, thickness: 1, color: _SidebarColors.activeBackground),
+              const VerticalDivider(width: 1, thickness: 1, color: _SidebarColors.divider),
               if (widget.inDrawer)
                 Expanded(
                   child: _Panel(group: shown, user: user, currentPath: currentPath, onNavigate: _navigated),
@@ -153,12 +156,7 @@ class _Rail extends ConsumerWidget {
               key: const Key('nav-logo'),
               borderRadius: BorderRadius.circular(11),
               onTap: () => context.go('/dashboard'),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: _SidebarColors.primary, borderRadius: BorderRadius.circular(11)),
-                child: const Icon(Icons.school, color: Colors.white, size: 22),
-              ),
+              child: const Padding(padding: EdgeInsets.all(2), child: School365Mark(size: 42)),
             ),
           ),
           const SizedBox(height: 10),
@@ -211,7 +209,7 @@ class _RailButton extends StatelessWidget {
         child: InkWell(
           key: Key('nav-area-${group.label}'),
           borderRadius: BorderRadius.circular(10),
-          hoverColor: _SidebarColors.activeBackground,
+          hoverColor: _SidebarColors.hover,
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 7),
@@ -221,8 +219,11 @@ class _RailButton extends StatelessWidget {
                   width: 44,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: selected ? _SidebarColors.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(9),
+                    color: selected ? _SidebarColors.activeBackground : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: selected
+                        ? const [BoxShadow(color: Color(0x40160B1B), blurRadius: 12, offset: Offset(0, 4))]
+                        : null,
                   ),
                   child: Icon(group.icon, size: 20, color: selected ? _SidebarColors.activeText : _SidebarColors.text),
                 ),
@@ -236,7 +237,7 @@ class _RailButton extends StatelessWidget {
                     fontSize: 10.5,
                     height: 1.15,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: selected ? _SidebarColors.activeText : _SidebarColors.subtext,
+                    color: selected ? _SidebarColors.heading : _SidebarColors.subtext,
                   ),
                 ),
               ],
@@ -263,11 +264,25 @@ class _Panel extends StatelessWidget {
       key: const Key('nav-panel'),
       padding: const EdgeInsets.symmetric(vertical: 12),
       children: [
+        // The name as the website writes it, "ai" in coral.
         const Padding(
-          padding: EdgeInsets.fromLTRB(20, 8, 20, 4),
-          child: Text(
-            'School365ai',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: _SidebarColors.activeText),
+          padding: EdgeInsets.fromLTRB(20, 10, 20, 2),
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: 'School365'),
+                TextSpan(
+                  text: 'ai',
+                  style: TextStyle(color: BrandColors.coral),
+                ),
+              ],
+            ),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 19,
+              letterSpacing: -0.5,
+              color: _SidebarColors.heading,
+            ),
           ),
         ),
         const Padding(
@@ -281,7 +296,7 @@ class _Panel extends StatelessWidget {
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
+              letterSpacing: 1.6,
               color: _SidebarColors.groupLabel,
             ),
           ),
@@ -309,9 +324,11 @@ class _NavTile extends StatelessWidget {
       child: Material(
         color: selected ? _SidebarColors.activeBackground : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
+        elevation: selected ? 3 : 0,
+        shadowColor: const Color(0x66160B1B),
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          hoverColor: _SidebarColors.activeBackground,
+          hoverColor: _SidebarColors.hover,
           onTap: () {
             context.go(item.path);
             onNavigate();
@@ -330,7 +347,11 @@ class _NavTile extends StatelessWidget {
                     item.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                      color: color,
+                    ),
                   ),
                 ),
               ],

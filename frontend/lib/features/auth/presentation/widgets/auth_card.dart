@@ -25,7 +25,7 @@ class AuthCard extends StatelessWidget {
         padding: const EdgeInsets.all(36),
         decoration: BoxDecoration(
           color: palette.surface,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: palette.border),
           boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 60, offset: const Offset(0, 25))],
         ),

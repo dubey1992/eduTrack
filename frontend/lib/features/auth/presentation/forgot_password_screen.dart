@@ -71,10 +71,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       children: [
         Icon(Icons.mark_email_read_outlined, size: 40, color: palette.primary),
         const SizedBox(height: 16),
-        Text(
-          'Check your email',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: palette.text),
-        ),
+        Text('Check your email', style: palette.heading(24)),
         const SizedBox(height: 8),
         Text(
           'If an account exists for that email, a password reset link has been sent.',
@@ -96,10 +93,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Forgot Password?',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: palette.text),
-          ),
+          Text('Forgot Password?', style: palette.heading(28)),
           const SizedBox(height: 4),
           Text(
             'Enter your email and we will send you a password reset link.',

@@ -26,12 +26,20 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
     final heading = AppNav.headingFor(location);
+    final area = AppNav.groupOf(location)?.label;
 
     return ResponsiveBuilder(
       mobile: (context) => Scaffold(
         drawer: Drawer(width: 304, child: SidebarNav(inDrawer: true, onNavigate: () => Navigator.of(context).pop())),
         appBar: AppBar(
-          title: Text(heading?.title ?? ''),
+          // Close to the menu button and a size smaller than the desktop's,
+          // so "Dashboard" or "Timetable" fits beside the year and the
+          // account buttons on a 360-pixel phone.
+          titleSpacing: 4,
+          title: Text(
+            heading?.title ?? '',
+            style: Theme.of(context).appBarTheme.titleTextStyle?.copyWith(fontSize: 18),
+          ),
           actions: [
             const YearSwitch(compact: true),
             const _ProfileButton(),
@@ -56,7 +64,7 @@ class AppShell extends ConsumerWidget {
             Expanded(
               child: Column(
                 children: [
-                  _Topbar(heading: heading),
+                  _Topbar(heading: heading, area: area),
                   const Divider(height: 1),
                   Expanded(child: child),
                 ],
@@ -69,28 +77,59 @@ class AppShell extends ConsumerWidget {
   }
 }
 
+/// The bar across the top of every desktop page (Warm Editorial,
+/// 2026-11-14): the area as a small rose eyebrow - where you are - over the
+/// page's serif title and what the page is for; the year, who is signed in
+/// and the account's actions on the right.
 class _Topbar extends ConsumerWidget {
-  const _Topbar({required this.heading});
+  const _Topbar({required this.heading, required this.area});
 
   final ({String title, String subtitle})? heading;
+
+  /// The sidebar area the page sits in.
+  final String? area;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authNotifierProvider).value;
+    final theme = Theme.of(context);
+    final title = heading?.title ?? '';
+    // Not repeated when the page is its area's namesake ("Dashboard").
+    final eyebrow = area != null && area != title ? area! : null;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+    return Container(
+      color: theme.colorScheme.surface,
+      padding: const EdgeInsets.fromLTRB(28, 14, 20, 14),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(heading?.title ?? '', style: Theme.of(context).textTheme.titleLarge),
+                if (eyebrow != null)
+                  Text(
+                    eyebrow.toUpperCase(),
+                    key: const Key('topbar-area'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.8,
+                      color: theme.colorScheme.secondary,
+                    ),
+                  ),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.headlineSmall?.copyWith(fontSize: 26, height: 1.2),
+                ),
                 if (heading != null)
                   Text(
                     heading!.subtitle,
-                    style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurfaceVariant),
                   ),
               ],
             ),
@@ -104,20 +143,20 @@ class _Topbar extends ConsumerWidget {
             _ProfileChip(name: user.name, photoUrl: user.photoUrl),
             const SizedBox(width: 8),
           ],
-          IconButton(
-            icon: const Icon(Icons.devices_outlined),
+          _RoundAction(
+            icon: Icons.devices_outlined,
             tooltip: 'Signed-in devices',
             onPressed: () => showDialog(context: context, builder: (_) => const SignedInDevicesDialog()),
           ),
-          IconButton(
-            icon: const Icon(Icons.lock_outline),
+          _RoundAction(
+            icon: Icons.lock_outline,
             tooltip: 'Change password',
             // A dialog, not a page: changing a password is a two-minute
             // errand, and whoever is halfway through marking attendance
             // should get back to it rather than be navigated away.
             onPressed: () => showDialog(context: context, builder: (_) => const ChangePasswordDialog()),
           ),
-          IconButton(icon: const Icon(Icons.logout), tooltip: 'Log out', onPressed: () => confirmLogout(context, ref)),
+          _RoundAction(icon: Icons.logout, tooltip: 'Log out', onPressed: () => confirmLogout(context, ref)),
         ],
       ),
     );
@@ -163,13 +202,14 @@ class _ProfileChip extends StatelessWidget {
       message: 'My profile',
       child: InkWell(
         key: const Key('header-profile-chip'),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(99),
         onTap: () => context.go('/profile'),
         child: Container(
           padding: const EdgeInsets.fromLTRB(6, 4, 12, 4),
           decoration: BoxDecoration(
+            color: colorScheme.surface,
             border: Border.all(color: colorScheme.outlineVariant),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(99),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -213,12 +253,43 @@ class _Pill extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(color: colorScheme.primaryContainer, borderRadius: BorderRadius.circular(99)),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: colorScheme.onSecondaryContainer),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// One of the account's actions in the top bar: a soft round button, as in
+/// the redesign prototype.
+class _RoundAction extends StatelessWidget {
+  const _RoundAction({required this.icon, required this.tooltip, required this.onPressed});
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: IconButton(
+        icon: Icon(icon, size: 19),
+        tooltip: tooltip,
+        style: IconButton.styleFrom(
+          backgroundColor: colorScheme.primaryContainer,
+          foregroundColor: colorScheme.onPrimaryContainer,
+          hoverColor: colorScheme.secondary.withValues(alpha: 0.12),
+          fixedSize: const Size(38, 38),
+          minimumSize: const Size(38, 38),
+        ),
+        onPressed: onPressed,
+      ),
     );
   }
 }

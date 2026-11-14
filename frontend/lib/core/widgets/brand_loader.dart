@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// "Loading", in the School365ai mark: the blue tile with the graduation cap
-/// from the homepage, bouncing gently while the cap tips and its tassel
+/// "Loading", in the School365ai mark: the rose-to-coral circle with the
+/// graduation cap from the website and the favicon (2026-11-14), bouncing gently while the cap tips and its tassel
 /// swings. Used wherever a screen or a section waits - in the web portal and
 /// both phone apps - in place of a plain spinning circle.
 ///
@@ -24,13 +24,13 @@ class BrandLoader extends StatefulWidget {
   /// Shown under the mark - the app's name, on a splash screen.
   final String? label;
 
-  /// The homepage's own blue (MarketingColors.primary), and the deeper one
-  /// the tile shades into.
-  static const blue = Color(0xFF2563EB);
-  static const blueDeep = Color(0xFF1D4ED8);
+  /// The mark's two colours: rose at the top left shading into coral
+  /// (BrandColors.markGradient).
+  static const rose = Color(0xFFB24667);
+  static const coral = Color(0xFFE8916F);
 
-  /// The tassel - the gold of the cap on the homepage.
-  static const gold = Color(0xFFFBBF24);
+  /// The tassel - the soft gold of the favicon's.
+  static const gold = Color(0xFFFFE0AA);
 
   @override
   State<BrandLoader> createState() => _BrandLoaderState();
@@ -119,7 +119,7 @@ class _Bouncing extends StatelessWidget {
               width: size * (0.72 - 0.22 * lift),
               height: size * 0.08,
               decoration: BoxDecoration(
-                color: BrandLoader.blueDeep.withValues(alpha: 0.22 - 0.12 * lift),
+                color: BrandLoader.rose.withValues(alpha: 0.22 - 0.12 * lift),
                 borderRadius: BorderRadius.all(Radius.elliptical(size, size * 0.08)),
               ),
             ),
@@ -133,9 +133,9 @@ class _Bouncing extends StatelessWidget {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [BrandLoader.blue, BrandLoader.blueDeep],
+                  colors: [BrandLoader.rose, BrandLoader.coral],
                 ),
-                borderRadius: BorderRadius.circular(size * 0.27),
+                shape: BoxShape.circle,
               ),
               child: CustomPaint(
                 painter: _CapPainter(tilt: 0.1 * swing, tassel: 0.45 * math.cos(2 * math.pi * t)),
@@ -148,7 +148,7 @@ class _Bouncing extends StatelessWidget {
   }
 }
 
-/// The graduation cap, in white on the tile, with a gold tassel.
+/// The graduation cap, in white on the circle, with a gold tassel.
 class _CapPainter extends CustomPainter {
   _CapPainter({required this.tilt, required this.tassel});
 

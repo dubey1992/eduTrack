@@ -13,12 +13,16 @@ class KpiCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
+    // The redesign prototype's `.stat`: a white card, the label small and
+    // muted, the figure bold in the primary colour - at the old size, since
+    // it heads dense screens such as Staff Leave.
     return Container(
       constraints: const BoxConstraints(minWidth: 150),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
+        color: colorScheme.surface,
         border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -26,7 +30,15 @@ class KpiCard extends StatelessWidget {
         children: [
           Text(label, style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant)),
           const SizedBox(height: 6),
-          Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+              color: colorScheme.primary,
+            ),
+          ),
         ],
       ),
     );

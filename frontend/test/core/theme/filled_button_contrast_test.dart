@@ -32,7 +32,12 @@ void main() {
   }
 
   // Built inside each test: the theme loads a font, which needs the binding.
-  for (final (name, theme) in [('light', AppTheme.light), ('dark', AppTheme.dark)]) {
+  for (final (name, theme) in [
+    ('light', AppTheme.light),
+    ('dark', AppTheme.dark),
+    ('Driver app light', AppTheme.crewLight),
+    ('Driver app dark', AppTheme.crewDark),
+  ]) {
     testWidgets('a tonal button reads in the $name theme', (tester) async {
       final (background, foreground) = await colours(
         tester,
@@ -54,8 +59,10 @@ void main() {
         const FilledButton.tonal(onPressed: null, child: Text('Boarded')),
       );
 
+      // The disabled fill is see-through, so measure it as it shows on the page.
       final page = theme().scaffoldBackgroundColor;
-      expect(contrast(dead, page), lessThan(contrast(live, page)), reason: 'disabled stands out less, $name');
+      final shown = Color.alphaBlend(dead, page);
+      expect(contrast(shown, page), lessThan(contrast(live, page)), reason: 'disabled stands out less, $name');
     });
   }
 }

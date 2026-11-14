@@ -108,7 +108,7 @@ class BreakdownRingCard extends StatelessWidget {
       'present' || 'collected' => colours.success,
       'half_day' => ChartPalette.teal.strong(context),
       'absent' => colours.danger,
-      'leave' => ChartPalette.violet.strong(context),
+      'leave' => ChartPalette.rose.strong(context),
       'outstanding' => colours.warning,
       _ => Theme.of(context).colorScheme.outlineVariant,
     };

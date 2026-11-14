@@ -41,6 +41,7 @@ class AppColors extends ThemeExtension<AppColors> {
   /// Secondary/placeholder text - lighter than the body text color.
   final Color muted;
 
+  /// The phone apps' set (Driver, Teacher, Family).
   static const light = AppColors(
     success: Color(0xFF16A34A),
     onSuccessContainer: Color(0xFF166534),
@@ -55,6 +56,41 @@ class AppColors extends ThemeExtension<AppColors> {
     onInfoContainer: Color(0xFF1E40AF),
     infoContainer: Color(0xFFDBE4FF),
     muted: Color(0xFF64748B),
+  );
+
+  /// The web app's set (Warm Editorial, 2026-11-14): the website's green,
+  /// gold and berry red, softened to sit beside plum on ivory. Each
+  /// "on...Container" text colour reads at 4.5:1 or better on its container.
+  static const warmLight = AppColors(
+    success: Color(0xFF277B62),
+    onSuccessContainer: Color(0xFF1D5E4A),
+    successContainer: Color(0xFFE5F4EC),
+    danger: Color(0xFFB03A4A),
+    onDangerContainer: Color(0xFF8E2A39),
+    dangerContainer: Color(0xFFFCE9EC),
+    warning: Color(0xFFAD7531),
+    onWarningContainer: Color(0xFF7D5218),
+    warningContainer: Color(0xFFFFF0DB),
+    info: Color(0xFF6A4378),
+    onInfoContainer: Color(0xFF5A3768),
+    infoContainer: Color(0xFFF3E8F6),
+    muted: Color(0xFF6F6574),
+  );
+
+  static const warmDark = AppColors(
+    success: Color(0xFF6FD3B0),
+    onSuccessContainer: Color(0xFF9FE3C8),
+    successContainer: Color(0xFF173A30),
+    danger: Color(0xFFF59AA5),
+    onDangerContainer: Color(0xFFF8B9C1),
+    dangerContainer: Color(0xFF4A1C26),
+    warning: Color(0xFFE9B86F),
+    onWarningContainer: Color(0xFFF2CF98),
+    warningContainer: Color(0xFF45300F),
+    info: Color(0xFFD6B3E3),
+    onInfoContainer: Color(0xFFE4CCEC),
+    infoContainer: Color(0xFF3A2744),
+    muted: Color(0xFFBDAFC1),
   );
 
   static const dark = AppColors(

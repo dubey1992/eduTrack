@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'school365_mark.dart';
 
 /// A full-screen "something is not normal" page: brand lockup, a badge, a
 /// headline, an explanation and the way out.
@@ -121,13 +122,7 @@ class _BrandLockup extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(12)),
-          alignment: Alignment.center,
-          child: const Text('🎓', style: TextStyle(fontSize: 22)),
-        ),
+        const School365Mark(size: 44),
         const SizedBox(width: 12),
         // Flexible, not bare: the tagline is wider than a narrow phone and
         // would otherwise run the whole lockup off the edge.

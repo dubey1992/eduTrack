@@ -63,10 +63,7 @@ class LoginCard extends StatelessWidget {
             children: [
               // Says what this is and which account it wants, rather than
               // welcoming someone back on their first day (2026-11-06).
-              Text(
-                'Sign in to School365ai',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: palette.text),
-              ),
+              Text('Sign in to School365ai', style: palette.heading(28)),
               const SizedBox(height: 6),
               Text(
                 'Use the email and password your school set up for you.',
@@ -188,7 +185,7 @@ class LoginCard extends StatelessWidget {
                       foregroundColor: palette.primary,
                       side: BorderSide(color: palette.border),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     icon: const Icon(Icons.directions_bus_filled_outlined, size: 18),
                     label: const Text('Bus attendant? Sign in with your mobile number', textAlign: TextAlign.center),

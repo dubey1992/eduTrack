@@ -1,25 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../features/auth/presentation/widgets/auth_palette.dart';
 import 'app_colors.dart';
+import 'brand_tokens.dart';
 import 'teacher_brand.dart';
 
-/// App theme. Palette is "Slate Monochrome" - near-black/white, high
-/// contrast, almost no brand color - so status badges (green/red/amber)
-/// carry the color instead of a branded hue. Minimal, editorial, and
-/// culturally neutral for a product launching across multiple countries.
-/// Respects the device's light/dark preference (ThemeMode.system in
-/// main.dart) rather than forcing one look.
+/// The apps' themes.
 ///
-/// Typeface is Poppins (via google_fonts) app-wide - the same font as the
-/// public marketing page, applied here through [textTheme] plus every
-/// sub-theme that carries its own hardcoded TextStyle (AppBar, buttons,
-/// chips, DataTable, SnackBar), since those aren't guaranteed to inherit
-/// fontFamily from textTheme the way a plain inherited Text widget does.
+/// **The web app** ([light], [dark]) wears the public website's Warm
+/// Editorial design (2026-11-14, docs/prototype school365ai_app_redesign):
+/// plum and rose on warm ivory, DM Sans for text, and Gelasio - a free
+/// metric twin of the website's Georgia - for headings. Every screen takes
+/// its look from here and from the [ThemeExtension]s below, so one change
+/// here reaches all of them.
+///
+/// **The phone apps** keep the look they launched with: the Driver app the
+/// slate monochrome ([crewLight], [crewDark]) and the Teacher app its teal,
+/// both in Poppins.
+///
+/// Both follow the device's light/dark setting (ThemeMode.system).
 class AppTheme {
   const AppTheme._();
 
-  // ---- Light ----
+  // ---- The phone apps' slate ground ----
   static const _lightPrimary = Color(0xFF0F172A);
   static const _lightPrimarySoft = Color(0xFFE9ECF1);
   static const _lightBackground = Colors.white;
@@ -27,7 +31,6 @@ class AppTheme {
   static const _lightText = Color(0xFF0F172A);
   static const _lightBorder = Color(0xFFCFD5DE);
 
-  // ---- Dark (monochrome inverted, not a different hue) ----
   static const _darkPrimary = Color(0xFFE2E8F0);
   static const _darkPrimarySoft = Color(0xFF1E293B);
   static const _darkBackground = Color(0xFF0B0F1A);
@@ -35,148 +38,284 @@ class AppTheme {
   static const _darkText = Color(0xFFF1F5F9);
   static const _darkBorder = Color(0xFF263042);
 
+  /// The phone apps' radii. The web app's are [BrandRadii].
   static const radiusCard = 8.0;
   static const radiusControl = 6.0;
 
+  // ---- The web app ----
+
   static ThemeData light() => _build(
-    brightness: Brightness.light,
-    primary: _lightPrimary,
-    primarySoft: _lightPrimarySoft,
-    background: _lightBackground,
-    surface: _lightSurface,
-    text: _lightText,
-    border: _lightBorder,
-    appColors: AppColors.light,
+    _Palette(
+      brightness: Brightness.light,
+      primary: BrandColors.plum,
+      onPrimary: Colors.white,
+      primarySoft: BrandColors.blush,
+      accent: BrandColors.rose,
+      background: BrandColors.workspace,
+      surface: Colors.white,
+      surfaceTints: const [Colors.white, Color(0xFFFDF9FA), Color(0xFFFAF4F7), Color(0xFFF6EEF2), Color(0xFFF2E8EE)],
+      text: BrandColors.ink,
+      muted: BrandColors.muted,
+      border: BrandColors.line,
+      appColors: AppColors.warmLight,
+      authPalette: AuthPalette.editorialLight,
+    ),
+    editorial: true,
   );
 
   static ThemeData dark() => _build(
-    brightness: Brightness.dark,
-    primary: _darkPrimary,
-    primarySoft: _darkPrimarySoft,
-    background: _darkBackground,
-    surface: _darkSurface,
-    text: _darkText,
-    border: _darkBorder,
-    appColors: AppColors.dark,
+    _Palette(
+      brightness: Brightness.dark,
+      primary: BrandColors.nightRose,
+      onPrimary: BrandColors.deepPlum,
+      primarySoft: const Color(0xFF3A2440),
+      accent: BrandColors.nightRose,
+      background: BrandColors.night,
+      surface: BrandColors.nightSurface,
+      surfaceTints: const [
+        Color(0xFF20162A),
+        Color(0xFF241A2A),
+        Color(0xFF2A1E30),
+        Color(0xFF302336),
+        Color(0xFF36283C),
+      ],
+      text: BrandColors.nightText,
+      muted: BrandColors.nightMuted,
+      border: BrandColors.nightLine,
+      appColors: AppColors.warmDark,
+      authPalette: AuthPalette.editorialDark,
+    ),
+    editorial: true,
+  );
+
+  // ---- The Driver app ----
+
+  static ThemeData crewLight() => _build(
+    _Palette.phone(
+      brightness: Brightness.light,
+      primary: _lightPrimary,
+      primarySoft: _lightPrimarySoft,
+      background: _lightBackground,
+    ),
+  );
+
+  static ThemeData crewDark() => _build(
+    _Palette.phone(
+      brightness: Brightness.dark,
+      primary: _darkPrimary,
+      primarySoft: _darkPrimarySoft,
+      background: _darkBackground,
+    ),
   );
 
   // ---- The Teacher app (docs/teacher-app.md) ----
   //
-  // The same theme with the teacher brand's teal for its primary, so the
+  // The slate theme with the teacher brand's teal for its primary, so the
   // app reads as its own product on a phone while every widget, badge and
-  // spacing stays the portal's. The semantic colours (success, danger,
-  // warning) are unchanged: a "Report owed" means the same thing in both.
+  // spacing stays the same. The semantic colours are unchanged: a "Report
+  // owed" means the same thing everywhere.
   static ThemeData teacherLight() => _build(
-    brightness: Brightness.light,
-    primary: TeacherBrand.teal,
-    primarySoft: TeacherBrand.mint,
-    background: _lightBackground,
-    surface: _lightSurface,
-    text: _lightText,
-    border: _lightBorder,
-    appColors: AppColors.light,
+    _Palette.phone(
+      brightness: Brightness.light,
+      primary: TeacherBrand.teal,
+      primarySoft: TeacherBrand.mint,
+      background: _lightBackground,
+    ),
   );
 
   static ThemeData teacherDark() => _build(
-    brightness: Brightness.dark,
-    primary: TeacherBrand.tealBright,
-    primarySoft: TeacherBrand.tealNight,
-    background: _darkBackground,
-    surface: _darkSurface,
-    text: _darkText,
-    border: _darkBorder,
-    appColors: AppColors.dark,
+    _Palette.phone(
+      brightness: Brightness.dark,
+      primary: TeacherBrand.tealBright,
+      primarySoft: TeacherBrand.tealNight,
+      background: _darkBackground,
+    ),
   );
 
-  static ThemeData _build({
-    required Brightness brightness,
-    required Color primary,
-    required Color primarySoft,
-    required Color background,
-    required Color surface,
-    required Color text,
-    required Color border,
-    required AppColors appColors,
-  }) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: primary,
-      brightness: brightness,
-      primary: primary,
-      surface: surface,
-      primaryContainer: primarySoft,
-    );
+  static ThemeData _build(_Palette p, {bool editorial = false}) {
+    final dark = p.brightness == Brightness.dark;
+    final cardRadius = editorial ? BrandRadii.card : radiusCard;
+    final controlRadius = editorial ? BrandRadii.control : radiusControl;
 
-    final baseTextTheme = Typography.material2021(platform: TargetPlatform.android).black
-        .apply(bodyColor: text, displayColor: text)
-        .copyWith(
-          // A slightly heavier weight than default reads better for an admin
-          // dashboard's headings, matching the prototype's font-weight: 850.
-          titleLarge: TextStyle(color: text, fontWeight: FontWeight.w800),
-          titleMedium: TextStyle(color: text, fontWeight: FontWeight.w700),
-        );
+    final seeded = ColorScheme.fromSeed(
+      seedColor: p.primary,
+      brightness: p.brightness,
+      primary: p.primary,
+      onPrimary: p.onPrimary,
+      surface: p.surface,
+      primaryContainer: p.primarySoft,
+    );
+    final colorScheme = editorial
+        ? seeded.copyWith(
+            onPrimaryContainer: dark ? BrandColors.nightText : BrandColors.plum,
+            secondary: p.accent,
+            onSecondary: dark ? BrandColors.deepPlum : Colors.white,
+            secondaryContainer: p.primarySoft,
+            onSecondaryContainer: dark ? BrandColors.nightText : BrandColors.rose,
+            tertiary: BrandColors.coral,
+            onSurface: p.text,
+            onSurfaceVariant: p.muted,
+            outline: dark ? const Color(0xFF6E5B74) : const Color(0xFFCBB9C4),
+            outlineVariant: p.border,
+            surfaceContainerLowest: p.surfaceTints[0],
+            surfaceContainerLow: p.surfaceTints[1],
+            surfaceContainer: p.surfaceTints[2],
+            surfaceContainerHigh: p.surfaceTints[3],
+            surfaceContainerHighest: p.surfaceTints[4],
+            error: p.appColors.danger,
+          )
+        : seeded;
+
+    // Text: DM Sans with Gelasio headings for the web app, Poppins for the
+    // phone apps. Every sub-theme that carries its own TextStyle (buttons,
+    // chips, the DataTable, the SnackBar) names the font again, since those
+    // are not guaranteed to inherit it from [textTheme].
+    TextStyle body({Color? color, double? fontSize, FontWeight? fontWeight}) => editorial
+        ? GoogleFonts.dmSans(color: color, fontSize: fontSize, fontWeight: fontWeight)
+        : GoogleFonts.poppins(color: color, fontSize: fontSize, fontWeight: fontWeight);
+    TextStyle heading({Color? color, double? fontSize, FontWeight? fontWeight}) => editorial
+        ? GoogleFonts.gelasio(color: color, fontSize: fontSize, fontWeight: fontWeight, letterSpacing: -0.3)
+        : body(color: color, fontSize: fontSize, fontWeight: fontWeight);
+
+    final base = Typography.material2021(platform: TargetPlatform.android).black
+        .apply(bodyColor: p.text, displayColor: p.text);
+    final bodyTheme = editorial ? GoogleFonts.dmSansTextTheme(base) : GoogleFonts.poppinsTextTheme(base);
+    final textTheme = editorial
+        ? bodyTheme.copyWith(
+            displayLarge: heading(color: p.text, fontSize: 52, fontWeight: FontWeight.w600),
+            displayMedium: heading(color: p.text, fontSize: 42, fontWeight: FontWeight.w600),
+            displaySmall: heading(color: p.text, fontSize: 34, fontWeight: FontWeight.w600),
+            headlineLarge: heading(color: p.text, fontSize: 30, fontWeight: FontWeight.w600),
+            headlineMedium: heading(color: p.text, fontSize: 26, fontWeight: FontWeight.w600),
+            headlineSmall: heading(color: p.text, fontSize: 23, fontWeight: FontWeight.w600),
+            // A page's and a section's title: the serif, as on the website.
+            titleLarge: heading(color: p.text, fontSize: 22, fontWeight: FontWeight.w600),
+            // A card's title: the text face, bold, so a dense screen stays easy to scan.
+            titleMedium: body(color: p.text, fontSize: 16, fontWeight: FontWeight.w700),
+            titleSmall: body(color: p.text, fontSize: 14, fontWeight: FontWeight.w700),
+          )
+        : bodyTheme.copyWith(
+            // A slightly heavier weight than default reads better for an
+            // admin dashboard's headings.
+            titleLarge: body(color: p.text, fontWeight: FontWeight.w800),
+            titleMedium: body(color: p.text, fontWeight: FontWeight.w700),
+          );
+
+    final controlShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(controlRadius));
+    const buttonPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 13);
 
     return ThemeData(
       useMaterial3: true,
-      brightness: brightness,
+      brightness: p.brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: background,
-      extensions: [appColors],
-      textTheme: GoogleFonts.poppinsTextTheme(baseTextTheme),
+      scaffoldBackgroundColor: p.background,
+      // The web app's default face for any TextStyle that names none - a
+      // button's own textStyle, a hand-built label - so nothing falls back
+      // to Roboto beside the DM Sans around it.
+      fontFamily: editorial ? GoogleFonts.dmSans().fontFamily : null,
+      canvasColor: editorial ? p.surface : null,
+      extensions: [p.appColors, p.authPalette],
+      textTheme: textTheme,
       appBarTheme: AppBarTheme(
-        backgroundColor: surface,
-        foregroundColor: text,
+        backgroundColor: p.surface,
+        foregroundColor: p.text,
         elevation: 0,
         scrolledUnderElevation: 1,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.poppins(color: text, fontSize: 20, fontWeight: FontWeight.w800),
+        titleTextStyle: editorial
+            ? heading(color: p.text, fontSize: 21, fontWeight: FontWeight.w600)
+            : body(color: p.text, fontSize: 20, fontWeight: FontWeight.w800),
       ),
       cardTheme: CardThemeData(
-        color: surface,
+        color: p.surface,
         elevation: 0,
         margin: EdgeInsets.zero,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusCard),
-          side: BorderSide(color: border),
+          borderRadius: BorderRadius.circular(cardRadius),
+          side: BorderSide(color: p.border),
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        backgroundColor: p.surface,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: editorial ? heading(color: p.text, fontSize: 24, fontWeight: FontWeight.w600) : null,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(editorial ? BrandRadii.dialog : 18)),
       ),
+      bottomSheetTheme: editorial
+          ? BottomSheetThemeData(
+              backgroundColor: p.surface,
+              surfaceTintColor: Colors.transparent,
+              showDragHandle: true,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(BrandRadii.dialog)),
+              ),
+            )
+          : null,
+      popupMenuTheme: editorial
+          ? PopupMenuThemeData(
+              color: p.surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(controlRadius),
+                side: BorderSide(color: p.border),
+              ),
+            )
+          : null,
+      menuTheme: editorial
+          ? MenuThemeData(
+              style: MenuStyle(
+                backgroundColor: WidgetStatePropertyAll(p.surface),
+                surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+                shape: WidgetStatePropertyAll(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(controlRadius),
+                    side: BorderSide(color: p.border),
+                  ),
+                ),
+              ),
+            )
+          : null,
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surface,
+        fillColor: p.surface,
         // One line is Material's default, and it cuts a sentence off at
         // the field's width: on a phone "Choose a passcode that is not a
         // straight run of digits" became "...that is not a straight...",
         // which tells somebody they are wrong without telling them how.
         errorMaxLines: 3,
+        labelStyle: editorial ? body(color: p.muted) : null,
+        floatingLabelStyle: editorial ? body(color: p.accent, fontWeight: FontWeight.w600) : null,
+        hintStyle: editorial ? body(color: p.muted) : null,
+        prefixIconColor: editorial ? p.muted : null,
+        suffixIconColor: editorial ? p.muted : null,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusControl),
-          borderSide: BorderSide(color: border),
+          borderRadius: BorderRadius.circular(controlRadius),
+          borderSide: BorderSide(color: p.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusControl),
-          borderSide: BorderSide(color: border),
+          borderRadius: BorderRadius.circular(controlRadius),
+          borderSide: BorderSide(color: editorial ? colorScheme.outline : p.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusControl),
-          borderSide: BorderSide(color: primary, width: 1.5),
+          borderRadius: BorderRadius.circular(controlRadius),
+          borderSide: BorderSide(color: editorial ? p.accent : p.primary, width: 1.6),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
+          backgroundColor: p.primary,
           foregroundColor: colorScheme.onPrimary,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
+          elevation: editorial ? 0 : null,
+          padding: buttonPadding,
+          textStyle: body(fontWeight: FontWeight.w700),
+          shape: controlShape,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: primary,
+          backgroundColor: p.primary,
           // The text colour that goes with that background, said for tonal
           // buttons too: FilledButton.tonal takes this theme's background
           // but, left alone, Material's tonal *foreground* - which in the
@@ -188,51 +327,182 @@ class AppTheme {
           // out button never outshines the live ones beside it.
           disabledBackgroundColor: colorScheme.onSurface.withValues(alpha: 0.12),
           disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
+          padding: buttonPadding,
+          textStyle: body(fontWeight: FontWeight.w700),
+          shape: controlShape,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
-          side: BorderSide(color: border),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
+          foregroundColor: p.primary,
+          backgroundColor: editorial ? p.surface : null,
+          side: BorderSide(color: editorial ? colorScheme.outline : p.border),
+          padding: buttonPadding,
+          textStyle: body(fontWeight: FontWeight.w700),
+          shape: controlShape,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: primary,
-          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          foregroundColor: editorial ? p.accent : p.primary,
+          textStyle: body(fontWeight: editorial ? FontWeight.w700 : FontWeight.w600),
+          shape: editorial ? controlShape : null,
         ),
       ),
+      iconButtonTheme: editorial ? IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: p.text)) : null,
+      floatingActionButtonTheme: editorial
+          ? FloatingActionButtonThemeData(
+              backgroundColor: p.primary,
+              foregroundColor: colorScheme.onPrimary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            )
+          : null,
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: text,
-        contentTextStyle: GoogleFonts.poppins(color: background, fontSize: 13),
+        backgroundColor: editorial ? (dark ? BrandColors.blush : BrandColors.plum) : p.text,
+        contentTextStyle: body(
+          color: editorial ? (dark ? BrandColors.plum : Colors.white) : p.background,
+          fontSize: 13,
+        ),
+        actionTextColor: editorial ? (dark ? BrandColors.rose : BrandColors.coral) : null,
         behavior: SnackBarBehavior.floating,
         // Floating alone still stretches to the full window width on
         // desktop/web - capping `width` is what actually makes it read as a
         // small toast instead of a full-width bar.
         width: 360,
         elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(editorial ? 14 : 10)),
       ),
-      dividerTheme: DividerThemeData(color: border, space: 1),
+      tooltipTheme: editorial
+          ? TooltipThemeData(
+              decoration: BoxDecoration(
+                color: dark ? BrandColors.blush : BrandColors.deepPlum,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              textStyle: body(color: dark ? BrandColors.plum : Colors.white, fontSize: 12),
+            )
+          : null,
+      dividerTheme: DividerThemeData(color: p.border, space: 1),
       chipTheme: ChipThemeData(
-        backgroundColor: primarySoft,
-        labelStyle: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700, fontSize: 12),
+        backgroundColor: p.primarySoft,
+        labelStyle: body(
+          color: editorial ? colorScheme.onPrimaryContainer : p.primary,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
         side: BorderSide.none,
+        shape: editorial ? const StadiumBorder() : null,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
+      tabBarTheme: editorial
+          ? TabBarThemeData(
+              labelColor: p.accent,
+              unselectedLabelColor: p.muted,
+              indicatorColor: p.accent,
+              indicatorSize: TabBarIndicatorSize.label,
+              dividerColor: p.border,
+              labelStyle: body(fontWeight: FontWeight.w700, fontSize: 14),
+              unselectedLabelStyle: body(fontWeight: FontWeight.w600, fontSize: 14),
+            )
+          : null,
+      segmentedButtonTheme: editorial
+          ? SegmentedButtonThemeData(
+              style: SegmentedButton.styleFrom(
+                selectedBackgroundColor: p.primarySoft,
+                selectedForegroundColor: colorScheme.onPrimaryContainer,
+                side: BorderSide(color: colorScheme.outline),
+                textStyle: body(fontWeight: FontWeight.w600),
+              ),
+            )
+          : null,
+      listTileTheme: editorial
+          ? ListTileThemeData(
+              selectedColor: p.accent,
+              selectedTileColor: p.primarySoft,
+              iconColor: p.muted,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(controlRadius)),
+            )
+          : null,
       dataTableTheme: DataTableThemeData(
-        headingRowColor: WidgetStatePropertyAll(background),
-        dataRowColor: WidgetStatePropertyAll(surface),
-        headingTextStyle: GoogleFonts.poppins(color: appColors.muted, fontWeight: FontWeight.w700, fontSize: 13),
+        // The website's table head: a faint blush band, small muted capitals.
+        headingRowColor: WidgetStatePropertyAll(editorial ? p.surfaceTints[2] : p.background),
+        dataRowColor: editorial
+            ? WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.hovered) ? p.surfaceTints[1] : p.surface,
+              )
+            : WidgetStatePropertyAll(p.surface),
+        headingTextStyle: body(color: p.appColors.muted, fontWeight: FontWeight.w700, fontSize: editorial ? 12.5 : 13),
         dividerThickness: 1,
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: editorial ? p.accent : p.primary,
+        linearTrackColor: editorial ? p.primarySoft : null,
+        circularTrackColor: editorial ? Colors.transparent : null,
+      ),
     );
   }
+}
+
+/// The handful of colours a theme is built from.
+class _Palette {
+  const _Palette({
+    required this.brightness,
+    required this.primary,
+    required this.onPrimary,
+    required this.primarySoft,
+    required this.accent,
+    required this.background,
+    required this.surface,
+    required this.surfaceTints,
+    required this.text,
+    required this.muted,
+    required this.border,
+    required this.appColors,
+    required this.authPalette,
+  });
+
+  /// A phone app's palette: its own primary on the slate ground.
+  factory _Palette.phone({
+    required Brightness brightness,
+    required Color primary,
+    required Color primarySoft,
+    required Color background,
+  }) {
+    final dark = brightness == Brightness.dark;
+    final surface = dark ? AppTheme._darkSurface : AppTheme._lightSurface;
+
+    return _Palette(
+      brightness: brightness,
+      primary: primary,
+      // Left to the seed, as before the web app's redesign.
+      onPrimary: null,
+      primarySoft: primarySoft,
+      accent: primary,
+      background: background,
+      surface: surface,
+      surfaceTints: List.filled(5, surface),
+      text: dark ? AppTheme._darkText : AppTheme._lightText,
+      muted: (dark ? AppColors.dark : AppColors.light).muted,
+      border: dark ? AppTheme._darkBorder : AppTheme._lightBorder,
+      appColors: dark ? AppColors.dark : AppColors.light,
+      authPalette: dark ? AuthPalette.dark : AuthPalette.light,
+    );
+  }
+
+  final Brightness brightness;
+  final Color primary;
+  final Color? onPrimary;
+  final Color primarySoft;
+
+  /// The colour that marks what is active or chosen: rose in the web app.
+  final Color accent;
+  final Color background;
+  final Color surface;
+
+  /// The five surface containers, lowest to highest.
+  final List<Color> surfaceTints;
+  final Color text;
+  final Color muted;
+  final Color border;
+  final AppColors appColors;
+  final AuthPalette authPalette;
 }

@@ -22,107 +22,109 @@ class ChartHue {
 }
 
 /// The colours a dashboard figure is drawn in, and the icon that goes with
-/// it. Colour here says *which* figure it is; whether a figure is good or bad
+/// it. Warm Editorial hues since 2026-11-14 - plum, rose, gold, coral and
+/// friends, each still distinct from its neighbours - so a colourful
+/// dashboard sits in the website's palette rather than against it. Colour here says *which* figure it is; whether a figure is good or bad
 /// is said separately, by the semantic colours in AppColors.
 abstract final class ChartPalette {
-  static const blue = ChartHue(
-    light: Color(0xFF2563EB),
-    dark: Color(0xFF60A5FA),
-    lightSoft: Color(0xFFE6EEFF),
-    darkSoft: Color(0xFF16264A),
+  static const plum = ChartHue(
+    light: Color(0xFF6B3F73),
+    dark: Color(0xFFD7AEE0),
+    lightSoft: Color(0xFFF4EAF6),
+    darkSoft: Color(0xFF33223A),
   );
   static const green = ChartHue(
-    light: Color(0xFF059669),
-    dark: Color(0xFF34D399),
-    lightSoft: Color(0xFFE3F7EF),
-    darkSoft: Color(0xFF0F3328),
-  );
-  static const violet = ChartHue(
-    light: Color(0xFF7C3AED),
-    dark: Color(0xFFA78BFA),
-    lightSoft: Color(0xFFF0E9FF),
-    darkSoft: Color(0xFF2A1C4A),
-  );
-  static const amber = ChartHue(
-    light: Color(0xFFD97706),
-    dark: Color(0xFFFBBF24),
-    lightSoft: Color(0xFFFFF3DC),
-    darkSoft: Color(0xFF3D2A0A),
+    light: Color(0xFF277B62),
+    dark: Color(0xFF6FD3B0),
+    lightSoft: Color(0xFFE5F4EC),
+    darkSoft: Color(0xFF173A30),
   );
   static const rose = ChartHue(
-    light: Color(0xFFE11D48),
-    dark: Color(0xFFFB7185),
-    lightSoft: Color(0xFFFFE7EC),
-    darkSoft: Color(0xFF451622),
+    light: Color(0xFFA33D63),
+    dark: Color(0xFFF0A7C3),
+    lightSoft: Color(0xFFFBE8EF),
+    darkSoft: Color(0xFF46202F),
+  );
+  static const gold = ChartHue(
+    light: Color(0xFFAD7531),
+    dark: Color(0xFFE9B86F),
+    lightSoft: Color(0xFFFFF0DB),
+    darkSoft: Color(0xFF45300F),
+  );
+  static const berry = ChartHue(
+    light: Color(0xFFB03A4A),
+    dark: Color(0xFFF59AA5),
+    lightSoft: Color(0xFFFCE9EC),
+    darkSoft: Color(0xFF4A1C26),
   );
   static const teal = ChartHue(
-    light: Color(0xFF0D9488),
-    dark: Color(0xFF2DD4BF),
-    lightSoft: Color(0xFFE0F5F3),
-    darkSoft: Color(0xFF0E3330),
+    light: Color(0xFF2E7F86),
+    dark: Color(0xFF79CDD3),
+    lightSoft: Color(0xFFE3F3F4),
+    darkSoft: Color(0xFF15363A),
   );
-  static const indigo = ChartHue(
-    light: Color(0xFF4F46E5),
-    dark: Color(0xFF818CF8),
-    lightSoft: Color(0xFFECEBFF),
-    darkSoft: Color(0xFF1F1D4A),
+  static const mauve = ChartHue(
+    light: Color(0xFF7A5AA6),
+    dark: Color(0xFFC3AEE6),
+    lightSoft: Color(0xFFF0EAF8),
+    darkSoft: Color(0xFF2E2445),
   );
-  static const orange = ChartHue(
-    light: Color(0xFFEA580C),
-    dark: Color(0xFFFB923C),
-    lightSoft: Color(0xFFFFEDE2),
-    darkSoft: Color(0xFF41200D),
+  static const coral = ChartHue(
+    light: Color(0xFFC8643E),
+    dark: Color(0xFFF2A27F),
+    lightSoft: Color(0xFFFDEDE4),
+    darkSoft: Color(0xFF4A2516),
   );
-  static const cyan = ChartHue(
-    light: Color(0xFF0891B2),
-    dark: Color(0xFF22D3EE),
-    lightSoft: Color(0xFFE0F5FA),
-    darkSoft: Color(0xFF0C2F3A),
+  static const sky = ChartHue(
+    light: Color(0xFF3F6C99),
+    dark: Color(0xFF94BCE3),
+    lightSoft: Color(0xFFE7EFF7),
+    darkSoft: Color(0xFF1A2C40),
   );
 
   /// Used in turn for a figure this file does not name, so a new card the
   /// server starts sending is still coloured rather than left grey.
-  static const _sequence = [blue, green, violet, amber, teal, indigo, orange, cyan, rose];
+  static const _sequence = [plum, green, rose, gold, teal, mauve, coral, sky, berry];
 
   /// Each dashboard card and trend the server sends, by its key.
   static const _byKey = <String, (ChartHue, IconData)>{
-    'students': (blue, Icons.school_outlined),
-    'active_students': (blue, Icons.school_outlined),
-    'staff': (violet, Icons.badge_outlined),
-    'teachers': (violet, Icons.groups_outlined),
+    'students': (plum, Icons.school_outlined),
+    'active_students': (plum, Icons.school_outlined),
+    'staff': (rose, Icons.badge_outlined),
+    'teachers': (rose, Icons.groups_outlined),
     'attendance': (green, Icons.fact_check_outlined),
     'student_attendance_rate': (green, Icons.fact_check_outlined),
     'staff_attendance_rate': (teal, Icons.how_to_reg_outlined),
-    'transport': (amber, Icons.directions_bus_outlined),
-    'routes': (amber, Icons.alt_route_outlined),
-    'running': (orange, Icons.directions_bus_filled_outlined),
+    'transport': (gold, Icons.directions_bus_outlined),
+    'routes': (gold, Icons.alt_route_outlined),
+    'running': (coral, Icons.directions_bus_filled_outlined),
     'completed': (green, Icons.flag_outlined),
-    'performance': (indigo, Icons.emoji_events_outlined),
+    'performance': (mauve, Icons.emoji_events_outlined),
     'schools': (teal, Icons.apartment_outlined),
     'branches': (teal, Icons.account_tree_outlined),
     'departments': (teal, Icons.apartment_outlined),
-    'users': (indigo, Icons.manage_accounts_outlined),
+    'users': (mauve, Icons.manage_accounts_outlined),
     'collected': (green, Icons.payments_outlined),
-    'outstanding': (orange, Icons.pending_actions_outlined),
+    'outstanding': (coral, Icons.pending_actions_outlined),
     'fees_collected': (green, Icons.payments_outlined),
-    'fees_outstanding': (orange, Icons.account_balance_wallet_outlined),
-    'fees_overdue': (rose, Icons.schedule_outlined),
-    'periods': (blue, Icons.schedule_outlined),
-    'reports': (indigo, Icons.edit_note_outlined),
-    'reviews': (indigo, Icons.rate_review_outlined),
+    'fees_outstanding': (coral, Icons.account_balance_wallet_outlined),
+    'fees_overdue': (berry, Icons.schedule_outlined),
+    'periods': (plum, Icons.schedule_outlined),
+    'reports': (mauve, Icons.edit_note_outlined),
+    'reviews': (mauve, Icons.rate_review_outlined),
     'register': (green, Icons.checklist_outlined),
-    'payroll': (violet, Icons.receipt_long_outlined),
-    'salaries': (orange, Icons.price_change_outlined),
-    'unpaid': (rose, Icons.request_quote_outlined),
-    'leave': (cyan, Icons.event_busy_outlined),
-    'inbox': (blue, Icons.mail_outline),
+    'payroll': (rose, Icons.receipt_long_outlined),
+    'salaries': (coral, Icons.price_change_outlined),
+    'unpaid': (berry, Icons.request_quote_outlined),
+    'leave': (sky, Icons.event_busy_outlined),
+    'inbox': (plum, Icons.mail_outline),
     // Charted on the Analytics page only.
-    'teaching_coverage_rate': (indigo, Icons.edit_note_outlined),
-    'syllabus_topics_completed': (cyan, Icons.menu_book_outlined),
-    'test_average': (violet, Icons.emoji_events_outlined),
-    'active_staff': (violet, Icons.badge_outlined),
-    'fee_outstanding': (orange, Icons.account_balance_wallet_outlined),
-    'fee_overdue': (rose, Icons.schedule_outlined),
+    'teaching_coverage_rate': (mauve, Icons.edit_note_outlined),
+    'syllabus_topics_completed': (sky, Icons.menu_book_outlined),
+    'test_average': (rose, Icons.emoji_events_outlined),
+    'active_staff': (rose, Icons.badge_outlined),
+    'fee_outstanding': (coral, Icons.account_balance_wallet_outlined),
+    'fee_overdue': (berry, Icons.schedule_outlined),
   };
 
   /// Figures where a fall is the good news, so a change is coloured the
