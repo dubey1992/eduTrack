@@ -115,6 +115,11 @@ class PublicPage:
         return public_site_content.module_look(self.slug)
 
     @property
+    def short_title(self) -> str:
+        """The name on its card and in the footer (public_site_content.SHORT_NAMES)."""
+        return public_site_content.short_name(self.slug, self.title)
+
+    @property
     def date(self) -> str | None:
         return dates.us(self.published_at) if self.published_at else None
 
@@ -381,7 +386,7 @@ def shared(words: Words, live: set[str], modules=()) -> dict:
     if modules:
         columns.insert(0, {
             "title": "Features",
-            "links": [{"label": page.title, "href": page.path} for page in modules],
+            "links": [{"label": page.short_title, "href": page.path} for page in modules],
         })
 
     return {

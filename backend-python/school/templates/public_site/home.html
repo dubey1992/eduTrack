@@ -108,7 +108,7 @@
     </div>
     <ul class="grid-3">
       {% for module in modules %}
-      <li><a class="card feature-card {{ module.look.tone }}" href="{{ module.path }}"><span class="feature-icon">{{ module.look.icon }}</span><h3>{{ module.title }}</h3><p>{{ module.blurb }}</p><span class="more">Learn more <span aria-hidden="true">&rarr;</span></span></a></li>
+      <li><a class="card feature-card {{ module.look.tone }}" href="{{ module.path }}"><span class="feature-icon">{{ module.look.icon }}</span><h3>{{ module.short_title }}</h3><p>{{ module.blurb }}</p><span class="more">Learn more <span aria-hidden="true">&rarr;</span></span></a></li>
       {% endfor %}
     </ul>
     {% if all_modules %}
