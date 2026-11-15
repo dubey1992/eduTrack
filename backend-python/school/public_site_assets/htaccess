@@ -6,6 +6,11 @@
 # build's web/.htaccess), which overrides these headers for everything under
 # it.
 
+# Every page says it is UTF-8 in its headers too, not only in its <meta>:
+# a crawler reads the header first (found by the deep SEO audit, 2026-11-15).
+AddDefaultCharset UTF-8
+AddCharset UTF-8 .html .xml .txt
+
 # Plain HTTP to HTTPS (docs/deployment.md, "The plain-HTTP trap"). Two
 # conditions, both required: the host sits behind a proxy (Via: Caddy), so
 # %{HTTPS} alone can read 'off' on a secure request and loop forever.

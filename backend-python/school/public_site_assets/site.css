@@ -573,3 +573,7 @@ section[id], #contact { scroll-margin-top: 96px; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
 }
+
+/* A product page's "Read more": its blog posts, then its how-to guides. */
+.further-reading .further-heading { margin: 0 0 14px; font-size: 1.15rem; }
+.further-reading .grid-3 + .further-heading { margin-top: 34px; }

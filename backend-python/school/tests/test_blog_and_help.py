@@ -7,6 +7,7 @@ summary and a topic. Each detail is a draft until published, like the text.
 
 from __future__ import annotations
 
+import html
 import io
 import json
 import re
@@ -314,3 +315,114 @@ class ThePublicSite(BlogAndHelpTestCase):
         self.assertFalse((self.root / "site/blog/first-post.html").exists())
         self.assertFalse((self.root / "site/blog/index.html").exists())
         self.assertEqual([], list((self.root / "site/covers").glob("*")))
+
+
+class SearchSignals(ThePublicSite):
+    """What Search Console's "Crawled - currently not indexed" pages lacked
+    (2026-11-15, /blog/payroll-that-starts-from-the-register): each is a
+    rule every build keeps, so it never needs fixing by hand again."""
+
+    LONG_SUMMARY = (
+        "Month-end payroll is slow when attendance, leave and salaries live in three places. Here is how to run "
+        "school payroll straight from the register, with fair rules staff can check for themselves."
+    )
+
+    def descriptions(self) -> dict[str, str]:
+        found = {}
+        for path in self.root.rglob("*.html"):
+            match = re.search(r'<meta name="description" content="([^"]*)"', path.read_text(encoding="utf-8"))
+            if match:
+                found[path.relative_to(self.root).as_posix()] = html.unescape(match.group(1))
+        return found
+
+    def test_no_description_is_cut_off_mid_sentence(self):
+        self.post(summary=self.LONG_SUMMARY)
+        self.article(summary=self.LONG_SUMMARY)
+        self.publish("first-post")
+        self.publish("take-the-register")
+        self.build()
+
+        descriptions = self.descriptions()
+        self.assertEqual("Month-end payroll is slow when attendance, leave and salaries live in three places.",
+                         descriptions["site/blog/first-post.html"])
+        for path, description in descriptions.items():
+            self.assertFalse(description.endswith(("...", "…")), f"{path}: {description}")
+            self.assertLessEqual(len(description), public_site.SNIPPET_MAX, path)
+
+    def test_every_sitemap_entry_says_when_it_last_changed(self):
+        self.post()
+        self.article()
+        self.publish("first-post")
+        self.publish("take-the-register")
+        self.build()
+
+        entries = re.findall(r"<url>(.*?)</url>", self.read("sitemap.xml"), re.S)
+        self.assertTrue(entries)
+        for entry in entries:
+            self.assertRegex(entry, r"<lastmod>\d{4}-\d{2}-\d{2}</lastmod>", entry)
+
+    def test_a_page_keeps_its_date_until_its_content_changes(self):
+        self.build()
+        (self.root / "sitemap.xml").write_text(
+            self.read("sitemap.xml").replace(f"<lastmod>{public_site.timezone.now().date().isoformat()}",
+                                             "<lastmod>2026-01-01"),
+            encoding="utf-8",
+        )
+
+        self.build()
+        self.assertIn("<loc>https://school365ai.com/about</loc>\n    <lastmod>2026-01-01</lastmod>",
+                      self.read("sitemap.xml"))
+
+        page = self.root / "site/pages/about.html"
+        page.write_text(page.read_text(encoding="utf-8").replace("</main>", "<p>Old words.</p></main>", 1), encoding="utf-8")
+        self.build()
+        self.assertNotIn("<loc>https://school365ai.com/about</loc>\n    <lastmod>2026-01-01</lastmod>",
+                         self.read("sitemap.xml"))
+
+    def test_a_post_says_when_it_was_published_and_last_changed(self):
+        self.post()
+        self.publish("first-post")
+        self.build()
+
+        posting = self.blocks("site/blog/first-post.html")["BlogPosting"]
+        self.assertEqual(posting["datePublished"], posting["dateModified"])
+
+    def test_a_product_page_links_the_posts_about_it_and_its_how_to_guides(self):
+        self.post(body="Payroll starts from the [register](/school-payroll-software).")
+        self.post(slug="unrelated", title="Unrelated", body="About buses.")
+        self.article(slug="apply-for-leave", title="Apply for leave", topic="staff")
+        self.article()
+        for slug in ("first-post", "unrelated", "apply-for-leave", "take-the-register"):
+            self.publish(slug)
+        self.build()
+
+        payroll = self.read("site/pages/school-payroll-software.html")
+        self.assertIn('href="/blog/first-post"', payroll)
+        self.assertNotIn('href="/blog/unrelated"', payroll)
+        self.assertIn('href="/help/apply-for-leave"', payroll)
+        self.assertNotIn('href="/help/take-the-register"', payroll)
+        attendance = self.read("site/pages/school-attendance-software.html")
+        self.assertIn('href="/help/take-the-register"', attendance)
+        self.assertNotIn('href="/blog/first-post"', attendance)
+
+    def test_the_web_server_declares_utf_8(self):
+        self.build()
+
+        self.assertIn("AddDefaultCharset UTF-8", self.read(".htaccess"))
+
+
+class Snippets(TestCase):
+    def test_whole_sentences_that_fit(self):
+        self.assertEqual("One. Two.", public_site.snippet("One. Two."))
+        long = "A sentence of about sixty characters, give or take a few more. " * 4
+        self.assertEqual(long.strip()[: len(long.strip()) // 4 * 2 + 1].strip(), public_site.snippet(long))
+
+    def test_a_very_short_first_sentence_takes_the_next(self):
+        text = "Fees. " + "The second sentence explains what the page is about in plenty of words."
+        self.assertEqual(text, public_site.snippet(text))
+
+    def test_one_overlong_sentence_is_cut_at_a_word(self):
+        text = "word " * 120
+        result = public_site.snippet(text)
+        self.assertTrue(result.endswith("…"))
+        self.assertLessEqual(len(result), public_site.SNIPPET_LIMIT + 1)

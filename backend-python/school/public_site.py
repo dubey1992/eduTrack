@@ -39,6 +39,7 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 from . import dates, photos, public_site_content, site_markup
@@ -167,10 +168,16 @@ def build(root: Path, server_files: bool = False) -> list[str]:
     if len(modules) > HOME_MODULES:
         live.add(FEATURES_SLUG)
     written: list[str] = []
+    # When each page without a publish date last changed (see changed_on).
+    previous_dates = sitemap_dates(root / "sitemap.xml")
+    changed: dict[str, bool] = {}
 
     def write(relative: Path | str, content: str | bytes) -> None:
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
+        if str(relative).endswith(".html") and isinstance(content, str):
+            old = path.read_text(encoding="utf-8") if path.exists() else None
+            changed[str(relative).replace(os.sep, "/")] = old is None or main_part(old) != main_part(content)
         temporary = path.with_name(path.name + ".tmp")
         temporary.write_bytes(content.encode("utf-8") if isinstance(content, str) else content)
         os.replace(temporary, path)
@@ -180,7 +187,7 @@ def build(root: Path, server_files: bool = False) -> list[str]:
     write("index.html", render_home(words, live, modules, posts))
 
     for page in pages:
-        write(PAGES_DIR / f"{page.slug}.html", render_page(page, words, live, modules))
+        write(PAGES_DIR / f"{page.slug}.html", render_page(page, words, live, modules, posts, articles))
 
     # Every module card, for the "See all" button under the homepage's few.
     if FEATURES_SLUG in live:
@@ -230,7 +237,15 @@ def build(root: Path, server_files: bool = False) -> list[str]:
                 stale.unlink()
 
     write("404.html", render_not_found(words, live, modules))
-    write("sitemap.xml", render_sitemap(pages, posts, articles))
+    def changed_on(path: str) -> str:
+        """The day the page at [path] last changed: kept from the last
+        sitemap while its main content is the same, today when it is not."""
+        relative = file_for(path)
+        if not changed.get(relative, True) and path in previous_dates:
+            return previous_dates[path]
+        return timezone.now().date().isoformat()
+
+    write("sitemap.xml", render_sitemap(pages, posts, articles, changed_on=changed_on))
     write("robots.txt", render_robots())
 
     for name in ("site.css", "site.js", "hero-app.jpg"):
@@ -543,7 +558,9 @@ def render_features(modules: list[PublicPage], words: Words, live: set[str]) -> 
     )
 
 
-def render_page(page: PublicPage, words: Words, live: set[str], modules: list[PublicPage]) -> str:
+def render_page(
+    page: PublicPage, words: Words, live: set[str], modules: list[PublicPage], posts=(), articles=()
+) -> str:
     return render_to_string(
         "public_site/page.html",
         {
@@ -554,10 +571,13 @@ def render_page(page: PublicPage, words: Words, live: set[str], modules: list[Pu
                 [breadcrumbs(page), *([faq(pairs)] if (pairs := faq_pairs(page.body)) else [])]
             ),
             "other_modules": [module for module in modules if module.slug != page.slug],
+            "further_posts": posts_about(page, posts) if page.blurb else [],
+            "further_articles": articles_about(page, articles) if page.blurb else [],
             "canonical": site_url() + page.path,
             "title": titled(page.title),
             "description": snippet(page.summary or page.body),
             "page_title": page.title,
+            "page_short_title": page.short_title,
             "body_html": site_markup.to_html(page.body),
             "updated": dates.us(page.published_at) if page.published_at else None,
         },
@@ -764,6 +784,8 @@ def article_data(page: PublicPage, kind: str) -> dict:
 
     if page.published_at:
         data["datePublished"] = page.published_at.isoformat()
+        # Publishing again moves published_at, so it is also the last change.
+        data["dateModified"] = page.published_at.isoformat()
 
     if page.author:
         # The team is the organisation; anybody else is a person.
@@ -836,10 +858,18 @@ def plain(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def render_sitemap(pages: list[PublicPage], posts=(), articles=()) -> str:
+def render_sitemap(pages: list[PublicPage], posts=(), articles=(), changed_on=None) -> str:
+    """Every page, each with the day it last changed: its publish date, or
+    for a page that has none - the homepage, the product pages, the blog and
+    help indexes - the day its content last changed ([changed_on])."""
+
     def entry(path: str, page: PublicPage | None = None) -> dict:
         published = page.published_at if page else None
-        return {"loc": site_url() + path, "lastmod": published.date().isoformat() if published else None}
+        if published:
+            lastmod = published.date().isoformat()
+        else:
+            lastmod = changed_on(path) if changed_on else None
+        return {"loc": site_url() + path, "lastmod": lastmod}
 
     entries = [entry("/")]
     entries += [entry(page.path, page) for page in pages]
@@ -848,7 +878,7 @@ def render_sitemap(pages: list[PublicPage], posts=(), articles=()) -> str:
         entries.append(entry(f"/{FEATURES_SLUG}"))
 
     if posts:
-        entries.append(entry("/blog", posts[0]))
+        entries.append(entry("/blog"))
         entries += [entry(post.path, post) for post in posts]
 
     if articles:
@@ -856,6 +886,40 @@ def render_sitemap(pages: list[PublicPage], posts=(), articles=()) -> str:
         entries += [entry(article.path, article) for article in articles]
 
     return render_to_string("public_site/sitemap.xml", {"entries": entries})
+
+
+def sitemap_dates(sitemap: Path) -> dict[str, str]:
+    """The last-changed day of each page in an earlier sitemap, by path."""
+    if not sitemap.exists():
+        return {}
+    text = sitemap.read_text(encoding="utf-8")
+    dates_by_path = {}
+    for loc, lastmod in re.findall(r"<loc>([^<]+)</loc>\s*<lastmod>([^<]+)</lastmod>", text):
+        path = re.sub(r"^https?://[^/]+", "", loc) or "/"
+        dates_by_path[path] = lastmod
+    return dates_by_path
+
+
+def main_part(page_html: str) -> str:
+    """What a page says, without the header, footer and asset versions that
+    every page shares - so a new stylesheet does not date every page today."""
+    match = re.search(r"(?s)<main[^>]*>(.*)</main>", page_html)
+    return match.group(1) if match else page_html
+
+
+def file_for(path: str) -> str:
+    """The file the build writes for a sitemap path."""
+    if path == "/":
+        return "index.html"
+    if path == "/blog":
+        return BLOG_DIR.as_posix() + "/index.html"
+    if path == "/help":
+        return HELP_DIR.as_posix() + "/index.html"
+    if path.startswith("/blog/"):
+        return BLOG_DIR.as_posix() + f"/{path[6:]}.html"
+    if path.startswith("/help/"):
+        return HELP_DIR.as_posix() + f"/{path[6:]}.html"
+    return PAGES_DIR.as_posix() + f"/{path.lstrip('/')}.html"
 
 
 def render_robots() -> str:
@@ -878,10 +942,40 @@ def titled(name: str, brand: str = "School365ai") -> str:
     return full if len(full) <= TITLE_LIMIT else name
 
 
+SNIPPET_LIMIT = 160
+SNIPPET_MIN = 50
+# A whole sentence is kept up to the longest summary the editor allows;
+# Google shortens a long description on screen, a cut one reads as broken.
+SNIPPET_MAX = 300
+
+
 def snippet(text: str) -> str:
-    """A meta description no longer than a search result shows: a written
-    summary is kept to the same 155 characters a page's first words are."""
-    return summary(text)
+    """A page's meta description, in whole sentences (docs/seo.md).
+
+    As many of the text's first sentences as fit the ~160 characters a search
+    result shows - never a sentence cut off with "...", which reads as a
+    broken page and is one of the things Search Console's "Crawled -
+    currently not indexed" pages had in common (2026-11-15). A first
+    sentence too short to say anything takes the next one with it; a first
+    sentence longer than 160 is kept whole up to 300; only a single sentence
+    longer than that is cut, at a word."""
+    text = summary(text, limit=100_000)
+    sentences = [part for part in re.split(r"(?<=[.!?])\s+", text) if part]
+    if not sentences:
+        return ""
+
+    chosen = sentences[0]
+    for sentence in sentences[1:]:
+        longer = f"{chosen} {sentence}"
+        if len(longer) <= SNIPPET_LIMIT or (len(chosen) < SNIPPET_MIN and len(longer) <= SNIPPET_MAX):
+            chosen = longer
+        else:
+            break
+
+    if len(chosen) <= SNIPPET_MAX:
+        return chosen
+
+    return chosen[:SNIPPET_LIMIT].rsplit(" ", 1)[0].rstrip(",;:") + "\u2026"
 
 
 def neighbours(items: list, current, count: int = 3) -> list:
@@ -891,6 +985,23 @@ def neighbours(items: list, current, count: int = 3) -> list:
     start = next((i for i, item in enumerate(items) if item.slug == current.slug), 0)
     ordered = items[start + 1:] + items[:start]
     return [item for item in ordered if item.slug != current.slug][:count]
+
+
+def posts_about(module: PublicPage, posts, count: int = 3) -> list[PublicPage]:
+    """The blog posts whose text links to this product page, newest first.
+
+    A link from the page a post is about is the strongest sign to a search
+    engine that the post matters; without one, new posts sat in Search
+    Console as "Crawled - currently not indexed" (2026-11-15). Taken from
+    the posts' own links, so a new post is listed as soon as it links here."""
+    link = re.compile(r"\]\(" + re.escape(module.path) + r"[)#]")
+    return [post for post in posts if link.search(post.body or "")][:count]
+
+
+def articles_about(module: PublicPage, articles, count: int = 4) -> list[PublicPage]:
+    """The help articles on this product page's topic, by title."""
+    topic = public_site_content.MODULE_TOPICS.get(module.slug)
+    return sorted((article for article in articles if article.topic == topic), key=lambda a: a.title.lower())[:count]
 
 
 def related_articles(article: PublicPage, articles: list[PublicPage], count: int = 3) -> list[PublicPage]:

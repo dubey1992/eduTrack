@@ -274,3 +274,38 @@ help articles published, blog posts as drafts for the user to review.
 4. **Blog and help centre (S5).** Whether to start one, and who writes:
    the product can carry it, but it only pays off with regular posts.
 5. **Countries to target first** (S3), if any beyond the generic pages.
+
+## Rules every build keeps (2026-11-15)
+
+Found while fixing "Crawled - currently not indexed" for
+/blog/payroll-that-starts-from-the-register. Each is enforced by a test in
+`school/tests/test_blog_and_help.py` (SearchSignals), so a change that
+breaks one fails the build instead of waiting for Search Console:
+
+1. **Descriptions are whole sentences** (`public_site.snippet`): as many as
+   fit 160 characters, a long first sentence kept whole up to 300, never cut
+   off with "...".
+2. **Every sitemap entry has a `lastmod`**: the publish date, or - for the
+   homepage, product pages and indexes - the day the page's `<main>` last
+   changed, carried over from the previous sitemap while it is unchanged.
+3. **Posts and help articles carry `dateModified`** in their structured data.
+4. **A product page links what is written about it**: blog posts whose text
+   links to it, and the help articles on its topic
+   (`public_site_content.MODULE_TOPICS`). To have a new post listed on a
+   product page, link to that page from the post's text.
+5. **The server declares UTF-8** (`AddDefaultCharset` in the htaccess).
+
+### Checking the live site
+
+    python scripts/seo_crawl.py https://school365ai.com   # links, tags, sitemap, orphans
+    python scripts/seo_audit.py https://school365ai.com   # dates, descriptions, in-text links,
+                                                          # duplicates, redirects, headers
+
+Two findings are about content rather than code, and only an editor can
+settle them: a post shorter than ~800 words, and a post without a cover
+picture (upload one in Website Pages; it becomes the post's share image too).
+
+"Crawled - currently not indexed" is Google's choice, not an error: a new
+post on a young site can sit there for weeks. After a deploy that improves a
+page, ask for it again with Search Console's URL Inspection, "Request
+indexing", rather than "Validate fix".
