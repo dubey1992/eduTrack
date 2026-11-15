@@ -20,6 +20,34 @@
     </div>
   </div>
 </article>
+{% if further_posts or further_articles %}
+{# Links from the product page to what is written about it: the blog posts
+   that link here and the how-to guides on its topic (docs/seo.md). #}
+<section class="section tinted further-reading">
+  <div class="wrap">
+    <div class="section-intro">
+      <p class="eyebrow">Read more</p>
+      <h2>More about {{ page_short_title }}</h2>
+    </div>
+    {% if further_posts %}
+    <h3 class="further-heading">From the blog</h3>
+    <ul class="grid-3">
+      {% for post in further_posts %}
+      <li><a class="card feature-card module-card" href="{{ post.path }}"><h3>{{ post.title }}</h3><p>{{ post.summary }}</p><span class="more">Read the post <span aria-hidden="true">&rarr;</span></span></a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if further_articles %}
+    <h3 class="further-heading">How-to guides</h3>
+    <ul class="grid-3">
+      {% for article in further_articles %}
+      <li><a class="card feature-card module-card" href="{{ article.path }}"><h3>{{ article.title }}</h3><p>{{ article.summary }}</p><span class="more">Read the guide <span aria-hidden="true">&rarr;</span></span></a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
 {% if is_module %}
 <section class="band">
   <div class="wrap narrow">

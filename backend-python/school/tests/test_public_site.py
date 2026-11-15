@@ -560,7 +560,9 @@ class NoPageIsLeftAlone(SimpleTestCase):
         self.assertEqual(long, public_site.titled(long))
 
     def test_a_written_summary_is_kept_to_a_snippet(self):
-        self.assertLessEqual(len(public_site.snippet("word " * 80)), 158)
+        # One sentence of 80 words, longer than any description should be:
+        # cut at a word, the only case that is ever cut.
+        self.assertLessEqual(len(public_site.snippet("word " * 80)), public_site.SNIPPET_LIMIT + 1)
 
 
 class TheWarmEditorialDesign(TestCase):

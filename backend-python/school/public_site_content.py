@@ -75,6 +75,21 @@ SHORT_NAMES = {
 }
 
 
+# The help centre topic each product page's how-to guides are filed under
+# (school/site_pages.py HELP_TOPICS), so a product page can list them.
+MODULE_TOPICS = {
+    "school-attendance-software": "attendance",
+    "school-fee-management-software": "fees",
+    "school-bus-tracking-software": "transport",
+    "staff-attendance-software": "staff",
+    "school-timetable-software": "teaching",
+    "student-progress-reports": "tests",
+    "school-payroll-software": "staff",
+    "school-communication-software": "communication",
+    "student-information-system": "getting-started",
+    "school-staff-and-driver-apps": "apps",
+}
+
 def short_name(slug: str, title: str) -> str:
     return SHORT_NAMES.get(slug, title)
 
