@@ -4,6 +4,7 @@ import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_account.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
+import 'package:edutrack_app/features/family/data/models/family_fees.dart';
 import 'package:edutrack_app/features/family/data/models/family_learning.dart';
 import 'package:edutrack_app/features/family/data/models/family_records.dart';
 
@@ -177,6 +178,79 @@ const familySyllabus = [
   SubjectSyllabus(subject: 'Science', total: 22, covered: 14, percent: 64, nextTopics: ['Light', 'Sound']),
 ];
 
+/// A child's fees: one paid, one overdue and part paid, one due later, a
+/// receipt and a cancelled one, and the school's own words on paying.
+FamilyFees familyFees({HowToPay? howToPay, bool empty = false, double credit = 0}) => FamilyFees(
+  yearName: empty ? null : '2026-27',
+  currencyCode: 'INR',
+  totals: empty ? null : const FeeTotals(charged: 15000, discount: 500, paid: 6000, balance: 8500, overdue: 3500),
+  instalments: empty
+      ? const []
+      : [
+          Instalment(
+            id: 1,
+            label: 'Term 1',
+            dueDate: DateTime(2026, 6, 10),
+            amount: 5000,
+            discount: 0,
+            paid: 5000,
+            balance: 0,
+            status: InstalmentStatus.paid,
+          ),
+          Instalment(
+            id: 2,
+            label: 'Term 2',
+            dueDate: DateTime(2026, 10, 10),
+            amount: 5000,
+            discount: 500,
+            paid: 1000,
+            balance: 3500,
+            status: InstalmentStatus.overdue,
+          ),
+          Instalment(
+            id: 3,
+            label: 'Term 3',
+            dueDate: DateTime(2027, 1, 10),
+            amount: 5000,
+            discount: 0,
+            paid: 0,
+            balance: 5000,
+            status: InstalmentStatus.due,
+          ),
+        ],
+  receipts: empty
+      ? const []
+      : [
+          FamilyReceipt(
+            id: 11,
+            number: 'RC-2026-0042',
+            date: DateTime(2026, 6, 8),
+            amount: 5000,
+            currencyCode: 'INR',
+            paymentMode: 'upi',
+            cancelled: false,
+          ),
+          FamilyReceipt(
+            id: 12,
+            number: 'RC-2026-0077',
+            date: DateTime(2026, 9, 2),
+            amount: 300,
+            currencyCode: 'INR',
+            paymentMode: 'cash',
+            cancelled: true,
+          ),
+        ],
+  credit: credit,
+  howToPay:
+      howToPay ??
+      const HowToPay(
+        counterHours: 'Mon-Sat, 9 am to 1 pm',
+        bankDetails: 'Greenfield School, A/c 1234567890, IFSC HDFC0001234',
+        upiId: 'greenfield@okaxis',
+        officePhone: '+91 80 4000 1234',
+      ),
+);
+
 /// The parent's screens' data, in memory.
 class FakeFamilyRepository implements FamilyRepository {
   FakeFamilyRepository({
@@ -241,6 +315,31 @@ class FakeFamilyRepository implements FamilyRepository {
   final List<int> markedRead = [];
   int markAllReadCalls = 0;
   final List<(String, bool)> saved = [];
+
+  FamilyFees feesValue = familyFees();
+  Failure? failFeesWith;
+  Failure? failPdfWith;
+  final List<String> pdfsAskedFor = [];
+
+  @override
+  Future<FamilyFees> fees(int childId) async {
+    if (failFeesWith != null) throw failFeesWith!;
+    return feesValue;
+  }
+
+  @override
+  Future<List<int>> feeStatement(int childId) async {
+    pdfsAskedFor.add('statement:$childId');
+    if (failPdfWith != null) throw failPdfWith!;
+    return const [37, 80, 68, 70];
+  }
+
+  @override
+  Future<List<int>> receiptPdf(int childId, int receiptId) async {
+    pdfsAskedFor.add('receipt:$childId:$receiptId');
+    if (failPdfWith != null) throw failPdfWith!;
+    return const [37, 80, 68, 70];
+  }
 
   @override
   Future<({FamilyToday today, DateTime at})?> savedToday(int childId) async => savedTodayValue;

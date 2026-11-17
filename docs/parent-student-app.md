@@ -165,6 +165,20 @@ Decisions taken while building:
 - **How to pay:** the school's counter hours, bank and UPI details as the school enters them.
 - Reminders arrive as notifications, before the due date and when overdue, as the school sets.
 
+**As built (2026-11-17).** The Fees tab reads the same ledger as the office's statement (`school/family_fees.py`), so a parent and the accounts clerk never see different numbers.
+
+- It shows:
+  - what is left to pay this year and how much of it is overdue;
+  - charged, discount, paid and any credit held;
+  - each instalment as paid, part paid, due, overdue or waived (a cancelled one is left out);
+  - every receipt (a cancelled one marked), each opening as its PDF;
+  - the year's statement as a PDF.
+- **How to pay** is the school's own words: three new Fees settings (fee counter hours, bank details, UPI ID) that the School Admin fills in under Module Settings, plus the office phone. The UPI ID must look like one (`name@bank`).
+- Module settings gained a "text" type (length-capped, optionally several lines, optionally a pattern) for this.
+- Both the Family App and the Fees module must be on; a receipt or a child that isn't the caller's own is a 404.
+- Reminders already reach the app: fee reminders go through the guardian notifications, which copy into the Family app since F1.
+- API: `GET family/children/{id}/fees`, `.../fees/statement.pdf`, `.../receipts/{receipt_id}/pdf`.
+
 ### Phase F4: The bus
 
 - **Live map during the child's trip** only: the bus, the route, the child's stop, and the time to the stop.

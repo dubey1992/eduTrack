@@ -6,6 +6,7 @@ import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/family/application/family_session_notifier.dart';
 import '../../features/family/presentation/family_attendance_screen.dart';
 import '../../features/family/presentation/family_bus_fees_screens.dart';
+import '../../features/family/presentation/family_fees_screen.dart';
 import '../../features/family/presentation/family_frame.dart';
 import '../../features/family/presentation/family_home_screen.dart';
 import '../../features/family/presentation/family_learning_screens.dart';

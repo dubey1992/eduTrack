@@ -26,11 +26,18 @@ from .models import ModuleSetting
 class Setting:
     key: str
     label: str
-    type: str  # "bool" | "int"
+    type: str  # "bool" | "int" | "text"
     default: object
     help: str = ""
     min: int | None = None
     max: int | None = None
+    # A "text" setting: its longest allowed length, whether the screen gives
+    # it several lines, and an optional pattern a non-empty value must match
+    # (with the sentence shown when it does not). Empty is always allowed.
+    max_length: int | None = None
+    multiline: bool = False
+    pattern: str | None = None
+    pattern_message: str = ""
 
 
 @dataclass(frozen=True)
@@ -198,6 +205,23 @@ MODULES: tuple[Module, ...] = (
             ),
             Setting(
                 "remind_when_overdue", "Remind guardians once when an installment becomes overdue", "bool", True,
+            ),
+            # Read by family_fees.py: "How to pay" in the Family app (F3).
+            # The app takes no payments (decision D4); it tells a parent how.
+            Setting(
+                "pay_counter_hours", "Fee counter hours", "text", "", max_length=200,
+                help="When the office takes fees, e.g. \"Mon-Sat, 9 am to 1 pm\". Shown to parents in the Family app.",
+            ),
+            Setting(
+                "pay_bank_details", "Bank details for fee transfers", "text", "", max_length=500, multiline=True,
+                help="Account name, number, bank, branch and IFSC, as parents should write them. "
+                     "Shown to parents in the Family app.",
+            ),
+            Setting(
+                "pay_upi_id", "UPI ID for fees", "text", "", max_length=100,
+                pattern=r"^[A-Za-z0-9._-]{2,256}@[A-Za-z][A-Za-z0-9.]{1,63}$",
+                pattern_message="Enter a UPI ID like schoolname@okaxis.",
+                help="Shown to parents in the Family app. Leave empty if the school takes no UPI payments.",
             ),
         ),
     ),

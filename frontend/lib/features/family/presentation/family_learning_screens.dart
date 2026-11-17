@@ -1,38 +1,17 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/family_brand.dart';
 import '../../../core/utils/date_format.dart';
-import '../../../core/utils/file_saver.dart';
 import '../application/family_learning_notifiers.dart';
 import '../application/family_session_notifier.dart';
 import '../data/family_repository.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_learning.dart';
+import 'family_pdf.dart';
 import 'widgets/family_widgets.dart';
-
-/// Hands a PDF to the parent: the phone's share sheet (save to Files, send
-/// on WhatsApp), or a download in a browser. Swappable in tests.
-typedef PdfHandOff = Future<void> Function(List<int> bytes, String fileName);
-
-final pdfHandOffProvider = Provider<PdfHandOff>(
-  (ref) => (bytes, fileName) async {
-    if (kIsWeb) {
-      saveBytes(fileName: fileName, bytes: bytes, mimeType: 'application/pdf');
-      return;
-    }
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile.fromData(Uint8List.fromList(bytes), mimeType: 'application/pdf', name: fileName)],
-        fileNameOverrides: [fileName],
-      ),
-    );
-  },
-);
 
 /// A learning screen's frame: a back arrow, its title, and whose it is.
 class _LearningScaffold extends ConsumerWidget {

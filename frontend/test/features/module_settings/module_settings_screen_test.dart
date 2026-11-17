@@ -6,6 +6,7 @@ import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
+import 'package:edutrack_app/features/module_settings/data/models/module_setting.dart';
 import 'package:edutrack_app/features/module_settings/data/module_settings_repository.dart';
 import 'package:edutrack_app/features/module_settings/presentation/module_settings_screen.dart';
 import 'package:edutrack_app/features/schools/data/models/school.dart';
@@ -406,6 +407,90 @@ void main() {
     expect(fake.lastUpdate!['module'], 'payroll');
     expect(fake.lastUpdate!['settings'], {'email_payslips': false});
     expect(find.text('Settings saved.'), findsOneWidget);
+  });
+
+  group('text settings - how to pay fees (Family app F3)', () {
+    const hours = SettingField(
+      key: 'pay_counter_hours',
+      label: 'Fee counter hours',
+      type: SettingFieldType.text,
+      defaultValue: '',
+      maxLength: 200,
+    );
+    const bank = SettingField(
+      key: 'pay_bank_details',
+      label: 'Bank details for fee transfers',
+      type: SettingFieldType.text,
+      defaultValue: '',
+      maxLength: 500,
+      multiline: true,
+    );
+    FakeModuleSettingsRepository feesOnly({Map<String, Object?> settings = const {}}) => FakeModuleSettingsRepository(
+      rows: [
+        moduleSetting(
+          module: 'fees',
+          label: 'Fee Management',
+          settings: {'pay_counter_hours': '', 'pay_bank_details': '', ...settings},
+          settingsSchema: const [hours, bank],
+        ),
+      ],
+    );
+
+    testWidgets('a text setting shows what is saved, with several lines where it needs them', (tester) async {
+      useDesktop(tester);
+      await pumpAsSchoolAdmin(tester, feesOnly(settings: {'pay_counter_hours': 'Mon-Sat, 9 am to 1 pm'}));
+
+      final hoursField = tester.widget<TextField>(
+        find.descendant(
+          of: find.byKey(const Key('module-setting-fees-pay_counter_hours')),
+          matching: find.byType(TextField),
+        ),
+      );
+      final bankField = tester.widget<TextField>(
+        find.descendant(
+          of: find.byKey(const Key('module-setting-fees-pay_bank_details')),
+          matching: find.byType(TextField),
+        ),
+      );
+      expect(hoursField.controller!.text, 'Mon-Sat, 9 am to 1 pm');
+      expect((hoursField.maxLines, bankField.maxLines, bankField.maxLength), (1, 6, 500));
+    });
+
+    testWidgets('a text setting saves as trimmed text', (tester) async {
+      useDesktop(tester);
+      final fake = feesOnly();
+      await pumpAsSchoolAdmin(tester, fake);
+
+      await tester.enterText(find.byKey(const Key('module-setting-fees-pay_counter_hours')), '  Mon-Fri, 8 to 2  ');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('module-save-fees')));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastUpdate!['settings'], {'pay_counter_hours': 'Mon-Fri, 8 to 2', 'pay_bank_details': ''});
+      expect(find.text('Settings saved.'), findsOneWidget);
+    });
+
+    testWidgets('a pattern the server refuses, like a UPI ID, shows its sentence', (tester) async {
+      useDesktop(tester);
+      final fake = feesOnly()
+        ..failUpdateWith = const Failure(
+          code: 'VALIDATION_ERROR',
+          message: 'The given data was invalid.',
+          details: {
+            'errors': {
+              'settings': ['Enter a UPI ID like schoolname@okaxis.'],
+            },
+          },
+        );
+      await pumpAsSchoolAdmin(tester, fake);
+
+      await tester.enterText(find.byKey(const Key('module-setting-fees-pay_counter_hours')), 'Mon-Sat');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('module-save-fees')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a UPI ID like schoolname@okaxis.'), findsOneWidget);
+    });
   });
 
   testWidgets('a save the server refuses shows its sentence under the form', (tester) async {

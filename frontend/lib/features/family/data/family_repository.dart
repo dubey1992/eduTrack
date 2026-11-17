@@ -6,6 +6,7 @@ import '../../../core/network/dio_client.dart';
 import 'family_api.dart';
 import 'family_today_cache.dart';
 import 'models/family_day.dart';
+import 'models/family_fees.dart';
 import 'models/family_learning.dart';
 import 'models/family_records.dart';
 
@@ -71,4 +72,10 @@ class FamilyRepository {
   Future<FamilyWeek> timetable(int childId) => _call(() => _api.timetable(childId));
 
   Future<List<SubjectSyllabus>> syllabus(int childId) => _call(() => _api.syllabus(childId));
+
+  Future<FamilyFees> fees(int childId) => _call(() => _api.fees(childId));
+
+  Future<List<int>> feeStatement(int childId) => _call(() => _api.feeStatement(childId));
+
+  Future<List<int>> receiptPdf(int childId, int receiptId) => _call(() => _api.receiptPdf(childId, receiptId));
 }

@@ -133,6 +133,7 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
   /// text typed, so a half-typed number is not lost on rebuild.
   final _flags = <String, bool>{};
   final _numbers = <String, TextEditingController>{};
+  final _texts = <String, TextEditingController>{};
 
   bool _switching = false;
   bool _saving = false;
@@ -157,7 +158,7 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
 
   @override
   void dispose() {
-    for (final controller in _numbers.values) {
+    for (final controller in [..._numbers.values, ..._texts.values]) {
       controller.dispose();
     }
     super.dispose();
@@ -177,6 +178,14 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
           } else {
             existing.text = text;
           }
+        case SettingFieldType.text:
+          final text = value is String ? value : '';
+          final existing = _texts[field.key];
+          if (existing == null) {
+            _texts[field.key] = TextEditingController(text: text)..addListener(() => setState(() {}));
+          } else {
+            existing.text = text;
+          }
       }
     }
   }
@@ -189,6 +198,8 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
           if (_flags[field.key] != (value == true)) return true;
         case SettingFieldType.integer:
           if (_numbers[field.key]!.text.trim() != (value == null ? '' : '$value')) return true;
+        case SettingFieldType.text:
+          if (_texts[field.key]!.text.trim() != (value is String ? value : '')) return true;
       }
     }
     return false;
@@ -245,6 +256,7 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
         field.key: switch (field.type) {
           SettingFieldType.flag => _flags[field.key] ?? false,
           SettingFieldType.integer => int.parse(_numbers[field.key]!.text.trim()),
+          SettingFieldType.text => _texts[field.key]!.text.trim(),
         },
     };
   }
@@ -379,6 +391,20 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
                   validator: (value) => _validateNumber(field, value),
                 ),
               ),
+              SettingFieldType.text => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: TextFormField(
+                  key: Key('module-setting-$module-${field.key}'),
+                  controller: _texts[field.key],
+                  enabled: !_saving,
+                  maxLength: field.maxLength,
+                  minLines: field.multiline ? 3 : 1,
+                  maxLines: field.multiline ? 6 : 1,
+                  keyboardType: field.multiline ? TextInputType.multiline : TextInputType.text,
+                  decoration: InputDecoration(labelText: field.label, helperText: field.help, helperMaxLines: 3),
+                  validator: (value) => _validateText(field, value),
+                ),
+              ),
             },
           if (_settingsError != null) ...[
             Text(
@@ -404,6 +430,16 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
         ],
       ),
     );
+  }
+
+  /// Empty is allowed - it means "not set". The server checks a pattern such
+  /// as a UPI ID's and its message is shown under the form.
+  static String? _validateText(SettingField field, String? value) {
+    final text = (value ?? '').trim();
+    if (field.maxLength != null && text.length > field.maxLength!) {
+      return '${field.label} must be ${field.maxLength} characters or fewer';
+    }
+    return null;
   }
 
   static String? _validateNumber(SettingField field, String? value) {

@@ -2184,6 +2184,23 @@ class UpdateModuleSettingRequest(serializers.Serializer):
                 if setting.min is not None and raw < setting.min or setting.max is not None and raw > setting.max:
                     problems.append(f"{setting.label} must be between {setting.min} and {setting.max}.")
                     continue
+            elif setting.type == "text":
+                if raw is None:
+                    raw = ""
+
+                if not isinstance(raw, str):
+                    problems.append(f"{setting.label} must be text.")
+                    continue
+
+                raw = raw.strip()
+
+                if setting.max_length is not None and len(raw) > setting.max_length:
+                    problems.append(f"{setting.label} must be {setting.max_length} characters or fewer.")
+                    continue
+
+                if raw and setting.pattern and not re.fullmatch(setting.pattern, raw):
+                    problems.append(setting.pattern_message or f"{setting.label} is not in the expected form.")
+                    continue
 
             clean[key] = raw
 

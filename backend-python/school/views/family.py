@@ -27,23 +27,30 @@ Learning (F2):
 - GET  family/children/{id}/progress-report[?term_id=] - the PDF, once the term is over
 - GET  family/children/{id}/timetable - the class's week
 - GET  family/children/{id}/syllabus - topics covered per subject
+
+Fees (F3), read only - the app takes no payments:
+- GET  family/children/{id}/fees - instalments, totals, receipts, credit, how to pay
+- GET  family/children/{id}/fees/statement.pdf - the year's statement
+- GET  family/children/{id}/receipts/{receipt_id}/pdf - one receipt; another
+  child's receipt is a 404
 """
 
 from __future__ import annotations
 
 import re
 
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .. import family_day, family_inbox, family_learning
+from .. import family_day, family_fees, family_inbox, family_learning, modules
 from ..clock import SchoolClock
 from ..enums import UserRole
-from ..errors import NotAFamilyAccount, ProgressReportNotReady
+from ..errors import ModuleDisabled, NotAFamilyAccount, ProgressReportNotReady
+from ..fees import receipt_pdf, statement_pdf
 from ..family_accounts import FamilyAuthService, assert_family_app_on
 from ..family_requests import FamilyLoginRequest, FamilySetupRequest
 from ..family_resources import family_me_resource, family_notice_resource
@@ -282,3 +289,54 @@ def child_syllabus(request, child_id: int) -> Response:
     user = family_reader(request)
 
     return Response(family_learning.syllabus_for(child_of(user, child_id)))
+
+
+# -- Fees (F3) -------------------------------------------------------------------
+
+
+def fees_reader(request):
+    """A family account reading fees: the Fees module must be on as well as
+    the Family App - a school without it has nothing to show."""
+    user = family_reader(request)
+
+    if not modules.is_enabled(user.school_id, family_fees.MODULE):
+        raise ModuleDisabled(modules.get(family_fees.MODULE).label)
+
+    return user
+
+
+def pdf_response(document: bytes, file_name: str) -> HttpResponse:
+    response = HttpResponse(document, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_fees(request, child_id: int) -> Response:
+    user = fees_reader(request)
+    return Response(family_fees.fees_of(child_of(user, child_id)))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_fee_statement(request, child_id: int):
+    user = fees_reader(request)
+    found = family_fees.statement_of(child_of(user, child_id))
+
+    if found is None:
+        raise Http404()
+
+    return pdf_response(statement_pdf.render(found), statement_pdf.file_name(found["student"], found["year"]))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_receipt_pdf(request, child_id: int, receipt_id: int):
+    user = fees_reader(request)
+    receipt = family_fees.receipt_of(child_of(user, child_id), receipt_id)
+
+    if receipt is None:
+        raise Http404()
+
+    return pdf_response(receipt_pdf.render(receipt), receipt_pdf.file_name(receipt))

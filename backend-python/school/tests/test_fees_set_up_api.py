@@ -356,7 +356,8 @@ class TheModuleSwitch(FeesTestCase):
         # F3, late fines with F4, reminders with F5.
         self.assertEqual(
             {"allow_part_payment": True, "late_fine_amount": 0, "late_fine_grace_days": 7,
-             "reminder_days_before": 3, "remind_when_overdue": True},
+             "reminder_days_before": 3, "remind_when_overdue": True,
+             "pay_counter_hours": "", "pay_bank_details": "", "pay_upi_id": ""},
             modules.get("fees").defaults(),
         )
 

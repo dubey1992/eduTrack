@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/family_repository.dart';
+import '../data/models/family_fees.dart';
 import '../data/models/family_learning.dart';
 
 /// One child's results for one term, keyed by (child, term id or null for
@@ -58,6 +59,26 @@ class FamilySyllabusNotifier extends AsyncNotifier<List<SubjectSyllabus>> {
 
   @override
   Future<List<SubjectSyllabus>> build() => ref.read(familyRepositoryProvider).syllabus(childId);
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(build);
+  }
+}
+
+/// One child's fees for their current year (F3).
+final familyFeesProvider = AsyncNotifierProvider.autoDispose.family<FamilyFeesNotifier, FamilyFees, int>(
+  FamilyFeesNotifier.new,
+  retry: (retryCount, error) => null,
+);
+
+class FamilyFeesNotifier extends AsyncNotifier<FamilyFees> {
+  FamilyFeesNotifier(this.childId);
+
+  final int childId;
+
+  @override
+  Future<FamilyFees> build() => ref.read(familyRepositoryProvider).fees(childId);
 
   Future<void> refresh() async {
     state = const AsyncLoading();

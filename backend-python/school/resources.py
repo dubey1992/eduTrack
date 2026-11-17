@@ -475,6 +475,8 @@ def module_setting_resource(module, row, viewer) -> dict:
                 "help": setting.help,
                 "min": setting.min,
                 "max": setting.max,
+                "max_length": setting.max_length,
+                "multiline": setting.multiline,
             }
             for setting in module.settings
         ],

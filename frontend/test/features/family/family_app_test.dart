@@ -7,7 +7,7 @@ import 'package:edutrack_app/features/family/data/family_auth_repository.dart';
 import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
-import 'package:edutrack_app/features/family/presentation/family_learning_screens.dart';
+import 'package:edutrack_app/features/family/presentation/family_pdf.dart';
 import 'package:edutrack_app/features/family/presentation/family_more_screens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

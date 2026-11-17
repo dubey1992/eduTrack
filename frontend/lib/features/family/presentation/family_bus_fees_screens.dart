@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_format.dart';
 import '../application/family_notifiers.dart';
 import '../application/family_session_notifier.dart';
@@ -147,75 +146,5 @@ class _TripCard extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-/// Fees: what is due next. The full statement and receipts are F3.
-class FamilyFeesScreen extends ConsumerWidget {
-  const FamilyFeesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return _withToday(ref, (day) {
-      final fee = day.fee;
-      final colours = context.appColors;
-
-      return ListView(
-        key: const Key('family-fees'),
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        children: [
-          if (fee == null)
-            const Padding(
-              padding: EdgeInsets.only(top: 40),
-              child: FamilyEmptyView(
-                icon: Icons.verified_rounded,
-                title: 'Nothing due',
-                message: 'Every fee the school has set is paid.',
-              ),
-            )
-          else
-            FamilyCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CardHeading(
-                    icon: Icons.receipt_long_rounded,
-                    title: fee.isOverdue ? 'Overdue' : 'Next fee due',
-                    colour: fee.isOverdue ? colours.danger : colours.warning,
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    formatCurrency(fee.amount, fee.currencyCode),
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(fee.label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(
-                    '${fee.isOverdue ? 'Was due' : 'Due'} on ${formatDate(fee.dueDate)}',
-                    style: TextStyle(color: fee.isOverdue ? colours.danger : colours.muted),
-                  ),
-                ],
-              ),
-            ),
-          const SizedBox(height: 12),
-          FamilyCard(
-            child: Row(
-              children: [
-                Icon(Icons.info_outline_rounded, color: colours.info),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Pay at the school office as you do today. Your full fee statement and receipts are coming '
-                    'to this app soon.',
-                    style: TextStyle(color: colours.muted, fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    });
   }
 }
