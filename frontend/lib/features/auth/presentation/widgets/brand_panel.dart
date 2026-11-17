@@ -200,7 +200,10 @@ class _WhoSignsIn extends StatelessWidget {
           const _WhoRow(
             icon: Icons.family_restroom_outlined,
             title: 'Parents',
-            detail: 'No sign-in needed. Your school sends attendance, bus and fee updates to your phone.',
+            // The Family app is built but not yet on Google Play (2026-11-17).
+            detail:
+                'The School365ai Family app is coming soon. Until then, your school sends attendance, bus and '
+                'fee updates to your phone.',
           ),
         ],
       ),

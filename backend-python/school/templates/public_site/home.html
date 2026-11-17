@@ -168,7 +168,7 @@
       <h2>{{ mobile.headline|linebreaksbr }}</h2>
       <p class="lead">{{ mobile.body }}</p>
     </div>
-    {# The two apps that exist today, described plainly (2026-10-31). #}
+    {% comment %}The apps, described plainly (2026-10-31). The Family app is built but not yet on Google Play, so it says "Coming soon" until it is (decided 2026-11-17) - never "download".{% endcomment %}
     <ul class="app-list">
       <li class="app-card">
         <span class="feature-icon">{{ icons.phone }}</span>
@@ -181,6 +181,12 @@
         <h3>School365ai Driver</h3>
         <p class="who">For drivers and bus attendants</p>
         <p>Run the day's trips, mark each child boarded or dropped off, share the bus's live location and call a parent from the bus.</p>
+      </li>
+      <li class="app-card tone-lilac">
+        <span class="feature-icon">{{ icons.family }}</span>
+        <h3>School365ai Family <span class="status-pill soon">Coming soon</span></h3>
+        <p class="who">For parents</p>
+        <p>See today's attendance and send an absence note, follow the bus on a live map, check fees and receipts, read results and progress reports, answer the school's notices and ask for a call back.</p>
       </li>
     </ul>
   </div>
