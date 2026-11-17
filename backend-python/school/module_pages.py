@@ -277,19 +277,18 @@ A printable progress report for each student: every test with its grade, the cla
 
 A promotion wizard moves a whole class on at the end of the year: promote, retain, graduate or mark as left, student by student, in one batch. Every year's class stays in the student's history.
 
+## Report cards
+
+A printed report card in the layout a school chooses: the standard progress report, or a classic marksheet with every term side by side. It grades the way the school does - by percentage, by grade points (GPA) or by grades alone - and can print the result and, if the school wants, the class rank.
+
 ## Exams and admit cards
 
-- **An exam's date sheet** - each class's papers with their date and time - with the centre, the reporting time and the instructions for students.
-- **Admit cards** for a student or a whole section, printed one per sheet, in colour or black and white.
-- **Published when the school is ready,** and versioned: a change after publishing is issued as a new version, and earlier cards still reprint as they were.
-- **Held back where the school decides** - for a named student, or while fees are overdue when the school chooses that for an exam.
-
-School365ai does not seat students or allot exam rooms.
+Exam date sheets and printable admit cards have a page of their own: [exam scheduling and admit cards](/school-exam-management-software).
 
 ## Frequently asked questions
 
-### Can School365ai print exam admit cards?
-Yes. A school sets up an exam's date sheet, publishes it, and prints admit cards for a student or a whole section. It does not seat students or allot exam rooms.
+### Does the report card follow our grading system?
+Yes. A grade scale can be by percentage, by grade points (GPA) or by grades only, and the report card prints in that system.
 
 ### Can marks be imported from a spreadsheet?
 Yes. Marks for a test can be imported from a CSV file, with every problem in the file listed before anything is saved.
@@ -453,6 +452,46 @@ Coming soon. School365ai Family, for parents, is on its way to Google Play. Unti
 ### Which app does a bus attendant use?
 School365ai Driver - the same app as the driver. Both sign in with their mobile number and a passcode on a phone the school has registered."""
 
+EXAMS = """School365ai's exam software lets a school set up each examination - its date sheet, centre and reporting time - publish it when it is ready, and print an admit card for every student who sits it.
+
+## Set up the exam
+
+- **An exam per name and year** - Half-Yearly, Annual, a unit test - with an optional term.
+- **A date sheet for every class:** each paper's subject, date, and start and end time.
+- **Checked as you save:** dates inside the academic year, a paper that ends after it starts, one paper per subject per class, and no two papers for a class at the same time.
+- **The centre, the reporting time and the instructions** that every card prints.
+
+## Publish when it is ready
+
+- **Nothing is issued while it is a draft.** The staff who manage the exam can preview a draft card.
+- **Each publish is a version.** A change after publishing waits until it is published again as version 2, and version 1 can still be reprinted exactly as it was issued.
+
+## Admit cards
+
+- **An A4 card for each student:** the school's logo, name and address; the exam; the student's name, admission number, class and section, roll number and guardian; the centre and reporting time; the papers their class sits; the instructions; and signature lines.
+- **In colour or black and white.**
+- **For one student, or a whole section at once,** one card per page, as a PDF to print.
+- **Held back where the school decides:** withheld for a named student, with a reason only staff read, or - when the school chooses it for an exam - while fees are overdue, with a named student let through.
+
+The card has a box for the student's photo; School365ai does not allot seats or exam rooms. Parents will download their child's card in the School365ai Family app, coming soon - today the school prints the cards and hands them out.
+
+## Who can do what
+
+School and group admins set exams up, publish them and hold cards back. Teachers and heads of department see the date sheet and print cards. Each school sees only its own exams.
+
+After the exam, marks go into [class tests and report cards](/student-progress-reports).
+
+## Frequently asked questions
+
+### Can we print admit cards for a whole class?
+Yes. Choose a section and print every ready card at once, one per page. Cards that are withheld or held for fees are left out, and the screen says how many.
+
+### What happens if the date sheet changes after cards are printed?
+Publish the change and the cards print it as a new version. The earlier version stays on record and can be reprinted as it was issued.
+
+### Can an admit card be held for unpaid fees?
+Only if the school switches that on for an exam. A student with overdue fees then gets no card until the fees are paid, or until the school lets them through by name."""
+
 # In the order the homepage shows them: what a school asks about first.
 MODULES: tuple[ModulePage, ...] = (
     ModulePage(
@@ -464,32 +503,36 @@ MODULES: tuple[ModulePage, ...] = (
         "Fee plans, numbered receipts, reminders, late fines and credit, in your currency.", FEES,
     ),
     ModulePage(
-        "school-bus-tracking-software", "School Bus Tracking and Transport",
-        "Routes on a map, trips run from the driver's phone, and boarding alerts.", TRANSPORT,
-    ),
-    ModulePage(
-        "staff-attendance-software", "Staff Attendance and Check-in",
-        "Check in at school from the phone, fingerprint readers, late and leave.", STAFF_ATTENDANCE,
-    ),
-    ModulePage(
         "school-timetable-software", "Timetable, Teaching Reports and Syllabus Tracking",
         "Clash-free timetables, daily teaching reports and syllabus progress.", TIMETABLE,
     ),
     ModulePage(
-        "student-progress-reports", "Class Tests, Grades and Progress Reports",
-        "Marks, grade scales, published results, progress reports and promotion.", ASSESSMENTS,
-    ),
-    ModulePage(
-        "school-payroll-software", "Staff Payroll and Leave",
-        "Monthly payroll from attendance, PDF payslips, and leave from apply to approve.", PAYROLL,
+        "school-bus-tracking-software", "School Bus Tracking and Transport",
+        "Routes on a map, trips run from the driver's phone, and boarding alerts.", TRANSPORT,
     ),
     ModulePage(
         "school-communication-software", "Parent and Staff Communication",
         "SMS, WhatsApp, email, inbox and push: alerts, announcements and notices.", COMMUNICATION,
     ),
     ModulePage(
+        "school-payroll-software", "Staff Payroll and Leave",
+        "Monthly payroll from attendance, PDF payslips, and leave from apply to approve.", PAYROLL,
+    ),
+    ModulePage(
+        "school-exam-management-software", "Exam Scheduling and Admit Cards",
+        "Exam date sheets for every class, published when ready, and printable admit cards.", EXAMS,
+    ),
+    ModulePage(
+        "student-progress-reports", "Class Tests, Report Cards and Progress Reports",
+        "Marks, grade scales in percentage, GPA or grades, report cards, progress reports and promotion.", ASSESSMENTS,
+    ),
+    ModulePage(
         "school-reports-and-analytics", "School Reports and Analytics",
         "Twelve reports in PDF and CSV, role dashboards and trends over the year.", REPORTS,
+    ),
+    ModulePage(
+        "staff-attendance-software", "Staff Attendance and Check-in",
+        "Check in at school from the phone, fingerprint readers, late and leave.", STAFF_ATTENDANCE,
     ),
     ModulePage(
         "student-information-system", "Student and Staff Records",

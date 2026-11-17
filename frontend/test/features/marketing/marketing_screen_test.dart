@@ -68,8 +68,8 @@ void main() {
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
-    expect(find.text('Run Your School Smarter, Together.'), findsOneWidget);
-    expect(find.text('Powerful Features for Modern Schools'), findsOneWidget);
+    expect(find.text('A brighter way\nto run your school.'), findsOneWidget);
+    expect(find.text('Everything your school needs to stay in sync.'), findsOneWidget);
     expect(find.text('Student Management'), findsOneWidget);
     expect(find.text('Be Part of the Future of Education'), findsOneWidget);
     expect(find.text('© 2026 School365ai. All rights reserved.'), findsOneWidget);

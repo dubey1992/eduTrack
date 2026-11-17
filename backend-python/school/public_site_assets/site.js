@@ -141,6 +141,12 @@
       if (!value) return;
       body[field.name] = field.type === 'number' ? Number(value) : value;
     });
+    var interest = form.querySelector('[data-interest]');
+    if (interest && interest.value) {
+      // The demo request keeps a free-text message; the choice leads it.
+      var line = 'Main interest: ' + interest.value;
+      body.message = body.message ? line + '\n\n' + body.message : line;
+    }
     if (form.dataset.endpoint === '/demo-requests') {
       try {
         body.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;

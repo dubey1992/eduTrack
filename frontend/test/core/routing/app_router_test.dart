@@ -425,12 +425,12 @@ void main() {
 
     // While the session is still resolving, the marketing homepage must
     // already be showing - not a splash screen bouncing toward /login.
-    expect(find.text('Run Your School Smarter, Together.'), findsOneWidget);
+    expect(find.text('A brighter way\nto run your school.'), findsOneWidget);
 
     gate.complete();
     await tester.pumpAndSettle();
 
-    expect(find.text('Run Your School Smarter, Together.'), findsOneWidget);
+    expect(find.text('A brighter way\nto run your school.'), findsOneWidget);
   });
 
   group('website pages open with no account, which is the whole point of them', () {

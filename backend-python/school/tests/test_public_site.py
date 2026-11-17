@@ -186,7 +186,7 @@ class Building(TestCase):
         home = self.read("index.html")
 
         self.assertIn("<h1>Schools, &lt;run&gt; better</h1>", home)
-        self.assertIn("Powerful Features for Modern Schools", home)
+        self.assertIn("Everything your school needs to stay in sync.", home)
         self.assertIn('<link rel="canonical" href="https://school365ai.com/">', home)
         self.assertRegex(home, r'<script src="/site/site\.js\?v=[0-9a-f]{10}"></script>')
         self.assertNotIn("<script>", home)
@@ -435,11 +435,11 @@ class ModulePages(TestCase):
     def test_an_ordinary_page_does_not(self):
         self.assertNotIn("See it with your own school", self.read("site/pages/about.html"))
 
-    def test_the_homepage_shows_six_modules_and_a_way_to_all_of_them(self):
+    def test_the_homepage_shows_nine_modules_and_a_way_to_all_of_them(self):
         home = self.read("index.html")
         cards = re.findall(r'class="card feature-card[^"]*" href="(/[a-z0-9-]+)"', home)
 
-        self.assertEqual([f"/{module.slug}" for module in module_pages.MODULES[:6]], cards)
+        self.assertEqual([f"/{module.slug}" for module in module_pages.MODULES[:9]], cards)
         self.assertIn(
             f'<a class="button outline" href="/school-management-features">See all {len(module_pages.MODULES)} features',
             home,
