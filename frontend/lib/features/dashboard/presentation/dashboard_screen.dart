@@ -13,6 +13,8 @@ import '../../analytics/application/analytics_notifier.dart';
 import '../../analytics/presentation/widgets/dashboard_trends.dart';
 import '../../analytics/presentation/widgets/early_warning_banner.dart';
 import '../../auth/data/models/authenticated_user.dart';
+import '../../school_logo/application/school_logo_controller.dart';
+import '../../school_logo/presentation/logo_prompt.dart';
 import '../../setup_guide/application/setup_guide_notifier.dart';
 import '../../setup_guide/presentation/setup_guide_card.dart';
 import '../../academic_years/application/viewed_year.dart';
@@ -107,6 +109,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          // The school still has no logo (docs/school-logo.md): said until
+          // one is uploaded, whatever the setup guide shows.
+          if (needsLogoPrompt(user)) ...[const ProfileIncompleteBanner(), const SizedBox(height: 16)],
           // A School Admin's school still being set up (docs/onboarding.md).
           if (user?.role == UserRole.schoolAdmin) const SetupGuideCard(),
           AsyncValueView<Dashboard>(

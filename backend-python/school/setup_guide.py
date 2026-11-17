@@ -1,7 +1,8 @@
 """A new school's setup guide (docs/onboarding.md, slice O4).
 
-Six steps in the order they depend on each other - a year before classes,
-departments before subjects, classes before students. A step is done when
+Seven steps: the school's logo first (docs/school-logo.md - it completes the
+school's profile), then the six in the order they depend on each other - a
+year before classes, departments before subjects, classes before students. A step is done when
 the school has the thing, never because somebody ticked it: a school that set
 up its classes by hand has done the classes step.
 
@@ -12,7 +13,7 @@ Whether the guide still shows is remembered for the whole school
 from __future__ import annotations
 
 from .enums import FAMILY_ROLES, StudentStatus, UserRole
-from .models import AcademicYear, ClassSection, Department, SchoolClass, Student, Subject, User
+from .models import AcademicYear, ClassSection, Department, School, SchoolClass, Student, Subject, User
 
 # Everybody on the staff list - not the admins setting the school up.
 NOT_STAFF = (UserRole.SUPER_ADMIN, UserRole.GROUP_ADMIN, UserRole.SCHOOL_ADMIN)
@@ -43,7 +44,14 @@ def steps_for(school_id: int) -> list[dict]:
     students = Student.objects.filter(school_id=school_id, status=StudentStatus.ACTIVE).count()
     class_count = classes.count()
 
+    has_logo = School.objects.filter(pk=school_id, logo_path__isnull=False).exists()
+
     return [
+        step(
+            "logo", "School logo", "/school-profile",
+            "Shown at the top of the menu for all your staff, and on receipts, payslips and report cards.",
+            done=has_logo, summary="Logo uploaded" if has_logo else None,
+        ),
         step(
             "academic_year", "Academic year", "/academic-years",
             "The year's start and end dates. Mark it as the current year.",
@@ -81,7 +89,7 @@ def steps_for(school_id: int) -> list[dict]:
     ]
 
 
-# What a school may set up next, once the six are done. Not counted.
+# What a school may set up next, once the seven are done. Not counted.
 EXTRAS = (
     ("Holidays", "/holidays", "Days the school is closed, so attendance is not expected."),
     ("Timetable", "/timetable", "Periods and who teaches what, when."),

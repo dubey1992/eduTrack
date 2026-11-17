@@ -216,6 +216,7 @@ urlpatterns = [
     # but would shadow any later text segment added beside it.
     path("api/v1/schools/locations", schools.locations),
     path("api/v1/schools/<int:school_id>", schools.detail),
+    path("api/v1/schools/<int:school_id>/logo", schools.logo),
     path("api/v1/schools/<int:school_id>/activate", schools.activate),
     path("api/v1/schools/<int:school_id>/deactivate", schools.deactivate),
     path("api/v1/timezones", timezones.index),

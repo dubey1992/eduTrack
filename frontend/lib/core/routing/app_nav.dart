@@ -764,6 +764,16 @@ class AppNav {
     icon: Icons.settings_outlined,
     items: [
       NavItem(
+        path: '/school-profile',
+        label: 'School Profile',
+        icon: Icons.school_outlined,
+        // The school's own administrators; a Super Admin sets a school's
+        // logo on its page under Schools (docs/school-logo.md).
+        allowedRoles: {UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'School Profile',
+        pageSubtitle: 'Your school\'s logo, shown to all your staff',
+      ),
+      NavItem(
         path: '/users',
         label: 'Admin Users',
         icon: Icons.group_outlined,

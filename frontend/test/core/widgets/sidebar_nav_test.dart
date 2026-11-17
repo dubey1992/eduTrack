@@ -1,5 +1,6 @@
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/routing/app_nav.dart';
+import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/core/widgets/sidebar_nav.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
@@ -10,9 +11,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../support/fake_auth_repository.dart';
+import '../../support/in_memory_key_value_store.dart';
 
-AuthenticatedUser _user(UserRole role) =>
-    AuthenticatedUser(id: 1, name: 'Actor', email: 'actor@example.com', role: role);
+AuthenticatedUser _user(UserRole role, {int? schoolId, String? schoolName}) => AuthenticatedUser(
+  id: 1,
+  name: 'Actor',
+  email: 'actor@example.com',
+  role: role,
+  schoolId: schoolId,
+  schoolName: schoolName,
+);
 
 /// Every screen the menu offers [role], whichever area it sits in.
 Set<String> _offered(UserRole role) {
@@ -25,9 +33,18 @@ Set<String> _offered(UserRole role) {
 
 /// The menu on a page of its own, starting at [start]; every screen of the
 /// app is a route, so opening an area really navigates.
-Widget _menu(UserRole role, {String start = '/dashboard', bool inDrawer = false}) {
+Widget _menu(
+  UserRole role, {
+  String start = '/dashboard',
+  bool inDrawer = false,
+  AuthenticatedUser? user,
+  KeyValueStore? store,
+}) {
   return ProviderScope(
-    overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _user(role)))],
+    overrides: [
+      authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: user ?? _user(role))),
+      keyValueStoreProvider.overrideWithValue(store ?? InMemoryKeyValueStore()),
+    ],
     child: MaterialApp.router(
       theme: AppTheme.light(),
       routerConfig: GoRouter(
@@ -41,7 +58,15 @@ Widget _menu(UserRole role, {String start = '/dashboard', bool inDrawer = false}
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (inDrawer) SizedBox(width: 304, child: SidebarNav(inDrawer: inDrawer)) else const SidebarNav(),
-                    Expanded(child: Center(child: Text('Page ${item.path}'))),
+                    // The fold button lives in the shell's top bar.
+                    Expanded(
+                      child: Column(
+                        children: [
+                          const NavPanelToggle(),
+                          Expanded(child: Center(child: Text('Page ${item.path}'))),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -248,7 +273,7 @@ void main() {
       expect(find.byKey(const Key('nav-panel')), findsOneWidget);
     });
 
-    testWidgets('folded away, picking an area opens the list again', (tester) async {
+    testWidgets('folded away, an area pops up its screens and the panel stays folded', (tester) async {
       _useDesktop(tester);
       await tester.pumpWidget(_menu(UserRole.schoolAdmin));
       await tester.pumpAndSettle();
@@ -258,7 +283,74 @@ void main() {
       await tester.tap(find.byKey(const Key('nav-area-Fees')));
       await tester.pumpAndSettle();
 
-      expect(_inPanel('Receipts'), findsOneWidget);
+      expect(find.byKey(const Key('nav-flyout-/fee-receipts')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('nav-flyout-/fee-receipts')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page /fee-receipts'), findsOneWidget);
+      expect(find.byKey(const Key('nav-panel')), findsNothing);
+    });
+
+    testWidgets('folded away, closing the pop-up without a pick stays on the page', (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('nav-panel-toggle')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('nav-area-Fees')));
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(const Offset(1300, 1300));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page /dashboard'), findsOneWidget);
+      expect(find.byKey(const Key('nav-flyout-/fee-receipts')), findsNothing);
+    });
+
+    testWidgets('folding is remembered on this device', (tester) async {
+      _useDesktop(tester);
+      final store = InMemoryKeyValueStore();
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin, store: store));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('nav-panel-toggle')));
+      await tester.pumpAndSettle();
+
+      expect(await store.read('nav_panel_open'), 'false');
+    });
+
+    testWidgets('a folded panel stays folded when the app opens again', (tester) async {
+      _useDesktop(tester);
+      final store = InMemoryKeyValueStore();
+      await store.write('nav_panel_open', 'false');
+
+      await tester.pumpWidget(_menu(UserRole.schoolAdmin, store: store));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('nav-panel')), findsNothing);
+      expect(find.byKey(const Key('nav-area-Fees')), findsOneWidget);
+    });
+
+    testWidgets("everyone at a school sees the school's name, and its initials until it has a logo", (tester) async {
+      _useDesktop(tester);
+      final teacher = _user(UserRole.teacher, schoolId: 7, schoolName: 'Riverside Public School');
+      await tester.pumpWidget(_menu(UserRole.teacher, user: teacher));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('nav-school')), findsOneWidget);
+      expect(find.text('Riverside Public School'), findsOneWidget);
+      expect(find.text('RP'), findsOneWidget);
+      expect(find.text('School Management'), findsNothing);
+    });
+
+    testWidgets("a super admin, who has no school, sees the product's name", (tester) async {
+      _useDesktop(tester);
+      await tester.pumpWidget(_menu(UserRole.superAdmin));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('nav-school')), findsNothing);
+      expect(find.text('School Management'), findsOneWidget);
     });
 
     testWidgets("in the phone's drawer an area shows its list without leaving the page", (tester) async {
@@ -266,7 +358,10 @@ void main() {
       await tester.pumpWidget(_menu(UserRole.schoolAdmin, inDrawer: true));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('nav-panel-toggle')), findsNothing);
+      expect(
+        find.descendant(of: find.byType(SidebarNav), matching: find.byKey(const Key('nav-panel-toggle'))),
+        findsNothing,
+      );
 
       await tester.tap(find.byKey(const Key('nav-area-Fees')));
       await tester.pumpAndSettle();
