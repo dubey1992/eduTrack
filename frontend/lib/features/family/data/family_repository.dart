@@ -2,9 +2,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/failure.dart';
 import '../../../core/network/dio_client.dart';
 import 'family_api.dart';
 import 'family_today_cache.dart';
+import 'models/family_bus.dart';
 import 'models/family_day.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
@@ -78,4 +80,27 @@ class FamilyRepository {
   Future<List<int>> feeStatement(int childId) => _call(() => _api.feeStatement(childId));
 
   Future<List<int>> receiptPdf(int childId, int receiptId) => _call(() => _api.receiptPdf(childId, receiptId));
+
+  /// The child's bus; null for a child the school does not carry.
+  Future<FamilyBus?> bus(int childId) async {
+    try {
+      return await _call(() => _api.bus(childId));
+    } on Failure catch (failure) {
+      if (failure.code == 'NOT_FOUND') return null;
+      rethrow;
+    }
+  }
+
+  /// Where the bus is; null when the child's trip is not on the road for
+  /// them (BUS_NOT_LIVE) - not a failure, just the bus not being theirs now.
+  Future<FamilyBusLive?> busLive(int childId) async {
+    try {
+      return await _call(() => _api.busLive(childId));
+    } on Failure catch (failure) {
+      if (failure.code == busNotLive) return null;
+      rethrow;
+    }
+  }
+
+  static const busNotLive = 'BUS_NOT_LIVE';
 }

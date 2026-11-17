@@ -186,6 +186,30 @@ Decisions taken while building:
 - The route, the stop, the vehicle number, and the attendant's and transport office's numbers (as the school allows).
 - A notification when the bus is near the stop (the distance set by the school).
 
+**As built (2026-11-17).** `school/family_bus.py`.
+
+- **The Bus tab** shows:
+  - the route, the child's stop with its pick-up and drop times, and the vehicle and its number;
+  - today's trips as the child's own moments, each with its time:
+    - to school: the bus set off, reached their stop, they boarded, reached school;
+    - home: the bus left school, they boarded, reached their stop, they got off;
+    - "Did not board", a cancelled trip, or a child not on the list are said plainly;
+  - who to call: the school office always. The bus attendant's own mobile appears only when the school switches on the Transport setting "Show parents the bus attendant's mobile" (off by default).
+- **Following the bus**:
+  - It is only for the child's own running trip, and only until they get off or are marked absent (D9). At any other time the API answers `BUS_NOT_LIVE`, and the app says the bus isn't on the road for them now.
+  - The map shows the bus, the route's road and their stop, refreshed every 15 seconds. Underneath, in words: "On its way to Sakal Nagar · about 4 minutes · 350 m away · 1 stop before yours".
+  - The time appears only once their stop is the next one (from the stored road legs).
+  - It warns when the last position is a few minutes old.
+  - Without a map key, the words are still there.
+- **"The bus is near your stop"** is a new alert, `transport.near_stop`:
+  - It reaches the Family app only, never by SMS or WhatsApp.
+  - It is sent once per child per trip, when a position the crew's phone uploads comes within the school's distance of the stop. The distance is the Transport setting `near_stop_alert_m`: default 500 m, and 0 turns it off.
+  - It is for a child still waiting at a stop the bus hasn't reached: on a pickup, one not yet boarded; on a drop, one on board.
+  - It follows the parent's Bus switch.
+  - Like every alert, the school can reword it.
+- **Maps** for a family account come from `family/maps-config`; the staff endpoint stays closed to them.
+- API: `GET family/children/{id}/bus`, `.../bus/live`, `family/maps-config`. Transport must be on, and another child is a 404.
+
 ### Phase F5: Talking to the school
 
 - **Absence notes:** a parent tells the school their child will be away (dates, reason, an optional photo of a doctor's note). The class teacher sees it on the register; the parent sees it acknowledged.

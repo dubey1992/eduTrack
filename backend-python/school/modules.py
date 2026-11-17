@@ -165,7 +165,22 @@ MODULES: tuple[Module, ...] = (
     ),
     Module("syllabus", "Syllabus", "Topic outlines and what has been covered."),
     Module("hod", "HOD Reports", "Department monitoring for heads of department."),
-    Module("transport", "Transport", "Vehicles, drivers, routes, stops and trips."),
+    Module(
+        "transport", "Transport", "Vehicles, drivers, routes, stops and trips.",
+        settings=(
+            # Read by family_bus.py, as a recorded position comes in (F4).
+            Setting(
+                "near_stop_alert_m", "Tell parents when the bus is this close to their stop (metres)", "int", 500,
+                help="Sent once per trip in the Family app, never by SMS. 0 turns it off.",
+                min=0, max=5000,
+            ),
+            # Read by family_bus.py for the Bus tab's contacts (F4).
+            Setting(
+                "show_crew_phone_to_parents", "Show parents the bus attendant's mobile", "bool", False,
+                help="Off: parents see the school office's number only.",
+            ),
+        ),
+    ),
     Module("communication", "Communication", "Alerts, messages and the message log."),
     Module("announcements", "Announcements", "Notices to the school, a class or a department."),
     Module(

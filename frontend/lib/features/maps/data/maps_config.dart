@@ -39,16 +39,20 @@ final mapsConfigRepositoryProvider = Provider<MapsConfigRepository>(
 );
 
 class MapsConfigRepository {
-  MapsConfigRepository(this._dio);
+  MapsConfigRepository(this._dio, {this.path = '/maps/config'});
 
   final Dio _dio;
+
+  /// Staff ask maps/config; a family account cannot reach staff URLs and asks
+  /// family/maps-config instead (docs/parent-student-app.md, F4).
+  final String path;
 
   /// **Never throws.** A map is an improvement on a screen, never the screen
   /// itself: the schools list, the stop list and the trip still work without
   /// one. Anything that goes wrong here is the same as having no key.
   Future<MapsConfig> fetch() async {
     try {
-      final response = await _dio.get('/maps/config');
+      final response = await _dio.get(path);
       final body = response.data;
 
       if (body is! Map<String, dynamic>) return const MapsConfig.none();

@@ -33,12 +33,19 @@ Fees (F3), read only - the app takes no payments:
 - GET  family/children/{id}/fees/statement.pdf - the year's statement
 - GET  family/children/{id}/receipts/{receipt_id}/pdf - one receipt; another
   child's receipt is a 404
+
+The bus (F4):
+- GET  family/children/{id}/bus - route, stop, vehicle, contacts, today's trips
+- GET  family/children/{id}/bus/live - where the bus is, only while the
+  child's own trip runs (BUS_NOT_LIVE otherwise)
+- GET  family/maps-config - the map key, as maps/config gives staff
 """
 
 from __future__ import annotations
 
 import re
 
+from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
@@ -46,10 +53,10 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .. import family_day, family_fees, family_inbox, family_learning, modules
+from .. import family_bus, family_day, family_fees, family_inbox, family_learning, modules
 from ..clock import SchoolClock
 from ..enums import UserRole
-from ..errors import ModuleDisabled, NotAFamilyAccount, ProgressReportNotReady
+from ..errors import BusNotLive, ModuleDisabled, NotAFamilyAccount, ProgressReportNotReady
 from ..fees import receipt_pdf, statement_pdf
 from ..family_accounts import FamilyAuthService, assert_family_app_on
 from ..family_requests import FamilyLoginRequest, FamilySetupRequest
@@ -340,3 +347,52 @@ def child_receipt_pdf(request, child_id: int, receipt_id: int):
         raise Http404()
 
     return pdf_response(receipt_pdf.render(receipt), receipt_pdf.file_name(receipt))
+
+
+# -- The bus (F4) -----------------------------------------------------------------
+
+
+def transport_reader(request):
+    """A family account reading the bus: Transport must be on as well."""
+    user = family_reader(request)
+
+    if not modules.is_enabled(user.school_id, family_bus.MODULE):
+        raise ModuleDisabled(modules.get(family_bus.MODULE).label)
+
+    return user
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_bus(request, child_id: int) -> Response:
+    user = transport_reader(request)
+    found = family_bus.bus_of(child_of(user, child_id))
+
+    if found is None:
+        raise Http404()
+
+    return Response(found)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_bus_live(request, child_id: int) -> Response:
+    user = transport_reader(request)
+    found = family_bus.live_of(child_of(user, child_id))
+
+    if found is None:
+        raise BusNotLive()
+
+    return Response(found)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def maps_config(request) -> Response:
+    """The browser map key for the Family app, as maps/config gives staff.
+    Public by nature - any map on the web carries its key - and restricted
+    by referrer and package in Google Cloud."""
+    family_reader(request)
+    key = (settings.GOOGLE_MAPS_BROWSER_KEY or "").strip()
+
+    return Response({"available": bool(key), "browser_key": key})

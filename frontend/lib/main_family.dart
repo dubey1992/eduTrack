@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/env.dart';
+import 'core/network/dio_client.dart';
 import 'core/routing/family_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/family/presentation/family_push_registrar.dart';
+import 'features/maps/data/maps_config.dart';
 
 /// The app a parent installs: School365ai Family (docs/parent-student-app.md).
 ///
@@ -18,7 +20,17 @@ import 'features/family/presentation/family_push_registrar.dart';
 ///     flutter build apk --flavor family --target lib/main_family.dart
 void main() {
   Env.checkReleaseConfiguration();
-  runApp(const ProviderScope(child: FamilyApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        // A family account cannot reach the staff maps/config (F4).
+        mapsConfigRepositoryProvider.overrideWith(
+          (ref) => MapsConfigRepository(ref.watch(dioClientProvider), path: '/family/maps-config'),
+        ),
+      ],
+      child: const FamilyApp(),
+    ),
+  );
 }
 
 class FamilyApp extends ConsumerWidget {

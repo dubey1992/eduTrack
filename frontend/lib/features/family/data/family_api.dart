@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import 'models/family_bus.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
 import 'models/family_records.dart';
@@ -94,5 +95,15 @@ class FamilyApi {
   Future<List<int>> _bytes(String path) async {
     final response = await _dio.get<List<int>>(path, options: Options(responseType: ResponseType.bytes));
     return response.data ?? const [];
+  }
+
+  Future<FamilyBus> bus(int childId) async {
+    final response = await _dio.get('/family/children/$childId/bus');
+    return FamilyBus.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<FamilyBusLive> busLive(int childId) async {
+    final response = await _dio.get('/family/children/$childId/bus/live');
+    return FamilyBusLive.fromJson(response.data as Map<String, dynamic>);
   }
 }

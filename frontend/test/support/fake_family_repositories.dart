@@ -3,6 +3,7 @@ import 'package:edutrack_app/features/family/data/family_auth_repository.dart';
 import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_account.dart';
+import 'package:edutrack_app/features/family/data/models/family_bus.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
 import 'package:edutrack_app/features/family/data/models/family_fees.dart';
 import 'package:edutrack_app/features/family/data/models/family_learning.dart';
@@ -251,6 +252,57 @@ FamilyFees familyFees({HowToPay? howToPay, bool empty = false, double credit = 0
       ),
 );
 
+/// A child on the Baner Road bus: the pickup running (boarded, so it can be
+/// followed), the drop not started; the office's number, and the
+/// attendant's only when [withAttendant].
+FamilyBus familyBus({
+  bool live = true,
+  String riderStatus = 'boarded',
+  String tripStatus = 'in_progress',
+  bool withAttendant = false,
+  bool onList = true,
+}) => FamilyBus(
+  routeName: 'Baner Road',
+  vehicleName: 'Bus 3',
+  vehicleNumber: 'MH-12-AB-1234',
+  stop: const BusStopInfo(
+    name: 'Sakal Nagar',
+    pickupTime: '07:35',
+    dropTime: '14:10',
+    location: GeoPoint(18.569, 73.786),
+  ),
+  officePhone: '+91 20 4000 1234',
+  attendant: withAttendant ? (name: 'Ravi Kumar', mobile: '+91 90000 55555') : null,
+  trips: [
+    FamilyBusTrip(
+      id: 1,
+      direction: 'pickup',
+      status: tripStatus,
+      startedAt: '07:12',
+      reachedStopAt: '07:37',
+      riderStatus: onList ? riderStatus : null,
+      boardedAt: riderStatus == 'boarded' ? '07:38' : null,
+      isLive: live,
+    ),
+  ],
+);
+
+/// The bus 350 m from the child's stop, one stop before it, about 4 minutes away.
+FamilyBusLive familyBusLive({bool stale = false, bool reached = false, int? eta = 240}) => FamilyBusLive(
+  direction: 'pickup',
+  position: BusPosition(point: const GeoPoint(18.566, 73.786), heading: 0, ageSeconds: stale ? 300 : 8, isStale: stale),
+  routePath: null,
+  yourStop: YourStop(
+    name: 'Sakal Nagar',
+    location: const GeoPoint(18.569, 73.786),
+    reached: reached,
+    stopsBefore: reached ? null : 1,
+    distanceM: reached ? null : 350,
+    etaSeconds: reached ? null : eta,
+  ),
+  nextStop: 'Baner Gaon',
+);
+
 /// The parent's screens' data, in memory.
 class FakeFamilyRepository implements FamilyRepository {
   FakeFamilyRepository({
@@ -315,6 +367,26 @@ class FakeFamilyRepository implements FamilyRepository {
   final List<int> markedRead = [];
   int markAllReadCalls = 0;
   final List<(String, bool)> saved = [];
+
+  FamilyBus? busValue = familyBus();
+  Failure? failBusWith;
+
+  /// What each ask for the live bus answers, in turn; the last repeats.
+  List<FamilyBusLive?> liveAnswers = [familyBusLive()];
+  int liveAsks = 0;
+
+  @override
+  Future<FamilyBus?> bus(int childId) async {
+    if (failBusWith != null) throw failBusWith!;
+    return busValue;
+  }
+
+  @override
+  Future<FamilyBusLive?> busLive(int childId) async {
+    final answer = liveAnswers[liveAsks < liveAnswers.length ? liveAsks : liveAnswers.length - 1];
+    liveAsks++;
+    return answer;
+  }
 
   FamilyFees feesValue = familyFees();
   Failure? failFeesWith;

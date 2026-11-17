@@ -1034,6 +1034,17 @@ def as_list(value) -> list:
     return [value]
 
 
+class BusNotLive(ApiError):
+    """A parent asked to watch the bus when their child's trip is not running
+    for them (docs/parent-student-app.md, F4, decision D9)."""
+
+    status_code = status.HTTP_404_NOT_FOUND
+    error_code = "BUS_NOT_LIVE"
+
+    def __init__(self) -> None:
+        super().__init__("The bus can be followed only while your child's trip is on the road.")
+
+
 class ProgressReportNotReady(ApiError):
     """A parent asked for a term's progress report before the term is over,
     or for a term that is not their child's (docs/parent-student-app.md, F2)."""

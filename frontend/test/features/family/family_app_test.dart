@@ -8,6 +8,7 @@ import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
 import 'package:edutrack_app/features/family/presentation/family_pdf.dart';
+import 'package:edutrack_app/features/maps/data/maps_config.dart';
 import 'package:edutrack_app/features/family/presentation/family_more_screens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,6 +39,8 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
       familyRepositoryProvider.overrideWithValue(repository),
       familyAuthRepositoryProvider.overrideWithValue(session),
       if (onPdf != null) pdfHandOffProvider.overrideWithValue(onPdf),
+      // No map key in tests: every map shows its plain-words fallback.
+      mapsConfigProvider.overrideWith((ref) async => const MapsConfig.none()),
       externalOpenerProvider.overrideWithValue((uri) async {
         opened.add(uri);
         return true;

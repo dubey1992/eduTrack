@@ -7398,6 +7398,13 @@ class TripLocationService:
             audit.record(action="transport_trip.location_shared", module="transport", entity_type="transport_trip",
                          entity_id=trip.pk, school_id=trip.school_id)
 
+        # "The bus is near your stop", in the Family app (F4). Never fails
+        # the upload; imported here because family_bus builds on this class.
+        if kept:
+            from .family_bus import alert_near_stops
+
+            alert_near_stops(trip)
+
         return {"accepted": len(kept), "refused": refused}
 
     @classmethod

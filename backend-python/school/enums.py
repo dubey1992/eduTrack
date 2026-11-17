@@ -258,6 +258,9 @@ class MessageEvent(models.TextChoices):
     TRANSPORT_BOARDED = "transport.boarded", "Boarded the bus"
     TRANSPORT_DROPPED = "transport.dropped", "Dropped off"
     TRANSPORT_ABSENT = "transport.absent", "Did not board"
+    # The Family app only (docs/parent-student-app.md, F4): the bus is close
+    # to the child's stop. Never an SMS - it is a nicety, not worth the cost.
+    TRANSPORT_NEAR_STOP = "transport.near_stop", "Bus near the stop"
     # The one transport alert addressed to the school rather than a
     # guardian: a trip nobody ended, closed by the nightly job
     # (docs/driver-app.md).
@@ -301,6 +304,10 @@ class MessageEvent(models.TextChoices):
         # every other transport alert, which goes to a guardian who does not.
         if event in (cls.TRIP_LEFT_OPEN, cls.TRIP_SOS):
             return [MessageChannel.IN_APP, *MessageChannel.external()]
+
+        # The Family app's own alert: its inbox and the push riding on it.
+        if event == cls.TRANSPORT_NEAR_STOP:
+            return [MessageChannel.IN_APP]
 
         category = cls.category(event)
 
@@ -347,6 +354,9 @@ DEFAULT_BODIES = {
     ),
     MessageEvent.TRANSPORT_ABSENT: (
         "{student_name} did not board {vehicle_name} for the {direction} trip today. - {school_name}"
+    ),
+    MessageEvent.TRANSPORT_NEAR_STOP: (
+        "The {route_name} bus is about {distance} from {stop_name}. Please be ready at the stop."
     ),
     MessageEvent.LEAVE_APPROVED: (
         "Your {leave_type} leave from {start_date} to {end_date} has been approved."
@@ -422,6 +432,12 @@ TRANSPORT_ABSENT_TOKENS = [
     "school_name", "guardian_name",
 ]
 
+# The bus near the child's stop (Family app, F4): how far, in words.
+TRANSPORT_NEAR_STOP_TOKENS = [
+    "student_name", "stop_name", "route_name", "vehicle_name", "distance", "direction", "time", "school_name",
+    "guardian_name",
+]
+
 TRIP_LEFT_OPEN_TOKENS = [
     "staff_name", "route_name", "vehicle_name", "direction", "date", "started_by", "on_board", "school_name",
 ]
@@ -434,6 +450,7 @@ TRIP_SOS_TOKENS = [
 # Events whose wording needs something its category's list does not carry.
 PER_EVENT_TOKENS = {
     MessageEvent.TRANSPORT_ABSENT: TRANSPORT_ABSENT_TOKENS,
+    MessageEvent.TRANSPORT_NEAR_STOP: TRANSPORT_NEAR_STOP_TOKENS,
     MessageEvent.TRIP_LEFT_OPEN: TRIP_LEFT_OPEN_TOKENS,
     MessageEvent.TRIP_SOS: TRIP_SOS_TOKENS,
 }

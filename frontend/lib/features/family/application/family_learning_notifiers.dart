@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/family_repository.dart';
+import '../data/models/family_bus.dart';
 import '../data/models/family_fees.dart';
 import '../data/models/family_learning.dart';
 
@@ -79,6 +80,27 @@ class FamilyFeesNotifier extends AsyncNotifier<FamilyFees> {
 
   @override
   Future<FamilyFees> build() => ref.read(familyRepositoryProvider).fees(childId);
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(build);
+  }
+}
+
+/// One child's bus: route, stop, contacts and today's trips (F4). Null for
+/// a child not on a school bus.
+final familyBusProvider = AsyncNotifierProvider.autoDispose.family<FamilyBusNotifier, FamilyBus?, int>(
+  FamilyBusNotifier.new,
+  retry: (retryCount, error) => null,
+);
+
+class FamilyBusNotifier extends AsyncNotifier<FamilyBus?> {
+  FamilyBusNotifier(this.childId);
+
+  final int childId;
+
+  @override
+  Future<FamilyBus?> build() => ref.read(familyRepositoryProvider).bus(childId);
 
   Future<void> refresh() async {
     state = const AsyncLoading();
