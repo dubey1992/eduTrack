@@ -3071,6 +3071,8 @@ class AnnouncementService:
                 audience_label=cls.audience_label(school_id, audience, target),
                 channels=channels,
                 expires_at=data.get("expires_at"),
+                reply_question=data.get("reply_question"),
+                reply_by=data.get("reply_by"),
                 published_by_id=actor.id,
                 published_at=now,
                 recipients_count=counts["recipients"],

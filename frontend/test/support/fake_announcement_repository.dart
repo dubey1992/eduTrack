@@ -75,6 +75,8 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
     int? audienceId,
     required String channels,
     String? expiresAt,
+    String? replyQuestion,
+    String? replyBy,
   }) async {
     _guard();
     lastCall = {
@@ -86,6 +88,10 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
       'audience_id': audienceId,
       'channels': channels,
       'expires_at': expiresAt,
+      // Only when the notice asks parents something (F5), so the older
+      // tests' exact maps still hold.
+      'reply_question': ?replyQuestion,
+      'reply_by': ?replyBy,
     };
 
     final chosen = announcementChannelsOf(channels);
@@ -150,5 +156,25 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
     _guard();
     lastCall = {'op': 'delete', 'announcement_id': announcementId};
     _announcements.removeWhere((announcement) => announcement.id == announcementId);
+  }
+
+  /// What the replies view shows for a notice that asked parents.
+  ReplySummary replySummary = const ReplySummary(
+    question: 'Can your child come on the trip?',
+    yes: 1,
+    no: 1,
+    waiting: 1,
+    open: true,
+    students: [
+      (name: 'Aarav Sharma', className: 'Grade 8 A', answer: true, note: 'Packed lunch'),
+      (name: 'Diya Patel', className: 'Grade 8 A', answer: false, note: null),
+      (name: 'Kabir Singh', className: 'Grade 8 A', answer: null, note: null),
+    ],
+  );
+
+  @override
+  Future<ReplySummary> replies(int announcementId) async {
+    _guard();
+    return replySummary;
   }
 }

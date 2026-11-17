@@ -13,6 +13,13 @@ enum AnnouncementAudience {
   final String apiValue;
   final String label;
 
+  /// Audiences whose notice reaches parents, and so may ask them a question
+  /// in the Family app (F5).
+  bool get reachesParents =>
+      this == AnnouncementAudience.allSchool ||
+      this == AnnouncementAudience.parents ||
+      this == AnnouncementAudience.classSection;
+
   /// Audiences that name one class or one department.
   bool get needsTarget => this == AnnouncementAudience.classSection || this == AnnouncementAudience.department;
 
@@ -60,6 +67,10 @@ class Announcement {
     required this.recipientsCount,
     required this.smsCount,
     required this.inAppCount,
+    this.replyQuestion,
+    this.replyBy,
+    this.replyYes = 0,
+    this.replyNo = 0,
   });
 
   factory Announcement.fromJson(Map<String, dynamic> json) {
@@ -85,6 +96,10 @@ class Announcement {
       recipientsCount: json['recipients_count'] as int? ?? 0,
       smsCount: json['sms_count'] as int? ?? 0,
       inAppCount: json['in_app_count'] as int? ?? 0,
+      replyQuestion: json['reply_question'] as String?,
+      replyBy: json['reply_by'] as String?,
+      replyYes: (json['reply_counts'] as Map<String, dynamic>?)?['yes'] as int? ?? 0,
+      replyNo: (json['reply_counts'] as Map<String, dynamic>?)?['no'] as int? ?? 0,
     );
   }
 
@@ -112,6 +127,14 @@ class Announcement {
   final int recipientsCount;
   final int smsCount;
   final int inAppCount;
+
+  /// A Yes/No question for parents (Family app, F5), and the last day for answers.
+  final String? replyQuestion;
+  final String? replyBy;
+  final int replyYes;
+  final int replyNo;
+
+  bool get asksParents => replyQuestion != null;
 
   List<MessageChannel> get channelList => announcementChannelsOf(channels);
 }
@@ -151,4 +174,45 @@ class AudiencePreview {
     MessageChannel.whatsapp => whatsapp,
     MessageChannel.email => email,
   };
+}
+
+/// The answers to a notice that asked parents (Family app, F5).
+class ReplySummary {
+  const ReplySummary({
+    required this.question,
+    required this.yes,
+    required this.no,
+    required this.waiting,
+    required this.students,
+    this.replyBy,
+    required this.open,
+  });
+
+  factory ReplySummary.fromJson(Map<String, dynamic> json) => ReplySummary(
+    question: json['question'] as String,
+    replyBy: json['reply_by'] as String?,
+    open: json['open'] as bool? ?? true,
+    yes: json['yes'] as int,
+    no: json['no'] as int,
+    waiting: json['waiting'] as int,
+    students: [
+      for (final row in json['students'] as List<dynamic>)
+        (
+          name: (row as Map<String, dynamic>)['name'] as String,
+          className: row['class_name'] as String?,
+          answer: row['answer'] as bool?,
+          note: row['note'] as String?,
+        ),
+    ],
+  );
+
+  final String question;
+  final String? replyBy;
+  final bool open;
+  final int yes;
+  final int no;
+  final int waiting;
+
+  /// Every child the notice is about, with their parent's answer or none yet.
+  final List<({String name, String? className, bool? answer, String? note})> students;
 }

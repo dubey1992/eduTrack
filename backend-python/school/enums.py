@@ -282,6 +282,8 @@ class MessageEvent(models.TextChoices):
     # Teaching: between colleagues about the day's work, so the inbox and its
     # push, never an SMS.
     ABSENCE_NOTE = "teaching.absence_note", "Absence note from a parent"
+    # A parent's "please call me" (Family app, F5): the inbox only.
+    CALL_REQUEST = "teaching.call_request", "Call request from a parent"
 
     @classmethod
     def category(cls, event: str) -> str:
@@ -358,6 +360,9 @@ DEFAULT_BODIES = {
     ),
     MessageEvent.TRANSPORT_ABSENT: (
         "{student_name} did not board {vehicle_name} for the {direction} trip today. - {school_name}"
+    ),
+    MessageEvent.CALL_REQUEST: (
+        "{guardian_name} asks to be called on {mobile} about {student_name}: {reason} Good time: {preferred_time}."
     ),
     MessageEvent.ABSENCE_NOTE: (
         "{guardian_name} says {student_name} will be away {dates}: {reason}"
@@ -445,6 +450,10 @@ TRANSPORT_NEAR_STOP_TOKENS = [
     "guardian_name",
 ]
 
+CALL_REQUEST_TOKENS = [
+    "staff_name", "student_name", "guardian_name", "mobile", "reason", "preferred_time", "school_name",
+]
+
 ABSENCE_NOTE_TOKENS = ["staff_name", "student_name", "guardian_name", "dates", "reason", "school_name"]
 
 TRIP_LEFT_OPEN_TOKENS = [
@@ -461,6 +470,7 @@ PER_EVENT_TOKENS = {
     MessageEvent.TRANSPORT_ABSENT: TRANSPORT_ABSENT_TOKENS,
     MessageEvent.TRANSPORT_NEAR_STOP: TRANSPORT_NEAR_STOP_TOKENS,
     MessageEvent.ABSENCE_NOTE: ABSENCE_NOTE_TOKENS,
+    MessageEvent.CALL_REQUEST: CALL_REQUEST_TOKENS,
     MessageEvent.TRIP_LEFT_OPEN: TRIP_LEFT_OPEN_TOKENS,
     MessageEvent.TRIP_SOS: TRIP_SOS_TOKENS,
 }

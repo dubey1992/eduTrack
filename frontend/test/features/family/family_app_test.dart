@@ -74,6 +74,16 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
   return (repository, session, opened);
 }
 
+/// Scrolls the More list until [finder] is built and on screen.
+Future<void> revealOnMore(WidgetTester tester, Finder finder) async {
+  await tester.scrollUntilVisible(
+    finder,
+    200,
+    scrollable: find.descendant(of: find.byKey(const Key('family-more')), matching: find.byType(Scrollable)).first,
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   group('signing in', () {
     testWidgets('a phone not set up asks for the letter\'s code and checks every field', (tester) async {
@@ -314,8 +324,7 @@ void main() {
   group('More', () {
     testWidgets('calls, WhatsApps and emails the school office', (tester) async {
       final (_, _, opened) = await pumpFamilyApp(tester, goTo: '/more');
-      await tester.drag(find.byKey(const Key('family-more')), const Offset(0, -400));
-      await tester.pumpAndSettle();
+      await revealOnMore(tester, find.byKey(const Key('family-email-school')));
 
       await tester.tap(find.byKey(const Key('family-call-school')));
       await tester.tap(find.byKey(const Key('family-whatsapp-school')));
@@ -336,6 +345,7 @@ void main() {
         goTo: '/more',
       );
 
+      await revealOnMore(tester, find.byKey(const Key('family-email-school')));
       expect(find.byKey(const Key('family-call-school')), findsNothing);
       expect(find.byKey(const Key('family-email-school')), findsOneWidget);
     });
@@ -343,7 +353,7 @@ void main() {
     testWidgets('signing out asks first, then goes to the sign-in', (tester) async {
       final (_, auth, _) = await pumpFamilyApp(tester, goTo: '/more');
 
-      await tester.scrollUntilVisible(find.byKey(const Key('family-sign-out')), 200);
+      await revealOnMore(tester, find.byKey(const Key('family-sign-out')));
       await tester.tap(find.byKey(const Key('family-sign-out')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cancel'));

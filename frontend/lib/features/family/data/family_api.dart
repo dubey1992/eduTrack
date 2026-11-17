@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import 'models/family_absence_note.dart';
 import 'models/family_bus.dart';
+import 'models/family_call_request.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
 import 'models/family_records.dart';
@@ -131,5 +132,32 @@ class FamilyApi {
           : FormData.fromMap({...fields, 'photo': MultipartFile.fromBytes(photo, filename: photoName ?? 'note.jpg')}),
     );
     return FamilyAbsenceNote.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<NoticeReply> replyToNotice(int noticeId, {required int studentId, required bool answer, String? note}) async {
+    final response = await _dio.post(
+      '/family/notices/$noticeId/reply',
+      data: {'student_id': studentId, 'answer': answer, 'note': ?note},
+    );
+    return NoticeReply.fromJson(response.data as Map<String, dynamic>)!;
+  }
+
+  Future<List<FamilyCallRequest>> callRequests(int childId) async {
+    final response = await _dio.get('/family/children/$childId/call-requests');
+    final json = response.data as Map<String, dynamic>;
+    return [for (final r in json['data'] as List<dynamic>) FamilyCallRequest.fromJson(r as Map<String, dynamic>)];
+  }
+
+  Future<FamilyCallRequest> askForCall(
+    int childId, {
+    required bool toOffice,
+    required String reason,
+    String? preferredTime,
+  }) async {
+    final response = await _dio.post(
+      '/family/children/$childId/call-requests',
+      data: {'recipient': toOffice ? 'office' : 'class_teacher', 'reason': reason, 'preferred_time': ?preferredTime},
+    );
+    return FamilyCallRequest.fromJson(response.data as Map<String, dynamic>);
   }
 }

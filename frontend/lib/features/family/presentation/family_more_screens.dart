@@ -13,6 +13,7 @@ import '../application/family_session_notifier.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_records.dart';
 import 'widgets/family_widgets.dart';
+import 'family_talk_screens.dart';
 
 /// Opens the phone's dialler, WhatsApp or mail app. Swappable in tests.
 typedef ExternalOpener = Future<bool> Function(Uri uri);
@@ -41,6 +42,13 @@ class FamilyMoreScreen extends ConsumerWidget {
         title: 'Absence notes',
         subtitle: 'Tell the school your child will be away',
         onTap: () => context.push('/absence-notes'),
+      ),
+      _MoreRow(
+        key: const Key('family-more-call'),
+        icon: Icons.phone_callback_rounded,
+        title: 'Ask the school to call you',
+        subtitle: 'The class teacher or the office rings you back',
+        onTap: () => context.push('/call-requests'),
       ),
       if (features.results)
         _MoreRow(
@@ -369,6 +377,7 @@ class _NoticeTile extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: muted),
                 ),
+                if (notice.reply?.awaitsAnswer ?? false) const AnswerNeededBadge(),
                 const SizedBox(height: 4),
                 Text(
                   [
@@ -412,6 +421,8 @@ class _NoticeTile extends ConsumerWidget {
               ),
               const SizedBox(height: 14),
               SelectableText(notice.body, style: const TextStyle(fontSize: 15, height: 1.45)),
+              // A notice that asks: Yes or No for each child it is about (F5).
+              if (notice.reply != null) NoticeReplyPanel(notice: notice),
             ],
           ),
         ),

@@ -8,6 +8,7 @@ import 'family_api.dart';
 import 'family_today_cache.dart';
 import 'models/family_absence_note.dart';
 import 'models/family_bus.dart';
+import 'models/family_call_request.dart';
 import 'models/family_day.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
@@ -127,4 +128,16 @@ class FamilyRepository {
 
   static String _day(DateTime value) =>
       '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+  Future<NoticeReply> replyToNotice(int noticeId, {required int studentId, required bool answer, String? note}) =>
+      _call(() => _api.replyToNotice(noticeId, studentId: studentId, answer: answer, note: note));
+
+  Future<List<FamilyCallRequest>> callRequests(int childId) => _call(() => _api.callRequests(childId));
+
+  Future<FamilyCallRequest> askForCall(
+    int childId, {
+    required bool toOffice,
+    required String reason,
+    String? preferredTime,
+  }) => _call(() => _api.askForCall(childId, toOffice: toOffice, reason: reason, preferredTime: preferredTime));
 }

@@ -115,6 +115,10 @@ class Announcement(models.Model):
     recipients_count = models.IntegerField()
     sms_count = models.IntegerField()
     in_app_count = models.IntegerField()
+    # A notice that asks parents for a Yes/No (Family app, F5): the question,
+    # and the last day answers are taken.
+    reply_question = models.CharField(max_length=200, blank=True, null=True)
+    reply_by = models.DateField(blank=True, null=True)
     deleted_at = UtcDateTimeField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
@@ -920,6 +924,50 @@ class AbsenceNote(models.Model):
     class Meta:
         managed = False
         db_table = 'absence_notes'
+
+
+class CallRequest(models.Model):
+    """A parent's "please call me" from the Family app, to the class teacher or
+    the office (docs/parent-student-app.md, F5)."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='call_requests')
+    requested_by = models.ForeignKey('User', models.DO_NOTHING, db_column='requested_by', related_name='+')
+    recipient = models.CharField(max_length=20)
+    teacher_user = models.ForeignKey('User', models.DO_NOTHING, blank=True, null=True, related_name='+')
+    reason = models.CharField(max_length=300)
+    preferred_time = models.CharField(max_length=100, blank=True, null=True)
+    status = models.CharField(max_length=20, default='open')
+    called_by = models.ForeignKey('User', models.DO_NOTHING, db_column='called_by', blank=True, null=True,
+                                  related_name='+')
+    called_at = UtcDateTimeField(blank=True, null=True)
+    outcome_note = models.CharField(max_length=500, blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'call_requests'
+
+
+class AnnouncementReply(models.Model):
+    """A parent's Yes/No for one child to a notice that asks (F5)."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    announcement = models.ForeignKey('Announcement', models.DO_NOTHING, related_name='replies')
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='+')
+    answered_by = models.ForeignKey('User', models.DO_NOTHING, db_column='answered_by', related_name='+')
+    answer = models.BooleanField()
+    note = models.CharField(max_length=300, blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'announcement_replies'
+        unique_together = (('announcement', 'student'),)
 
 
 class FamilyNotificationSetting(models.Model):

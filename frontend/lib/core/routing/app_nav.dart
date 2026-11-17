@@ -674,6 +674,17 @@ class AppNav {
         pageSubtitle: 'Notices published to the school',
       ),
       NavItem(
+        path: '/call-requests',
+        // No module of its own: a teacher with no say over Communication still
+        // gets asked to call parents. The API scopes it - a teacher's own, or
+        // the school's for its admins.
+        label: 'Call Requests',
+        icon: Icons.phone_callback_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
+        pageTitle: 'Call Requests',
+        pageSubtitle: 'Parents asking the school to call them',
+      ),
+      NavItem(
         path: '/communication',
         module: AppModules.communication,
         requiredLevel: PermissionLevel.manage,

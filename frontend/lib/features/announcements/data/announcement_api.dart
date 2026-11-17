@@ -42,6 +42,8 @@ class AnnouncementApi {
     int? audienceId,
     required String channels,
     String? expiresAt,
+    String? replyQuestion,
+    String? replyBy,
   }) async {
     final response = await _dio.post(
       '/announcements',
@@ -53,9 +55,16 @@ class AnnouncementApi {
         'audience_id': ?audienceId,
         'channels': channels,
         'expires_at': ?expiresAt,
+        'reply_question': ?replyQuestion,
+        'reply_by': ?replyBy,
       },
     );
     return Announcement.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<ReplySummary> replies(int announcementId) async {
+    final response = await _dio.get('/announcements/$announcementId/replies');
+    return ReplySummary.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<AudiencePreview> preview({

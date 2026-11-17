@@ -11,6 +11,7 @@ import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/announcement_page_notifier.dart';
+import '../data/announcement_repository.dart';
 import '../data/models/announcement.dart';
 import '../../communication/presentation/widgets/demo_gateway_notice.dart';
 import 'new_announcement_dialog.dart';
@@ -315,6 +316,36 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
               '${announcement.expiresAt == null ? '' : ' · expires ${_expiresOn(announcement.expiresAt!)}'}',
               style: muted,
             ),
+            if (announcement.asksParents) ...[
+              const SizedBox(height: 10),
+              Container(
+                key: Key('announcement-asks-${announcement.id}'),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Asks parents: ${announcement.replyQuestion} · Yes ${announcement.replyYes} · '
+                        'No ${announcement.replyNo}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    TextButton(
+                      key: Key('announcement-replies-${announcement.id}'),
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => _RepliesDialog(announcement: announcement),
+                      ),
+                      child: const Text('Replies'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (canDelete) ...[
               const SizedBox(height: 8),
               Align(
@@ -338,4 +369,68 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
   /// would disagree with the timestamp written inside the messages this
   /// notice sent.
   String _publishedAt(String? label) => label ?? 'recently';
+}
+
+final _repliesProvider = FutureProvider.autoDispose.family<ReplySummary, int>(
+  (ref, announcementId) => ref.watch(announcementRepositoryProvider).replies(announcementId),
+);
+
+/// Who said yes, who said no, and who has not answered yet (Family app, F5).
+class _RepliesDialog extends ConsumerWidget {
+  const _RepliesDialog({required this.announcement});
+
+  final Announcement announcement;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(_repliesProvider(announcement.id));
+
+    return AlertDialog(
+      title: Text(announcement.replyQuestion ?? 'Replies'),
+      content: SizedBox(
+        width: 520,
+        height: 420,
+        child: AsyncValueView(
+          value: summary,
+          onRetry: () => ref.invalidate(_repliesProvider(announcement.id)),
+          data: (context, summary) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  StatusBadge(label: 'Yes ${summary.yes}', tone: BadgeTone.success),
+                  StatusBadge(label: 'No ${summary.no}', tone: BadgeTone.danger),
+                  StatusBadge(label: 'Not answered ${summary.waiting}', tone: BadgeTone.neutral),
+                  if (!summary.open) const StatusBadge(label: 'Closed', tone: BadgeTone.warning),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  children: [
+                    for (final row in summary.students)
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(row.name),
+                        subtitle: Text([row.className, row.note].whereType<String>().join(' · ')),
+                        trailing: StatusBadge(
+                          label: row.answer == null ? 'No answer' : (row.answer! ? 'Yes' : 'No'),
+                          tone: row.answer == null
+                              ? BadgeTone.neutral
+                              : (row.answer! ? BadgeTone.success : BadgeTone.danger),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close'))],
+    );
+  }
 }

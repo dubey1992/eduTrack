@@ -30,6 +30,10 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
 
+  /// A Yes/No question for parents (Family app, F5), and the last day for answers.
+  final _questionController = TextEditingController();
+  DateTime? _replyBy;
+
   AnnouncementAudience _audience = AnnouncementAudience.allSchool;
   bool _audienceSetForRole = false;
   final Set<MessageChannel> _channels = {MessageChannel.sms, MessageChannel.inApp};
@@ -42,6 +46,7 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
   void dispose() {
     _titleController.dispose();
     _bodyController.dispose();
+    _questionController.dispose();
     super.dispose();
   }
 
@@ -86,6 +91,8 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
             audienceId: _audience.needsTarget ? _target : null,
             channels: MessageChannel.joined(_channels),
             expiresAt: _expiresAt == null ? null : DateFormat('yyyy-MM-dd').format(_expiresAt!),
+            replyQuestion: _asking ? _questionController.text.trim() : null,
+            replyBy: _asking && _replyBy != null ? DateFormat('yyyy-MM-dd').format(_replyBy!) : null,
           );
 
       navigator.pop();
@@ -105,6 +112,22 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
     } finally {
       if (mounted) setState(() => _publishing = false);
     }
+  }
+
+  /// A question is asked only when the notice reaches parents and one was written.
+  bool get _asking => _audience.reachesParents && _questionController.text.trim().isNotEmpty;
+
+  Future<void> _pickReplyBy() async {
+    final now = ref.read(schoolClockProvider).today;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _replyBy ?? now.add(const Duration(days: 3)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: 'Last day for answers',
+    );
+
+    if (picked != null) setState(() => _replyBy = picked);
   }
 
   Future<void> _pickExpiry() async {
@@ -232,6 +255,51 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
                     return null;
                   },
                 ),
+                if (_audience.reachesParents) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const Key('announcement-reply-question'),
+                    controller: _questionController,
+                    maxLength: 200,
+                    decoration: const InputDecoration(
+                      labelText: 'Ask parents a Yes/No question (optional)',
+                      hintText: 'e.g. Can your child come on the trip to the science museum?',
+                      helperText:
+                          'Parents answer for each child in the Family app; you see who said yes, no, or nothing yet.',
+                      helperMaxLines: 2,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    validator: (value) {
+                      final text = (value ?? '').trim();
+                      if (text.isNotEmpty && text.length < 5) return 'Write the question parents should answer.';
+                      return null;
+                    },
+                  ),
+                  if (_questionController.text.trim().isNotEmpty)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _replyBy == null
+                                ? 'Answers are taken until the notice is deleted.'
+                                : 'Answers are taken until ${formatDate(_replyBy!)}.',
+                            style: muted,
+                          ),
+                        ),
+                        TextButton(
+                          key: const Key('announcement-reply-by'),
+                          onPressed: _pickReplyBy,
+                          child: Text(_replyBy == null ? 'Set a last day' : 'Change'),
+                        ),
+                        if (_replyBy != null)
+                          IconButton(
+                            tooltip: 'Clear the last day',
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: () => setState(() => _replyBy = null),
+                          ),
+                      ],
+                    ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [

@@ -25,7 +25,17 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from school import (
-    absence_notes, audit, check_in, factories, family_accounts, platform_messaging, promotion, services, tokens,
+    absence_notes,
+    audit,
+    call_requests,
+    check_in,
+    factories,
+    family_accounts,
+    notice_replies,
+    platform_messaging,
+    promotion,
+    services,
+    tokens,
 )
 from school.enums import AttendanceStatus, UserRole
 from school.models import AuditLog
@@ -74,7 +84,10 @@ WRITES = ("objects.create(", ".save(", ".delete()", "update_or_create(", "get_or
 # Every module that writes school data. A module left off this list is not
 # swept at all, which is how an unrecorded write gets in - promotion.py spent
 # one slice invisible to this test for exactly that reason.
-SWEPT = (services, promotion, check_in, platform_messaging, family_accounts, absence_notes)
+SWEPT = (
+    services, promotion, check_in, platform_messaging, family_accounts, absence_notes, call_requests,
+    notice_replies,
+)
 
 
 class EveryWriteIsRecorded(TestCase):

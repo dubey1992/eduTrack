@@ -29,6 +29,7 @@ from school.views import (
     promotions,
     grade_scales,
     announcements,
+    call_requests,
     attendance,
     attendants,
     audit_logs,
@@ -127,6 +128,8 @@ urlpatterns = [
     path("api/v1/family/children/<int:child_id>/bus/live", family.child_bus_live),
     path("api/v1/family/maps-config", family.maps_config),
     path("api/v1/family/children/<int:child_id>/absence-notes", family.child_absence_notes),
+    path("api/v1/family/children/<int:child_id>/call-requests", family.child_call_requests),
+    path("api/v1/family/notices/<int:notice_id>/reply", family.notice_reply),
     path("api/v1/family/calendar", family.school_calendar),
     path("api/v1/family/notices", family.notices),
     path("api/v1/family/notices/read-all", family.notices_read_all),
@@ -177,6 +180,8 @@ urlpatterns = [
     path("api/v1/absence-notes", absence_notes.collection),
     path("api/v1/absence-notes/<int:note_id>/acknowledge", absence_notes.acknowledge),
     path("api/v1/absence-notes/<int:note_id>/photo", absence_notes.photo),
+    path("api/v1/call-requests", call_requests.collection),
+    path("api/v1/call-requests/<int:request_id>/called", call_requests.called),
     path("api/v1/attendance", attendance.collection),
     # -- auth --------------------------------------------------------------
     path("api/v1/auth/login", auth.login),
@@ -363,6 +368,7 @@ urlpatterns = [
     path("api/v1/announcements", announcements.collection),
     path("api/v1/announcements/preview", announcements.preview),
     path("api/v1/announcements/<int:announcement_id>", announcements.detail),
+    path("api/v1/announcements/<int:announcement_id>/replies", announcements.replies),
     # -- transport master data ---------------------------------------------
     path("api/v1/transport/vehicles", transport.vehicles),
     path("api/v1/transport/vehicles/<int:record_id>", transport.vehicle),

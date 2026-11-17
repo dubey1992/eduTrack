@@ -237,6 +237,31 @@ Decisions taken while building:
   - A web page, Attendance > Absence Notes, lists the unseen notes first.
   - Who sees them: whoever reads attendance; a teacher, only the classes they are class teacher of. Another school sees nothing.
 
+**"Please call me", as built (2026-11-17)** (table `call_requests`, `school/call_requests.py`):
+- **The parent's side.** In More > "Ask the school to call you", the parent:
+  - picks Class teacher or School office;
+  - says what it is about (5-300 characters) and, if they like, a good time;
+  - sees each request as Waiting or Called.
+- **What the school refuses:**
+  - The class teacher option when the class has none: the parent is pointed to the office instead.
+  - A second open request to the same person: the parent is told they already asked.
+- **The school's side:**
+  - It goes to the class teacher's inbox, or to every School Admin's for the office. Event `teaching.call_request`, never an SMS.
+  - On the web, Messages > Call Requests shows the parent's number (it dials), the reason and the good time.
+  - "Mark as called" takes an optional note. The note stays with the school; the parent sees only "Called".
+  - A teacher sees only their own requests; the school's admins see all.
+
+**Replies to notices, as built (2026-11-17)** (`announcements.reply_question` / `reply_by`, table `announcement_replies`, `school/notice_replies.py`):
+- **The school asks.** A notice that reaches parents can carry a Yes/No question and an optional last day for answers. A notice only to staff can't ask.
+- **Parents answer** in the opened notice:
+  - Yes or No for each of their children the notice is about, with an optional note.
+  - They can change their mind until the last day; after it, the answer shows but can't change.
+  - The list marks a notice still waiting for an answer.
+- **The school sees:**
+  - Yes and No counts on the notice;
+  - a Replies view with every child: answered Yes or No (with any note), or "No answer" yet.
+- **Not done:** a notice is still refused when it is only in-app to parents, because guardians had no inbox before the Family app. A school sends it with SMS too, as today; allowing in-app-only is a separate decision.
+
 ### Phase F6: The student app, Hindi, polish
 
 - **Student sign-in** (Class 6+, with consent): today's timetable, upcoming tests and assignments, their own results, notices and the calendar. No fees, no bus map for students unless the school allows.

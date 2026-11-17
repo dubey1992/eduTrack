@@ -562,7 +562,18 @@ def announcement_resource(announcement) -> dict:
         "recipients_count": announcement.recipients_count,
         "sms_count": announcement.sms_count,
         "in_app_count": announcement.in_app_count,
+        # A notice that asks parents (Family app, F5): the question and the answers so far.
+        "reply_question": announcement.reply_question,
+        "reply_by": announcement.reply_by.isoformat() if announcement.reply_by else None,
+        "reply_counts": _reply_counts(announcement) if announcement.reply_question else None,
     }
+
+
+def _reply_counts(announcement) -> dict:
+    from .models import AnnouncementReply
+
+    answers = list(AnnouncementReply.objects.filter(announcement_id=announcement.id).values_list("answer", flat=True))
+    return {"yes": sum(1 for a in answers if a), "no": sum(1 for a in answers if not a)}
 
 
 def route_label(route) -> str:

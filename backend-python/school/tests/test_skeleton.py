@@ -59,7 +59,9 @@ class TheSchemaIsDescribed(TestCase):
         # own SMS and WhatsApp account (docs/platform-messaging.md, M1).
         #
         # Then absence_notes, a parent's note that their child will be away
-        # (docs/parent-student-app.md, F5, 2026-11-17).
+        # (docs/parent-student-app.md, F5, 2026-11-17), then call_requests and
+        # announcement_replies, a parent's call request and their answers to a
+        # notice that asks.
         #
         # If this number moves again, either a table arrived without a model
         # or a model was invented for a table that is not there. Changing the
@@ -67,7 +69,7 @@ class TheSchemaIsDescribed(TestCase):
         # test pass.
         from django.apps import apps
 
-        self.assertEqual(86, len(list(apps.get_app_config("school").get_models())))
+        self.assertEqual(88, len(list(apps.get_app_config("school").get_models())))
 
     def test_django_does_not_own_the_tables(self):
         # The whole reason check_models exists. If this ever passes with
@@ -82,7 +84,7 @@ class TheSchemaIsDescribed(TestCase):
             declarations = [line for line in f if line.strip() == "managed = False"]
 
         self.assertEqual(
-            86,
+            88,
             len(declarations),
             "every model must declare managed = False; the test runner is the only place that changes it",
         )

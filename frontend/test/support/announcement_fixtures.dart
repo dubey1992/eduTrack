@@ -61,3 +61,28 @@ const oldSportsDay = Announcement(
   smsCount: 120,
   inAppCount: 0,
 );
+
+/// A notice asking parents a question (Family app, F5), with answers coming in.
+const museumTrip = Announcement(
+  id: 7,
+  schoolId: 1,
+  schoolName: 'Sunrise Public School',
+  title: 'Science museum trip',
+  body: 'The class goes to the science museum next Friday.',
+  audienceType: AnnouncementAudience.classSection,
+  audienceId: 3,
+  audienceLabel: 'Grade 8 A',
+  channels: 'sms_in_app',
+  channelsLabel: 'SMS + In-app',
+  expiresAt: null,
+  hasExpired: false,
+  publishedByName: 'Anita Sharma',
+  publishedAt: '2026-11-09T07:30:00.000000Z',
+  recipientsCount: 30,
+  smsCount: 30,
+  inAppCount: 12,
+  replyQuestion: 'Can your child come on the trip?',
+  replyBy: '2026-11-12',
+  replyYes: 1,
+  replyNo: 1,
+);

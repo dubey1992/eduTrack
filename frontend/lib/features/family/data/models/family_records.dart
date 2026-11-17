@@ -175,6 +175,7 @@ class FamilyNotice {
     required this.studentName,
     required this.createdAt,
     required this.read,
+    this.reply,
   });
 
   factory FamilyNotice.fromJson(Map<String, dynamic> json) => FamilyNotice(
@@ -185,6 +186,7 @@ class FamilyNotice {
     studentName: json['student_name'] as String?,
     createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
     read: json['read'] as bool,
+    reply: NoticeReply.fromJson(json['reply'] as Map<String, dynamic>?),
   );
 
   final int id;
@@ -195,6 +197,20 @@ class FamilyNotice {
   final DateTime createdAt;
   final bool read;
 
+  /// A notice that asks the parent a Yes/No question (F5); null otherwise.
+  final NoticeReply? reply;
+
+  FamilyNotice withReply(NoticeReply value) => FamilyNotice(
+    id: id,
+    category: category,
+    title: title,
+    body: body,
+    studentName: studentName,
+    createdAt: createdAt,
+    read: read,
+    reply: value,
+  );
+
   FamilyNotice markedRead() => FamilyNotice(
     id: id,
     category: category,
@@ -203,6 +219,7 @@ class FamilyNotice {
     studentName: studentName,
     createdAt: createdAt,
     read: true,
+    reply: reply,
   );
 
   /// The kind of message in plain words, when it has no title of its own.
@@ -261,4 +278,37 @@ class FamilyNotificationSettings {
     'result': result,
     'notices': notices,
   };
+}
+
+/// The question a notice asks, and this parent's answer for each of their
+/// children it is about (F5).
+class NoticeReply {
+  const NoticeReply({required this.question, this.replyBy, required this.open, required this.children});
+
+  static NoticeReply? fromJson(Map<String, dynamic>? json) => json == null
+      ? null
+      : NoticeReply(
+          question: json['question'] as String,
+          replyBy: json['reply_by'] == null ? null : DateTime.parse(json['reply_by'] as String),
+          open: json['open'] as bool? ?? true,
+          children: [
+            for (final child in json['children'] as List<dynamic>)
+              (
+                studentId: (child as Map<String, dynamic>)['student_id'] as int,
+                name: child['name'] as String,
+                answer: child['answer'] as bool?,
+                note: child['note'] as String?,
+              ),
+          ],
+        );
+
+  final String question;
+  final DateTime? replyBy;
+
+  /// Answers are still taken.
+  final bool open;
+  final List<({int studentId, String name, bool? answer, String? note})> children;
+
+  /// Still open, and a child without an answer.
+  bool get awaitsAnswer => open && children.any((child) => child.answer == null);
 }

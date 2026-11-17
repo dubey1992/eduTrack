@@ -52,6 +52,7 @@ import '../../transport/application/trip_history_notifier.dart';
 import '../../transport/application/vehicle_page_notifier.dart';
 import '../../users/application/user_list_notifier.dart';
 import '../../absence_notes/application/absence_notes_notifier.dart';
+import '../../call_requests/call_requests.dart';
 import '../data/auth_repository.dart';
 import 'reset_code_notifier.dart';
 import '../data/models/authenticated_user.dart';
@@ -175,6 +176,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(schoolListNotifierProvider);
     // Which parents' notes the page was showing (Family app, F5).
     ref.invalidate(absenceNotesFilterProvider);
+    ref.invalidate(callRequestsOpenProvider);
     // One school's setup progress, and whether it already opened itself
     // this session (docs/onboarding.md, O4).
     ref.invalidate(setupGuideNotifierProvider);

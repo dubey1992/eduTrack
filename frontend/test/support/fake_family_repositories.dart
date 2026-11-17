@@ -5,6 +5,7 @@ import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_account.dart';
 import 'package:edutrack_app/features/family/data/models/family_absence_note.dart';
 import 'package:edutrack_app/features/family/data/models/family_bus.dart';
+import 'package:edutrack_app/features/family/data/models/family_call_request.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
 import 'package:edutrack_app/features/family/data/models/family_fees.dart';
 import 'package:edutrack_app/features/family/data/models/family_learning.dart';
@@ -93,6 +94,7 @@ FamilyNotice familyNotice({
   bool read = false,
   String? title = 'Sports day',
   String category = 'announcement',
+  NoticeReply? reply,
 }) {
   return FamilyNotice(
     id: id,
@@ -102,8 +104,17 @@ FamilyNotice familyNotice({
     studentName: 'Aarav Sharma',
     createdAt: DateTime(2026, 11, 9, 8, 30),
     read: read,
+    reply: reply,
   );
 }
+
+/// A notice asking about the museum trip, not yet answered for Aarav.
+NoticeReply tripQuestion({bool? answer, bool open = true}) => NoticeReply(
+  question: 'Can your child come on the trip to the science museum?',
+  replyBy: DateTime(2026, 11, 12),
+  open: open,
+  children: [(studentId: aarav.id, name: 'Aarav', answer: answer, note: null)],
+);
 
 final term1 = SchoolTerm(id: 1, name: 'Term 1', start: DateTime(2026, 4, 1), end: DateTime(2026, 9, 30));
 final term2 = SchoolTerm(id: 2, name: 'Term 2', start: DateTime(2026, 10, 1), end: DateTime(2027, 1, 31));
@@ -368,6 +379,42 @@ class FakeFamilyRepository implements FamilyRepository {
   final List<int> markedRead = [];
   int markAllReadCalls = 0;
   final List<(String, bool)> saved = [];
+
+  List<FamilyCallRequest> callRequestsValue = [
+    FamilyCallRequest(
+      id: 31,
+      toOffice: false,
+      reason: 'About the maths homework.',
+      called: true,
+      sentAt: DateTime(2026, 11, 2),
+    ),
+  ];
+  Failure? failCallWith;
+  final List<({bool toOffice, String reason, String? time})> callsAsked = [];
+  final List<({int noticeId, int studentId, bool answer, String? note})> replies = [];
+  Failure? failReplyWith;
+
+  @override
+  Future<List<FamilyCallRequest>> callRequests(int childId) async => callRequestsValue;
+
+  @override
+  Future<FamilyCallRequest> askForCall(
+    int childId, {
+    required bool toOffice,
+    required String reason,
+    String? preferredTime,
+  }) async {
+    if (failCallWith != null) throw failCallWith!;
+    callsAsked.add((toOffice: toOffice, reason: reason, time: preferredTime));
+    return FamilyCallRequest(id: 40, toOffice: toOffice, reason: reason, called: false, sentAt: DateTime(2026, 11, 9));
+  }
+
+  @override
+  Future<NoticeReply> replyToNotice(int noticeId, {required int studentId, required bool answer, String? note}) async {
+    if (failReplyWith != null) throw failReplyWith!;
+    replies.add((noticeId: noticeId, studentId: studentId, answer: answer, note: note));
+    return tripQuestion(answer: answer);
+  }
 
   List<FamilyAbsenceNote> notesValue = [
     FamilyAbsenceNote(

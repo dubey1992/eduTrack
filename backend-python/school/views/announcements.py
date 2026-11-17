@@ -25,6 +25,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .. import notice_replies
 from ..clock import SchoolClock
 from ..enums import AnnouncementAudience, AnnouncementChannels
 from ..errors import UnprocessableRequest
@@ -144,3 +145,18 @@ def preview(request) -> Response:
             "audience_label": AnnouncementService.audience_label(school_id, audience, target),
         }
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def replies(request, announcement_id: int) -> Response:
+    """The answers to a notice that asked parents (Family app, F5): how many
+    said yes and no, and each child with their answer or none yet."""
+    announcement = live(announcement_id)
+    authorize(AnnouncementPolicy.view(request.user, announcement))
+
+    if not notice_replies.asks(announcement):
+        return Response({"code": "NOT_FOUND", "message": "This notice did not ask parents a question.",
+                         "details": {}}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response(notice_replies.summary(announcement))

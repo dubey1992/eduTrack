@@ -44,6 +44,10 @@ Talking to the school (F5):
 - GET  family/children/{id}/absence-notes - the child's notes, newest first
 - POST family/children/{id}/absence-notes - a new one (multipart when a
   photo of a doctor's note is attached)
+- GET  family/children/{id}/call-requests - their "please call me"s
+- POST family/children/{id}/call-requests - {recipient, reason, preferred_time?}
+- POST family/notices/{id}/reply - {student_id, answer, note?}: Yes or No to a
+  notice that asks, for one of their children it is about
 """
 
 from __future__ import annotations
@@ -58,7 +62,17 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .. import absence_notes, family_bus, family_day, family_fees, family_inbox, family_learning, modules
+from .. import (
+    absence_notes,
+    call_requests,
+    family_bus,
+    family_day,
+    family_fees,
+    family_inbox,
+    family_learning,
+    modules,
+    notice_replies,
+)
 from ..clock import SchoolClock
 from ..enums import UserRole
 from ..errors import BusNotLive, ModuleDisabled, NotAFamilyAccount, ProgressReportNotReady
@@ -204,7 +218,17 @@ def notices(request) -> Response:
 
     paginator = LaravelPagination()
     page = paginator.paginate_queryset(found, request)
-    response = paginator.get_paginated_response([family_notice_resource(message) for message in page])
+    children = list(FamilyAuthService.children_of(user))
+
+    def with_reply(message) -> dict:
+        """A notice that asks parents carries its question and their answers (F5)."""
+        item = family_notice_resource(message)
+        item["reply"] = (
+            notice_replies.reply_block(message.announcement, children) if message.announcement_id else None
+        )
+        return item
+
+    response = paginator.get_paginated_response([with_reply(message) for message in page])
     response.data["unread_count"] = MessageService.unread_count(user)
 
     return response
@@ -428,3 +452,60 @@ def child_absence_notes(request, child_id: int) -> Response:
                               photo=request.FILES.get("photo"))
 
     return Response(absence_notes.note_resource(note), status=status.HTTP_201_CREATED)
+
+
+# -- "Please call me" and replies to notices (F5) ------------------------------------
+
+
+class CallRequestRequest(serializers.Serializer):
+    recipient = serializers.CharField(max_length=20)
+    reason = serializers.CharField(max_length=2000, allow_blank=True)
+    preferred_time = serializers.CharField(max_length=500, required=False, allow_blank=True, allow_null=True)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def child_call_requests(request, child_id: int) -> Response:
+    user = family_reader(request)
+    child = child_of(user, child_id)
+
+    if request.method == "GET":
+        rows = child.call_requests.order_by("-created_at", "-id")[:20]
+        return Response({"data": [call_requests.request_resource(row) for row in rows]})
+
+    form = CallRequestRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+    data = form.validated_data
+    made = call_requests.ask(child, user, data["recipient"], data["reason"], data.get("preferred_time"))
+
+    return Response(call_requests.request_resource(made), status=status.HTTP_201_CREATED)
+
+
+class NoticeReplyRequest(serializers.Serializer):
+    student_id = serializers.IntegerField()
+    answer = serializers.BooleanField()
+    note = serializers.CharField(max_length=2000, required=False, allow_blank=True, allow_null=True)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def notice_reply(request, notice_id: int) -> Response:
+    user = family_reader(request)
+    # Their own inbox copy of the notice; anybody else's is a 404.
+    message = get_object_or_404(MessageService.inbox(user, None).select_related("announcement"), pk=notice_id)
+    form = NoticeReplyRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+    data = form.validated_data
+
+    if message.announcement_id is None:
+        raise Http404()
+
+    children = list(FamilyAuthService.children_of(user))
+    asked = {child.id: child for child in notice_replies.children_asked(message.announcement, children)}
+    child = asked.get(data["student_id"])
+    if child is None:
+        raise Http404()
+
+    notice_replies.answer(message.announcement, child, user, data["answer"], data.get("note"))
+
+    return Response(notice_replies.reply_block(message.announcement, children))

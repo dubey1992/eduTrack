@@ -2656,6 +2656,11 @@ class PublishAnnouncementRequest(ScopedSerializer):
     audience_id = serializers.JSONField(required=False, allow_null=True, default=None)
     channels = LaravelCharField("channels", max_length=255)
     expires_at = serializers.JSONField(required=False, allow_null=True, default=None)
+    # A Yes/No question for parents (Family app, F5), and the last day for answers.
+    reply_question = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=200,
+                                           default=None, error_messages={
+                                               "max_length": "Please keep the question to 200 characters."})
+    reply_by = serializers.JSONField(required=False, allow_null=True, default=None)
 
     def __init__(self, *args, school_today=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -2717,6 +2722,37 @@ class PublishAnnouncementRequest(ScopedSerializer):
             raise serializers.ValidationError("That class or department does not belong to this school.")
 
         return target
+
+    def validate_reply_question(self, value):
+        value = (value or "").strip() or None
+        if value is None:
+            return None
+
+        if len(value) < 5:
+            raise serializers.ValidationError("Please write the question parents should answer.")
+
+        audience = self.audience()
+        if audience is not None and not AnnouncementAudience.reaches_guardians(audience):
+            raise serializers.ValidationError("Only a notice that reaches parents can ask them a question.")
+
+        return value
+
+    def validate_reply_by(self, value):
+        if value is None or value == "":
+            return None
+
+        try:
+            day = LaravelDateField("reply_by").to_internal_value(value)
+        except serializers.ValidationError:
+            raise serializers.ValidationError("Choose the last day for answers.") from None
+
+        if self.school_today is not None and day < self.school_today:
+            raise serializers.ValidationError("The last day for answers cannot be in the past.")
+
+        if not (self.initial_data.get("reply_question") or "").strip():
+            raise serializers.ValidationError("Write a question first - a closing day needs something to answer.")
+
+        return day
 
     def validate_expires_at(self, value):
         if value is None:

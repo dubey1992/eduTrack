@@ -51,6 +51,8 @@ class AnnouncementRepository {
     int? audienceId,
     required String channels,
     String? expiresAt,
+    String? replyQuestion,
+    String? replyBy,
   }) {
     return _guard(
       () => _api.publish(
@@ -61,9 +63,13 @@ class AnnouncementRepository {
         audienceId: audienceId,
         channels: channels,
         expiresAt: expiresAt,
+        replyQuestion: replyQuestion,
+        replyBy: replyBy,
       ),
     );
   }
+
+  Future<ReplySummary> replies(int announcementId) => _guard(() => _api.replies(announcementId));
 
   Future<AudiencePreview> preview({
     int? schoolId,

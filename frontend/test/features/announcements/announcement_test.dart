@@ -194,6 +194,21 @@ void main() {
       expect(find.text('Expired'), findsOneWidget);
     });
 
+    testWidgets('a notice that asks shows the counts, and who answered what', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeAnnouncementRepository(announcements: [museumTrip])));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Asks parents: Can your child come on the trip? · Yes 1 · No 1'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('announcement-replies-7')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Not answered 1'), findsOneWidget);
+      expect(find.text('Kabir Singh'), findsOneWidget);
+      expect(find.text('No answer'), findsOneWidget);
+      expect(find.textContaining('Packed lunch'), findsOneWidget);
+    });
+
     testWidgets('an empty list says so', (tester) async {
       useDesktop(tester);
       await tester.pumpWidget(wrap(FakeAnnouncementRepository()));
@@ -466,6 +481,40 @@ void main() {
 
       expect(find.text('Pick at least one channel.'), findsOneWidget);
       expect(fake.lastCall, isNull);
+    });
+
+    testWidgets('a notice to parents can ask them a Yes/No question, sent with it', (tester) async {
+      useDesktop(tester);
+      final fake = FakeAnnouncementRepository(previewRecipients: 42);
+      await openDialog(tester, fake);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Announcement title'), 'Museum trip');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Message'), 'The class goes to the museum on Friday.');
+      await tester.enterText(find.byKey(const Key('announcement-reply-question')), 'Can your child come on the trip?');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('announcement-reply-by')), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['reply_question'], 'Can your child come on the trip?');
+      expect(fake.lastCall!.containsKey('reply_by'), isFalse, reason: 'no last day was set');
+    });
+
+    testWidgets('a notice only to teachers offers no question for parents', (tester) async {
+      useDesktop(tester);
+      await openDialog(tester, FakeAnnouncementRepository());
+
+      expect(
+        find.byKey(const Key('announcement-reply-question')),
+        findsOneWidget,
+        reason: 'All School reaches parents',
+      );
+      await tester.tap(find.widgetWithText(DropdownButtonFormField<AnnouncementAudience>, 'All School'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Teachers').last);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('announcement-reply-question')), findsNothing);
     });
 
     testWidgets('the list shows the channel label the server rendered', (tester) async {

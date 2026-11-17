@@ -128,6 +128,25 @@ final familyNoticesProvider = AsyncNotifierProvider.autoDispose<FamilyNoticesNot
 class FamilyNoticesNotifier extends AsyncNotifier<NoticesState> {
   bool _loadingMore = false;
 
+  /// Answers a notice's question for one child, and keeps the answer in the list.
+  Future<NoticeReply> reply(FamilyNotice notice, {required int studentId, required bool answer, String? note}) async {
+    final updated = await ref
+        .read(familyRepositoryProvider)
+        .replyToNotice(notice.id, studentId: studentId, answer: answer, note: note);
+    final current = state.value;
+    if (current != null) {
+      state = AsyncData(
+        NoticesState(
+          notices: [for (final n in current.notices) n.id == notice.id ? n.withReply(updated) : n],
+          unreadCount: current.unreadCount,
+          hasMore: current.hasMore,
+          page: current.page,
+        ),
+      );
+    }
+    return updated;
+  }
+
   @override
   Future<NoticesState> build() async {
     final page = await ref.read(familyRepositoryProvider).notices();
