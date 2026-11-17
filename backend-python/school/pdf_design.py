@@ -258,6 +258,21 @@ def logo_data_uri(url: str | None) -> str | None:
     return f"data:{kind};base64,{base64.b64encode(body).decode('ascii')}"
 
 
+def stored_logo_data_uri(school) -> str | None:
+    """The school's uploaded logo, inlined - or None, which costs the
+    document its logo and nothing else."""
+    from . import school_logo  # school_logo -> policies -> ... ; kept lazy
+
+    stored = school_logo.read(school) if getattr(school, "logo_path", None) else None
+
+    if stored is None:
+        return None
+
+    data, kind = stored
+
+    return f"data:{kind};base64,{base64.b64encode(data).decode('ascii')}"
+
+
 def logo_size(data_uri: str) -> tuple[int, int] | None:
     """The size to draw a logo at: its own shape, fitted into LOGO_BOX - or
     None when the image cannot be read, which costs only the logo."""
@@ -292,12 +307,13 @@ def school_lines(school) -> list[str]:
 
 
 def band(name: str, lines: list[str], title: str, number: str | None = None, subtitle: str | None = None,
-         logo_url: str | None = None, title_width: int | None = None) -> str:
+         logo_url: str | None = None, title_width: int | None = None, logo: str | None = None) -> str:
     """The blue band: a logo when there is one, the issuer's name and contact
     lines, and on the right the document's title, its number and a line under
     it. `title_width` narrows the title's column (260 by the stylesheet) for a
-    short title, leaving the contact lines room so they wrap less."""
-    logo = logo_data_uri(logo_url)
+    short title, leaving the contact lines room so they wrap less. `logo` is
+    an already-inlined image, which wins over fetching `logo_url`."""
+    logo = logo or logo_data_uri(logo_url)
     size = logo_size(logo) if logo else None
     logo_cell = (
         f'<td class="logo" width="{size[0] + 28}"><table class="logo-panel"><tr><td>'
@@ -319,8 +335,10 @@ def band(name: str, lines: list[str], title: str, number: str | None = None, sub
 
 
 def school_band(school, title: str, number: str | None = None, subtitle: str | None = None) -> str:
-    """The band for a document a school issues."""
-    return band(school.name, school_lines(school), title, number, subtitle, logo_url=school.logo_url)
+    """The band for a document a school issues: its uploaded logo, else the
+    address it was given before uploads existed (docs/school-logo.md)."""
+    return band(school.name, school_lines(school), title, number, subtitle,
+                logo_url=school.logo_url, logo=stored_logo_data_uri(school))
 
 
 # -- blocks ---------------------------------------------------------------------

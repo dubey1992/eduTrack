@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +8,8 @@ import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/change_password_dialog.dart';
 import '../../features/auth/presentation/signed_in_devices_dialog.dart';
 import '../../features/my_trip/application/trip_mark_queue.dart';
+import '../../features/school_logo/application/school_logo_controller.dart';
+import '../../features/school_logo/presentation/logo_prompt.dart';
 import '../routing/app_nav.dart';
 import 'confirm_dialog.dart';
 import 'responsive.dart';
@@ -17,13 +20,23 @@ import 'user_avatar.dart';
 /// sidebar (fixed on desktop, a drawer on mobile) + topbar (page title,
 /// user info, logout) + the current route's content. Matches the
 /// prototype's overall `<div class="app">` layout.
-class AppShell extends ConsumerWidget {
+///
+/// It is also where a School Admin is asked for the school's logo, once per
+/// sign-in, while the school has none (docs/school-logo.md).
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  @override
+  Widget build(BuildContext context) {
+    _askForLogoOnce();
+    final child = widget.child;
     final location = GoRouterState.of(context).matchedLocation;
     final heading = AppNav.headingFor(location);
     final area = AppNav.groupOf(location)?.label;
@@ -75,6 +88,52 @@ class AppShell extends ConsumerWidget {
       ),
     );
   }
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    super.dispose();
+  }
+
+  /// Ctrl + B folds the side panel, as in most editors (asked for
+  /// 2026-11-17). Listened for app-wide rather than through a Focus here: a
+  /// click on an empty part of the page takes the focus away from the shell,
+  /// and the shortcut should still work then.
+  bool _onKey(KeyEvent event) {
+    final ctrlB =
+        event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.keyB &&
+        HardwareKeyboard.instance.isControlPressed &&
+        !HardwareKeyboard.instance.isShiftPressed &&
+        !HardwareKeyboard.instance.isAltPressed;
+    if (!ctrlB || !mounted) return false;
+
+    ref.read(navPanelOpenProvider.notifier).toggle();
+    return true;
+  }
+
+  /// After the first frame of a signed-in session, a School Admin whose
+  /// school has no logo is asked for one. Marked as asked before the dialog
+  /// opens, so a rebuild underneath it never opens a second.
+  void _askForLogoOnce() {
+    final user = ref.watch(authNotifierProvider).value;
+    if (!needsLogoPrompt(user) || ref.read(logoPromptShownProvider)) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ref.read(logoPromptShownProvider)) return;
+      final current = ref.read(authNotifierProvider).value;
+      if (!needsLogoPrompt(current)) return;
+
+      ref.read(logoPromptShownProvider.notifier).markShown();
+      showLogoPrompt(context, current!);
+    });
+  }
 }
 
 /// The bar across the top of every desktop page (Warm Editorial,
@@ -99,9 +158,11 @@ class _Topbar extends ConsumerWidget {
 
     return Container(
       color: theme.colorScheme.surface,
-      padding: const EdgeInsets.fromLTRB(28, 14, 20, 14),
+      padding: const EdgeInsets.fromLTRB(12, 14, 20, 14),
       child: Row(
         children: [
+          const NavPanelToggle(),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

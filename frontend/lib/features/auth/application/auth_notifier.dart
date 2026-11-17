@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../school_logo/application/school_logo_controller.dart';
 import '../../setup_guide/application/setup_guide_notifier.dart';
 import '../../analytics/application/analytics_notifier.dart';
 import '../../../core/network/session_ended_notifier.dart';
@@ -176,6 +177,9 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     // this session (docs/onboarding.md, O4).
     ref.invalidate(setupGuideNotifierProvider);
     ref.invalidate(setupGuideAutoOpenedProvider);
+    // Whether this session has asked for the school's logo yet - the next
+    // sign-in asks again (docs/school-logo.md).
+    ref.invalidate(logoPromptShownProvider);
     ref.invalidate(userListNotifierProvider);
     ref.invalidate(studentListNotifierProvider);
     ref.invalidate(staffListNotifierProvider);

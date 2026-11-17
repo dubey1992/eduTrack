@@ -43,6 +43,7 @@ import '../../features/payroll/presentation/my_payslips_screen.dart';
 import '../../features/payroll/presentation/payroll_screen.dart';
 import '../../features/platform_messaging/presentation/platform_messaging_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/school_logo/presentation/school_profile_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/analytics/data/models/early_warning.dart';
 import '../../features/analytics/presentation/analytics_screen.dart';
@@ -197,6 +198,7 @@ const appRoutePaths = {
   '/site-pages',
   '/profile',
   '/module-settings',
+  '/school-profile',
   '/permissions',
 };
 
@@ -361,6 +363,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
+          GoRoute(path: '/school-profile', builder: (context, state) => const SchoolProfileScreen()),
           GoRoute(path: '/module-settings', builder: (context, state) => const ModuleSettingsScreen()),
           GoRoute(path: '/permissions', builder: (context, state) => const PermissionsScreen()),
         ],

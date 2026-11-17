@@ -13,6 +13,7 @@ import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../maps/presentation/app_map.dart';
 import '../../maps/presentation/map_pin_icons.dart';
+import '../../school_logo/presentation/school_logo_card.dart';
 import '../application/school_detail_notifier.dart';
 import '../data/models/school.dart';
 import 'edit_school_dialog.dart';
@@ -73,6 +74,30 @@ class _Detail extends ConsumerWidget {
             children: [
               _Facts(school: school),
               const SizedBox(height: 16),
+              // A Super Admin may set any school's logo for it; the school's
+              // own admins do it under School Profile (docs/school-logo.md).
+              if (ref.watch(authNotifierProvider).value?.role == UserRole.superAdmin) ...[
+                Card(
+                  key: const Key('school-detail-logo'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Logo', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 12),
+                        SchoolLogoCard(
+                          schoolId: school.id,
+                          schoolName: school.name,
+                          logoUrl: school.logoImageUrl,
+                          onChanged: (_) => ref.invalidate(schoolDetailProvider(school.id)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               // One map, not two of the same place stacked. Somebody who
               // may make a route gets the one they can draw on; everybody
               // else gets the one they can look at (docs/maps.md).

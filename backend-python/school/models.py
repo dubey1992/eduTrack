@@ -1287,7 +1287,11 @@ class School(models.Model):
     country = models.CharField(max_length=255)
     postal_code = models.CharField(max_length=255)
     currency_code = models.CharField(max_length=3)
+    # An address typed in before uploads existed; read only by the PDFs.
     logo_url = models.CharField(max_length=255, blank=True, null=True)
+    # The uploaded logo in the app's storage (school/school_logo.py). A
+    # school's profile is complete once it has one.
+    logo_path = models.CharField(max_length=255, blank=True, null=True)
     status = models.CharField(max_length=255)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)

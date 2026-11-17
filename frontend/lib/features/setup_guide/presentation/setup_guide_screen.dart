@@ -11,7 +11,7 @@ import '../application/setup_guide_notifier.dart';
 import '../data/models/setup_guide.dart';
 import 'quick_departments_dialog.dart';
 
-/// A new school's six setup steps, in the order they depend on each other
+/// A new school's setup steps - its logo, then the rest in the order they depend on each other
 /// (docs/onboarding.md, O4). Each step opens the screen where it is done;
 /// classes and departments can be added in one step from here.
 class SetupGuideScreen extends ConsumerStatefulWidget {
@@ -155,8 +155,8 @@ class _Progress extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               guide.finished
-                  ? 'All six steps are done. Attendance, timetables and the rest are ready to use.'
-                  : 'Six steps, in this order - each one needs the one before. ${guide.done} of ${guide.total} done.',
+                  ? 'All the steps are done. Attendance, timetables and the rest are ready to use.'
+                  : '${guide.total} steps, in this order - each one needs the one before. ${guide.done} of ${guide.total} done.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),

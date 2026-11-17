@@ -36,7 +36,7 @@ class SetupStep {
   final String? blockedBy;
 }
 
-/// Something worth setting up once the six steps are done. Not counted.
+/// Something worth setting up once the steps are done. Not counted.
 class SetupExtra {
   const SetupExtra({required this.title, required this.path, required this.detail});
 

@@ -16,6 +16,9 @@ class AuthenticatedUser {
     this.managesBranches = false,
     this.access = const ModuleAccess.unspecified(),
     this.photoUrl,
+    this.schoolName,
+    this.schoolLogoUrl,
+    this.schoolProfileComplete = true,
     WorkingWeek? workingDays,
     SchoolClock? clock,
     // The fields are private and the parameters are not. An initializing
@@ -44,6 +47,9 @@ class AuthenticatedUser {
       managesBranches: json['manages_branches'] as bool? ?? false,
       access: ModuleAccess.fromJson(json),
       photoUrl: json['photo_url'] as String?,
+      schoolName: json['school_name'] as String?,
+      schoolLogoUrl: json['school_logo_url'] as String?,
+      schoolProfileComplete: json['school_profile_complete'] as bool? ?? true,
       workingDays: WorkingWeek.fromApiValue(json['working_days']),
     );
   }
@@ -62,6 +68,19 @@ class AuthenticatedUser {
   /// example `/users/12/photo?v=ab12cd34`), or null when there is none. It
   /// changes whenever the photo does, so it doubles as a cache key.
   final String? photoUrl;
+
+  /// The school's name, for the top of the menu. Null for a Super Admin.
+  final String? schoolName;
+
+  /// Where the school's logo is served, relative to the API base, or null
+  /// when it has none (docs/school-logo.md). Like [photoUrl], it changes
+  /// with the logo, so it doubles as a cache key.
+  final String? schoolLogoUrl;
+
+  /// False while the school still has no logo - which makes the app ask a
+  /// School Admin for one at every sign-in. True for a Super Admin, who has
+  /// no school, and for payloads that do not say.
+  final bool schoolProfileComplete;
 
   final SchoolClock? _clock;
   final WorkingWeek? _workingDays;

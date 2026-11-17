@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from . import dates, mailer, modules, money, payment_items, permissions, sms, syllabus_scope, whatsapp, working_hours
+from . import dates, mailer, modules, money, payment_items, permissions, school_logo, sms, syllabus_scope, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
 from .enums import SchoolCategory, DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
@@ -1532,6 +1532,9 @@ def school_resource(school: School, branch_count: int | None = None) -> dict:
         "working_days": WorkingWeek(school.working_days).stored,
         "working_day_names": WorkingWeek(school.working_days).names,
         "logo_url": school.logo_url,
+        # The uploaded logo (docs/school-logo.md), fetched with the token.
+        "logo_image_url": school_logo.url_of(school),
+        "profile_complete": school_logo.profile_complete(school),
         "status": school.status,
         **school_category(school),
         "created_at": timestamp(school.created_at),
@@ -1607,6 +1610,14 @@ def user_resource(user: User, viewer: User | None = None) -> dict:
 
     if "school" in user._state.fields_cache:
         body["school_name"] = user.school.name if user.school else None
+
+    # The school's logo for the menu, and whether its profile still needs
+    # one - which is what makes the app ask a School Admin at sign-in
+    # (docs/school-logo.md). Read off the school the working week above has
+    # already loaded.
+    school = user.school if user.school_id else None
+    body["school_logo_url"] = school_logo.url_of(school)
+    body["school_profile_complete"] = school_logo.profile_complete(school)
 
     # Whether "my school" is ambiguous for this account, so the client knows
     # to ask which branch a record belongs to. True for an admin of a school

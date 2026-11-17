@@ -50,7 +50,7 @@ class SetupGuideCard extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 guide.finished
-                    ? 'All six steps are done.'
+                    ? 'All the steps are done.'
                     : '${guide.done} of ${guide.total} steps done. Next: ${next?.title}.',
                 style: theme.textTheme.bodyMedium,
               ),

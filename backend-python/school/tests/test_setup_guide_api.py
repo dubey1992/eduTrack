@@ -1,6 +1,6 @@
 """A new school's setup guide (docs/onboarding.md, slice O4).
 
-Six steps, each done because the school has the thing - never because
+Seven steps (the logo first, docs/school-logo.md), each done because the school has the thing - never because
 somebody ticked it - and the guide's closed state remembered for the whole
 school. Plus the common departments in one step.
 """
@@ -37,14 +37,14 @@ class GuideTest(TestCase):
 
 
 class TheSteps(GuideTest):
-    def test_a_new_school_has_six_steps_none_done_in_dependency_order(self):
+    def test_a_new_school_has_seven_steps_none_done_logo_first_then_dependency_order(self):
         response = self.client.get(self.url)
 
         self.assertEqual(
-            ["academic_year", "departments", "classes", "subjects", "staff", "students"],
+            ["logo", "academic_year", "departments", "classes", "subjects", "staff", "students"],
             [step["key"] for step in response.data["steps"]],
         )
-        self.assertEqual((0, 6, False), (response.data["done"], response.data["total"], response.data["closed"]))
+        self.assertEqual((0, 7, False), (response.data["done"], response.data["total"], response.data["closed"]))
         self.assertEqual(self.school.name, response.data["school_name"])
 
     def test_the_admin_who_runs_the_school_is_not_counted_as_staff(self):
@@ -65,11 +65,13 @@ class TheSteps(GuideTest):
         factories.SubjectFactory(school=self.school, department=department)
         factories.UserFactory(school=self.school, role=UserRole.TEACHER)
         factories.StudentFactory(school=self.school, class_section=section)
+        School.objects.filter(pk=self.school.pk).update(logo_path="school-logos/abc.png")
 
         response = self.client.get(self.url)
 
-        self.assertEqual(6, response.data["done"])
+        self.assertEqual(7, response.data["done"])
         steps = {step["key"]: step for step in response.data["steps"]}
+        self.assertEqual("Logo uploaded", steps["logo"]["summary"])
         self.assertEqual("2026-27 is the current year", steps["academic_year"]["summary"])
         self.assertEqual("1 class, 1 section", steps["classes"]["summary"])
         self.assertIsNone(steps["students"]["blocked_by"])

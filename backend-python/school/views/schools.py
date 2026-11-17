@@ -11,12 +11,16 @@ can go.
 
 from __future__ import annotations
 
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .. import photos, school_logo
 from ..enums import SchoolStatus
 from ..models import EarlyAccessRequest, School
 from ..pagination import LaravelPagination
@@ -146,6 +150,52 @@ def detail(request, school_id: int) -> Response:
     authorize(SchoolPolicy.view(request.user, school))
 
     return Response(school_resource(school, branch_count=SchoolService.branch_count(school)))
+
+
+@api_view(["GET", "POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def logo(request, school_id: int):
+    """The school's logo (docs/school-logo.md): read by anyone at the school,
+    uploaded or removed by its administrators and Super Admins.
+
+    A school outside the caller's scope is a 404 whatever the method, the
+    same answer as a school with no logo - the id says nothing."""
+    school = get_object_or_404(School, pk=school_id)
+
+    if not school_logo.may_see(request.user, school):
+        raise Http404
+
+    if request.method == "GET":
+        stored = school_logo.read(school)
+
+        if stored is None:
+            raise Http404
+
+        data, content_type = stored
+        response = HttpResponse(data, content_type=content_type)
+        # The address changes with every new logo, so the browser may keep it.
+        response["Cache-Control"] = "private, max-age=86400"
+
+        return response
+
+    authorize(school_logo.may_change(request.user, school))
+
+    if request.method == "DELETE":
+        school = school_logo.remove_logo(school)
+    else:
+        try:
+            data, extension = school_logo.prepare(request.FILES.get("logo"))
+        except photos.PhotoRejected as rejected:
+            # A field error, so the app shows it under the logo.
+            raise ValidationError({"logo": [str(rejected)]})
+
+        school = school_logo.set_logo(school, data, extension)
+
+    return Response({
+        "logo_url": school_logo.url_of(school),
+        "profile_complete": school_logo.profile_complete(school),
+    })
 
 
 def update(request, school: School) -> Response:

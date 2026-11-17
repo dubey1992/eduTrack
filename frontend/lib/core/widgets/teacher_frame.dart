@@ -1,3 +1,4 @@
+import '../../features/school_logo/presentation/school_logo_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -86,9 +87,29 @@ class TeacherFrame extends ConsumerWidget {
         titleSpacing: 16,
         title: Row(
           children: [
-            const TeacherMark(size: 34, tile: true),
+            // The school's own logo once it has one (docs/school-logo.md).
+            if (user?.schoolLogoUrl != null)
+              SchoolLogoImage(logoUrl: user!.schoolLogoUrl, schoolName: user.schoolName ?? '', size: 34)
+            else
+              const TeacherMark(size: 34, tile: true),
             const SizedBox(width: 12),
-            Flexible(child: Text(user?.name ?? 'School365ai', maxLines: 1, overflow: TextOverflow.ellipsis)),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(user?.name ?? 'School365ai', maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (user?.schoolName != null)
+                    Text(
+                      user!.schoolName!,
+                      key: const Key('teacher-school-name'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [

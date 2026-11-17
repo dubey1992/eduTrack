@@ -52,6 +52,8 @@ class School {
     required this.timezone,
     this.workingDays = const WorkingWeek.mondayToFriday(),
     required this.logoUrl,
+    this.logoImageUrl,
+    this.profileComplete = true,
     required this.status,
     this.category = SchoolCategory.live,
     this.trialEndsOn,
@@ -80,6 +82,8 @@ class School {
       timezone: json['timezone'] as String? ?? 'UTC',
       workingDays: WorkingWeek.fromApiValue(json['working_days']),
       logoUrl: json['logo_url'] as String?,
+      logoImageUrl: json['logo_image_url'] as String?,
+      profileComplete: json['profile_complete'] as bool? ?? true,
       status: SchoolStatus.fromApiValue(json['status'] as String),
       category: SchoolCategory.fromApiValue(json['category'] as String?),
       trialEndsOn: json['trial_ends_on'] as String?,
@@ -127,6 +131,13 @@ class School {
   /// until schools outside that week arrived.
   final WorkingWeek workingDays;
   final String? logoUrl;
+
+  /// The uploaded logo, fetched with the token; null when there is none
+  /// (docs/school-logo.md).
+  final String? logoImageUrl;
+
+  /// False while the school has no uploaded logo.
+  final bool profileComplete;
   final SchoolStatus status;
   final SchoolCategory category;
 
@@ -167,6 +178,8 @@ class School {
       timezone: timezone,
       workingDays: workingDays,
       logoUrl: logoUrl,
+      logoImageUrl: logoImageUrl,
+      profileComplete: profileComplete,
       status: status ?? this.status,
       category: category,
       trialEndsOn: trialEndsOn,
