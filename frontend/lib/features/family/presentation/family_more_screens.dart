@@ -35,6 +35,13 @@ class FamilyMoreScreen extends ConsumerWidget {
     final features = account?.features ?? FamilyFeatures.all;
     // Only what the school uses: no Results row at a school without tests.
     final learning = [
+      _MoreRow(
+        key: const Key('family-more-absence-notes'),
+        icon: Icons.edit_note_rounded,
+        title: 'Absence notes',
+        subtitle: 'Tell the school your child will be away',
+        onTap: () => context.push('/absence-notes'),
+      ),
       if (features.results)
         _MoreRow(
           key: const Key('family-more-results'),

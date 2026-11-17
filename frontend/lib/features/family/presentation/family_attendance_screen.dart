@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -79,6 +80,29 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
+                  // A parent tells the school about an absence from here (F5).
+                  FamilyCard(
+                    key: const Key('family-tell-absence'),
+                    onTap: () => context.push('/absence-notes/new'),
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_note_rounded, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Tell the school about an absence',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        TextButton(
+                          key: const Key('family-see-notes'),
+                          onPressed: () => context.push('/absence-notes'),
+                          child: const Text('Notes sent'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   if (data.yearSummary != null) ...[
                     _RateCard(
                       key: const Key('family-year-rate'),

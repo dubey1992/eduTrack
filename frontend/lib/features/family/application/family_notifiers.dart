@@ -224,3 +224,11 @@ class FamilyNotificationSettingsNotifier extends AsyncNotifier<FamilyNotificatio
     }
   }
 }
+
+/// Today on this phone, at midnight - where a form's date pickers start. The
+/// server holds the school's own date and checks against that; this is only
+/// where the picker opens. Overridden in tests.
+final familyTodayDateProvider = Provider<DateTime>((ref) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day);
+});

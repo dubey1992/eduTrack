@@ -216,6 +216,27 @@ Decisions taken while building:
 - **"Please call me"** to the class teacher or office, with a reason, handled in the staff app.
 - **Replies to notices** that ask for one (consent slips, event RSVPs), counted for the school.
 
+**Decided 2026-11-17 (the owner chose the recommendation each time):**
+- **Absence notes:** the class teacher acknowledges them. A note never marks the register.
+- **"Please call me":** the parent picks Class teacher or School office, and either marks it "Called" with a note.
+- **Replies to notices:** Yes or No, with an optional note. The school sees the counts and who hasn't replied.
+
+**Absence notes, as built (2026-11-17)** (table `absence_notes`, `school/absence_notes.py`):
+- **The parent's side.** On the Attendance tab, "Tell the school about an absence" asks for:
+  - the first and last day: from today, up to 30 days ahead;
+  - a reason of 10-500 characters;
+  - optionally, a photo of a doctor's note, from the camera or the phone's photos (`image_picker`, which needs no extra permission). The server re-encodes it, keeps it private, and refuses anything over 5 MB.
+- **What the school refuses,** each with a sentence the parent can act on:
+  - days on which the school is closed throughout;
+  - days overlapping a note already sent, answered with the first note's dates instead of a second note.
+- **The parent sees each note** as Sent, then Seen by the class teacher.
+- **The school's side:**
+  - The class teacher gets an inbox message (event `teaching.absence_note`, never an SMS).
+  - The note shows as a chip beside the child on the register for each of its days, on the web and in the staff app. It is never a mark.
+  - The chip opens the note and its photo, with "Mark as seen".
+  - A web page, Attendance > Absence Notes, lists the unseen notes first.
+  - Who sees them: whoever reads attendance; a teacher, only the classes they are class teacher of. Another school sees nothing.
+
 ### Phase F6: The student app, Hindi, polish
 
 - **Student sign-in** (Class 6+, with consent): today's timetable, upcoming tests and assignments, their own results, notices and the calendar. No fees, no bus map for students unless the school allows.

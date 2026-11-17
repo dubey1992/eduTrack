@@ -18,6 +18,7 @@ import '../data/models/attendance_status.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/school_picker.dart';
 import '../../../core/widgets/searchable_dropdown.dart';
+import '../../absence_notes/presentation/absence_note_chip.dart';
 
 /// Mark or edit a class's daily attendance register - the Teacher/Admin
 /// workflow behind CLAUDE.md's Phase 7 (Student Attendance), reusing the
@@ -305,6 +306,7 @@ class _RegisterView extends ConsumerWidget {
                     _RosterRow(
                       entry: entry,
                       onStatusChanged: holiday != null ? null : (status) => notifier.setStatus(entry.studentId, status),
+                      onNoteSeen: () => ref.invalidate(attendanceRegisterProvider(params)),
                     ),
                 ],
               ),
@@ -317,12 +319,15 @@ class _RegisterView extends ConsumerWidget {
 }
 
 class _RosterRow extends StatelessWidget {
-  const _RosterRow({required this.entry, required this.onStatusChanged});
+  const _RosterRow({required this.entry, required this.onStatusChanged, this.onNoteSeen});
 
   final AttendanceRosterEntry entry;
 
   /// Null when the register is read-only (a holiday).
   final ValueChanged<AttendanceStatus>? onStatusChanged;
+
+  /// A parent's note was marked as seen: the register reloads to show it.
+  final VoidCallback? onNoteSeen;
 
   @override
   Widget build(BuildContext context) {
@@ -339,6 +344,15 @@ class _RosterRow extends StatelessWidget {
                   Text(
                     'Roll No. ${entry.rollNumber}',
                     style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                if (entry.absenceNote != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: AbsenceNoteChip(
+                      note: entry.absenceNote!,
+                      studentName: entry.name,
+                      onAcknowledged: onNoteSeen,
+                    ),
                   ),
               ],
             ),

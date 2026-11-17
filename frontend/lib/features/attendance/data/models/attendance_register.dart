@@ -1,3 +1,4 @@
+import '../../../absence_notes/data/absence_notes.dart';
 import '../../../holidays/data/models/holiday.dart';
 import 'attendance_status.dart';
 
@@ -10,6 +11,7 @@ class AttendanceRosterEntry {
     required this.rollNumber,
     required this.status,
     required this.remarks,
+    this.absenceNote,
   });
 
   factory AttendanceRosterEntry.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,7 @@ class AttendanceRosterEntry {
       rollNumber: json['roll_number'] as String?,
       status: json['status'] == null ? null : AttendanceStatus.fromApiValue(json['status'] as String),
       remarks: json['remarks'] as String?,
+      absenceNote: RegisterAbsenceNote.fromJson(json['absence_note'] as Map<String, dynamic>?),
     );
   }
 
@@ -28,6 +31,9 @@ class AttendanceRosterEntry {
   final AttendanceStatus? status;
   final String? remarks;
 
+  /// A parent's note for this day, from the Family app; never a mark.
+  final RegisterAbsenceNote? absenceNote;
+
   AttendanceRosterEntry copyWith({AttendanceStatus? status, String? remarks}) {
     return AttendanceRosterEntry(
       studentId: studentId,
@@ -35,6 +41,7 @@ class AttendanceRosterEntry {
       rollNumber: rollNumber,
       status: status ?? this.status,
       remarks: remarks ?? this.remarks,
+      absenceNote: absenceNote,
     );
   }
 }

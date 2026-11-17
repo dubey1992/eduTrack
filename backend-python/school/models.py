@@ -896,6 +896,32 @@ class FamilyDevice(models.Model):
         db_table = 'family_devices'
 
 
+class AbsenceNote(models.Model):
+    """A parent telling the school their child will be away, from the Family
+    app (docs/parent-student-app.md, F5). Never marks the register: the class
+    teacher acknowledges it."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='absence_notes')
+    submitted_by = models.ForeignKey('User', models.DO_NOTHING, db_column='submitted_by', related_name='+')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    reason = models.CharField(max_length=500)
+    photo_path = models.CharField(max_length=255, blank=True, null=True)
+    status = models.CharField(max_length=20, default='sent')
+    acknowledged_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='acknowledged_by', blank=True, null=True, related_name='+'
+    )
+    acknowledged_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'absence_notes'
+
+
 class FamilyNotificationSetting(models.Model):
     """Which kinds of message a parent wants on the Family app. No row means
     every kind on (docs/parent-student-app.md, F1)."""

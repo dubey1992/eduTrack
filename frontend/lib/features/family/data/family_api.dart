@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import 'models/family_absence_note.dart';
 import 'models/family_bus.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
@@ -105,5 +106,30 @@ class FamilyApi {
   Future<FamilyBusLive> busLive(int childId) async {
     final response = await _dio.get('/family/children/$childId/bus/live');
     return FamilyBusLive.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<FamilyAbsenceNote>> absenceNotes(int childId) async {
+    final response = await _dio.get('/family/children/$childId/absence-notes');
+    final json = response.data as Map<String, dynamic>;
+    return [for (final n in json['data'] as List<dynamic>) FamilyAbsenceNote.fromJson(n as Map<String, dynamic>)];
+  }
+
+  /// A new note; multipart only when a photo of a doctor's note goes with it.
+  Future<FamilyAbsenceNote> sendAbsenceNote(
+    int childId, {
+    required String startDate,
+    required String endDate,
+    required String reason,
+    List<int>? photo,
+    String? photoName,
+  }) async {
+    final fields = {'start_date': startDate, 'end_date': endDate, 'reason': reason};
+    final response = await _dio.post(
+      '/family/children/$childId/absence-notes',
+      data: photo == null
+          ? fields
+          : FormData.fromMap({...fields, 'photo': MultipartFile.fromBytes(photo, filename: photoName ?? 'note.jpg')}),
+    );
+    return FamilyAbsenceNote.fromJson(response.data as Map<String, dynamic>);
   }
 }

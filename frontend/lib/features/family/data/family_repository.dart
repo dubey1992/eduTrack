@@ -6,6 +6,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/network/dio_client.dart';
 import 'family_api.dart';
 import 'family_today_cache.dart';
+import 'models/family_absence_note.dart';
 import 'models/family_bus.dart';
 import 'models/family_day.dart';
 import 'models/family_fees.dart';
@@ -103,4 +104,27 @@ class FamilyRepository {
   }
 
   static const busNotLive = 'BUS_NOT_LIVE';
+
+  Future<List<FamilyAbsenceNote>> absenceNotes(int childId) => _call(() => _api.absenceNotes(childId));
+
+  Future<FamilyAbsenceNote> sendAbsenceNote(
+    int childId, {
+    required DateTime start,
+    required DateTime end,
+    required String reason,
+    List<int>? photo,
+    String? photoName,
+  }) => _call(
+    () => _api.sendAbsenceNote(
+      childId,
+      startDate: _day(start),
+      endDate: _day(end),
+      reason: reason,
+      photo: photo,
+      photoName: photoName,
+    ),
+  );
+
+  static String _day(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 }

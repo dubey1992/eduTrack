@@ -298,6 +298,16 @@ class AppNav {
         pageSubtitle: 'Daily class attendance register',
       ),
       NavItem(
+        path: '/absence-notes',
+        module: AppModules.attendance,
+        label: 'Absence Notes',
+        icon: Icons.mark_email_unread_outlined,
+        // Who reads the register; a teacher sees their own classes' notes.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.teacher},
+        pageTitle: 'Absence Notes',
+        pageSubtitle: 'Parents telling the school their child will be away',
+      ),
+      NavItem(
         path: '/staff-attendance',
         module: AppModules.staffAttendance,
         label: 'Staff Attendance',

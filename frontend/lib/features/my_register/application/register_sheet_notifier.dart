@@ -7,6 +7,7 @@ import '../../auth/application/auth_notifier.dart';
 import '../data/models/saved_register.dart';
 import '../data/register_store.dart';
 import 'register_queue.dart';
+import '../../absence_notes/data/absence_notes.dart';
 
 /// Where a register stands, which decides what the screen offers.
 enum RegisterMode {
@@ -27,11 +28,15 @@ enum RegisterMode {
 }
 
 class RegisterStudent {
-  const RegisterStudent({required this.id, required this.name, required this.rollNumber});
+  const RegisterStudent({required this.id, required this.name, required this.rollNumber, this.absenceNote});
 
   final int id;
   final String name;
   final String? rollNumber;
+
+  /// A parent's note for the day (Family app, F5). Not kept offline: a
+  /// register opened from the phone's copy shows none.
+  final RegisterAbsenceNote? absenceNote;
 }
 
 class RegisterSheet {
@@ -102,7 +107,8 @@ class RegisterSheetNotifier extends AsyncNotifier<RegisterSheet> {
           .read(attendanceRepositoryProvider)
           .register(classSectionId: key.sectionId, date: key.date);
       final students = [
-        for (final s in register.students) RegisterStudent(id: s.studentId, name: s.name, rollNumber: s.rollNumber),
+        for (final s in register.students)
+          RegisterStudent(id: s.studentId, name: s.name, rollNumber: s.rollNumber, absenceNote: s.absenceNote),
       ];
 
       // Kept for the next time there is no signal.

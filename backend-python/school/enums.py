@@ -278,6 +278,10 @@ class MessageEvent(models.TextChoices):
     FEE_REMINDER = "fee.reminder", "Fee reminder"
     REPORT_REVIEWED = "teaching.report_reviewed", "Teaching report reviewed"
     REPORT_RETURNED = "teaching.report_returned", "Teaching report returned"
+    # A parent's absence note, to the class teacher's inbox (Family app, F5).
+    # Teaching: between colleagues about the day's work, so the inbox and its
+    # push, never an SMS.
+    ABSENCE_NOTE = "teaching.absence_note", "Absence note from a parent"
 
     @classmethod
     def category(cls, event: str) -> str:
@@ -354,6 +358,9 @@ DEFAULT_BODIES = {
     ),
     MessageEvent.TRANSPORT_ABSENT: (
         "{student_name} did not board {vehicle_name} for the {direction} trip today. - {school_name}"
+    ),
+    MessageEvent.ABSENCE_NOTE: (
+        "{guardian_name} says {student_name} will be away {dates}: {reason}"
     ),
     MessageEvent.TRANSPORT_NEAR_STOP: (
         "The {route_name} bus is about {distance} from {stop_name}. Please be ready at the stop."
@@ -438,6 +445,8 @@ TRANSPORT_NEAR_STOP_TOKENS = [
     "guardian_name",
 ]
 
+ABSENCE_NOTE_TOKENS = ["staff_name", "student_name", "guardian_name", "dates", "reason", "school_name"]
+
 TRIP_LEFT_OPEN_TOKENS = [
     "staff_name", "route_name", "vehicle_name", "direction", "date", "started_by", "on_board", "school_name",
 ]
@@ -451,6 +460,7 @@ TRIP_SOS_TOKENS = [
 PER_EVENT_TOKENS = {
     MessageEvent.TRANSPORT_ABSENT: TRANSPORT_ABSENT_TOKENS,
     MessageEvent.TRANSPORT_NEAR_STOP: TRANSPORT_NEAR_STOP_TOKENS,
+    MessageEvent.ABSENCE_NOTE: ABSENCE_NOTE_TOKENS,
     MessageEvent.TRIP_LEFT_OPEN: TRIP_LEFT_OPEN_TOKENS,
     MessageEvent.TRIP_SOS: TRIP_SOS_TOKENS,
 }
@@ -762,6 +772,13 @@ class TripEventType(models.TextChoices):
     # D5.2). It changes nothing about the trip - the bus keeps running, the
     # children stay marked - and exists to be seen quickly.
     SOS = "sos"
+
+
+class AbsenceNoteStatus(models.TextChoices):
+    """A parent's absence note (Family app, F5): sent, then seen by staff."""
+
+    SENT = "sent", "Sent"
+    ACKNOWLEDGED = "acknowledged", "Seen by the class teacher"
 
 
 class TripRiderStatus(models.TextChoices):

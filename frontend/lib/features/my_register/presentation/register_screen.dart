@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../absence_notes/presentation/absence_note_chip.dart';
 import '../../attendance/data/models/attendance_status.dart';
 import '../application/register_queue.dart';
 import '../application/register_sheet_notifier.dart';
@@ -347,6 +348,11 @@ class _StudentRow extends StatelessWidget {
                 ),
               ],
             ),
+            if (student.absenceNote != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: AbsenceNoteChip(note: student.absenceNote!, studentName: student.name),
+              ),
             const SizedBox(height: 8),
             Row(
               children: [

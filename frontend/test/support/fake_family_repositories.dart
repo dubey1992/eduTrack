@@ -3,6 +3,7 @@ import 'package:edutrack_app/features/family/data/family_auth_repository.dart';
 import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_account.dart';
+import 'package:edutrack_app/features/family/data/models/family_absence_note.dart';
 import 'package:edutrack_app/features/family/data/models/family_bus.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
 import 'package:edutrack_app/features/family/data/models/family_fees.dart';
@@ -367,6 +368,55 @@ class FakeFamilyRepository implements FamilyRepository {
   final List<int> markedRead = [];
   int markAllReadCalls = 0;
   final List<(String, bool)> saved = [];
+
+  List<FamilyAbsenceNote> notesValue = [
+    FamilyAbsenceNote(
+      id: 7,
+      startDate: DateTime(2026, 11, 3),
+      endDate: DateTime(2026, 11, 4),
+      reason: 'Fever - the doctor advised two days of rest.',
+      hasPhoto: true,
+      seen: true,
+    ),
+    FamilyAbsenceNote(
+      id: 8,
+      startDate: DateTime(2026, 11, 20),
+      endDate: DateTime(2026, 11, 20),
+      reason: 'A family wedding out of town.',
+      hasPhoto: false,
+      seen: false,
+    ),
+  ];
+  Failure? failNotesWith;
+  Failure? failSendWith;
+  final List<({DateTime start, DateTime end, String reason, String? photoName})> notesSent = [];
+
+  @override
+  Future<List<FamilyAbsenceNote>> absenceNotes(int childId) async {
+    if (failNotesWith != null) throw failNotesWith!;
+    return notesValue;
+  }
+
+  @override
+  Future<FamilyAbsenceNote> sendAbsenceNote(
+    int childId, {
+    required DateTime start,
+    required DateTime end,
+    required String reason,
+    List<int>? photo,
+    String? photoName,
+  }) async {
+    if (failSendWith != null) throw failSendWith!;
+    notesSent.add((start: start, end: end, reason: reason, photoName: photoName));
+    return FamilyAbsenceNote(
+      id: 99,
+      startDate: start,
+      endDate: end,
+      reason: reason,
+      hasPhoto: photo != null,
+      seen: false,
+    );
+  }
 
   FamilyBus? busValue = familyBus();
   Failure? failBusWith;

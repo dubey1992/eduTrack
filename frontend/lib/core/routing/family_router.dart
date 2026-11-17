@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/family/application/family_session_notifier.dart';
 import '../../features/family/presentation/family_attendance_screen.dart';
+import '../../features/family/presentation/family_absence_note_screens.dart';
 import '../../features/family/presentation/family_bus_screen.dart';
 import '../../features/family/presentation/family_fees_screen.dart';
 import '../../features/family/presentation/family_frame.dart';
@@ -29,6 +30,8 @@ const familyPaths = {
   '/attendance',
   '/bus',
   '/bus/live',
+  '/absence-notes',
+  '/absence-notes/new',
   '/fees',
   '/more',
   '/notices',
@@ -66,6 +69,8 @@ final familyRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/calendar', builder: (context, state) => const FamilyCalendarScreen()),
       GoRoute(path: '/notifications', builder: (context, state) => const FamilyNotificationsScreen()),
       GoRoute(path: '/bus/live', builder: (context, state) => const FamilyBusLiveScreen()),
+      GoRoute(path: '/absence-notes', builder: (context, state) => const FamilyAbsenceNotesScreen()),
+      GoRoute(path: '/absence-notes/new', builder: (context, state) => const FamilyNewAbsenceNoteScreen()),
       GoRoute(path: '/results', builder: (context, state) => const FamilyResultsScreen()),
       GoRoute(path: '/timetable', builder: (context, state) => const FamilyTimetableScreen()),
       GoRoute(path: '/syllabus', builder: (context, state) => const FamilySyllabusScreen()),

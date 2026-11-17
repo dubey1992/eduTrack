@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/family_repository.dart';
+import '../data/models/family_absence_note.dart';
 import '../data/models/family_bus.dart';
 import '../data/models/family_fees.dart';
 import '../data/models/family_learning.dart';
@@ -107,3 +108,9 @@ class FamilyBusNotifier extends AsyncNotifier<FamilyBus?> {
     state = await AsyncValue.guard(build);
   }
 }
+
+/// One child's absence notes, newest first (F5).
+final familyAbsenceNotesProvider = FutureProvider.autoDispose.family<List<FamilyAbsenceNote>, int>(
+  (ref, childId) => ref.read(familyRepositoryProvider).absenceNotes(childId),
+  retry: (retryCount, error) => null,
+);

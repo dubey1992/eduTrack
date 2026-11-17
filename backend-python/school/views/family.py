@@ -39,6 +39,11 @@ The bus (F4):
 - GET  family/children/{id}/bus/live - where the bus is, only while the
   child's own trip runs (BUS_NOT_LIVE otherwise)
 - GET  family/maps-config - the map key, as maps/config gives staff
+
+Talking to the school (F5):
+- GET  family/children/{id}/absence-notes - the child's notes, newest first
+- POST family/children/{id}/absence-notes - a new one (multipart when a
+  photo of a doctor's note is attached)
 """
 
 from __future__ import annotations
@@ -53,7 +58,7 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .. import family_bus, family_day, family_fees, family_inbox, family_learning, modules
+from .. import absence_notes, family_bus, family_day, family_fees, family_inbox, family_learning, modules
 from ..clock import SchoolClock
 from ..enums import UserRole
 from ..errors import BusNotLive, ModuleDisabled, NotAFamilyAccount, ProgressReportNotReady
@@ -396,3 +401,30 @@ def maps_config(request) -> Response:
     key = (settings.GOOGLE_MAPS_BROWSER_KEY or "").strip()
 
     return Response({"available": bool(key), "browser_key": key})
+
+
+# -- Absence notes (F5) ----------------------------------------------------------
+
+
+class AbsenceNoteRequest(serializers.Serializer):
+    start_date = serializers.DateField(error_messages={"invalid": "Choose the first day.", "required": "Choose the first day."})
+    end_date = serializers.DateField(error_messages={"invalid": "Choose the last day.", "required": "Choose the last day."})
+    reason = serializers.CharField(max_length=2000, allow_blank=True, trim_whitespace=True)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def child_absence_notes(request, child_id: int) -> Response:
+    user = family_reader(request)
+    child = child_of(user, child_id)
+
+    if request.method == "GET":
+        return Response({"data": [absence_notes.note_resource(n) for n in absence_notes.for_family(child)]})
+
+    form = AbsenceNoteRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+    data = form.validated_data
+    note = absence_notes.send(child, user, data["start_date"], data["end_date"], data["reason"],
+                              photo=request.FILES.get("photo"))
+
+    return Response(absence_notes.note_resource(note), status=status.HTTP_201_CREATED)

@@ -81,6 +81,7 @@ dependencies:
   # phone's share sheet - save to Files, send on WhatsApp - without the app
   # asking for storage permission (docs/parent-student-app.md, F2).
   share_plus: ^13.3.1
+  image_picker: ^1.2.4
 
 dev_dependencies:
   flutter_test:

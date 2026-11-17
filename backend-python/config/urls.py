@@ -19,6 +19,7 @@ from django.urls import path
 from school.security import robots
 
 from school.views import (
+    absence_notes,
     academic_config,
     analytics,
     academic_terms,
@@ -125,6 +126,7 @@ urlpatterns = [
     path("api/v1/family/children/<int:child_id>/bus", family.child_bus),
     path("api/v1/family/children/<int:child_id>/bus/live", family.child_bus_live),
     path("api/v1/family/maps-config", family.maps_config),
+    path("api/v1/family/children/<int:child_id>/absence-notes", family.child_absence_notes),
     path("api/v1/family/calendar", family.school_calendar),
     path("api/v1/family/notices", family.notices),
     path("api/v1/family/notices/read-all", family.notices_read_all),
@@ -172,6 +174,9 @@ urlpatterns = [
     # -- student attendance ------------------------------------------------
     # `register` before the collection so the word is not read as a filter.
     path("api/v1/attendance/register", attendance.register),
+    path("api/v1/absence-notes", absence_notes.collection),
+    path("api/v1/absence-notes/<int:note_id>/acknowledge", absence_notes.acknowledge),
+    path("api/v1/absence-notes/<int:note_id>/photo", absence_notes.photo),
     path("api/v1/attendance", attendance.collection),
     # -- auth --------------------------------------------------------------
     path("api/v1/auth/login", auth.login),

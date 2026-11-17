@@ -699,6 +699,12 @@ class AttendanceService:
 
         holiday = HolidayService.holiday_on(section.school_class.school_id, date)
 
+        # A parent's absence note for the day, beside the child (Family app,
+        # F5). Never a mark: the teacher still marks the register.
+        from .absence_notes import covering
+
+        notes = covering(section.id, date)
+
         return {
             "class_section_id": section.id,
             "attendance_date": str(date),
@@ -711,6 +717,11 @@ class AttendanceService:
                     "roll_number": student.roll_number,
                     "status": existing[student.id].status if student.id in existing else None,
                     "remarks": existing[student.id].remarks if student.id in existing else None,
+                    "absence_note": (
+                        {"id": notes[student.id].id, "reason": notes[student.id].reason,
+                         "status": notes[student.id].status, "has_photo": bool(notes[student.id].photo_path)}
+                        if student.id in notes else None
+                    ),
                 }
                 for student in students
             ],
