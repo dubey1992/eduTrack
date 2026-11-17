@@ -49,6 +49,8 @@ import '../../features/analytics/data/models/early_warning.dart';
 import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/analytics/presentation/early_warning_screen.dart';
 import '../../features/biometric/presentation/device_list_screen.dart';
+import '../../features/examinations/presentation/examination_detail_screen.dart';
+import '../../features/examinations/presentation/examination_list_screen.dart';
 import '../../features/schools/presentation/school_detail_screen.dart';
 import '../../features/schools/presentation/school_list_screen.dart';
 import '../../features/site_pages/presentation/site_page_screen.dart';
@@ -127,7 +129,7 @@ String landingPathFor(AuthenticatedUser user) => user.role.isCrew ? '/my-trip' :
 /// missing from both is treated as a mistyped address, and a *private* route
 /// missing from both sends a signed-out visitor to a 404 instead of the
 /// login screen they came for.
-final _appRoutePatterns = [RegExp(r'^/schools/\d+$'), _websitePage];
+final _appRoutePatterns = [RegExp(r'^/schools/\d+$'), RegExp(r'^/examinations/\d+$'), _websitePage];
 
 /// Whether this address is a route of this app at all - mistyped or not,
 /// signed in or not.
@@ -156,6 +158,7 @@ const appRoutePaths = {
   '/payments',
   '/academic-years',
   '/assessments',
+  '/examinations',
   '/grade-scales',
   '/holidays',
   '/departments',
@@ -295,6 +298,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/payments', builder: (context, state) => const PaymentListScreen()),
           GoRoute(path: '/academic-years', builder: (context, state) => const AcademicYearListScreen()),
           GoRoute(path: '/assessments', builder: (context, state) => const AssessmentListScreen()),
+          GoRoute(path: '/examinations', builder: (context, state) => const ExaminationListScreen()),
+          GoRoute(
+            path: '/examinations/:id',
+            builder: (context, state) => ExaminationDetailScreen(examId: int.parse(state.pathParameters['id']!)),
+          ),
           GoRoute(path: '/grade-scales', builder: (context, state) => const GradeScaleListScreen()),
           GoRoute(path: '/holidays', builder: (context, state) => const HolidayListScreen()),
           GoRoute(path: '/departments', builder: (context, state) => const DepartmentListScreen()),

@@ -1348,3 +1348,31 @@ class AuditLogPolicy:
     @staticmethod
     def view_any(actor: User) -> bool:
         return actor.role in ADMIN_ROLES
+
+
+class ExaminationPolicy:
+    """Examinations and admit cards (docs/examinations.md).
+
+    Under the Class Tests module: whoever reads class tests reads the exams
+    of their school and prints its admit cards; the school's administrators
+    (School Admin, Group Admin across their branches) set exams up, publish
+    them and hold cards back. A Super Admin reads, and changes nothing - a
+    school's exams are its own business.
+    """
+
+    MODULE = "assessments"
+
+    @staticmethod
+    def view_any(actor: User) -> bool:
+        return permitted(actor, ExaminationPolicy.MODULE)
+
+    @staticmethod
+    def view(actor: User, school_id: int) -> bool:
+        return permitted(actor, ExaminationPolicy.MODULE, school_id=school_id) and in_scope(actor, school_id)
+
+    @staticmethod
+    def manage(actor: User, school_id: int) -> bool:
+        if actor.role == UserRole.SUPER_ADMIN or not UserRole.administers_school(actor.role):
+            return False
+
+        return permitted(actor, ExaminationPolicy.MODULE, school_id=school_id) and in_scope(actor, school_id)

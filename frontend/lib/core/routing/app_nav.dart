@@ -99,8 +99,9 @@ class AppNav {
 
   /// The area holding [path], or null for a page outside the menu.
   static NavGroup? groupOf(String path) {
+    final listed = _listOf(path);
     for (final group in groups) {
-      if (group.items.any((item) => item.path == path)) return group;
+      if (group.items.any((item) => item.path == listed)) return group;
     }
     return null;
   }
@@ -384,6 +385,17 @@ class AppNav {
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
         pageTitle: 'Class Tests',
         pageSubtitle: 'Tests, assignments and quizzes',
+      ),
+      NavItem(
+        path: '/examinations',
+        module: AppModules.assessments,
+        label: 'Examinations',
+        icon: Icons.badge_outlined,
+        // Read by whoever reads class tests; set up and published by the
+        // school's administrators - the API's ExaminationPolicy decides.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
+        pageTitle: 'Examinations',
+        pageSubtitle: 'Date sheets and admit cards',
       ),
       NavItem(
         path: '/hod-reports',
@@ -813,11 +825,16 @@ class AppNav {
   static List<NavItem> get allItems => groups.expand((g) => g.items).toList();
 
   static NavItem? findByPath(String path) {
+    final listed = _listOf(path);
     for (final item in allItems) {
-      if (item.path == path) return item;
+      if (item.path == listed) return item;
     }
     return null;
   }
+
+  /// A page about one record answers to its list's entry - its title, its
+  /// area, and its access rule: /examinations/12 is under Examinations.
+  static String _listOf(String path) => RegExp(r'^/examinations/\d+$').hasMatch(path) ? '/examinations' : path;
 
   /// Pages every signed-in user has, reached from the header rather than the
   /// sidebar. They carry a title for the topbar but no [NavItem], so the

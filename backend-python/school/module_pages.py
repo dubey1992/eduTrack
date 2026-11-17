@@ -277,12 +277,19 @@ A printable progress report for each student: every test with its grade, the cla
 
 A promotion wizard moves a whole class on at the end of the year: promote, retain, graduate or mark as left, student by student, in one batch. Every year's class stays in the student's history.
 
-School365ai handles class tests and progress through the year; it does not schedule examinations or issue hall tickets.
+## Exams and admit cards
+
+- **An exam's date sheet** - each class's papers with their date and time - with the centre, the reporting time and the instructions for students.
+- **Admit cards** for a student or a whole section, printed one per sheet, in colour or black and white.
+- **Published when the school is ready,** and versioned: a change after publishing is issued as a new version, and earlier cards still reprint as they were.
+- **Held back where the school decides** - for a named student, or while fees are overdue when the school chooses that for an exam.
+
+School365ai does not seat students or allot exam rooms.
 
 ## Frequently asked questions
 
-### Is School365ai an examination system?
-No. It records class tests, marks and grades through the year and prints progress reports. It does not schedule examinations or issue hall tickets.
+### Can School365ai print exam admit cards?
+Yes. A school sets up an exam's date sheet, publishes it, and prints admit cards for a student or a whole section. It does not seat students or allot exam rooms.
 
 ### Can marks be imported from a spreadsheet?
 Yes. Marks for a test can be imported from a CSV file, with every problem in the file listed before anything is saved.

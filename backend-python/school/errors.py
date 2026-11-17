@@ -987,3 +987,21 @@ def as_list(value) -> list:
         return [f"{key}: {' '.join(str(item) for item in as_list(inner))}" for key, inner in value.items()]
 
     return [value]
+
+
+class AdmitCardUnavailable(ApiError):
+    """An admit card that cannot be issued: the exam is not published, the
+    student's class sits no paper in it, or the card is held back - by name,
+    or for overdue fees (docs/examinations.md). The message is the reason,
+    in words the reader may see."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ADMIT_CARD_UNAVAILABLE"
+
+
+class ExaminationNotDraftable(ApiError):
+    """A change the exam's state refuses - publishing a date sheet with no
+    paper on it, say."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "EXAMINATION_NOT_READY"

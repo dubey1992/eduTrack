@@ -57,6 +57,7 @@ from school.views import (
     platform_messaging,
     fees,
     reports,
+    examinations,
     schools,
     staff,
     staff_attendance,
@@ -83,6 +84,15 @@ urlpatterns = [
     path("api/v1/academic-terms/<int:term_id>", academic_terms.detail),
 
     # -- grade scales, on this backend only. docs/assessments.md -----------
+    # Examinations and admit cards (docs/examinations.md).
+    path("api/v1/examinations", examinations.collection),
+    path("api/v1/examinations/<int:exam_id>", examinations.detail),
+    path("api/v1/examinations/<int:exam_id>/papers", examinations.papers),
+    path("api/v1/examinations/<int:exam_id>/publish", examinations.publish),
+    path("api/v1/examinations/<int:exam_id>/candidates", examinations.candidate_list),
+    path("api/v1/examinations/<int:exam_id>/exceptions", examinations.exception),
+    path("api/v1/examinations/<int:exam_id>/cards.pdf", examinations.class_cards),
+    path("api/v1/examinations/<int:exam_id>/students/<int:student_id>/card.pdf", examinations.student_card),
     path("api/v1/grade-scales", grade_scales.collection),
     path("api/v1/grade-scales/<int:scale_id>", grade_scales.detail),
 
