@@ -373,6 +373,13 @@ section[id], #contact { scroll-margin-top: 96px; }
 .app-card h3 { margin: 0; font-size: 1.15rem; }
 .app-card .who { color: var(--rose); font-size: .78rem; font-weight: 800; margin: 0; }
 .app-card p:last-child { margin: 6px 0 0; color: var(--muted); font-size: .92rem; }
+.journey.light li { background: var(--surface); border: 1px solid var(--line); }
+.journey.light h3 { color: var(--plum-deep); }
+.journey.light p { color: var(--muted); }
+.journey.light .step { background: #fce8e2; color: var(--rose); }
+.journey.light li:not(:last-child)::after { color: var(--rose); }
+.journey.light + .journey-note { color: var(--muted); }
+.see-all.pair { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .app-card h3 .status-pill { font-family: var(--sans); letter-spacing: 0; margin: 0 0 0 8px; padding: 3px 10px; font-size: .68rem; vertical-align: middle; }
 .panel-shot { background: linear-gradient(135deg, #FFF0E8, #F7E8F0); border-radius: 30px; padding: 26px; border: 1px solid #EDDCDD; }
 .panel-shot .browser { box-shadow: var(--shadow); }

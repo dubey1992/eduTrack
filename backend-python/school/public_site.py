@@ -60,7 +60,7 @@ APP = "/app/"
 # The homepage shows this many module cards; the rest are one click away on
 # a page of their own, so the homepage stays short.
 # The homepage's feature cards: two rows of three, the prototype's grid.
-HOME_MODULES = 6
+HOME_MODULES = 9
 FEATURES_SLUG = "school-management-features"
 
 # The homepage's own sections, by the names old links use (/features,
@@ -460,6 +460,7 @@ def product_menu(live: set[str]) -> list[dict]:
     return [
         {"label": "All features", "note": "Every part of School365ai, one page each", "href": features},
         {"label": "By role", "note": "Leaders, teachers, the office and the bus", "href": "/#solutions"},
+        {"label": "Exams & admit cards", "note": "From the date sheet to the admit card", "href": "/#exam-workflow"},
         {"label": "How a day flows", "note": "From the register to the bus", "href": "/#how-it-works"},
         {"label": "Web dashboard", "note": "Run the school from any browser", "href": "/#for-schools"},
         {"label": "Mobile apps", "note": "For staff and bus crews; parents' app coming soon", "href": "/#mobile-app"},
@@ -498,11 +499,13 @@ def render_home(words: Words, live: set[str], modules: list[PublicPage], posts=(
             "roles": public_site_content.ROLES,
             "faq": public_site_content.HOME_FAQ,
             "icons": public_site_content.ICONS,
-            "title": "School365ai - School Management Software: Attendance, Fees, Bus",
+            "title": "School365ai - School Management Software: Attendance, Fees, Exams, Bus",
             "description": (
-                "School management software for attendance, fees, school bus tracking, timetables, payroll "
-                "and parent alerts - on the web and on Android."
+                "School management software for attendance, fees, exam scheduling and admit cards, report "
+                "cards, school bus tracking, payroll and parent alerts - on the web and on Android."
             ),
+            "exam_href": "/school-exam-management-software" if "school-exam-management-software" in live
+            else "#features",
             "hero": {
                 "eyebrow": words.text("hero.eyebrow"),
                 "headline": words.text("hero.headline"),
@@ -729,8 +732,8 @@ def product() -> dict:
         "applicationSubCategory": "School management software",
         "operatingSystem": "Web, Android",
         "description": (
-            "School management software for attendance, fees, school bus tracking, timetables, "
-            "teaching reports, payroll, parent alerts and reports."
+            "School management software for attendance, fees, exam scheduling and admit cards, report "
+            "cards, school bus tracking, timetables, teaching reports, payroll, parent alerts and reports."
         ),
         "publisher": {"@type": "Organization", "name": "School365ai", "url": site_url() + "/"},
     }

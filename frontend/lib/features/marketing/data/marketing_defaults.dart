@@ -22,20 +22,20 @@ const marketingDefaults = <String, String>{
   'nav.demo': 'Request a Demo',
 
   // -- the first thing anybody reads -------------------------------------
-  'hero.eyebrow': 'A Complete School Management Platform',
-  'hero.headline': 'Run Your School Smarter, Together.',
+  'hero.eyebrow': 'One connected school platform',
+  'hero.headline': 'A brighter way\nto run your school.',
   'hero.body':
-      'Students, Teachers, Academics, Attendance, Transport, Communication, '
-      'Payroll and more — all in one simple and powerful platform.',
+      'Attendance, fees, exam date sheets, admit cards, report cards and the school bus, together - so your '
+      'team spends less time on administration and more time with students.',
   'hero.primaryButton': 'Join Early Access →',
   'hero.demoButton': 'Request a Demo',
   'hero.secondaryButton': 'Watch Video',
   'hero.trustLine': 'Trusted by forward-thinking school leaders worldwide.',
 
   // -- what the product does ---------------------------------------------
-  'features.eyebrow': 'EVERYTHING YOUR SCHOOL NEEDS',
-  'features.title': 'Powerful Features for Modern Schools',
-  'features.body': 'A complete solution to simplify school operations and enhance learning experiences.',
+  'features.eyebrow': 'One platform, many uses',
+  'features.title': 'Everything your school needs to stay in sync.',
+  'features.body': 'The core parts of School365ai, organised around everyday school work.',
 
   // -- the phone ----------------------------------------------------------
   'mobile.eyebrow': 'MOBILE APPS',

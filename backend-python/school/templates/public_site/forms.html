@@ -39,6 +39,18 @@
         </select>
       </label>
     </div>
+    {% comment %}No name of its own: site.js puts the choice at the top of the message, which is what the server keeps.{% endcomment %}
+    <label><span class="caption">Main interest <span class="optional">(optional)</span></span>
+      <select id="demo-interest" data-interest>
+        <option value="">The whole school platform</option>
+        <option>Exam scheduling and admit cards</option>
+        <option>Report cards and results</option>
+        <option>Fees and payments</option>
+        <option>Attendance</option>
+        <option>Transport and bus tracking</option>
+        <option>Staff, payroll and leave</option>
+      </select>
+    </label>
     <label><span class="caption">What would you like to see? <span class="optional">(optional)</span></span><textarea name="message" id="demo-message" rows="3" maxlength="2000"></textarea></label>
     <div class="form-actions">
       <button type="button" class="button ghost" data-close>Cancel</button>

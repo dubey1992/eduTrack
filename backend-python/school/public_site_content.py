@@ -39,6 +39,7 @@ ICONS = {
     "spark": _icon("M12 3v4", "M12 17v4", "M3 12h4", "M17 12h4", "M6 6l2.5 2.5", "M15.5 15.5 18 18", "M18 6l-2.5 2.5", "M8.5 15.5 6 18"),
     "chat": _icon("M4 5h16v11H8l-4 4z"),
     "check": _icon("M5 12l5 5L20 7"),
+    "exam": _icon("M6 3h12v18H6z", "M9 8h6", "M9 12h6", "M9 16h3", "M14 17l1.5 1.5L18 16"),
     "family": _icon(
         "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M3 20a6 6 0 0 1 12 0", "M16.5 11a2.5 2.5 0 1 0 0-5",
         "M21 20a5 5 0 0 0-4.5-5",
@@ -58,6 +59,7 @@ MODULE_ICONS = {
     "school-reports-and-analytics": ("reports", "tone-lilac"),
     "student-information-system": ("records", ""),
     "school-staff-and-driver-apps": ("phone", "tone-gold"),
+    "school-exam-management-software": ("exam", "tone-lilac"),
 }
 
 
@@ -70,7 +72,8 @@ SHORT_NAMES = {
     "school-bus-tracking-software": "School Bus",
     "staff-attendance-software": "Staff Check-in",
     "school-timetable-software": "Timetable",
-    "student-progress-reports": "Tests & Results",
+    "student-progress-reports": "Report Cards & Results",
+    "school-exam-management-software": "Exams & Admit Cards",
     "school-payroll-software": "Payroll & Leave",
     "school-communication-software": "Messages",
     "school-reports-and-analytics": "Reports",
@@ -88,6 +91,7 @@ MODULE_TOPICS = {
     "staff-attendance-software": "staff",
     "school-timetable-software": "teaching",
     "student-progress-reports": "tests",
+    "school-exam-management-software": "tests",
     "school-payroll-software": "staff",
     "school-communication-software": "communication",
     "student-information-system": "getting-started",
@@ -107,7 +111,7 @@ def module_look(slug: str) -> dict:
 FEATURE_GROUPS = (
     ("Students and academics", "Records, the register, the timetable and how each child is doing.",
      ("student-information-system", "school-attendance-software", "school-timetable-software",
-      "student-progress-reports")),
+      "school-exam-management-software", "student-progress-reports")),
     ("Fees and finance", "What each family owes, what they paid, and the receipt.",
      ("school-fee-management-software",)),
     ("Staff and payroll", "Staff attendance, check-in from the phone, leave and the month's pay.",
@@ -150,8 +154,8 @@ ROLES = (
                 "with trends over time and reports you can download.",
         "points": (
             "Today's attendance, fees and trips on one dashboard",
-            "Reports as PDF or CSV, beside the previous period",
-            "Early warnings for students who are slipping",
+            "Exam date sheets and admit cards, published when ready",
+            "Reports as PDF or CSV, and early warnings for students who are slipping",
         ),
         "card": "School overview",
         "rows": (("Attendance", "Register by register"), ("Fees", "Collected and due"),
@@ -168,7 +172,7 @@ ROLES = (
         "points": (
             "Today's timetable, period by period",
             "The class register on the phone, even offline",
-            "Teaching reports that tick off the syllabus",
+            "Test marks that become grades, report cards and progress reports",
         ),
         "card": "Today's classes",
         "rows": (("Period 1", "Class 7 A, Science"), ("Register", "Present or absent"),
@@ -185,7 +189,7 @@ ROLES = (
         "points": (
             "Student records, imported from a spreadsheet",
             "Fee receipts as PDFs, with balances and credit",
-            "Leave applications and approvals",
+            "Admit cards for a whole section, printed at once",
         ),
         "card": "Office worklist",
         "rows": (("Fees", "Receipts and dues"), ("Admissions", "New students"), ("Staff", "Attendance and leave")),
@@ -215,8 +219,16 @@ ROLES = (
 HOME_FAQ = (
     ("What does School365ai do?",
      "It runs a school's day in one place: student and staff records, attendance, timetables and teaching "
-     "reports, tests and progress reports, fees and receipts, the school bus, messages to families, payroll "
-     "and reports. The office works on the web; teachers and bus crews use Android apps."),
+     "reports, exam date sheets and admit cards, tests, report cards and progress reports, fees and receipts, "
+     "the school bus, messages to families, payroll and reports. The office works on the web; teachers and bus "
+     "crews use Android apps."),
+    ("Can we schedule exams and print admit cards?",
+     "Yes. A school sets up each exam's date sheet - every class's papers with their dates and times - "
+     "publishes it when it is ready, and prints admit cards for one student or a whole section as a PDF. A "
+     "change after publishing is issued as a new version, and earlier cards still reprint as they were."),
+    ("How is an admit card different from a report card?",
+     "An admit card is for exam day: the student, the centre, the reporting time and the papers they sit. A "
+     "report card comes after: the marks, the grades and the result, in the school's own grading system."),
     ("Can our school start now?",
      "School365ai is welcoming schools through its early-access programme. Request a demo or join early "
      "access, and we will tell you how to get started."),

@@ -22,7 +22,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('School365ai'), findsWidgets);
-    expect(find.text('Run Your School Smarter, Together.'), findsOneWidget);
+    expect(find.text('A brighter way\nto run your school.'), findsOneWidget);
   });
 
   testWidgets('the marketing homepage Login button goes to the login screen', (tester) async {
