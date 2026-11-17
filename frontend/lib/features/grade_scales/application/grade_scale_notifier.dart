@@ -66,10 +66,19 @@ class GradeScaleListNotifier extends AsyncNotifier<PagedList<GradeScale>> {
     required String name,
     required bool isDefault,
     required List<GradeBand> bands,
+    GradeScaleKind kind = GradeScaleKind.percentage,
+    String? gpaMultiplier,
   }) async {
     await ref
         .read(gradeScaleRepositoryProvider)
-        .create(schoolId: schoolId, name: name, isDefault: isDefault, bands: bands);
+        .create(
+          schoolId: schoolId,
+          name: name,
+          isDefault: isDefault,
+          bands: bands,
+          kind: kind,
+          gpaMultiplier: gpaMultiplier,
+        );
     _page = 1;
     await refresh();
   }
@@ -79,8 +88,12 @@ class GradeScaleListNotifier extends AsyncNotifier<PagedList<GradeScale>> {
     required String name,
     required bool isDefault,
     required List<GradeBand> bands,
+    GradeScaleKind kind = GradeScaleKind.percentage,
+    String? gpaMultiplier,
   }) async {
-    await ref.read(gradeScaleRepositoryProvider).update(scale.id, name: name, isDefault: isDefault, bands: bands);
+    await ref
+        .read(gradeScaleRepositoryProvider)
+        .update(scale.id, name: name, isDefault: isDefault, bands: bands, kind: kind, gpaMultiplier: gpaMultiplier);
     await refresh();
   }
 

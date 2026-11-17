@@ -520,6 +520,17 @@ class FeeReceipt(models.Model):
     cancel_reason = models.CharField(max_length=500, blank=True, null=True)
     # The part held as credit (F6): the allocations add up to amount less this.
     credit_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # The classic printed receipt's summary, frozen at the payment
+    # (fees/receipt_summary.py, docs/document-styles.md). Null on receipts
+    # recorded before it existed.
+    summary_total = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    summary_discount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    summary_late_fee = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    summary_paid_earlier = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    summary_back_dues = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    summary_old_fee = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    summary_net = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    summary_till = models.CharField(max_length=80, blank=True, null=True)
     emailed_at = UtcDateTimeField(blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
@@ -538,6 +549,8 @@ class FeeReceiptAllocation(models.Model):
     fee_receipt = models.ForeignKey('FeeReceipt', models.DO_NOTHING, related_name='allocations')
     student_fee_due = models.ForeignKey('StudentFeeDue', models.DO_NOTHING, related_name='allocations')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    # The fee line's full charge at the payment, for the classic receipt.
+    charge_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -684,6 +697,11 @@ class GradeScale(models.Model):
     school = models.ForeignKey('School', models.DO_NOTHING)
     name = models.CharField(max_length=50)
     is_default = models.BooleanField()
+    # How the school grades with it (GradeScaleKind): by percentage, by
+    # grade points, or by grades alone (docs/document-styles.md).
+    kind = models.CharField(max_length=20, default='percentage')
+    # The school's own "percentage = GPA x 9.5", printed only when set.
+    gpa_multiplier = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
@@ -707,6 +725,10 @@ class GradeBand(models.Model):
     min_percentage = models.DecimalField(max_digits=5, decimal_places=2)
     max_percentage = models.DecimalField(max_digits=5, decimal_places=2)
     is_failing = models.BooleanField()
+    # A GPA scale's points for the band (A1 = 10.0, A = 4.0); null elsewhere.
+    grade_point = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
+    # What the grade means in words, for the report card's key.
+    description = models.CharField(max_length=60, blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 

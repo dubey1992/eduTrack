@@ -1,7 +1,13 @@
 /// What kind of value a module setting holds, as the registry declares it.
 enum SettingFieldType {
   flag('bool'),
-  integer('int');
+  integer('int'),
+
+  /// Short text, such as a school's fee counter hours or UPI ID.
+  text('text'),
+
+  /// One of a short list, such as the fee receipt's layout.
+  choice('choice');
 
   const SettingFieldType(this.apiValue);
 
@@ -24,6 +30,9 @@ class SettingField {
     this.help,
     this.min,
     this.max,
+    this.maxLength,
+    this.multiline = false,
+    this.choices = const [],
   });
 
   factory SettingField.fromJson(Map<String, dynamic> json) {
@@ -35,6 +44,12 @@ class SettingField {
       help: json['help'] as String?,
       min: json['min'] as int?,
       max: json['max'] as int?,
+      maxLength: json['max_length'] as int?,
+      multiline: json['multiline'] as bool? ?? false,
+      choices: [
+        for (final choice in (json['choices'] as List<dynamic>? ?? const []))
+          SettingChoice(value: (choice as Map<String, dynamic>)['value'] as String, label: choice['label'] as String),
+      ],
     );
   }
 
@@ -45,6 +60,23 @@ class SettingField {
   final String? help;
   final int? min;
   final int? max;
+
+  /// A text setting's longest allowed length.
+  final int? maxLength;
+
+  /// A text setting given several lines, such as bank details.
+  final bool multiline;
+
+  /// A choice setting's values, in the order the screen lists them.
+  final List<SettingChoice> choices;
+}
+
+/// One value a choice setting may take, and what the screen calls it.
+class SettingChoice {
+  const SettingChoice({required this.value, required this.label});
+
+  final String value;
+  final String label;
 }
 
 /// One module as the school sees it: the two switches (the platform grants

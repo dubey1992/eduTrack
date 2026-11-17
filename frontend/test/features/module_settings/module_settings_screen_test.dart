@@ -408,6 +408,160 @@ void main() {
     expect(find.text('Settings saved.'), findsOneWidget);
   });
 
+  group('text settings - how to pay fees (Family app F3)', () {
+    const hours = SettingField(
+      key: 'pay_counter_hours',
+      label: 'Fee counter hours',
+      type: SettingFieldType.text,
+      defaultValue: '',
+      maxLength: 200,
+    );
+    const bank = SettingField(
+      key: 'pay_bank_details',
+      label: 'Bank details for fee transfers',
+      type: SettingFieldType.text,
+      defaultValue: '',
+      maxLength: 500,
+      multiline: true,
+    );
+    FakeModuleSettingsRepository feesOnly({Map<String, Object?> settings = const {}}) => FakeModuleSettingsRepository(
+      rows: [
+        moduleSetting(
+          module: 'fees',
+          label: 'Fee Management',
+          settings: {'pay_counter_hours': '', 'pay_bank_details': '', ...settings},
+          settingsSchema: const [hours, bank],
+        ),
+      ],
+    );
+
+    testWidgets('a text setting shows what is saved, with several lines where it needs them', (tester) async {
+      useDesktop(tester);
+      await pumpAsSchoolAdmin(tester, feesOnly(settings: {'pay_counter_hours': 'Mon-Sat, 9 am to 1 pm'}));
+
+      final hoursField = tester.widget<TextField>(
+        find.descendant(
+          of: find.byKey(const Key('module-setting-fees-pay_counter_hours')),
+          matching: find.byType(TextField),
+        ),
+      );
+      final bankField = tester.widget<TextField>(
+        find.descendant(
+          of: find.byKey(const Key('module-setting-fees-pay_bank_details')),
+          matching: find.byType(TextField),
+        ),
+      );
+      expect(hoursField.controller!.text, 'Mon-Sat, 9 am to 1 pm');
+      expect((hoursField.maxLines, bankField.maxLines, bankField.maxLength), (1, 6, 500));
+    });
+
+    testWidgets('a text setting saves as trimmed text', (tester) async {
+      useDesktop(tester);
+      final fake = feesOnly();
+      await pumpAsSchoolAdmin(tester, fake);
+
+      await tester.enterText(find.byKey(const Key('module-setting-fees-pay_counter_hours')), '  Mon-Fri, 8 to 2  ');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('module-save-fees')));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastUpdate!['settings'], {'pay_counter_hours': 'Mon-Fri, 8 to 2', 'pay_bank_details': ''});
+      expect(find.text('Settings saved.'), findsOneWidget);
+    });
+
+    testWidgets('a pattern the server refuses, like a UPI ID, shows its sentence', (tester) async {
+      useDesktop(tester);
+      final fake = feesOnly()
+        ..failUpdateWith = const Failure(
+          code: 'VALIDATION_ERROR',
+          message: 'The given data was invalid.',
+          details: {
+            'errors': {
+              'settings': ['Enter a UPI ID like schoolname@okaxis.'],
+            },
+          },
+        );
+      await pumpAsSchoolAdmin(tester, fake);
+
+      await tester.enterText(find.byKey(const Key('module-setting-fees-pay_counter_hours')), 'Mon-Sat');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('module-save-fees')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter a UPI ID like schoolname@okaxis.'), findsOneWidget);
+    });
+  });
+
+  group('choice settings - the fee receipt layout', () {
+    const layout = SettingField(
+      key: 'receipt_style',
+      label: 'Fee receipt layout',
+      type: SettingFieldType.choice,
+      defaultValue: 'standard',
+      help: 'Classic printed: a black-and-white receipt.',
+      choices: [
+        SettingChoice(value: 'standard', label: 'Standard'),
+        SettingChoice(value: 'classic', label: 'Classic printed'),
+      ],
+    );
+    FakeModuleSettingsRepository feesLayout(String saved) => FakeModuleSettingsRepository(
+      rows: [
+        moduleSetting(
+          module: 'fees',
+          label: 'Fee Management',
+          settings: {'receipt_style': saved},
+          settingsSchema: const [layout],
+        ),
+      ],
+    );
+
+    testWidgets('shows the saved choice by its name, and Save waits for a change', (tester) async {
+      useDesktop(tester);
+      await pumpAsSchoolAdmin(tester, feesLayout('standard'));
+
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('module-setting-fees-receipt_style')),
+          matching: find.text('Standard'),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.widget<FilledButton>(find.byKey(const Key('module-save-fees'))).onPressed, isNull);
+    });
+
+    testWidgets('picking Classic printed saves the value, not the label', (tester) async {
+      useDesktop(tester);
+      final fake = feesLayout('standard');
+      await pumpAsSchoolAdmin(tester, fake);
+
+      await tester.tap(find.byKey(const Key('module-setting-fees-receipt_style')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Classic printed').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('module-save-fees')));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastUpdate!['settings'], {'receipt_style': 'classic'});
+      expect(find.text('Settings saved.'), findsOneWidget);
+    });
+
+    test('reads its choices from the schema the server sends', () {
+      final field = SettingField.fromJson({
+        'key': 'receipt_style',
+        'label': 'Fee receipt layout',
+        'type': 'choice',
+        'default': 'standard',
+        'choices': [
+          {'value': 'standard', 'label': 'Standard'},
+          {'value': 'classic', 'label': 'Classic printed'},
+        ],
+      });
+
+      expect(field.type, SettingFieldType.choice);
+      expect(field.choices.map((c) => (c.value, c.label)), [('standard', 'Standard'), ('classic', 'Classic printed')]);
+    });
+  });
+
   testWidgets('a save the server refuses shows its sentence under the form', (tester) async {
     useDesktop(tester);
     final fake = FakeModuleSettingsRepository(

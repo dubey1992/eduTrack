@@ -78,6 +78,15 @@ class AssessmentType(models.TextChoices):
     PRACTICAL = "practical"
 
 
+class GradeScaleKind(models.TextChoices):
+    """How a school grades (docs/document-styles.md, decided 2026-11-17).
+    Every scale made before then is a percentage scale."""
+
+    PERCENTAGE = "percentage", "Marks & percentage"
+    GPA = "gpa", "Grade points (GPA)"
+    GRADES = "grades", "Grades only"
+
+
 class AssessmentStatus(models.TextChoices):
     """A draft is the school's own business; a published result is not.
 

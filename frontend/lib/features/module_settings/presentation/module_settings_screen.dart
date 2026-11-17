@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/searchable_dropdown.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/school_picker.dart';
@@ -133,6 +134,8 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
   /// text typed, so a half-typed number is not lost on rebuild.
   final _flags = <String, bool>{};
   final _numbers = <String, TextEditingController>{};
+  final _texts = <String, TextEditingController>{};
+  final _choices = <String, String?>{};
 
   bool _switching = false;
   bool _saving = false;
@@ -177,6 +180,16 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
           } else {
             existing.text = text;
           }
+        case SettingFieldType.choice:
+          _choices[field.key] = value is String ? value : null;
+        case SettingFieldType.text:
+          final text = value is String ? value : '';
+          final existing = _texts[field.key];
+          if (existing == null) {
+            _texts[field.key] = TextEditingController(text: text)..addListener(() => setState(() {}));
+          } else {
+            existing.text = text;
+          }
       }
     }
   }
@@ -189,6 +202,10 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
           if (_flags[field.key] != (value == true)) return true;
         case SettingFieldType.integer:
           if (_numbers[field.key]!.text.trim() != (value == null ? '' : '$value')) return true;
+        case SettingFieldType.text:
+          if (_texts[field.key]!.text.trim() != (value is String ? value : '')) return true;
+        case SettingFieldType.choice:
+          if (_choices[field.key] != (value is String ? value : null)) return true;
       }
     }
     return false;
@@ -245,6 +262,8 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
         field.key: switch (field.type) {
           SettingFieldType.flag => _flags[field.key] ?? false,
           SettingFieldType.integer => int.parse(_numbers[field.key]!.text.trim()),
+          SettingFieldType.text => _texts[field.key]!.text.trim(),
+          SettingFieldType.choice => _choices[field.key],
         },
     };
   }
@@ -377,6 +396,35 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: InputDecoration(labelText: field.label, helperText: field.help, helperMaxLines: 3),
                   validator: (value) => _validateNumber(field, value),
+                ),
+              ),
+              SettingFieldType.text => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: TextFormField(
+                  key: Key('module-setting-$module-${field.key}'),
+                  controller: _texts[field.key],
+                  enabled: !_saving,
+                  maxLength: field.maxLength,
+                  minLines: field.multiline ? 3 : 1,
+                  maxLines: field.multiline ? 6 : 1,
+                  keyboardType: field.multiline ? TextInputType.multiline : TextInputType.text,
+                  decoration: InputDecoration(labelText: field.label, helperText: field.help, helperMaxLines: 3),
+                  validator: (value) => _validateText(field, value),
+                ),
+              ),
+              SettingFieldType.choice => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: SearchableDropdown<String>(
+                  key: Key('module-setting-$module-${field.key}'),
+                  initialValue: _choices[field.key],
+                  isExpanded: true,
+                  decoration: InputDecoration(labelText: field.label, helperText: field.help, helperMaxLines: 3),
+                  items: [
+                    for (final choice in field.choices)
+                      DropdownMenuItem(value: choice.value, child: Text(choice.label)),
+                  ],
+                  onChanged: _saving ? null : (value) => setState(() => _choices[field.key] = value),
+                  validator: (value) => value == null ? 'Choose ${field.label.toLowerCase()}.' : null,
                 ),
               ),
             },

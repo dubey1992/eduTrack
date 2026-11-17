@@ -23,6 +23,7 @@ import zoneinfo
 
 from . import attendants, audit, class_levels, hashing, roll_numbers, mailer, marketing, notices, notifications, payment_items, permissions, school_breaks, site_pages, sms, syllabus_scope, whatsapp
 from .enums import (
+    GradeScaleKind,
     UserStatus,
     PromotionOutcome,
     MessageChannel,
@@ -2183,6 +2184,28 @@ class UpdateModuleSettingRequest(serializers.Serializer):
 
                 if setting.min is not None and raw < setting.min or setting.max is not None and raw > setting.max:
                     problems.append(f"{setting.label} must be between {setting.min} and {setting.max}.")
+                    continue
+            elif setting.type == "choice":
+                if raw not in {value for value, _ in setting.choices}:
+                    allowed = ", ".join(label for _, label in setting.choices)
+                    problems.append(f"{setting.label} must be one of: {allowed}.")
+                    continue
+            elif setting.type == "text":
+                if raw is None:
+                    raw = ""
+
+                if not isinstance(raw, str):
+                    problems.append(f"{setting.label} must be text.")
+                    continue
+
+                raw = raw.strip()
+
+                if setting.max_length is not None and len(raw) > setting.max_length:
+                    problems.append(f"{setting.label} must be {setting.max_length} characters or fewer.")
+                    continue
+
+                if raw and setting.pattern and not re.fullmatch(setting.pattern, raw):
+                    problems.append(setting.pattern_message or f"{setting.label} is not in the expected form.")
                     continue
 
             clean[key] = raw
@@ -4919,6 +4942,20 @@ class GradeScaleRequest(ScopedSerializer):
 
     name = LaravelCharField("name", max_length=50)
     is_default = LaravelBooleanField("is_default", required=False, default=False)
+    # How the school grades with it (docs/document-styles.md). A request
+    # that leaves it out keeps a percentage scale, as every scale was.
+    kind = LaravelCharField("kind", max_length=20, required=False, default=GradeScaleKind.PERCENTAGE)
+    gpa_multiplier = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=decimal.Decimal("0.01"), max_value=decimal.Decimal("100"),
+        required=False, allow_null=True, default=None,
+        error_messages={
+            "invalid": "The gpa multiplier field must be a number.",
+            "min_value": "The gpa multiplier field must be at least 0.01.",
+            "max_value": "The gpa multiplier field must not be greater than 100.",
+        },
+    )
+
+    validate_kind = staticmethod(enum_choice("kind", GradeScaleKind.values))
 
     def __init__(self, *args, scale=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -4981,17 +5018,70 @@ class GradeScaleRequest(ScopedSerializer):
                     "The max percentage field must be greater than or equal to min percentage."
                 ]
 
+            description = item.get("description")
+            description = description.strip() if isinstance(description, str) else ""
+
+            if len(description) > 60:
+                errors[f"{prefix}.description"] = [too_long("description", 60)]
+
+            point = self.grade_point(item.get("grade_point"), f"{prefix}.grade_point", errors)
+
             bands.append({
                 "label": label,
                 "min_percentage": low,
                 "max_percentage": high,
                 "is_failing": bool(item.get("is_failing")),
+                "grade_point": point,
+                "description": description or None,
             })
 
         if not errors:
             self.check_the_set(bands, errors)
 
+        if not errors and self.initial_data.get("kind") == GradeScaleKind.GPA:
+            self.check_the_points(bands, errors)
+
         return bands
+
+    @staticmethod
+    def grade_point(value, field: str, errors: dict):
+        """0 to 99.99, to two decimals - a band's points on a GPA scale."""
+        if value is None or value == "":
+            return None
+
+        try:
+            parsed = decimal.Decimal(str(value)).quantize(decimal.Decimal("0.01"))
+        except (decimal.InvalidOperation, TypeError, ValueError):
+            errors[field] = [must_be_a_number("grade point")]
+            return None
+
+        if parsed < 0 or parsed > decimal.Decimal("99.99"):
+            errors[field] = [must_be_between("grade point", 0, 99.99)]
+            return None
+
+        return parsed
+
+    @staticmethod
+    def check_the_points(bands: list[dict], errors: dict) -> None:
+        """A GPA scale needs points on every band, and a higher band may not
+        carry fewer points than a lower one - or a better mark would lower a
+        child's GPA."""
+        for index, band in enumerate(bands):
+            if band["grade_point"] is None:
+                errors[f"bands.{index}.grade_point"] = ["Every band of a grade-point scale needs its points."]
+
+        if errors:
+            return
+
+        order = sorted(range(len(bands)), key=lambda i: bands[i]["min_percentage"])
+
+        for position, index in enumerate(order[1:], start=1):
+            below = bands[order[position - 1]]
+
+            if bands[index]["grade_point"] < below["grade_point"]:
+                errors[f"bands.{index}.grade_point"] = [
+                    f'A higher band cannot carry fewer points than "{below["label"]}" ({below["grade_point"]}).'
+                ]
 
     @staticmethod
     def percentage(value, field: str, errors: dict):

@@ -221,7 +221,7 @@ def send_progress_report(message_id: int, student_id: int, academic_term_id: int
             to=[message.recipient_email],
         )
         mail.attach(
-            progress_reports.file_name(payload),
+            progress_reports.download_name(payload, student.school),
             progress_reports.render(
                 payload,
                 school=student.school,

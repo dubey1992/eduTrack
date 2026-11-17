@@ -24,7 +24,7 @@ from __future__ import annotations
 import datetime as dt
 import html
 
-from . import dates, pdf_design
+from . import dates, modules, pdf_design
 from .enums import AssessmentStatus
 from .models import AcademicTerm, AssessmentMark, Student
 
@@ -70,7 +70,46 @@ def slug(value) -> str:
 
 
 def render(payload: dict, *, school, generated_at: str) -> bytes:
+    """The report as a PDF, in the layout the school chose (Module Settings
+    -> Class Tests -> Report card layout, docs/document-styles.md). The
+    classic card covers the year's terms up to the one asked for."""
+    classic = classic_target(payload, school)
+
+    if classic is not None:
+        # Imported here: the classic card reads performance and services,
+        # which import the jobs that import this module.
+        from . import report_card_classic
+
+        student, through = classic
+        html = report_card_classic.document(student, through, school=school, generated_at=generated_at)
+
+        return pdf_design.render(html, report_card_classic.file_name(student, through))
+
     return pdf_design.render(document(payload, school=school, generated_at=generated_at), file_name(payload))
+
+
+def download_name(payload: dict, school) -> str:
+    """The file name the download should carry, whichever layout it is in."""
+    classic = classic_target(payload, school)
+
+    if classic is None:
+        return file_name(payload)
+
+    from . import report_card_classic
+
+    return report_card_classic.file_name(*classic)
+
+
+def classic_target(payload: dict, school):
+    """(student, term) when the school prints the classic card and there is
+    a term to print it through; None for the standard report."""
+    if modules.setting(school.id, "assessments", "report_card_style") != "classic" or payload["term"] is None:
+        return None
+
+    term = AcademicTerm.objects.select_related("academic_year").filter(pk=payload["term"]["id"]).first()
+    student = Student.objects.filter(pk=payload["student"]["id"]).first()
+
+    return None if term is None or student is None else (student, term)
 
 
 def document(payload: dict, *, school, generated_at: str) -> str:
