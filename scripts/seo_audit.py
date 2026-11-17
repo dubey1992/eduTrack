@@ -19,6 +19,7 @@ Search Console's "Crawled - currently not indexed" that a link crawl
 import html
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from collections import defaultdict
@@ -75,8 +76,23 @@ for e in entries:
     lm = re.search(r"<lastmod>(.*?)</lastmod>", e)
     lastmods[loc] = lm.group(1) if lm else None
 
-pages = dict(zip(urls, ThreadPoolExecutor(8).map(lambda u: get(u)[2], urls)))
+def fetch_page(url):
+    """One page's HTML; a shared host throttles bursts, so a failure is tried
+    again once, and one that still fails is reported, never judged empty."""
+    for _ in range(2):
+        code, _headers, body = get(url)
+        if code == 200 and "<html" in body[:500].lower():
+            return body
+        time.sleep(3)
+    return None
+
+
+fetched = dict(zip(urls, ThreadPoolExecutor(3).map(fetch_page, urls)))
 problems = defaultdict(list)
+for u, body in fetched.items():
+    if body is None:
+        problems["could not fetch (not checked - run again)"].append(u.replace(BASE, "") or "/")
+pages = {u: body for u, body in fetched.items() if body is not None}
 
 # 1. Sitemap dates.
 for u in urls:
