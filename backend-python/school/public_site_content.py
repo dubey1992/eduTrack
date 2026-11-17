@@ -39,6 +39,10 @@ ICONS = {
     "spark": _icon("M12 3v4", "M12 17v4", "M3 12h4", "M17 12h4", "M6 6l2.5 2.5", "M15.5 15.5 18 18", "M18 6l-2.5 2.5", "M8.5 15.5 6 18"),
     "chat": _icon("M4 5h16v11H8l-4 4z"),
     "check": _icon("M5 12l5 5L20 7"),
+    "family": _icon(
+        "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M3 20a6 6 0 0 1 12 0", "M16.5 11a2.5 2.5 0 1 0 0-5",
+        "M21 20a5 5 0 0 0-4.5-5",
+    ),
 }
 
 # Each product page's icon and tint (school/module_pages.py slugs).
@@ -112,7 +116,7 @@ FEATURE_GROUPS = (
      ("school-bus-tracking-software",)),
     ("Communication", "Alerts and announcements to families and staff.",
      ("school-communication-software",)),
-    ("Reports and the apps", "The school's figures, and the two Android apps.",
+    ("Reports and the apps", "The school's figures, and the Android apps.",
      ("school-reports-and-analytics", "school-staff-and-driver-apps")),
 )
 

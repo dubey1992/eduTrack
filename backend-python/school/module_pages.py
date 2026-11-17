@@ -176,7 +176,7 @@ A transport usage report in PDF or CSV, and route-by-route analytics: trips run,
 ## Frequently asked questions
 
 ### Can parents track the school bus live?
-Not yet. The live map is for the school's office. Guardians are told by SMS, WhatsApp or email when their child boards the bus and when they are dropped off.
+Coming soon, in the School365ai Family app. Today the live map is for the school's office. Guardians are told by SMS, WhatsApp or email when their child boards the bus and when they are dropped off.
 
 ### Do buses need GPS devices?
 No. The bus's position comes from the crew's phone, running the School365ai Driver app, while a trip is under way.
@@ -317,7 +317,7 @@ School365ai sends SMS and WhatsApp for every school through its own account, so 
 No. School365ai sends for every school through its own account. Each school chooses which channels and alerts it uses.
 
 ### Can parents reply to messages?
-No. Messages go out from the school; replies come back by phone or email, outside School365ai.
+Not yet. Today messages go out from the school and replies come back by phone or email. Coming soon, the School365ai Family app lets parents answer a notice that asks for a reply, send an absence note and ask for a call back.
 
 ### How does a school know a message went out?
 The message log shows each one as queued, sent, failed or skipped, with the reason, and failed messages can be sent again."""
@@ -394,7 +394,7 @@ Yes. Each branch runs as its own school, with its own currency and timezone if i
 No. Every request is checked on the server against the person's school, department and classes."""
 
 
-APPS = """School365ai has two Android apps: **School365ai** for teachers, heads of department and office staff, and **School365ai Driver** for the drivers and bus attendants who run each trip. Admins work in the web app.
+APPS = """School365ai has two Android apps today: **School365ai** for teachers, heads of department and office staff, and **School365ai Driver** for the drivers and bus attendants who run each trip. A third, **School365ai Family** for parents, is coming soon. Admins work in the web app.
 
 ## School365ai, for school staff
 
@@ -420,6 +420,19 @@ Drivers and bus attendants sign in with their mobile number and a passcode, on a
 - **SOS** to the school's transport managers and admins.
 - **Shares the bus's position** with the school while a trip runs, and works without signal.
 
+## School365ai Family, for parents - coming soon
+
+The parents' app is on its way to Google Play. When it arrives, a parent signs in with the details their school gives them and sees each of their children:
+
+- **Today** - attendance, and an **absence note** to tell the school ahead of a day off.
+- **The bus** - today's trip as it happens, the bus on a live map, and an alert as it nears the stop.
+- **Fees** - what is due, receipts to download and how to pay the school.
+- **Results** - published test results, progress reports, the timetable and the syllabus.
+- **Notices** - the school's notices, with a reply where the school asks for one.
+- **Please call me** - ask the class teacher or the office for a call back.
+
+Until then, guardians hear from the school by SMS, WhatsApp and email.
+
 Both apps run on Android 7 and newer. There is no iPhone app yet. Read more about [school bus tracking](/school-bus-tracking-software) and [attendance](/school-attendance-software).
 
 ## Frequently asked questions
@@ -428,7 +441,7 @@ Both apps run on Android 7 and newer. There is no iPhone app yet. Read more abou
 Not yet. Both apps are for Android 7 and newer. The web app works in any modern browser.
 
 ### Is there an app for parents?
-Not yet. Guardians hear from the school by SMS, WhatsApp and email.
+Coming soon. School365ai Family, for parents, is on its way to Google Play. Until it arrives, guardians hear from the school by SMS, WhatsApp and email.
 
 ### Which app does a bus attendant use?
 School365ai Driver - the same app as the driver. Both sign in with their mobile number and a passcode on a phone the school has registered."""
@@ -476,7 +489,7 @@ MODULES: tuple[ModulePage, ...] = (
         "Students, guardians, staff and classes, with CSV import and school groups.", RECORDS,
     ),
     ModulePage(
-        "school-staff-and-driver-apps", "The School365ai Staff and Driver Apps",
-        "Two Android apps: one for school staff, one for the bus crew.", APPS,
+        "school-staff-and-driver-apps", "The School365ai Staff, Driver and Family Apps",
+        "Android apps for school staff and the bus crew, with a parents' app coming soon.", APPS,
     ),
 )

@@ -462,7 +462,7 @@ def product_menu(live: set[str]) -> list[dict]:
         {"label": "By role", "note": "Leaders, teachers, the office and the bus", "href": "/#solutions"},
         {"label": "How a day flows", "note": "From the register to the bus", "href": "/#how-it-works"},
         {"label": "Web dashboard", "note": "Run the school from any browser", "href": "/#for-schools"},
-        {"label": "Mobile apps", "note": "For staff, drivers and bus attendants", "href": "/#mobile-app"},
+        {"label": "Mobile apps", "note": "For staff and bus crews; parents' app coming soon", "href": "/#mobile-app"},
     ]
 
 

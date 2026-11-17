@@ -40,10 +40,12 @@ const marketingDefaults = <String, String>{
   // -- the phone ----------------------------------------------------------
   'mobile.eyebrow': 'MOBILE APPS',
   'mobile.headline': 'Your School in\nYour Pocket',
-  // The two apps that exist (2026-10-31); a parent or student app is future work.
+  // The staff and Driver apps, and the Family app coming soon (2026-11-17). Kept
+  // word for word with backend-python/school/marketing_copy.py.
   'mobile.body':
-      'Two Android apps: School365ai for teachers, heads of department and office staff, '
-      'and School365ai Driver for the drivers and bus attendants who run every trip.',
+      'Android apps for everyone around the school: School365ai for teachers, heads of department and office '
+      'staff, School365ai Driver for the drivers and bus attendants who run every trip, and - coming soon - '
+      'School365ai Family for parents.',
 
   // -- the browser --------------------------------------------------------
   'web.eyebrow': 'WEB APPLICATION',
