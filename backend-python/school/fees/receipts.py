@@ -57,6 +57,7 @@ from ..models import (
     StudentFeeCredit,
     StudentFeeDue,
 )
+from . import receipt_summary
 from .credit import CreditService
 from .dues import OPEN, FeeDueService, today_for
 from .ledger import balance_of
@@ -173,6 +174,9 @@ class FeeReceiptService:
             # As at the receipt, in its currency - what the PDF prints for
             # ever after, however the account moves later.
             before = outstanding(student.id, currency)
+            # The classic receipt's summary, from the dues as they stand
+            # before this payment touches them (fees/receipt_summary.py).
+            summary = cls.summary_for(student, [due for due, _ in plan], currency, year, data["receipt_date"])
             number = cls.next_number(student.school_id, year)
             now = timezone.now()
 
@@ -186,6 +190,14 @@ class FeeReceiptService:
                 currency_code=currency,
                 balance_before=before,
                 credit_amount=credit,
+                summary_total=summary.total,
+                summary_discount=summary.discount,
+                summary_late_fee=summary.late_fee,
+                summary_paid_earlier=summary.paid_earlier,
+                summary_back_dues=summary.back_dues,
+                summary_old_fee=summary.old_fee,
+                summary_net=summary.net,
+                summary_till=summary.till,
                 payment_mode=data["payment_mode"],
                 reference=data["reference"],
                 note=data["note"],
@@ -197,7 +209,8 @@ class FeeReceiptService:
 
             FeeReceiptAllocation.objects.bulk_create([
                 FeeReceiptAllocation(
-                    fee_receipt_id=receipt.id, student_fee_due_id=due.id, amount=part, created_at=now, updated_at=now
+                    fee_receipt_id=receipt.id, student_fee_due_id=due.id, amount=part, charge_amount=due.amount,
+                    created_at=now, updated_at=now,
                 )
                 for due, part in plan
             ])
@@ -240,6 +253,18 @@ class FeeReceiptService:
                 queued = True
 
         return receipt, queued
+
+    @staticmethod
+    def summary_for(student: Student, paid_dues: list, currency: str, year: AcademicYear, receipt_date):
+        """The frozen summary for a payment about to be applied: the dues it
+        pays, against every other due of the student that may still owe."""
+        others = list(
+            StudentFeeDue.objects.filter(student_id=student.id, status__in=OPEN, currency_code=currency)
+            .exclude(pk__in=[due.id for due in paid_dues])
+            .select_related("fee_head", "fee_installment")
+        )
+
+        return receipt_summary.summarize(paid_dues, others, year_id=year.id, receipt_date=receipt_date)
 
     @classmethod
     def payable(cls, student: Student, due_ids=None) -> list[StudentFeeDue]:

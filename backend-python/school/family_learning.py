@@ -133,11 +133,10 @@ def progress_report_of(student: Student, term_id: int | None) -> tuple[bytes, st
 
     payload = performance.for_student(student, term.id)
     clock = SchoolClock.for_school(student.school_id)
-    document = progress_reports.render(
-        payload, school=School.objects.get(pk=student.school_id), generated_at=clock.format(clock.now(), DATE_TIME)
-    )
+    school = School.objects.get(pk=student.school_id)
+    document = progress_reports.render(payload, school=school, generated_at=clock.format(clock.now(), DATE_TIME))
 
-    return document, progress_reports.file_name(payload)
+    return document, progress_reports.download_name(payload, school)
 
 
 # -- the week's timetable ----------------------------------------------------------------

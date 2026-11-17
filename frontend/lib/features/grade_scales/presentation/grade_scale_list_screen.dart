@@ -143,6 +143,12 @@ class _ScaleCard extends ConsumerWidget {
                       Flexible(child: Text(scale.name, style: Theme.of(context).textTheme.titleMedium)),
                       const SizedBox(width: 8),
                       if (scale.isDefault) const StatusBadge(label: 'Default', tone: BadgeTone.success),
+                      const SizedBox(width: 8),
+                      StatusBadge(
+                        key: Key('grade-scale-kind-${scale.id}'),
+                        label: scale.kind.label,
+                        tone: BadgeTone.neutral,
+                      ),
                       if (scale.schoolName != null) ...[
                         const SizedBox(width: 8),
                         Flexible(child: Text(scale.schoolName!, overflow: TextOverflow.ellipsis)),
@@ -174,7 +180,14 @@ class _ScaleCard extends ConsumerWidget {
               children: [
                 for (final band in scale.bands)
                   Chip(
-                    label: Text('${band.label}  ${band.range}'),
+                    label: Text(
+                      [
+                        band.label,
+                        band.range,
+                        if (scale.kind == GradeScaleKind.gpa && band.points != null) '${band.points} pts',
+                        ?band.description,
+                      ].join('  '),
+                    ),
                     avatar: band.isFailing ? const Icon(Icons.remove_circle_outline, size: 16) : null,
                   ),
               ],

@@ -22,6 +22,8 @@ class FakeGradeScaleRepository implements GradeScaleRepository {
 
   /// What the last save sent, so a test can assert the bands that went out.
   List<GradeBand> lastBands = const [];
+  GradeScaleKind? lastKind;
+  String? lastMultiplier;
 
   void _enter(String method) {
     calls.add(method);
@@ -49,9 +51,13 @@ class FakeGradeScaleRepository implements GradeScaleRepository {
     required String name,
     required bool isDefault,
     required List<GradeBand> bands,
+    GradeScaleKind kind = GradeScaleKind.percentage,
+    String? gpaMultiplier,
   }) async {
     _enter('create');
     lastBands = bands;
+    lastKind = kind;
+    lastMultiplier = gpaMultiplier;
 
     final scale = GradeScale(
       id: _scales.length + 1,
@@ -60,6 +66,8 @@ class FakeGradeScaleRepository implements GradeScaleRepository {
       name: name,
       isDefault: isDefault || _scales.isEmpty,
       bands: bands,
+      kind: kind,
+      gpaMultiplier: gpaMultiplier,
     );
     _scales.add(scale);
 
@@ -72,9 +80,13 @@ class FakeGradeScaleRepository implements GradeScaleRepository {
     required String name,
     required bool isDefault,
     required List<GradeBand> bands,
+    GradeScaleKind kind = GradeScaleKind.percentage,
+    String? gpaMultiplier,
   }) async {
     _enter('update');
     lastBands = bands;
+    lastKind = kind;
+    lastMultiplier = gpaMultiplier;
 
     final index = _scales.indexWhere((scale) => scale.id == scaleId);
     final existing = _scales[index];
@@ -85,6 +97,8 @@ class FakeGradeScaleRepository implements GradeScaleRepository {
       name: name,
       isDefault: isDefault || existing.isDefault,
       bands: bands,
+      kind: kind,
+      gpaMultiplier: gpaMultiplier,
     );
     _scales[index] = updated;
 

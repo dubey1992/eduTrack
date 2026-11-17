@@ -374,4 +374,215 @@ void main() {
       expect(find.widgetWithText(TextFormField, 'Fail'), findsOneWidget);
     });
   });
+
+  group('grading systems', () {
+    Widget host(FakeGradeScaleRepository fake, {GradeScale? scale}) => wrap(
+      fake,
+      child: Builder(
+        builder: (context) => ElevatedButton(
+          onPressed: () => showDialog(
+            context: context,
+            builder: (_) => GradeScaleDialog(scale: scale),
+          ),
+          child: const Text('Open'),
+        ),
+      ),
+    );
+
+    Future<void> open(WidgetTester tester, FakeGradeScaleRepository fake, {GradeScale? scale}) async {
+      useDesktop(tester);
+      await tester.pumpWidget(host(fake, scale: scale));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> pickPreset(WidgetTester tester, String name) async {
+      await tester.tap(find.byKey(const Key('grade-scale-presets')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(name).last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> save(WidgetTester tester) async {
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('a new scale is a percentage scale, with no points column', (tester) async {
+      await open(tester, FakeGradeScaleRepository());
+
+      expect(find.byKey(const Key('grade-band-points-0')), findsNothing);
+      expect(find.byKey(const Key('grade-scale-multiplier')), findsNothing);
+      expect(find.text('Report cards show marks, the percentage and the grade.'), findsOneWidget);
+    });
+
+    testWidgets('a preset fills the type, the bands, their points and meanings, and the multiplier', (tester) async {
+      final fake = FakeGradeScaleRepository();
+      await open(tester, fake);
+
+      await pickPreset(tester, 'Nine-point grades with grade points (CBSE style)');
+
+      expect(find.byKey(const Key('grade-band-points-7')), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Outstanding'), findsOneWidget);
+
+      await save(tester);
+
+      expect(fake.lastKind, GradeScaleKind.gpa);
+      expect(fake.lastMultiplier, '9.5');
+      expect((fake.lastBands.first.label, fake.lastBands.first.gradePoint), ('A1', '10'));
+      expect(fake.lastBands.last.isFailing, isTrue);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a preset does not overwrite a name the school already typed', (tester) async {
+      await open(tester, FakeGradeScaleRepository());
+      await tester.enterText(find.widgetWithText(TextFormField, 'Name (e.g. Secondary)'), 'Senior school');
+
+      await pickPreset(tester, 'Four-point GPA (A to F)');
+
+      expect(find.widgetWithText(TextFormField, 'Senior school'), findsOneWidget);
+    });
+
+    testWidgets('a GPA band without points is refused before anything is sent', (tester) async {
+      final fake = FakeGradeScaleRepository();
+      await open(tester, fake);
+      await tester.tap(find.text('Grade points (GPA)'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Name (e.g. Secondary)'), 'GPA');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Grade'), 'A');
+      await tester.enterText(find.widgetWithText(TextFormField, 'From %'), '0');
+      await tester.enterText(find.widgetWithText(TextFormField, 'To %'), '100');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Number'), findsOneWidget);
+      expect(fake.calls, isNot(contains('create')));
+    });
+
+    testWidgets('points are not sent for a scale that is not GPA', (tester) async {
+      final fake = FakeGradeScaleRepository();
+      await open(tester, fake);
+      await pickPreset(tester, 'Four-point GPA (A to F)');
+
+      await tester.tap(find.text('Grades only'));
+      await tester.pumpAndSettle();
+      await save(tester);
+
+      expect(fake.lastKind, GradeScaleKind.grades);
+      expect(fake.lastBands.every((band) => band.gradePoint == null), isTrue);
+      expect(fake.lastMultiplier, isNull);
+      expect(fake.lastBands.first.description, 'Excellent');
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets("the server's refusal of a band's points lands on that field", (tester) async {
+      final fake = FakeGradeScaleRepository(
+        failWith: {
+          'create': const Failure(
+            code: 'VALIDATION_ERROR',
+            message: 'The given data was invalid.',
+            details: {
+              'errors': {
+                'bands.0.grade_point': ['A higher band cannot carry fewer points than "B" (3.00).'],
+              },
+            },
+          ),
+        },
+      );
+      await open(tester, fake);
+      await pickPreset(tester, 'Four-point GPA (A to F)');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('A higher band cannot carry fewer points than "B" (3.00).'), findsOneWidget);
+    });
+
+    testWidgets('editing a GPA scale opens on its type, points and multiplier', (tester) async {
+      const scale = GradeScale(
+        id: 9,
+        schoolId: 1,
+        schoolName: null,
+        name: 'US 4.0',
+        isDefault: true,
+        kind: GradeScaleKind.gpa,
+        gpaMultiplier: '25.00',
+        bands: [
+          GradeBand(
+            id: 1,
+            label: 'A',
+            minPercentage: '0.00',
+            maxPercentage: '100.00',
+            isFailing: false,
+            gradePoint: '4.00',
+          ),
+        ],
+      );
+      await open(tester, FakeGradeScaleRepository(), scale: scale);
+
+      expect(find.widgetWithText(TextFormField, '4.00'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, '25.00'), findsOneWidget);
+    });
+
+    test('a scale reads its kind, points and meanings, and an old payload is a percentage scale', () {
+      final scale = GradeScale.fromJson({
+        'id': 1,
+        'school_id': 1,
+        'name': 'GPA',
+        'is_default': true,
+        'kind': 'gpa',
+        'gpa_multiplier': '9.50',
+        'bands': [
+          {
+            'id': 1,
+            'label': 'A1',
+            'min_percentage': '91.00',
+            'max_percentage': '100.00',
+            'is_failing': false,
+            'grade_point': '10.00',
+            'description': 'Outstanding',
+          },
+        ],
+      });
+      final old = GradeScale.fromJson({'id': 2, 'school_id': 1, 'name': 'Old', 'is_default': false, 'bands': []});
+
+      expect((scale.kind, scale.gpaMultiplier, scale.bands.single.points), (GradeScaleKind.gpa, '9.50', '10'));
+      expect(scale.bands.single.description, 'Outstanding');
+      expect(old.kind, GradeScaleKind.percentage);
+    });
+
+    testWidgets('the list says how each scale grades', (tester) async {
+      useDesktop(tester);
+      final fake = FakeGradeScaleRepository(
+        scales: const [
+          GradeScale(
+            id: 3,
+            schoolId: 1,
+            schoolName: null,
+            name: 'Primary',
+            isDefault: true,
+            kind: GradeScaleKind.grades,
+            bands: [
+              GradeBand(
+                id: 1,
+                label: 'A',
+                minPercentage: '0.00',
+                maxPercentage: '100.00',
+                isFailing: false,
+                description: 'Outstanding',
+              ),
+            ],
+          ),
+        ],
+      );
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('grade-scale-kind-3')), findsOneWidget);
+      expect(find.text('Grades only'), findsOneWidget);
+      expect(find.textContaining('Outstanding'), findsOneWidget);
+    });
+  });
 }

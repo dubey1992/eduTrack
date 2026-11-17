@@ -493,6 +493,76 @@ void main() {
     });
   });
 
+  group('choice settings - the fee receipt layout', () {
+    const layout = SettingField(
+      key: 'receipt_style',
+      label: 'Fee receipt layout',
+      type: SettingFieldType.choice,
+      defaultValue: 'standard',
+      help: 'Classic printed: a black-and-white receipt.',
+      choices: [
+        SettingChoice(value: 'standard', label: 'Standard'),
+        SettingChoice(value: 'classic', label: 'Classic printed'),
+      ],
+    );
+    FakeModuleSettingsRepository feesLayout(String saved) => FakeModuleSettingsRepository(
+      rows: [
+        moduleSetting(
+          module: 'fees',
+          label: 'Fee Management',
+          settings: {'receipt_style': saved},
+          settingsSchema: const [layout],
+        ),
+      ],
+    );
+
+    testWidgets('shows the saved choice by its name, and Save waits for a change', (tester) async {
+      useDesktop(tester);
+      await pumpAsSchoolAdmin(tester, feesLayout('standard'));
+
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('module-setting-fees-receipt_style')),
+          matching: find.text('Standard'),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.widget<FilledButton>(find.byKey(const Key('module-save-fees'))).onPressed, isNull);
+    });
+
+    testWidgets('picking Classic printed saves the value, not the label', (tester) async {
+      useDesktop(tester);
+      final fake = feesLayout('standard');
+      await pumpAsSchoolAdmin(tester, fake);
+
+      await tester.tap(find.byKey(const Key('module-setting-fees-receipt_style')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Classic printed').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('module-save-fees')));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastUpdate!['settings'], {'receipt_style': 'classic'});
+      expect(find.text('Settings saved.'), findsOneWidget);
+    });
+
+    test('reads its choices from the schema the server sends', () {
+      final field = SettingField.fromJson({
+        'key': 'receipt_style',
+        'label': 'Fee receipt layout',
+        'type': 'choice',
+        'default': 'standard',
+        'choices': [
+          {'value': 'standard', 'label': 'Standard'},
+          {'value': 'classic', 'label': 'Classic printed'},
+        ],
+      });
+
+      expect(field.type, SettingFieldType.choice);
+      expect(field.choices.map((c) => (c.value, c.label)), [('standard', 'Standard'), ('classic', 'Classic printed')]);
+    });
+  });
+
   testWidgets('a save the server refuses shows its sentence under the form', (tester) async {
     useDesktop(tester);
     final fake = FakeModuleSettingsRepository(

@@ -24,8 +24,19 @@ class GradeScaleRepository {
     required String name,
     required bool isDefault,
     required List<GradeBand> bands,
+    GradeScaleKind kind = GradeScaleKind.percentage,
+    String? gpaMultiplier,
   }) {
-    return _call(() => _api.create(schoolId: schoolId, name: name, isDefault: isDefault, bands: bands));
+    return _call(
+      () => _api.create(
+        schoolId: schoolId,
+        name: name,
+        isDefault: isDefault,
+        bands: bands,
+        kind: kind,
+        gpaMultiplier: gpaMultiplier,
+      ),
+    );
   }
 
   Future<GradeScale> update(
@@ -33,8 +44,19 @@ class GradeScaleRepository {
     required String name,
     required bool isDefault,
     required List<GradeBand> bands,
+    GradeScaleKind kind = GradeScaleKind.percentage,
+    String? gpaMultiplier,
   }) {
-    return _call(() => _api.update(scaleId, name: name, isDefault: isDefault, bands: bands));
+    return _call(
+      () => _api.update(
+        scaleId,
+        name: name,
+        isDefault: isDefault,
+        bands: bands,
+        kind: kind,
+        gpaMultiplier: gpaMultiplier,
+      ),
+    );
   }
 
   Future<void> delete(int scaleId) => _call(() => _api.delete(scaleId));

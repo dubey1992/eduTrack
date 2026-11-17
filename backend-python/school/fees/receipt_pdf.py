@@ -19,12 +19,13 @@ what the family was told on the day.
 
 from __future__ import annotations
 
-from .. import dates, money, pdf_design
+from .. import dates, modules, money, pdf_design
 from ..clock import DATE_TIME, SchoolClock
 from ..enums import FeeReceiptStatus
 from ..pdf_design import STYLESHEET, fact, joined, logo_data_uri, school_band  # noqa: F401 - re-exported
 from ..receipts import e
 from .resources import mode_label, receipt_class
+from . import receipt_classic
 from .words import amount_in_words
 
 
@@ -33,8 +34,17 @@ def file_name(receipt) -> str:
 
 
 def render(receipt) -> bytes:
-    """The rendered PDF, ready to download or attach to an email."""
-    return pdf_design.render(document(receipt), file_name(receipt))
+    """The rendered PDF, ready to download or attach to an email - in the
+    layout the school chose (Module Settings -> Fee Management -> Fee receipt
+    layout, docs/document-styles.md). Standard unless it chose otherwise."""
+    return pdf_design.render(styled_document(receipt), file_name(receipt))
+
+
+def styled_document(receipt) -> str:
+    if modules.setting(receipt.school_id, "fees", "receipt_style") == "classic":
+        return receipt_classic.document(receipt)
+
+    return document(receipt)
 
 
 def installment_name(due) -> str:

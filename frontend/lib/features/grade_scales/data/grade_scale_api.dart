@@ -26,6 +26,8 @@ class GradeScaleApi {
     required String name,
     required bool isDefault,
     required List<GradeBand> bands,
+    GradeScaleKind kind = GradeScaleKind.percentage,
+    String? gpaMultiplier,
   }) async {
     final response = await _dio.post(
       '/grade-scales',
@@ -33,6 +35,8 @@ class GradeScaleApi {
         'school_id': ?schoolId,
         'name': name,
         'is_default': isDefault,
+        'kind': kind.apiValue,
+        'gpa_multiplier': gpaMultiplier,
         'bands': [for (final band in bands) band.toJson()],
       },
     );
@@ -47,12 +51,16 @@ class GradeScaleApi {
     required String name,
     required bool isDefault,
     required List<GradeBand> bands,
+    GradeScaleKind kind = GradeScaleKind.percentage,
+    String? gpaMultiplier,
   }) async {
     final response = await _dio.put(
       '/grade-scales/$scaleId',
       data: {
         'name': name,
         'is_default': isDefault,
+        'kind': kind.apiValue,
+        'gpa_multiplier': gpaMultiplier,
         'bands': [for (final band in bands) band.toJson()],
       },
     );

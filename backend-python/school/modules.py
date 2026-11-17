@@ -26,7 +26,7 @@ from .models import ModuleSetting
 class Setting:
     key: str
     label: str
-    type: str  # "bool" | "int" | "text"
+    type: str  # "bool" | "int" | "text" | "choice"
     default: object
     help: str = ""
     min: int | None = None
@@ -38,6 +38,9 @@ class Setting:
     multiline: bool = False
     pattern: str | None = None
     pattern_message: str = ""
+    # A "choice" setting: the values it may take, each with what the screen
+    # calls it, in the order the screen lists them.
+    choices: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -78,6 +81,38 @@ MODULES: tuple[Module, ...] = (
             Setting(
                 "weak_below_percentage", "Weak subject, below", "int", 40, min=0, max=100,
                 help="A subject average under this is flagged on a student's performance.",
+            ),
+            # The printed report card (docs/document-styles.md, decided
+            # 2026-11-17). Read by report_card.py.
+            Setting(
+                "report_card_style", "Report card layout", "choice", "standard",
+                choices=(("standard", "Standard"), ("classic", "Classic printed")),
+                help="Classic printed: every term side by side with each test's marks, the totals, the result "
+                     "and signature lines, as on a printed marksheet.",
+            ),
+            Setting(
+                "result_rule", "Result on the report card", "choice", "every_subject",
+                choices=(
+                    ("every_subject", "Passed every subject"),
+                    ("overall", "Passed overall"),
+                    ("none", "Don't print a result"),
+                ),
+                help="Every subject: each subject reaches the pass mark (or, on a grade scale, no failing grade). "
+                     "Overall: the whole year's total does.",
+            ),
+            Setting("result_pass_word", "Result wording when passed", "text", "QUALIFIED", max_length=30),
+            Setting("result_fail_word", "Result wording when not passed", "text", "NOT QUALIFIED", max_length=30),
+            Setting(
+                "print_rank", "Print the class rank", "bool", False,
+                help="Rank within the section by the year's percentage (or GPA). Equal scores share a rank.",
+            ),
+            Setting(
+                "report_card_note", "A word to parents", "text", "", max_length=600, multiline=True,
+                help="Printed on every classic report card. Leave empty to leave it off.",
+            ),
+            Setting(
+                "report_card_instructions", "Instructions on the report card", "text", "", max_length=600,
+                multiline=True, help="Printed above the grading key. Leave empty to leave it off.",
             ),
         ),
     ),
@@ -231,6 +266,15 @@ MODULES: tuple[Module, ...] = (
                 "pay_bank_details", "Bank details for fee transfers", "text", "", max_length=500, multiline=True,
                 help="Account name, number, bank, branch and IFSC, as parents should write them. "
                      "Shown to parents in the Family app.",
+            ),
+            # Read by fees/receipt_pdf.py (docs/document-styles.md): which
+            # layout a printed fee receipt takes. Standard is the default, so
+            # no school's receipts change until it chooses.
+            Setting(
+                "receipt_style", "Fee receipt layout", "choice", "standard",
+                choices=(("standard", "Standard"), ("classic", "Classic printed")),
+                help="Classic printed: a black-and-white receipt with month-wise fee lines, the dues summary "
+                     "and a signature line, as on a printed receipt book.",
             ),
             Setting(
                 "pay_upi_id", "UPI ID for fees", "text", "", max_length=100,

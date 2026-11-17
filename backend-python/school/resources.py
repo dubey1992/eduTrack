@@ -477,6 +477,7 @@ def module_setting_resource(module, row, viewer) -> dict:
                 "max": setting.max,
                 "max_length": setting.max_length,
                 "multiline": setting.multiline,
+                "choices": [{"value": value, "label": label} for value, label in setting.choices],
             }
             for setting in module.settings
         ],
@@ -1305,6 +1306,8 @@ def grade_band_resource(band) -> dict:
         "min_percentage": f"{band.min_percentage:.2f}",
         "max_percentage": f"{band.max_percentage:.2f}",
         "is_failing": band.is_failing,
+        "grade_point": None if band.grade_point is None else f"{band.grade_point:.2f}",
+        "description": band.description,
     }
 
 
@@ -1314,6 +1317,8 @@ def grade_scale_resource(scale) -> dict:
         "school_id": scale.school_id,
         "name": scale.name,
         "is_default": scale.is_default,
+        "kind": scale.kind,
+        "gpa_multiplier": None if scale.gpa_multiplier is None else f"{scale.gpa_multiplier:.2f}",
         "bands": [
             grade_band_resource(band)
             for band in sorted(scale.bands.all(), key=lambda band: band.min_percentage, reverse=True)

@@ -50,6 +50,7 @@ from . import punches, week
 from .week import WorkingWeek
 from .enums import (
     FAMILY_ROLES,
+    GradeScaleKind,
     AssessmentStatus,
     AssessmentType,
     EnrollmentStatus,
@@ -5628,6 +5629,8 @@ class GradeScaleService:
                 school_id=school_id,
                 name=data["name"],
                 is_default=is_default,
+                kind=data.get("kind") or GradeScaleKind.PERCENTAGE,
+                gpa_multiplier=data.get("gpa_multiplier"),
                 created_at=now,
                 updated_at=now,
             )
@@ -5648,8 +5651,10 @@ class GradeScaleService:
                 scale.is_default = True
 
             scale.name = data["name"]
+            scale.kind = data.get("kind") or GradeScaleKind.PERCENTAGE
+            scale.gpa_multiplier = data.get("gpa_multiplier")
             scale.updated_at = now
-            scale.save(update_fields=["name", "is_default", "updated_at"])
+            scale.save(update_fields=["name", "is_default", "kind", "gpa_multiplier", "updated_at"])
 
             scale.bands.all().delete()
             cls._write_bands(scale, data["bands"], now)
@@ -5716,6 +5721,8 @@ class GradeScaleService:
                 min_percentage=band["min_percentage"],
                 max_percentage=band["max_percentage"],
                 is_failing=band["is_failing"],
+                grade_point=band.get("grade_point"),
+                description=band.get("description"),
                 created_at=now,
                 updated_at=now,
             )

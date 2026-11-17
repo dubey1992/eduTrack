@@ -271,7 +271,7 @@ def progress_report(request, student_id: int) -> HttpResponse:
     )
 
     response = HttpResponse(document, content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="{progress_reports.file_name(payload)}"'
+    response["Content-Disposition"] = f'attachment; filename="{progress_reports.download_name(payload, student.school)}"'
 
     return response
 

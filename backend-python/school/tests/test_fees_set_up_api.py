@@ -357,7 +357,7 @@ class TheModuleSwitch(FeesTestCase):
         self.assertEqual(
             {"allow_part_payment": True, "late_fine_amount": 0, "late_fine_grace_days": 7,
              "reminder_days_before": 3, "remind_when_overdue": True,
-             "pay_counter_hours": "", "pay_bank_details": "", "pay_upi_id": ""},
+             "pay_counter_hours": "", "pay_bank_details": "", "pay_upi_id": "", "receipt_style": "standard"},
             modules.get("fees").defaults(),
         )
 

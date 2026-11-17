@@ -44,6 +44,11 @@ ONES = (
 )
 TENS = ("", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety")
 SCALES = ((1_000_000_000, "Billion"), (1_000_000, "Million"), (1_000, "Thousand"))
+# The Indian scale a printed Indian receipt book uses: 1,50,000 is "One Lakh
+# Fifty Thousand". Up to 999 crore, past the most a DECIMAL(12,2) holds.
+INDIAN_SCALES = ((10_000_000, "Crore"), (100_000, "Lakh"), (1_000, "Thousand"))
+# The currencies whose receipts are read on the Indian scale.
+INDIAN_SCALE_CURRENCIES = {"INR", "NPR"}
 LIMIT = Decimal("9999999999.99")
 
 
@@ -62,15 +67,16 @@ def below_thousand(n: int) -> str:
     return " ".join(parts)
 
 
-def integer_words(n: int) -> str:
+def integer_words(n: int, scales=SCALES) -> str:
     """1234567 -> "One Million Two Hundred Thirty-Four Thousand Five Hundred
-    Sixty-Seven"."""
+    Sixty-Seven"; on the Indian scale, "Twelve Lakh Thirty-Four Thousand
+    Five Hundred Sixty-Seven"."""
     if n == 0:
         return "Zero"
 
     parts: list[str] = []
 
-    for size, name in SCALES:
+    for size, name in scales:
         if n >= size:
             parts.append(f"{below_thousand(n // size)} {name}")
             n %= size
@@ -85,9 +91,14 @@ def currency_names(code: str) -> tuple[str, str]:
     return CURRENCIES.get((code or "").upper(), (code or "", "Hundredths"))
 
 
-def amount_in_words(value, currency_code: str) -> str:
+def amount_in_words(value, currency_code: str, *, local_scale: bool = False) -> str:
     """"Indian Rupees Two Thousand Only", "US Dollars Twelve and Fifty Cents
-    Only". Raises ValueError outside 0 to 9,999,999,999.99."""
+    Only". Raises ValueError outside 0 to 9,999,999,999.99.
+
+    `local_scale` reads rupees on the Indian scale (lakh, crore) - the
+    classic printed receipt's wording (docs/document-styles.md). Off, every
+    currency uses thousand, million, billion, as the standard receipt
+    always has."""
     amount = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     if amount < 0 or amount > LIMIT:
@@ -97,7 +108,12 @@ def amount_in_words(value, currency_code: str) -> str:
     whole = int(amount)
     hundredths = int((amount - whole) * 100)
 
-    words = f"{major} {integer_words(whole)}"
+    indian = local_scale and (currency_code or "").upper() in INDIAN_SCALE_CURRENCIES
+    scales = INDIAN_SCALES if indian else SCALES
+    # Above 999 crore the Indian scale would need "Thousand Crore"; nothing a
+    # receipt holds gets there (the limit is 99,99,99,99,999.99 - 999 crore
+    # and change), so the loop below never meets it.
+    words = f"{major} {integer_words(whole, scales)}"
 
     if hundredths:
         words += f" and {integer_words(hundredths)} {minor}"
