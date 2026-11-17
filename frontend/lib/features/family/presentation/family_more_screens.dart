@@ -58,6 +58,15 @@ class FamilyMoreScreen extends ConsumerWidget {
           subtitle: 'Test marks and the progress report',
           onTap: () => context.push('/results'),
         ),
+      // Exams sit under Class Tests: no row at a school without them.
+      if (features.results)
+        _MoreRow(
+          key: const Key('family-more-admit-cards'),
+          icon: Icons.badge_rounded,
+          title: 'Admit cards',
+          subtitle: 'Exam date sheets to download and print',
+          onTap: () => context.push('/admit-cards'),
+        ),
       if (features.timetable)
         _MoreRow(
           key: const Key('family-more-timetable'),

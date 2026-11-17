@@ -509,3 +509,76 @@ def notice_reply(request, notice_id: int) -> Response:
     notice_replies.answer(message.announcement, child, user, data["answer"], data.get("note"))
 
     return Response(notice_replies.reply_block(message.announcement, children))
+
+
+# -- Admit cards (docs/examinations.md) ---------------------------------------------
+
+
+def exams_reader(request):
+    """A family account reading exams: Class Tests must be on as well."""
+    user = family_reader(request)
+
+    if not modules.is_enabled(user.school_id, "assessments"):
+        raise ModuleDisabled(modules.get("assessments").label)
+
+    return user
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_admit_cards(request, child_id: int) -> Response:
+    """The published exams the child's class sits, newest year first, each
+    saying whether the card can be downloaded. A withheld card says to
+    contact the school - never why."""
+    from ..examinations.resources import family_card_resource
+    from ..examinations.service import card_state, latest_version
+    from ..models import Examination, StudentEnrollment
+
+    child = child_of(exams_reader(request), child_id)
+    year_ids = StudentEnrollment.objects.filter(student_id=child.id).values_list("academic_year_id", flat=True)
+    exams = (
+        Examination.objects.filter(school_id=child.school_id, version__gt=0, academic_year_id__in=list(year_ids))
+        .select_related("academic_year", "academic_term")
+        .order_by("-academic_year__start_date", "-published_at", "id")
+    )
+    today = SchoolClock.for_school(child.school_id).now().date()
+    cards = []
+
+    for exam in exams:
+        state = card_state(exam, child, today)
+
+        if state.code != "no_papers":
+            cards.append(family_card_resource(exam, state, latest_version(exam)))
+
+    return Response({"data": cards})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_admit_card_pdf(request, child_id: int, exam_id: int):
+    """The child's card for one published exam, from its latest version.
+    Another school's exam, or one the child does not sit, is a 404."""
+    from ..examinations import card_pdf
+    from ..examinations.service import card_state, class_of, latest_version, require_ready
+    from ..models import Examination
+
+    child = child_of(exams_reader(request), child_id)
+    exam = get_object_or_404(
+        Examination.objects.select_related("academic_year", "school"), pk=exam_id, school_id=child.school_id,
+        version__gt=0,
+    )
+    today = SchoolClock.for_school(child.school_id).now().date()
+    state = card_state(exam, child, today)
+
+    if state.code in ("no_papers", "not_published"):
+        raise Http404()
+
+    require_ready(state)
+    version = latest_version(exam)
+    card = card_pdf.Card(
+        student=child, snapshot=version.snapshot, class_id=class_of(child, exam.academic_year_id),
+        version=version.version, issued_on=SchoolClock.for_school(child.school_id).format(version.published_at, "m/d/Y"),
+    )
+    document = card_pdf.render([card], school=exam.school, year_id=exam.academic_year_id)
+
+    return pdf_response(document, card_pdf.file_name(exam.name, child.admission_number or child.id))

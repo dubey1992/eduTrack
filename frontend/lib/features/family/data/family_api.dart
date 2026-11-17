@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import 'models/family_admit_card.dart';
 import 'models/family_absence_note.dart';
 import 'models/family_bus.dart';
 import 'models/family_call_request.dart';
@@ -93,6 +94,17 @@ class FamilyApi {
 
   Future<List<int>> receiptPdf(int childId, int receiptId) =>
       _bytes('/family/children/$childId/receipts/$receiptId/pdf');
+
+  Future<List<FamilyAdmitCard>> admitCards(int childId) async {
+    final response = await _dio.get('/family/children/$childId/admit-cards');
+    return [
+      for (final row in ((response.data as Map<String, dynamic>)['data'] as List<dynamic>))
+        FamilyAdmitCard.fromJson(row as Map<String, dynamic>),
+    ];
+  }
+
+  Future<List<int>> admitCardPdf(int childId, int examinationId) =>
+      _bytes('/family/children/$childId/admit-cards/$examinationId/pdf');
 
   Future<List<int>> _bytes(String path) async {
     final response = await _dio.get<List<int>>(path, options: Options(responseType: ResponseType.bytes));

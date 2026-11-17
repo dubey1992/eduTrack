@@ -1054,3 +1054,21 @@ class ProgressReportNotReady(ApiError):
 
     def __init__(self) -> None:
         super().__init__("The progress report is ready once the term is over.")
+
+
+class AdmitCardUnavailable(ApiError):
+    """An admit card that cannot be issued: the exam is not published, the
+    student's class sits no paper in it, or the card is held back - by name,
+    or for overdue fees (docs/examinations.md). The message is the reason,
+    in words the reader may see."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "ADMIT_CARD_UNAVAILABLE"
+
+
+class ExaminationNotDraftable(ApiError):
+    """A change the exam's state refuses - publishing a date sheet with no
+    paper on it, say."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "EXAMINATION_NOT_READY"

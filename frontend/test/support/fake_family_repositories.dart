@@ -2,6 +2,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/features/family/data/family_auth_repository.dart';
 import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
+import 'package:edutrack_app/features/family/data/models/family_admit_card.dart';
 import 'package:edutrack_app/features/family/data/models/family_account.dart';
 import 'package:edutrack_app/features/family/data/models/family_absence_note.dart';
 import 'package:edutrack_app/features/family/data/models/family_bus.dart';
@@ -506,6 +507,23 @@ class FakeFamilyRepository implements FamilyRepository {
   @override
   Future<List<int>> receiptPdf(int childId, int receiptId) async {
     pdfsAskedFor.add('receipt:$childId:$receiptId');
+    if (failPdfWith != null) throw failPdfWith!;
+    return const [37, 80, 68, 70];
+  }
+
+  /// What admitCards() answers (docs/examinations.md).
+  List<FamilyAdmitCard> admitCardList = const [];
+  Failure? failAdmitCardsWith;
+
+  @override
+  Future<List<FamilyAdmitCard>> admitCards(int childId) async {
+    if (failAdmitCardsWith != null) throw failAdmitCardsWith!;
+    return admitCardList;
+  }
+
+  @override
+  Future<List<int>> admitCardPdf(int childId, int examinationId) async {
+    pdfsAskedFor.add('admit-card:$childId:$examinationId');
     if (failPdfWith != null) throw failPdfWith!;
     return const [37, 80, 68, 70];
   }

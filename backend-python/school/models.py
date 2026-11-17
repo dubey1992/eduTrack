@@ -2212,3 +2212,100 @@ class PlatformWhatsappTemplate(models.Model):
 
     def parameter_names(self) -> list[str]:
         return [name.strip() for name in (self.parameters or "").split(",") if name.strip()]
+
+
+class Examination(models.Model):
+    """One exam of one school's year - "Half-Yearly 2026" - with its centre,
+    reporting time, card instructions and look (docs/examinations.md).
+
+    A draft until the school publishes it; each publish freezes what was
+    issued as an ExaminationVersion, and every admit card prints from one."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    academic_year = models.ForeignKey('AcademicYear', models.DO_NOTHING, related_name='+')
+    academic_term = models.ForeignKey('AcademicTerm', models.DO_NOTHING, blank=True, null=True, related_name='+')
+    name = models.CharField(max_length=100)
+    centre = models.CharField(max_length=150, blank=True, null=True)
+    reporting_time = models.TimeField(blank=True, null=True)
+    instructions = models.TextField(blank=True, null=True)
+    card_style = models.CharField(max_length=20, default='classic')
+    block_on_fee_dues = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, default='draft')
+    version = models.PositiveIntegerField(default=0)
+    published_at = UtcDateTimeField(blank=True, null=True)
+    published_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='published_by', blank=True, null=True, related_name='+'
+    )
+    created_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='created_by', blank=True, null=True, related_name='+'
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'examinations'
+        unique_together = (('school', 'academic_year', 'name'),)
+
+
+class ExaminationPaper(models.Model):
+    """One line of an exam's date sheet: a subject for a class on a day, in
+    the school's own wall-clock time."""
+
+    id = models.BigAutoField(primary_key=True)
+    examination = models.ForeignKey('Examination', models.DO_NOTHING, related_name='papers')
+    school_class = models.ForeignKey('SchoolClass', models.DO_NOTHING, related_name='+')
+    subject = models.ForeignKey('Subject', models.DO_NOTHING, related_name='+')
+    exam_date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'examination_papers'
+        unique_together = (('examination', 'school_class', 'subject'),)
+
+
+class ExaminationVersion(models.Model):
+    """What one publish of an exam issued, frozen: the cards print from here,
+    so a later change never rewrites a card already handed out."""
+
+    id = models.BigAutoField(primary_key=True)
+    examination = models.ForeignKey('Examination', models.DO_NOTHING, related_name='versions')
+    version = models.PositiveIntegerField()
+    snapshot = LaravelJSONField()
+    published_at = UtcDateTimeField()
+    published_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='published_by', blank=True, null=True, related_name='+'
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'examination_versions'
+        unique_together = (('examination', 'version'),)
+
+
+class ExaminationException(models.Model):
+    """One student's card held back ("withhold", with a reason staff read),
+    or let through an overdue-fees hold ("allow")."""
+
+    id = models.BigAutoField(primary_key=True)
+    examination = models.ForeignKey('Examination', models.DO_NOTHING, related_name='exceptions')
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='+')
+    kind = models.CharField(max_length=20)
+    reason = models.CharField(max_length=255, blank=True, null=True)
+    created_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='created_by', blank=True, null=True, related_name='+'
+    )
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'examination_exceptions'
+        unique_together = (('examination', 'student'),)

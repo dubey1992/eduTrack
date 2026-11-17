@@ -6,6 +6,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/network/dio_client.dart';
 import 'family_api.dart';
 import 'family_today_cache.dart';
+import 'models/family_admit_card.dart';
 import 'models/family_absence_note.dart';
 import 'models/family_bus.dart';
 import 'models/family_call_request.dart';
@@ -82,6 +83,11 @@ class FamilyRepository {
   Future<List<int>> feeStatement(int childId) => _call(() => _api.feeStatement(childId));
 
   Future<List<int>> receiptPdf(int childId, int receiptId) => _call(() => _api.receiptPdf(childId, receiptId));
+
+  Future<List<FamilyAdmitCard>> admitCards(int childId) => _call(() => _api.admitCards(childId));
+
+  Future<List<int>> admitCardPdf(int childId, int examinationId) =>
+      _call(() => _api.admitCardPdf(childId, examinationId));
 
   /// The child's bus; null for a child the school does not carry.
   Future<FamilyBus?> bus(int childId) async {
