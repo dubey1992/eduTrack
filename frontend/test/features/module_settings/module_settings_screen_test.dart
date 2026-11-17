@@ -6,6 +6,7 @@ import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
+import 'package:edutrack_app/features/module_settings/data/models/module_setting.dart';
 import 'package:edutrack_app/features/module_settings/data/module_settings_repository.dart';
 import 'package:edutrack_app/features/module_settings/presentation/module_settings_screen.dart';
 import 'package:edutrack_app/features/schools/data/models/school.dart';

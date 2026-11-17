@@ -160,7 +160,7 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
 
   @override
   void dispose() {
-    for (final controller in _numbers.values) {
+    for (final controller in [..._numbers.values, ..._texts.values]) {
       controller.dispose();
     }
     super.dispose();
@@ -452,6 +452,16 @@ class _ModuleCardState extends ConsumerState<_ModuleCard> {
         ],
       ),
     );
+  }
+
+  /// Empty is allowed - it means "not set". The server checks a pattern such
+  /// as a UPI ID's and its message is shown under the form.
+  static String? _validateText(SettingField field, String? value) {
+    final text = (value ?? '').trim();
+    if (field.maxLength != null && text.length > field.maxLength!) {
+      return '${field.label} must be ${field.maxLength} characters or fewer';
+    }
+    return null;
   }
 
   static String? _validateNumber(SettingField field, String? value) {
