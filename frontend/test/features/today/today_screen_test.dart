@@ -1,3 +1,5 @@
+import 'package:edutrack_app/core/storage/key_value_store.dart';
+import 'package:edutrack_app/features/my_teaching/data/outbox.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
@@ -11,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/in_memory_key_value_store.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_check_in_repository.dart';
 import '../../support/fake_today_repository.dart';
@@ -19,10 +22,14 @@ import '../../support/session_users.dart';
 /// Today in the Teacher app (docs/teacher-app.md, T1): every state the
 /// server's answer can put it in.
 void main() {
+  late InMemoryKeyValueStore store;
+  setUp(() => store = InMemoryKeyValueStore());
+
   Widget screen(FakeTodayRepository today, {ThemeData? theme}) {
     return ProviderScope(
       overrides: [
         todayRepositoryProvider.overrideWithValue(today),
+        keyValueStoreProvider.overrideWithValue(store),
         checkInRepositoryProvider.overrideWithValue(FakeCheckInRepository()),
         authRepositoryProvider.overrideWithValue(
           FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher, name: 'Asha Rao')),
@@ -57,6 +64,22 @@ void main() {
     expect(find.text('9:00 AM'), findsOneWidget);
     expect(find.text('Grade 9 A · Period 3'), findsOneWidget);
     expect(find.descendant(of: find.byKey(const Key('today-period-13')), matching: find.text('Now')), findsOneWidget);
+  });
+
+  testWidgets('a report waiting on the phone, or turned down, says so on its period', (tester) async {
+    OutboxItem item(int entry, {String? refusal}) => OutboxItem(
+      kind: OutboxKind.report,
+      key: OutboxItem.reportKey(entry, '2026-10-26'),
+      userId: 1,
+      label: 'x',
+      payload: const {},
+      savedAt: DateTime(2026, 10, 26),
+      refusal: refusal,
+    );
+    await OutboxStore(store).save([item(11), item(12, refusal: 'Check in first.')]);
+    await pump(tester, FakeTodayRepository());
+
+    expect(find.byKey(const Key('today-report-waiting')), findsOneWidget);
   });
 
   testWidgets('the whole week is one tap from Today', (tester) async {

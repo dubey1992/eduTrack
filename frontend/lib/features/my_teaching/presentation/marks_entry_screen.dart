@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../application/staff_outbox.dart';
+import '../data/outbox.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
@@ -144,16 +147,40 @@ class _SheetState extends ConsumerState<_Sheet> {
         _rowErrors = _byStudent(sheet, failure.validationErrors);
         _problem = switch (failure.code) {
           'NETWORK_ERROR' =>
-            'No connection. Your marks are still here on the screen - save again when you have signal.',
+            'No signal: these marks are saved on this phone and sent when there is. Publish once they are in.',
           'ASSESSMENT_PUBLISHED' => 'This test has been published, so its marks cannot change here.',
           _ when _rowErrors.isNotEmpty => 'Some marks were not accepted. See the highlighted students.',
           _ => failure.message,
         };
       });
       if (failure.code == 'ASSESSMENT_PUBLISHED') await _notifier.reload();
+      // Kept, and sent when there is signal (2.1): the newest marks replace
+      // any saved before them.
+      if (failure.code == 'NETWORK_ERROR') await _keepForLater(sheet);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _keepForLater(AssessmentSheet sheet) async {
+    final me = (await ref.read(authNotifierProvider.future))?.id;
+    if (me == null) return;
+
+    await ref
+        .read(staffOutboxProvider.notifier)
+        .add(
+          OutboxItem(
+            kind: OutboxKind.marks,
+            key: OutboxItem.marksKey(widget.assessmentId),
+            userId: me,
+            label: 'Marks: ${sheet.assessment.title}',
+            payload: {
+              'assessment_id': widget.assessmentId,
+              'marks': [for (final entry in sheet.entries) entry.toJson()],
+            },
+            savedAt: DateTime.now(),
+          ),
+        );
   }
 
   /// `marks.3.marks_obtained` -> the fourth student on the sheet.
@@ -169,6 +196,17 @@ class _SheetState extends ConsumerState<_Sheet> {
   }
 
   Future<void> _publish(AssessmentSheet sheet) async {
+    // Publishing tells families the marks the school has - not marks still
+    // on this phone (2.1).
+    if (ref.read(staffOutboxProvider.notifier).waitingFor(OutboxItem.marksKey(widget.assessmentId)) != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          key: Key('marks-still-waiting'),
+          content: Text('These marks are still waiting on this phone for signal. Publish once they are sent.'),
+        ),
+      );
+      return;
+    }
     final test = sheet.assessment;
     final sitting = sheet.entries.where((entry) => !entry.isAbsent).length;
     final confirmed = await showDialog<bool>(

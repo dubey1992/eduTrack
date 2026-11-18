@@ -8,8 +8,11 @@ import '../../../core/widgets/searchable_dropdown.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../../teaching_reports/data/models/teaching_report.dart';
 import '../application/my_teaching_providers.dart';
+import '../application/staff_outbox.dart';
+import '../data/outbox.dart';
 import '../data/report_notes.dart';
 import 'report_detail_screen.dart' show HodNote;
 
@@ -110,6 +113,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
     // What was typed last time this form was open for this period - kept on
     // the phone as it was typed (docs/mobile-apps-review.md, 1.6).
     unawaited(_restoreDraft());
+
     for (final controller in [_topic, _homework, _remarks]) {
       controller.addListener(_scheduleDraft);
     }
@@ -224,6 +228,12 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
       context.pop(true);
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
+      // No signal: kept on the phone and sent when there is some (2.1). A
+      // change for the HOD is not - it is answering a person, now.
+      if (failure.code == 'NETWORK_ERROR' && _isNew) {
+        await _keepForLater();
+        return;
+      }
       if (mounted) {
         setState(() {
           _problem = _say(failure);
@@ -233,6 +243,61 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// Sent from this phone earlier and turned down: why, above the words
+  /// (2.1). Watched, so it shows whenever the outbox has been read.
+  Widget? _refusal() {
+    final key = OutboxItem.reportKey(widget.period.timetableEntryId, widget.period.date);
+    final refused = ref.watch(staffOutboxProvider).where((i) => i.key == key && i.refusal != null).firstOrNull;
+    if (refused == null) return null;
+
+    final colors = context.appColors;
+    return Container(
+      key: const Key('report-refused'),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: colors.dangerContainer, borderRadius: BorderRadius.circular(8)),
+      child: Text('Not sent: ${refused.refusal}', style: TextStyle(color: colors.onDangerContainer, height: 1.35)),
+    );
+  }
+
+  Future<void> _keepForLater() async {
+    final period = widget.period;
+    final me = (await ref.read(authNotifierProvider.future))?.id;
+    if (me == null) return;
+
+    await ref
+        .read(staffOutboxProvider.notifier)
+        .add(
+          OutboxItem(
+            kind: OutboxKind.report,
+            key: OutboxItem.reportKey(period.timetableEntryId, period.date),
+            userId: me,
+            label: '${period.subject}, ${period.classSection}, period ${period.periodNumber}',
+            payload: {
+              'timetable_entry_id': period.timetableEntryId,
+              'report_date': period.date,
+              'topic_taught': _topic.text.trim(),
+              'syllabus_topic_id': _syllabusTopicId,
+              'homework': _trimmedOrNull(_homework),
+              'remarks': _trimmedOrNull(_remarks),
+            },
+            savedAt: DateTime.now(),
+          ),
+        );
+    // The outbox has the words now; the draft would only show them twice.
+    _filed = true;
+    _draftTimer?.cancel();
+    await _notes.forgetDraft(period.timetableEntryId, period.date);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        key: Key('report-kept-for-later'),
+        content: Text('No signal: the report is saved on this phone and sent when there is.'),
+      ),
+    );
+    context.pop(true);
   }
 
   /// The server's refusals in a teacher's words; anything else as it came.
@@ -312,6 +377,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                 children: [
                   Text(formatIsoDate(period.date), style: TextStyle(color: colors.muted)),
                   const SizedBox(height: 12),
+                  if (_problem == null && _isNew) ?_refusal(),
                   if (_problem != null) ...[
                     Container(
                       key: const Key('report-problem'),

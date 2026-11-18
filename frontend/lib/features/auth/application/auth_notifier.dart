@@ -22,6 +22,7 @@ import '../../marketing/application/marketing_draft_notifier.dart';
 import '../../my_register/application/register_queue.dart';
 import '../../my_register/data/register_store.dart';
 import '../../push/device_repository.dart';
+import '../../my_teaching/application/staff_outbox.dart';
 import '../../my_teaching/data/report_notes.dart';
 import '../../my_trip/application/trip_mark_queue.dart';
 import '../../classes/application/school_class_list_notifier.dart';
@@ -179,6 +180,8 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     // who took them, and go when they next sign in; only the copy in
     // memory, and its retry timer, end with the session.
     ref.invalidate(registerQueueProvider);
+    // Likewise reports and marks saved with no signal (2.1).
+    ref.invalidate(staffOutboxProvider);
     // A set-password code held from a link is no business of the next session.
     ref.invalidate(resetCodeProvider);
     ref.invalidate(schoolListNotifierProvider);

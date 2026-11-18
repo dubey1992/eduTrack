@@ -1,3 +1,7 @@
+import 'package:edutrack_app/core/models/user_role.dart';
+import 'package:edutrack_app/core/storage/key_value_store.dart';
+import 'package:edutrack_app/features/auth/data/auth_repository.dart';
+import 'package:edutrack_app/features/my_teaching/data/outbox.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/assessments/data/assessment_repository.dart';
@@ -9,10 +13,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../support/session_users.dart';
+import '../../support/in_memory_key_value_store.dart';
+import '../../support/fake_auth_repository.dart';
 import '../../support/fake_assessment_repository.dart';
 
 /// Entering a class test's marks on the phone (docs/teacher-app.md, T5).
 void main() {
+  late InMemoryKeyValueStore store;
+  setUp(() => store = InMemoryKeyValueStore());
+
   SheetEntry student(int id, String name, {String? marks, bool absent = false, String? grade, bool? passed}) =>
       SheetEntry(
         studentId: id,
@@ -57,7 +67,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [assessmentRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          assessmentRepositoryProvider.overrideWithValue(repository),
+          keyValueStoreProvider.overrideWithValue(store),
+          authRepositoryProvider.overrideWithValue(
+            FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher, id: 7)),
+          ),
+        ],
         child: MaterialApp.router(theme: theme ?? AppTheme.teacherLight(), routerConfig: router),
       ),
     );
@@ -179,7 +195,7 @@ void main() {
     );
   });
 
-  testWidgets('without signal the marks stay on the screen to save again', (tester) async {
+  testWidgets('without signal the marks are kept on the phone, and Publish waits for them', (tester) async {
     repository = FakeAssessmentRepository(
       sheetEntries: [student(1, 'Aarav Shah')],
       failWith: {'saveMarks': Failure.network()},
@@ -190,9 +206,11 @@ void main() {
     await tester.tap(find.byKey(const Key('marks-save')));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Your marks are still here'), findsOneWidget);
+    expect(find.textContaining('saved on this phone and sent when there is'), findsOneWidget);
     expect(find.widgetWithText(TextField, '12'), findsOneWidget);
     expect(save(tester).onPressed, isNotNull);
+    final saved = await OutboxStore(store).read();
+    expect((saved.single.key, (saved.single.payload['marks'] as List).single['marks_obtained']), ('marks:1', '12'));
   });
 
   testWidgets('Next on the keyboard moves to the next student', (tester) async {

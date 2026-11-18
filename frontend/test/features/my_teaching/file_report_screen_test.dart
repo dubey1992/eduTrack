@@ -1,3 +1,6 @@
+import 'package:edutrack_app/core/models/user_role.dart';
+import 'package:edutrack_app/features/auth/data/auth_repository.dart';
+import 'package:edutrack_app/features/my_teaching/data/outbox.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
@@ -11,6 +14,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../support/session_users.dart';
+import '../../support/fake_auth_repository.dart';
 import '../../support/fake_syllabus_topic_repository.dart';
 import '../../support/in_memory_key_value_store.dart';
 import '../../support/fake_teaching_report_repository.dart';
@@ -76,6 +81,9 @@ void main() {
         overrides: [
           teachingReportRepositoryProvider.overrideWithValue(reports),
           keyValueStoreProvider.overrideWithValue(store),
+          authRepositoryProvider.overrideWithValue(
+            FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher, id: 7)),
+          ),
           syllabusTopicRepositoryProvider.overrideWithValue(topics),
           todayRepositoryProvider.overrideWithValue(FakeTodayRepository()),
         ],
@@ -297,13 +305,35 @@ void main() {
     expect(find.text('Fractions'), findsOneWidget, reason: 'what was typed is kept');
   });
 
-  testWidgets('without signal it says nothing was sent', (tester) async {
-    reports.failStoreWith = Failure.network();
-    await pump(tester);
-    await tester.enterText(find.byKey(const Key('report-topic')), 'Fractions');
-    await submit(tester);
+  group('with no signal (docs/mobile-apps-review.md, 2.1)', () {
+    testWidgets('the report is kept on the phone, and the form closes as if it were filed', (tester) async {
+      reports.failStoreWith = Failure.network();
+      await pump(tester);
+      await tester.enterText(find.byKey(const Key('report-topic')), 'Fractions');
+      await submit(tester);
 
-    expect(find.textContaining('No connection. Nothing was sent'), findsOneWidget);
+      expect(find.text('No signal: the report is saved on this phone and sent when there is.'), findsOneWidget);
+      expect(popped, isTrue);
+      final saved = await OutboxStore(store).read();
+      expect((saved.single.kind, saved.single.payload['topic_taught']), (OutboxKind.report, 'Fractions'));
+    });
+
+    testWidgets('a report the server turned down later opens with the reason above it', (tester) async {
+      await OutboxStore(store).save([
+        OutboxItem(
+          kind: OutboxKind.report,
+          key: OutboxItem.reportKey(11, '2026-10-26'),
+          userId: 7,
+          label: 'Mathematics, Grade 3 A, period 1',
+          payload: const {},
+          savedAt: DateTime(2026, 10, 26),
+          refusal: 'Check in first.',
+        ),
+      ]);
+      await pump(tester);
+
+      expect(find.text('Not sent: Check in first.'), findsOneWidget);
+    });
   });
 
   group('the teacher has not checked in today (decided 2026-11-02)', () {
