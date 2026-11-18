@@ -715,7 +715,11 @@ class FollowsTheGradingSystem(PerformanceReportTestCase):
         self.assertEqual(1, student["totals"]["students_with_a_result"])
         self.assertNotIn("average_gpa", student["totals"])
 
-        rows = {row["subject"]: row for row in self.rows(self.admin, "class-performance")}
+        subjects = self.get(self.admin, "class-performance").data
+        # No class shows a percentage, so the school's average is none - not 0%.
+        self.assertIsNone(subjects["totals"]["average_percentage"])
+        self.assertIsNone(student["totals"]["average_percentage"])
+        rows = {row["subject"]: row for row in subjects["rows"]}
         self.assertEqual(("Needs help", None, None, None, 1),
                          (rows["Physics"]["grade"], rows["Physics"]["average_percentage"],
                           rows["Physics"]["highest_percentage"], rows["Physics"]["lowest_percentage"],

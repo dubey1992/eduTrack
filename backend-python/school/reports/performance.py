@@ -666,11 +666,12 @@ class ClassPerformanceReport:
     @staticmethod
     def _totals(rows: list[dict], behind: int | None) -> dict:
         counted = sum(row["marks_counted"] for row in rows)
-        weighted = sum(
-            float(row["average_percentage"]) * row["marks_counted"]
-            for row in rows
-            if row["average_percentage"] is not None
-        )
+        # Over the rows that show a percentage: a grades-only class has none,
+        # and counting its marks with no percentage made the school's
+        # average read 0% when every class was graded that way.
+        with_percentage = [row for row in rows if row["average_percentage"] is not None]
+        weighted = sum(float(row["average_percentage"]) * row["marks_counted"] for row in with_percentage)
+        weighed = sum(row["marks_counted"] for row in with_percentage)
 
         return {
             "classes_and_subjects": len(rows),
@@ -679,7 +680,7 @@ class ClassPerformanceReport:
             "absent": sum(row["absent"] for row in rows),
             # Over every mark, not a mean of the subject means: a subject
             # with forty marks should weigh more than one with four.
-            "average_percentage": percent(weighted / counted) if counted else None,
+            "average_percentage": percent(weighted / weighed) if weighed else None,
             # Students under the school's mark in at least one subject, each
             # once; nothing at all where the school keeps no mark.
             "students_below_in_a_subject": behind,
