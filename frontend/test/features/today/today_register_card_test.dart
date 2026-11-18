@@ -106,10 +106,11 @@ void main() {
     expect(onCard('Not taken'), findsNothing);
   });
 
-  testWidgets('a register the server turned down says Not sent', (tester) async {
+  testWidgets('a register the server turned down says Not sent, and why, without a tap', (tester) async {
     await RegisterStore(store).saveUnsent([UnsentRegister.of(saved(), 'Attendance has already been submitted.')]);
     await pump(tester);
 
     expect(onCard('Not sent'), findsOneWidget);
+    expect(onCard('Attendance has already been submitted.'), findsOneWidget);
   });
 }

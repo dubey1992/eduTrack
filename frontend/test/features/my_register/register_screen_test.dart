@@ -151,7 +151,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('register-refused')), findsOneWidget);
-    expect(find.text('Not sent: Attendance has already been submitted.'), findsOneWidget);
+    expect(find.textContaining('Not sent: Attendance has already been submitted.'), findsOneWidget);
+    expect(find.textContaining('If the register still needs taking, take it again below'), findsOneWidget);
     expect(find.byKey(const Key('register-submit')), findsOneWidget);
   });
 

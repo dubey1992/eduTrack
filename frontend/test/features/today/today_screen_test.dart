@@ -2,6 +2,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/data/auth_repository.dart';
+import 'package:edutrack_app/features/today/application/today_notifier.dart';
 import 'package:edutrack_app/features/today/data/models/teacher_day.dart';
 import 'package:edutrack_app/features/check_in/data/check_in_repository.dart';
 import 'package:edutrack_app/features/today/data/today_repository.dart';
@@ -228,6 +229,59 @@ void main() {
 
     expect(find.byKey(const Key('today-period-11')), findsOneWidget);
     expect(today.calls, 2);
+  });
+
+  group('with no signal (docs/mobile-apps-review.md, 2.6)', () {
+    const offline = Failure(
+      code: 'NETWORK_ERROR',
+      message: 'Could not reach the server. Check your connection and try again.',
+    );
+
+    testWidgets('asks again by itself, and shows the day once signal is back', (tester) async {
+      final today = FakeTodayRepository(failWith: offline);
+      await pump(tester, today);
+      expect(find.text(offline.message), findsOneWidget);
+
+      today.failWith = null;
+      await tester.pump(TodayNotifier.offlineRetry);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('today-period-11')), findsOneWidget);
+      expect(today.calls, 2);
+    });
+
+    testWidgets('asks again the moment the app comes back to the front', (tester) async {
+      final today = FakeTodayRepository(failWith: offline);
+      await pump(tester, today);
+
+      today.failWith = null;
+      // Put away, then brought back - Android walks through each state.
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('today-period-11')), findsOneWidget);
+    });
+
+    testWidgets('a refusal is not asked again on a timer', (tester) async {
+      final today = FakeTodayRepository(
+        failWith: const Failure(code: 'FORBIDDEN', message: 'Not allowed.'),
+      );
+      await pump(tester, today);
+
+      await tester.pump(TodayNotifier.offlineRetry * 3);
+      await tester.pumpAndSettle();
+
+      expect(today.calls, 1);
+    });
   });
 
   testWidgets('pulling down asks the server again and shows what has moved on', (tester) async {
