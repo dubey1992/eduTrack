@@ -334,6 +334,11 @@ class MessageEvent(models.TextChoices):
     ABSENCE_NOTE = "teaching.absence_note", "Absence note from a parent"
     # A parent's "please call me" (Family app, F5): the inbox only.
     CALL_REQUEST = "teaching.call_request", "Call request from a parent"
+    # Reminders from the school's own day (staff_reminders.py, decided
+    # 2026-11-18): teaching events, so the inbox and its push, never an SMS.
+    REGISTER_REMINDER = "teaching.register_reminder", "Register not taken"
+    CHECK_IN_REMINDER = "teaching.check_in_reminder", "Not checked in"
+    REPORTS_REMINDER = "teaching.reports_reminder", "Teaching reports still owed"
 
     @classmethod
     def category(cls, event: str) -> str:
@@ -451,6 +456,9 @@ DEFAULT_BODIES = {
     MessageEvent.REPORT_RETURNED: (
         "{reviewer_name} sent back your report for {subject_name}, {class_name}, period {period} on {date}: {note}"
     ),
+    MessageEvent.REGISTER_REMINDER: "Today's register for {classes} is not taken yet.",
+    MessageEvent.CHECK_IN_REMINDER: "You have not checked in today. Check in when you reach school.",
+    MessageEvent.REPORTS_REMINDER: "You have {reports} to file for today.",
     MessageEvent.ANNOUNCEMENT_PUBLISHED: "{school_name}: {title} - {body}",
     MessageEvent.GENERAL_MESSAGE: "{school_name}: {subject} - {body}",
     MessageEvent.EMERGENCY_ALERT: "EMERGENCY - {school_name}: {body}",
@@ -516,7 +524,13 @@ TRIP_SOS_TOKENS = [
 ]
 
 # Events whose wording needs something its category's list does not carry.
+# The reminders say how many, and nothing a school could not word itself.
+REMINDER_TOKENS = ["staff_name", "count", "classes", "reports", "date", "school_name"]
+
 PER_EVENT_TOKENS = {
+    MessageEvent.REGISTER_REMINDER: REMINDER_TOKENS,
+    MessageEvent.CHECK_IN_REMINDER: REMINDER_TOKENS,
+    MessageEvent.REPORTS_REMINDER: REMINDER_TOKENS,
     MessageEvent.TRANSPORT_ABSENT: TRANSPORT_ABSENT_TOKENS,
     MessageEvent.TRANSPORT_NEAR_STOP: TRANSPORT_NEAR_STOP_TOKENS,
     MessageEvent.ABSENCE_NOTE: ABSENCE_NOTE_TOKENS,

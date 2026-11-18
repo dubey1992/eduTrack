@@ -124,6 +124,12 @@ MODULES: tuple[Module, ...] = (
                 help="How many days back a register may still be submitted or corrected. 0 means today only.",
                 min=0, max=365,
             ),
+            # Read by staff_reminders.py (decided 2026-11-18): off for
+            # schools already live, switched on for new ones at creation.
+            Setting(
+                "remind_register", "Remind class teachers whose register is not taken", "bool", False,
+                help="In the app, once the first period has ended. Never by SMS.",
+            ),
         ),
     ),
     Module(
@@ -144,6 +150,10 @@ MODULES: tuple[Module, ...] = (
                 "check_in_radius_m", "Check-in distance from school (metres)", "int", 100,
                 help="How close to the school's map pin a phone must be to check in or out.",
                 min=25, max=1000,
+            ),
+            Setting(
+                "remind_check_in", "Remind staff who have not checked in", "bool", False,
+                help="In the app, 30 minutes into the first period. Never by SMS.",
             ),
         ),
     ),
@@ -195,6 +205,10 @@ MODULES: tuple[Module, ...] = (
                 "needs_attendance", "Teachers must be marked present to file reports", "bool", True,
                 help="A teacher files reports only for days they are marked present - checked in, "
                      "punched in, or marked by the office - and never for a day of leave.",
+            ),
+            Setting(
+                "remind_reports_owed", "Remind teachers of reports still owed", "bool", False,
+                help="In the app, once the last period has ended. Never by SMS.",
             ),
         ),
     ),

@@ -62,6 +62,14 @@ ROUTES = {
 }
 DEFAULT_ROUTE = "/inbox"
 
+# A reminder opens Today, where the register, the check-in and the periods
+# owing reports all are (docs/mobile-apps-review.md, 5.1).
+EVENT_ROUTES = {
+    MessageEvent.REGISTER_REMINDER: "/today",
+    MessageEvent.CHECK_IN_REMINDER: "/today",
+    MessageEvent.REPORTS_REMINDER: "/today",
+}
+
 
 def credentials() -> dict | None:
     """The service account, or None when push is not set up."""
@@ -158,7 +166,7 @@ def route_for(message: Message) -> str:
     if message.user_id and UserRole.is_crew(message.user.role):
         return CREW_ROUTE
 
-    return ROUTES.get(message.category, DEFAULT_ROUTE)
+    return EVENT_ROUTES.get(message.event) or ROUTES.get(message.category, DEFAULT_ROUTE)
 
 
 def title_for(message: Message) -> str:
