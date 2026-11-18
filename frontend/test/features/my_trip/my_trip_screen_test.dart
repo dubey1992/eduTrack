@@ -9,6 +9,7 @@ import 'package:edutrack_app/features/my_trip/data/map_navigator.dart';
 import 'package:edutrack_app/features/my_trip/data/navigation_session.dart';
 import 'package:edutrack_app/features/my_trip/data/voice_search.dart';
 import 'package:edutrack_app/features/my_trip/presentation/widgets/sos_button.dart';
+import 'package:edutrack_app/features/my_trip/presentation/widgets/trip_screen_hold.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/my_trip/presentation/my_trip_screen.dart';
@@ -414,6 +415,25 @@ void main() {
       expect(tester.getBottomLeft(bar).dy, tester.view.physicalSize.height);
     });
 
+    testWidgets('the screen is held on and upright only while the trip runs', (tester) async {
+      await openRunningTrip(tester);
+      expect(TripScreenHoldSwitch.instance.isOn, isTrue);
+
+      await tapAndSettle(tester, find.byKey(const Key('end-trip')));
+      await tapAndSettle(tester, find.widgetWithText(FilledButton, 'End trip').last);
+      await waitOutUndo(tester);
+
+      expect(TripScreenHoldSwitch.instance.isOn, isFalse);
+    });
+
+    testWidgets('leaving the trip lets the screen sleep again', (tester) async {
+      await openRunningTrip(tester);
+
+      await tapAndSettle(tester, find.text('My routes'));
+
+      expect(TripScreenHoldSwitch.instance.isOn, isFalse);
+    });
+
     testWidgets('keeping going after the question ends nothing', (tester) async {
       await openRunningTrip(tester);
 
@@ -658,6 +678,22 @@ void main() {
 
       await tapAndSettle(tester, find.byTooltip('Dismiss'));
       expect(find.byKey(const Key('not-sent-card')), findsNothing);
+    });
+
+    testWidgets('a turned-down mark can be tried again while the trip runs', (tester) async {
+      api.rejectTypes = {'absent': 'Diya is not on this trip.'};
+      await openRunningTrip(tester);
+      await tapAndSettle(tester, find.byKey(const Key('mark-absent-2')));
+      await waitOutUndo(tester);
+      expect(find.byKey(const Key('not-sent-help')), findsOneWidget);
+
+      // The office put her back on the route.
+      api.rejectTypes = {};
+      await tapAndSettle(tester, find.byTooltip('Try again'));
+
+      expect(find.byKey(const Key('not-sent-card')), findsNothing);
+      expect(statusOf(tester, 2), 'Absent');
+      expect(api.syncedOps.last, containsPair('type', 'absent'));
     });
 
     testWidgets('an app opened with no signal shows the routes and trip saved on the phone', (tester) async {

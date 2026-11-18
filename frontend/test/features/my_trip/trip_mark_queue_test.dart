@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/features/my_trip/application/trip_mark_queue.dart';
+import 'package:edutrack_app/features/my_trip/data/models/not_sent_mark.dart';
 import 'package:edutrack_app/features/my_trip/data/models/trip_mark.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -188,6 +189,23 @@ void main() {
     expect(store.values.keys.where((key) => key.startsWith('my_trip.')), isEmpty);
 
     container.dispose();
+  });
+
+  group('a turned-down mark kept for trying again (docs/mobile-apps-review.md, 2.5)', () {
+    test('keeps the mark itself across a restart', () {
+      final mark = _mark(TripMarkType.absent, studentId: 2);
+      final kept = NotSentMark(clientId: mark.clientId, tripId: 55, label: 'x', reason: 'y', mark: mark);
+
+      final reread = NotSentMark.fromJson(jsonDecode(jsonEncode(kept.toJson())) as Map<String, dynamic>);
+
+      expect((reread.mark?.clientId, reread.mark?.type), (mark.clientId, TripMarkType.absent));
+    });
+
+    test('one saved by an older app has no mark, so it can only be dismissed', () {
+      final old = NotSentMark.fromJson({'client_id': 'a', 'trip_id': 55, 'label': 'x', 'reason': 'y'});
+
+      expect(old.mark, isNull);
+    });
   });
 
   group('the undo window (docs/mobile-apps-review.md, 1.2)', () {
