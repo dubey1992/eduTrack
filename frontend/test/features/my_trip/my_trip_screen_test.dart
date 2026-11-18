@@ -445,6 +445,73 @@ void main() {
     });
   });
 
+  group('everyone at a stop at once (docs/mobile-apps-review.md, 1.1)', () {
+    testWidgets('boards the ticked children at a stop, leaving the unticked waiting', (tester) async {
+      await openRunningTrip(tester);
+      expect(find.text('Board all 2 here'), findsOneWidget);
+
+      await tapAndSettle(tester, find.byKey(const Key('bulk-stop-101')));
+      expect(find.byKey(const Key('bulk-mark-sheet')), findsOneWidget);
+      await tapAndSettle(tester, find.byKey(const Key('bulk-mark-2')));
+      expect(find.text('Board 1'), findsOneWidget);
+      await tapAndSettle(tester, find.byKey(const Key('bulk-mark-confirm')));
+
+      expect((statusOf(tester, 1), statusOf(tester, 2)), ('Boarded', 'Pending'));
+      expect(find.text('1 boarded at Main Gate'), findsOneWidget);
+
+      await waitOutUndo(tester);
+      expect(api.syncedOps.map((op) => (op['type'], op['student_id'])), [('boarded', 1)]);
+    });
+
+    testWidgets('one Undo takes the whole stop back', (tester) async {
+      await openRunningTrip(tester);
+
+      await tapAndSettle(tester, find.byKey(const Key('bulk-stop-101')));
+      await tapAndSettle(tester, find.byKey(const Key('bulk-mark-confirm')));
+      await tapAndSettle(tester, find.byKey(const Key('bulk-undo')));
+      expect(find.text('Taken back - nobody was marked.'), findsOneWidget);
+      await waitOutUndo(tester);
+
+      expect((statusOf(tester, 1), statusOf(tester, 2)), ('Pending', 'Pending'));
+      expect(api.syncedOps, isEmpty);
+    });
+
+    testWidgets('backing out of the sheet marks nobody', (tester) async {
+      await openRunningTrip(tester);
+
+      await tapAndSettle(tester, find.byKey(const Key('bulk-stop-101')));
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expect(statusOf(tester, 1), 'Pending');
+      expect(api.syncedOps, isEmpty);
+    });
+
+    testWidgets('once aboard, everyone can be dropped at school in one go', (tester) async {
+      await openRunningTrip(tester);
+      expect(find.byKey(const Key('bulk-school')), findsNothing, reason: 'nobody is aboard yet');
+
+      await tapAndSettle(tester, find.byKey(const Key('bulk-stop-101')));
+      await tapAndSettle(tester, find.byKey(const Key('bulk-mark-confirm')));
+      expect(find.byKey(const Key('bulk-stop-101')), findsNothing, reason: 'nobody left to board there');
+
+      await tester.ensureVisible(find.byKey(const Key('bulk-school')));
+      await tapAndSettle(tester, find.byKey(const Key('bulk-school')));
+      await tapAndSettle(tester, find.byKey(const Key('bulk-mark-confirm')));
+
+      expect((statusOf(tester, 1), statusOf(tester, 2)), ('Dropped', 'Dropped'));
+    });
+
+    testWidgets('a search hides the bulk buttons, so a found child is marked alone', (tester) async {
+      await openRunningTrip(tester);
+
+      await tester.enterText(find.byType(TextField).first, 'Aarav');
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('bulk-stop-101')), findsNothing);
+    });
+  });
+
   group('the phone that stops sharing (docs/driver-app.md, D4.4)', () {
     testWidgets('a restricted phone is warned about before the run, not during it', (tester) async {
       battery.exempt = false;
