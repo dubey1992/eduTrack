@@ -148,6 +148,7 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
               subject: query['subject'] ?? 'Period',
               periodNumber: int.tryParse(query['period'] ?? '') ?? 0,
               subjectId: int.tryParse(query['subject_id'] ?? ''),
+              classSectionId: int.tryParse(query['class_id'] ?? ''),
             ),
           );
         },

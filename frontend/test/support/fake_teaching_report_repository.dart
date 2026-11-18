@@ -68,6 +68,9 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
     return created;
   }
 
+  /// The class and subject the last list was narrowed to ("Same as last time").
+  (int?, int?)? lastListClassAndSubject;
+
   @override
   Future<PaginatedResponse<TeachingReport>> list({
     int? schoolId,
@@ -77,10 +80,13 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
     bool toReview = false,
     String? dateFrom,
     String? dateTo,
+    int? classSectionId,
+    int? subjectId,
     required int page,
     required int perPage,
   }) async {
     lastListMine = mine;
+    lastListClassAndSubject = (classSectionId, subjectId);
     lastListToReview = toReview;
     lastListRange = (dateFrom, dateTo);
     if (failListWith != null) throw failListWith!;
@@ -88,6 +94,7 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
       if (schoolId != null && r.schoolId != schoolId) return false;
       if (teacherId != null && r.teacherId != teacherId) return false;
       if (reportDate != null && r.reportDate != reportDate) return false;
+      if (dateTo != null && r.reportDate.compareTo(dateTo) > 0) return false;
       return true;
     }).toList();
 

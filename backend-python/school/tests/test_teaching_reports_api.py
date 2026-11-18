@@ -631,6 +631,40 @@ class MyReports(TeachingReportCase):
         self.assertEqual([], self.mine(stranger))
 
 
+class MyReportsForOneClassAndSubject(TeachingReportCase):
+    """`mine=1&class_section_id=&subject_id=` - "Same as last time" on the
+    phone (docs/mobile-apps-review.md, 1.6): the caller's own last report
+    for this class and subject, and nobody else's."""
+
+    def ids(self, user, **params):
+        response = self.as_user(user).get("/api/v1/teaching-reports", {"mine": 1, **params})
+        self.assertEqual(200, response.status_code, response.data)
+
+        return [row["id"] for row in response.data["data"]]
+
+    def test_narrows_to_the_class_and_the_subject(self):
+        here = self.file().data["id"]
+        other_section = factories.ClassSectionFactory(school_class=self.section.school_class, name="B")
+        elsewhere_entry = factories.TimetableEntryFactory(
+            school=self.school, class_section=other_section, period=self.second, day_of_week="monday",
+            subject=self.subject, teacher=self.teacher,
+        )
+        self.assertEqual(201, self.file(timetable_entry_id=elsewhere_entry.id).status_code)
+
+        self.assertEqual([here], self.ids(self.teacher, class_section_id=self.section.id, subject_id=self.subject.id))
+        self.assertEqual([], self.ids(self.teacher, class_section_id=self.section.id, subject_id=999999))
+
+    def test_another_teachers_report_for_the_same_class_is_not_offered(self):
+        self.assertEqual(201, self.file().status_code)
+
+        self.assertEqual([], self.ids(self.hod, class_section_id=self.section.id, subject_id=self.subject.id))
+
+    def test_a_filter_that_is_not_an_id_is_ignored_rather_than_an_error(self):
+        self.assertEqual(201, self.file().status_code)
+
+        self.assertEqual(1, len(self.ids(self.teacher, class_section_id="x", subject_id="")))
+
+
 class OneReport(TeachingReportCase):
     """`GET teaching-reports/{id}` - a report opened from its period on the
     app's Today."""

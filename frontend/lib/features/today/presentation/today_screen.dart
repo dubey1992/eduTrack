@@ -458,6 +458,7 @@ VoidCallback? _openFor(BuildContext context, TodayPeriod period, DateTime date) 
         'class': period.classSection,
         'subject': period.subject,
         'period': '${period.periodNumber}',
+        'class_id': '${period.classSectionId}',
         if (period.subjectId != null) 'subject_id': '${period.subjectId}',
       },
     ).toString(),

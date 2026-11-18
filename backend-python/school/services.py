@@ -1981,6 +1981,12 @@ class DailyTeachingReportService:
         if filters.get("date_to"):
             reports = reports.filter(report_date__lte=filters["date_to"])
 
+        if filters.get("class_section_id"):
+            reports = reports.filter(timetable_entry__class_section_id=filters["class_section_id"])
+
+        if filters.get("subject_id"):
+            reports = reports.filter(timetable_entry__subject_id=filters["subject_id"])
+
         if filters.get("to_review"):
             # What the caller could review: not yet reviewed, not waiting on
             # its teacher, and never their own - nobody reviews their own

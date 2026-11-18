@@ -55,6 +55,10 @@ def collection(request) -> Response:
             # Day / week / month in the apps: an inclusive range of report dates.
             "date_from": dates.iso_or_none(request.query_params.get("date_from")),
             "date_to": dates.iso_or_none(request.query_params.get("date_to")),
+            # "Same as last time" on the phone: this class and subject only
+            # (docs/mobile-apps-review.md, 1.6).
+            "class_section_id": _id_or_none(request.query_params.get("class_section_id")),
+            "subject_id": _id_or_none(request.query_params.get("subject_id")),
         },
     )
 
@@ -179,3 +183,9 @@ def read_one(request, report_id: int) -> Response:
         raise Http404
 
     return Response(daily_teaching_report_resource(report))
+
+
+def _id_or_none(value):
+    """A query-string id, or nothing for anything that is not one - a filter
+    that cannot match is no filter, never a 500."""
+    return int(value) if value and value.isdigit() else None

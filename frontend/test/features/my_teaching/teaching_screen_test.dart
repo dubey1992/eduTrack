@@ -39,6 +39,8 @@ class _PagingReports extends FakeTeachingReportRepository {
     bool toReview = false,
     String? dateFrom,
     String? dateTo,
+    int? classSectionId,
+    int? subjectId,
     required int page,
     required int perPage,
   }) async {

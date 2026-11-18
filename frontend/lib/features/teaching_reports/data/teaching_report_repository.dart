@@ -46,6 +46,8 @@ class TeachingReportRepository {
     bool toReview = false,
     String? dateFrom,
     String? dateTo,
+    int? classSectionId,
+    int? subjectId,
     required int page,
     required int perPage,
   }) async {
@@ -58,6 +60,8 @@ class TeachingReportRepository {
         toReview: toReview,
         dateFrom: dateFrom,
         dateTo: dateTo,
+        classSectionId: classSectionId,
+        subjectId: subjectId,
         page: page,
         perPage: perPage,
       );

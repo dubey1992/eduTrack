@@ -1,5 +1,7 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
+import 'package:edutrack_app/features/my_teaching/data/report_notes.dart';
 import 'package:edutrack_app/features/my_teaching/presentation/file_report_screen.dart';
 import 'package:edutrack_app/features/syllabus/data/syllabus_topic_repository.dart';
 import 'package:edutrack_app/features/teaching_reports/data/teaching_report_repository.dart';
@@ -10,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../support/fake_syllabus_topic_repository.dart';
+import '../../support/in_memory_key_value_store.dart';
 import '../../support/fake_teaching_report_repository.dart';
 import '../../support/fake_today_repository.dart';
 import 'teaching_fixtures.dart';
@@ -20,7 +23,11 @@ void main() {
   late FakeSyllabusTopicRepository topics;
   late bool popped;
 
+  /// The phone's store, where drafts and templates are kept (1.6).
+  late InMemoryKeyValueStore store;
+
   setUp(() {
+    store = InMemoryKeyValueStore();
     reports = FakeTeachingReportRepository();
     topics = FakeSyllabusTopicRepository(topics: mathsTopics);
     popped = false;
@@ -68,6 +75,7 @@ void main() {
       ProviderScope(
         overrides: [
           teachingReportRepositoryProvider.overrideWithValue(reports),
+          keyValueStoreProvider.overrideWithValue(store),
           syllabusTopicRepositoryProvider.overrideWithValue(topics),
           todayRepositoryProvider.overrideWithValue(FakeTodayRepository()),
         ],
@@ -109,6 +117,133 @@ void main() {
     await tester.pump();
 
     expect(find.text('Say what was taught in this period.'), findsNothing);
+  });
+
+  group('fewer taps (docs/mobile-apps-review.md, 1.6)', () {
+    const withClass = ReportPeriod(
+      timetableEntryId: 11,
+      date: '2026-10-26',
+      classSection: 'Grade 3 A',
+      subject: 'Mathematics',
+      periodNumber: 1,
+      subjectId: 31,
+      classSectionId: 5,
+    );
+
+    Future<void> typeAndPause(WidgetTester tester, Key field, String text) async {
+      await tester.enterText(find.byKey(field), text);
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    testWidgets('what is typed is kept as a draft, and is back when the form opens again', (tester) async {
+      await pump(tester);
+      await typeAndPause(tester, const Key('report-topic'), 'Fractions: halves');
+      await typeAndPause(tester, const Key('report-homework'), 'Exercise 4.1');
+
+      // Gone - a call came in - then opened again.
+      await tester.pumpWidget(const SizedBox());
+      await pump(tester);
+
+      expect(find.text('Fractions: halves'), findsOneWidget);
+      expect(find.text('Exercise 4.1'), findsOneWidget);
+      expect(find.text('Your draft is back.'), findsOneWidget);
+    });
+
+    testWidgets('a report filed forgets its draft', (tester) async {
+      await pump(tester);
+      await typeAndPause(tester, const Key('report-topic'), 'Fractions: halves');
+      await submit(tester);
+
+      await pump(tester);
+
+      expect(find.text('Fractions: halves'), findsNothing);
+    });
+
+    testWidgets("Same as last time copies the teacher's last report for this class and subject", (tester) async {
+      reports = FakeTeachingReportRepository(
+        reports: [report(date: '2026-10-23', topic: 'Fractions: like denominators', homework: 'Exercise 3.9')],
+      );
+      await pump(tester, given: withClass);
+
+      expect(reports.lastListMine, isTrue);
+      expect(reports.lastListClassAndSubject, (5, 31));
+      expect(reports.lastListRange?.$2, '2026-10-25', reason: 'before the day being reported');
+
+      await tester.tap(find.byKey(const Key('report-same-as-last')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Fractions: like denominators'), findsOneWidget);
+      expect(find.text('Exercise 3.9'), findsOneWidget);
+    });
+
+    testWidgets('with no earlier report there is nothing to copy', (tester) async {
+      await pump(tester, given: withClass);
+
+      expect(find.byKey(const Key('report-same-as-last')), findsNothing);
+    });
+
+    testWidgets('a template saved for the subject fills the form later with one tap', (tester) async {
+      await pump(tester);
+      await tester.tap(find.byKey(const Key('report-templates')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('report-templates-empty')), findsOneWidget);
+      expect(tester.widget<OutlinedButton>(find.byKey(const Key('report-template-save'))).onPressed, isNull);
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('report-topic')), 'Mental maths warm-up');
+      await tester.tap(find.byKey(const Key('report-templates')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('report-template-save')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('report-template-0')), findsOneWidget);
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('report-topic')), '');
+      await tester.tap(find.byKey(const Key('report-templates')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('report-template-0')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mental maths warm-up'), findsOneWidget);
+    });
+  });
+
+  group('the notes on the phone', () {
+    test('templates are per subject, newest first, one copy of a topic, at most ten', () async {
+      final notes = ReportNotes(InMemoryKeyValueStore());
+      for (var i = 0; i < 12; i++) {
+        await notes.saveTemplate(31, ReportWords(topic: 'Lesson $i'));
+      }
+      await notes.saveTemplate(31, const ReportWords(topic: 'Lesson 5'));
+      await notes.saveTemplate(32, const ReportWords(topic: 'Other subject'));
+
+      final kept = await notes.templates(31);
+      expect(kept, hasLength(ReportNotes.maxTemplates));
+      expect(kept.first.topic, 'Lesson 5');
+      expect(kept.where((t) => t.topic == 'Lesson 5'), hasLength(1));
+      expect((await notes.templates(32)).single.topic, 'Other subject');
+    });
+
+    test('signing out forgets drafts and templates', () async {
+      final store = InMemoryKeyValueStore();
+      final notes = ReportNotes(store);
+      await notes.saveDraft(11, '2026-10-26', const ReportWords(topic: 'x'));
+      await notes.saveTemplate(31, const ReportWords(topic: 'y'));
+
+      await notes.clear();
+
+      expect(await notes.draft(11, '2026-10-26'), isNull);
+      expect(await notes.templates(31), isEmpty);
+    });
+
+    test('an unreadable store is notes lost, not a failure', () async {
+      final store = InMemoryKeyValueStore();
+      await store.write('report_drafts', 'not json');
+
+      expect(await ReportNotes(store).draft(11, '2026-10-26'), isNull);
+    });
   });
 
   testWidgets('files the report, trimmed, with blanks sent as nothing', (tester) async {

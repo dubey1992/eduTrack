@@ -94,6 +94,7 @@ void main() {
       'class': 'Grade 8 A',
       'subject': 'Mathematics',
       'period': '1',
+      'class_id': '81',
       'subject_id': '31',
     });
   });

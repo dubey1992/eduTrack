@@ -43,6 +43,8 @@ class TeachingReportApi {
     bool toReview = false,
     String? dateFrom,
     String? dateTo,
+    int? classSectionId,
+    int? subjectId,
     int? page,
     int? perPage,
   }) async {
@@ -56,6 +58,8 @@ class TeachingReportApi {
         if (toReview) 'to_review': 1,
         'date_from': ?dateFrom,
         'date_to': ?dateTo,
+        'class_section_id': ?classSectionId,
+        'subject_id': ?subjectId,
         'page': ?page,
         'per_page': ?perPage,
       },

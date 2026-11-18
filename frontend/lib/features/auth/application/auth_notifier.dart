@@ -22,6 +22,7 @@ import '../../marketing/application/marketing_draft_notifier.dart';
 import '../../my_register/application/register_queue.dart';
 import '../../my_register/data/register_store.dart';
 import '../../push/device_repository.dart';
+import '../../my_teaching/data/report_notes.dart';
 import '../../my_trip/application/trip_mark_queue.dart';
 import '../../classes/application/school_class_list_notifier.dart';
 import '../../communication/application/inbox_notifier.dart';
@@ -161,6 +162,12 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
       await ref.read(registerStoreProvider).clearRosters();
     } catch (error) {
       debugPrint('Saved class lists could not be cleared on sign-out: $error');
+    }
+    // Report drafts and templates are the teacher's own words (1.6).
+    try {
+      await ref.read(reportNotesProvider).clear();
+    } catch (error) {
+      debugPrint('Report drafts could not be cleared on sign-out: $error');
     }
   }
 

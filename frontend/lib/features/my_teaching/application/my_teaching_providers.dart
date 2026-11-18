@@ -1,3 +1,4 @@
+import '../../../core/utils/date_format.dart';
 import '../../../core/utils/date_period.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -142,6 +143,24 @@ class ResubmitReport {
 }
 
 /// One report, opened from its period on Today or from the list.
+/// The teacher's own most recent report for a class and subject before a
+/// day - "Same as last time" on the report form (docs/mobile-apps-review.md,
+/// 1.6). Null when there is none.
+final lastReportProvider = FutureProvider.autoDispose
+    .family<TeachingReport?, ({int classSectionId, int subjectId, String before})>((ref, asked) async {
+      final page = await ref
+          .read(teachingReportRepositoryProvider)
+          .list(
+            mine: true,
+            classSectionId: asked.classSectionId,
+            subjectId: asked.subjectId,
+            dateTo: apiDate(DateTime.parse(asked.before).subtract(const Duration(days: 1))),
+            page: 1,
+            perPage: 1,
+          );
+      return page.items.firstOrNull;
+    }, retry: (retryCount, error) => null);
+
 final myReportProvider = FutureProvider.autoDispose.family<TeachingReport, int>(
   (ref, id) => ref.read(teachingReportRepositoryProvider).get(id),
   retry: (retryCount, error) => null,

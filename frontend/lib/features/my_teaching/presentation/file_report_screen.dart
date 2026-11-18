@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../teaching_reports/data/models/teaching_report.dart';
 import '../application/my_teaching_providers.dart';
+import '../data/report_notes.dart';
 import 'report_detail_screen.dart' show HodNote;
 
 /// Which period a report is for. Everything comes from Today, which has it
@@ -20,6 +23,7 @@ class ReportPeriod {
     required this.subject,
     required this.periodNumber,
     this.subjectId,
+    this.classSectionId,
   });
 
   final int timetableEntryId;
@@ -30,6 +34,10 @@ class ReportPeriod {
   final String subject;
   final int periodNumber;
   final int? subjectId;
+
+  /// With [subjectId], what "Same as last time" looks for. Optional: an
+  /// older link without it simply offers no copy.
+  final int? classSectionId;
 }
 
 /// Saying what a period covered (docs/teacher-app.md, T3): the topic taught,
@@ -78,24 +86,91 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
   /// step back.
   bool _needsCheckIn = false;
 
+  /// Writes the draft a moment after the last keystroke, not on every one.
+  Timer? _draftTimer;
+
+  /// Held from the start: a ref is no longer usable in dispose(), where
+  /// the last draft is written.
+  late final ReportNotes _notes;
+
+  bool get _isNew => widget.changing == null;
+
   @override
   void initState() {
     super.initState();
+    _notes = ref.read(reportNotesProvider);
     final changing = widget.changing;
     if (changing != null) {
       _topic.text = changing.topicTaught;
       _homework.text = changing.homework ?? '';
       _remarks.text = changing.remarks ?? '';
+      return;
     }
+
+    // What was typed last time this form was open for this period - kept on
+    // the phone as it was typed (docs/mobile-apps-review.md, 1.6).
+    unawaited(_restoreDraft());
+    for (final controller in [_topic, _homework, _remarks]) {
+      controller.addListener(_scheduleDraft);
+    }
+  }
+
+  Future<void> _restoreDraft() async {
+    final draft = await _notes.draft(widget.period.timetableEntryId, widget.period.date);
+    if (draft == null || !mounted || !_words.isEmpty) return;
+
+    _fill(draft);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(key: Key('report-draft-restored'), content: Text('Your draft is back.')));
+  }
+
+  ReportWords get _words => ReportWords(topic: _topic.text, homework: _homework.text, remarks: _remarks.text);
+
+  void _fill(ReportWords words) {
+    _topic.text = words.topic;
+    _homework.text = words.homework;
+    _remarks.text = words.remarks;
+  }
+
+  void _scheduleDraft() {
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 600), _saveDraft);
+  }
+
+  Future<void> _saveDraft() => _notes.saveDraft(widget.period.timetableEntryId, widget.period.date, _words);
+
+  /// "Same as last time": the teacher's last report for this class and
+  /// subject, copied in to be changed where today differed.
+  void _copyLast(TeachingReport last) {
+    _fill(ReportWords(topic: last.topicTaught, homework: last.homework ?? '', remarks: last.remarks ?? ''));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied from ${formatIsoDate(last.reportDate)}. Change what was different today.')),
+    );
+  }
+
+  Future<void> _openTemplates(int subjectId) async {
+    final chosen = await showModalBottomSheet<ReportWords>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => _TemplatesSheet(subjectId: subjectId, current: _words, subject: widget.period.subject),
+    );
+    if (chosen != null && mounted) _fill(chosen);
   }
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
+    // A keystroke inside the last moment still makes the draft.
+    if (_isNew && !_filed) unawaited(_saveDraft());
     _topic.dispose();
     _homework.dispose();
     _remarks.dispose();
     super.dispose();
   }
+
+  /// Set once the report is in, so leaving does not write it back as a draft.
+  bool _filed = false;
 
   String? _trimmedOrNull(TextEditingController controller) {
     final text = controller.text.trim();
@@ -141,6 +216,9 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
             homework: _trimmedOrNull(_homework),
             remarks: _trimmedOrNull(_remarks),
           );
+      _filed = true;
+      _draftTimer?.cancel();
+      await _notes.forgetDraft(widget.period.timetableEntryId, widget.period.date);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report filed.')));
       context.pop(true);
@@ -167,9 +245,42 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
     'TEACHING_REPORT_NOT_RETURNED' => 'This report is no longer waiting for changes - it may have been reviewed.',
     'CHECK_IN_REQUIRED' =>
       'Check in first. Your teaching reports open once you are marked present today. '
-          'What you typed is kept until you leave this screen.',
+          'What you typed is kept on this phone as a draft.',
     _ => failure.message,
   };
+
+  /// Same as last time, and the subject's templates - each only where the
+  /// period says enough to find them.
+  Widget _helpers(ReportPeriod period) {
+    final classSectionId = period.classSectionId;
+    final subjectId = period.subjectId;
+    final last = classSectionId == null || subjectId == null
+        ? null
+        : ref
+              .watch(lastReportProvider((classSectionId: classSectionId, subjectId: subjectId, before: period.date)))
+              .value;
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (last != null)
+          OutlinedButton.icon(
+            key: const Key('report-same-as-last'),
+            onPressed: _sending ? null : () => _copyLast(last),
+            icon: const Icon(Icons.content_copy, size: 18),
+            label: Text('Same as ${formatIsoDate(last.reportDate)}'),
+          ),
+        if (subjectId != null)
+          OutlinedButton.icon(
+            key: const Key('report-templates'),
+            onPressed: _sending ? null : () => _openTemplates(subjectId),
+            icon: const Icon(Icons.bookmarks_outlined, size: 18),
+            label: const Text('Templates'),
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -222,6 +333,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                     ],
                     const SizedBox(height: 12),
                   ],
+                  if (_isNew) ...[_helpers(period), const SizedBox(height: 8)],
                   TextFormField(
                     key: const Key('report-topic'),
                     controller: _topic,
@@ -354,5 +466,116 @@ class _SyllabusTopicChoice extends ConsumerWidget {
             );
           },
         );
+  }
+}
+
+/// The subject's saved templates: tap one to fill the form, or keep what is
+/// typed now as a new one. On this phone only.
+class _TemplatesSheet extends ConsumerStatefulWidget {
+  const _TemplatesSheet({required this.subjectId, required this.current, required this.subject});
+
+  final int subjectId;
+  final ReportWords current;
+  final String subject;
+
+  @override
+  ConsumerState<_TemplatesSheet> createState() => _TemplatesSheetState();
+}
+
+class _TemplatesSheetState extends ConsumerState<_TemplatesSheet> {
+  List<ReportWords>? _templates;
+
+  ReportNotes get _notes => ref.read(reportNotesProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    _notes.templates(widget.subjectId).then((found) {
+      if (mounted) setState(() => _templates = found);
+    });
+  }
+
+  Future<void> _saveCurrent() async {
+    final kept = await _notes.saveTemplate(widget.subjectId, widget.current);
+    if (mounted) setState(() => _templates = kept);
+  }
+
+  Future<void> _delete(ReportWords template) async {
+    final kept = await _notes.deleteTemplate(widget.subjectId, template.topic);
+    if (mounted) setState(() => _templates = kept);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final templates = _templates;
+    final canSave = widget.current.topic.trim().isNotEmpty;
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.75),
+        child: Column(
+          key: const Key('report-templates-sheet'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Text('${widget.subject} templates', style: Theme.of(context).textTheme.titleLarge),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text('Kept on this phone. Tap one to fill in the report.', style: TextStyle(color: colors.muted)),
+            ),
+            if (templates == null)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (templates.isEmpty)
+              Padding(
+                key: const Key('report-templates-empty'),
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'None yet. Type a report you write often, then save it here.',
+                  style: TextStyle(color: colors.muted),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final (index, template) in templates.indexed)
+                      ListTile(
+                        key: Key('report-template-$index'),
+                        title: Text(template.topic, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        subtitle: template.homework.isEmpty
+                            ? null
+                            : Text('Homework: ${template.homework}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        onTap: () => Navigator.of(context).pop(template),
+                        trailing: IconButton(
+                          key: Key('report-template-delete-$index'),
+                          tooltip: 'Delete this template',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _delete(template),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: OutlinedButton.icon(
+                key: const Key('report-template-save'),
+                onPressed: canSave ? _saveCurrent : null,
+                icon: const Icon(Icons.bookmark_add_outlined),
+                label: Text(canSave ? 'Save what is typed as a template' : 'Type what was taught to save a template'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
