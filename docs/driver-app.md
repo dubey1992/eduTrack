@@ -1081,6 +1081,15 @@ bus alone and marks the children too.**
 
 ## One more thing worth a word: the role's name
 
+**Decided 2026-11-18 (docs/mobile-apps-review.md, M0):** the icon on the
+phone reads **"School365ai Bus"** (it fits both crew), while the Play listing
+keeps "School365ai Driver App". Drivers have had their own `DRIVER` role
+since this note was written, so the two roles keep their names - "Driver"
+and "Bus Attendant" - wherever they are told apart; the words that speak to
+both at once now say **"Bus crew"** (the sign-in button and title, the
+"who signs in here" panel, the passcode-sign-in error). No stored value
+changed. The note as first written:
+
 With drivers inside it, the stored role `BUS_ATTENDANT` reads wrong on a
 driver's screen and in the permissions matrix. The cheap fix is to change
 only what people read — "Bus Crew", say — and leave the stored value alone:

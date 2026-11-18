@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/env.dart';
 import 'core/routing/driver_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/my_trip/presentation/trip_health_lifecycle.dart';
+import 'features/push/push_registrar.dart';
 
 /// The app the bus crew installs (docs/driver-app.md).
 ///
@@ -29,7 +31,9 @@ class DriverApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'School365ai Driver',
+      // The name the phone shows in its recent apps; the icon says the same
+      // (decided 2026-11-18: fits both crew).
+      title: 'School365ai Bus',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.crewLight(),
       darkTheme: AppTheme.crewDark(),
@@ -48,8 +52,19 @@ class DriverApp extends ConsumerWidget {
       // The Overlay stays: MaterialApp.router's builder wraps content
       // outside the Navigator's own, and things that need one (a snackbar
       // from a page, for instance) find it here.
-      builder: (context, child) =>
-          Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+      //
+      // PushRegistrar registers the crew member's phone for notifications
+      // (docs/mobile-apps-review.md, M0). Nothing is sent to crew yet; a tap
+      // on anything that is opens the trip.
+      builder: (context, child) => PushRegistrar(
+        app: 'driver',
+        safeRoute: safeCrewPushRoute,
+        onOpen: (route) => ref.read(driverRouterProvider).go(route),
+        // Notes when the phone backgrounds the app, for the Trip check.
+        child: TripHealthLifecycle(
+          child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+        ),
+      ),
     );
   }
 }

@@ -331,7 +331,7 @@ class SetupCodeDialog extends ConsumerWidget {
             Center(child: Text('For mobile number ${code.loginMobile}', style: muted)),
             const SizedBox(height: 16),
             const Text(
-              "On the attendant's phone: open the app, tap 'Bus attendant? Sign in with your mobile number', "
+              "On their phone: open the School365ai Bus app, tap 'Bus crew? Sign in with your mobile number', "
               'enter this number and code, and choose a 4-digit passcode.',
             ),
             const SizedBox(height: 12),

@@ -220,7 +220,7 @@ class _CrewFormDialogState extends ConsumerState<CrewFormDialog> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'No password: a ${_role.label} signs in to the Driver app with this mobile number and a '
+                        'No password: a ${_role.label} signs in to the School365ai Bus app with this mobile number and a '
                         '4-digit passcode on a registered phone. After saving, open their Sign-in to issue a '
                         'setup code.',
                         style: TextStyle(fontSize: 12, color: colors.muted),

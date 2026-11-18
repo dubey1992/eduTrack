@@ -159,12 +159,12 @@ void main() {
       expect(find.text('Smarter Schools. Brighter Futures.'), findsOneWidget);
       expect(find.textContaining('Every school day,', findRichText: true), findsOneWidget);
       expect(find.byKey(const Key('who-signs-in')), findsOneWidget);
-      for (final who in ['School staff. ', 'Bus attendants. ', 'Parents. ']) {
+      for (final who in ['School staff. ', 'Bus crew. ', 'Parents. ']) {
         expect(find.textContaining(who, findRichText: true), findsOneWidget, reason: who);
       }
       // No sample figures or made-up activity on the sign-in page.
       expect(find.byKey(const Key('login-photo')), findsNothing);
-      // Bus attendants are pointed at the button under the form, not given a second one.
+      // Bus crew are pointed at the button under the form, not given a second one.
       expect(find.text('Sign in with mobile'), findsNothing);
       // The form itself is still reachable alongside the panel.
       expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
@@ -213,7 +213,7 @@ void main() {
       await tester.pumpWidget(wrap(const LoginScreen(), FakeAuthRepository()));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(OutlinedButton, 'Bus attendant? Sign in with your mobile number'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Bus crew? Sign in with your mobile number'), findsOneWidget);
     });
 
     testWidgets('on a phone, the form comes first, under the logo, with a word for parents', (tester) async {

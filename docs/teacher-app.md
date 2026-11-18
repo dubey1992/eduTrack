@@ -521,7 +521,7 @@ the phones they are signed in on. So a switched-off alert - never recorded
   favour of an installation id for a newer send route; moving means moving
   the server's send target too, so the two move together.
 
-**To switch push on** (the business's own Firebase project - needed once):
+**To switch push on** (the business's own Firebase project - needed once; the full guide for all three apps is docs/firebase-setup.md):
 1. In the Firebase console, create (or reuse the Google Cloud project of
    the Maps keys as) a Firebase project, and add an **Android app** with
    package name `com.school365ai`.

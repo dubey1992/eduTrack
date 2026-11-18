@@ -36,7 +36,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from django.conf import settings
 from django.core.cache import cache
 
-from .enums import MessageCategory, MessageEvent
+from .enums import MessageCategory, MessageEvent, UserRole
 from .gateways import http
 from .models import DeviceToken, Message
 
@@ -133,7 +133,16 @@ def access_token(account: dict) -> str | None:
     return token
 
 
+# Where a tapped notification opens in the School365ai Bus app: the trip,
+# its one screen that matters (docs/mobile-apps-review.md, M0). Nothing is
+# sent to crew yet - what they are told arrives with M7.
+CREW_ROUTE = "/my-trip"
+
+
 def route_for(message: Message) -> str:
+    if message.user_id and UserRole.is_crew(message.user.role):
+        return CREW_ROUTE
+
     return ROUTES.get(message.category, DEFAULT_ROUTE)
 
 

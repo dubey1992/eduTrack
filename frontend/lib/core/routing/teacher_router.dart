@@ -290,7 +290,7 @@ class _NotTeacherScreen extends ConsumerWidget {
               const TeacherMark(size: 72, tile: true),
               const SizedBox(height: 16),
               Text(
-                crew ? 'Use the Driver app' : 'Use the School365ai website',
+                crew ? 'Use the School365ai Bus app' : 'Use the School365ai website',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),

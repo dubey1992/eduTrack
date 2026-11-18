@@ -1,0 +1,4 @@
+
+# Firebase server key (docs/firebase-setup.md) - a secret, never committed.
+backend/firebase-service-account.json
+*service-account*.json

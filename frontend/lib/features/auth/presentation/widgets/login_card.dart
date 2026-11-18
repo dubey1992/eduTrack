@@ -188,7 +188,7 @@ class LoginCard extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     icon: const Icon(Icons.directions_bus_filled_outlined, size: 18),
-                    label: const Text('Bus attendant? Sign in with your mobile number', textAlign: TextAlign.center),
+                    label: const Text('Bus crew? Sign in with your mobile number', textAlign: TextAlign.center),
                   ),
                 ),
               ],

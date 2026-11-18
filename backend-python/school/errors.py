@@ -457,7 +457,9 @@ class UsePasscodeSignIn(ApiError):
     error_code = "USE_PASSCODE_SIGN_IN"
 
     def __init__(self) -> None:
-        super().__init__("Bus attendants sign in with their mobile number and passcode, in the app on their phone.")
+        super().__init__(
+            "Bus crew sign in with their mobile number and passcode, in the School365ai Bus app on their phone."
+        )
 
 
 class KeptBySchoolOffice(ApiError):

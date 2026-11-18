@@ -155,7 +155,7 @@ void main() {
     expect(find.text('1234 5678'), findsOneWidget);
     expect(find.textContaining('Valid for 24 hours, until '), findsOneWidget);
     expect(find.text('For mobile number +919876543210'), findsOneWidget);
-    expect(find.textContaining("tap 'Bus attendant? Sign in with your mobile number'"), findsOneWidget);
+    expect(find.textContaining("tap 'Bus crew? Sign in with your mobile number'"), findsOneWidget);
 
     await tester.tap(find.text('Copy'));
     await tester.pumpAndSettle();

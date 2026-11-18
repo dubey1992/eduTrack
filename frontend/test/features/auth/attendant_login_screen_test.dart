@@ -157,7 +157,7 @@ void main() {
       registerPhone();
       await pumpScreen(tester);
 
-      expect(find.text('Bus attendant sign in'), findsOneWidget);
+      expect(find.text('Bus crew sign in'), findsOneWidget);
       expect(field('attendant-passcode'), findsOneWidget);
       expect(field('attendant-setup-code'), findsNothing);
       expect(find.widgetWithText(TextFormField, '9876543210'), findsOneWidget);
@@ -269,7 +269,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LoginScreen), findsOneWidget);
 
-      await tester.tap(find.text('Bus attendant? Sign in with your mobile number'));
+      await tester.tap(find.text('Bus crew? Sign in with your mobile number'));
       await tester.pumpAndSettle();
 
       expect(find.byType(AttendantLoginScreen), findsOneWidget);

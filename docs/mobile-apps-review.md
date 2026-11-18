@@ -153,6 +153,15 @@ the product owner before that phase starts.
 | M11 | Languages and accessibility | 3.1, 3.4 | S, D, F | L | Decide | Hindi, then regional languages, plus a large-text and screen-reader pass - after the screens above exist, so each string is translated once |
 | M12 | Bigger bets | 1.7, 8.4, 8.6 | S, F | L | DB, Decide | Marks from a photo (OCR), PTM booking, events and gallery - only if schools ask |
 
+**M0 progress (2026-11-18, built on main, not deployed):**
+
+- 9.4 naming decided and done: icon "School365ai Bus", Play name kept, "Bus crew" where text speaks to both crew (docs/driver-app.md).
+- 5.3 Driver push wired: crew phones register as app `driver`; a tap opens My Trip; nothing is sent to crew until M7. Family push code was already in place.
+- 9.1 Firebase: guide for the owner, docs/firebase-setup.md - push stays off until the project exists.
+- 9.2 GPS test: a **Trip check** screen in the Bus app (the trip log: positions taken, longest gap, sent / waiting / refused, background time, battery exemption, shareable report) and the test plan, docs/phone-gps-test.md - the runs themselves are the owner's.
+- 9.3 Play listings and data-safety answers drafted, docs/play-store-listings.md; legal review and the "to confirm" answers are the owner's.
+- 9.5 Family doc status brought up to date.
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?

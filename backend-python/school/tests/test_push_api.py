@@ -381,3 +381,32 @@ class TheReviewTellsTheTeacher(PushTestCase):
 
         self.assertEqual("/teaching", push.route_for(Message.objects.get(user_id=self.teacher.id)))
 
+
+
+class TheBusCrewApp(PushTestCase):
+    """The School365ai Bus app registers crew phones for push
+    (docs/mobile-apps-review.md, M0); nothing is sent to crew yet."""
+
+    def test_a_driver_or_attendant_registers_their_phone_for_the_bus_app(self):
+        for role in (UserRole.DRIVER, UserRole.BUS_ATTENDANT):
+            with self.subTest(role=role):
+                crew = factories.UserFactory(school=self.school, role=role)
+                response = self.as_user(crew).post(
+                    "/api/v1/devices", {"token": f"crew-{role}", "platform": "android", "app": "driver"},
+                    format="json",
+                )
+
+                self.assertEqual(200, response.status_code, response.data)
+                self.assertEqual((crew.id, "driver"), tuple(
+                    DeviceToken.objects.filter(token=f"crew-{role}").values_list("user_id", "app").get()
+                ))
+
+    def test_a_crew_message_opens_the_trip_whatever_it_is_about(self):
+        crew = factories.UserFactory(school=self.school, role=UserRole.DRIVER)
+
+        for category in ("leave", "teaching", "announcement"):
+            with self.subTest(category=category):
+                self.assertEqual("/my-trip", push.route_for(self.inbox_message(crew, category=category)))
+
+    def test_staff_routes_are_unchanged(self):
+        self.assertEqual("/leave", push.route_for(self.inbox_message(self.teacher)))
