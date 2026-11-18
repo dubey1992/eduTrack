@@ -294,6 +294,10 @@ urlpatterns = [
     path("api/v1/payroll/payslips/<int:payslip_id>/pdf", payroll.payslip_pdf),
     path("api/v1/payroll/payslips/<int:payslip_id>/email", payroll.email_payslip),
     path("api/v1/payroll/my-payslips", payroll.my_payslips),
+    # Advances paid to staff, recovered from payslips (docs/dashboard.md, D4).
+    path("api/v1/payroll/advances", payroll.advances),
+    path("api/v1/payroll/advances/<int:advance_id>", payroll.advance),
+    path("api/v1/payroll/advances/<int:advance_id>/cancel", payroll.cancel_advance),
     path("api/v1/payroll/my-payslips/<int:payslip_id>/email", payroll.email_my_payslip),
     # Fee Management, step F1 "Fee Set-up" - on this backend only. docs/fees.md.
     path("api/v1/fees/heads", fees.heads),

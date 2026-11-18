@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import '../../payments/data/models/payment.dart';
 import 'models/payroll.dart';
+import 'models/staff_advance.dart';
 import 'payroll_api.dart';
 
 final payrollRepositoryProvider = Provider<PayrollRepository>(
@@ -46,6 +47,45 @@ class PayrollRepository {
     BankDetails? bank,
   }) {
     return _call(() => _api.saveSalary(staffProfileId, basicSalary: basicSalary, components: components, bank: bank));
+  }
+
+  // -- advances paid to staff (docs/dashboard.md, D4) -------------------------
+
+  Future<PaginatedResponse<StaffAdvance>> advances({
+    int? schoolId,
+    String? status,
+    required int page,
+    required int perPage,
+  }) {
+    return _call(() => _api.advances(schoolId: schoolId, status: status, page: page, perPage: perPage));
+  }
+
+  Future<StaffAdvance> recordAdvance({
+    required int staffProfileId,
+    required String amount,
+    required DateTime paidOn,
+    required PaymentMode mode,
+    String? reference,
+    required String monthlyRecovery,
+    DateTime? recoveryStarts,
+    required String reason,
+  }) {
+    return _call(
+      () => _api.recordAdvance(
+        staffProfileId: staffProfileId,
+        amount: amount,
+        paidOn: paidOn,
+        mode: mode,
+        reference: reference,
+        monthlyRecovery: monthlyRecovery,
+        recoveryStarts: recoveryStarts,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<StaffAdvance> cancelAdvance(int advanceId, {required String reason}) {
+    return _call(() => _api.cancelAdvance(advanceId, reason: reason));
   }
 
   Future<PaginatedResponse<PayrollRun>> runs({int? schoolId, required int page, required int perPage}) {

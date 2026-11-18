@@ -3,6 +3,7 @@ import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/payments/data/models/payment.dart';
 import 'package:edutrack_app/features/payroll/data/models/payroll.dart';
+import 'package:edutrack_app/features/payroll/data/models/staff_advance.dart';
 import 'package:edutrack_app/features/payroll/data/payroll_repository.dart';
 
 import 'fake_pagination.dart';
@@ -84,6 +85,82 @@ class FakePayrollRepository implements PayrollRepository {
         .toList();
 
     return paginateFake(filtered, page: page, perPage: perPage);
+  }
+
+  // -- advances paid to staff (docs/dashboard.md, D4) -------------------------
+
+  final List<StaffAdvance> advancesStored = [];
+
+  /// What the last record sent, by the API's names.
+  Map<String, Object?>? lastAdvance;
+
+  @override
+  Future<PaginatedResponse<StaffAdvance>> advances({
+    int? schoolId,
+    String? status,
+    required int page,
+    required int perPage,
+  }) async {
+    _enter('advances');
+    final rows = advancesStored.where((advance) => status == null || advance.status.apiValue == status).toList();
+
+    return paginateFake(rows, page: page, perPage: perPage);
+  }
+
+  @override
+  Future<StaffAdvance> recordAdvance({
+    required int staffProfileId,
+    required String amount,
+    required DateTime paidOn,
+    required PaymentMode mode,
+    String? reference,
+    required String monthlyRecovery,
+    DateTime? recoveryStarts,
+    required String reason,
+  }) async {
+    lastAdvance = {
+      'staff_profile_id': staffProfileId,
+      'amount': amount,
+      'paid_on': paidOn,
+      'payment_mode': mode.apiValue,
+      'reference': reference,
+      'monthly_recovery': monthlyRecovery,
+      'recovery_starts': recoveryStarts,
+      'reason': reason,
+    };
+    _enter('recordAdvance');
+    final employee = employees.firstWhere((e) => e.staffProfileId == staffProfileId);
+    final advance = fakeAdvance(
+      id: advancesStored.length + 1,
+      staffProfileId: staffProfileId,
+      employeeName: employee.name,
+      amount: amount,
+      monthlyRecovery: monthlyRecovery,
+      reason: reason,
+    );
+    advancesStored.insert(0, advance);
+
+    return advance;
+  }
+
+  @override
+  Future<StaffAdvance> cancelAdvance(int advanceId, {required String reason}) async {
+    _enter('cancelAdvance');
+    final index = advancesStored.indexWhere((advance) => advance.id == advanceId);
+    final old = advancesStored[index];
+    final cancelled = fakeAdvance(
+      id: old.id,
+      staffProfileId: old.staffProfileId,
+      employeeName: old.employeeName,
+      amount: old.amount,
+      monthlyRecovery: old.monthlyRecovery,
+      reason: old.reason,
+      status: 'cancelled',
+      cancelReason: reason,
+    );
+    advancesStored[index] = cancelled;
+
+    return cancelled;
   }
 
   /// What the last salary save sent for the bank.
@@ -432,4 +509,45 @@ class FakePayrollRepository implements PayrollRepository {
       lines: slip.lines,
     );
   }
+}
+
+/// An advance as the API sends it (docs/dashboard.md, D4).
+StaffAdvance fakeAdvance({
+  int id = 1,
+  int staffProfileId = 1,
+  String employeeName = 'Rahul Verma',
+  String amount = '3000.00',
+  String monthlyRecovery = '1000.00',
+  String recovered = '0.00',
+  String pending = '0.00',
+  String? remaining,
+  String reason = 'Medical emergency',
+  String status = 'active',
+  String? cancelReason,
+}) {
+  final left =
+      remaining ??
+      (status == 'cancelled' ? '0.00' : (double.parse(amount) - double.parse(recovered)).toStringAsFixed(2));
+
+  return StaffAdvance.fromJson({
+    'id': id,
+    'staff_profile_id': staffProfileId,
+    'employee_name': employeeName,
+    'employee_code': 'TCH-$staffProfileId',
+    'amount': amount,
+    'currency_code': 'INR',
+    'paid_on': '2026-09-10',
+    'payment_mode': 'cash',
+    'payment_mode_label': 'Cash',
+    'monthly_recovery': monthlyRecovery,
+    'recovery_starts': '2026-10-01',
+    'recovery_starts_label': 'October 2026',
+    'reason': reason,
+    'status': status,
+    'recovered': recovered,
+    'pending': pending,
+    'remaining': left,
+    'can_cancel': status != 'cancelled' && recovered == '0.00',
+    'cancel_reason': cancelReason,
+  });
 }

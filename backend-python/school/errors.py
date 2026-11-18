@@ -699,6 +699,13 @@ class FeesLocked(ApiError):
         )
 
 
+class StaffAdvanceNotCancellable(ApiError):
+    """An advance that is cancelled, or partly recovered, stays as it is."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "STAFF_ADVANCE_NOT_CANCELLABLE"
+
+
 class FeeReceiptCancelled(ApiError):
     """A cancelled receipt stays cancelled: its dues have already gone back
     to owing, and cancelling again would take the money off them twice."""

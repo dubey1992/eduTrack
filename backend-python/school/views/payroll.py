@@ -26,8 +26,15 @@ from ..errors import PayrollRunNotFinalized, PayslipEmailRefused
 from ..models import PayrollRun, Payslip, PayslipLine, School, StaffProfile
 from ..pagination import LaravelPagination
 from ..payroll import payslips
-from ..payroll.requests import AdjustmentRequest, GeneratePayrollRunRequest, PayRequest, SaveSalaryRequest
-from ..payroll.resources import employee_salary_resource, payslip_resource, run_resource
+from ..payroll.requests import (
+    AdjustmentRequest,
+    CancelAdvanceRequest,
+    GeneratePayrollRunRequest,
+    PayRequest,
+    SaveSalaryRequest,
+    StaffAdvanceRequest,
+)
+from ..payroll.resources import advance_resource, employee_salary_resource, payslip_resource, run_resource
 from ..payroll.service import PayrollRunService, PayslipService, SalaryService, period_label, school_today
 from ..policies import PayrollPolicy, authorize
 from ..throttling import SendDocumentThrottle
@@ -35,6 +42,88 @@ from ..throttling import SendDocumentThrottle
 
 def filters_from(request, *names) -> dict:
     return {name: request.query_params.get(name) for name in names}
+
+
+# -- advances paid to staff (docs/dashboard.md, D4) ---------------------------
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def advances(request) -> Response:
+    from ..payroll import advances as recovery
+    from ..payroll.advances import StaffAdvanceService
+
+    if request.method == "POST":
+        authorize(PayrollPolicy.manage_any(request.user))
+        profile_id = request.data.get("staff_profile_id")
+        profile = None
+        if str(profile_id or "").isdigit():
+            profile = StaffProfile.objects.select_related("school", "user").filter(pk=int(profile_id)).first()
+
+        form = StaffAdvanceRequest(
+            data=request.data, school_today=school_today(profile.school_id) if profile else None
+        )
+        form.is_valid(raise_exception=True)
+
+        if profile is None:
+            return Response(
+                {"code": "VALIDATION_ERROR", "message": "There is no such employee.",
+                 "details": {"errors": {"staff_profile_id": ["There is no such employee."]}}},
+                status=422,
+            )
+
+        # Another school's employee is a 403, not a way to pay them.
+        authorize(PayrollPolicy.manage(request.user, profile.school_id))
+        advance = StaffAdvanceService.create(profile, form.validated_data, request.user, request)
+
+        return Response(advance_detail(advance.id), status=status.HTTP_201_CREATED)
+
+    authorize(PayrollPolicy.view_any(request.user))
+    found = StaffAdvanceService.visible_to(request.user, filters_from(request, "school_id", "staff_profile_id", "status"))
+
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(found, request)
+    ids = [advance.id for advance in page]
+    done, waiting = recovery.recovered(ids), recovery.pending(ids)
+
+    return paginator.get_paginated_response([advance_resource(advance, done, waiting) for advance in page])
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def advance(request, advance_id: int) -> Response:
+    from ..models import StaffAdvance
+
+    found = get_object_or_404(StaffAdvance, pk=advance_id)
+    authorize(PayrollPolicy.view(request.user, found.school_id))
+
+    return Response(advance_detail(found.id))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cancel_advance(request, advance_id: int) -> Response:
+    from ..models import StaffAdvance
+    from ..payroll.advances import StaffAdvanceService
+
+    found = get_object_or_404(StaffAdvance, pk=advance_id)
+    authorize(PayrollPolicy.manage(request.user, found.school_id))
+
+    form = CancelAdvanceRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+    StaffAdvanceService.cancel(found, form.validated_data["reason"], request.user, request)
+
+    return Response(advance_detail(found.id))
+
+
+def advance_detail(advance_id: int) -> dict:
+    from ..models import StaffAdvance
+    from ..payroll import advances as recovery
+    from ..payroll.advances import StaffAdvanceService
+
+    found = StaffAdvance.objects.select_related(*StaffAdvanceService.WITH).get(pk=advance_id)
+
+    return advance_resource(found, recovery.recovered([found.id]), recovery.pending([found.id]), with_recoveries=True)
 
 
 # -- salaries -----------------------------------------------------------------

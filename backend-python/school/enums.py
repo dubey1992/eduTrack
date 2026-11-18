@@ -556,6 +556,18 @@ class PayslipLineSource(models.TextChoices):
     BASIC = "basic", "Basic"
     COMPONENT = "component", "Component"
     ADJUSTMENT = "adjustment", "Adjustment"
+    # The month's recovery of an advance paid to the employee
+    # (docs/dashboard.md, D4) - rebuilt with the draft, like basic pay.
+    ADVANCE = "advance", "Advance recovery"
+
+
+class StaffAdvanceStatus(models.TextChoices):
+    """An advance as the screen shows it. Only active and cancelled are
+    stored; repaid is worked out from the payslips that recovered it."""
+
+    ACTIVE = "active", "Being recovered"
+    REPAID = "repaid", "Repaid"
+    CANCELLED = "cancelled", "Cancelled"
 
 
 class PayrollRunStatus(models.TextChoices):

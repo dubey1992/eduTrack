@@ -16,8 +16,10 @@ import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../application/advances_notifier.dart';
 import '../application/payroll_notifiers.dart';
 import '../data/models/payroll.dart';
+import 'advances_tab.dart';
 import 'generate_run_dialog.dart';
 import 'pay_dialog.dart';
 import 'payslip_dialog.dart';
@@ -57,7 +59,7 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> {
     }
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -87,6 +89,7 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> {
                   setState(() => _schoolFilter = schoolId);
                   ref.read(payrollRunListNotifierProvider.notifier).setSchoolFilter(schoolId);
                   ref.read(salaryListNotifierProvider.notifier).setSchoolFilter(schoolId);
+                  ref.read(advanceListNotifierProvider.notifier).setSchoolFilter(schoolId);
                 },
               ),
             ],
@@ -98,6 +101,8 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> {
               tabs: [
                 Tab(text: 'Runs'),
                 Tab(text: 'Salaries'),
+                // Advances paid to staff (docs/dashboard.md, D4).
+                Tab(text: 'Advances'),
               ],
             ),
           ),
@@ -106,6 +111,7 @@ class _PayrollScreenState extends ConsumerState<PayrollScreen> {
               children: [
                 _RunsTab(onOpen: (run) => setState(() => _openRunId = run.id)),
                 _SalariesTab(canManage: canManage),
+                AdvancesTab(canManage: canManage, schoolId: _schoolFilter),
               ],
             ),
           ),
