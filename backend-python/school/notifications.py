@@ -32,7 +32,7 @@ from dataclasses import dataclass
 
 from django.utils import timezone
 
-from . import attendants, dates, family_inbox, modules, platform_messaging, queue
+from . import attendants, dates, family_inbox, message_links, modules, platform_messaging, queue
 from .clock import SchoolClock
 from .enums import (
     AttendanceAlertMode,
@@ -402,8 +402,11 @@ def record(
 
         if channel == MessageChannel.WHATSAPP and status == MessageStatus.QUEUED:
             # School365ai's own templates, the same for every school
-            # (docs/platform-messaging.md).
-            whatsapp = platform_messaging.whatsapp_payload(event, tokens)
+            # (docs/platform-messaging.md) - with the link into the app, for
+            # a template that has a place for one (message_links.py).
+            whatsapp = platform_messaging.whatsapp_payload(
+                event, {**tokens, message_links.LINK_TOKEN: message_links.link_for(event, recipient)}
+            )
 
             if whatsapp is None:
                 status, reason = MessageStatus.SKIPPED, NO_WHATSAPP_TEMPLATE

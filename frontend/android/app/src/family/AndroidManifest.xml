@@ -27,6 +27,18 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
 
     <application>
+        <!-- Links from the school's WhatsApp messages open the app on the
+             right screen (docs/mobile-apps-review.md, 6.5). Verified against
+             school365ai.com/.well-known/assetlinks.json; until that lists
+             this build's key, Android offers the website instead. -->
+        <activity android:name=".MainActivity" tools:node="merge">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="school365ai.com" android:pathPrefix="/f/"/>
+            </intent-filter>
+        </activity>
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             tools:node="remove"/>

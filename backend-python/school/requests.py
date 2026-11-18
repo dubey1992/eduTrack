@@ -1877,7 +1877,9 @@ class UpdateWhatsappTemplateRequest(serializers.Serializer):
         return value
 
     def validate_parameters(self, value):
-        allowed = MessageEvent.tokens(self.event)
+        # `link` too: WhatsApp only, so it is offered here and nowhere else
+        # (message_links.py) - a school's own SMS wording cannot use it.
+        allowed = [*MessageEvent.tokens(self.event), "link"]
         unknown = [name for name in value if name not in allowed]
 
         if unknown:

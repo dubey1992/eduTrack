@@ -295,6 +295,14 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 # host. Unset in development and tests, and then nothing is written.
 PUBLIC_SITE_DIR = os.environ.get("PUBLIC_SITE_DIR", "")
 PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", "https://school365ai.com")
+# Android App Links for the Family app (docs/mobile-apps-review.md, 6.5): the
+# SHA-256 fingerprints of the keys it is signed with - Play's app-signing key
+# and the upload key, from Play Console -> Setup -> App signing - separated by
+# commas. Empty: the website's assetlinks.json lists none, and a link opens
+# the website's page instead of the app.
+FAMILY_APP_LINK_FINGERPRINTS = [
+    item.strip() for item in os.environ.get("FAMILY_APP_LINK_FINGERPRINTS", "").split(",") if item.strip()
+]
 # Where those pages' Request a Demo and Join Early Access forms post to.
 PUBLIC_API_URL = os.environ.get("PUBLIC_API_URL", "https://api.school365ai.com/api/v1")
 DEFAULT_FROM_EMAIL = os.environ.get("MAIL_FROM_ADDRESS", "hello@example.com")

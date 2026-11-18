@@ -29,7 +29,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from school import crypto, factories, mailer, notifications, queue, tokens
-from school.enums import MessageChannel, MessageStatus, UserRole
+from school.enums import MessageChannel, MessageEvent, MessageStatus, UserRole
 from school.gateways import Template
 from school.gateways.http import ProviderError
 from school.gateways.meta import MetaWhatsAppGateway
@@ -971,3 +971,51 @@ class Encryption(TestCase):
 
     def test_plain_text_from_before_encryption_still_reads(self):
         self.assertEqual({"a": 1}, crypto.decrypt_json('{"a": 1}'))
+
+
+class TheLinkIntoTheApp(MessagingTest):
+    """A WhatsApp copy may carry a link into the app (docs/mobile-apps-review.md,
+    6.5) - only through a template that names `link`, and never by SMS."""
+
+    def alert(self):
+        return notifications.notify_guardian("attendance.absent", self.student, {"class_name": "Grade 8 A"})
+
+    def test_a_template_that_names_link_gets_the_family_apps_screen(self):
+        self.settings(whatsapp_enabled=True)
+        self.platform()
+        self.whatsapp_mapping(parameters="student_name,link")
+
+        copy = [m for m in self.alert() if m.channel == MessageChannel.WHATSAPP][0]
+
+        self.assertEqual(["Aarav Sharma", "https://school365ai.com/f/attendance"], copy.template_parameters["values"])
+
+    def test_the_sms_says_exactly_what_it_said_before(self):
+        sms = [m for m in self.alert() if m.channel == MessageChannel.SMS][0]
+
+        self.assertNotIn("http", sms.body)
+
+    def test_the_super_admin_may_map_link_and_a_school_cannot_write_it_into_an_sms(self):
+        response = self.as_user(self.root).put(
+            "/api/v1/platform/whatsapp-templates/fee.reminder",
+            {"template_name": "HXfee", "parameters": ["guardian_name", "link"]}, format="json",
+        )
+        self.assertEqual(200, response.status_code, response.data)
+
+        self.assertNotIn("link", MessageEvent.tokens("fee.reminder"))
+        sms = self.as_user(self.admin).put(
+            "/api/v1/communication/templates/fee.reminder",
+            {"body": "Fees due. Pay here: {link} - {school_name}"}, format="json",
+        )
+        self.assertEqual(422, sms.status_code, "a school's SMS wording cannot carry the link")
+
+    def test_each_kind_links_to_its_screen_and_staff_to_the_web_app(self):
+        from school import message_links
+
+        self.assertEqual(
+            ["fees", "bus", "results", "attendance", "notices"],
+            [message_links.family_link(event).rsplit("/", 1)[1] for event in (
+                "fee.reminder", "transport.boarded", "result.published", "attendance.absent", "announcement.published",
+            )],
+        )
+        staff = notifications.Recipient(name="T", mobile=None, user=self.admin)
+        self.assertEqual("https://school365ai.com/app/", message_links.link_for("transport.trip_sos", staff))

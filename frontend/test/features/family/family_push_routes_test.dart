@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/routing/family_router.dart';
 import 'package:edutrack_app/features/family/data/family_auth_repository.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/presentation/family_push_registrar.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_family_repositories.dart';
 import '../push/push_registrar_test.dart' show FakeDevices, FakePush;
+import 'family_app_test.dart' show pumpFamilyApp;
 
 /// A tapped Family notification opens the screen it is about
 /// (docs/mobile-apps-review.md, 5.2).
@@ -73,5 +75,25 @@ void main() {
   test('the allow-list holds only Family screens', () {
     expect(safeFamilyPushRoute('/inbox'), '/notices');
     expect(safeFamilyPushRoute('/bus/live'), '/bus/live');
+  });
+
+  group('links from WhatsApp messages (docs/mobile-apps-review.md, 6.5)', () {
+    test('school365ai.com/f/<screen> opens that screen', () {
+      expect(familyLinkTarget('/f/fees'), '/fees');
+      expect(familyLinkTarget('/f/bus/'), '/bus');
+      expect(familyLinkTarget('/f/attendance'), '/attendance');
+    });
+
+    test('a screen the app does not offer opens Notices, and other addresses are not links', () {
+      expect(familyLinkTarget('/f/payroll'), '/notices');
+      expect(familyLinkTarget('/fees'), isNull);
+      expect(familyLinkTarget('/home'), isNull);
+    });
+
+    testWidgets('a signed-in parent following a link lands on the screen', (tester) async {
+      await pumpFamilyApp(tester, goTo: '/f/fees');
+
+      expect(find.byKey(const Key('family-fees')), findsOneWidget);
+    });
   });
 }

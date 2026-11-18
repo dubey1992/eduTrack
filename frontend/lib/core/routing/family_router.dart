@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/family/application/family_session_notifier.dart';
+import '../../features/family/presentation/family_push_registrar.dart';
 import '../../features/family/presentation/family_admit_card_screen.dart';
 import '../../features/family/presentation/family_attendance_screen.dart';
 import '../../features/family/presentation/family_absence_note_screens.dart';
@@ -46,6 +47,16 @@ const familyPaths = {
   '/syllabus',
 };
 
+/// The Family app screen a `school365ai.com/f/<screen>` link names - one of
+/// the screens a notification may open, Notices for anything else - or null
+/// when [path] is not such a link.
+String? familyLinkTarget(String path) {
+  if (!path.startsWith('/f/')) return null;
+
+  final screen = path.substring(2).replaceAll(RegExp(r'/+$'), '');
+  return safeFamilyPushRoute(screen);
+}
+
 final familyRouterProvider = Provider<GoRouter>((ref) {
   final refresh = _SessionRefresh(ref);
   ref.onDispose(refresh.dispose);
@@ -83,6 +94,11 @@ final familyRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/maintenance', builder: (context, state) => const MaintenanceScreen()),
     ],
     redirect: (context, state) {
+      // A link from the school's WhatsApp message, school365ai.com/f/fees
+      // (docs/mobile-apps-review.md, 6.5): the screen it names.
+      final linked = familyLinkTarget(state.uri.path);
+      if (linked != null) return linked;
+
       final location = state.matchedLocation;
 
       if (ref.read(maintenanceProvider)) {
