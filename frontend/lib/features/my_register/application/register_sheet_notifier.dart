@@ -73,6 +73,15 @@ class RegisterSheet {
   );
 }
 
+/// A register opens with everyone present, so the teacher taps only who is
+/// not (docs/mobile-apps-review.md, 1.5) - except a child whose parent sent
+/// a note for the day: that one is left for the teacher to decide, and
+/// Submit waits until they have. The confirm dialog still says the counts.
+Map<int, AttendanceStatus> presentByDefault(List<RegisterStudent> students) => {
+  for (final student in students)
+    if (student.absenceNote == null) student.id: AttendanceStatus.present,
+};
+
 /// Which register: a class section on a day (`yyyy-MM-dd`).
 typedef RegisterKey = ({int sectionId, String date, String label});
 
@@ -141,7 +150,7 @@ class RegisterSheetNotifier extends AsyncNotifier<RegisterSheet> {
         // A register the server turned down is taken again from the start,
         // with its reason shown above - the reason usually means the marks
         // need another look anyway.
-        marks: const {},
+        marks: presentByDefault(students),
         refusal: refused?.reason,
       );
     } on Failure catch (failure) {
@@ -164,7 +173,7 @@ class RegisterSheetNotifier extends AsyncNotifier<RegisterSheet> {
       return RegisterSheet(
         mode: saved != null ? RegisterMode.waiting : RegisterMode.taking,
         students: students,
-        marks: saved?.marks ?? const {},
+        marks: saved?.marks ?? presentByDefault(students),
         offline: true,
       );
     }

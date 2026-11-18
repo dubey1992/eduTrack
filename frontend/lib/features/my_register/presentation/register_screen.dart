@@ -66,6 +66,9 @@ class _SheetState extends ConsumerState<_Sheet> {
   bool _busy = false;
   String? _problem;
 
+  /// Name or roll number typed into the search box; empty is the whole class.
+  String _query = '';
+
   RegisterSheetNotifier get _notifier => ref.read(registerSheetProvider(widget.registerKey).notifier);
 
   Future<void> _submit() async {
@@ -130,6 +133,60 @@ class _SheetState extends ConsumerState<_Sheet> {
     }
   }
 
+  Widget _list(RegisterSheet sheet, AppColors colors) {
+    final shown = [
+      for (final student in sheet.students)
+        if (matchesRegisterSearch(student, _query)) student,
+    ];
+    if (shown.isEmpty) {
+      return Center(
+        key: const Key('register-search-empty'),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Nobody in this class matches "${_query.trim()}".',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.muted),
+          ),
+        ),
+      );
+    }
+
+    final editable = sheet.editable && !_busy;
+
+    return ListView.separated(
+      key: const Key('register-list'),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+      itemCount: shown.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final student = shown[index];
+        final row = _StudentRow(
+          student: student,
+          mark: sheet.marks[student.id],
+          editable: editable,
+          onMark: (status) => _notifier.setMark(student.id, status),
+        );
+        if (!editable) return row;
+
+        // A swipe marks and springs back - the row never leaves the list.
+        return Dismissible(
+          key: Key('register-swipe-${student.id}'),
+          confirmDismiss: (direction) async {
+            _notifier.setMark(
+              student.id,
+              direction == DismissDirection.startToEnd ? AttendanceStatus.present : AttendanceStatus.absent,
+            );
+            return false;
+          },
+          background: _SwipeHint(colour: colors.success, label: 'Present', alignment: Alignment.centerLeft),
+          secondaryBackground: _SwipeHint(colour: colors.danger, label: 'Absent', alignment: Alignment.centerRight),
+          child: row,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sheet = widget.sheet;
@@ -158,23 +215,29 @@ class _SheetState extends ConsumerState<_Sheet> {
         _Tally(sheet: sheet),
         if (sheet.offline || sheet.mode == RegisterMode.waiting || sheet.refusal != null || _problem != null)
           _Banner(sheet: sheet, problem: _problem),
-        Expanded(
-          child: ListView.separated(
-            key: const Key('register-list'),
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-            itemCount: sheet.students.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final student = sheet.students[index];
-              return _StudentRow(
-                student: student,
-                mark: sheet.marks[student.id],
-                editable: sheet.editable && !_busy,
-                onMark: (status) => _notifier.setMark(student.id, status),
-              );
-            },
+        if (sheet.mode == RegisterMode.taking)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: Text(
+              'Everyone starts as present. Tap Absent or Leave for anyone who is not - or swipe a row: '
+              'right for present, left for absent.',
+              key: const Key('register-by-exception'),
+              style: TextStyle(color: colors.muted, fontSize: 13),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: TextField(
+            key: const Key('register-search'),
+            onChanged: (value) => setState(() => _query = value),
+            decoration: const InputDecoration(
+              isDense: true,
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Find by name or roll number',
+            ),
           ),
         ),
+        Expanded(child: _list(sheet, colors)),
         Container(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
           decoration: BoxDecoration(
@@ -193,6 +256,15 @@ class _SheetState extends ConsumerState<_Sheet> {
       ],
     );
   }
+}
+
+/// Whether [student] is who the teacher is looking for: part of the name,
+/// or the roll number itself.
+bool matchesRegisterSearch(RegisterStudent student, String query) {
+  final asked = query.trim().toLowerCase();
+  if (asked.isEmpty) return true;
+
+  return student.name.toLowerCase().contains(asked) || (student.rollNumber?.toLowerCase() == asked);
 }
 
 String _summary(RegisterSheet sheet) {
@@ -471,6 +543,28 @@ class _Centered extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// What a swipe will do, shown under the row as it moves.
+class _SwipeHint extends StatelessWidget {
+  const _SwipeHint({required this.colour, required this.label, required this.alignment});
+
+  final Color colour;
+  final String label;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: alignment,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(color: colour.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+      child: Text(
+        label,
+        style: TextStyle(color: colour, fontWeight: FontWeight.w800),
       ),
     );
   }
