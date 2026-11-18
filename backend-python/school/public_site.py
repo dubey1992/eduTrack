@@ -237,6 +237,12 @@ def build(root: Path, server_files: bool = False) -> list[str]:
                 stale.unlink()
 
     write("404.html", render_not_found(words, live, modules))
+
+    # A link from a message into the Family app (docs/mobile-apps-review.md,
+    # 6.5): the phone opens the app itself where it is installed, and this
+    # page where it is not.
+    write(Path("f") / "index.html", render_open_in_app(words, live, modules))
+    write(Path(".well-known") / "assetlinks.json", render_asset_links())
     def changed_on(path: str) -> str:
         """The day the page at [path] last changed: kept from the last
         sitemap while its main content is the same, today when it is not."""
@@ -664,6 +670,41 @@ def render_article(article: PublicPage, articles: list[PublicPage], words: Words
             ]),
         },
     )
+
+
+def render_open_in_app(words: Words, live: set[str], modules=()) -> str:
+    return render_to_string(
+        "public_site/open_in_app.html",
+        {
+            **shared(words, live, modules),
+            "canonical": None,
+            "noindex": True,
+            "title": "Open in School365ai Family",
+            "description": "",
+        },
+    )
+
+
+def render_asset_links() -> str:
+    """Which signed builds of the Family app may open school365ai.com/f/
+    links (Android App Links). An empty list until the fingerprints are set."""
+    fingerprints = getattr(settings, "FAMILY_APP_LINK_FINGERPRINTS", [])
+    if not fingerprints:
+        return "[]\n"
+
+    return json.dumps(
+        [
+            {
+                "relation": ["delegate_permission/common.handle_all_urls"],
+                "target": {
+                    "namespace": "android_app",
+                    "package_name": "com.school365ai.family",
+                    "sha256_cert_fingerprints": fingerprints,
+                },
+            }
+        ],
+        indent=2,
+    ) + "\n"
 
 
 def render_not_found(words: Words, live: set[str], modules=()) -> str:

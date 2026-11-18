@@ -759,3 +759,34 @@ class TheContactPage(TestCase):
              organization["address"]["addressCountry"]),
         )
 
+
+class TheLinksIntoTheFamilyApp(TestCase):
+    """school365ai.com/f/<screen> (docs/mobile-apps-review.md, 6.5): the page
+    a phone without the app reads, and the file that lets the app open them."""
+
+    def setUp(self):
+        cache.clear()
+        self.root = Path(tempfile.mkdtemp())
+
+    def test_the_page_is_written_and_kept_out_of_search(self):
+        public_site.build(self.root, server_files=True)
+
+        page = (self.root / "f" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("Open this in the Family app", page)
+        self.assertIn('<meta name="robots" content="noindex">', page)
+        self.assertIn("RewriteRule ^f/[a-z-]+/?$ /f/index.html [L]", (self.root / ".htaccess").read_text(encoding="utf-8"))
+
+    def test_no_fingerprints_yet_lists_no_app(self):
+        public_site.build(self.root)
+
+        self.assertEqual([], json.loads((self.root / ".well-known" / "assetlinks.json").read_text(encoding="utf-8")))
+
+    def test_the_fingerprints_set_name_the_family_app(self):
+        with self.settings(FAMILY_APP_LINK_FINGERPRINTS=["AA:BB"]):
+            public_site.build(self.root)
+
+        links = json.loads((self.root / ".well-known" / "assetlinks.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            ("com.school365ai.family", ["AA:BB"]),
+            (links[0]["target"]["package_name"], links[0]["target"]["sha256_cert_fingerprints"]),
+        )
