@@ -22,7 +22,9 @@ import '../../auth/application/school_clock_provider.dart';
 import '../application/dashboard_notifier.dart';
 import '../data/models/dashboard.dart';
 import 'widgets/attendance_trend_chart.dart';
+import 'dashboard_links.dart';
 import 'widgets/breakdown_ring.dart';
+import 'widgets/dashboard_panels.dart';
 
 /// Phase 18 - the landing screen: the figures for whoever is looking, what
 /// wants attention, and the way through to the reports behind them.
@@ -136,6 +138,11 @@ class _DashboardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The school's day the figures were read on, for the links' periods.
+    final today = DateTime.parse(dashboard.asOf);
+    final collections = dashboard.collectionsToday;
+    final messages = dashboard.messagesThisMonth;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -145,13 +152,60 @@ class _DashboardBody extends StatelessWidget {
         if (!dashboard.isWorkingDay && dashboard.schoolId != null) _ClosedBanner(dashboard: dashboard),
         if (schoolId == null) const _YearNote(),
         EarlyWarningBanner(schoolId: schoolId),
-        Wrap(spacing: 12, runSpacing: 12, children: [for (final card in dashboard.cards) _StatCard(card: card)]),
+        // The everyday jobs first (docs/dashboard.md): one click each.
+        // One school in view only - across a group there is no one school's
+        // desk to work at.
+        if (dashboard.schoolId != null) ...[
+          QuickActionsPanel(user: user, today: today, schoolId: schoolId),
+          const SizedBox(height: 16),
+        ],
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final card in dashboard.cards)
+              _StatCard(
+                card: card,
+                link: _allowed(linkForCard(card.key, today, schoolId: schoolId)),
+              ),
+          ],
+        ),
         if (dashboard.breakdowns.isNotEmpty) ...[
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [for (final ring in dashboard.breakdowns) BreakdownRingCard(breakdown: ring)],
+          ),
+        ],
+        if (collections != null || messages != null) ...[
+          const SizedBox(height: 16),
+          // Side by side where there is room, one above the other on a phone.
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final panels = [
+                if (collections != null) CollectionsTodayPanel(collections: collections, schoolId: schoolId),
+                if (messages != null) MessagesPanel(messages: messages, user: user),
+              ];
+
+              if (constraints.maxWidth < 900 || panels.length == 1) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (index, panel) in panels.indexed) ...[if (index > 0) const SizedBox(height: 16), panel],
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: panels[0]),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 2, child: panels[1]),
+                ],
+              );
+            },
           ),
         ],
         const SizedBox(height: 16),
@@ -166,6 +220,12 @@ class _DashboardBody extends StatelessWidget {
       ],
     );
   }
+}
+
+extension on _DashboardBody {
+  /// A card's page, if this person may open it - otherwise the card is just
+  /// a figure, not a link to a refusal.
+  DashboardLink? _allowed(DashboardLink? link) => link != null && link.allowedFor(user) ? link : null;
 }
 
 /// Says the school is shut today, so "nothing marked" reads as expected
@@ -207,7 +267,7 @@ class _ClosedBanner extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.card});
+  const _StatCard({required this.card, this.link});
 
   static const double width = 240;
 
@@ -216,6 +276,10 @@ class _StatCard extends StatelessWidget {
   static const double minHeight = 160;
 
   final DashboardCard card;
+
+  /// The page behind the figure (docs/dashboard.md), or null when there is
+  /// none this person may open.
+  final DashboardLink? link;
 
   /// Colour by meaning first: a figure to act on is red, one between the
   /// bands amber, a settled one green. A plain count keeps the body colour -
@@ -244,6 +308,8 @@ class _StatCard extends StatelessWidget {
       color: valueColour(context, card),
     );
 
+    final link = this.link;
+
     return SizedBox(
       width: width,
       child: Card(
@@ -251,40 +317,45 @@ class _StatCard extends StatelessWidget {
         // The figure's own colour, softly, so the row reads as a set of
         // different things at a glance.
         color: hue.soft(context),
-        child: ConstrainedBox(
-          // Enough for a card holding three currencies, so a row of cards stays
-          // level in the common case instead of one towering over the rest.
-          constraints: const BoxConstraints(minHeight: minHeight),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(card.label, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
-                    ),
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(color: hue.strong(context), borderRadius: BorderRadius.circular(10)),
-                      child: Icon(ChartPalette.iconFor(card.key), size: 19, color: scheme.surface),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                for (final line in lines)
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(line, maxLines: 1, style: valueStyle),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: link == null ? null : Key('stat-card-link-${card.key}'),
+          onTap: link == null ? null : () => context.go(link.location),
+          child: ConstrainedBox(
+            // Enough for a card holding three currencies, so a row of cards stays
+            // level in the common case instead of one towering over the rest.
+            constraints: const BoxConstraints(minHeight: minHeight),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(card.label, style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                      ),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(color: hue.strong(context), borderRadius: BorderRadius.circular(10)),
+                        child: Icon(ChartPalette.iconFor(card.key), size: 19, color: scheme.surface),
+                      ),
+                    ],
                   ),
-                if (card.hint != null) ...[
-                  const SizedBox(height: 4),
-                  Text(card.hint!, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  const SizedBox(height: 6),
+                  for (final line in lines)
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(line, maxLines: 1, style: valueStyle),
+                    ),
+                  if (card.hint != null) ...[
+                    const SizedBox(height: 4),
+                    Text(card.hint!, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

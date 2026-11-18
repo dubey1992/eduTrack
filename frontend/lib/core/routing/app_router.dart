@@ -25,6 +25,7 @@ import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/demo_requests/presentation/demo_request_screen.dart';
 import '../../features/early_access/presentation/early_access_screen.dart';
 import '../../features/fees/presentation/fee_discounts_screen.dart';
+import '../../features/reports/application/report_link.dart';
 import '../../features/fees/presentation/fee_receipts_screen.dart';
 import '../../features/fees/presentation/fee_setup_screen.dart';
 import '../../features/fees/presentation/student_fees_screen.dart';
@@ -328,7 +329,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/communication', builder: (context, state) => const CommunicationScreen()),
           GoRoute(path: '/announcements', builder: (context, state) => const AnnouncementScreen()),
           GoRoute(path: '/inbox', builder: (context, state) => const InboxScreen()),
-          GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
+          // Opened from the dashboard already set up (docs/dashboard.md):
+          // /reports?report=fee-collection&from=...&to=...&received_by=...
+          GoRoute(
+            path: '/reports',
+            builder: (context, state) => ReportsScreen(link: ReportLink.fromQuery(state.uri.queryParameters)),
+          ),
           GoRoute(
             path: '/early-warning',
             builder: (context, state) => EarlyWarningScreen(

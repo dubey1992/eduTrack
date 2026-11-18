@@ -319,6 +319,9 @@ const Map<ReportKind, List<ReportColumn>> reportColumns = {
     ReportColumn('reference', 'Reference'),
     ReportColumn('received_by', 'Received by'),
     ReportColumn('amount', 'Amount', numeric: true, isMoney: true),
+    // The part of the amount kept as credit for the family - an advance
+    // (F6). Inside the amount, never added to it.
+    ReportColumn('credit_amount', 'Held as credit', numeric: true, isMoney: true),
   ],
   ReportKind.feeOutstanding: [
     ReportColumn('admission_number', 'Admission No.'),

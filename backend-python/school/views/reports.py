@@ -19,7 +19,7 @@ from rest_framework.response import Response
 from .. import csv_export, modules, permissions
 from ..clock import DATE_TIME, SchoolClock
 from ..enums import UserRole
-from ..models import ClassSection, Department, School
+from ..models import ClassSection, Department, School, User
 from ..errors import ModuleDisabled
 from ..policies import FeePolicy, PayrollPolicy, authorize, permitted
 from ..reports import (
@@ -243,6 +243,19 @@ def filter_labels(validated: dict, school_ids: list[int] | None) -> list[tuple[s
     if validated.get("below") is not None:
         labels.append(("Below", f"{php_number(float(validated['below']))}%"))
 
+    if validated.get("received_by"):
+        people = User.objects.filter(pk=validated["received_by"])
+        if school_ids is not None:
+            people = people.filter(school_id__in=school_ids)
+        person = people.first()
+        if person is not None:
+            labels.append(("Received by", person.name))
+
+    if validated.get("payment_mode"):
+        from ..enums import FeePaymentMode
+
+        labels.append(("Payment mode", FeePaymentMode(validated["payment_mode"]).label))
+
     return labels
 
 
@@ -284,7 +297,9 @@ def single(school_id: int, report, filters: dict, compare: bool = False) -> dict
 
 def filters_for(actor, validated: dict) -> dict:
     filters = {
-        key: validated[key] for key in ("from", "to", "class_section_id", "department_id", "below") if key in validated
+        key: validated[key]
+        for key in ("from", "to", "class_section_id", "department_id", "below", "received_by", "payment_mode")
+        if key in validated
     }
 
     # A head of department reports on their own departments, whatever they

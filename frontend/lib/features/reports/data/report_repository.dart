@@ -21,6 +21,8 @@ class ReportRepository {
     int? departmentId,
     bool compare = false,
     int? below,
+    int? receivedBy,
+    String? paymentMode,
   }) async {
     try {
       return await _api.fetch(
@@ -32,6 +34,8 @@ class ReportRepository {
         departmentId: departmentId,
         compare: compare,
         below: below,
+        receivedBy: receivedBy,
+        paymentMode: paymentMode,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);
@@ -48,6 +52,8 @@ class ReportRepository {
     int? departmentId,
     bool compare = false,
     int? below,
+    int? receivedBy,
+    String? paymentMode,
   }) async {
     try {
       return await _api.download(
@@ -60,6 +66,8 @@ class ReportRepository {
         departmentId: departmentId,
         compare: compare,
         below: below,
+        receivedBy: receivedBy,
+        paymentMode: paymentMode,
       );
     } on DioException catch (e) {
       throw failureFromDioException(e);
