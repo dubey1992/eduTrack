@@ -32,6 +32,7 @@ void main() {
       'mapPinIconsProvider',
       'familySessionProvider',
       'selectedChildIndexProvider',
+      'familyOfflineProvider',
     };
 
     final missing = <String>[];

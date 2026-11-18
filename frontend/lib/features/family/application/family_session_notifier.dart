@@ -1,3 +1,5 @@
+import 'family_offline.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -53,6 +55,9 @@ class FamilySessionNotifier extends AsyncNotifier<FamilyAccount?> {
   Future<void> logout() async {
     await ref.read(familyAuthRepositoryProvider).logout();
     ref.invalidate(selectedChildIndexProvider);
+    // Which screens were showing a saved copy - the copies themselves go
+    // with the session (FamilySavedCopies.clear).
+    ref.invalidate(familyOfflineProvider);
     state = const AsyncData(null);
   }
 
@@ -65,6 +70,9 @@ class FamilySessionNotifier extends AsyncNotifier<FamilyAccount?> {
   Future<void> _endedByServer() async {
     await ref.read(familyAuthRepositoryProvider).forgetSession();
     ref.invalidate(selectedChildIndexProvider);
+    // Which screens were showing a saved copy - the copies themselves go
+    // with the session (FamilySavedCopies.clear).
+    ref.invalidate(familyOfflineProvider);
     state = const AsyncData(null);
   }
 }
