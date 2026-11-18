@@ -7,6 +7,7 @@ and never more than the DECIMAL(12,2) column holds.
 
 from __future__ import annotations
 
+import datetime as dt
 import decimal
 import re
 
@@ -213,6 +214,84 @@ class AdjustmentRequest(serializers.Serializer):
             raise serializers.ValidationError(errors["amount"])
 
         return value
+
+
+class StaffAdvanceRequest(serializers.Serializer):
+    """`POST payroll/advances` (docs/dashboard.md, D4): money paid to an
+    employee ahead of their pay. The currency is the school's; the employee
+    must be one of the schools the actor manages payroll for (the view
+    checks). `recovery_starts` is a month, `YYYY-MM`, never before the month
+    it was paid - by default the month after."""
+
+    staff_profile_id = LaravelIntegerField("staff_profile_id")
+    amount = MoneyField("amount", minimum="0.01", error_messages={"required": required("amount")})
+    paid_on = LaravelDateField("paid_on")
+    payment_mode = LaravelCharField("payment_mode", max_length=32)
+    reference = optional_text("reference", 100)
+    monthly_recovery = MoneyField("monthly_recovery", minimum="0.01", error_messages={"required": required("monthly_recovery")})
+    recovery_starts = optional_text("recovery_starts", 7)
+    reason = LaravelCharField("reason", max_length=500)
+
+    def __init__(self, *args, school_today=None, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+        self.school_today = school_today
+
+    def validate(self, attrs):
+        errors: dict[str, list[str]] = {}
+        paid_on = attrs["paid_on"]
+
+        if attrs["payment_mode"] not in PaymentMode.values:
+            errors["payment_mode"] = [selected_is_invalid("payment_mode")]
+
+        if self.school_today is not None and paid_on > self.school_today:
+            errors["paid_on"] = ["An advance that has not been paid yet cannot be recorded."]
+
+        if attrs["monthly_recovery"] > attrs["amount"]:
+            errors["monthly_recovery"] = ["The monthly recovery cannot be more than the advance."]
+
+        if len(attrs["reason"].strip()) < 3:
+            errors["reason"] = ["Say what the advance is for."]
+
+        starts = attrs.get("recovery_starts")
+        paid_month = dt.date(paid_on.year, paid_on.month, 1)
+        if starts:
+            match = re.fullmatch(r"(\d{4})-(\d{2})", starts)
+            month = int(match.group(2)) if match else 0
+            if not match or not 1 <= month <= 12:
+                errors["recovery_starts"] = ["The first recovery month must be a month, like 2026-12."]
+            else:
+                attrs["recovery_starts"] = dt.date(int(match.group(1)), month, 1)
+                if attrs["recovery_starts"] < paid_month:
+                    errors["recovery_starts"] = ["Recovery cannot start before the month the advance was paid."]
+        else:
+            # The month after it was paid.
+            attrs["recovery_starts"] = dt.date(paid_month.year + paid_month.month // 12, paid_month.month % 12 + 1, 1)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        attrs["reason"] = attrs["reason"].strip()
+
+        return attrs
+
+
+class CancelAdvanceRequest(serializers.Serializer):
+    reason = LaravelCharField("reason", max_length=500)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if "data" in kwargs:
+            kwargs["data"] = normalise(kwargs["data"])
+
+        super().__init__(*args, **kwargs)
+
+    def validate_reason(self, value):
+        if len(value.strip()) < 3:
+            raise serializers.ValidationError("Say why the advance is being cancelled.")
+
+        return value.strip()
 
 
 class PayRequest(serializers.Serializer):

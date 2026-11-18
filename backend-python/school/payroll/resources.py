@@ -158,8 +158,65 @@ def payslip_resource(slip, with_lines: bool = False) -> dict:
                 "note": line.note,
                 "created_by_name": line.created_by.name if line.created_by_id else None,
                 "is_adjustment": line.source == PayslipLineSource.ADJUSTMENT,
+                # The advance this line takes back (D4), on a recovery line.
+                "staff_advance_id": line.staff_advance_id,
             }
             for line in slip.lines.select_related("created_by").order_by("sort_order", "id")
+        ]
+
+    return body
+
+
+def advance_resource(advance, recovered, pending, with_recoveries: bool = False) -> dict:
+    """An advance paid to an employee and how far it is repaid (D4). Money
+    as strings with two decimals, in the advance's own currency."""
+    from ..enums import PaymentMode, StaffAdvanceStatus
+    from .advances import status_of
+
+    done = recovered.get(advance.id, ZERO)
+    state = status_of(advance, done)
+    remaining = ZERO if state == StaffAdvanceStatus.CANCELLED else max(advance.amount - done, ZERO)
+
+    body = {
+        "id": advance.id,
+        "school_id": advance.school_id,
+        "staff_profile_id": advance.staff_profile_id,
+        "employee_name": advance.staff_profile.user.name,
+        "employee_code": advance.staff_profile.employee_id,
+        "amount": cash(advance.amount),
+        "currency_code": advance.currency_code,
+        "paid_on": advance.paid_on.isoformat(),
+        "payment_mode": advance.payment_mode,
+        "payment_mode_label": PaymentMode(advance.payment_mode).label if advance.payment_mode in PaymentMode.values else advance.payment_mode,
+        "reference": advance.reference,
+        "monthly_recovery": cash(advance.monthly_recovery),
+        "recovery_starts": advance.recovery_starts.isoformat(),
+        "recovery_starts_label": period_label(advance.recovery_starts.year, advance.recovery_starts.month),
+        "reason": advance.reason,
+        "status": state,
+        "status_label": StaffAdvanceStatus(state).label,
+        "recovered": cash(done),
+        # On drafts not yet finalized - not recovered until they are.
+        "pending": cash(pending.get(advance.id, ZERO)),
+        "remaining": cash(remaining),
+        "can_cancel": state != StaffAdvanceStatus.CANCELLED and done == ZERO,
+        "created_by_name": advance.created_by.name if advance.created_by_id else None,
+        "cancelled_at": timestamp(advance.cancelled_at),
+        "cancel_reason": advance.cancel_reason,
+        "created_at": timestamp(advance.created_at),
+    }
+
+    if with_recoveries:
+        body["recoveries"] = [
+            {
+                "payslip_id": line.payslip_id,
+                "period_label": period_label(line.payslip.payroll_run.year, line.payslip.payroll_run.month),
+                "run_status": line.payslip.payroll_run.status,
+                "amount": cash(line.amount),
+            }
+            for line in advance.recovery_lines.select_related("payslip__payroll_run").order_by(
+                "payslip__payroll_run__year", "payslip__payroll_run__month", "id"
+            )
         ]
 
     return body

@@ -353,6 +353,12 @@ class PayrollRunService:
                     sort_order=order, created_at=now, updated_at=now,
                 )
 
+            # Advances paid to the employee, taken back month by month
+            # (docs/dashboard.md, D4).
+            from .advances import add_recovery_lines
+
+            add_recovery_lines(slip, run, now)
+
             PayslipService.refresh_totals(slip)
 
     @classmethod

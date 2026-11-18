@@ -6,6 +6,7 @@ import '../../../core/network/paginated_response.dart';
 import '../../../core/utils/date_format.dart';
 import '../../payments/data/models/payment.dart';
 import 'models/payroll.dart';
+import 'models/staff_advance.dart';
 
 final payrollApiProvider = Provider<PayrollApi>((ref) => PayrollApi(ref.watch(dioClientProvider)));
 
@@ -54,6 +55,52 @@ class PayrollApi {
     );
 
     return EmployeeSalary.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  // -- advances paid to staff (docs/dashboard.md, D4) -------------------------
+
+  Future<PaginatedResponse<StaffAdvance>> advances({int? schoolId, String? status, int? page, int? perPage}) async {
+    final response = await _dio.get(
+      '/payroll/advances',
+      queryParameters: {'school_id': ?schoolId, 'status': ?status, 'page': ?page, 'per_page': ?perPage},
+    );
+
+    return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, StaffAdvance.fromJson);
+  }
+
+  Future<StaffAdvance> recordAdvance({
+    required int staffProfileId,
+    required String amount,
+    required DateTime paidOn,
+    required PaymentMode mode,
+    String? reference,
+    required String monthlyRecovery,
+    DateTime? recoveryStarts,
+    required String reason,
+  }) async {
+    final response = await _dio.post(
+      '/payroll/advances',
+      data: {
+        'staff_profile_id': staffProfileId,
+        'amount': amount,
+        'paid_on': apiDate(paidOn),
+        'payment_mode': mode.apiValue,
+        'reference': ?reference,
+        'monthly_recovery': monthlyRecovery,
+        // A month: the server takes it as YYYY-MM; left out, the month after.
+        if (recoveryStarts != null)
+          'recovery_starts': '${recoveryStarts.year}-${recoveryStarts.month.toString().padLeft(2, '0')}',
+        'reason': reason,
+      },
+    );
+
+    return StaffAdvance.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<StaffAdvance> cancelAdvance(int advanceId, {required String reason}) async {
+    final response = await _dio.post('/payroll/advances/$advanceId/cancel', data: {'reason': reason});
+
+    return StaffAdvance.fromJson(response.data as Map<String, dynamic>);
   }
 
   // -- runs ------------------------------------------------------------------

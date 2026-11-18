@@ -1,7 +1,8 @@
 # Dashboard enhancement
 
-**Status (2026-11-17): the parts the app already had data for are built. No
-migrations. Four parts wait on a decision (see "Open decisions").**
+**Status (2026-11-18): built. The first pass used only data the app already
+had; the four decisions it raised were answered on 2026-11-18 and built as
+D1-D4 below (four migrations).**
 
 Asked for 2026-11-17, with a prototype
 (`school365ai_dashboard_enhancement_prototype.html`). The prototype is a
@@ -94,26 +95,45 @@ screen opens from a link (`/reports?report=fee-collection&school_id=..&from=..
 &to=..&received_by=..&payment_mode=..`), and anything in a link it cannot use
 is ignored rather than refused.
 
-## Open decisions
+## D1-D4, decided 2026-11-18
 
-None of these is built. Each changes the database or how money is recorded,
-so each waits for the product owner.
+**D1 - students' gender.** `students.gender`: male, female, other, or null
+("not given"). On the add and edit forms and the import (an optional last
+column - a file from the older template still imports). The dashboard shows
+Boys, Girls and "Other or not given", one query over the active roll, so the
+three always add up to the Students card; the third card shows only when it
+is not zero, in amber while some are not given.
 
-1. **Boys and girls.** Students have no gender field. Needs a nullable
-   `students.gender` (`male`, `female`, `other`, unset), the student form and
-   import, and the cards would read boys, girls and "other or not given" so the
-   three always add up to the total.
-2. **Delivery receipts.** "Delivered" needs the providers' status callbacks
-   (Twilio status callback, Meta webhooks) stored on the message: a new status
-   or column, and a public webhook endpoint per provider.
-3. **Date lock.** Nothing locks a date today. A lock needs, before any code:
-   which records it stops (fee receipts and their cancellation only?
-   discounts, waivers, refunds?), who may lock and unlock (School Admin?
-   Accountant?), whether it is a single "locked up to" date per school or
-   per-day closings, whether a locked receipt can still be cancelled (and by
-   whom), and an audit entry for every lock and unlock. It must never touch
-   attendance, exams or anything outside the money it names.
-4. **Salary advances to staff.** Payroll has no advances. Paying one and
-   recovering it from later payslips is a payroll change (a new record, a
-   deduction line, a balance per employee) and is not fee money: it would be
-   reported apart from collections, never added to them.
+**D2 - delivery reports.** Every Twilio message asks for a StatusCallback at
+`PUBLIC_API_URL/webhooks/twilio/status` (https only). The webhook checks
+Twilio's signature against the platform account's auth token (every school
+sends through it, docs/platform-messaging.md) and records `delivery_status`
+(delivered, read, undelivered), `delivered_at` and `delivery_error`. A report
+never moves a message backwards; an unknown id is answered the same and
+changes nothing. `status` still says what School365ai did (sent = the
+provider took it). The dashboard counts delivered and not delivered among the
+sent - a sent message with no report is neither; the message log shows the
+report, and no longer labels "sent" as "Delivered" or its rate as "Delivery
+Rate". Meta's own webhook is not built: no school sends through Meta since
+platform messaging.
+
+**D3 - the fee books' date lock.** `schools.fees_locked_until`, set by a
+School Admin, Group Admin or Accountant who manages fees (not the Super
+Admin). Nothing dated on or before it: a receipt or refund by its own date, a
+cancellation by its receipt's date, a discount, revoked discount, waiver or
+late fine by today. Refused with `FEES_LOCKED`, naming the date and who can
+reopen. Never in the future; moving it back or clearing it needs a reason;
+every change is in the audit log (`fees.locked` / `fees.unlocked`). Nothing
+outside the fee books is touched. A Date lock quick action, and a line above
+Receipts.
+
+**D4 - advances paid to staff.** `staff_advances` (amount, paid on, mode,
+monthly recovery, first recovery month, reason) and
+`payslip_lines.staff_advance_id`. Each payroll run adds an "Advance recovery"
+deduction line per advance still owed, oldest first: the monthly amount, or
+what is left, or what the payslip can bear, whichever is least - never
+below zero. Recovered = the lines on finalized and paid runs; a draft's line
+is pending and is rebuilt with the draft, so nothing is counted twice.
+Repaid is worked out, not stored. Cancelled (with a reason) only while
+nothing is recovered. Recorded by whoever manages payroll; it is not fee
+money, so the date lock does not apply. The Payroll screen's Advances tab.

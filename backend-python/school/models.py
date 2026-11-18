@@ -1161,12 +1161,50 @@ class PayslipLine(models.Model):
     note = models.CharField(max_length=255, blank=True, null=True)
     sort_order = models.SmallIntegerField()
     created_by = models.ForeignKey('User', models.DO_NOTHING, db_column='created_by', blank=True, null=True, related_name='+')
+    # The advance this line recovers, on an "advance" line (D4).
+    staff_advance = models.ForeignKey(
+        'StaffAdvance', models.DO_NOTHING, blank=True, null=True, related_name='recovery_lines'
+    )
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'payslip_lines'
+
+
+class StaffAdvance(models.Model):
+    """Money paid to an employee ahead of their pay, taken back from their
+    payslips month by month (docs/dashboard.md, D4). Never deleted: a
+    mistaken one is cancelled, with a reason, while nothing is recovered."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    staff_profile = models.ForeignKey('StaffProfile', models.DO_NOTHING, related_name='advances')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency_code = models.CharField(max_length=3)
+    paid_on = models.DateField()
+    payment_mode = models.CharField(max_length=32)
+    reference = models.CharField(max_length=100, blank=True, null=True)
+    monthly_recovery = models.DecimalField(max_digits=12, decimal_places=2)
+    # The first payroll month that recovers it: the 1st of that month.
+    recovery_starts = models.DateField()
+    reason = models.CharField(max_length=500)
+    status = models.CharField(max_length=20, default='active')
+    created_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='created_by', blank=True, null=True, related_name='+'
+    )
+    cancelled_at = UtcDateTimeField(blank=True, null=True)
+    cancelled_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='cancelled_by', blank=True, null=True, related_name='+'
+    )
+    cancel_reason = models.CharField(max_length=500, blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'staff_advances'
 
 
 class Period(models.Model):
