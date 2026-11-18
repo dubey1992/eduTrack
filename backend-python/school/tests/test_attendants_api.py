@@ -454,6 +454,26 @@ class Reach(AttendantTest):
 
         self.assertEqual(403, self.as_user(self.f["manager"]).get("/api/v1/transport/my-routes").status_code)
 
+    def test_each_route_carries_its_roster_to_open_a_trip_with_no_signal(self):
+        response = self.as_user(self.attendant).get("/api/v1/transport/my-routes")
+
+        roster = response.data["routes"][0]["roster"]
+        self.assertEqual(["Lake View", "Central Park"], [stop["name"] for stop in roster["stops"]][:2])
+        self.assertEqual(
+            ["Aarav Mehta", "Arjun Kumar", "Meera Singh"], sorted(rider["name"] for rider in roster["riders"])
+        )
+        self.assertEqual({"pending"}, {rider["status"] for rider in roster["riders"]})
+        self.assertTrue(all(rider["stop_id"] for rider in roster["riders"]))
+
+    def test_an_inactive_child_is_left_off_the_roster(self):
+        student = self.f["students"][0]
+        student.status = "inactive"
+        student.save()
+
+        roster = self.as_user(self.attendant).get("/api/v1/transport/my-routes").data["routes"][0]["roster"]
+
+        self.assertNotIn(student.id, [rider["student_id"] for rider in roster["riders"]])
+
     def test_they_apply_for_their_own_leave_and_see_their_dashboard(self):
         client = self.as_user(self.attendant)
 

@@ -23,8 +23,15 @@ from rest_framework.response import Response
 from django.db.models import Count
 
 from ..clock import SchoolClock
-from ..enums import TripDirection, TripStatus
-from ..models import Student, TransportRoute, TransportStop, TransportTrip, TransportTripRider
+from ..enums import StudentStatus, TripDirection, TripRiderStatus, TripStatus
+from ..models import (
+    Student,
+    StudentTransportAssignment,
+    TransportRoute,
+    TransportStop,
+    TransportTrip,
+    TransportTripRider,
+)
 from ..pagination import LaravelPagination
 from ..policies import TransportTripPolicy, authorize, crew_routes
 from ..requests import StartTripRequest, TripLocationsRequest, TripSyncRequest, UpdateTripRiderRequest
@@ -71,7 +78,9 @@ def start(request) -> Response:
 
     authorize(TransportTripPolicy.create(request.user, route))
 
-    trip_id = TransportTripService.start(route, form.validated_data["direction"], request.user)
+    trip_id = TransportTripService.start(
+        route, form.validated_data["direction"], request.user, started_at=form.validated_data.get("started_at")
+    )
 
     return detail_response(trip_id, status=status.HTTP_201_CREATED)
 
@@ -251,10 +260,63 @@ def my_routes(request) -> Response:
                     )
                     for direction in (TripDirection.PICKUP, TripDirection.DROP)
                 },
+                # Enough to open a trip with no signal (docs/mobile-apps-
+                # review.md, 2.4): the stops and the children, as a trip
+                # would list them before anybody is marked.
+                "roster": route_roster(route),
             }
             for route in routes
         ],
     })
+
+
+def route_roster(route) -> dict:
+    """The route's stops and its children, shaped as a trip's, every child
+    waiting - what a phone builds the trip from when Start is pressed with no
+    signal. The server makes the real rider list when the start gets through;
+    this is only what the crew sees until then."""
+    stops = list(TransportStop.objects.filter(route_id=route.pk).order_by("sequence_number", "id"))
+    assignments = [
+        assignment
+        for assignment in StudentTransportAssignment.objects.filter(route_id=route.pk)
+        .select_related("student__class_section__school_class", "transport_stop")
+        .order_by("id")
+        if assignment.student.status == StudentStatus.ACTIVE
+    ]
+
+    return {
+        "stops": [
+            {
+                "id": stop.id,
+                "name": stop.name,
+                "sequence_number": stop.sequence_number,
+                "pickup_time": stop.pickup_time.strftime("%H:%M") if stop.pickup_time else None,
+                "drop_time": stop.drop_time.strftime("%H:%M") if stop.drop_time else None,
+                "latitude": None if stop.latitude is None else str(stop.latitude),
+                "longitude": None if stop.longitude is None else str(stop.longitude),
+                "reached": False,
+            }
+            for stop in stops
+        ],
+        "riders": [
+            {
+                "student_id": a.student_id,
+                "admission_number": a.student.admission_number,
+                "name": a.student.name,
+                "class_section_name": (
+                    None if a.student.class_section is None
+                    else f"{a.student.class_section.school_class.name} {a.student.class_section.name}".strip()
+                ),
+                "guardian_name": a.student.guardian_name,
+                "guardian_mobile": a.student.guardian_mobile,
+                "stop_id": a.transport_stop_id,
+                "stop_name": a.transport_stop.name,
+                "stop_sequence_number": a.transport_stop.sequence_number,
+                "status": TripRiderStatus.PENDING,
+            }
+            for a in assignments
+        ],
+    }
 
 
 def _is_my_licence(actor, route) -> bool:

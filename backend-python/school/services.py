@@ -3896,11 +3896,19 @@ class TransportTripService:
             "stops": list(TransportStop.objects.filter(route_id=trip.route_id).order_by("sequence_number")),
         }
 
+    # A start sent late by a phone that had no signal (2.4): no further back
+    # than a mark may be (TripSyncService.MAX_AGE), never ahead of now.
+    LATE_START_LIMIT = dt.timedelta(hours=12)
+    START_FUTURE_SLACK = dt.timedelta(minutes=2)
+
     @classmethod
-    def start(cls, route, direction: str, actor: User) -> int:
+    def start(cls, route, direction: str, actor: User, started_at: dt.datetime | None = None) -> int:
         # "Today" is the school's date. A 7am pickup in Kolkata happens on the
         # previous UTC day.
-        today = SchoolClock.for_school(route.school_id).now().date()
+        clock = SchoolClock.for_school(route.school_id)
+        today = clock.now().date()
+        if started_at is not None:
+            cls.assert_start_time(started_at, clock)
         vehicle = route.vehicle if route.vehicle_id else None
         driver = route.driver if route.driver_id else None
 
@@ -3925,7 +3933,7 @@ class TransportTripService:
             trip = TransportTrip.objects.create(
                 school_id=route.school_id, route_id=route.pk, vehicle_id=route.vehicle_id, driver_id=route.driver_id,
                 trip_date=today, direction=direction, status=TripStatus.IN_PROGRESS,
-                started_by_id=actor.id, started_at=now, created_at=now, updated_at=now,
+                started_by_id=actor.id, started_at=started_at or now, created_at=now, updated_at=now,
             )
             audit.created("transport", trip, action="transport_trip.started")
 
@@ -3945,9 +3953,28 @@ class TransportTripService:
                     status=TripRiderStatus.PENDING, created_at=now, updated_at=now,
                 )
 
-            cls.record(trip, TripEventType.STARTED, actor, note=f"Trip started with {len(riders)} students expected")
+            cls.record(
+                trip, TripEventType.STARTED, actor, note=f"Trip started with {len(riders)} students expected",
+                at=started_at,
+            )
 
         return trip.pk
+
+    @classmethod
+    def assert_start_time(cls, started_at: dt.datetime, clock) -> None:
+        """A late start is the school's today, not ahead of now, and recent:
+        marks older than that are refused anyway, so a trip started earlier
+        could hold nothing."""
+        now = timezone.now()
+
+        if started_at > now + cls.START_FUTURE_SLACK:
+            raise TripRule("TRIP_START_IN_FUTURE", "The start time is ahead of the server's clock. Check the phone's time.")
+
+        if started_at < now - cls.LATE_START_LIMIT or started_at.astimezone(clock.now().tzinfo).date() != clock.now().date():
+            raise TripRule(
+                "TRIP_START_TOO_OLD",
+                "This trip was started too long ago to record now. Ask the transport office to record it.",
+            )
 
     @staticmethod
     def assert_route_is_free(route, direction: str, today) -> None:
