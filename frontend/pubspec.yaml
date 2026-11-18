@@ -77,6 +77,10 @@ dependencies:
   google_maps_flutter: ^2.9.0
   firebase_core: ^5.1.0
   firebase_messaging: ^17.0.1
+  # A payslip PDF and the Trip check report go to the phone's share sheet
+  # - save to Files, send on WhatsApp - with no storage permission
+  # (docs/mobile-apps-review.md, 6.7; the Family app uses it too).
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:
