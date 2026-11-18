@@ -1,6 +1,6 @@
 # Mobile apps review: what would set them apart
 
-**Status (2026-11-18): review and plan only - nothing here is built or approved.**
+**Status (2026-11-18): review and phase plan (M0-M12) only - nothing here is built or approved.**
 
 The three phone apps - Staff (teachers, HODs, office, accountants), Driver
 (drivers and bus attendants) and Family (parents) - were read screen by screen
@@ -130,7 +130,40 @@ What rivals lead with; worth matching only where it fits the product.
 
 ---
 
-## Recommended first slice - the clearest difference for least effort
+## Phase plan (2026-11-18)
+
+Every point above, in the order it should be built. A phase is shipped,
+tested on real phones and deployed before the next starts (CLAUDE.md rule 1).
+**DB** marks a phase with database changes; **Decide** marks a question for
+the product owner before that phase starts.
+
+| Phase | Name | Items | Apps | Size | DB | Why here |
+|---|---|---|---|---|---|---|
+| M0 | Release groundwork | 9.1-9.5, 5.3 | F, D | S | - | Push and the real-phone GPS test unblock everything that notifies or tracks |
+| M1 | Quick wins | 1.2, 1.4, 1.8, 1.9, 2.3, 2.5, 2.6, 6.2, 6.7, 7.6 | S, D, F | S | - | Small, low-risk fixes the design already promised; the apps feel finished |
+| M2 | Fewer taps | 1.1, 1.5, 1.6 (templates, same-as-yesterday, drafts), 7.5 | D, S | S-M | - | The daily jobs - boarding a stop, the register, the teaching report - get fast |
+| M3 | Notifications that land | 5.1, 5.2, 5.6, 6.5 | S, F | M | - | Needs M0's push; reminders and alerts open the right screen |
+| M4 | Never lose work | 2.1, 2.2, 2.4 | S, F, D | M | - | Offline queues for marks and reports, cached Family screens, trips started with no signal |
+| M5 | Role gaps | 7.1, 7.2, 7.3, 7.4, 6.6 | S | M | - | HOD, accountant and office staff get their jobs on the phone |
+| M6 | Trust and safety | 4.1, 4.2, 4.3, 4.4, 4.5, 6.4 | F, S | S-M | - | App lock, honest figures, read receipts, boarding timeline, pay with any UPI app |
+| M7 | Smart bus | 1.3, 3.2, 5.5 | D, F | M | Decide | Auto "Reached" at the stop, spoken prompts, one-tap delay message |
+| M8 | Family learning | 8.1, 8.2, 8.5, 6.3, 5.4 | F | M | DB, Decide | Homework from the teaching report, marks trends, second guardian, calendar export, attendance warnings |
+| M9 | Photos and attachments | 3.3, 8.3 | D, S, F | M | DB, Decide | Student photos (no photo field exists on students today), notice attachments |
+| M10 | Widgets | 6.1 | F, S | M | - | Home-screen widgets once the data behind them (M3, M7) is settled |
+| M11 | Languages and accessibility | 3.1, 3.4 | S, D, F | L | Decide | Hindi, then regional languages, plus a large-text and screen-reader pass - after the screens above exist, so each string is translated once |
+| M12 | Bigger bets | 1.7, 8.4, 8.6 | S, F | L | DB, Decide | Marks from a photo (OCR), PTM booking, events and gallery - only if schools ask |
+
+**Decisions needed before their phase:**
+
+- **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?
+- **M8** - should every period's homework go to parents, or only what the teacher marks "send to parents"? Does a second guardian get the same rights as the first (fees, absence notes)?
+- **M9** - who uploads student photos (office, class teacher, or the parent), and are they shown to bus crew? Which notice attachments are allowed (PDF and images only?) and how large?
+- **M11** - which languages after Hindi, and in what order? Does each user choose, or does the school set it?
+- **M12** - only on a school's request.
+
+Nothing in M1-M6 changes the database or needs a decision.
+
+## Recommended first slice - the clearest difference for least effort (M1 + M2)
 
 1.1 board-all, 1.2 undo, 1.4 thumb bar, 1.5 register by exception, 1.8 Home
 shortcuts, 2.3 keep GPS points, 4.4 app lock, 5.2 push routing, 6.2 keep
