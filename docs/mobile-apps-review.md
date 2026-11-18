@@ -176,6 +176,13 @@ the product owner before that phase starts.
 - 1.9 **Withdraw** a pending leave request (PATCH /leaves/{id}/withdraw: own, own school, pending only; status `withdrawn`, a plain string column, so no migration) and a **taken this year** card (GET /leaves/mine/taken: approved working days by type over the current academic year, the calendar year without one). Half-day leave already existed. A true *balance* is not built: the school sets no yearly allowance per leave type - see the decision below.
 - 1.8 Family Home: **Report sick** on the attendance card (no mark yet, or absent), the bus card opens the **live map** while the child's trip runs, and a **Results** card where results are on.
 
+**M2 progress (2026-11-18, built on main, not deployed):**
+
+- 1.1 Bus: **Board all n here** under each stop on a pickup (Drop all on a drop), and **all at school** at the run's school end. A sheet lists everyone ticked; untick the few who are not there. One Undo takes the lot back inside the 5-second window.
+- 1.5 Staff: the register **opens with everyone present** - except a child whose parent sent a note for the day, left for the teacher, and Submit waits for them. The confirm dialog still says the counts. Search by name or roll number; swipe a row right for present, left for absent.
+- 1.6 Staff: the teaching report has **Same as <date>** (the teacher's own last report for this class and subject - GET /teaching-reports now takes `class_section_id` and `subject_id`), **templates** per subject (at most ten, newest first) and a **draft** saved as the teacher types. Templates and drafts stay on the phone and go on sign-out. Voice dictation was not part of M2.
+- 7.5 Staff: **My week**, one tap from Today - the teacher's own periods for each day, opening on today (the existing GET /timetable?teacher_id=).
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?
