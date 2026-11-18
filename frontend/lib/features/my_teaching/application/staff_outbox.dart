@@ -1,0 +1,220 @@
+import 'dart:async';
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/errors/failure.dart';
+import '../../assessments/data/assessment_repository.dart';
+import '../../assessments/data/models/assessment_sheet.dart';
+import '../../auth/application/auth_notifier.dart';
+import '../../teaching_reports/data/teaching_report_repository.dart';
+import '../../today/application/today_notifier.dart';
+import '../data/outbox.dart';
+import '../data/report_notes.dart';
+import 'my_teaching_providers.dart';
+
+final staffOutboxProvider = NotifierProvider<StaffOutbox, List<OutboxItem>>(StaffOutbox.new);
+
+/// Teaching reports and class-test marks saved with no signal, sent when
+/// there is some (docs/mobile-apps-review.md, 2.1) - the register's queue
+/// (my_register/application/register_queue.dart) for the rest of a
+/// teacher's day.
+///
+/// Saved on the phone before anything else, so a teacher can close the app.
+/// Sending starts at once; with no signal it is tried again after 5, 15, 30
+/// and then every 60 seconds, on sign-in, and whenever the app comes back to
+/// the front (RegisterSender). A report the server already has is done, not
+/// a failure. Anything else it refuses - a check-in it wants first, a test
+/// published meanwhile - is kept with the server's reason, and a refused
+/// report's words go back into its draft, so opening the period shows them.
+class StaffOutbox extends Notifier<List<OutboxItem>> {
+  static const retryDelays = [
+    Duration(seconds: 5),
+    Duration(seconds: 15),
+    Duration(seconds: 30),
+    Duration(seconds: 60),
+  ];
+
+  Timer? _retryTimer;
+  int _failures = 0;
+  bool _sending = false;
+  late Future<void> _loaded;
+
+  OutboxStore get _store => ref.read(outboxStoreProvider);
+
+  int? get _me => ref.read(authNotifierProvider).value?.id;
+
+  @override
+  List<OutboxItem> build() {
+    ref.onDispose(() => _retryTimer?.cancel());
+    _loaded = _load();
+    return const [];
+  }
+
+  Future<void> _load() async {
+    final saved = await _store.read();
+    if (!ref.mounted) return;
+    state = [...saved, ...state];
+  }
+
+  /// Waiting to send (not refused) for [key].
+  OutboxItem? waitingFor(String key) => state.where((i) => i.key == key && i.refusal == null).firstOrNull;
+
+  /// Turned down by the server, for [key].
+  OutboxItem? refusedFor(String key) => state.where((i) => i.key == key && i.refusal != null).firstOrNull;
+
+  /// Keeps [item] - replacing anything older about the same thing - and
+  /// starts sending.
+  Future<void> add(OutboxItem item) async {
+    await _loaded;
+    if (!ref.mounted) return;
+
+    state = [
+      for (final other in state)
+        if (other.key != item.key) other,
+      item,
+    ];
+    await _store.save(state);
+    unawaited(flush());
+  }
+
+  /// The person has read a refusal.
+  Future<void> dismiss(String key) async {
+    state = [
+      for (final item in state)
+        if (!(item.key == key && item.refusal != null)) item,
+    ];
+    await _store.save(state);
+  }
+
+  Future<void> retryNow() async {
+    _retryTimer?.cancel();
+    _failures = 0;
+    await flush();
+  }
+
+  Future<void> flush() async {
+    await _loaded;
+    final me = _me;
+    if (!ref.mounted || _sending || me == null) return;
+
+    final mine = [
+      for (final item in state)
+        if (item.userId == me && item.refusal == null) item,
+    ];
+    if (mine.isEmpty) return;
+
+    _retryTimer?.cancel();
+    _sending = true;
+    try {
+      for (final item in mine) {
+        await _send(item);
+      }
+      _failures = 0;
+    } on Failure catch (failure) {
+      if (failure.code != 'NETWORK_ERROR') debugPrint('Sending saved work failed: ${failure.code}');
+      _scheduleRetry();
+    } catch (error) {
+      debugPrint('Sending saved work failed unexpectedly: $error');
+      _scheduleRetry();
+    } finally {
+      _sending = false;
+    }
+  }
+
+  Future<void> _send(OutboxItem item) async {
+    try {
+      switch (item.kind) {
+        case OutboxKind.report:
+          await _sendReport(item);
+        case OutboxKind.marks:
+          await _sendMarks(item);
+      }
+      await _settle(item);
+    } on Failure catch (failure) {
+      if (failure.code == 'NETWORK_ERROR') rethrow;
+      // Already there - sent once before the answer was lost, or filed from
+      // another phone. Either way nothing is left to send.
+      if (failure.code == 'TEACHING_REPORT_ALREADY_SUBMITTED') {
+        await _settle(item);
+        return;
+      }
+      await _settle(item, refusedBecause: failure.message);
+    }
+  }
+
+  Future<void> _sendReport(OutboxItem item) async {
+    final p = item.payload;
+    await ref
+        .read(teachingReportRepositoryProvider)
+        .store(
+          timetableEntryId: p['timetable_entry_id'] as int,
+          reportDate: p['report_date'] as String,
+          topicTaught: p['topic_taught'] as String,
+          syllabusTopicId: p['syllabus_topic_id'] as int?,
+          homework: p['homework'] as String?,
+          remarks: p['remarks'] as String?,
+        );
+    if (!ref.mounted) return;
+    ref.invalidate(todayProvider);
+    ref.invalidate(myReportsProvider);
+  }
+
+  Future<void> _sendMarks(OutboxItem item) async {
+    final p = item.payload;
+    final entries = [
+      for (final row in (p['marks'] as List).cast<Map<String, dynamic>>())
+        SheetEntry(
+          studentId: row['student_id'] as int,
+          studentName: '',
+          admissionNumber: '',
+          rollNumber: null,
+          marksObtained: row['marks_obtained'] as String?,
+          isAbsent: row['is_absent'] as bool? ?? false,
+          grade: null,
+          percentage: null,
+          passed: null,
+          remarks: row['remarks'] as String?,
+        ),
+    ];
+    await ref.read(assessmentRepositoryProvider).saveMarks(p['assessment_id'] as int, entries);
+    if (ref.mounted) ref.invalidate(myTestsProvider);
+  }
+
+  Future<void> _settle(OutboxItem item, {String? refusedBecause}) async {
+    if (!ref.mounted) return;
+
+    state = [
+      for (final other in state)
+        if (other.key != item.key) other else if (refusedBecause != null) item.refused(refusedBecause),
+    ];
+    await _store.save(state);
+
+    // A refused report goes back into its draft: the period's form opens on
+    // the words, with the reason above them.
+    if (refusedBecause != null && item.kind == OutboxKind.report) {
+      final p = item.payload;
+      await ref
+          .read(reportNotesProvider)
+          .saveDraft(
+            p['timetable_entry_id'] as int,
+            p['report_date'] as String,
+            ReportWords(
+              topic: p['topic_taught'] as String,
+              homework: p['homework'] as String? ?? '',
+              remarks: p['remarks'] as String? ?? '',
+            ),
+          );
+    }
+  }
+
+  void _scheduleRetry() {
+    if (!ref.mounted) return;
+
+    _failures++;
+    final delay = retryDelays[min(_failures, retryDelays.length) - 1];
+    _retryTimer?.cancel();
+    _retryTimer = Timer(delay, flush);
+  }
+}

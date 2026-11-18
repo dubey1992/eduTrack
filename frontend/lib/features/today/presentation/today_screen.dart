@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../my_teaching/data/outbox.dart';
+import '../../my_teaching/application/staff_outbox.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -428,7 +430,7 @@ class _PeriodCard extends StatelessWidget {
                     ),
                     // Under the class rather than in a column of their own: on a
                     // phone a third column left the subject a word's width.
-                    _PeriodStatus(period: period),
+                    _PeriodStatus(period: period, date: date),
                   ],
                 ),
               ),
@@ -465,16 +467,28 @@ VoidCallback? _openFor(BuildContext context, TodayPeriod period, DateTime date) 
   );
 }
 
-class _PeriodStatus extends StatelessWidget {
-  const _PeriodStatus({required this.period});
+class _PeriodStatus extends ConsumerWidget {
+  const _PeriodStatus({required this.period, required this.date});
 
   final TodayPeriod period;
+  final DateTime date;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // What the phone knows comes first: the server cannot know about a
+    // report still waiting here for signal (2.1).
+    final key = OutboxItem.reportKey(period.timetableEntryId, apiDate(date));
+    final outbox = ref.watch(staffOutboxProvider);
+    final waiting = !period.reportFiled && outbox.any((i) => i.key == key && i.refusal == null);
+    final refused = !period.reportFiled && !waiting && outbox.any((i) => i.key == key && i.refusal != null);
+
     final badges = <Widget>[
       if (period.state == PeriodState.current) const StatusBadge(label: 'Now', tone: BadgeTone.info),
-      if (period.reportReturned)
+      if (waiting)
+        const StatusBadge(key: Key('today-report-waiting'), label: 'Saved, not sent', tone: BadgeTone.info)
+      else if (refused)
+        const StatusBadge(key: Key('today-report-refused'), label: 'Not sent - tap to see why', tone: BadgeTone.danger)
+      else if (period.reportReturned)
         const StatusBadge(label: 'Sent back - tap to change', tone: BadgeTone.warning)
       else if (period.reportFiled)
         const StatusBadge(label: 'Report filed', tone: BadgeTone.success)

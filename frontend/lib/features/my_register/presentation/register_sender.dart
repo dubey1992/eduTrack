@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/auth_notifier.dart';
+import '../../my_teaching/application/staff_outbox.dart';
 import '../application/register_queue.dart';
 
 /// Sends registers saved on the phone without waiting for anybody to open
@@ -43,6 +44,8 @@ class _RegisterSenderState extends ConsumerState<RegisterSender> {
   void _send() {
     if (ref.read(authNotifierProvider).value == null) return;
     ref.read(registerQueueProvider.notifier).retryNow();
+    // Teaching reports and marks saved with no signal (2.1).
+    ref.read(staffOutboxProvider.notifier).retryNow();
   }
 
   @override
