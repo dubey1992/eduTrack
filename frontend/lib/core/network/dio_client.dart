@@ -7,6 +7,7 @@ import '../config/env.dart';
 import '../errors/failure.dart';
 import 'auth_token_storage.dart';
 import 'maintenance_notifier.dart';
+import 'retry_interceptor.dart';
 import 'session_ended_notifier.dart';
 
 final authTokenStorageProvider = Provider<AuthTokenStorage>((ref) => AuthTokenStorage());
@@ -57,6 +58,9 @@ final dioClientProvider = Provider<Dio>((ref) {
       },
     ),
   );
+  // A read the busy host turned away is tried again before anybody sees an
+  // error - see TransientRetryInterceptor.
+  dio.interceptors.add(TransientRetryInterceptor(dio));
 
   return dio;
 });

@@ -45,7 +45,6 @@ import logging
 import urllib.request
 
 from PIL import Image
-from xhtml2pdf import pisa
 
 logger = logging.getLogger(__name__)
 
@@ -533,7 +532,7 @@ def style_errors(html: str) -> int:
     parser.setLevel(logging.DEBUG)
 
     try:
-        pisa.CreatePDF(html, dest=io.BytesIO(), encoding="utf-8")
+        _pisa().CreatePDF(html, dest=io.BytesIO(), encoding="utf-8")
     finally:
         parser.removeHandler(handler)
         parser.setLevel(level)
@@ -541,10 +540,25 @@ def style_errors(html: str) -> int:
     return Counter.count
 
 
+def _pisa():
+    """xhtml2pdf, imported only when a PDF is actually made.
+
+    It drags in reportlab, pypdf, pyhanko and aiohttp - nine-tenths of a
+    second before any request could be answered. The live API runs as CGI
+    (a fresh Python for every request, docs/deployment.md), so importing it
+    at the top of this module made every request pay for it, PDF or not,
+    and a screen's burst of requests ran into the host's process limit
+    ("Could not reach the server", 2026-11-18).
+    """
+    from xhtml2pdf import pisa
+
+    return pisa
+
+
 def render(html: str, name: str) -> bytes:
     """The PDF, ready to download or attach to an email."""
     out = io.BytesIO()
-    result = pisa.CreatePDF(html, dest=out, encoding="utf-8")
+    result = _pisa().CreatePDF(html, dest=out, encoding="utf-8")
 
     if result.err:
         raise RuntimeError(f"Could not render {name}")
