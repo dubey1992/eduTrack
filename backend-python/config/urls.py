@@ -255,9 +255,11 @@ urlpatterns = [
     # /leaves/summary before /leaves so the stat cards are not read as a
     # leave named "summary" - the same order routes/api.php declares them in.
     path("api/v1/leaves/summary", leave.summary),
+    path("api/v1/leaves/mine/taken", leave.taken_this_year),
     path("api/v1/leaves", leave.collection),
     path("api/v1/leaves/<int:leave_id>/approve", leave.approve),
     path("api/v1/leaves/<int:leave_id>/reject", leave.reject),
+    path("api/v1/leaves/<int:leave_id>/withdraw", leave.withdraw),
     # -- timetable ---------------------------------------------------------
     path("api/v1/timetable", timetable.collection),
     path("api/v1/timetable/today", timetable.today),

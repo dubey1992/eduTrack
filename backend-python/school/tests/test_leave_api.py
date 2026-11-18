@@ -32,7 +32,7 @@ from rest_framework.test import APIClient
 from school import factories, tokens
 from school.clock import SchoolClock
 from school.enums import LeaveStatus, MessageEvent, UserRole
-from school.models import Holiday, Message, StaffAttendance, StaffLeave
+from school.models import AuditLog, Holiday, Message, StaffAttendance, StaffLeave
 
 A_MONDAY = dt.date(2026, 9, 21)
 A_TUESDAY = dt.date(2026, 9, 22)
@@ -628,3 +628,138 @@ class ApprovingADayTheyWorked(StaffLeaveTest):
         response = self.as_user(self.admin).patch(f"/api/v1/leaves/{leave.id}/reject", {}, format="json")
 
         self.assertEqual(200, response.status_code, response.data)
+
+
+class WithdrawingOwnLeave(StaffLeaveTest):
+    """The applicant takes back a request nobody has decided yet
+    (docs/mobile-apps-review.md, 1.9) - only theirs, only while pending."""
+
+    def withdraw(self, user, leave):
+        return self.as_user(user).patch(f"/api/v1/leaves/{leave.id}/withdraw", {}, format="json")
+
+    def pending(self, profile=None, **fields):
+        return factories.StaffLeaveFactory(
+            school=self.school, staff_profile=profile or self.teacher_profile, status="pending",
+            start_date=A_MONDAY, end_date=A_TUESDAY, **fields,
+        )
+
+    def test_the_applicant_withdraws_a_pending_request_and_it_is_kept_and_audited(self):
+        leave = self.pending()
+
+        response = self.withdraw(self.teacher, leave)
+
+        self.assertEqual(200, response.status_code, response.data)
+        self.assertEqual(LeaveStatus.WITHDRAWN, response.data["status"])
+        self.assertEqual(LeaveStatus.WITHDRAWN, StaffLeave.objects.get(pk=leave.pk).status)
+        self.assertTrue(AuditLog.objects.filter(action="staff_leave.withdrawn", entity_id=leave.id).exists())
+
+    def test_the_days_are_free_for_a_new_request_at_once(self):
+        self.withdraw(self.teacher, self.pending())
+
+        response = self.as_user(self.teacher).post("/api/v1/leaves", self.payload(), format="json")
+
+        self.assertEqual(201, response.status_code, response.data)
+
+    def test_a_withdrawn_request_leaves_the_reviewers_pending_count(self):
+        leave = self.pending()
+        self.withdraw(self.teacher, leave)
+
+        summary = self.as_user(self.admin).get("/api/v1/leaves/summary")
+
+        self.assertEqual(0, summary.data["pending"])
+
+    def test_a_decided_request_cannot_be_withdrawn(self):
+        for status in ("approved", "rejected"):
+            leave = factories.StaffLeaveFactory(school=self.school, staff_profile=self.teacher_profile, status=status)
+
+            response = self.withdraw(self.teacher, leave)
+
+            self.assertEqual((409, "LEAVE_ALREADY_REVIEWED"), (response.status_code, response.data["code"]), status)
+            self.assertIn("can no longer be withdrawn", response.data["message"])
+            self.assertEqual(status, StaffLeave.objects.get(pk=leave.pk).status)
+
+    def test_twice_is_refused_the_second_time(self):
+        leave = self.pending()
+        self.withdraw(self.teacher, leave)
+
+        response = self.withdraw(self.teacher, leave)
+
+        self.assertEqual((409, "This leave request has already been withdrawn."), (
+            response.status_code, response.data["message"],
+        ))
+
+    def test_a_colleague_or_a_reviewer_cannot_withdraw_it(self):
+        leave = self.pending()
+
+        for user in (self.hod, self.admin):
+            self.assertEqual(403, self.withdraw(user, leave).status_code)
+
+        self.assertEqual(LeaveStatus.PENDING, StaffLeave.objects.get(pk=leave.pk).status)
+
+    def test_another_schools_leave_is_not_found(self):
+        other_school = factories.SchoolFactory()
+        stranger = factories.UserFactory(school=other_school, role=UserRole.TEACHER)
+        factories.StaffProfileFactory(school=other_school, user=stranger)
+
+        self.assertEqual(404, self.withdraw(stranger, self.pending()).status_code)
+
+    def test_signed_out_is_refused(self):
+        response = APIClient().patch(f"/api/v1/leaves/{self.pending().id}/withdraw", {}, format="json")
+
+        self.assertEqual(401, response.status_code)
+
+
+class LeaveTakenThisYear(StaffLeaveTest):
+    """The card on the phone's Leave tab: approved working days by type over
+    the current academic year, and how many requests still wait."""
+
+    URL = "/api/v1/leaves/mine/taken"
+
+    def test_counts_working_days_by_type_over_the_academic_year(self):
+        factories.AcademicYearFactory(
+            school=self.school, name="2026-27", start_date=dt.date(2026, 4, 1), end_date=dt.date(2027, 3, 31),
+            is_current=True,
+        )
+        # Saturday to Tuesday: two working days, not four.
+        factories.StaffLeaveFactory(
+            school=self.school, staff_profile=self.teacher_profile, status="approved", leave_type="casual",
+            start_date=A_SATURDAY, end_date=A_TUESDAY,
+        )
+        factories.StaffLeaveFactory(
+            school=self.school, staff_profile=self.teacher_profile, status="approved", leave_type="half_day",
+            start_date=A_MONDAY, end_date=A_MONDAY,
+        )
+        factories.StaffLeaveFactory(school=self.school, staff_profile=self.teacher_profile, status="pending")
+        factories.StaffLeaveFactory(
+            school=self.school, staff_profile=self.teacher_profile, status="withdrawn", leave_type="medical",
+            start_date=A_MONDAY, end_date=A_TUESDAY,
+        )
+        # Somebody else's, and one from before the year began.
+        factories.StaffLeaveFactory(school=self.school, staff_profile=self.hod_profile, status="approved")
+        factories.StaffLeaveFactory(
+            school=self.school, staff_profile=self.teacher_profile, status="approved", leave_type="earned",
+            start_date=dt.date(2026, 3, 2), end_date=dt.date(2026, 3, 3),
+        )
+
+        response = self.as_user(self.teacher).get(self.URL)
+
+        self.assertEqual(200, response.status_code, response.data)
+        days = {row["leave_type"]: row["days"] for row in response.data["types"]}
+        self.assertEqual(("2026-27", 2, 0.5, 0, 0), (
+            response.data["label"], days["casual"], days["half_day"], days["medical"], days["earned"],
+        ))
+        self.assertEqual((2.5, 1), (response.data["total_days"], response.data["pending_requests"]))
+
+    def test_without_an_academic_year_it_is_the_calendar_year(self):
+        response = self.as_user(self.teacher).get(self.URL)
+
+        year = SchoolClock.for_school(self.school.id).now().year
+        self.assertEqual((str(year), f"{year}-01-01", f"{year}-12-31", 0), (
+            response.data["label"], response.data["from"], response.data["to"], response.data["total_days"],
+        ))
+
+    def test_an_account_with_no_staff_profile_is_told_how_to_fix_it(self):
+        response = self.as_user(self.admin).get(self.URL)
+
+        self.assertEqual((409, "STAFF_PROFILE_REQUIRED"), (response.status_code, response.data["code"]))
+        self.assertIn("staff profile", response.data["message"])

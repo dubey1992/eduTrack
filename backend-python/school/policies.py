@@ -262,6 +262,18 @@ class StaffLeavePolicy:
         return permitted(actor, "leave", write=True)
 
     @staticmethod
+    def withdraw(actor: User, leave) -> bool:
+        """Only the person the leave is for, in their own school, and only
+        with the right to apply - the same gate as applying, plus whose it
+        is. A reviewer turns a request down; they never withdraw it."""
+        if not StaffLeavePolicy.apply(actor) or actor.school_id != leave.school_id:
+            return False
+
+        profile = actor.staff_profile
+
+        return profile is not None and leave.staff_profile_id == profile.id
+
+    @staticmethod
     def review(actor: User, leave) -> bool:
         if not permitted(actor, "leave", write=True, school_id=leave.school_id):
             return False

@@ -197,6 +197,7 @@ class _LeaveStatusBadge extends StatelessWidget {
       LeaveStatus.pending => BadgeTone.warning,
       LeaveStatus.approved => BadgeTone.success,
       LeaveStatus.rejected => BadgeTone.danger,
+      LeaveStatus.withdrawn => BadgeTone.neutral,
     };
 
     return StatusBadge(label: status.label, tone: tone);

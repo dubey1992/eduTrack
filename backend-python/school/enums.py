@@ -681,6 +681,10 @@ class LeaveStatus(models.TextChoices):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+    # Taken back by the person who applied, while it was still pending
+    # (docs/mobile-apps-review.md, 1.9). Kept, not deleted: the reviewer
+    # may already have seen it, and the history should say what happened.
+    WITHDRAWN = "withdrawn"
 
 
 class LeaveType(models.TextChoices):

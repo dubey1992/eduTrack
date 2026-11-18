@@ -6,6 +6,7 @@ import '../../../core/network/paginated_response.dart';
 import 'models/leave_type.dart';
 import 'models/staff_leave.dart';
 import 'models/staff_leave_summary.dart';
+import 'models/leave_taken.dart';
 import 'staff_leave_api.dart';
 
 final staffLeaveRepositoryProvider = Provider<StaffLeaveRepository>(
@@ -75,6 +76,22 @@ class StaffLeaveRepository {
   Future<StaffLeave> reject(int leaveId, {String? remarks}) async {
     try {
       return await _api.reject(leaveId, remarks: remarks);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<StaffLeave> withdraw(int leaveId) async {
+    try {
+      return await _api.withdraw(leaveId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<LeaveTaken> takenThisYear() async {
+    try {
+      return await _api.takenThisYear();
     } on DioException catch (e) {
       throw failureFromDioException(e);
     }

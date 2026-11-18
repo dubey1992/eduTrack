@@ -1,6 +1,7 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/staff_leave/data/models/leave_status.dart';
+import 'package:edutrack_app/features/staff_leave/data/models/leave_taken.dart';
 import 'package:edutrack_app/features/staff_leave/data/models/leave_type.dart';
 import 'package:edutrack_app/features/staff_leave/data/models/staff_leave.dart';
 import 'package:edutrack_app/features/staff_leave/data/models/staff_leave_summary.dart';
@@ -117,6 +118,35 @@ class FakeStaffLeaveRepository implements StaffLeaveRepository {
     if (failReviewWith != null) throw failReviewWith!;
     lastRejectedId = leaveId;
     return _reviewed(leaveId, LeaveStatus.rejected, remarks);
+  }
+
+  Failure? failWithdrawWith;
+  int? lastWithdrawnId;
+
+  @override
+  Future<StaffLeave> withdraw(int leaveId) async {
+    if (failWithdrawWith != null) throw failWithdrawWith!;
+    lastWithdrawnId = leaveId;
+    return _reviewed(leaveId, LeaveStatus.withdrawn, null);
+  }
+
+  /// What GET /leaves/mine/taken answers.
+  LeaveTaken taken = const LeaveTaken(
+    label: '2026-27',
+    from: '2026-04-01',
+    to: '2027-03-31',
+    days: {LeaveType.casual: 2, LeaveType.medical: 0, LeaveType.earned: 0, LeaveType.halfDay: 0.5},
+    totalDays: 2.5,
+    pendingRequests: 1,
+  );
+  Failure? failTakenWith;
+  int takenCalls = 0;
+
+  @override
+  Future<LeaveTaken> takenThisYear() async {
+    takenCalls++;
+    if (failTakenWith != null) throw failTakenWith!;
+    return taken;
   }
 
   StaffLeave _reviewed(int leaveId, LeaveStatus status, String? remarks) {

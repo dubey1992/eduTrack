@@ -170,6 +170,103 @@ void main() {
     });
   });
 
+  group('this year, and taking a request back (docs/mobile-apps-review.md, 1.9)', () {
+    testWidgets('the card shows what was taken this year, by kind, and what still waits', (tester) async {
+      await open(tester, FakeStaffLeaveRepository(leaves: [leave(id: 1)]));
+
+      final card = find.byKey(const Key('my-leave-taken'));
+      expect(find.descendant(of: card, matching: find.text('Taken in 2026-27')), findsOneWidget);
+      expect(find.descendant(of: card, matching: find.text('2.5 days')), findsOneWidget);
+      expect(find.descendant(of: card, matching: find.text('Casual Leave 2 days · Half Day 0.5 days')), findsOneWidget);
+      expect(find.descendant(of: card, matching: find.text('1 request is waiting for a decision.')), findsOneWidget);
+    });
+
+    testWidgets('a card that could not load offers a retry, and the list still shows', (tester) async {
+      final repository = FakeStaffLeaveRepository(leaves: [leave(id: 1)])
+        ..failTakenWith = const Failure(code: 'NETWORK_ERROR', message: 'Could not reach the server.');
+      await open(tester, repository);
+
+      expect(find.text("Could not load this year's leave."), findsOneWidget);
+      expect(find.byKey(const Key('my-leave-1')), findsOneWidget);
+
+      repository.failTakenWith = null;
+      await tester.tap(find.byKey(const Key('my-leave-taken-retry')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('my-leave-taken-total')), findsOneWidget);
+    });
+
+    testWidgets('only a pending request can be withdrawn', (tester) async {
+      await open(
+        tester,
+        FakeStaffLeaveRepository(
+          leaves: [
+            leave(id: 1),
+            leave(id: 2, status: LeaveStatus.approved),
+          ],
+        ),
+      );
+
+      expect(find.byKey(const Key('my-leave-withdraw-1')), findsOneWidget);
+      expect(find.byKey(const Key('my-leave-withdraw-2')), findsNothing);
+    });
+
+    testWidgets('withdrawing asks first, then marks the card and reads the year again', (tester) async {
+      final repository = FakeStaffLeaveRepository(leaves: [leave(id: 1)]);
+      await open(tester, repository);
+      final takenBefore = repository.takenCalls;
+
+      await tester.tap(find.byKey(const Key('my-leave-withdraw-1')));
+      await tester.pumpAndSettle();
+      expect(find.text('Withdraw this request?'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Withdraw'));
+      await tester.pumpAndSettle();
+
+      expect(repository.lastWithdrawnId, 1);
+      expect(find.text('Leave request withdrawn.'), findsOneWidget);
+      expect(
+        find.descendant(of: find.byKey(const Key('my-leave-1')), matching: find.text('Withdrawn')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('my-leave-withdraw-1')), findsNothing);
+      expect(repository.takenCalls, greaterThan(takenBefore));
+    });
+
+    testWidgets('keeping it sends nothing', (tester) async {
+      final repository = FakeStaffLeaveRepository(leaves: [leave(id: 1)]);
+      await open(tester, repository);
+
+      await tester.tap(find.byKey(const Key('my-leave-withdraw-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Keep it'));
+      await tester.pumpAndSettle();
+
+      expect(repository.lastWithdrawnId, isNull);
+    });
+
+    testWidgets('one decided meanwhile says so and stays as it was', (tester) async {
+      final repository = FakeStaffLeaveRepository(leaves: [leave(id: 1)])
+        ..failWithdrawWith = const Failure(
+          code: 'LEAVE_ALREADY_REVIEWED',
+          message: 'This leave request has already been approved, so it can no longer be withdrawn.',
+        );
+      await open(tester, repository);
+
+      await tester.tap(find.byKey(const Key('my-leave-withdraw-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Withdraw'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('can no longer be withdrawn'), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('my-leave-1')), matching: find.text('Pending')), findsOneWidget);
+    });
+
+    test('day counts read naturally', () {
+      expect([dayCount(0), dayCount(1), dayCount(2), dayCount(2.5)], ['0 days', '1 day', '2 days', '2.5 days']);
+    });
+  });
+
   group('applying', () {
     testWidgets('a reason is required, and nothing is sent without one', (tester) async {
       final repository = FakeStaffLeaveRepository();
