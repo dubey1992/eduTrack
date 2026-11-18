@@ -183,6 +183,13 @@ the product owner before that phase starts.
 - 1.6 Staff: the teaching report has **Same as <date>** (the teacher's own last report for this class and subject - GET /teaching-reports now takes `class_section_id` and `subject_id`), **templates** per subject (at most ten, newest first) and a **draft** saved as the teacher types. Templates and drafts stay on the phone and go on sign-out. Voice dictation was not part of M2.
 - 7.5 Staff: **My week**, one tap from Today - the teacher's own periods for each day, opening on today (the existing GET /timetable?teacher_id=).
 
+**M3 progress (2026-11-18, built on main, not deployed). Decided by the owner: staff reminders off for schools already live, times from the day's periods, links in push and WhatsApp only:**
+
+- 5.1 **Staff reminders** - register not taken (once the first period has ended), not checked in (30 minutes into the first period, where staff check in from the app), reports still owed (once the last period has ended). `send_staff_reminders`, cron every 15 minutes (docs/deployment.md). Three switches in Settings -> Modules (Student Attendance, Staff Attendance, Teaching Reports): **off for every school already live**, on for schools created from now. Inbox and push only, never SMS; once a person a day; nothing on closed days, holidays or leave. A tap opens Today.
+- 5.2 Family push opens the screen it is about: fees -> Fees, bus -> Bus, results -> Results, attendance -> Attendance, anything else -> Notices.
+- 5.6 Fee reminders already went three days before the due date with the amount (F5); with 5.2 their push opens Fees.
+- 6.5 **Links**: a WhatsApp template may now use a `link` value - `https://school365ai.com/f/<screen>` for parents (the web app for staff). It never reaches SMS or a school's own wording. The website writes `/f/` (a page for phones without the app) and `/.well-known/assetlinks.json`; the Family app opens those links on the named screen. **Owner steps:** (1) the Family app's SHA-256 signing fingerprints from Play Console into `FAMILY_APP_LINK_FINGERPRINTS` on the server, (2) a WhatsApp template with a link variable approved in Meta/Twilio, then `link` added to its parameters in Platform messaging.
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?

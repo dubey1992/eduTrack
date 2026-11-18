@@ -89,7 +89,7 @@ class ReadingModules(SettingsTest):
         attendance = next(row for row in response.data if row["module"] == "attendance")
         self.assertEqual(
             {"platform_enabled": True, "school_enabled": True, "enabled": True, "switchable": True,
-             "can_change_platform": False, "settings": {"max_backdate_days": 30}},
+             "can_change_platform": False, "settings": {"max_backdate_days": 30, "remind_register": False}},
             {key: attendance[key] for key in ("platform_enabled", "school_enabled", "enabled", "switchable",
                                                "can_change_platform", "settings")},
         )
@@ -202,7 +202,7 @@ class ModuleOwnSettings(SettingsTest):
         response = self.switch("attendance", settings={"max_backdate_days": 3})
 
         self.assertEqual(200, response.status_code, response.data)
-        self.assertEqual({"max_backdate_days": 3}, response.data["settings"])
+        self.assertEqual({"max_backdate_days": 3, "remind_register": False}, response.data["settings"])
         self.assertEqual(3, modules.setting(self.school.id, "attendance", "max_backdate_days"))
         self.assertEqual(30, modules.setting(self.elsewhere.id, "attendance", "max_backdate_days"))
 
