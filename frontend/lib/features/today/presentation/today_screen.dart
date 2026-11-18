@@ -74,7 +74,16 @@ class _DayView extends StatelessWidget {
         // It hides itself on a closed day, on leave, and where the school
         // marks staff in the office.
         const CheckInCard(),
-        const SizedBox(height: 12),
+        // The rest of the week, one tap away (docs/mobile-apps-review.md, 7.5).
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            key: const Key('today-open-week'),
+            onPressed: () => context.push('/week'),
+            icon: const Icon(Icons.calendar_view_week_outlined),
+            label: const Text('My week'),
+          ),
+        ),
         if (!day.isOpen)
           _ClosedCard(holidayName: day.holidayName)
         else ...[

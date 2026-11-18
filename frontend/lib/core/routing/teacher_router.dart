@@ -25,6 +25,7 @@ import '../../features/my_teaching/presentation/teaching_screen.dart';
 import '../../features/syllabus/application/syllabus_checklist_notifier.dart';
 import '../../features/my_leave/presentation/my_leave_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/today/presentation/week_screen.dart';
 import '../../features/today/presentation/staff_home_screen.dart';
 import '../../features/today/presentation/today_screen.dart';
 import '../models/user_role.dart';
@@ -55,6 +56,7 @@ const teacherPaths = {
   '/pay',
   '/inbox',
   '/profile',
+  '/week',
 };
 
 /// A payslip's own screen, `/pay/<id>`.
@@ -200,6 +202,8 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
       ),
       // Over the frame, from the bell, with a back arrow.
       GoRoute(path: '/inbox', builder: (context, state) => const MyInboxScreen()),
+      // The teacher's own week, over the frame, from Today (7.5).
+      GoRoute(path: '/week', builder: (context, state) => const WeekScreen()),
       GoRoute(
         path: '/profile',
         builder: (context, state) => const TeacherFrame(place: TeacherPlace.profile, child: ProfileScreen()),
