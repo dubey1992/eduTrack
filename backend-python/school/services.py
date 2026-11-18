@@ -529,6 +529,15 @@ class DemoRequestService:
         return DemoRequest.objects.select_related("reviewed_by").get(pk=request.pk)
 
 
+# The three staff reminders' switches (staff_reminders.py) - named here, not
+# imported, because staff_reminders builds on this module.
+STAFF_REMINDER_SWITCHES = (
+    ("attendance", "remind_register"),
+    ("staff_attendance", "remind_check_in"),
+    ("teaching_reports", "remind_reports_owed"),
+)
+
+
 class SchoolService:
     @staticmethod
     def scoped(actor: User, filters: dict | None = None):
@@ -614,6 +623,14 @@ class SchoolService:
 
             audit.created("schools", school)
             first_admin = None
+
+            # Staff reminders start on for a new school; schools that were
+            # already live keep them off until an admin says otherwise
+            # (staff_reminders.py, decided 2026-11-18).
+            for module, key in STAFF_REMINDER_SWITCHES:
+                ModuleSetting.objects.create(
+                    school_id=school.id, module=module, settings={key: True}, created_at=now, updated_at=now
+                )
 
             if admin is not None:
                 first_admin = UserService.create(

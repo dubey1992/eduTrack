@@ -292,7 +292,7 @@ block the script adds and the app is served properly.
 
 ## 5. Cron
 
-Six jobs. None of them is optional.
+Seven jobs. None of them is optional.
 
 ```
 * * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py work_queue >> var/queue.log 2>&1
@@ -301,6 +301,7 @@ Six jobs. None of them is optional.
 0 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py apply_late_fines >> var/fines.log 2>&1
 5 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py send_fee_reminders >> var/fee-reminders.log 2>&1
 50 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py record_analytics_snapshots >> var/analytics.log 2>&1
+*/15 * * * * cd /home/<account>/edutrack/backend-python && /home/<account>/virtualenv/edutrack/backend-python/<version>/bin/python manage.py send_staff_reminders >> var/staff-reminders.log 2>&1
 ```
 
 The first drains the job queue — SMS, WhatsApp, announcement fan-out, emailed
