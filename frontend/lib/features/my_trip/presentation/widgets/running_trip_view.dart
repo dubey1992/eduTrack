@@ -50,6 +50,12 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
   /// match (rider_search.dart).
   String _query = '';
 
+  /// This sheet's own snackbars, shown above the SOS / End trip bar rather
+  /// than over it.
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
+
+  ScaffoldMessengerState? get _snackBars => _messenger.currentState;
+
   TripDetailNotifier get _trip => ref.read(tripDetailProvider(widget.tripId).notifier);
 
   bool _acceptTap() {
@@ -67,8 +73,8 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
   Future<void> _callParent(TripRider rider) async {
     final opened = await _trip.callParent(rider);
     if (!opened && mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
+      _snackBars
+        ?..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text("Could not open the phone's dialler.")));
     }
   }
@@ -97,8 +103,8 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
 
     final opened = await ref.read(mapNavigatorProvider).navigateTo(latitude: latitude, longitude: longitude);
     if (!opened && mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
+      _snackBars
+        ?..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('Could not open a maps app on this phone.')));
     }
   }
@@ -118,8 +124,8 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
 
     await _trip.end();
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
+    _snackBars
+      ?..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text('Trip ended.')));
   }
 
@@ -128,10 +134,13 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     final view = ref.watch(myTripViewProvider(widget.tripId));
     final notSent = ref.watch(tripMarkQueueProvider.select((queue) => queue.notSentFor(widget.tripId)));
 
-    return AsyncValueView<TripSnapshot>(
-      value: view,
-      onRetry: () => ref.read(tripDetailProvider(widget.tripId).notifier).refresh(),
-      data: (context, snapshot) => _buildTrip(context, snapshot, notSent),
+    return ScaffoldMessenger(
+      key: _messenger,
+      child: AsyncValueView<TripSnapshot>(
+        value: view,
+        onRetry: () => ref.read(tripDetailProvider(widget.tripId).notifier).refresh(),
+        data: (context, snapshot) => _buildTrip(context, snapshot, notSent),
+      ),
     );
   }
 
@@ -155,29 +164,38 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
 
     // The search box stays above the list rather than scrolling off with
     // it: the moment it is wanted is the moment the sheet is longest.
-    return Column(
-      children: [
-        if (trip.riders.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: RiderSearchField(onChanged: (query) => setState(() => _query = query)),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      // SOS and End trip stay put under the thumb, however long the sheet:
+      // scrolling to the foot of forty children to find SOS is the wrong
+      // moment to be scrolling (docs/mobile-apps-review.md, 1.4).
+      bottomNavigationBar: running
+          ? _TripActionBar(aboard: aboard, onSos: _trip.raiseSos, onEnd: () => _end(trip))
+          : null,
+      body: Column(
+        children: [
+          if (trip.riders.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: RiderSearchField(onChanged: (query) => setState(() => _query = query)),
+            ),
+          Expanded(
+            child: _buildSheet(
+              context,
+              trip,
+              snapshot,
+              notSent,
+              stops,
+              nextStop,
+              shown,
+              unplaced,
+              searching,
+              aboard,
+              running,
+            ),
           ),
-        Expanded(
-          child: _buildSheet(
-            context,
-            trip,
-            snapshot,
-            notSent,
-            stops,
-            nextStop,
-            shown,
-            unplaced,
-            searching,
-            aboard,
-            running,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -249,32 +267,42 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
           const _SectionTitle('Other riders'),
           for (final rider in unplaced) _riderTile(rider, running),
         ],
-        const SizedBox(height: 16),
-        if (running) ...[
-          SosButton(onSos: _trip.raiseSos),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 56,
-            child: FilledButton.icon(
-              key: const Key('end-trip'),
-              onPressed: aboard > 0 ? null : () => _end(trip),
-              style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
-              icon: const Icon(Icons.flag),
-              label: const Text('End trip'),
-            ),
-          ),
-          if (aboard > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                '$aboard ${aboard == 1 ? 'child is' : 'children are'} still on board. Drop them off before ending the trip.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: context.appColors.muted),
-              ),
-            ),
-        ],
       ],
     );
+  }
+
+  /// Marks [rider] and offers to take it back while it waits on the phone.
+  Future<void> _markRider(TripRider rider, TripRiderStatus status) async {
+    final clientId = await _trip.markRider(rider, status);
+    if (clientId == null || !mounted) return;
+
+    _snackBars
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const Key('mark-undo-snackbar'),
+          content: Text('${rider.name} ${status.label.toLowerCase()}'),
+          duration: TripMarkQueue.undoWindow,
+          action: SnackBarAction(key: const Key('mark-undo'), label: 'Undo', onPressed: () => _undo(rider, clientId)),
+        ),
+      );
+  }
+
+  Future<void> _undo(TripRider rider, String clientId) async {
+    final undone = await _trip.undoMark(clientId);
+    if (!mounted) return;
+
+    _snackBars
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            undone
+                ? 'Taken back - ${rider.name} is not marked.'
+                : 'Already sent to the school, so it stands. Ask the office to correct it.',
+          ),
+        ),
+      );
   }
 
   Widget _riderTile(TripRider rider, bool running) {
@@ -282,11 +310,71 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
       rider: rider,
       running: running,
       onMark: (status) {
-        if (_acceptTap()) _trip.markRider(rider, status);
+        if (_acceptTap()) _markRider(rider, status);
       },
       onCallParent: () {
         if (_acceptTap()) _callParent(rider);
       },
+    );
+  }
+}
+
+/// The two buttons a running trip always needs within reach.
+class _TripActionBar extends StatelessWidget {
+  const _TripActionBar({required this.aboard, required this.onSos, required this.onEnd});
+
+  final int aboard;
+  final Future<void> Function() onSos;
+  final VoidCallback onEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      key: const Key('trip-action-bar'),
+      elevation: 8,
+      color: theme.colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (aboard > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '$aboard ${aboard == 1 ? 'child is' : 'children are'} still on board. '
+                    'Drop them off before ending the trip.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: context.appColors.muted),
+                  ),
+                ),
+              Row(
+                children: [
+                  Expanded(flex: 3, child: SosButton(onSos: onSos)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: SizedBox(
+                      height: 56,
+                      child: FilledButton.icon(
+                        key: const Key('end-trip'),
+                        onPressed: aboard > 0 ? null : onEnd,
+                        style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error),
+                        icon: const Icon(Icons.flag),
+                        label: const Text('End trip'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

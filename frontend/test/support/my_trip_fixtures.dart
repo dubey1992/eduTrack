@@ -276,13 +276,16 @@ class FakeMyTripApi implements MyTripApi {
     return {'results': results, 'trip': serverTrip};
   }
 
+  /// What the server says of the trip with each upload (2.3).
+  bool tripInProgress = true;
+
   @override
   Future<Map<String, dynamic>> sendLocations(int tripId, List<LocationPoint> points) async {
     if (offline) throw offlineError('/transport/trips/$tripId/locations');
     if (locationsError != null) throw locationsError!;
 
     locationBatches.add(points);
-    return {'accepted': points.length, 'refused': 0};
+    return {'accepted': points.length, 'refused': 0, 'in_progress': tripInProgress};
   }
 
   void _apply(Map<String, dynamic> op) {

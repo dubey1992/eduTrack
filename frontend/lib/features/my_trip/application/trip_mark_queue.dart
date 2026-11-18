@@ -66,7 +66,18 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
   /// The most the sync endpoint takes in one request.
   static const maxBatch = 200;
 
+  /// How long a boarding, drop or absent mark waits on the phone before it
+  /// is sent, so a wrong tap can be taken back: once sent, the family has
+  /// been told and the server has no "unmark" (docs/mobile-apps-review.md,
+  /// 1.2).
+  static const undoWindow = Duration(seconds: 5);
+
   Timer? _retryTimer;
+
+  /// Marks inside their undo window, with the timer that releases each.
+  /// Kept in memory only: an app closed inside the window sends the mark
+  /// when it opens again, which is what the crew meant by tapping.
+  final Map<String, Timer> _held = {};
   int _failures = 0;
   late Future<void> _loaded;
 
@@ -74,7 +85,12 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
 
   @override
   TripMarkQueueState build() {
-    ref.onDispose(() => _retryTimer?.cancel());
+    ref.onDispose(() {
+      _retryTimer?.cancel();
+      for (final timer in _held.values) {
+        timer.cancel();
+      }
+    });
     _loaded = _load();
     return const TripMarkQueueState();
   }
@@ -89,14 +105,51 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
     if (pending.isNotEmpty) unawaited(flush());
   }
 
-  /// Saves [mark] on the phone and starts sending it.
-  Future<void> enqueue(TripMark mark) async {
+  /// Saves [mark] on the phone and starts sending it - after [hold], when
+  /// one is given, so that [undo] can still take it back.
+  Future<void> enqueue(TripMark mark, {Duration? hold}) async {
     await _loaded;
     if (!ref.mounted) return;
 
+    if (hold != null) {
+      _held[mark.clientId] = Timer(hold, () {
+        _held.remove(mark.clientId);
+        unawaited(flush());
+      });
+    }
     state = state.copyWith(pending: [...state.pending, mark]);
     await _store.saveMarks(state.pending);
     unawaited(flush());
+  }
+
+  /// Takes back a mark still inside its undo window. False when it has
+  /// already gone (or is going) to the server - then it stands.
+  Future<bool> undo(String clientId) async {
+    final timer = _held.remove(clientId);
+    if (timer == null || !ref.mounted) return false;
+
+    timer.cancel();
+    state = state.copyWith(pending: state.pending.where((m) => m.clientId != clientId).toList());
+    await _store.saveMarks(state.pending);
+    unawaited(flush());
+    return true;
+  }
+
+  /// What can go now: everything older than the first mark still inside
+  /// its undo window. A later mark may depend on a held one (dropped needs
+  /// boarded), so it waits its turn rather than overtaking it - except an
+  /// SOS, which depends on nothing and must not wait on anything.
+  List<TripMark> get _sendable {
+    final sendable = <TripMark>[];
+    var blocked = false;
+    for (final mark in state.pending) {
+      if (_held.containsKey(mark.clientId)) {
+        blocked = true;
+      } else if (!blocked || mark.type == TripMarkType.sos) {
+        sendable.add(mark);
+      }
+    }
+    return sendable;
   }
 
   /// Tries now rather than waiting out the back-off - the app came back to
@@ -110,15 +163,16 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
   /// Sends everything waiting, oldest first, one trip's batch at a time.
   Future<void> flush() async {
     await _loaded;
-    if (!ref.mounted || state.sending || state.pending.isEmpty) return;
+    if (!ref.mounted || state.sending || _sendable.isEmpty) return;
 
     _retryTimer?.cancel();
     state = state.copyWith(sending: true);
 
     try {
-      while (ref.mounted && state.pending.isNotEmpty) {
-        final tripId = state.pending.first.tripId;
-        final batch = state.pending.where((m) => m.tripId == tripId).take(maxBatch).toList();
+      while (ref.mounted && _sendable.isNotEmpty) {
+        final sendable = _sendable;
+        final tripId = sendable.first.tripId;
+        final batch = sendable.where((m) => m.tripId == tripId).take(maxBatch).toList();
         await _send(tripId, batch);
       }
       _failures = 0;
@@ -213,6 +267,10 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
   Future<void> discardAll() async {
     await _loaded;
     _retryTimer?.cancel();
+    for (final timer in _held.values) {
+      timer.cancel();
+    }
+    _held.clear();
     _failures = 0;
     if (ref.mounted) state = const TripMarkQueueState();
     await _store.clear();

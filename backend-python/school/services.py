@@ -7388,19 +7388,33 @@ class TripLocationService:
     def record(cls, trip, points: list[dict], actor: User) -> dict:
         """Stores the points that make sense and counts the rest. A point is
         refused for poor accuracy, a clock in the future, or a time outside
-        the trip - never the whole batch for one bad point."""
-        if trip.status != TripStatus.IN_PROGRESS:
+        the trip - never the whole batch for one bad point.
+
+        A completed trip still takes the points taken before it ended: a
+        phone out of signal for the last stretch sends its End mark and its
+        positions separately, and the End often lands first
+        (docs/mobile-apps-review.md, 2.3). A batch with nothing from before
+        the end - or any batch for a cancelled trip - is the old answer,
+        TRIP_NOT_IN_PROGRESS, which tells the phone to stop sharing."""
+        ended = as_utc(trip.ended_at) if trip.status == TripStatus.COMPLETED and trip.ended_at else None
+
+        if trip.status != TripStatus.IN_PROGRESS and ended is None:
             raise TripRule.not_in_progress()
 
         now = timezone.now()
         started = as_utc(trip.started_at) - dt.timedelta(minutes=1)
+        latest = ended + dt.timedelta(minutes=1) if ended else now + dt.timedelta(minutes=2)
+
+        if ended is not None and not any(started <= point["recorded_at"] <= latest for point in points):
+            raise TripRule.not_in_progress()
+
         first_from_this_person = not TransportTripLocation.objects.filter(trip_id=trip.pk, recorded_by_id=actor.id).exists()
         kept = []
         refused = 0
 
         for point in points:
             accurate = point["accuracy_m"] is None or point["accuracy_m"] <= cls.MAX_ACCURACY_M
-            timely = started <= point["recorded_at"] <= now + dt.timedelta(minutes=2)
+            timely = started <= point["recorded_at"] <= latest
 
             if not (accurate and timely):
                 refused += 1
@@ -7421,12 +7435,16 @@ class TripLocationService:
 
         # "The bus is near your stop", in the Family app (F4). Never fails
         # the upload; imported here because family_bus builds on this class.
-        if kept:
+        # Only while the bus is still on its way: a late point from a trip
+        # already over tells no parent anything true.
+        if kept and ended is None:
             from .family_bus import alert_near_stops
 
             alert_near_stops(trip)
 
-        return {"accepted": len(kept), "refused": refused}
+        # `in_progress` false tells the phone to stop sharing once these
+        # late points are in.
+        return {"accepted": len(kept), "refused": refused, "in_progress": ended is None}
 
     @classmethod
     def live(cls, trip) -> dict:

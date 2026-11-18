@@ -3,6 +3,7 @@ import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/core/widgets/status_badge.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
 import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
+import 'package:edutrack_app/features/my_trip/application/trip_mark_queue.dart';
 import 'package:edutrack_app/features/my_trip/data/battery_guard.dart';
 import 'package:edutrack_app/features/my_trip/data/map_navigator.dart';
 import 'package:edutrack_app/features/my_trip/data/navigation_session.dart';
@@ -84,6 +85,14 @@ void main() {
   Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
     await tester.tap(finder);
     await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+  }
+
+  /// A child's mark waits on the phone for its undo window before it is
+  /// sent (docs/mobile-apps-review.md, 1.2). A second more, so its Undo
+  /// snackbar has gone too.
+  Future<void> waitOutUndo(WidgetTester tester) async {
+    await tester.pump(TripMarkQueue.undoWindow + const Duration(seconds: 1));
     await tester.pumpAndSettle();
   }
 
@@ -312,6 +321,7 @@ void main() {
       expect(markEnabled(tester, 'boarded', 1), isFalse);
       expect(markEnabled(tester, 'absent', 1), isFalse);
       expect(markEnabled(tester, 'dropped', 1), isTrue);
+      await waitOutUndo(tester);
       expect(api.syncedOps.single, containsPair('student_id', 1));
 
       await tapAndSettle(tester, find.byKey(const Key('mark-dropped-1')));
@@ -339,7 +349,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.byKey(const Key('mark-dropped-1')));
       await tester.pump(const Duration(milliseconds: 500));
-      await tester.pumpAndSettle();
+      await waitOutUndo(tester);
 
       expect(statusOf(tester, 1), 'Boarded');
       expect(api.syncedOps, hasLength(1));
@@ -361,11 +371,47 @@ void main() {
       expect(find.text('2 children have not been marked and will be recorded as absent.'), findsOneWidget);
 
       await tapAndSettle(tester, find.widgetWithText(FilledButton, 'End trip').last);
-
       expect(find.text('Trip ended.'), findsOneWidget);
+      await waitOutUndo(tester);
+
       expect(find.byKey(const Key('end-trip')), findsNothing);
       expect(api.syncedOps.last, containsPair('type', 'end'));
       expect(statusOf(tester, 2), 'Absent');
+    });
+
+    testWidgets('a wrong tap can be undone before anything reaches the school', (tester) async {
+      await openRunningTrip(tester);
+
+      await tapAndSettle(tester, find.byKey(const Key('mark-boarded-1')));
+      expect(find.text('Aarav Sharma boarded'), findsOneWidget);
+      expect(statusOf(tester, 1), 'Boarded');
+
+      await tapAndSettle(tester, find.byKey(const Key('mark-undo')));
+      expect(find.text('Taken back - Aarav Sharma is not marked.'), findsOneWidget);
+      await waitOutUndo(tester);
+
+      expect(statusOf(tester, 1), 'Pending');
+      expect(api.syncedOps, isEmpty);
+      expect(store.values['my_trip.marks'] ?? '', isNot(contains('"boarded"')));
+    });
+
+    testWidgets('a mark nobody undoes is sent once its window is over', (tester) async {
+      await openRunningTrip(tester);
+
+      await tapAndSettle(tester, find.byKey(const Key('mark-absent-2')));
+      expect(api.syncedOps, isEmpty, reason: 'still inside the undo window');
+
+      await waitOutUndo(tester);
+      expect(api.syncedOps.single, containsPair('type', 'absent'));
+    });
+
+    testWidgets('SOS and End trip sit in the bar at the foot of the screen', (tester) async {
+      await openRunningTrip(tester);
+      final bar = find.byKey(const Key('trip-action-bar'));
+
+      expect(find.descendant(of: bar, matching: find.byKey(const Key('sos'))), findsOneWidget);
+      expect(find.descendant(of: bar, matching: find.byKey(const Key('end-trip'))), findsOneWidget);
+      expect(tester.getBottomLeft(bar).dy, tester.view.physicalSize.height);
     });
 
     testWidgets('keeping going after the question ends nothing', (tester) async {
@@ -583,6 +629,7 @@ void main() {
 
       expect(statusOf(tester, 1), 'Boarded');
       expect(find.text('Offline - 2 marks waiting to send'), findsOneWidget);
+      await waitOutUndo(tester);
 
       // Signal is back.
       api.offline = false;
@@ -598,9 +645,13 @@ void main() {
       await openRunningTrip(tester);
 
       await tapAndSettle(tester, find.byKey(const Key('mark-absent-2')));
+      await waitOutUndo(tester);
 
       expect(find.text('Not sent'), findsOneWidget);
-      expect(find.text('Diya Patel absent'), findsOneWidget);
+      expect(
+        find.descendant(of: find.byKey(const Key('not-sent-card')), matching: find.text('Diya Patel absent')),
+        findsOneWidget,
+      );
       expect(find.text('The trip had already ended, so this mark was not recorded.'), findsOneWidget);
       // Not applied on the server, so no longer shown as absent either.
       expect(statusOf(tester, 2), 'Pending');

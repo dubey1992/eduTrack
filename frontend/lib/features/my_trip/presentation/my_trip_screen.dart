@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../application/leftover_points.dart';
 import '../application/my_routes_notifier.dart';
 import '../application/trip_mark_queue.dart';
 import '../data/battery_guard.dart';
@@ -40,7 +43,9 @@ class _MyTripScreenState extends ConsumerState<MyTripScreen> {
   }
 
   void _sendWaitingMarks() {
-    if (mounted) ref.read(tripMarkQueueProvider.notifier).retryNow();
+    if (!mounted) return;
+    ref.read(tripMarkQueueProvider.notifier).retryNow();
+    unawaited(ref.read(leftoverPointsProvider).send());
   }
 
   @override

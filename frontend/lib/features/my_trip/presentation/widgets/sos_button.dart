@@ -123,9 +123,16 @@ class _SosButtonState extends State<SosButton> with SingleTickerProviderStateMix
                       children: [
                         Icon(Icons.sos_outlined, color: colors.onDangerContainer),
                         const SizedBox(width: 8),
-                        Text(
-                          _held.isAnimating || _sending ? 'Keep holding...' : 'Hold for SOS',
-                          style: TextStyle(fontWeight: FontWeight.w800, color: colors.onDangerContainer),
+                        // Shrinks rather than clips beside End trip on a
+                        // narrow phone or with large text.
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _held.isAnimating || _sending ? 'Keep holding...' : 'Hold for SOS',
+                              style: TextStyle(fontWeight: FontWeight.w800, color: colors.onDangerContainer),
+                            ),
+                          ),
                         ),
                       ],
                     ),

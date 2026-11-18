@@ -190,6 +190,71 @@ void main() {
     container.dispose();
   });
 
+  group('the undo window (docs/mobile-apps-review.md, 1.2)', () {
+    testWidgets('a held mark is saved at once but sent only when its window ends', (tester) async {
+      final container = phone();
+      final queue = container.read(tripMarkQueueProvider.notifier);
+
+      await queue.enqueue(_mark(TripMarkType.boarded, studentId: 1), hold: TripMarkQueue.undoWindow);
+      await tester.pump();
+      expect(stored('my_trip.marks'), hasLength(1));
+      expect(api.syncedOps, isEmpty);
+
+      await tester.pump(TripMarkQueue.undoWindow);
+      expect(api.syncedOps.single, containsPair('type', 'boarded'));
+
+      container.dispose();
+    });
+
+    testWidgets('undo inside the window forgets the mark; after it, the mark stands', (tester) async {
+      final container = phone();
+      final queue = container.read(tripMarkQueueProvider.notifier);
+      final wrong = _mark(TripMarkType.absent, studentId: 2);
+      final right = _mark(TripMarkType.boarded, studentId: 1);
+
+      await queue.enqueue(wrong, hold: TripMarkQueue.undoWindow);
+      expect(await queue.undo(wrong.clientId), isTrue);
+      expect(stored('my_trip.marks'), isEmpty);
+
+      await queue.enqueue(right, hold: TripMarkQueue.undoWindow);
+      await tester.pump(TripMarkQueue.undoWindow);
+      expect(await queue.undo(right.clientId), isFalse);
+      expect(api.syncedOps.map((op) => op['type']), ['boarded']);
+
+      container.dispose();
+    });
+
+    testWidgets('a later mark waits behind a held one instead of overtaking it', (tester) async {
+      final container = phone();
+      final queue = container.read(tripMarkQueueProvider.notifier);
+
+      await queue.enqueue(_mark(TripMarkType.boarded, studentId: 1), hold: TripMarkQueue.undoWindow);
+      await queue.enqueue(_mark(TripMarkType.dropped, studentId: 1));
+      await tester.pump();
+      expect(api.syncedOps, isEmpty);
+
+      await tester.pump(TripMarkQueue.undoWindow);
+      expect(api.syncedOps.map((op) => op['type']), ['boarded', 'dropped']);
+
+      container.dispose();
+    });
+
+    testWidgets('an SOS never waits on a held mark', (tester) async {
+      final container = phone();
+      final queue = container.read(tripMarkQueueProvider.notifier);
+
+      await queue.enqueue(_mark(TripMarkType.boarded, studentId: 1), hold: TripMarkQueue.undoWindow);
+      await queue.enqueue(_mark(TripMarkType.sos));
+      await tester.pump();
+      expect(api.syncedOps.map((op) => op['type']), ['sos']);
+
+      await tester.pump(TripMarkQueue.undoWindow);
+      expect(api.syncedOps.map((op) => op['type']), ['sos', 'boarded']);
+
+      container.dispose();
+    });
+  });
+
   testWidgets('a mark the other crew member already made is settled, not "Not sent"', (tester) async {
     // A driver and an attendant both tapped Boarded. Nothing failed and
     // nothing needs sending again, so it must not land in front of anybody
