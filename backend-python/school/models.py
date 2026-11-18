@@ -772,6 +772,11 @@ class Message(models.Model):
     provider = models.CharField(max_length=50, blank=True, null=True)
     provider_message_id = models.CharField(max_length=100, blank=True, null=True)
     failure_reason = models.CharField(max_length=255, blank=True, null=True)
+    # What the provider reported after taking it (docs/dashboard.md, D2):
+    # delivered, read or undelivered; null until a report arrives.
+    delivery_status = models.CharField(max_length=20, blank=True, null=True)
+    delivered_at = UtcDateTimeField(blank=True, null=True)
+    delivery_error = models.CharField(max_length=255, blank=True, null=True)
     created_by = models.ForeignKey('User', models.DO_NOTHING, db_column='created_by', related_name='messages_created_by_set', blank=True, null=True)
     sent_at = UtcDateTimeField(blank=True, null=True)
     read_at = UtcDateTimeField(blank=True, null=True)
@@ -1493,6 +1498,8 @@ class Student(models.Model):
     # The day the student joined (docs/fees.md, F2): fees due before it are
     # not charged. Null means the day the record was created.
     admission_date = models.DateField(blank=True, null=True)
+    # male, female or other; null is "not given" (docs/dashboard.md).
+    gender = models.CharField(max_length=10, blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 

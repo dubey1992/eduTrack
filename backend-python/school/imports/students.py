@@ -8,7 +8,7 @@ in a spreadsheet knows that a section is number 37.
 from __future__ import annotations
 
 from .. import roll_numbers
-from ..enums import StudentStatus
+from ..enums import StudentGender, StudentStatus
 from ..models import AcademicYear, ClassSection, Student
 from ..services import StudentService
 from ..validation import MOBILE_PATTERN, already_taken, bad_format, required, too_long
@@ -30,7 +30,7 @@ class StudentImporter:
     def headings(self) -> list[str]:
         return [
             "admission_number", "first_name", "last_name", "class", "section",
-            "roll_number", "guardian_name", "guardian_mobile", "address",
+            "roll_number", "guardian_name", "guardian_mobile", "address", "gender",
         ]
 
     def sample(self) -> list[str]:
@@ -38,8 +38,11 @@ class StudentImporter:
         number should look."""
         return [
             "ADM-2026-001", "Aarav", "Sharma", "Grade 5", "A",
-            "12", "Meera Sharma", "+91 98765 43210", "14 Rose Lane, Pune",
+            "12", "Meera Sharma", "+91 98765 43210", "14 Rose Lane, Pune", "Male",
         ]
+
+    # Added 2026-11-18; a file from the template before it still imports.
+    optional_columns = ("gender",)
 
     def unique_columns(self) -> list[str]:
         return ["admission_number"]
@@ -78,6 +81,12 @@ class StudentImporter:
 
         if mobile is not None and not MOBILE_PATTERN.match(mobile):
             messages.append(bad_format("guardian_mobile"))
+
+        # Optional (docs/dashboard.md): Male, Female or Other, or M / F.
+        try:
+            StudentGender.from_text(row.get("gender"))
+        except ValueError:
+            messages.append("The gender must be Male, Female or Other, or left blank.")
 
         return messages
 
@@ -133,6 +142,7 @@ class StudentImporter:
                 "guardian_name": row["guardian_name"],
                 "guardian_mobile": row.get("guardian_mobile"),
                 "address": row.get("address"),
+                "gender": StudentGender.from_text(row.get("gender")),
                 "status": StudentStatus.ACTIVE,
             },
             actor,

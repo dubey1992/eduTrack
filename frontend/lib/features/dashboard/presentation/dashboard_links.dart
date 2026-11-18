@@ -52,7 +52,7 @@ DashboardLink? linkForCard(String key, DateTime today, {int? schoolId}) {
     'users' => const DashboardLink('/users'),
     'collected' || 'outstanding' => const DashboardLink('/payments'),
     // A school.
-    'students' => const DashboardLink('/students'),
+    'students' || 'boys' || 'girls' || 'gender_other' => const DashboardLink('/students'),
     'staff' || 'teachers' => const DashboardLink('/staff'),
     'attendance' || 'register' => const DashboardLink('/attendance'),
     'transport' || 'running' || 'completed' => const DashboardLink('/transport/trips'),

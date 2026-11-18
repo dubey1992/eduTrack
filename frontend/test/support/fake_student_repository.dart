@@ -126,6 +126,7 @@ class FakeStudentRepository implements StudentRepository {
     String? studentEmail,
     DateTime? admissionDate,
     String? address,
+    String? gender,
   }) async {
     if (failCreateWith != null) throw failCreateWith!;
 
@@ -147,6 +148,7 @@ class FakeStudentRepository implements StudentRepository {
       studentEmail: studentEmail,
       admissionDate: admissionDate,
       address: address,
+      gender: StudentGender.fromApiValue(gender),
       status: StudentStatus.active,
     );
     _students.add(student);
@@ -172,6 +174,7 @@ class FakeStudentRepository implements StudentRepository {
     String? studentEmail,
     DateTime? admissionDate,
     String? address,
+    String? gender,
   }) async {
     lastUpdate = {
       'student_id': studentId,
@@ -184,6 +187,7 @@ class FakeStudentRepository implements StudentRepository {
       'student_email': studentEmail,
       'admission_date': admissionDate,
       'address': address,
+      'gender': gender,
     };
     if (failUpdateWith != null) throw failUpdateWith!;
 
@@ -208,6 +212,8 @@ class FakeStudentRepository implements StudentRepository {
       // Sent on every save, null meaning cleared - as the API treats it.
       admissionDate: admissionDate,
       address: address ?? existing.address,
+      // Sent on every save, null meaning not given.
+      gender: StudentGender.fromApiValue(gender),
       status: existing.status,
       transport: existing.transport,
     );

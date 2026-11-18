@@ -6699,6 +6699,7 @@ class StudentService:
                 student_email=data.get("student_email"),
                 address=data.get("address"),
                 admission_date=data.get("admission_date"),
+                gender=data.get("gender"),
                 status=StudentStatus.ACTIVE,
                 created_at=now,
                 updated_at=now,

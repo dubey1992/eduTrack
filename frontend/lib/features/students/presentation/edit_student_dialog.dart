@@ -10,6 +10,7 @@ import '../application/student_list_notifier.dart';
 import '../data/models/student.dart';
 import 'widgets/student_transport_picker.dart';
 import 'widgets/admission_date_field.dart';
+import 'widgets/gender_field.dart';
 import '../../../core/widgets/searchable_dropdown.dart';
 
 class EditStudentDialog extends ConsumerStatefulWidget {
@@ -32,6 +33,9 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
 
   /// The day the student joined; fees are charged from it (docs/fees.md).
   late DateTime? _admissionDate = widget.student.admissionDate;
+
+  /// Optional; null is "not given" (docs/dashboard.md).
+  late StudentGender? _gender = widget.student.gender;
   late final _addressController = TextEditingController(text: widget.student.address ?? '');
 
   late int? _classSectionId = widget.student.classSectionId;
@@ -76,6 +80,7 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
             studentMobile: _optionalText(_studentMobileController),
             studentEmail: _optionalText(_studentEmailController),
             admissionDate: _admissionDate,
+            gender: _gender?.apiValue,
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
             routeId: _routeId,
             stopId: _stopId,
@@ -145,6 +150,8 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
                   decoration: const InputDecoration(labelText: 'Student email (optional)'),
                   validator: _optionalEmailProblem,
                 ),
+                const SizedBox(height: 10),
+                GenderField(value: _gender, onChanged: (gender) => setState(() => _gender = gender)),
                 const SizedBox(height: 10),
                 AdmissionDateField(value: _admissionDate, onChanged: (date) => setState(() => _admissionDate = date)),
                 const SizedBox(height: 10),

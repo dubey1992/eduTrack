@@ -83,6 +83,7 @@ class MessagesThisMonth {
     required this.channels,
     required this.feeRelated,
     required this.providerDelivers,
+    this.deliveryReported = false,
   });
 
   factory MessagesThisMonth.fromJson(Map<String, dynamic> json) {
@@ -94,6 +95,7 @@ class MessagesThisMonth {
           .toList(),
       feeRelated: json['fee_related'] as int? ?? 0,
       providerDelivers: json['provider_delivers'] as bool? ?? false,
+      deliveryReported: json['delivery_reported'] as bool? ?? false,
     );
   }
 
@@ -108,10 +110,14 @@ class MessagesThisMonth {
   /// False while the school's SMS goes through a gateway that delivers
   /// nothing - said on screen, so "sent" is not taken at its word.
   final bool providerDelivers;
+
+  /// Whether delivery reports come back at all - only from a real provider.
+  final bool deliveryReported;
 }
 
-/// The log's own statuses. There is no "delivered": no provider reports
-/// delivery back yet, and "sent" is only the provider accepting a message.
+/// The log's own statuses, and - for the sent - what the phone network
+/// reported back. "Sent" is only the provider accepting a message; it is
+/// never counted as delivered without a report saying so.
 class MessageCounts {
   const MessageCounts({
     required this.channel,
@@ -120,6 +126,8 @@ class MessageCounts {
     required this.queued,
     required this.failed,
     required this.skipped,
+    this.delivered = 0,
+    this.undelivered = 0,
   });
 
   factory MessageCounts.fromJson(Map<String, dynamic> json) {
@@ -130,6 +138,8 @@ class MessageCounts {
       queued: json['queued'] as int? ?? 0,
       failed: json['failed'] as int? ?? 0,
       skipped: json['skipped'] as int? ?? 0,
+      delivered: json['delivered'] as int? ?? 0,
+      undelivered: json['undelivered'] as int? ?? 0,
     );
   }
 
@@ -139,6 +149,11 @@ class MessageCounts {
   final int queued;
   final int failed;
   final int skipped;
+
+  /// Of the sent, what the phone network reported (D2): reached the phone,
+  /// or did not. A sent message with no report yet is in neither.
+  final int delivered;
+  final int undelivered;
 
   int get all => sent + queued + failed + skipped;
 }

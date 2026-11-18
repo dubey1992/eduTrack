@@ -315,10 +315,53 @@ void main() {
       expect(find.text('210'), findsOneWidget);
       expect(find.text('WhatsApp: 60 sent, 0 waiting, 4 failed, 0 not sent'), findsOneWidget);
       expect(find.textContaining('Delivered'), findsNothing);
-      expect(find.textContaining('Delivery to the phone is not reported back yet'), findsOneWidget);
+      expect(find.textContaining('Delivery to the phone is not reported back'), findsOneWidget);
 
       await _tapAndSettle(tester, find.byKey(const Key('messages-open-log')));
       expect(find.text('opened /communication'), findsOneWidget);
+    });
+
+    testWidgets('with delivery reports, shows what reached the phone and what did not', (tester) async {
+      _desktop(tester);
+      const reported = MessagesThisMonth(
+        month: 'September 2026',
+        total: MessageCounts(
+          channel: 'all',
+          label: 'SMS and WhatsApp',
+          sent: 210,
+          queued: 0,
+          failed: 0,
+          skipped: 0,
+          delivered: 190,
+          undelivered: 7,
+        ),
+        channels: [
+          MessageCounts(
+            channel: 'sms',
+            label: 'SMS',
+            sent: 210,
+            queued: 0,
+            failed: 0,
+            skipped: 0,
+            delivered: 190,
+            undelivered: 7,
+          ),
+        ],
+        feeRelated: 0,
+        providerDelivers: true,
+        deliveryReported: true,
+      );
+      await tester.pumpWidget(_app(_withSections(messages: reported)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delivered'), findsOneWidget);
+      expect(find.text('190'), findsOneWidget);
+      expect(find.text('Not delivered'), findsOneWidget);
+      expect(
+        find.text('SMS: 210 sent (190 delivered, 7 not delivered), 0 waiting, 0 failed, 0 not sent'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('A sent message with no report yet is in neither'), findsOneWidget);
     });
 
     testWidgets('says plainly when SMS is going nowhere', (tester) async {
@@ -397,5 +440,9 @@ void main() {
     // Pages that are not reports take no school.
     expect(linkForCard('students', today, schoolId: 420)!.location, '/students');
     expect(linkForCard('something_new', today), isNull);
+    // The roll by gender opens the student list.
+    for (final key in ['boys', 'girls', 'gender_other']) {
+      expect(linkForCard(key, today)!.location, '/students', reason: key);
+    }
   });
 }

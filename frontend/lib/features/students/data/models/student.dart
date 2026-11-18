@@ -71,6 +71,7 @@ class Student {
     this.studentMobile,
     this.studentEmail,
     this.admissionDate,
+    this.gender,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -96,6 +97,7 @@ class Student {
       studentMobile: json['student_mobile'] as String?,
       studentEmail: json['student_email'] as String?,
       admissionDate: json['admission_date'] is String ? DateTime.tryParse(json['admission_date'] as String) : null,
+      gender: StudentGender.fromApiValue(json['gender'] as String?),
     );
   }
 
@@ -126,6 +128,10 @@ class Student {
   /// A date in the school's calendar, never converted.
   final DateTime? admissionDate;
 
+  /// Null when the school has not recorded it - "not given" on the
+  /// dashboard (docs/dashboard.md).
+  final StudentGender? gender;
+
   Student copyWith({StudentStatus? status}) {
     return Student(
       id: id,
@@ -147,6 +153,23 @@ class Student {
       studentMobile: studentMobile,
       studentEmail: studentEmail,
       admissionDate: admissionDate,
+      gender: gender,
     );
   }
+}
+
+/// What the school records about a student's gender. The API's values are
+/// `male`, `female` and `other`; no value at all is "not given".
+enum StudentGender {
+  male('male', 'Male'),
+  female('female', 'Female'),
+  other('other', 'Other');
+
+  const StudentGender(this.apiValue, this.label);
+
+  final String apiValue;
+  final String label;
+
+  /// Null for null, and for a value this build does not know.
+  static StudentGender? fromApiValue(String? value) => values.where((gender) => gender.apiValue == value).firstOrNull;
 }

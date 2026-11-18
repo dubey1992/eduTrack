@@ -128,6 +128,33 @@ class PromotionOutcome(models.TextChoices):
     LEAVE = "leave"
 
 
+class StudentGender(models.TextChoices):
+    """What the school records about a student's gender (docs/dashboard.md).
+    Unset - null - is a value too: "not given", counted beside "other"."""
+
+    MALE = "male", "Male"
+    FEMALE = "female", "Female"
+    OTHER = "other", "Other"
+
+    @classmethod
+    def from_text(cls, text: str | None) -> str | None:
+        """A spreadsheet's spelling - "Male", "F", "girl" - as the stored
+        value, or None when it is blank; raises ValueError for anything else."""
+        if text is None or not text.strip():
+            return None
+
+        spelled = {
+            "male": cls.MALE, "m": cls.MALE, "boy": cls.MALE,
+            "female": cls.FEMALE, "f": cls.FEMALE, "girl": cls.FEMALE,
+            "other": cls.OTHER, "o": cls.OTHER,
+        }.get(text.strip().lower())
+
+        if spelled is None:
+            raise ValueError(text)
+
+        return spelled.value
+
+
 class StudentStatus(models.TextChoices):
     """Where a student stands today.
 
@@ -206,6 +233,20 @@ class MessageStatus(models.TextChoices):
     @classmethod
     def label_for(cls, status: str) -> str:
         return ucfirst(status)
+
+
+class MessageDeliveryStatus(models.TextChoices):
+    """What the phone network reported back once the provider took a message
+    (docs/dashboard.md, D2). Null until a report arrives."""
+
+    DELIVERED = "delivered", "Delivered"
+    # WhatsApp says when the message was opened; it was delivered first.
+    READ = "read", "Read"
+    UNDELIVERED = "undelivered", "Not delivered"
+
+    @classmethod
+    def reached_the_phone(cls) -> list[str]:
+        return [cls.DELIVERED, cls.READ]
 
 
 class MessageCategory(models.TextChoices):

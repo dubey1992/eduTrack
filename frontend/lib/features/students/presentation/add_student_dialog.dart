@@ -8,9 +8,11 @@ import '../../../core/widgets/phone_number_field.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../classes/application/class_section_picker_provider.dart';
 import '../application/student_list_notifier.dart';
+import '../data/models/student.dart';
 import 'widgets/student_transport_picker.dart';
 import '../../../core/widgets/school_picker.dart';
 import 'widgets/admission_date_field.dart';
+import 'widgets/gender_field.dart';
 import '../../../core/widgets/searchable_dropdown.dart';
 
 class AddStudentDialog extends ConsumerStatefulWidget {
@@ -39,6 +41,9 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
 
   /// The day the student joined; fees are charged from it (docs/fees.md).
   DateTime? _admissionDate;
+
+  /// Optional; null is "not given" (docs/dashboard.md).
+  StudentGender? _gender;
   final _addressController = TextEditingController();
 
   late int? _schoolId = widget.schoolId;
@@ -90,6 +95,7 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
             studentMobile: _optionalText(_studentMobileController),
             studentEmail: _optionalText(_studentEmailController),
             admissionDate: _admissionDate,
+            gender: _gender?.apiValue,
             address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
             routeId: _routeId,
             stopId: _stopId,
@@ -207,6 +213,8 @@ class _AddStudentDialogState extends ConsumerState<AddStudentDialog> {
                   decoration: const InputDecoration(labelText: 'Student email (optional)'),
                   validator: _optionalEmailProblem,
                 ),
+                const SizedBox(height: 10),
+                GenderField(value: _gender, onChanged: (gender) => setState(() => _gender = gender)),
                 const SizedBox(height: 10),
                 AdmissionDateField(value: _admissionDate, onChanged: (date) => setState(() => _admissionDate = date)),
                 const SizedBox(height: 10),

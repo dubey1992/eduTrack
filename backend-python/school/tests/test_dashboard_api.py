@@ -78,6 +78,12 @@ class SchoolAdmin(DashboardTestCase):
         self.assertEqual(
             [
                 {"key": "students", "label": "Students", "value": "3", "hint": "on the roll", "tone": "neutral"},
+                # Nobody's gender recorded yet: boys and girls are none of
+                # the roll, and all three are "not given" (docs/dashboard.md).
+                {"key": "boys", "label": "Boys", "value": "0", "hint": "0% of the roll", "tone": "neutral"},
+                {"key": "girls", "label": "Girls", "value": "0", "hint": "0% of the roll", "tone": "neutral"},
+                {"key": "gender_other", "label": "Other or not given", "value": "3", "hint": "3 not given yet",
+                 "tone": "caution"},
                 {"key": "staff", "label": "Teachers & staff", "value": "1", "hint": "on the payroll", "tone": "neutral"},
                 # Two of three, to one decimal, written as PHP writes a float.
                 # Below 75% is the red band (decided 2026-11-04).

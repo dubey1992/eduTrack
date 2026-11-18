@@ -90,6 +90,25 @@ final _joined = Student(
   admissionDate: DateTime(2026, 6, 1),
 );
 
+/// Arjun with his gender recorded (docs/dashboard.md).
+const _withGender = Student(
+  id: 1,
+  schoolId: 1,
+  schoolName: 'Sunrise Public School',
+  classSectionId: 1,
+  classSectionName: 'Grade 8 A',
+  admissionNumber: 'STU-0042',
+  firstName: 'Arjun',
+  lastName: 'Kumar',
+  name: 'Arjun Kumar',
+  rollNumber: '12',
+  guardianName: 'Raj Kumar',
+  guardianMobile: '9876543210',
+  address: null,
+  status: StudentStatus.active,
+  gender: StudentGender.male,
+);
+
 void main() {
   group('the admission date (docs/fees.md, F2)', () {
     testWidgets('shows the date the student joined, and keeps it on an unrelated save', (tester) async {
@@ -214,6 +233,40 @@ void main() {
       expect(fake.lastUpdate!['guardian_email'], 'raj.kumar@example.com');
       expect(fake.lastUpdate!['student_mobile'], '+91 9000000000');
       expect(fake.lastUpdate!['student_email'], isNull);
+    });
+  });
+
+  group('gender (docs/dashboard.md)', () {
+    testWidgets("shows the student's gender and sends a change", (tester) async {
+      final fake = FakeStudentRepository(students: [_withGender]);
+      await tester.pumpWidget(wrap(fake, student: _withGender));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Male'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('student-gender')));
+      await tester.tap(find.byKey(const Key('student-gender')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Not given').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      // Cleared is sent as nothing, as the API treats it.
+      expect(fake.lastUpdate!.containsKey('gender'), isTrue);
+      expect(fake.lastUpdate!['gender'], isNull);
+    });
+
+    testWidgets('an unchanged gender is sent as it was', (tester) async {
+      final fake = FakeStudentRepository(students: [_withGender]);
+      await tester.pumpWidget(wrap(fake, student: _withGender));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastUpdate!['gender'], 'male');
     });
   });
 }

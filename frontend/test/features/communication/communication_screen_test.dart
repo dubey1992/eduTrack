@@ -49,7 +49,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('SMS Sent Today'), findsOneWidget);
-    expect(find.text('Delivery Rate'), findsOneWidget);
+    expect(find.text('Sent rate'), findsOneWidget);
     expect(find.text('Failed'), findsWidgets);
     expect(find.text('66.7%'), findsOneWidget);
 
@@ -57,7 +57,9 @@ void main() {
     expect(find.text('Recipient'), findsOneWidget);
     expect(find.text('Raj Kumar'), findsOneWidget);
     expect(find.text('Arjun Kumar'), findsOneWidget);
-    expect(find.text('Delivered'), findsNWidgets(2));
+    // A sent message is labelled what it is: sent, not delivered (D2).
+    expect(find.text('Delivered'), findsNothing);
+    expect(find.widgetWithText(MessageStatusBadge, 'Sent'), findsNWidgets(2));
   });
 
   group('the people it did not reach', () {

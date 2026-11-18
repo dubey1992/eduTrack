@@ -321,7 +321,9 @@ class TheAdapters(TestCase):
         self.assertTrue(result.accepted)
         self.assertEqual(
             {"To": "whatsapp:+919000000000", "From": "whatsapp:+15550002222", "ContentSid": "HX123",
-             "ContentVariables": json.dumps({"1": "A", "2": "B"})},
+             "ContentVariables": json.dumps({"1": "A", "2": "B"}),
+             # Where Twilio reports delivery (docs/dashboard.md, D2).
+             "StatusCallback": "https://api.school365ai.com/api/v1/webhooks/twilio/status"},
             post.call_args.kwargs["form"],
         )
 

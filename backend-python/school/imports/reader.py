@@ -103,7 +103,7 @@ def read(upload, importer) -> list[dict]:
     expected = importer.headings()
     headings = [heading.strip() for heading in headings]
 
-    if headings != expected:
+    if not headings_match(headings, expected, getattr(importer, "optional_columns", ())):
         raise fail(
             importer,
             1,
@@ -135,6 +135,19 @@ def read(upload, importer) -> list[dict]:
         raise fail(importer, 1, "The file has headings but no rows.")
 
     return rows
+
+
+def headings_match(headings: list[str], expected: list[str], optional) -> bool:
+    """The template's headings exactly - or without some of its optional
+    columns at the end, so a file filled in from an older template, before a
+    column was added, still imports (docs/dashboard.md: students' gender).
+    The missing cells are read as blank."""
+    if headings == expected:
+        return True
+
+    missing = expected[len(headings):]
+
+    return headings == expected[: len(headings)] and bool(missing) and all(name in optional for name in missing)
 
 
 def validate(rows: list[dict], importer, school_id: int) -> list[dict]:

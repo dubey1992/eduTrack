@@ -12,7 +12,12 @@ alphanumeric senders, the sender ID from its settings.
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
+
+from django.conf import settings
 
 from . import Result, Template, digits_only
 from .http import ProviderError, post
@@ -27,7 +32,47 @@ CREDENTIALS = (
 )
 
 
+def status_callback_url() -> str | None:
+    """Where Twilio reports what became of each message (docs/dashboard.md,
+    D2). Only a public https address: Twilio cannot call a laptop, and an
+    http one would carry the reports in the clear."""
+    base = (getattr(settings, "PUBLIC_API_URL", "") or "").rstrip("/")
+
+    return f"{base}/webhooks/twilio/status" if base.startswith("https://") else None
+
+
+def signature(url: str, params: dict, auth_token: str) -> str:
+    """Twilio's request signature: HMAC-SHA1 of the URL followed by every
+    POST parameter, name then value, sorted by name - keyed with the auth
+    token, base64-encoded. Compared against the X-Twilio-Signature header."""
+    payload = url + "".join(f"{name}{params[name]}" for name in sorted(params))
+    digest = hmac.new(auth_token.encode("utf-8"), payload.encode("utf-8"), hashlib.sha1).digest()
+
+    return base64.b64encode(digest).decode("ascii")
+
+
+def signature_matches(url: str, params: dict, auth_token: str | None, given: str | None) -> bool:
+    if not auth_token or not given:
+        return False
+
+    return hmac.compare_digest(signature(url, params, auth_token), given)
+
+
+# Twilio's MessageStatus values, as the delivery they report. queued,
+# accepted, sending and sent say nothing about the phone, so they are none.
+DELIVERY = {
+    "delivered": "delivered",
+    "read": "read",
+    "undelivered": "undelivered",
+    "failed": "undelivered",
+}
+
+
 def _deliver(credentials: dict, form: dict) -> Result:
+    callback = status_callback_url()
+    if callback:
+        form = {**form, "StatusCallback": callback}
+
     sid = credentials.get("account_sid")
     token = credentials.get("auth_token")
 

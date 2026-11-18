@@ -350,7 +350,9 @@ class PreviewingEveryKindOfUpload(PreviewTestCase):
 
                 self.assertEqual(200, response.status_code, response.data)
                 self.assertEqual(1, response.data["row_count"])
-                self.assertEqual(headings.split(","), response.data["headings"])
+                # The template's columns, the file's first - an optional
+                # column a file leaves off (students' gender) is shown blank.
+                self.assertEqual(headings.split(","), response.data["headings"][: len(headings.split(","))])
                 self.assertEqual(row.split(",")[0], response.data["rows"][0]["values"][0])
                 self.assertEqual(before, model.objects.count(), f"a preview of {kind} wrote something")
 
