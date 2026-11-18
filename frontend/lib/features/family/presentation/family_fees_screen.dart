@@ -12,7 +12,7 @@ import '../data/family_repository.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_fees.dart';
 import 'family_more_screens.dart';
-import 'family_pdf.dart';
+import '../../../core/utils/pdf_hand_off.dart';
 import 'widgets/family_widgets.dart';
 
 /// Fees (docs/parent-student-app.md, F3): what is owed and overdue, how to

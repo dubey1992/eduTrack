@@ -1,3 +1,4 @@
+import 'package:edutrack_app/core/utils/pdf_hand_off.dart';
 import 'package:edutrack_app/features/my_inbox/data/my_inbox_repository.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/module_access.dart';
@@ -77,9 +78,21 @@ class FakeMyPayRepository implements MyPayRepository {
     emailedId = payslipId;
     return 'Your payslip for September 2026 is on its way to meera@school.test.';
   }
+
+  Failure? failPdfWith;
+
+  @override
+  Future<List<int>> pdf(int payslipId) async {
+    if (failPdfWith != null) throw failPdfWith!;
+    return [37, 80, 68, 70];
+  }
 }
 
 void main() {
+  /// What went to the share sheet: the bytes and the file's name.
+  final shared = <(List<int>, String)>[];
+  setUp(shared.clear);
+
   Widget app(FakeMyPayRepository repository, {bool payrollOn = true, String start = '/pay'}) {
     final router = GoRouter(
       initialLocation: start,
@@ -106,6 +119,7 @@ void main() {
     return ProviderScope(
       overrides: [
         myPayRepositoryProvider.overrideWithValue(repository),
+        pdfHandOffProvider.overrideWithValue((bytes, fileName) async => shared.add((bytes, fileName))),
         myInboxRepositoryProvider.overrideWithValue(FakeMyInboxRepository()),
         authRepositoryProvider.overrideWithValue(
           FakeAuthRepository(
@@ -214,6 +228,30 @@ void main() {
       await openSlip(tester, FakeMyPayRepository(slips: [payslip(shortfall: '1363.64')]));
 
       expect(find.text('Unpaid days reduced this month by ${formatCurrency(1363.64, 'INR')}.'), findsOneWidget);
+    });
+
+    testWidgets('Share the PDF hands this payslip to the share sheet, named for its month', (tester) async {
+      await openSlip(tester, FakeMyPayRepository(slips: [payslip()]));
+
+      await tester.ensureVisible(find.byKey(const Key('my-payslip-share')));
+      await tester.tap(find.byKey(const Key('my-payslip-share')));
+      await tester.pumpAndSettle();
+
+      expect(shared.single.$1, [37, 80, 68, 70]);
+      expect(shared.single.$2, 'Payslip September 2026.pdf');
+    });
+
+    testWidgets('a PDF that could not be fetched says why, and shares nothing', (tester) async {
+      final repository = FakeMyPayRepository(slips: [payslip()])
+        ..failPdfWith = const Failure(code: 'NETWORK_ERROR', message: 'Could not reach the server.');
+      await openSlip(tester, repository);
+
+      await tester.ensureVisible(find.byKey(const Key('my-payslip-share')));
+      await tester.tap(find.byKey(const Key('my-payslip-share')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Could not reach the server.'), findsOneWidget);
+      expect(shared, isEmpty);
     });
 
     testWidgets('Email me the PDF sends it and says where', (tester) async {

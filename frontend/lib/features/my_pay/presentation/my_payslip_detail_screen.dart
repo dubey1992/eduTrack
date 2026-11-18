@@ -6,6 +6,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/utils/pdf_hand_off.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../payroll/data/models/payroll.dart';
@@ -14,9 +15,9 @@ import '../data/my_pay_repository.dart';
 
 /// One payslip on the phone (docs/teacher-app.md, T4): the net pay first,
 /// then the month's days, what was earned and what was taken off - the PDF's
-/// content, readable without a PDF viewer. The PDF itself goes to the
-/// person's inbox on request, because a phone has no file to keep it in
-/// here and an inbox does.
+/// content, readable without a PDF viewer. The PDF itself goes through the
+/// phone's share sheet - saved to Files, sent to a bank on WhatsApp - or to
+/// the person's inbox on request.
 class MyPayslipDetailScreen extends ConsumerWidget {
   const MyPayslipDetailScreen({super.key, required this.payslipId});
 
@@ -133,6 +134,8 @@ class _Detail extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 20),
+        _SharePdf(slip: slip),
+        const SizedBox(height: 10),
         _EmailMe(slip: slip),
         const SizedBox(height: 8),
         Text(
@@ -188,6 +191,54 @@ class _Section extends StatelessWidget {
     );
   }
 }
+
+/// "Share the PDF": fetched, then handed to the phone's share sheet. The
+/// person chooses where it goes; nothing is kept by the app.
+class _SharePdf extends ConsumerStatefulWidget {
+  const _SharePdf({required this.slip});
+
+  final Payslip slip;
+
+  @override
+  ConsumerState<_SharePdf> createState() => _SharePdfState();
+}
+
+class _SharePdfState extends ConsumerState<_SharePdf> {
+  bool _busy = false;
+
+  Future<void> _share() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final bytes = await ref.read(myPayRepositoryProvider).pdf(widget.slip.id);
+      await ref.read(pdfHandOffProvider)(bytes, payslipFileName(widget.slip));
+    } on Failure catch (failure) {
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: FilledButton.icon(
+        key: const Key('my-payslip-share'),
+        onPressed: _busy ? null : _share,
+        icon: _busy
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.ios_share),
+        label: Text(_busy ? 'Getting the PDF...' : 'Share the PDF'),
+      ),
+    );
+  }
+}
+
+/// "Payslip September 2026.pdf" - what the file is called wherever it goes.
+String payslipFileName(Payslip slip) => 'Payslip ${slip.periodLabel}.pdf';
 
 /// "Email me the PDF": the server sends it to the address on the account.
 class _EmailMe extends ConsumerStatefulWidget {

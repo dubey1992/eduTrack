@@ -8,9 +8,9 @@ import '../../payroll/data/payroll_api.dart';
 
 final myPayRepositoryProvider = Provider<MyPayRepository>((ref) => MyPayRepository(ref.watch(payrollApiProvider)));
 
-/// The three things the School365ai app does with pay (docs/teacher-app.md,
-/// T4): list the person's own payslips, open one, and email its PDF to
-/// themselves. Never anybody else's - the server answers only for the
+/// What the School365ai app does with pay (docs/teacher-app.md, T4): list
+/// the person's own payslips, open one, email its PDF to themselves - or
+/// fetch the PDF to share from the phone (docs/mobile-apps-review.md, 6.7). Never anybody else's - the server answers only for the
 /// caller, and a draft is never theirs to see.
 class MyPayRepository {
   MyPayRepository(this._api);
@@ -23,6 +23,10 @@ class MyPayRepository {
   Future<Payslip> payslip(int payslipId) => _call(() => _api.payslip(payslipId));
 
   Future<String> emailMe(int payslipId) => _call(() => _api.emailMyPayslip(payslipId));
+
+  /// The PDF of the caller's own finalized payslip - the server's
+  /// view_payslip lets an employee have their own and nobody else's.
+  Future<List<int>> pdf(int payslipId) => _call(() => _api.downloadPayslip(payslipId));
 
   Future<T> _call<T>(Future<T> Function() request) async {
     try {

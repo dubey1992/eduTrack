@@ -10,7 +10,7 @@ import '../application/family_session_notifier.dart';
 import '../data/family_repository.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_learning.dart';
-import 'family_pdf.dart';
+import '../../../core/utils/pdf_hand_off.dart';
 import 'widgets/family_widgets.dart';
 
 /// A learning screen's frame: a back arrow, its title, and whose it is.

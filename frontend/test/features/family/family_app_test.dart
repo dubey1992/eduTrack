@@ -7,7 +7,7 @@ import 'package:edutrack_app/features/family/data/family_auth_repository.dart';
 import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
-import 'package:edutrack_app/features/family/presentation/family_pdf.dart';
+import 'package:edutrack_app/core/utils/pdf_hand_off.dart';
 import 'package:edutrack_app/features/maps/data/maps_config.dart';
 import 'package:edutrack_app/core/utils/photo_picker.dart';
 import 'package:edutrack_app/features/family/application/family_notifiers.dart';

@@ -7,7 +7,7 @@ import '../application/family_session_notifier.dart';
 import '../data/family_repository.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_admit_card.dart';
-import 'family_pdf.dart';
+import '../../../core/utils/pdf_hand_off.dart';
 import 'widgets/family_widgets.dart';
 
 /// The child's admit cards (docs/examinations.md): every published exam
