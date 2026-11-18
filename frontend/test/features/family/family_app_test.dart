@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/family/data/models/family_account.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/routing/family_router.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
@@ -252,6 +253,89 @@ void main() {
 
       expect(find.text('Diya is on leave today'), findsOneWidget);
       expect(data.todayAskedFor, contains(diya.id));
+    });
+  });
+
+  group('Home shortcuts (docs/mobile-apps-review.md, 1.8)', () {
+    TodayBus busWith(String status, String? riderStatus) => TodayBus(
+      route: 'Route 3',
+      stop: 'Gate 2',
+      pickupTime: '07:30',
+      dropTime: '14:10',
+      trips: [BusTrip(direction: 'pickup', status: status, riderStatus: riderStatus, boardedAt: null, droppedAt: null)],
+    );
+
+    testWidgets('a morning with no mark yet offers Report sick, which opens the note form', (tester) async {
+      await pumpFamilyApp(
+        tester,
+        data: FakeFamilyRepository(today: familyToday(mark: AttendanceMark.notMarked)),
+      );
+
+      await tester.tap(find.byKey(const Key('family-today-report-sick')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('family-note-reason')), findsOneWidget);
+    });
+
+    testWidgets('an absence offers to tell the school why', (tester) async {
+      await pumpFamilyApp(
+        tester,
+        data: FakeFamilyRepository(today: familyToday(mark: AttendanceMark.absent)),
+      );
+
+      expect(find.text('Tell the school why'), findsOneWidget);
+    });
+
+    testWidgets('a child in school is not offered it', (tester) async {
+      await pumpFamilyApp(tester);
+
+      expect(find.byKey(const Key('family-today-report-sick')), findsNothing);
+    });
+
+    testWidgets('a bus on the road with the child on its list opens the map from Home', (tester) async {
+      await pumpFamilyApp(
+        tester,
+        data: FakeFamilyRepository(today: familyToday(bus: busWith('in_progress', 'boarded'))),
+      );
+      expect(find.byKey(const Key('family-today-bus-live')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('family-today-bus')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Where is the bus?'), findsOneWidget);
+    });
+
+    testWidgets('a finished trip opens the bus page, not the map', (tester) async {
+      await pumpFamilyApp(
+        tester,
+        data: FakeFamilyRepository(today: familyToday(bus: busWith('completed', 'dropped'))),
+      );
+
+      expect(find.byKey(const Key('family-today-bus-live')), findsNothing);
+      await tester.tap(find.byKey(const Key('family-today-bus')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Where is the bus?'), findsNothing);
+    });
+
+    testWidgets('Results is one tap from Home', (tester) async {
+      await pumpFamilyApp(tester);
+
+      await tester.scrollUntilVisible(find.byKey(const Key('family-today-results')), 200);
+      await tester.tap(find.byKey(const Key('family-today-results')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('family-results')), findsOneWidget);
+    });
+
+    testWidgets('and not there where the school has results switched off', (tester) async {
+      const noResults = FamilyFeatures(fees: true, transport: true, results: false, timetable: true, syllabus: true);
+      await pumpFamilyApp(
+        tester,
+        auth: FakeFamilyAuthRepository(account: familyAccount(features: noResults)),
+      );
+
+      expect(find.byKey(const Key('family-today-results'), skipOffstage: false), findsNothing);
     });
   });
 

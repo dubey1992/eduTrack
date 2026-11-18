@@ -91,6 +91,9 @@ class _TodayList extends ConsumerWidget {
         if (features.fees && day.fee != null) ...[const SizedBox(height: 12), _FeeCard(fee: day.fee!)],
         const SizedBox(height: 12),
         const _LatestNoticeCard(),
+        // A shortcut where a parent looks most (docs/mobile-apps-review.md,
+        // 1.8) - before, Results sat two taps away under More.
+        if (features.results) ...[const SizedBox(height: 12), const _ResultsCard()],
         if (day.periods.isNotEmpty) ...[const SizedBox(height: 12), _TimetableCard(day: day)],
       ],
     );
@@ -174,6 +177,19 @@ class _AttendanceCard extends StatelessWidget {
               ),
             ],
           ),
+          // A morning with no mark yet, or one marked absent, is when a
+          // parent has something to tell the school (docs/mobile-apps-
+          // review.md, 1.8) - the note form, one tap from Home.
+          if (mark == AttendanceMark.notMarked || mark == AttendanceMark.absent)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const Key('family-today-report-sick'),
+                onPressed: () => context.push('/absence-notes/new'),
+                icon: const Icon(Icons.sick_outlined, size: 18),
+                label: Text(mark == AttendanceMark.absent ? 'Tell the school why' : 'Report sick'),
+              ),
+            ),
         ],
       ),
     );
@@ -189,10 +205,13 @@ class _BusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final trip = bus.trips.lastOrNull;
     final muted = context.appColors.muted;
+    // On the road with this child still waiting or aboard: the card opens
+    // the map itself rather than the bus page with a button to the map.
+    final live = trip != null && trip.isRunning && (trip.riderStatus == 'pending' || trip.riderStatus == 'boarded');
 
     return FamilyCard(
       key: const Key('family-today-bus'),
-      onTap: () => context.go('/bus'),
+      onTap: () => live ? context.push('/bus/live') : context.go('/bus'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -215,6 +234,52 @@ class _BusCard extends StatelessWidget {
             ].join(' · '),
             style: TextStyle(color: muted, fontSize: 13),
           ),
+          if (live) ...[
+            const SizedBox(height: 8),
+            Row(
+              key: const Key('family-today-bus-live'),
+              children: [
+                Icon(Icons.map_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Tap to watch the bus on the map',
+                    style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Results, one tap from Home.
+class _ResultsCard extends StatelessWidget {
+  const _ResultsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.appColors.muted;
+
+    return FamilyCard(
+      key: const Key('family-today-results'),
+      onTap: () => context.push('/results'),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CardHeading(icon: Icons.grade_rounded, title: 'Results', colour: FamilyBrand.childColours[1]),
+                const SizedBox(height: 8),
+                Text('Test marks and the progress report', style: TextStyle(color: muted)),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: muted),
         ],
       ),
     );
