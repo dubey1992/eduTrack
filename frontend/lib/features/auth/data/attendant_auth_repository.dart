@@ -63,7 +63,9 @@ class AttendantAuthRepository {
     if (device == null) {
       throw const Failure(
         code: deviceNotRegisteredCode,
-        message: 'This phone is not registered yet. Enter the setup code from your school office.',
+        message:
+            'This phone has not been set up yet. A passcode works only on the phone it was set up on - '
+            'enter a setup code from your school office to set up this one.',
       );
     }
 

@@ -97,6 +97,21 @@ void main() {
       expect(field('attendant-passcode'), findsNothing);
     });
 
+    testWidgets('offers the passcode sign-in, and explains why it needs a set-up phone', (tester) async {
+      await pumpScreen(tester);
+
+      await tester.tap(field('attendant-use-passcode'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, '9876543210');
+      await tester.enterText(field('attendant-passcode'), '4827');
+      await submit(tester, 'Sign In');
+
+      // Nothing reaches the server without this phone's secret.
+      expect(api.loginCalls, isEmpty);
+      expect(find.textContaining('A passcode works only on the phone it was set up on'), findsOneWidget);
+      expect(field('attendant-setup-code'), findsOneWidget);
+    });
+
     testWidgets('checks the passcode rules before asking the server', (tester) async {
       await pumpScreen(tester);
 
@@ -227,6 +242,23 @@ void main() {
       expect(store.values['attendant_device_secret'], isNull);
       // The number stays, so it need not be typed again.
       expect(find.widgetWithText(TextFormField, '9876543210'), findsOneWidget);
+    });
+
+    testWidgets('opening "register again" by mistake has a way back to the passcode', (tester) async {
+      registerPhone();
+      await pumpScreen(tester);
+
+      await tester.tap(field('attendant-use-setup-code'));
+      await tester.pumpAndSettle();
+      expect(find.text('Register this phone'), findsOneWidget);
+
+      await tester.tap(field('attendant-use-passcode'));
+      await tester.pumpAndSettle();
+      expect(find.text('Bus crew sign in'), findsOneWidget);
+      await tester.enterText(field('attendant-passcode'), '4827');
+      await submit(tester, 'Sign In');
+
+      expect(api.loginCalls.single['device_secret'], 'stored-secret');
     });
 
     testWidgets('a passcode is required before asking the server', (tester) async {

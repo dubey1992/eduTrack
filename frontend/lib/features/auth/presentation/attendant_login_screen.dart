@@ -226,8 +226,18 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
             onPressed: _submit,
           ),
           const SizedBox(height: 12),
-          if (!registering)
+          if (registering)
+            // Somebody who already chose a passcode on this phone - or who
+            // tapped "Register this phone again" by mistake - goes back.
             TextButton(
+              key: const Key('attendant-use-passcode'),
+              onPressed: _isSubmitting ? null : () => _switchTo(_Mode.passcode),
+              style: TextButton.styleFrom(foregroundColor: palette.primary),
+              child: const Text('Already set up? Sign in with your passcode'),
+            )
+          else
+            TextButton(
+              key: const Key('attendant-use-setup-code'),
               onPressed: _isSubmitting ? null : () => _switchTo(_Mode.register),
               style: TextButton.styleFrom(foregroundColor: palette.primary),
               child: const Text('Have a new setup code? Register this phone again'),
