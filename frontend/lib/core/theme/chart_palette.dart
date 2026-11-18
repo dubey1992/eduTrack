@@ -90,6 +90,10 @@ abstract final class ChartPalette {
   static const _byKey = <String, (ChartHue, IconData)>{
     'students': (plum, Icons.school_outlined),
     'active_students': (plum, Icons.school_outlined),
+    // The roll by gender (docs/dashboard.md).
+    'boys': (sky, Icons.boy_outlined),
+    'girls': (berry, Icons.girl_outlined),
+    'gender_other': (mauve, Icons.people_outline),
     'staff': (rose, Icons.badge_outlined),
     'teachers': (rose, Icons.groups_outlined),
     'attendance': (green, Icons.fact_check_outlined),

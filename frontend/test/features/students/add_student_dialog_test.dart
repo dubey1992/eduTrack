@@ -5,6 +5,7 @@ import 'package:edutrack_app/features/auth/data/auth_repository.dart';
 import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:edutrack_app/features/classes/data/models/school_class.dart';
 import 'package:edutrack_app/features/classes/data/school_class_repository.dart';
+import 'package:edutrack_app/features/students/data/models/student.dart';
 import 'package:edutrack_app/features/students/data/student_repository.dart';
 import 'package:edutrack_app/features/transport/data/transport_repository.dart';
 import 'package:edutrack_app/features/students/presentation/add_student_dialog.dart';
@@ -180,6 +181,40 @@ void main() {
       expect(student.guardianEmail, isNull);
       expect(student.studentMobile, isNull);
       expect(student.studentEmail, isNull);
+    });
+  });
+
+  group('gender (docs/dashboard.md)', () {
+    testWidgets('is optional and starts as not given', (tester) async {
+      final fake = FakeStudentRepository();
+      await tester.pumpWidget(wrap(student: fake));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Not given'), findsOneWidget);
+      await _fillRequiredFields(tester);
+      await tester.tap(find.text('Save Student'));
+      await tester.pumpAndSettle();
+
+      expect(fake.students.last.gender, isNull);
+    });
+
+    testWidgets('a chosen gender is saved with the student', (tester) async {
+      final fake = FakeStudentRepository();
+      await tester.pumpWidget(wrap(student: fake));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await _fillRequiredFields(tester);
+      await tester.ensureVisible(find.byKey(const Key('student-gender')));
+      await tester.tap(find.byKey(const Key('student-gender')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Female').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save Student'));
+      await tester.pumpAndSettle();
+
+      expect(fake.students.last.gender, StudentGender.female);
     });
   });
 }

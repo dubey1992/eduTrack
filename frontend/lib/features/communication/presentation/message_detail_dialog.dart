@@ -44,6 +44,17 @@ class MessageDetailDialog extends ConsumerWidget {
               if (message.sentAt != null)
                 _Row(label: 'Sent', value: formatMessageTime(message.createdOnLabel, message.sentAtLabel)),
               if (message.provider != null) _Row(label: 'Gateway', value: message.providerLabel ?? message.provider!),
+              // What the phone network reported (docs/dashboard.md, D2).
+              if (message.deliveryStatusLabel != null)
+                _Row(
+                  label: 'Delivery',
+                  value: message.deliveryError == null
+                      ? message.deliveryStatusLabel!
+                      : '${message.deliveryStatusLabel} - ${message.deliveryError}',
+                )
+              else if (message.status == MessageStatus.sent &&
+                  (message.channel == MessageChannel.sms || message.channel == MessageChannel.whatsapp))
+                const _Row(label: 'Delivery', value: 'No report from the provider yet'),
               const SizedBox(height: 12),
               Text('Message', style: muted),
               const SizedBox(height: 4),

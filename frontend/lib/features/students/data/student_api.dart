@@ -73,6 +73,7 @@ class StudentApi {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    String? gender,
     DateTime? admissionDate,
     String? address,
   }) async {
@@ -90,6 +91,8 @@ class StudentApi {
         'guardian_email': guardianEmail,
         'student_mobile': studentMobile,
         'student_email': studentEmail,
+        // male, female or other; null clears it (docs/dashboard.md).
+        'gender': gender,
         // Null clears it; the server then uses the day the record was added.
         'admission_date': admissionDate == null ? null : apiDate(admissionDate),
         'address': address,
@@ -111,6 +114,7 @@ class StudentApi {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    String? gender,
     DateTime? admissionDate,
     String? address,
   }) async {
@@ -127,6 +131,8 @@ class StudentApi {
         'guardian_email': guardianEmail,
         'student_mobile': studentMobile,
         'student_email': studentEmail,
+        // male, female or other; null clears it (docs/dashboard.md).
+        'gender': gender,
         // Null clears it; the server then uses the day the record was added.
         'admission_date': admissionDate == null ? null : apiDate(admissionDate),
         'address': address,

@@ -167,7 +167,7 @@ class MessagesThisMonth(FeeReportsTestCase):
 
         return response.data["messages_this_month"]
 
-    def test_counts_by_the_status_the_log_keeps_never_delivered(self):
+    def test_counts_by_the_status_the_log_keeps_and_assumes_no_delivery(self):
         for status in ("sent", "sent", "failed", "queued", "skipped"):
             self.message("sms", status)
         self.message("whatsapp", "sent", category="fee")
@@ -182,16 +182,18 @@ class MessagesThisMonth(FeeReportsTestCase):
         panel = self.panel(self.admin)
 
         self.assertEqual("July 2026", panel["month"])
+        # No delivery report arrived for any of them, so none is counted as
+        # delivered or not - "sent" is not taken as "delivered" (D2).
         self.assertEqual({"channel": "all", "label": "SMS and WhatsApp", "sent": 4, "queued": 1, "failed": 2,
-                          "skipped": 1}, panel["total"])
+                          "skipped": 1, "delivered": 0, "undelivered": 0}, panel["total"])
         self.assertEqual(
             [("sms", 3, 1, 1, 1), ("whatsapp", 1, 0, 1, 0)],
             [(line["channel"], line["sent"], line["queued"], line["failed"], line["skipped"])
              for line in panel["channels"]],
         )
         self.assertEqual(2, panel["fee_related"])
+        # The demo gateway: nothing will ever report back.
         self.assertFalse(panel["delivery_reported"])
-        self.assertNotIn("delivered", panel["total"])
 
     def test_only_readers_of_the_message_log_see_it(self):
         self.assertIsNotNone(self.panel(self.admin))

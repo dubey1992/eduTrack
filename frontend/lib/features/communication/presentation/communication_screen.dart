@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
@@ -213,8 +214,10 @@ class _SummaryTiles extends ConsumerWidget {
             runSpacing: 12,
             children: [
               KpiCard(label: 'SMS Sent Today', value: '${summary.smsSentToday}'),
+              // Handed to the provider, of everybody meant to be told - not
+              // delivered, which only a delivery report can say (D2).
               KpiCard(
-                label: 'Delivery Rate',
+                label: 'Sent rate',
                 value: summary.deliveryRate == null ? '-' : '${summary.deliveryRate!.toStringAsFixed(1)}%',
               ),
               KpiCard(label: 'Failed', value: '${summary.failedToday}'),
@@ -448,7 +451,7 @@ class _MessageTable extends ConsumerWidget {
                       child: Text(message.body, maxLines: 2, overflow: TextOverflow.ellipsis),
                     ),
                   ),
-                  DataCell(MessageStatusBadge(status: message.status)),
+                  DataCell(MessageStatusCell(message: message)),
                   DataCell(_RowActions(message: message)),
                 ],
               ),
@@ -515,7 +518,7 @@ class _MessageCards extends StatelessWidget {
                     spacing: 8,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      MessageStatusBadge(status: message.status),
+                      MessageStatusCell(message: message),
                       _RowActions(message: message),
                     ],
                   ),
@@ -575,6 +578,39 @@ class _RowActionsState extends ConsumerState<_RowActions> {
           const SizedBox(width: 4),
           FilledButton(onPressed: _busy ? null : _retry, child: const Text('Send again')),
         ],
+      ],
+    );
+  }
+}
+
+/// The message's status, and under it what the phone network reported, when
+/// it has (docs/dashboard.md, D2).
+class MessageStatusCell extends StatelessWidget {
+  const MessageStatusCell({super.key, required this.message});
+
+  final Message message;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = message.deliveryStatusLabel;
+    if (label == null) return MessageStatusBadge(status: message.status);
+
+    final colours = context.appColors;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MessageStatusBadge(status: message.status),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          key: Key('delivery-${message.id}'),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: message.wasNotDelivered ? colours.danger : colours.success,
+          ),
+        ),
       ],
     );
   }

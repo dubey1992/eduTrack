@@ -242,6 +242,19 @@ class ScopedSerializer(serializers.Serializer):
             raise serializers.ValidationError({"school_id": [does_not_exist("school_id")]})
 
 
+def gender_or_none(value):
+    """`nullable|in:male,female,other`, blank meaning not given."""
+    if value is None or value == "":
+        return None
+
+    from .enums import StudentGender
+
+    if value not in StudentGender.values:
+        raise serializers.ValidationError(selected_is_invalid("gender"))
+
+    return value
+
+
 class StoreStudentRequest(ScopedSerializer):
     class_section_id = LaravelIntegerField("class_section_id")
     admission_number = LaravelCharField("admission_number", max_length=30)
@@ -255,6 +268,10 @@ class StoreStudentRequest(ScopedSerializer):
     student_email = OptionalEmailField("student_email")
     address = optional_text("address", 500)
     admission_date = LaravelDateField("admission_date", required=False, allow_null=True)
+    gender = optional_text("gender", 10)
+
+    def validate_gender(self, value):
+        return gender_or_none(value)
 
     def validate(self, attrs):
         self.validate_school_id_field()
@@ -302,6 +319,10 @@ class UpdateStudentRequest(ScopedSerializer):
     student_email = OptionalEmailField("student_email")
     address = optional_text("address", 500)
     admission_date = LaravelDateField("admission_date", required=False, allow_null=True)
+    gender = optional_text("gender", 10)
+
+    def validate_gender(self, value):
+        return gender_or_none(value)
 
     def __init__(self, *args, student: Student = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)

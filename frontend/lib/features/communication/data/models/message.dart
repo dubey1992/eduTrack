@@ -58,7 +58,9 @@ enum MessageChannel {
 
 enum MessageStatus {
   queued('queued', 'Queued'),
-  sent('sent', 'Delivered'),
+  // The provider took it - not that a phone got it. What the phone network
+  // reports back is `deliveryStatus` (docs/dashboard.md, D2).
+  sent('sent', 'Sent'),
   failed('failed', 'Failed'),
   skipped('skipped', 'Skipped');
 
@@ -113,6 +115,9 @@ class Message {
     required this.createdAtLabel,
     required this.createdOnLabel,
     required this.sentAtLabel,
+    this.deliveryStatus,
+    this.deliveryStatusLabel,
+    this.deliveryError,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -140,6 +145,9 @@ class Message {
       createdAtLabel: json['created_at_label'] as String?,
       createdOnLabel: json['created_on_label'] as String?,
       sentAtLabel: json['sent_at_label'] as String?,
+      deliveryStatus: json['delivery_status'] as String?,
+      deliveryStatusLabel: json['delivery_status_label'] as String?,
+      deliveryError: json['delivery_error'] as String?,
     );
   }
 
@@ -174,6 +182,15 @@ class Message {
   final String? createdAtLabel;
   final String? createdOnLabel;
   final String? sentAtLabel;
+
+  /// What the phone network reported once the provider took it
+  /// (docs/dashboard.md, D2): delivered, read or undelivered - null until a
+  /// report arrives. Never inferred from [status].
+  final String? deliveryStatus;
+  final String? deliveryStatusLabel;
+  final String? deliveryError;
+
+  bool get wasNotDelivered => deliveryStatus == 'undelivered';
 
   bool get isRetryable => status == MessageStatus.failed;
 

@@ -19,7 +19,7 @@ from django.utils import timezone
 
 from . import dates, mailer, modules, money, payment_items, permissions, school_logo, sms, syllabus_scope, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
-from .enums import SchoolCategory, DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageEvent, MessageStatus, UserRole
+from .enums import SchoolCategory, DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageDeliveryStatus, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
 from .models import School, Student, StudentTransportAssignment, User
 from .scope import SchoolScope
@@ -251,6 +251,13 @@ def message_resource(message) -> dict:
         "provider": message.provider,
         "provider_label": provider_label(message.channel, message.provider),
         "failure_reason": message.failure_reason,
+        # What the phone network reported back (docs/dashboard.md, D2).
+        "delivery_status": message.delivery_status,
+        "delivery_status_label": (
+            MessageDeliveryStatus(message.delivery_status).label if message.delivery_status else None
+        ),
+        "delivered_at": timestamp(message.delivered_at),
+        "delivery_error": message.delivery_error,
         "sent_at": timestamp(message.sent_at),
         "read_at": timestamp(message.read_at),
         "created_at": timestamp(message.created_at),
@@ -1690,6 +1697,7 @@ def student_resource(student: Student) -> dict:
         "status": student.status,
         # The day they joined (docs/fees.md, F2), or null.
         "admission_date": None if student.admission_date is None else student.admission_date.isoformat(),
+        "gender": student.gender,
         "created_at": timestamp(student.created_at),
     }
 

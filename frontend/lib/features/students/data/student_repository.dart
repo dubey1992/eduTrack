@@ -63,6 +63,7 @@ class StudentRepository {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    String? gender,
     DateTime? admissionDate,
     String? address,
   }) async {
@@ -79,6 +80,7 @@ class StudentRepository {
         guardianEmail: guardianEmail,
         studentMobile: studentMobile,
         studentEmail: studentEmail,
+        gender: gender,
         admissionDate: admissionDate,
         address: address,
       );
@@ -99,6 +101,7 @@ class StudentRepository {
     String? guardianEmail,
     String? studentMobile,
     String? studentEmail,
+    String? gender,
     DateTime? admissionDate,
     String? address,
   }) async {
@@ -115,6 +118,7 @@ class StudentRepository {
         guardianEmail: guardianEmail,
         studentMobile: studentMobile,
         studentEmail: studentEmail,
+        gender: gender,
         admissionDate: admissionDate,
         address: address,
       );

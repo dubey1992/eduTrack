@@ -26,6 +26,7 @@ from .enums import (
     FeeReceiptStatus,
     LeaveStatus,
     MessageChannel,
+    MessageDeliveryStatus,
     MessageStatus,
     PaymentStatus,
     PayrollRunStatus,
@@ -33,6 +34,7 @@ from .enums import (
     SchoolCategory,
     SchoolStatus,
     StaffAttendanceStatus,
+    StudentGender,
     StudentStatus,
     TransportStatus,
     TripStatus,
@@ -223,6 +225,7 @@ class DashboardService:
         return {
             "cards": [
                 card("students", "Students", str(students), "on the roll"),
+                *gender_cards(school_id, students),
                 card("staff", "Teachers & staff", str(staff), "on the payroll"),
                 attendance_card(rate),
                 card("transport", "Trips today", str(trips_today), f"{routes} active routes"),
@@ -505,6 +508,41 @@ def fee_cards(school_ids: list[int], today: dt.date) -> list[dict]:
 
 
 
+def gender_cards(school_id: int, students: int) -> list[dict]:
+    """Boys and girls among the students on the roll (docs/dashboard.md), and
+    everybody else - other, or not given - so the three always add up to the
+    Students card. One query. The third card shows only when it is not zero:
+    a school that has recorded every child does not need a card of nothing.
+    """
+    counts = dict(
+        Student.objects.filter(school_id=school_id, status=StudentStatus.ACTIVE)
+        .order_by()
+        .values("gender")
+        .annotate(total=Count("id"))
+        .values_list("gender", "total")
+    )
+    boys = counts.get(StudentGender.MALE, 0)
+    girls = counts.get(StudentGender.FEMALE, 0)
+    rest = students - boys - girls
+
+    def of_roll(count: int) -> str:
+        return f"{share(count, students)} of the roll" if students else "on the roll"
+
+    cards = [card("boys", "Boys", str(boys), of_roll(boys)), card("girls", "Girls", str(girls), of_roll(girls))]
+
+    if rest:
+        not_given = students - boys - girls - counts.get(StudentGender.OTHER, 0)
+        cards.append(
+            card(
+                "gender_other", "Other or not given", str(rest),
+                f"{not_given} not given yet" if not_given else of_roll(rest),
+                "caution" if not_given else "neutral",
+            )
+        )
+
+    return cards
+
+
 def collections_today(school_id: int, today: dt.date) -> dict:
     """Today's fee receipts per person who took them (docs/dashboard.md).
 
@@ -571,6 +609,9 @@ def messages_this_month(school_id: int, clock: SchoolClock, today: dt.date) -> d
         def count(status: str) -> int:
             return sum(total for (ch, st), total in counts.items() if st == status and channel in (None, ch))
 
+        def reported(statuses) -> int:
+            return sum(total for (ch, st), total in delivery.items() if st in statuses and channel in (None, ch))
+
         return {
             "channel": channel or "all",
             "label": label,
@@ -578,12 +619,22 @@ def messages_this_month(school_id: int, clock: SchoolClock, today: dt.date) -> d
             "queued": count(MessageStatus.QUEUED),
             "failed": count(MessageStatus.FAILED),
             "skipped": count(MessageStatus.SKIPPED),
+            # Of the sent, what the phone network reported (D2): reached the
+            # phone, or did not. A sent message with no report yet is in
+            # neither - it is not assumed either way.
+            "delivered": reported(MessageDeliveryStatus.reached_the_phone()),
+            "undelivered": reported([MessageDeliveryStatus.UNDELIVERED]),
         }
 
-    from . import sms
-    from .models import CommunicationSetting
+    delivery: dict[tuple[str, str], int] = {
+        (row["channel"], row["delivery_status"]): row["total"]
+        for row in month.filter(status=MessageStatus.SENT, delivery_status__isnull=False)
+        .order_by()
+        .values("channel", "delivery_status")
+        .annotate(total=Count("id"))
+    }
 
-    provider = CommunicationSetting.objects.filter(school_id=school_id).values_list("provider", flat=True).first()
+    from . import platform_messaging
 
     return {
         "month": period_label(today.year, today.month),
@@ -592,9 +643,10 @@ def messages_this_month(school_id: int, clock: SchoolClock, today: dt.date) -> d
         # Fee reminders and the like - category "fee" - of the month's SMS
         # and WhatsApp, whatever became of them.
         "fee_related": month.filter(category="fee").count(),
-        # Said beside every figure, so "sent" is never read as "delivered".
-        "delivery_reported": False,
-        "provider_delivers": sms.delivers(provider),
+        # Reports come from the platform's own account (docs/platform-
+        # messaging.md); with the demo gateway there is nothing to report.
+        "delivery_reported": platform_messaging.sms_delivers(),
+        "provider_delivers": platform_messaging.sms_delivers(),
     }
 
 

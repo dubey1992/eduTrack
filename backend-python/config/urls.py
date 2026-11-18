@@ -68,6 +68,7 @@ from school.views import (
     guardians,
     syllabus,
     teaching_reports,
+    webhooks,
     timetable,
     timezones,
     transport,
@@ -349,6 +350,8 @@ urlpatterns = [
     # -- communication -----------------------------------------------------
     path("api/v1/communication/messages", communication.messages),
     path("api/v1/communication/summary", communication.summary),
+    # Delivery reports from the messaging provider (docs/dashboard.md, D2).
+    path("api/v1/webhooks/twilio/status", webhooks.twilio_status),
     path("api/v1/communication/messages/<int:message_id>", communication.message),
     path("api/v1/communication/messages/<int:message_id>/retry", communication.retry),
     path("api/v1/communication/templates", communication.templates),

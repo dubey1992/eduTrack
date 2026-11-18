@@ -268,7 +268,11 @@ class MessagesPanel extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _Count(label: 'Sent to provider', value: total.sent, colour: colours.success),
+              _Count(label: 'Sent to provider', value: total.sent, colour: colours.info),
+              if (messages.deliveryReported) ...[
+                _Count(label: 'Delivered', value: total.delivered, colour: colours.success),
+                _Count(label: 'Not delivered', value: total.undelivered, colour: colours.danger),
+              ],
               _Count(label: 'Waiting to send', value: total.queued, colour: colours.warning),
               _Count(label: 'Failed', value: total.failed, colour: colours.danger),
               _Count(label: 'Not sent', value: total.skipped, colour: scheme.onSurfaceVariant),
@@ -279,18 +283,27 @@ class MessagesPanel extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Text(
-                '${channel.label}: ${channel.sent} sent, ${channel.queued} waiting, '
-                '${channel.failed} failed, ${channel.skipped} not sent',
+                messages.deliveryReported
+                    ? '${channel.label}: ${channel.sent} sent (${channel.delivered} delivered, '
+                          '${channel.undelivered} not delivered), ${channel.queued} waiting, '
+                          '${channel.failed} failed, ${channel.skipped} not sent'
+                    : '${channel.label}: ${channel.sent} sent, ${channel.queued} waiting, '
+                          '${channel.failed} failed, ${channel.skipped} not sent',
                 key: Key('messages-channel-${channel.channel}'),
                 style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
               ),
             ),
           const SizedBox(height: 8),
           Text(
-            messages.providerDelivers
-                ? '"Sent" means the provider accepted the message. Delivery to the phone is not reported back yet. '
-                      '"Not sent" is usually a missing phone number.'
-                : 'No SMS provider that delivers is set up yet, so SMS counted here do not reach phones.',
+            switch ((messages.deliveryReported, messages.providerDelivers)) {
+              (true, _) =>
+                'Delivered and not delivered are what the phone network reported back. A sent message with no '
+                    'report yet is in neither. "Not sent" is usually a missing phone number.',
+              (false, true) =>
+                '"Sent" means the provider accepted the message. Delivery to the phone is not reported back. '
+                    '"Not sent" is usually a missing phone number.',
+              (false, false) => 'No SMS provider that delivers is set up yet, so SMS counted here do not reach phones.',
+            },
             key: const Key('messages-delivery-note'),
             style: TextStyle(fontSize: 12, color: messages.providerDelivers ? scheme.onSurfaceVariant : colours.danger),
           ),
