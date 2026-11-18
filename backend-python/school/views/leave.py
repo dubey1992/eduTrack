@@ -1,7 +1,9 @@
 """Staff leave.
 
 Port of StaffLeaveController. Five endpoints: apply, list, the stat cards
-above the list, approve and reject.
+above the list, approve and reject - and two for the applicant's own phone
+(docs/mobile-apps-review.md, 1.9): withdraw a pending request, and the leave
+taken this year.
 
 Two of the checks a reader might expect to find here live elsewhere on
 purpose. *Who* a reviewer may decide for is the policy's question, asked
@@ -95,6 +97,34 @@ def summary(request) -> Response:
             request.user, {"school_id": request.query_params.get("school_id")}
         )
     )
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def withdraw(request, leave_id: int) -> Response:
+    """404 for a leave in another school, as for any other id there; 403
+    for a colleague's in this one."""
+    leave = get_object_or_404(StaffLeave, pk=leave_id, school_id=request.user.school_id)
+
+    authorize(StaffLeavePolicy.withdraw(request.user, leave))
+
+    return Response(staff_leave_resource(StaffLeaveService.withdraw(leave, request.user)))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def taken_this_year(request) -> Response:
+    authorize(StaffLeavePolicy.apply(request.user))
+
+    profile = request.user.staff_profile
+
+    if profile is None:
+        raise StaffProfileRequired(
+            "Your account is not yet linked to a staff profile. Ask your school admin "
+            "to add you under Teachers & Staff."
+        )
+
+    return Response(StaffLeaveService.taken_this_year(profile))
 
 
 @api_view(["PATCH"])

@@ -1299,6 +1299,78 @@ class StaffLeaveService:
         return cls.fresh(leave)
 
     @staticmethod
+    def withdraw(leave, actor: User):
+        """The applicant takes back a request nobody has decided yet.
+
+        Only while pending: an approved request has already written leave
+        onto the register and may have been planned around, so undoing it
+        is the office's call, not a button. Nothing else changes - a
+        pending request writes no attendance - and the days are free for a
+        new request at once, since only pending and approved ones overlap.
+        """
+        if leave.status == LeaveStatus.WITHDRAWN:
+            raise LeaveAlreadyReviewed("This leave request has already been withdrawn.")
+
+        if leave.status != LeaveStatus.PENDING:
+            raise LeaveAlreadyReviewed(
+                f"This leave request has already been {leave.status}, so it can no longer be withdrawn. "
+                "Ask your school office to change it."
+            )
+
+        before = audit.fields_of(leave)
+        leave.status = LeaveStatus.WITHDRAWN
+        leave.updated_at = timezone.now()
+        leave.save(update_fields=["status", "updated_at"])
+        audit.updated("leave", leave, before, action="staff_leave.withdrawn")
+
+        return StaffLeaveService.fresh(leave)
+
+    @classmethod
+    def taken_this_year(cls, profile: StaffProfile) -> dict:
+        """The person's own leave over the school's current academic year -
+        or the calendar year, where the school has not set one - in working
+        days, counted the way the leave-usage report counts them: weekends
+        and holidays inside a request take nothing, a half day is half
+        (docs/mobile-apps-review.md, 1.9). There is no allowance to set it
+        against yet, so this is what was taken, not what is left."""
+        school_id = profile.school_id
+        year = AcademicYear.objects.filter(school_id=school_id, is_current=True).first()
+
+        if year is not None:
+            start, end, label = year.start_date, year.end_date, year.name
+        else:
+            today = SchoolClock.for_school(school_id).now().date()
+            start, end, label = dt.date(today.year, 1, 1), dt.date(today.year, 12, 31), str(today.year)
+
+        working = HolidayService.working_dates(school_id, start, end)
+        leaves = StaffLeave.objects.filter(
+            staff_profile_id=profile.id,
+            status__in=(LeaveStatus.APPROVED, LeaveStatus.PENDING),
+            start_date__lte=end,
+            end_date__gte=start,
+        )
+
+        taken = {leave_type: 0.0 for leave_type in LeaveType.values}
+        pending = 0
+
+        for leave in leaves:
+            if leave.status == LeaveStatus.PENDING:
+                pending += 1
+            else:
+                taken[leave.leave_type] = taken.get(leave.leave_type, 0.0) + HodReportService.leave_days_within(
+                    leave, working
+                )
+
+        return {
+            "label": label,
+            "from": start.isoformat(),
+            "to": end.isoformat(),
+            "types": [{"leave_type": leave_type, "days": php_number(days)} for leave_type, days in taken.items()],
+            "total_days": php_number(sum(taken.values())),
+            "pending_requests": pending,
+        }
+
+    @staticmethod
     def record_decision(leave, status: str, actor: User, remarks) -> None:
         before = audit.fields_of(leave)
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
+import 'models/leave_taken.dart';
 import 'models/leave_type.dart';
 import 'models/staff_leave.dart';
 import 'models/staff_leave_summary.dart';
@@ -70,5 +71,16 @@ class StaffLeaveApi {
   Future<StaffLeave> reject(int leaveId, {String? remarks}) async {
     final response = await _dio.patch('/leaves/$leaveId/reject', data: {'remarks': remarks});
     return StaffLeave.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// The applicant's own pending request, taken back.
+  Future<StaffLeave> withdraw(int leaveId) async {
+    final response = await _dio.patch('/leaves/$leaveId/withdraw');
+    return StaffLeave.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<LeaveTaken> takenThisYear() async {
+    final response = await _dio.get('/leaves/mine/taken');
+    return LeaveTaken.fromJson(response.data as Map<String, dynamic>);
   }
 }

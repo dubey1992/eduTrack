@@ -2,6 +2,7 @@ import '../../../core/utils/date_period.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../staff_leave/data/models/leave_taken.dart';
 import '../../staff_leave/data/models/leave_type.dart';
 import '../../staff_leave/data/models/staff_leave.dart';
 import '../../staff_leave/data/staff_leave_repository.dart';
@@ -17,6 +18,13 @@ class MyLeave {
   /// The period the list is filtered to.
   final DatePeriod period;
 }
+
+/// The card at the top of My leave: what was taken this year
+/// (docs/mobile-apps-review.md, 1.9). Read again whenever the list is.
+final myLeaveTakenProvider = FutureProvider.autoDispose<LeaveTaken>(
+  (ref) => ref.read(staffLeaveRepositoryProvider).takenThisYear(),
+  retry: (retryCount, error) => null,
+);
 
 /// No automatic retry: the screen has its own.
 final myLeaveProvider = AsyncNotifierProvider.autoDispose<MyLeaveNotifier, MyLeave>(
@@ -56,7 +64,27 @@ class MyLeaveNotifier extends AsyncNotifier<MyLeave> {
   }
 
   Future<void> refresh() async {
+    ref.invalidate(myLeaveTakenProvider);
     state = await AsyncValue.guard(build);
+  }
+
+  /// Takes back a request still waiting for a decision. Throws the server's
+  /// [Failure] - decided meanwhile - for the screen to show; on success the
+  /// card changes in place and the year's figures are read again.
+  Future<void> withdraw(int leaveId) async {
+    final withdrawn = await ref.read(staffLeaveRepositoryProvider).withdraw(leaveId);
+    final current = state.value;
+    if (current != null) {
+      state = AsyncData(
+        MyLeave(
+          items: [for (final item in current.items) item.id == leaveId ? withdrawn : item],
+          hasMore: current.hasMore,
+          page: current.page,
+          period: current.period,
+        ),
+      );
+    }
+    ref.invalidate(myLeaveTakenProvider);
   }
 
   Future<void> retry() async {
