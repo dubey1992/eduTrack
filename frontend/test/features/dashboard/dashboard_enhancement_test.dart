@@ -156,8 +156,8 @@ void main() {
       ]) {
         expect(find.text(label), findsOneWidget, reason: label);
       }
-      // No date lock: the app has none, so no button promises one.
-      expect(find.textContaining('Date lock'), findsNothing);
+      // The date lock (D3), for whoever may move it.
+      expect(find.byKey(const Key('quick-action-date-lock')), findsOneWidget);
 
       await _tapAndSettle(tester, find.byKey(const Key('quick-action-collection-report')));
       expect(find.text('opened /reports?report=fee-collection&from=2026-09-14&to=2026-09-14'), findsOneWidget);

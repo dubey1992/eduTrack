@@ -34,6 +34,7 @@ from django.db.models import Exists, F, OuterRef
 from django.utils import timezone
 
 from .. import audit, modules
+from . import lock
 from ..clock import SchoolClock
 from ..enums import EnrollmentStatus, FeeDueKind, FeeDueStatus, StudentStatus
 from ..models import ModuleSetting, StudentEnrollment, Student, StudentFeeDue
@@ -113,6 +114,12 @@ class LateFineService:
 
         run.amount = amount
         today = SchoolClock.for_school(school_id).now().date()
+
+        # A fine is dated the day it is charged; a closed day takes none
+        # (docs/dashboard.md, D3). The next open day's run catches up.
+        if lock.is_closed(school_id, today):
+            run.skipped = "the fee books are locked for today"
+            return run
         student_ids = sorted(set(unfined(school_id, today, grace).values_list("student_id", flat=True)))
         fined_students: set[int] = set()
 

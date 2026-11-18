@@ -766,6 +766,46 @@ class FeeCreditRefundRequest:
         return day
 
 
+class FeesLockRequest:
+    """`PUT fees/lock`: the date the fee books are closed up to
+    (docs/dashboard.md, D3). Null clears it. Never a day still to come - the
+    lock closes days that are over, or today once it is counted. Moving it
+    back, or clearing it, reopens closed days, so it needs a reason; moving
+    it on takes one if given."""
+
+    def __init__(self, data, school) -> None:
+        self.data = normalise(data) if isinstance(data, dict) else {}
+        self.school = school
+
+    def validate(self) -> dict:
+        errors: dict[str, list[str]] = {}
+        raw = self.data.get("locked_until")
+        until = None
+
+        if raw is not None:
+            until = parse_date(raw)
+
+            if until is None:
+                errors.setdefault("locked_until", []).append(not_a_date("locked_until"))
+            elif until > SchoolClock.for_school(self.school.id).now().date():
+                errors.setdefault("locked_until", []).append("The books can only be locked up to today, not a day to come.")
+
+        reason = self.data.get("reason")
+        before = self.school.fees_locked_until
+        reopening = before is not None and (until is None or (until is not None and until < before))
+
+        if reason is not None and not isinstance(reason, str):
+            errors.setdefault("reason", []).append(must_be_a_string("reason"))
+        elif reason is not None and len(reason) > REASON_MAX:
+            errors.setdefault("reason", []).append(too_long("reason", REASON_MAX))
+        elif reopening and (reason is None or len(reason.strip()) < REASON_MIN):
+            errors.setdefault("reason", []).append("Say why closed days are being reopened.")
+
+        raise_if(errors)
+
+        return {"locked_until": until, "reason": reason.strip() if isinstance(reason, str) else None}
+
+
 class FeeReceiptListRequest:
     """`GET fees/receipts`: which school's receipts, and the filters.
 

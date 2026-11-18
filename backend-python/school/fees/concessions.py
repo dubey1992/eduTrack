@@ -26,6 +26,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from .. import audit
+from . import lock
 from ..enums import FeeDueKind, FeeDueStatus
 from ..errors import FeeConcessionRevoked, FeeDueNotWaivable
 from ..models import FeeConcession, Student, StudentFeeDue
@@ -75,6 +76,7 @@ class ConcessionService:
         student: Student = data["student"]
         year = data["academic_year"]
         head = data["fee_head"]
+        lock.ensure_open(student.school_id, None, "a discount")
 
         with transaction.atomic():
             Student.objects.select_for_update().filter(pk=student.id).first()
@@ -116,6 +118,8 @@ class ConcessionService:
 
     @classmethod
     def revoke(cls, concession: FeeConcession, reason: str | None, actor, request=None) -> FeeConcession:
+        lock.ensure_open(concession.school_id, None, "a change to a discount")
+
         with transaction.atomic():
             Student.objects.select_for_update().filter(pk=concession.student_id).first()
             concession = FeeConcession.objects.select_for_update().get(pk=concession.pk)
@@ -153,6 +157,8 @@ class ConcessionService:
 class WaiverService:
     @staticmethod
     def waive(due: StudentFeeDue, reason: str, actor, request=None) -> StudentFeeDue:
+        lock.ensure_open(due.school_id, None, "a waiver")
+
         with transaction.atomic():
             Student.objects.select_for_update().filter(pk=due.student_id).first()
             due = StudentFeeDue.objects.select_for_update().get(pk=due.pk)

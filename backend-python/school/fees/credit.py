@@ -46,6 +46,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from .. import audit, money
+from . import lock
 from ..enums import FeeCreditKind, FeeDueStatus
 from ..errors import FeeReceiptCreditRefunded
 from ..models import FeeReceipt, Student, StudentFeeCredit, StudentFeeDue
@@ -270,6 +271,7 @@ class CreditService:
         """Records money handed back to the family out of their credit."""
         currency = data["currency_code"]
         amount: Decimal = data["amount"]
+        lock.ensure_open(student.school_id, data["refund_date"], "a refund")
 
         with transaction.atomic():
             Student.objects.select_for_update().filter(pk=student.id).first()

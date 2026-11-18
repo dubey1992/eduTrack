@@ -1498,6 +1498,9 @@ class School(models.Model):
     # The uploaded logo in the app's storage (school/school_logo.py). A
     # school's profile is complete once it has one.
     logo_path = models.CharField(max_length=255, blank=True, null=True)
+    # The fee books' date lock (docs/dashboard.md, D3): nothing dated on or
+    # before it can be recorded. Null is nothing locked.
+    fees_locked_until = models.DateField(blank=True, null=True)
     status = models.CharField(max_length=255)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)

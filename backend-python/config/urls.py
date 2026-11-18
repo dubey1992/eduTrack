@@ -310,6 +310,8 @@ urlpatterns = [
     path("api/v1/fees/students/<int:student_id>/credit", fees.student_credit),
     path("api/v1/fees/students/<int:student_id>/credit/refund", fees.student_credit_refund),
     path("api/v1/fees/balances", fees.balances),
+    # The fee books' date lock (docs/dashboard.md, D3).
+    path("api/v1/fees/lock", fees.books_lock),
     # Step F3 "Collection & receipts".
     path("api/v1/fees/receipts", fees.receipts),
     path("api/v1/fees/receipts/<int:receipt_id>", fees.receipt),
