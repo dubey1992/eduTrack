@@ -5,6 +5,7 @@ import 'core/config/env.dart';
 import 'core/network/dio_client.dart';
 import 'core/routing/family_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/family/presentation/family_frame.dart';
 import 'features/family/presentation/family_push_registrar.dart';
 import 'features/maps/data/maps_config.dart';
 
@@ -48,7 +49,10 @@ class FamilyApp extends ConsumerWidget {
       // No SelectionArea, as in the other phone apps: on a phone it claims
       // every long press. The Overlay gives snackbars a home above the router.
       builder: (context, child) => FamilyPushRegistrar(
-        onOpenNotices: () => ref.read(familyRouterProvider).push('/notices'),
+        // A tab is gone to; anything else opens over the tabs, as from Home.
+        onOpen: (route) => FamilyPlace.values.any((place) => place.path == route)
+            ? ref.read(familyRouterProvider).go(route)
+            : ref.read(familyRouterProvider).push(route),
         child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
       ),
     );

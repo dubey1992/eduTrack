@@ -11,15 +11,23 @@ import '../application/family_session_notifier.dart';
 /// Push for the Family app: the staff app's PushRegistrar, on the family
 /// session. Once a parent is signed in it asks permission, registers this
 /// phone through `/family/devices`, and keeps it fresh; a tapped
-/// notification opens Notices, and one arriving with the app open refreshes
-/// them and says so.
+/// notification opens the screen it is about (a fee reminder Fees, a bus
+/// alert the Bus tab - docs/mobile-apps-review.md, 5.2), and one arriving with
+/// the app open refreshes Notices and says so.
 ///
 /// A build without the Firebase keys has no push and does nothing here; the
 /// school's messages still arrive in Notices.
-class FamilyPushRegistrar extends ConsumerStatefulWidget {
-  const FamilyPushRegistrar({super.key, required this.onOpenNotices, required this.child});
+/// The Family app's addresses a notification may open. Anything else the
+/// server sends - an older server, a typo - opens Notices.
+const familyPushRoutes = {'/notices', '/fees', '/bus', '/bus/live', '/results', '/attendance'};
 
-  final VoidCallback onOpenNotices;
+String safeFamilyPushRoute(String route) => familyPushRoutes.contains(route) ? route : '/notices';
+
+class FamilyPushRegistrar extends ConsumerStatefulWidget {
+  const FamilyPushRegistrar({super.key, required this.onOpen, required this.child});
+
+  /// Opens one of [familyPushRoutes].
+  final ValueChanged<String> onOpen;
   final Widget child;
 
   @override
@@ -61,12 +69,12 @@ class _FamilyPushRegistrarState extends ConsumerState<FamilyPushRegistrar> {
       _listening = true;
       _subscriptions
         ..add(_push.tokenRefreshes.listen(_register))
-        ..add(_push.opened.listen((_) => widget.onOpenNotices()))
+        ..add(_push.opened.listen((notice) => widget.onOpen(safeFamilyPushRoute(notice.route))))
         ..add(_push.received.listen(_show));
     }
 
     final launch = await _push.launchedBy();
-    if (launch != null && mounted) widget.onOpenNotices();
+    if (launch != null && mounted) widget.onOpen(safeFamilyPushRoute(launch.route));
   }
 
   Future<void> _register(String token) async {
@@ -89,7 +97,7 @@ class _FamilyPushRegistrarState extends ConsumerState<FamilyPushRegistrar> {
       ..showSnackBar(
         SnackBar(
           content: Text(notice.body.isEmpty ? notice.title : '${notice.title}: ${notice.body}', maxLines: 3),
-          action: SnackBarAction(label: 'Open', onPressed: widget.onOpenNotices),
+          action: SnackBarAction(label: 'Open', onPressed: () => widget.onOpen(safeFamilyPushRoute(notice.route))),
         ),
       );
   }

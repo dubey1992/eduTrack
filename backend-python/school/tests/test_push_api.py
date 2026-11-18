@@ -410,3 +410,25 @@ class TheBusCrewApp(PushTestCase):
 
     def test_staff_routes_are_unchanged(self):
         self.assertEqual("/leave", push.route_for(self.inbox_message(self.teacher)))
+
+
+class TheFamilyAppOpensTheRightScreen(PushTestCase):
+    """A tapped notification opens the screen it is about
+    (docs/mobile-apps-review.md, 5.2), and Notices for anything else."""
+
+    def test_each_kind_opens_its_own_screen(self):
+        parent = factories.UserFactory(school=self.school, role=UserRole.PARENT)
+
+        for category, route in (
+            ("fee", "/fees"),
+            ("transport", "/bus"),
+            ("result", "/results"),
+            ("attendance", "/attendance"),
+            ("announcement", "/notices"),
+            ("general", "/notices"),
+        ):
+            with self.subTest(category=category):
+                self.assertEqual(route, push.route_for(self.inbox_message(parent, category=category)))
+
+    def test_staff_with_the_same_kinds_keep_their_own_routes(self):
+        self.assertEqual("/inbox", push.route_for(self.inbox_message(self.teacher, category="fee")))

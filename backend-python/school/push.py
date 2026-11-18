@@ -133,9 +133,17 @@ def access_token(account: dict) -> str | None:
     return token
 
 
-# Where a tapped notification opens in the Family app: its notices, whatever
-# the kind (docs/parent-student-app.md, F1).
+# Where a tapped notification opens in the Family app: the screen the message
+# is about (docs/mobile-apps-review.md, 5.2) - a fee reminder opens Fees, a
+# bus alert the Bus tab - and Notices for everything else. Every one of these
+# is also in the app's own allow-list (family_push_registrar.dart).
 FAMILY_ROUTE = "/notices"
+FAMILY_ROUTES = {
+    MessageCategory.FEE: "/fees",
+    MessageCategory.TRANSPORT: "/bus",
+    MessageCategory.RESULT: "/results",
+    MessageCategory.ATTENDANCE: "/attendance",
+}
 
 # Where a tapped notification opens in the School365ai Bus app: the trip,
 # its one screen that matters (docs/mobile-apps-review.md, M0). Nothing is
@@ -145,7 +153,7 @@ CREW_ROUTE = "/my-trip"
 
 def route_for(message: Message) -> str:
     if message.user_id and UserRole.is_family(message.user.role):
-        return FAMILY_ROUTE
+        return FAMILY_ROUTES.get(message.category, FAMILY_ROUTE)
 
     if message.user_id and UserRole.is_crew(message.user.role):
         return CREW_ROUTE
