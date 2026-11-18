@@ -17,7 +17,10 @@ class FamilyTodayCache {
 
   final KeyValueStore _store;
 
-  static String _key(int childId) => 'family_today_$childId';
+  static String _key(int childId) => keyFor(childId);
+
+  /// The store key for a child's Home - listed for sign-out (FamilySavedCopies).
+  static String keyFor(int childId) => 'family_today_$childId';
 
   Future<void> save(int childId, Map<String, dynamic> json, DateTime at) =>
       _store.write(_key(childId), jsonEncode({'at': at.toIso8601String(), 'data': json}));

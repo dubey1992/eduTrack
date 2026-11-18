@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../application/family_offline.dart';
+import 'family_saved_copies.dart';
 import 'models/family_admit_card.dart';
 import 'models/family_absence_note.dart';
 import 'models/family_bus.dart';
@@ -10,13 +12,48 @@ import 'models/family_fees.dart';
 import 'models/family_learning.dart';
 import 'models/family_records.dart';
 
-final familyApiProvider = Provider<FamilyApi>((ref) => FamilyApi(ref.watch(dioClientProvider)));
+final familyApiProvider = Provider<FamilyApi>(
+  (ref) => FamilyApi(
+    ref.watch(dioClientProvider),
+    copies: ref.watch(familySavedCopiesProvider),
+    onAnswer: (name, savedAt) {
+      final offline = ref.read(familyOfflineProvider.notifier);
+      savedAt == null ? offline.fresh(name) : offline.old(name, savedAt);
+    },
+  ),
+);
 
-/// The parent's screens' endpoints (school/views/family.py). Just HTTP.
+/// Says whether a screen's answer came from the server (null) or is the
+/// copy saved on the phone at [savedAt].
+typedef OnAnswer = void Function(String name, DateTime? savedAt);
+
+/// The parent's screens' endpoints (school/views/family.py). Just HTTP - and
+/// each screen's last answer kept on the phone for when there is no signal
+/// (docs/mobile-apps-review.md, 2.2).
 class FamilyApi {
-  FamilyApi(this._dio);
+  FamilyApi(this._dio, {this.copies, this.onAnswer});
 
   final Dio _dio;
+  final FamilySavedCopies? copies;
+  final OnAnswer? onAnswer;
+
+  /// GET [path], saving the answer as [name]; with no signal at all, the
+  /// copy saved last time - or the failure, when there is none.
+  Future<Object?> _kept(String name, String path, {Map<String, dynamic>? query}) async {
+    try {
+      final response = await _dio.get(path, queryParameters: query);
+      final data = response.data;
+      if (data != null) await copies?.save(name, data, DateTime.now());
+      onAnswer?.call(name, null);
+      return data;
+    } on DioException catch (error) {
+      if (!isNoSignal(error)) rethrow;
+      final saved = await copies?.read(name);
+      if (saved == null) rethrow;
+      onAnswer?.call(name, saved.at);
+      return saved.json;
+    }
+  }
 
   /// The day as the server sent it, so the repository can keep a copy.
   Future<Map<String, dynamic>> today(int childId) async {
@@ -25,18 +62,27 @@ class FamilyApi {
   }
 
   Future<AttendanceMonth> attendance(int childId, String month) async {
-    final response = await _dio.get('/family/children/$childId/attendance', queryParameters: {'month': month});
-    return AttendanceMonth.fromJson(response.data as Map<String, dynamic>);
+    final data = await _kept(
+      'attendance:$childId:$month',
+      '/family/children/$childId/attendance',
+      query: {'month': month},
+    );
+    return AttendanceMonth.fromJson(data as Map<String, dynamic>);
   }
 
   Future<SchoolCalendar> calendar(String month) async {
-    final response = await _dio.get('/family/calendar', queryParameters: {'month': month});
-    return SchoolCalendar.fromJson(response.data as Map<String, dynamic>);
+    final data = await _kept('calendar:$month', '/family/calendar', query: {'month': month});
+    return SchoolCalendar.fromJson(data as Map<String, dynamic>);
   }
 
   Future<NoticesPage> notices({int page = 1}) async {
-    final response = await _dio.get('/family/notices', queryParameters: {'page': page});
-    final json = response.data as Map<String, dynamic>;
+    // The first page is what a parent opens with no signal; later pages
+    // need one.
+    final json =
+        (page == 1
+                ? await _kept('notices', '/family/notices', query: {'page': page})
+                : (await _dio.get('/family/notices', queryParameters: {'page': page})).data)
+            as Map<String, dynamic>;
     final links = json['links'] as Map<String, dynamic>?;
 
     return NoticesPage(
@@ -61,8 +107,12 @@ class FamilyApi {
   }
 
   Future<FamilyResults> results(int childId, {int? termId}) async {
-    final response = await _dio.get('/family/children/$childId/results', queryParameters: {'term_id': ?termId});
-    return FamilyResults.fromJson(response.data as Map<String, dynamic>);
+    final data = await _kept(
+      'results:$childId:${termId ?? 'current'}',
+      '/family/children/$childId/results',
+      query: {'term_id': ?termId},
+    );
+    return FamilyResults.fromJson(data as Map<String, dynamic>);
   }
 
   Future<List<int>> progressReport(int childId, {int? termId}) async {
@@ -75,19 +125,18 @@ class FamilyApi {
   }
 
   Future<FamilyWeek> timetable(int childId) async {
-    final response = await _dio.get('/family/children/$childId/timetable');
-    return FamilyWeek.fromJson(response.data as Map<String, dynamic>);
+    final data = await _kept('timetable:$childId', '/family/children/$childId/timetable');
+    return FamilyWeek.fromJson(data as Map<String, dynamic>);
   }
 
   Future<List<SubjectSyllabus>> syllabus(int childId) async {
-    final response = await _dio.get('/family/children/$childId/syllabus');
-    final json = response.data as Map<String, dynamic>;
+    final json = await _kept('syllabus:$childId', '/family/children/$childId/syllabus') as Map<String, dynamic>;
     return [for (final s in json['subjects'] as List<dynamic>) SubjectSyllabus.fromJson(s as Map<String, dynamic>)];
   }
 
   Future<FamilyFees> fees(int childId) async {
-    final response = await _dio.get('/family/children/$childId/fees');
-    return FamilyFees.fromJson(response.data as Map<String, dynamic>);
+    final data = await _kept('fees:$childId', '/family/children/$childId/fees');
+    return FamilyFees.fromJson(data as Map<String, dynamic>);
   }
 
   Future<List<int>> feeStatement(int childId) => _bytes('/family/children/$childId/fees/statement.pdf');
@@ -96,9 +145,9 @@ class FamilyApi {
       _bytes('/family/children/$childId/receipts/$receiptId/pdf');
 
   Future<List<FamilyAdmitCard>> admitCards(int childId) async {
-    final response = await _dio.get('/family/children/$childId/admit-cards');
+    final data = await _kept('admit-cards:$childId', '/family/children/$childId/admit-cards');
     return [
-      for (final row in ((response.data as Map<String, dynamic>)['data'] as List<dynamic>))
+      for (final row in ((data as Map<String, dynamic>)['data'] as List<dynamic>))
         FamilyAdmitCard.fromJson(row as Map<String, dynamic>),
     ];
   }
@@ -112,8 +161,8 @@ class FamilyApi {
   }
 
   Future<FamilyBus> bus(int childId) async {
-    final response = await _dio.get('/family/children/$childId/bus');
-    return FamilyBus.fromJson(response.data as Map<String, dynamic>);
+    final data = await _kept('bus:$childId', '/family/children/$childId/bus');
+    return FamilyBus.fromJson(data as Map<String, dynamic>);
   }
 
   Future<FamilyBusLive> busLive(int childId) async {

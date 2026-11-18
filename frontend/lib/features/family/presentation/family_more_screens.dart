@@ -1,3 +1,5 @@
+import 'widgets/saved_copy_line.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -321,9 +323,12 @@ class FamilyNoticesScreen extends ConsumerWidget {
                     key: const Key('family-notices'),
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
-                    itemCount: state.notices.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) => _NoticeTile(notice: state.notices[index]),
+                    // The first row says when a saved copy is showing (2.2).
+                    itemCount: state.notices.length + 1,
+                    separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 0 : 10),
+                    itemBuilder: (context, index) => index == 0
+                        ? const SavedCopyLine(name: 'notices')
+                        : _NoticeTile(notice: state.notices[index - 1]),
                   ),
                 ),
         ),

@@ -7,6 +7,7 @@ import '../../../core/network/auth_token_storage.dart';
 import '../../../core/network/dio_client.dart';
 import 'family_auth_api.dart';
 import 'family_device_storage.dart';
+import 'family_saved_copies.dart';
 import 'models/family_account.dart';
 
 final familyAuthRepositoryProvider = Provider<FamilyAuthRepository>(
@@ -14,6 +15,7 @@ final familyAuthRepositoryProvider = Provider<FamilyAuthRepository>(
     ref.watch(familyAuthApiProvider),
     ref.watch(authTokenStorageProvider),
     ref.watch(familyDeviceStorageProvider),
+    copies: ref.watch(familySavedCopiesProvider),
   ),
 );
 
@@ -22,7 +24,10 @@ final familyAuthRepositoryProvider = Provider<FamilyAuthRepository>(
 /// attendant's (AttendantAuthRepository): the session token goes where every
 /// app keeps it, the phone's registration beside it.
 class FamilyAuthRepository {
-  FamilyAuthRepository(this._api, this._tokenStorage, this._deviceStorage);
+  FamilyAuthRepository(this._api, this._tokenStorage, this._deviceStorage, {this.copies});
+
+  /// Each screen's last answer, a child's records - forgotten on sign-out.
+  final FamilySavedCopies? copies;
 
   /// The server's answer when this phone's secret does not match the number.
   static const deviceNotRegisteredCode = 'DEVICE_NOT_REGISTERED';
@@ -129,6 +134,12 @@ class FamilyAuthRepository {
   Future<void> forgetSession() async {
     await _tokenStorage.clearToken();
     await _deviceStorage.clearSession();
+    try {
+      await copies?.clear();
+    } catch (error) {
+      // Never blocks signing out.
+      debugPrint('Saved screens could not be cleared on sign-out: $error');
+    }
   }
 
   /// A name the school office sees in the parent's list of phones.

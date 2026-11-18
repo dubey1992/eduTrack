@@ -1,3 +1,5 @@
+import 'widgets/saved_copy_line.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -82,6 +84,7 @@ class _BusList extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
+        SavedCopyLine(name: 'bus:${child.id}'),
         if (live != null) ...[_TrackTheBus(child: child, trip: live), const SizedBox(height: 12)],
         _RouteCard(bus: bus),
         const SizedBox(height: 12),

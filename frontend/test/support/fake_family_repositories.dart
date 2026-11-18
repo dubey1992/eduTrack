@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/family/data/family_saved_copies.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/features/family/data/family_auth_repository.dart';
 import 'package:edutrack_app/features/family/data/family_device_storage.dart';
@@ -318,6 +319,9 @@ FamilyBusLive familyBusLive({bool stale = false, bool reached = false, int? eta 
 
 /// The parent's screens' data, in memory.
 class FakeFamilyRepository implements FamilyRepository {
+  @override
+  FamilySavedCopies? get copies => null;
+
   FakeFamilyRepository({
     FamilyToday? today,
     AttendanceMonth? month,
@@ -590,6 +594,9 @@ class FakeFamilyRepository implements FamilyRepository {
 
 /// The family sign-in, in memory.
 class FakeFamilyAuthRepository implements FamilyAuthRepository {
+  @override
+  FamilySavedCopies? get copies => null;
+
   FakeFamilyAuthRepository({this.account, this.device, this.failWith, this.saved});
 
   /// Who `restore` finds signed in; null for nobody.

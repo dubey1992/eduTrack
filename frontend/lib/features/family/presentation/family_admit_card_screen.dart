@@ -1,3 +1,5 @@
+import 'widgets/saved_copy_line.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -79,7 +81,10 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
                             key: const Key('family-admit-cards'),
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                            children: [for (final card in cards) _card(child, card)],
+                            children: [
+                              SavedCopyLine(name: 'admit-cards:${child.id}'),
+                              for (final card in cards) _card(child, card),
+                            ],
                           ),
                         ),
                 ),

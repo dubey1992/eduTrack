@@ -1,3 +1,5 @@
+import 'widgets/saved_copy_line.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -80,6 +82,7 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
+                  SavedCopyLine(name: 'attendance:${child.id}:${monthKey(_month)}'),
                   // A parent tells the school about an absence from here (F5).
                   FamilyCard(
                     key: const Key('family-tell-absence'),

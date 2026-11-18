@@ -1,3 +1,5 @@
+import 'widgets/saved_copy_line.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,6 +60,7 @@ class _FeesList extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
+        SavedCopyLine(name: 'fees:${child.id}'),
         if (totals == null || fees.instalments.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 28),

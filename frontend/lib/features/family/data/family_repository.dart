@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/network/dio_client.dart';
 import 'family_api.dart';
+import 'family_saved_copies.dart';
 import 'family_today_cache.dart';
 import 'models/family_admit_card.dart';
 import 'models/family_absence_note.dart';
@@ -16,16 +17,23 @@ import 'models/family_learning.dart';
 import 'models/family_records.dart';
 
 final familyRepositoryProvider = Provider<FamilyRepository>(
-  (ref) => FamilyRepository(ref.watch(familyApiProvider), ref.watch(familyTodayCacheProvider)),
+  (ref) => FamilyRepository(
+    ref.watch(familyApiProvider),
+    ref.watch(familyTodayCacheProvider),
+    copies: ref.watch(familySavedCopiesProvider),
+  ),
 );
 
 /// The parent's screens' data, with every failure turned into the app's
 /// [Failure].
 class FamilyRepository {
-  FamilyRepository(this._api, this._todayCache);
+  FamilyRepository(this._api, this._todayCache, {this.copies});
 
   final FamilyApi _api;
   final FamilyTodayCache _todayCache;
+
+  /// Where Home's own copy is listed, so signing out forgets it too.
+  final FamilySavedCopies? copies;
 
   Future<T> _call<T>(Future<T> Function() request) async {
     try {
@@ -39,6 +47,7 @@ class FamilyRepository {
   Future<FamilyToday> today(int childId) async {
     final json = await _call(() => _api.today(childId));
     await _todayCache.save(childId, json, DateTime.now());
+    await copies?.remember(FamilyTodayCache.keyFor(childId));
     return FamilyToday.fromJson(json);
   }
 

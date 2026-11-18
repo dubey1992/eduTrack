@@ -1,3 +1,5 @@
+import 'widgets/saved_copy_line.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -100,6 +102,7 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   children: [
+                    SavedCopyLine(name: 'results:${child.id}:${key.$2 ?? 'current'}'),
                     if (results.terms.length > 1) ...[
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
@@ -366,6 +369,10 @@ class _FamilyTimetableScreenState extends ConsumerState<FamilyTimetableScreen> {
 
               return Column(
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: SavedCopyLine(name: 'timetable:${child.id}'),
+                  ),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -479,9 +486,11 @@ class FamilySyllabusScreen extends ConsumerWidget {
                 : ListView.separated(
                     key: const Key('family-syllabus'),
                     padding: const EdgeInsets.all(16),
-                    itemCount: subjects.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) => _SyllabusCard(subject: subjects[index], index: index),
+                    itemCount: subjects.length + 1,
+                    separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 0 : 12),
+                    itemBuilder: (context, index) => index == 0
+                        ? SavedCopyLine(name: 'syllabus:${child.id}')
+                        : _SyllabusCard(subject: subjects[index - 1], index: index - 1),
                   ),
           ),
     );
