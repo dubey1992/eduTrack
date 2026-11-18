@@ -282,6 +282,15 @@ def pdf_response(report, name: str, built: dict, actor, school_id: int | None,
 
 
 def single(school_id: int, report, filters: dict, compare: bool = False) -> dict:
+    # The performance reports default to the term so far rather than the
+    # month (reports/performance.py, default_period).
+    if getattr(report, "DEFAULT_PERIOD", None) == "term" and not filters.get("from") and not filters.get("to"):
+        from ..reports.performance import default_period
+
+        period = default_period(school_id)
+        if period is not None:
+            filters = {**filters, "from": period[0], "to": period[1]}
+
     report_range = ReportRange.from_filters(school_id, filters)
     built = report.build(report_range, filters)
 

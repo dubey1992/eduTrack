@@ -236,3 +236,16 @@ On the Python backend (`backend-python/school/reports/`):
    and the role in `_kindsFor` on the reports screen.
 4. Test it at a range containing a holiday, and at a range containing no
    working day at all — those two are where report bugs live.
+
+## Student and class performance (fixed 2026-11-18)
+
+- **Period.** With none picked, both cover the current term so far - or, for a school with no terms, its current year so far - not this month: class tests come a few a term, and a month was usually empty. The screen says "Current term". Every other report still defaults to this month.
+- **Grading system.** Each row is read against its own scale - the scale its tests used, else the school's default - never one scale for the whole report (`performance.Scales`). As on the report card (docs/document-styles.md):
+  - *percentage* - average %, grade;
+  - *gpa* - the same, plus the GPA (mean of the subjects' grade points; on class performance, the students' mean points in the subject);
+  - *grades only* - the grade, and no percentages; "weak" and "below the mark" are a failing band rather than the weak line.
+  The GPA, grade and percentage columns hide themselves when no row has a value.
+- **Totals.** Student performance counts the *tests held*, each once (it used to add every student's tests). Class performance counts *students below in a subject*, each student once however many subjects (it used to add every line's count). Average percentages carry their % sign on screen and in the PDF.
+- **Order.** By class level, then section: Class 2 before Class 10.
+- **Attendance.** 0% for a student whose register was taken but who was never present; "-" only when nobody marked them at all.
+

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'widgets/coloured_heading.dart';
+import '../../../core/widgets/date_range_picker.dart';
 import '../../../core/widgets/attendance_band_key.dart';
 import '../../../core/theme/chart_palette.dart';
 import '../../../core/theme/app_colors.dart';
@@ -69,8 +70,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
   Future<void> _pickRange() async {
     final today = ref.read(schoolClockProvider).today;
-    final picked = await showDateRangePicker(
-      context: context,
+    final picked = await pickDateRange(
+      context,
       firstDate: DateTime(today.year - 2, today.month),
       // A chart covers days that have happened; the API refuses the rest.
       lastDate: today,

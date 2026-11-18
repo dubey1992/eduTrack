@@ -569,3 +569,201 @@ class ThePrintedSheet(PerformanceReportTestCase):
             [("Class", "Grade 8 A"), ("Below", "50%")],
             render.call_args.kwargs["filters"],
         )
+
+
+class HonestTotalsAndOrder(PerformanceReportTestCase):
+    """Fixed 2026-11-18: totals that counted tests and students many times
+    over, classes sorted as text, a never-present student shown as "-", and
+    a default period that was usually empty."""
+
+    def second_student(self, section=None, **fields):
+        return factories.StudentFactory(class_section=section or self.section, **fields)
+
+    def test_tests_held_counts_each_test_once_not_once_per_student(self):
+        other = self.second_student()
+        physics, maths = self.test_for(), self.test_for(subject=self.maths, day="2026-09-09")
+        for student in (self.student, other):
+            self.mark_for(physics, student=student, obtained=60)
+            self.mark_for(maths, student=student, obtained=70)
+
+        totals = self.get(self.admin, "student-performance").data["totals"]
+
+        self.assertEqual(2, totals["tests_held"])
+        self.assertNotIn("assessments", totals)
+
+    def test_a_student_behind_in_two_subjects_is_one_student_behind(self):
+        ModuleSetting.objects.update_or_create(
+            school=self.school, module="assessments", defaults={"settings": {"weak_below_percentage": 50}},
+        )
+        self.mark_for(self.test_for(), obtained=30)
+        self.mark_for(self.test_for(subject=self.maths, day="2026-09-09"), obtained=20)
+
+        data = self.get(self.admin, "class-performance").data
+
+        self.assertEqual([1, 1], [row["students_below_the_mark"] for row in data["rows"]])
+        self.assertEqual(1, data["totals"]["students_below_in_a_subject"])
+
+    def test_classes_sort_by_level_so_class_10_comes_after_class_2(self):
+        def section_called(name, level):
+            school_class = factories.SchoolClassFactory(academic_year=self.year, school=self.school, name=name, level=level)
+            return factories.ClassSectionFactory(school_class=school_class, name="A")
+
+        ten, two = section_called("Class 10", 10), section_called("Class 2", 2)
+        for section in (ten, two):
+            student = self.second_student(section=section)
+            self.mark_for(self.test_for(section=section), student=student, obtained=50)
+
+        students = [row["class_section"] for row in self.rows(self.admin, "student-performance")]
+        classes = [row["class_section"] for row in self.rows(self.admin, "class-performance")]
+
+        self.assertEqual(["Class 2 A", "Class 10 A"], [name for name in students if name.startswith("Class")])
+        self.assertEqual(["Class 2 A", "Class 10 A"], [name for name in classes if name.startswith("Class")])
+
+    def test_a_student_marked_but_never_present_is_0_percent_not_a_dash(self):
+        self.mark_for(self.test_for(), obtained=50)
+        self.mark("2026-09-08", "absent")
+
+        row = self.rows(self.admin, "student-performance")[0]
+
+        self.assertEqual(0, row["attendance_rate"])
+
+    def test_nobody_on_any_register_is_still_a_dash(self):
+        self.mark_for(self.test_for(), obtained=50)
+
+        self.assertIsNone(self.rows(self.admin, "student-performance")[0]["attendance_rate"])
+
+    def test_with_no_period_asked_for_both_cover_the_term_so_far(self):
+        # Term 1 runs 1 April - 31 December; "now" is 14 September.
+        self.mark_for(self.test_for(day="2026-04-20"), obtained=80)
+
+        for report in ("student-performance", "class-performance"):
+            with self.subTest(report=report):
+                data = self.get(self.admin, report, **{"from": None, "to": None}).data
+                self.assertEqual(("2026-04-01", "2026-09-14"), (data["range"]["from"], data["range"]["to"]))
+                self.assertEqual(1, len(data["rows"]))
+
+    def test_without_terms_the_current_year_so_far(self):
+        # A term that has ended: none is current on 14 September.
+        self.term.end_date = dt.date(2026, 6, 30)
+        self.term.save()
+        self.year.end_date, self.year.is_current = dt.date(2027, 3, 31), True
+        self.year.save()
+        self.mark_for(self.test_for(day="2026-04-20"), obtained=80)
+
+        data = self.get(self.admin, "student-performance", **{"from": None, "to": None}).data
+
+        self.assertEqual((self.year.start_date.isoformat(), "2026-09-14"), (data["range"]["from"], data["range"]["to"]))
+
+    def test_a_period_asked_for_is_kept(self):
+        data = self.get(self.admin, "student-performance").data
+
+        self.assertEqual((FROM, TO), (data["range"]["from"], data["range"]["to"]))
+
+    def test_every_other_report_still_defaults_to_this_month(self):
+        data = self.get(self.admin, "student-attendance", **{"from": None, "to": None}).data
+
+        self.assertEqual("2026-09-01", data["range"]["from"])
+
+
+class FollowsTheGradingSystem(PerformanceReportTestCase):
+    """Each row is read against its own grading system
+    (docs/document-styles.md): marks and percentage, grade points, or grades
+    only - never one scale for the whole report."""
+
+    def scale(self, kind, bands, default=False):
+        scale = factories.GradeScaleFactory(school=self.school, kind=kind, is_default=default)
+        for label, low, high, points, fails in bands:
+            factories.GradeBandFactory(
+                grade_scale=scale, label=label, min_percentage=low, max_percentage=high,
+                grade_point=points, is_failing=fails,
+            )
+
+        return scale
+
+    def gpa_scale(self):
+        return self.scale("gpa", [("A1", 91, 100, 10, False), ("B1", 71, 90, 8, False),
+                                  ("C1", 41, 70, 6, False), ("E", 0, 40, None, True)])
+
+    def grades_scale(self):
+        return self.scale("grades", [("Excellent", 80, 100, None, False), ("Good", 50, 79, None, False),
+                                     ("Needs help", 0, 49, None, True)])
+
+    def test_a_gpa_scale_gives_the_mean_of_the_subjects_points(self):
+        scale = self.gpa_scale()
+        self.mark_for(self.test_for(scale=scale), obtained=95)  # physics A1 = 10
+        self.mark_for(self.test_for(subject=self.maths, day="2026-09-09", scale=scale), obtained=75)  # B1 = 8
+
+        data = self.get(self.admin, "student-performance").data
+        row = data["rows"][0]
+
+        self.assertEqual(("gpa", 9, "B1", 85), (row["grading"], row["gpa"], row["grade"], row["average_percentage"]))
+        self.assertEqual((9, 1), (data["totals"]["average_gpa"], data["totals"]["students_with_a_gpa"]))
+
+    def test_a_grades_only_scale_shows_grades_and_no_percentages(self):
+        scale = self.grades_scale()
+        self.mark_for(self.test_for(scale=scale), obtained=30)  # Needs help - failing
+        self.mark_for(self.test_for(subject=self.maths, day="2026-09-09", scale=scale), obtained=90)
+
+        student = self.get(self.admin, "student-performance").data
+        row = student["rows"][0]
+
+        self.assertEqual(("grades", "Good", None, None, None),
+                         (row["grading"], row["grade"], row["average_percentage"], row["class_average_percentage"],
+                          row["gpa"]))
+        # Weak = a failing grade, with no percentage line needed.
+        self.assertEqual(1, row["weak_subjects"])
+        self.assertEqual(1, student["totals"]["students_with_a_result"])
+        self.assertNotIn("average_gpa", student["totals"])
+
+        rows = {row["subject"]: row for row in self.rows(self.admin, "class-performance")}
+        self.assertEqual(("Needs help", None, None, None, 1),
+                         (rows["Physics"]["grade"], rows["Physics"]["average_percentage"],
+                          rows["Physics"]["highest_percentage"], rows["Physics"]["lowest_percentage"],
+                          rows["Physics"]["students_below_the_mark"]))
+
+    def test_each_class_is_read_against_its_own_scale(self):
+        juniors = factories.ClassSectionFactory(
+            school_class=factories.SchoolClassFactory(academic_year=self.year, school=self.school, name="Class 1", level=1),
+            name="A",
+        )
+        junior = factories.StudentFactory(class_section=juniors)
+        self.mark_for(self.test_for(section=juniors, scale=self.grades_scale()), student=junior, obtained=85)
+        self.mark_for(self.test_for(scale=self.gpa_scale()), obtained=95)
+
+        rows = {row["student_id"]: row for row in self.rows(self.admin, "student-performance")}
+
+        self.assertEqual(("grades", "Excellent", None), (rows[junior.id]["grading"], rows[junior.id]["grade"],
+                                                         rows[junior.id]["gpa"]))
+        self.assertEqual(("gpa", "A1", 10), (rows[self.student.id]["grading"], rows[self.student.id]["grade"],
+                                             rows[self.student.id]["gpa"]))
+
+    def test_class_performance_gives_the_average_points_on_a_gpa_scale(self):
+        scale = self.gpa_scale()
+        other = factories.StudentFactory(class_section=self.section)
+        test = self.test_for(scale=scale)
+        self.mark_for(test, obtained=95)  # 10 points
+        self.mark_for(test, student=other, obtained=60)  # 6 points
+
+        row = self.rows(self.admin, "class-performance")[0]
+
+        self.assertEqual(("gpa", 8, "B1", 77.5), (row["grading"], row["average_points"], row["grade"],
+                                                  row["average_percentage"]))
+
+    def test_a_percentage_scale_is_as_before(self):
+        scale = self.scale("percentage", [("A", 80, 100, None, False), ("B", 0, 79, None, False)], default=True)
+        self.mark_for(self.test_for(), obtained=85)
+
+        row = self.rows(self.admin, "student-performance")[0]
+
+        self.assertEqual(("percentage", "A", 85, None), (row["grading"], row["grade"], row["average_percentage"],
+                                                         row["gpa"]))
+        self.assertTrue(scale.is_default)
+
+    def test_the_csv_carries_the_gpa_and_grade_columns(self):
+        self.mark_for(self.test_for(scale=self.gpa_scale()), obtained=95)
+
+        student = self.get(self.admin, "student-performance", format="csv").content.decode("utf-8-sig")
+        subjects = self.get(self.admin, "class-performance", format="csv").content.decode("utf-8-sig")
+
+        self.assertIn("Grade,GPA", student.splitlines()[0])
+        self.assertIn('Grade,"Average points"', subjects.splitlines()[0])

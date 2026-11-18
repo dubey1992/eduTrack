@@ -59,6 +59,10 @@ enum ReportKind {
   /// The fee reports, which only a school with Fee Management sees.
   bool get isFees => this == feeCollection || this == feeOutstanding || this == feeConcessions;
 
+  /// With no period picked, the server covers the current term so far (or
+  /// the year so far) rather than the month - class tests come a few a term.
+  bool get defaultsToTerm => this == studentPerformance || this == classPerformance;
+
   const ReportKind(this.apiPath, this.label, this.description);
 
   final String apiPath;
@@ -195,6 +199,7 @@ class ReportColumn {
     this.isMoney = false,
     this.isDate = false,
     this.warnBelow = 75,
+    this.hideWhenEmpty = false,
   });
 
   final String key;
@@ -219,6 +224,11 @@ class ReportColumn {
   /// most of a school a problem - and contradicting the "below the mark"
   /// column beside them, which uses the school's own figure.
   final double? warnBelow;
+
+  /// Left out of the table when no row has a value in it - a GPA column in
+  /// a school that grades by percentage, or percentages where every class
+  /// is graded "grades only" (docs/document-styles.md).
+  final bool hideWhenEmpty;
 }
 
 /// The columns each report shows, in order. Kept beside the enum so a report
@@ -303,9 +313,18 @@ const Map<ReportKind, List<ReportColumn>> reportColumns = {
     ReportColumn('subjects', 'Subjects', numeric: true),
     ReportColumn('assessments', 'Tests', numeric: true),
     ReportColumn('absent', 'Absent', numeric: true),
-    ReportColumn('average_percentage', 'Average', numeric: true, isRate: true, warnBelow: null),
-    ReportColumn('grade', 'Grade'),
-    ReportColumn('class_average_percentage', 'Class average', numeric: true, isRate: true, warnBelow: null),
+    ReportColumn('average_percentage', 'Average', numeric: true, isRate: true, warnBelow: null, hideWhenEmpty: true),
+    ReportColumn('grade', 'Grade', hideWhenEmpty: true),
+    // On a grade-point scale only (docs/document-styles.md).
+    ReportColumn('gpa', 'GPA', numeric: true, hideWhenEmpty: true),
+    ReportColumn(
+      'class_average_percentage',
+      'Class average',
+      numeric: true,
+      isRate: true,
+      warnBelow: null,
+      hideWhenEmpty: true,
+    ),
     ReportColumn('weak_subjects', 'Weak subjects', numeric: true),
     ReportColumn('attendance_rate', 'Attendance', numeric: true, isRate: true),
   ],
@@ -358,9 +377,12 @@ const Map<ReportKind, List<ReportColumn>> reportColumns = {
     ReportColumn('assessments', 'Tests', numeric: true),
     ReportColumn('marks_counted', 'Marks', numeric: true),
     ReportColumn('absent', 'Absent', numeric: true),
-    ReportColumn('average_percentage', 'Average', numeric: true, isRate: true, warnBelow: null),
-    ReportColumn('highest_percentage', 'Highest', numeric: true, isRate: true, warnBelow: null),
-    ReportColumn('lowest_percentage', 'Lowest', numeric: true, isRate: true, warnBelow: null),
+    ReportColumn('average_percentage', 'Average', numeric: true, isRate: true, warnBelow: null, hideWhenEmpty: true),
+    ReportColumn('grade', 'Grade', hideWhenEmpty: true),
+    // The students' mean grade points, on a grade-point scale only.
+    ReportColumn('average_points', 'Avg points', numeric: true, hideWhenEmpty: true),
+    ReportColumn('highest_percentage', 'Highest', numeric: true, isRate: true, warnBelow: null, hideWhenEmpty: true),
+    ReportColumn('lowest_percentage', 'Lowest', numeric: true, isRate: true, warnBelow: null, hideWhenEmpty: true),
     ReportColumn('students_below_the_mark', 'Below the mark', numeric: true),
   ],
 };

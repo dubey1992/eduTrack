@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/date_range_picker.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/network/paged_list.dart';
@@ -39,8 +40,8 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
 
   Future<void> _pickRange() async {
     final today = ref.read(schoolClockProvider).today;
-    final picked = await showDateRangePicker(
-      context: context,
+    final picked = await pickDateRange(
+      context,
       firstDate: DateTime(today.year - 5),
       // Nothing has been recorded after today.
       lastDate: today,

@@ -35,7 +35,7 @@ from __future__ import annotations
 from django.db.models import Count, Sum
 
 from .. import modules
-from ..enums import AssessmentStatus, AttendanceStatus
+from ..enums import AssessmentStatus, AttendanceStatus, GradeScaleKind
 from ..marks import average_of, mean_of, percentage_of
 from ..models import AcademicTerm, Assessment, AssessmentMark, Attendance, ClassSection, GradeScale, Student
 from ..services import GradeScaleService, php_number, php_round_1
@@ -110,18 +110,59 @@ def weak_below(school_id: int):
     return None if value is None else float(value)
 
 
-def scale_for(school_id: int, marks) -> GradeScale | None:
-    """The scale to read an average against: whichever the tests used, and
-    otherwise the school's default. A school that grades nothing gets no
-    grades, which is a school that reports marks."""
-    for mark in marks:
-        if mark.assessment.grade_scale_id:
-            scale = GradeScale.objects.prefetch_related("bands").filter(pk=mark.assessment.grade_scale_id).first()
+class Scales:
+    """The grade scale each row is read against (docs/document-styles.md).
 
+    One row at a time - a student, or a class and subject - by the scale its
+    own tests used, else the school's default. Not one scale for the whole
+    report: a school can grade its young classes "grades only" and its
+    seniors by GPA, and reading everybody against whichever test came first
+    graded half the school on the wrong scale (fixed 2026-11-18). A school
+    that grades nothing gets no grades, which is a school that reports marks.
+    """
+
+    def __init__(self, school_id: int, marks) -> None:
+        ids = {mark.assessment.grade_scale_id for mark in marks if mark.assessment.grade_scale_id}
+        self._by_id = {scale.id: scale for scale in GradeScale.objects.prefetch_related("bands").filter(pk__in=ids)}
+        self._default = (
+            GradeScale.objects.prefetch_related("bands").filter(school_id=school_id, is_default=True).first()
+        )
+
+    def of(self, marks) -> GradeScale | None:
+        for mark in marks:
+            scale = self._by_id.get(mark.assessment.grade_scale_id)
             if scale is not None:
                 return scale
 
-    return GradeScale.objects.prefetch_related("bands").filter(school_id=school_id, is_default=True).first()
+        return self._default
+
+
+def kind_of(scale: GradeScale | None) -> str:
+    return GradeScaleKind.PERCENTAGE if scale is None else scale.kind
+
+
+def band_of(scale: GradeScale | None, percentage):
+    return None if scale is None or percentage is None else GradeScaleService.grade_for(scale, percentage)
+
+
+def points_mean(scale: GradeScale | None, percentages) -> str | None:
+    """A GPA: the mean of each figure's grade points on a GPA scale, as the
+    report card works it out; nothing on any other scale."""
+    if kind_of(scale) != GradeScaleKind.GPA:
+        return None
+
+    points = [band.grade_point for band in (band_of(scale, value) for value in percentages) if band is not None]
+    gpa = mean_of([point for point in points if point is not None])
+
+    return None if gpa is None else php_number(float(gpa))
+
+
+def failing(scale: GradeScale | None, percentage) -> bool:
+    """A grades-only scale's "below the mark": a band the school marks as
+    failing - the same line its report card's result reads."""
+    band = band_of(scale, percentage)
+
+    return band is not None and band.is_failing
 
 
 def percent(value):
@@ -162,6 +203,40 @@ def current_term(school_id: int, today):
         .order_by("sequence_number", "id")
         .first()
     )
+
+
+def default_period(school_id: int) -> tuple | None:
+    """The period these two reports cover when none is asked for: the current
+    term so far, or - for a school with no terms set out - its current year so
+    far. Every other report defaults to this month, but class tests come a few
+    a term, so "this month" was usually an empty report that read as a broken
+    one (2026-11-18). None when the school has neither, and the usual month
+    applies."""
+    from ..clock import SchoolClock
+    from ..models import AcademicYear
+
+    today = SchoolClock.for_school(school_id).now().date()
+    term = current_term(school_id, today)
+
+    if term is not None:
+        return term.start_date, min(term.end_date, today)
+
+    year = (
+        AcademicYear.objects.filter(school_id=school_id, is_current=True, start_date__lte=today)
+        .order_by("-start_date")
+        .first()
+    )
+
+    return None if year is None else (year.start_date, min(year.end_date, today))
+
+
+def class_order(section) -> tuple:
+    """Class 1, 2 ... 10 by the class's level, then the section - never as
+    text, where "Class 10" comes straight after "Class 1"."""
+    if section is None:
+        return (10**6, "", "")
+
+    return (section.school_class.level, section.school_class.name, section.name)
 
 
 def term_summary(school_id: int, today, department_ids: list | None = None) -> dict:
@@ -223,6 +298,8 @@ class StudentPerformanceReport:
         "and a student's average weighs each subject evenly rather than each test."
     )
     COMPARED_ROWS = [("average_percentage", "Average %")]
+    # With no period asked for: the current term so far (see default_period).
+    DEFAULT_PERIOD = "term"
 
     @staticmethod
     def row_key(row: dict):
@@ -231,14 +308,18 @@ class StudentPerformanceReport:
     def build(self, report_range: ReportRange, filters: dict) -> dict:
         marks = list(published_marks(report_range, filters))
         threshold = weak_below(report_range.school_id)
-        scale = scale_for(report_range.school_id, marks)
+        scales = Scales(report_range.school_id, marks)
         averages = class_averages(mark.assessment_id for mark in marks)
 
         # (student, subject) -> the percentages that count and what was missed.
         counted: dict[int, dict] = {}
 
         for mark in marks:
-            student = counted.setdefault(mark.student_id, {"student": mark.student, "subjects": {}})
+            student = counted.setdefault(
+                mark.student_id, {"student": mark.student, "subjects": {}, "tests": set(), "marks": []}
+            )
+            student["tests"].add(mark.assessment_id)
+            student["marks"].append(mark)
             subject = student["subjects"].setdefault(
                 mark.assessment.subject_id, {"marks": [], "class": [], "assessments": 0, "absent": 0}
             )
@@ -259,6 +340,9 @@ class StudentPerformanceReport:
 
         attendance = self._attendance(report_range, list(counted))
         rows = []
+        behind: dict[int, bool] = {}
+        tests_of: dict[int, set] = {}
+        order_of: dict[int, tuple] = {}
 
         for student_id, entry in counted.items():
             student = entry["student"]
@@ -266,9 +350,21 @@ class StudentPerformanceReport:
 
             # Each subject first, then the subjects evenly - the same order
             # the student's own page works in.
+            tests_of[student_id] = entry["tests"]
+            order_of[student_id] = class_order(student.class_section)
             per_subject = {key: average_of(value["marks"]) for key, value in subjects.items()}
             average = mean_of(list(per_subject.values()))
             against = mean_of([mean_of(value["class"]) for value in subjects.values()])
+            scale = scales.of(entry["marks"])
+            kind = kind_of(scale)
+            # Grades only: the school shows no marks or percentages, so
+            # neither does its report - the grade is the figure.
+            grades_only = kind == GradeScaleKind.GRADES
+            band = band_of(scale, average)
+            behind[student_id] = (
+                band is not None and band.is_failing if grades_only
+                else threshold is not None and average is not None and float(average) < threshold
+            )
 
             rows.append({
                 "student_id": student_id,
@@ -278,11 +374,14 @@ class StudentPerformanceReport:
                 "subjects": len(subjects),
                 "assessments": sum(value["assessments"] for value in subjects.values()),
                 "absent": sum(value["absent"] for value in subjects.values()),
-                "average_percentage": percent(average),
-                "grade": None if average is None or scale is None else self._grade(scale, average),
-                "class_average_percentage": percent(against),
-                "weak_subjects": self._weak(per_subject, subjects, threshold),
+                "average_percentage": None if grades_only else percent(average),
+                "grade": None if band is None else band.label,
+                # The mean of the subjects' grade points, on a GPA scale only.
+                "gpa": points_mean(scale, per_subject.values()),
+                "class_average_percentage": None if grades_only else percent(against),
+                "weak_subjects": self._weak(per_subject, threshold, scale),
                 "attendance_rate": attendance.get(student_id),
+                "grading": kind,
             })
 
         # Below the line asked for, if one was - the students a report like
@@ -294,17 +393,21 @@ class StudentPerformanceReport:
                 if row["average_percentage"] is not None and float(row["average_percentage"]) < limit
             ]
 
-        rows.sort(key=lambda row: (row["class_section"] or "", row["student"] or "", row["student_id"]))
+        rows.sort(key=lambda row: (order_of[row["student_id"]], row["student"] or "", row["student_id"]))
+
+        # The tests behind these students, each once - not every student's
+        # tests added up, which counted one class test twenty-five times.
+        held = set().union(*(tests_of[row["student_id"]] for row in rows)) if rows else set()
 
         return {
             "range": report_range.to_dict(),
             "rows": rows,
-            "totals": self._totals(rows, threshold),
+            "totals": self._totals(rows, len(held), sum(1 for row in rows if behind[row["student_id"]])),
         }
 
     def headings(self) -> list[str]:
         return [
-            "Admission No.", "Student", "Class", "Subjects", "Tests", "Absent", "Average %", "Grade",
+            "Admission No.", "Student", "Class", "Subjects", "Tests", "Absent", "Average %", "Grade", "GPA",
             "Class average %", "Weak subjects", "Attendance %",
         ]
 
@@ -312,7 +415,7 @@ class StudentPerformanceReport:
         return [
             [
                 row["admission_number"], row["student"], row["class_section"], row["subjects"], row["assessments"],
-                row["absent"], row["average_percentage"], row["grade"], row["class_average_percentage"],
+                row["absent"], row["average_percentage"], row["grade"], row["gpa"], row["class_average_percentage"],
                 row["weak_subjects"], row["attendance_rate"],
             ]
             for row in report["rows"]
@@ -326,37 +429,48 @@ class StudentPerformanceReport:
             "branches": len(branch_totals),
             "students": total("students"),
             "students_with_a_result": total("students_with_a_result"),
-            "assessments": total("assessments"),
+            "tests_held": total("tests_held"),
             "absent": total("absent"),
             "average_percentage": combined_average(branch_totals, "students_with_a_result", "average_percentage"),
             "students_below_the_mark": total("students_below_the_mark"),
+            **({
+                "average_gpa": combined_average(branch_totals, "students_with_a_gpa", "average_gpa"),
+                "students_with_a_gpa": total("students_with_a_gpa"),
+            } if any(totals.get("students_with_a_gpa") for totals in branch_totals) else {}),
         }
 
     @staticmethod
-    def _totals(rows: list[dict], threshold) -> dict:
+    def _totals(rows: list[dict], tests_held: int, behind: int) -> dict:
+        # Percentages where the school shows them; a grades-only student has
+        # a grade instead, and is counted as a result all the same.
         averages = [row["average_percentage"] for row in rows if row["average_percentage"] is not None]
-
-        return {
+        gpas = [float(row["gpa"]) for row in rows if row["gpa"] is not None]
+        totals = {
             "students": len(rows),
-            "students_with_a_result": len(averages),
-            "assessments": sum(row["assessments"] for row in rows),
+            "students_with_a_result": sum(1 for row in rows if row["average_percentage"] is not None or row["grade"]),
+            "tests_held": tests_held,
             "absent": sum(row["absent"] for row in rows),
             "average_percentage": percent(sum(float(value) for value in averages) / len(averages)) if averages else None,
-            "students_below_the_mark": 0 if threshold is None else sum(
-                1 for value in averages if float(value) < threshold
-            ),
+            # Under the school's weak line - or, graded "grades only", on a
+            # failing grade.
+            "students_below_the_mark": behind,
         }
 
-    @staticmethod
-    def _grade(scale: GradeScale, average) -> str | None:
-        band = GradeScaleService.grade_for(scale, average)
+        # Only where somebody is graded by points.
+        if gpas:
+            totals["average_gpa"] = php_number(round(sum(gpas) / len(gpas), 2))
+            totals["students_with_a_gpa"] = len(gpas)
 
-        return None if band is None else band.label
+        return totals
 
     @staticmethod
-    def _weak(per_subject: dict, subjects: dict, threshold) -> int | None:
-        """How many of this student's subjects are under the school's mark,
-        or nothing at all where the school keeps no mark."""
+    def _weak(per_subject: dict, threshold, scale) -> int | None:
+        """How many of this student's subjects are under the school's mark
+        (nothing at all where it keeps none) - or, graded "grades only", on
+        a failing grade."""
+        if kind_of(scale) == GradeScaleKind.GRADES:
+            return sum(1 for value in per_subject.values() if failing(scale, value))
+
         if threshold is None:
             return None
 
@@ -376,18 +490,25 @@ class StudentPerformanceReport:
         if not student_ids:
             return {}
 
-        present = (
-            Attendance.objects.filter(
-                student_id__in=student_ids,
-                attendance_date__gte=report_range.start,
-                attendance_date__lte=report_range.end,
-                status=AttendanceStatus.PRESENT,
-            )
+        marks = Attendance.objects.filter(
+            student_id__in=student_ids,
+            attendance_date__gte=report_range.start,
+            attendance_date__lte=report_range.end,
+        )
+        present = dict(
+            marks.filter(status=AttendanceStatus.PRESENT)
+            .order_by()
             .values("student_id")
             .annotate(days=Count("id"))
+            .values_list("student_id", "days")
         )
+        # A student on a register that was taken but never present is 0%,
+        # not "-": the dash is for a student nobody ever marked.
+        marked = set(marks.order_by().values_list("student_id", flat=True).distinct())
 
-        return {row["student_id"]: php_number(report_range.rate(row["days"])) for row in present}
+        return {
+            student_id: php_number(report_range.rate(present.get(student_id, 0))) for student_id in marked
+        }
 
 
 class ClassPerformanceReport:
@@ -400,6 +521,7 @@ class ClassPerformanceReport:
         "A subject's average is over every mark in it."
     )
     COMPARED_ROWS = [("average_percentage", "Average %")]
+    DEFAULT_PERIOD = "term"
 
     @staticmethod
     def row_key(row: dict):
@@ -408,6 +530,7 @@ class ClassPerformanceReport:
     def build(self, report_range: ReportRange, filters: dict) -> dict:
         marks = list(published_marks(report_range, filters))
         threshold = weak_below(report_range.school_id)
+        scales = Scales(report_range.school_id, marks)
 
         counted: dict[tuple, dict] = {}
 
@@ -420,9 +543,11 @@ class ClassPerformanceReport:
                 "students": {},
                 "marks": [],
                 "absent": 0,
+                "rows": [],
             })
 
             entry["assessment_ids"].add(assessment.id)
+            entry["rows"].append(mark)
 
             if mark.is_absent:
                 entry["absent"] += 1
@@ -439,6 +564,7 @@ class ClassPerformanceReport:
 
         sections = self._sections(key[0] for key in counted)
         rows = []
+        below_of: dict[tuple, set] = {}
 
         for (section_id, subject_id), entry in counted.items():
             assessment = entry["assessment"]
@@ -446,10 +572,24 @@ class ClassPerformanceReport:
             per_student = {
                 student: mean_of(values) for student, values in entry["students"].items() if values
             }
+            scale = scales.of(entry["rows"])
+            kind = kind_of(scale)
+            grades_only = kind == GradeScaleKind.GRADES
+
+            if grades_only:
+                # A failing grade, the line a grades-only school reads.
+                below = {student for student, value in per_student.items() if failing(scale, value)}
+            else:
+                below = (
+                    None if threshold is None
+                    else {student for student, value in per_student.items() if float(value) < threshold}
+                )
+            below_of[(section_id, subject_id)] = below or set()
+            band = band_of(scale, average)
 
             rows.append({
                 "class_section_id": section_id,
-                "class_section": sections.get(section_id),
+                "class_section": sections.get(section_id, (None,))[0],
                 "subject_id": subject_id,
                 "subject": assessment.subject.name,
                 "department": assessment.subject.department.name if assessment.subject.department_id else None,
@@ -457,12 +597,17 @@ class ClassPerformanceReport:
                 "assessments": len(entry["assessment_ids"]),
                 "marks_counted": len(entry["marks"]),
                 "absent": entry["absent"],
-                "average_percentage": percent(average),
-                "highest_percentage": percent(max(entry["marks"])) if entry["marks"] else None,
-                "lowest_percentage": percent(min(entry["marks"])) if entry["marks"] else None,
-                "students_below_the_mark": None if threshold is None else sum(
-                    1 for value in per_student.values() if float(value) < threshold
-                ),
+                # Grades only: no marks or percentages shown, the grade is
+                # the figure (docs/document-styles.md).
+                "average_percentage": None if grades_only else percent(average),
+                "highest_percentage": None if grades_only or not entry["marks"] else percent(max(entry["marks"])),
+                "lowest_percentage": None if grades_only or not entry["marks"] else percent(min(entry["marks"])),
+                "grade": None if band is None else band.label,
+                # The mean of the students' grade points in the subject, on
+                # a GPA scale only.
+                "average_points": points_mean(scale, per_student.values()),
+                "students_below_the_mark": None if below is None else len(below),
+                "grading": kind,
             })
 
         if filters.get("below") is not None:
@@ -472,26 +617,32 @@ class ClassPerformanceReport:
                 if row["average_percentage"] is not None and float(row["average_percentage"]) < limit
             ]
 
-        rows.sort(key=lambda row: (row["class_section"] or "", row["subject"] or "", row["subject_id"]))
+        rows.sort(key=lambda row: (
+            sections.get(row["class_section_id"], (None, (10**6, "", "")))[1], row["subject"] or "", row["subject_id"],
+        ))
+
+        # Each student once, however many subjects they are behind in - the
+        # lines' own counts added up counted one student once per subject.
+        behind = set().union(*(below_of[(row["class_section_id"], row["subject_id"])] for row in rows)) if rows else set()
 
         return {
             "range": report_range.to_dict(),
             "rows": rows,
-            "totals": self._totals(rows),
+            "totals": self._totals(rows, None if threshold is None else len(behind)),
         }
 
     def headings(self) -> list[str]:
         return [
             "Class", "Subject", "Department", "Students", "Tests", "Marks counted", "Absent", "Average %",
-            "Highest %", "Lowest %", "Students below the mark",
+            "Grade", "Average points", "Highest %", "Lowest %", "Students below the mark",
         ]
 
     def csv_rows(self, report: dict) -> list[list]:
         return [
             [
                 row["class_section"], row["subject"], row["department"], row["students"], row["assessments"],
-                row["marks_counted"], row["absent"], row["average_percentage"], row["highest_percentage"],
-                row["lowest_percentage"], row["students_below_the_mark"],
+                row["marks_counted"], row["absent"], row["average_percentage"], row["grade"], row["average_points"],
+                row["highest_percentage"], row["lowest_percentage"], row["students_below_the_mark"],
             ]
             for row in report["rows"]
         ]
@@ -509,11 +660,11 @@ class ClassPerformanceReport:
             # Weighted by the marks each branch counted, so a big branch
             # carries more of the group's average than a small one.
             "average_percentage": combined_average(branch_totals, "marks_counted", "average_percentage"),
-            "students_below_the_mark": total("students_below_the_mark"),
+            "students_below_in_a_subject": sum(totals["students_below_in_a_subject"] or 0 for totals in branch_totals),
         }
 
     @staticmethod
-    def _totals(rows: list[dict]) -> dict:
+    def _totals(rows: list[dict], behind: int | None) -> dict:
         counted = sum(row["marks_counted"] for row in rows)
         weighted = sum(
             float(row["average_percentage"]) * row["marks_counted"]
@@ -529,11 +680,16 @@ class ClassPerformanceReport:
             # Over every mark, not a mean of the subject means: a subject
             # with forty marks should weigh more than one with four.
             "average_percentage": percent(weighted / counted) if counted else None,
-            "students_below_the_mark": sum(row["students_below_the_mark"] or 0 for row in rows),
+            # Students under the school's mark in at least one subject, each
+            # once; nothing at all where the school keeps no mark.
+            "students_below_in_a_subject": behind,
         }
 
     @staticmethod
     def _sections(section_ids) -> dict:
         sections = ClassSection.objects.filter(id__in=set(section_ids)).select_related("school_class")
 
-        return {section.id: f"{section.school_class.name} {section.name}" for section in sections}
+        # Its name, and where it sorts (class_order).
+        return {
+            section.id: (f"{section.school_class.name} {section.name}", class_order(section)) for section in sections
+        }
