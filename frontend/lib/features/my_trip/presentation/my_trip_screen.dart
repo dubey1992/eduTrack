@@ -156,6 +156,17 @@ class _RoutesView extends ConsumerWidget {
             const SizedBox(height: 16),
             const _BatteryWarning(),
             for (final route in day.routes) RouteCard(route: route, onOpenTrip: onOpenTrip),
+            // How location sharing went on the last trip - for the phone
+            // test, and for a school whose map keeps losing this bus.
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton.icon(
+                key: const Key('open-trip-check'),
+                onPressed: () => context.push('/trip-check'),
+                icon: const Icon(Icons.fact_check_outlined, size: 18),
+                label: const Text('Trip check'),
+              ),
+            ),
           ],
         ),
       ),

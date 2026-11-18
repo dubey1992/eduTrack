@@ -194,8 +194,9 @@ class _WhoSignsIn extends StatelessWidget {
           ),
           const _WhoRow(
             icon: Icons.directions_bus_outlined,
-            title: 'Bus attendants',
-            detail: 'Your mobile number and passcode, not an email: use the button under the form.',
+            title: 'Bus crew',
+            detail:
+                'Drivers and attendants: your mobile number and passcode, not an email. Use the button under the form.',
           ),
           const _WhoRow(
             icon: Icons.family_restroom_outlined,

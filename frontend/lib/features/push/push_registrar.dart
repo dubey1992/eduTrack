@@ -14,6 +14,12 @@ const pushRoutes = {'/inbox', '/leave', '/teaching', '/today'};
 
 String safePushRoute(String route) => pushRoutes.contains(route) ? route : '/inbox';
 
+/// The School365ai Bus app's: a tap opens the trip, whatever it says
+/// (docs/mobile-apps-review.md, M0).
+const crewPushRoutes = {'/my-trip'};
+
+String safeCrewPushRoute(String route) => crewPushRoutes.contains(route) ? route : '/my-trip';
+
 /// Push for the School365ai app (docs/teacher-app.md, T6). Wraps the app
 /// once, above the router, like [RegisterSender]:
 ///
@@ -25,13 +31,23 @@ String safePushRoute(String route) => pushRoutes.contains(route) ? route : '/inb
 ///
 /// The phone is taken back at sign-out by [AuthNotifier.logout].
 class PushRegistrar extends ConsumerStatefulWidget {
-  const PushRegistrar({super.key, required this.app, required this.onOpen, required this.child});
+  const PushRegistrar({
+    super.key,
+    required this.app,
+    required this.onOpen,
+    required this.child,
+    this.safeRoute = safePushRoute,
+  });
 
   /// Which app this is, for the server: `staff` or `driver`.
   final String app;
 
-  /// Goes to one of [pushRoutes].
+  /// Goes to one of [pushRoutes] - or of whatever [safeRoute] allows.
   final ValueChanged<String> onOpen;
+
+  /// Turns the route a notification names into one of this app's own,
+  /// falling back to a safe screen for anything else.
+  final String Function(String route) safeRoute;
   final Widget child;
 
   @override
@@ -70,13 +86,13 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
       _listening = true;
       _subscriptions
         ..add(_push.tokenRefreshes.listen(_register))
-        ..add(_push.opened.listen((notice) => widget.onOpen(safePushRoute(notice.route))))
+        ..add(_push.opened.listen((notice) => widget.onOpen(widget.safeRoute(notice.route))))
         ..add(_push.received.listen(_show));
     }
 
     // Opened from closed by a tap: go there once signed in.
     final launch = await _push.launchedBy();
-    if (launch != null && mounted) widget.onOpen(safePushRoute(launch.route));
+    if (launch != null && mounted) widget.onOpen(widget.safeRoute(launch.route));
   }
 
   Future<void> _register(String token) async {
@@ -99,7 +115,7 @@ class _PushRegistrarState extends ConsumerState<PushRegistrar> {
       ..showSnackBar(
         SnackBar(
           content: Text(notice.body.isEmpty ? notice.title : '${notice.title}: ${notice.body}', maxLines: 3),
-          action: SnackBarAction(label: 'Open', onPressed: () => widget.onOpen(safePushRoute(notice.route))),
+          action: SnackBarAction(label: 'Open', onPressed: () => widget.onOpen(widget.safeRoute(notice.route))),
         ),
       );
   }

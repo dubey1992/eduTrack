@@ -1,8 +1,10 @@
 # The Family App: Parents and Students
 
-**Status (2026-11-07): plan only.** CLAUDE.md lists the parent and student
-apps as future work; the owner asked for this plan. Nothing is built until
-the decisions at the end are answered and the plan is approved.
+**Status (2026-11-18): F0-F5 built on main, not yet released; F6 (student
+sign-in, Hindi, accessibility, Play listing) parked by the owner.** Each
+phase's "As built" note below says what exists. Push for families waits on
+the business's Firebase project (docs/firebase-setup.md); the Play listing
+draft is docs/play-store-listings.md. The plan as first written follows.
 
 ## 1. What it is, in one paragraph
 

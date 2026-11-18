@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      The full name, as it is on Play. A launcher shows about eleven
-      characters under an icon, so this one is cut short on the home
-      screen; a shorter launcher label can be set here without touching
-      the listing (docs/driver-app.md, D1.1).
+      What the phone shows under the icon (decided 2026-11-18, M0): a name
+      that fits both crew, since attendants install it too. The Play listing
+      keeps its full name, "School365ai Driver App", which is set in the
+      Play Console and not here (docs/driver-app.md, D1.1).
     -->
-    <string name="app_name">School365ai Driver App</string>
+    <string name="app_name">School365ai Bus</string>
 </resources>

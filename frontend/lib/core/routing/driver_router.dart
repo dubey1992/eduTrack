@@ -8,6 +8,7 @@ import '../../features/auth/presentation/driver_landing_screen.dart';
 import '../../features/auth/presentation/driver_splash_screen.dart';
 import '../../features/errors/presentation/maintenance_screen.dart';
 import '../../features/my_trip/presentation/battery_help_screen.dart';
+import '../../features/my_trip/presentation/trip_check_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
 import '../../features/my_trip/presentation/navigate_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
@@ -53,7 +54,7 @@ import '../widgets/crew_frame.dart';
 ///
 /// Anything added to the router below belongs here too, or it is
 /// unreachable on a phone however well it works on its own.
-const crewPaths = {'/my-trip', '/profile', '/battery', '/navigate'};
+const crewPaths = {'/my-trip', '/profile', '/battery', '/navigate', '/trip-check'};
 
 const openingBeat = Duration(milliseconds: 2600);
 
@@ -91,6 +92,9 @@ final driverRouterProvider = Provider<GoRouter>((ref) {
       // page rather than a dialog: it is a list of steps somebody follows
       // with the phone in the other hand (docs/driver-app.md, D4.4).
       GoRoute(path: '/battery', builder: (context, state) => const BatteryHelpScreen()),
+      // How location sharing went on the last trip, for the real-phone test
+      // (docs/mobile-apps-review.md, M0). Reached from the duty screen.
+      GoRoute(path: '/trip-check', builder: (context, state) => const TripCheckScreen()),
       // Guidance to one stop, carried in `extra` rather than the path: it
       // is three numbers and a name, not a resource anybody deep-links to
       // (docs/driver-app.md, D7).

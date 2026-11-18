@@ -137,10 +137,18 @@ def access_token(account: dict) -> str | None:
 # the kind (docs/parent-student-app.md, F1).
 FAMILY_ROUTE = "/notices"
 
+# Where a tapped notification opens in the School365ai Bus app: the trip,
+# its one screen that matters (docs/mobile-apps-review.md, M0). Nothing is
+# sent to crew yet - what they are told arrives with M7.
+CREW_ROUTE = "/my-trip"
+
 
 def route_for(message: Message) -> str:
     if message.user_id and UserRole.is_family(message.user.role):
         return FAMILY_ROUTE
+
+    if message.user_id and UserRole.is_crew(message.user.role):
+        return CREW_ROUTE
 
     return ROUTES.get(message.category, DEFAULT_ROUTE)
 

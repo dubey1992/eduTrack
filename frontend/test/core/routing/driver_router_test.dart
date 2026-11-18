@@ -12,6 +12,7 @@ import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/my_trip/presentation/battery_help_screen.dart';
+import 'package:edutrack_app/features/my_trip/presentation/trip_check_screen.dart';
 import 'package:edutrack_app/features/my_trip/presentation/my_trip_screen.dart';
 import 'package:edutrack_app/features/my_trip/presentation/navigate_screen.dart';
 import 'package:edutrack_app/features/profile/presentation/profile_screen.dart';
@@ -200,6 +201,16 @@ void main() {
 
       expect(find.byType(BatteryHelpScreen), findsOneWidget);
       expect(find.byType(MyTripScreen), findsNothing, reason: 'it bounced straight back before');
+    });
+
+    testWidgets('and on the Trip check from the duty screen (M0)', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.driver)));
+
+      await tester.ensureVisible(find.byKey(const Key('open-trip-check')));
+      await tester.tap(find.byKey(const Key('open-trip-check')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TripCheckScreen), findsOneWidget);
     });
 
     testWidgets('and on the navigate screen, with the stop it was given', (tester) async {

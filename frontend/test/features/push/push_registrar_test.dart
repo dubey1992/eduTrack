@@ -254,4 +254,51 @@ void main() {
   test('the platform is named the way the server expects', () {
     expect(['android', 'ios', 'web'], contains(DeviceRepository.platformName));
   });
+
+  group('the School365ai Bus app (docs/mobile-apps-review.md, M0)', () {
+    Future<void> pumpCrew(WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            pushMessagingProvider.overrideWithValue(push),
+            deviceRepositoryProvider.overrideWithValue(devices),
+            keyValueStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
+            authRepositoryProvider.overrideWithValue(
+              FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.driver, id: 9)),
+            ),
+          ],
+          child: MaterialApp(
+            home: PushRegistrar(
+              app: 'driver',
+              safeRoute: safeCrewPushRoute,
+              onOpen: opened.add,
+              child: const Scaffold(body: Text('the trip')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a crew phone is registered for the driver app', (tester) async {
+      await pumpCrew(tester);
+
+      expect(devices.registered, [('tok-1', 'driver')]);
+    });
+
+    testWidgets('a tapped notification opens the trip, whatever it names', (tester) async {
+      await pumpCrew(tester);
+
+      push.taps.add(const PushNotice(route: '/leave', title: 'x', body: 'y'));
+      await tester.pumpAndSettle();
+
+      expect(opened, ['/my-trip']);
+    });
+
+    test('only the trip is a crew destination', () {
+      expect(safeCrewPushRoute('/my-trip'), '/my-trip');
+      expect(safeCrewPushRoute('/inbox'), '/my-trip');
+      expect(safeCrewPushRoute('/settings'), '/my-trip');
+    });
+  });
 }

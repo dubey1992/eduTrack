@@ -386,8 +386,8 @@ void main() {
     }
 
     for (final (role, label, title) in [
-      (UserRole.busAttendant, 'bus crew', 'Use the Driver app'),
-      (UserRole.driver, 'a driver', 'Use the Driver app'),
+      (UserRole.busAttendant, 'bus crew', 'Use the School365ai Bus app'),
+      (UserRole.driver, 'a driver', 'Use the School365ai Bus app'),
       (UserRole.groupAdmin, 'a group admin', 'Use the School365ai website'),
       (UserRole.superAdmin, 'the super admin', 'Use the School365ai website'),
     ]) {

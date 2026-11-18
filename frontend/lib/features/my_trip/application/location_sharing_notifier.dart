@@ -9,6 +9,7 @@ import '../data/location_source.dart';
 import '../data/models/location_point.dart';
 import '../data/my_trip_repository.dart';
 import '../data/trip_service.dart';
+import '../data/trip_health_log.dart';
 import '../data/trip_offline_store.dart';
 
 class LocationSharingState {
@@ -73,6 +74,7 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
   StreamSubscription<DevicePosition>? _positions;
   Timer? _timer;
   late TripService _service;
+  late TripHealthLog _log;
   bool _busy = false;
   List<LocationPoint> _buffer = [];
 
@@ -85,6 +87,7 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
     // Held rather than read later: a provider cannot be read from inside
     // onDispose, and _turnOff runs after this notifier is gone.
     _service = ref.read(tripServiceProvider);
+    _log = ref.read(tripHealthLogProvider);
 
     ref.onDispose(() {
       unawaited(_positions?.cancel());
@@ -132,6 +135,7 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
 
     _buffer = [...stored.where((p) => p.tripId == tripId), ..._buffer];
     state = const LocationSharingState(enabled: true);
+    unawaited(_log.add(TripHealthKind.sharingOn, tripId: tripId, count: _buffer.length));
 
     // The platform decides when the bus has moved; this only decides what
     // is worth keeping. Between the two, a parked bus wakes nothing.
@@ -162,6 +166,7 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
   }
 
   void _turnOff({String? message}) {
+    unawaited(_log.add(TripHealthKind.sharingOff, tripId: tripId, detail: message ?? 'Switched off'));
     unawaited(_positions?.cancel());
     _positions = null;
     _timer?.cancel();
@@ -229,6 +234,7 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
         ),
       );
       if (_buffer.length > maxBuffered) _buffer = _buffer.sublist(_buffer.length - maxBuffered);
+      unawaited(_log.add(TripHealthKind.point, tripId: tripId, count: position.accuracy.round()));
 
       await _send();
     } finally {
@@ -246,10 +252,15 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
       try {
         await repository.sendLocations(tripId, batch);
         _buffer.removeRange(0, batch.length);
+        unawaited(_log.add(TripHealthKind.sent, tripId: tripId, count: batch.length));
       } on Failure catch (failure) {
-        if (failure.isOffline) break;
+        if (failure.isOffline) {
+          unawaited(_log.add(TripHealthKind.waiting, tripId: tripId, count: _buffer.length));
+          break;
+        }
 
         if (failure.code == 'TRIP_NOT_IN_PROGRESS') {
+          unawaited(_log.add(TripHealthKind.cleared, tripId: tripId, count: _buffer.length));
           _buffer.clear();
           _turnOff(message: tripEndedMessage);
           break;
@@ -257,6 +268,7 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
 
         // Points the server will not take are not worth sending again.
         debugPrint('Location batch refused: ${failure.code}');
+        unawaited(_log.add(TripHealthKind.refused, tripId: tripId, count: batch.length, detail: failure.code));
         _buffer.removeRange(0, batch.length);
       }
     }
