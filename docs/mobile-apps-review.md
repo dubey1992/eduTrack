@@ -162,6 +162,20 @@ the product owner before that phase starts.
 - 9.3 Play listings and data-safety answers drafted, docs/play-store-listings.md; legal review and the "to confirm" answers are the owner's.
 - 9.5 Family doc status brought up to date.
 
+**M1 progress (2026-11-18, built on main, not deployed):**
+
+- Bus app sign-in (asked for by the owner): "Register this phone" now has *Already set up? Sign in with your passcode*, so a wrong tap on "register again" is no longer a dead end. A phone that was never set up still needs a setup code - the server checks the phone's own secret before the passcode, on purpose - and the message now says so.
+- 1.2 A child's boarded / dropped / absent mark waits 5 seconds on the phone with an **Undo** snackbar (the server has no "unmark" and tells the family at once). Later marks wait behind it; an SOS never does.
+- 1.4 **SOS and End trip** sit in a bar fixed at the foot of a running trip.
+- 2.3 The server now takes positions recorded before a completed trip's end (answering `in_progress: false`); a cancelled trip, or a batch with nothing from before the end, is still `TRIP_NOT_IN_PROGRESS`, which older apps already handle. Points left on the phone after a trip are sent when sharing stops and when My Trip opens.
+- 2.5 Bus: a turned-down mark can be **tried again** while the trip runs, and the card says what to do. Staff: a refused register says why on Today's card and what to do on the register.
+- 2.6 Today asks again by itself every 15 seconds with no signal, and as soon as the app comes back to the front - no new package.
+- 6.2 While a trip's sheet is open the screen stays on (FLAG_KEEP_SCREEN_ON through the app's own channel, beside FLAG_SECURE) and upright.
+- 6.7 A payslip can be **shared** from the phone (the server already let an employee fetch their own finalized PDF). The Family app already shared receipts, statements and report cards.
+- 7.6 Office staff Home names the Leave and Pay tabs and the bell, only those the school has on.
+- 1.9 **Withdraw** a pending leave request (PATCH /leaves/{id}/withdraw: own, own school, pending only; status `withdrawn`, a plain string column, so no migration) and a **taken this year** card (GET /leaves/mine/taken: approved working days by type over the current academic year, the calendar year without one). Half-day leave already existed. A true *balance* is not built: the school sets no yearly allowance per leave type - see the decision below.
+- 1.8 Family Home: **Report sick** on the attendance card (no mark yet, or absent), the bus card opens the **live map** while the child's trip runs, and a **Results** card where results are on.
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?
@@ -170,7 +184,9 @@ the product owner before that phase starts.
 - **M11** - which languages after Hindi, and in what order? Does each user choose, or does the school set it?
 - **M12** - only on a school's request.
 
-Nothing in M1-M6 changes the database or needs a decision.
+- **Leave balance (1.9, left out of M1)** - a balance needs a yearly allowance per leave type (e.g. 12 casual, 10 medical), set per school and perhaps per role, and a rule for a new joiner mid-year and for unused days. That is a new table and a decision. Until then the card shows what was taken.
+
+Nothing else in M1-M6 changes the database or needs a decision.
 
 ## Recommended first slice - the clearest difference for least effort (M1 + M2)
 
