@@ -12,6 +12,7 @@ import '../../../transport/data/models/transport_trip.dart';
 import '../../application/location_sharing_notifier.dart';
 import '../../application/trip_detail_notifier.dart';
 import '../../application/trip_mark_queue.dart';
+import '../../data/offline_start.dart';
 import '../../data/map_navigator.dart';
 import '../../data/navigation_session.dart';
 import '../../data/rider_search.dart';
@@ -233,7 +234,10 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              'No signal - showing the trip as last saved on this phone.',
+              isLocalTrip(trip.id)
+                  ? 'Started on this phone with no signal. The school sees this trip when signal returns.'
+                  : 'No signal - showing the trip as last saved on this phone.',
+              key: const Key('trip-from-phone'),
               style: TextStyle(color: context.appColors.muted, fontStyle: FontStyle.italic),
             ),
           ),

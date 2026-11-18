@@ -8,6 +8,7 @@ import '../../../core/errors/failure.dart';
 import '../data/models/not_sent_mark.dart';
 import '../data/models/trip_mark.dart';
 import '../data/my_trip_repository.dart';
+import '../data/offline_start.dart';
 import '../data/trip_offline_store.dart';
 import 'trip_detail_notifier.dart';
 
@@ -160,15 +161,22 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
     await flush();
   }
 
-  /// Sends everything waiting, oldest first, one trip's batch at a time.
+  /// Sends everything waiting, oldest first, one trip's batch at a time -
+  /// after starting on the server any trip that was started on this phone
+  /// with no signal (2.4), whose marks cannot go before it.
   Future<void> flush() async {
     await _loaded;
-    if (!ref.mounted || state.sending || _sendable.isEmpty) return;
+    if (!ref.mounted || state.sending) return;
+    final starts = await ref.read(myTripRepositoryProvider).pendingStarts();
+    if (!ref.mounted || (starts.isEmpty && _sendable.isEmpty)) return;
 
     _retryTimer?.cancel();
     state = state.copyWith(sending: true);
 
     try {
+      for (final start in starts) {
+        await _startOnServer(start);
+      }
       while (ref.mounted && _sendable.isNotEmpty) {
         final sendable = _sendable;
         final tripId = sendable.first.tripId;
@@ -187,12 +195,44 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
     }
   }
 
+  /// Starts a phone-started trip on the server. The other crew member may
+  /// have started it meanwhile: then this phone joins that trip. Any other
+  /// refusal - run already today, too long ago - cannot change by waiting,
+  /// so the trip's marks move to "not sent" with the reason.
+  Future<void> _startOnServer(PendingStart start) async {
+    final repository = ref.read(myTripRepositoryProvider);
+    try {
+      await repository.startOnServer(start);
+    } on Failure catch (failure) {
+      if (failure.isOffline) rethrow;
+
+      final running = failure.code == 'TRIP_ALREADY_IN_PROGRESS' ? await repository.runningTripFor(start) : null;
+      await repository.settleStart(start, realId: running);
+      if (running != null || !ref.mounted) return;
+
+      final refused = state.pending.where((m) => m.tripId == start.localId).toList();
+      await _settle(refused, [
+        for (final mark in refused)
+          NotSentMark(
+            clientId: mark.clientId,
+            tripId: mark.tripId,
+            label: mark.label,
+            reason: 'The trip could not be started at the school: ${failure.message}',
+          ),
+      ]);
+    }
+  }
+
   /// One batch for one trip. A batch the server refuses outright (a trip
   /// that is gone, or not this attendant's) cannot succeed by retrying, so
   /// its marks move to "not sent" with the server's reason.
   Future<void> _send(int tripId, List<TripMark> batch) async {
     try {
-      final outcome = await ref.read(myTripRepositoryProvider).sync(tripId, batch);
+      // A phone-started trip goes by its real id once it has one; its marks
+      // keep the stand-in, which is what the screen showing them knows.
+      final serverId = await ref.read(myTripRepositoryProvider).serverIdFor(tripId);
+      if (serverId == null) throw Failure.network();
+      final outcome = await ref.read(myTripRepositoryProvider).sync(serverId, batch);
       if (!ref.mounted) return;
 
       final results = {for (final r in outcome.results) r.clientId: r};

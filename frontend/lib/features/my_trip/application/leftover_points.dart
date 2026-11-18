@@ -52,9 +52,12 @@ class LeftoverPoints {
       for (final tripId in tripIds) {
         final points = stored.where((p) => p.tripId == tripId).toList();
         try {
+          final serverId = await _repository.serverIdFor(tripId);
+          // Started on this phone and not yet on the server: wait (2.4).
+          if (serverId == null) continue;
           for (var start = 0; start < points.length; start += LocationSharingNotifier.maxBatch) {
             final batch = points.skip(start).take(LocationSharingNotifier.maxBatch).toList();
-            await _repository.sendLocations(tripId, batch);
+            await _repository.sendLocations(serverId, batch);
             settled.addAll(batch.map(keyOf));
             await _log.add(TripHealthKind.sent, tripId: tripId, count: batch.length);
           }

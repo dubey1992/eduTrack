@@ -170,14 +170,21 @@ void main() {
       expect(find.text('Kabir Rao'), findsOneWidget);
     });
 
-    testWidgets('starting with no signal says a connection is needed', (tester) async {
+    testWidgets('a route this phone never saved cannot start with no signal, and says why', (tester) async {
+      // Seen once with signal, but from a server too old to send the roster.
+      final route = Map<String, dynamic>.of((myRoutesJson()['routes'] as List).first as Map<String, dynamic>)
+        ..remove('roster');
+      api.routes = {
+        ...myRoutesJson(),
+        'routes': [route],
+      };
       await pumpScreen(tester);
       api.offline = true;
 
       await tester.tap(find.byKey(const Key('start-pickup')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Starting a trip needs a connection. Try again when you have signal.'), findsOneWidget);
+      expect(find.textContaining('this phone has not saved this route yet'), findsOneWidget);
       expect(find.text('North Loop - Pickup'), findsNothing);
     });
 
@@ -509,6 +516,81 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('bulk-stop-101')), findsNothing);
+    });
+  });
+
+  group('starting with no signal (docs/mobile-apps-review.md, 2.4)', () {
+    Future<void> startOffline(WidgetTester tester) async {
+      await pumpScreen(tester); // with signal once, which saves the routes and their roster
+      api.offline = true;
+      await tester.tap(find.byKey(const Key('start-pickup')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the trip starts on the phone from the saved roster, and says so', (tester) async {
+      await startOffline(tester);
+
+      expect(find.text('North Loop - Pickup'), findsOneWidget);
+      expect(find.byKey(const Key('trip-started-on-phone')), findsOneWidget);
+      expect(find.byKey(const Key('trip-from-phone')), findsOneWidget);
+      expect(statusOf(tester, 1), 'Pending');
+      // Tried at once, and again by the queue - both into no signal.
+      expect(api.syncedOps, isEmpty);
+    });
+
+    testWidgets('marks made meanwhile go to the real trip once the start gets through, with its time', (tester) async {
+      await startOffline(tester);
+      await tapAndSettle(tester, find.byKey(const Key('mark-boarded-1')));
+      await waitOutUndo(tester);
+      expect(api.syncedOps, isEmpty);
+
+      api.offline = false;
+      await tapAndSettle(tester, find.text('Send now'));
+
+      expect(api.lastStartedAt, isNotNull);
+      expect(api.syncedTripIds.toSet(), {55}, reason: 'the server trip, never the stand-in');
+      expect(api.syncedOps.single, containsPair('type', 'boarded'));
+      expect(statusOf(tester, 1), 'Boarded');
+    });
+
+    testWidgets('a start the server turns down moves its marks to Not sent with the reason', (tester) async {
+      await startOffline(tester);
+      await tapAndSettle(tester, find.byKey(const Key('mark-absent-2')));
+      await waitOutUndo(tester);
+
+      api
+        ..offline = false
+        ..startError = apiError(
+          '/transport/trips',
+          409,
+          'TRIP_ALREADY_EXISTS',
+          "Today's pickup for North Loop has already been run.",
+        );
+      await tapAndSettle(tester, find.text('Send now'));
+
+      expect(find.byKey(const Key('not-sent-card')), findsOneWidget);
+      expect(find.textContaining("has already been run"), findsOneWidget);
+      expect(api.syncedOps, isEmpty);
+    });
+
+    testWidgets('a trip the other crew member started meanwhile is joined, not started twice', (tester) async {
+      await startOffline(tester);
+      await tapAndSettle(tester, find.byKey(const Key('mark-boarded-1')));
+      await waitOutUndo(tester);
+
+      api
+        ..offline = false
+        ..routes = myRoutesJson(pickup: api.serverTrip)
+        ..startError = apiError(
+          '/transport/trips',
+          409,
+          'TRIP_ALREADY_IN_PROGRESS',
+          'North Loop already has a trip in progress.',
+        );
+      await tapAndSettle(tester, find.text('Send now'));
+
+      expect(api.syncedTripIds.toSet(), {55});
+      expect(find.byKey(const Key('not-sent-card')), findsNothing);
     });
   });
 

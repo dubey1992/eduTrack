@@ -262,7 +262,11 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
     while (_buffer.isNotEmpty && ref.mounted && state.enabled) {
       final batch = _buffer.take(maxBatch).toList();
       try {
-        final upload = await repository.sendLocations(tripId, batch);
+        // A trip started on this phone with no signal has no server id
+        // until its start gets through (2.4); its positions wait.
+        final serverId = await repository.serverIdFor(tripId);
+        if (serverId == null) throw Failure.network();
+        final upload = await repository.sendLocations(serverId, batch);
         _buffer.removeRange(0, batch.length);
         unawaited(_log.add(TripHealthKind.sent, tripId: tripId, count: batch.length));
 
