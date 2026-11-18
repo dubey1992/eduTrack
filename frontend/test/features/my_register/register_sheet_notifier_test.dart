@@ -139,24 +139,6 @@ void main() {
       expect(sheet.complete, isTrue);
     });
 
-    test("a child with a parent's note is left for the teacher, and the register waits for them", () async {
-      attendance = FakeAttendanceRepository(register: registerOf(notes: const {2: feverNote}));
-      final (_, sheet) = await open();
-
-      expect(sheet.marks, {1: AttendanceStatus.present, 3: AttendanceStatus.present});
-      expect(sheet.complete, isFalse);
-    });
-
-    test('an incomplete register is not submitted', () async {
-      attendance = FakeAttendanceRepository(register: registerOf(notes: const {2: feverNote}));
-      final (phone, _) = await open();
-      final notifier = phone.read(registerSheetProvider(key).notifier);
-      notifier.setMark(1, AttendanceStatus.present);
-
-      expect(await notifier.submit(), RegisterMode.taking);
-      expect(attendance.submitCallCount, 0);
-    });
-
     test('a complete register with signal is submitted', () async {
       final (phone, _) = await open();
       final notifier = phone.read(registerSheetProvider(key).notifier);

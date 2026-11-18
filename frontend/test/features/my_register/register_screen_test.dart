@@ -63,19 +63,6 @@ void main() {
     expect(submitButton(tester).onPressed, isNotNull);
   });
 
-  testWidgets("a child with a parent's note waits for the teacher, and so does Submit", (tester) async {
-    attendance = FakeAttendanceRepository(register: registerOf(notes: const {2: feverNote}));
-    await pump(tester);
-
-    expect(tally(tester, 'unmarked'), '1');
-    expect(find.text('Mark everyone (1 left)'), findsOneWidget);
-    expect(submitButton(tester).onPressed, isNull, reason: 'nobody is left out by accident');
-
-    await tester.tap(find.byKey(const Key('register-2-absent')));
-    await tester.pump();
-    expect(submitButton(tester).onPressed, isNotNull);
-  });
-
   testWidgets('the tally follows every mark', (tester) async {
     await pump(tester);
 

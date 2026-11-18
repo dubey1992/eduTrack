@@ -74,12 +74,10 @@ class RegisterSheet {
 }
 
 /// A register opens with everyone present, so the teacher taps only who is
-/// not (docs/mobile-apps-review.md, 1.5) - except a child whose parent sent
-/// a note for the day: that one is left for the teacher to decide, and
-/// Submit waits until they have. The confirm dialog still says the counts.
+/// not (docs/mobile-apps-review.md, 1.5). The confirm dialog still says
+/// the counts.
 Map<int, AttendanceStatus> presentByDefault(List<RegisterStudent> students) => {
-  for (final student in students)
-    if (student.absenceNote == null) student.id: AttendanceStatus.present,
+  for (final student in students) student.id: AttendanceStatus.present,
 };
 
 /// Which register: a class section on a day (`yyyy-MM-dd`).
