@@ -5,6 +5,7 @@ import 'package:edutrack_app/features/fees/data/models/fee_credit.dart';
 import 'package:edutrack_app/features/fees/data/models/fee_head.dart';
 import 'package:edutrack_app/features/fees/data/models/fee_receipt.dart';
 import 'package:edutrack_app/features/fees/data/models/fee_structure.dart';
+import 'package:edutrack_app/features/fees/data/models/fees_lock.dart';
 import 'package:edutrack_app/features/fees/data/models/student_fees.dart';
 import 'package:edutrack_app/features/fees/data/money_text.dart';
 
@@ -53,6 +54,32 @@ class FakeFeeRepository implements FeeRepository {
   final published = <int>[];
   final deleted = <int>[];
   int publishAllCalls = 0;
+
+  // -- the date lock (docs/dashboard.md, D3) ---------------------------------
+
+  /// What the server holds; [lockCanChange] is whether this actor may move it.
+  DateTime? lockedUntil;
+  bool lockCanChange = true;
+  final lockToday = DateTime(2026, 9, 14);
+  final lockSaves = <({DateTime? until, String? reason})>[];
+  Failure? failLockWith;
+
+  FeesLock get _lock => FeesLock(schoolId: 1, lockedUntil: lockedUntil, today: lockToday, canChange: lockCanChange);
+
+  @override
+  Future<FeesLock> booksLock({int? schoolId}) async {
+    if (failWith != null) throw failWith!;
+    return _lock;
+  }
+
+  @override
+  Future<FeesLock> setBooksLock({required DateTime? until, String? reason, int? schoolId}) async {
+    lockSaves.add((until: until, reason: reason));
+    if (failLockWith != null) throw failLockWith!;
+    lockedUntil = until;
+    return _lock;
+  }
+
   int planCalls = 0;
 
   void _check() {

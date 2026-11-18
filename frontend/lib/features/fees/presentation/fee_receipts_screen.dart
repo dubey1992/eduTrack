@@ -18,6 +18,7 @@ import '../../auth/application/auth_notifier.dart';
 import '../application/student_fees_providers.dart';
 import '../data/models/fee_receipt.dart';
 import '../data/money_text.dart';
+import 'widgets/fees_lock_dialog.dart';
 import 'widgets/receipt_actions.dart';
 
 /// Every fee receipt the school has issued (docs/fees.md, F3): find one by
@@ -67,6 +68,8 @@ class _FeeReceiptsScreenState extends ConsumerState<FeeReceiptsScreen> {
             SchoolFilterDropdown(selected: _schoolId, onChanged: (schoolId) => _filter(() => _schoolId = schoolId)),
           ],
         ),
+        // The date lock (docs/dashboard.md, D3), where the receipts are.
+        FeesLockLine(schoolId: _schoolId),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Wrap(

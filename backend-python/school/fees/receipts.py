@@ -46,6 +46,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from .. import audit, modules, money, queue
+from . import lock
 from ..enums import FeeCreditKind, FeeDueStatus, FeeReceiptStatus
 from ..errors import FeeReceiptCancelled
 from ..models import (
@@ -157,6 +158,8 @@ class FeeReceiptService:
         year: AcademicYear = data["academic_year"]
         amount: Decimal = data["amount"]
         part_payments = modules.setting(student.school_id, MODULE, "allow_part_payment")
+        # The books may be closed for the day (docs/dashboard.md, D3).
+        lock.ensure_open(student.school_id, data["receipt_date"], "a receipt")
 
         with transaction.atomic():
             # The same row the reconcile locks: the two take turns.
@@ -415,6 +418,9 @@ class FeeReceiptService:
 
             if receipt.status == FeeReceiptStatus.CANCELLED:
                 raise FeeReceiptCancelled()
+
+            # A closed day's money stays as it was (docs/dashboard.md, D3).
+            lock.ensure_open(receipt.school_id, receipt.receipt_date, "the cancellation of a receipt")
 
             Student.objects.select_for_update().filter(pk=receipt.student_id).first()
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/module_access.dart';
+import '../../../core/models/user_role.dart';
 import '../../../core/routing/app_nav.dart';
 import '../../auth/data/models/authenticated_user.dart';
 import '../../reports/application/report_link.dart';
@@ -81,21 +82,36 @@ class QuickAction {
     required this.label,
     required this.hint,
     required this.icon,
-    required this.link,
+    this.link,
+    this.opensDateLock = false,
   });
 
   final String key;
   final String label;
   final String hint;
   final IconData icon;
-  final DashboardLink link;
+
+  /// The page it opens - or none, for the date lock, which opens a dialog
+  /// over the dashboard instead.
+  final DashboardLink? link;
+  final bool opensDateLock;
+}
+
+/// Who may move the fee books' date lock (docs/dashboard.md, D3): a School
+/// Admin, a Group Admin over a branch, or an Accountant - who also manages
+/// fees, with the module on. The server decides again when they save.
+bool movesDateLock(AuthenticatedUser? user) {
+  if (user == null) return false;
+
+  const lockers = {UserRole.schoolAdmin, UserRole.groupAdmin, UserRole.accountant};
+
+  return lockers.contains(user.role) && user.moduleOn(AppModules.fees) && user.canManage(AppModules.fees);
 }
 
 /// The everyday jobs, each one click from the dashboard, in the order an
 /// office reaches for them. Only those [user] may open are returned.
 ///
-/// No date lock: the app has none yet, and a button for one would promise a
-/// control that does not exist (docs/dashboard.md, "Open decisions").
+/// The date lock (D3) closes the list, for whoever may move it.
 List<QuickAction> quickActionsFor(AuthenticatedUser? user, DateTime today, {int? schoolId}) {
   final todaysCollection = ReportLink(kind: ReportKind.feeCollection, schoolId: schoolId, from: today, to: today);
 
@@ -146,6 +162,14 @@ List<QuickAction> quickActionsFor(AuthenticatedUser? user, DateTime today, {int?
 
   return [
     for (final action in actions)
-      if (action.link.allowedFor(user)) action,
+      if (action.link?.allowedFor(user) ?? false) action,
+    if (movesDateLock(user))
+      const QuickAction(
+        key: 'date-lock',
+        label: 'Date lock',
+        hint: 'Close the fee books up to a date',
+        icon: Icons.lock_clock_outlined,
+        opensDateLock: true,
+      ),
   ];
 }

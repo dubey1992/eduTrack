@@ -870,6 +870,19 @@ class FeePolicy:
         return permitted(actor, "fees", write=True, school_id=school_id) and in_scope(actor, school_id)
 
 
+class FeeLockPolicy:
+    """The fee books' date lock (docs/dashboard.md, D3): read by whoever
+    reads the school's fees, moved only by a School Admin, a Group Admin
+    over the branch, or an Accountant - and only where they also manage
+    fees, so a matrix that took fees away takes the lock with it."""
+
+    @staticmethod
+    def change(actor: User, school_id: int) -> bool:
+        from .fees.lock import LOCKERS
+
+        return actor.role in LOCKERS and FeePolicy.manage(actor, school_id)
+
+
 class PaymentPolicy:
     """Platform business, and nobody else's.
 

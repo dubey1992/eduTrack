@@ -325,6 +325,54 @@ def student_for(request, student_id: int, *, manage: bool) -> Student:
     return student
 
 
+# -- the date lock (docs/dashboard.md, D3) ---------------------------------------
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def books_lock(request) -> Response:
+    """The school's fee books lock: read it, or move it.
+
+    The school is the actor's own; a Group Admin or Super Admin names one
+    with `school_id`, which their scope decides - never the client alone.
+    """
+    from ..fees import lock
+    from ..fees.requests import FeesLockRequest
+    from ..policies import FeeLockPolicy
+
+    authorize(FeePolicy.view_any(request.user))
+    raw = request.data.get("school_id") if request.method == "PUT" else request.query_params.get("school_id")
+    requested = None if raw in (None, "") else raw
+    school_id = SchoolScope.for_actor(request.user).writable_school_id(
+        int(requested) if str(requested or "").isdigit() else None
+    )
+    if school_id is None:
+        raise serializers.ValidationError({"school_id": ["Pick a school."]})
+
+    authorize(FeePolicy.view(request.user, school_id))
+    school = get_object_or_404(School, pk=school_id)
+
+    if request.method == "PUT":
+        authorize(FeeLockPolicy.change(request.user, school_id))
+        data = FeesLockRequest(request.data, school).validate()
+        school = lock.change(school, data["locked_until"], data["reason"], request.user, request)
+
+    return Response(books_lock_resource(school, request.user))
+
+
+def books_lock_resource(school: School, actor) -> dict:
+    from ..fees import lock
+    from ..policies import FeeLockPolicy
+
+    return {
+        "school_id": school.id,
+        "locked_until": school.fees_locked_until.isoformat() if school.fees_locked_until else None,
+        # The latest day that can be locked: yesterday or today, never ahead.
+        "today": lock.today(school.id).isoformat(),
+        "can_change": FeeLockPolicy.change(actor, school.id),
+    }
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def balances(request) -> Response:

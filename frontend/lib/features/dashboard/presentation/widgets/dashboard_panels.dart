@@ -8,6 +8,7 @@ import '../../../auth/data/models/authenticated_user.dart';
 import '../../../reports/application/report_link.dart';
 import '../../../reports/data/models/report.dart';
 import '../../data/models/dashboard.dart';
+import '../../../fees/presentation/widgets/fees_lock_dialog.dart';
 import '../dashboard_links.dart';
 
 /// The dashboard's added panels (docs/dashboard.md): one-click jobs, today's
@@ -100,7 +101,9 @@ class QuickActionsPanel extends StatelessWidget {
                     child: InkWell(
                       key: Key('quick-action-${action.key}'),
                       borderRadius: BorderRadius.circular(12),
-                      onTap: () => context.go(action.link.location),
+                      onTap: () => action.opensDateLock
+                          ? showFeesLockDialog(context, schoolId: schoolId)
+                          : context.go(action.link!.location),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(

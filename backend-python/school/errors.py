@@ -638,6 +638,22 @@ class FeeStructurePublished(ApiError):
         super().__init__("A published fee can't be deleted.")
 
 
+class FeesLocked(ApiError):
+    """The fee books are closed up to a date (docs/dashboard.md, D3)."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    error_code = "FEES_LOCKED"
+
+    def __init__(self, locked_until, what: str) -> None:
+        from . import dates
+
+        super().__init__(
+            f"The fee books are closed up to {dates.us(locked_until)}, so {what} dated then cannot be recorded. "
+            "A School Admin or Accountant can move the date lock back, with a reason.",
+            details={"locked_until": locked_until.isoformat()},
+        )
+
+
 class FeeReceiptCancelled(ApiError):
     """A cancelled receipt stays cancelled: its dues have already gone back
     to owing, and cancelling again would take the money off them twice."""

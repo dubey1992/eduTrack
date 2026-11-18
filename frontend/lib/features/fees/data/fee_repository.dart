@@ -8,6 +8,7 @@ import 'models/fee_credit.dart';
 import 'models/fee_head.dart';
 import 'models/fee_receipt.dart';
 import 'models/fee_structure.dart';
+import 'models/fees_lock.dart';
 import 'models/student_fees.dart';
 
 /// What publishing did: the students it charged and the dues it created.
@@ -205,6 +206,32 @@ class FeeRepository {
         },
       );
       return FeeCreditEntry.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  // -- the date lock (docs/dashboard.md, D3) ------------------------------------
+
+  /// The school's fee books lock. [schoolId] only for whoever picks a school.
+  Future<FeesLock> booksLock({int? schoolId}) {
+    return _call(() async {
+      final response = await _dio.get('/fees/lock', queryParameters: {'school_id': ?schoolId});
+      return FeesLock.fromJson(response.data as Map<String, dynamic>);
+    });
+  }
+
+  /// Moves the lock to [until], or clears it with null. Reopening closed days
+  /// needs a [reason]; the server refuses it without one.
+  Future<FeesLock> setBooksLock({required DateTime? until, String? reason, int? schoolId}) {
+    return _call(() async {
+      final response = await _dio.put(
+        '/fees/lock',
+        data: {
+          'locked_until': until == null ? null : apiDate(until),
+          if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+          'school_id': ?schoolId,
+        },
+      );
+      return FeesLock.fromJson(response.data as Map<String, dynamic>);
     });
   }
 
