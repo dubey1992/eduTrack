@@ -59,6 +59,12 @@ void main() {
     expect(find.descendant(of: find.byKey(const Key('today-period-13')), matching: find.text('Now')), findsOneWidget);
   });
 
+  testWidgets('the whole week is one tap from Today', (tester) async {
+    await pump(tester, FakeTodayRepository());
+
+    expect(find.byKey(const Key('today-open-week')), findsOneWidget);
+  });
+
   testWidgets("the school's breaks sit between the periods", (tester) async {
     await pump(
       tester,
