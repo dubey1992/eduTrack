@@ -245,6 +245,22 @@ void main() {
       container.dispose();
     });
 
+    testWidgets("a phone-started trip's points wait for its real id, then go there", (tester) async {
+      final offline = TripOfflineStore(store);
+      await offline.savePoints([stored(-14, '2026-11-18T07:50:00Z')]);
+      final container = phone();
+
+      await container.read(leftoverPointsProvider).send();
+      expect(api.locationBatches, isEmpty, reason: 'its start has not got through yet');
+
+      await offline.saveRealIds({-14: 55});
+      await container.read(leftoverPointsProvider).send();
+
+      expect(api.locationTripIds, [55]);
+      expect(await offline.readPoints(), isEmpty);
+      container.dispose();
+    });
+
     testWidgets('a trip still sharing is left to its own sender', (tester) async {
       api.offline = true;
       final sharing = openTrip();

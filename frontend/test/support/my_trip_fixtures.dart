@@ -158,6 +158,9 @@ Map<String, dynamic> myRoutesJson({
       'students_count': 3,
       'my_licence_expiry': myLicenceExpiry,
       'today': {'pickup': pickup, 'drop': drop},
+      // What a trip is opened from with no signal (2.4): the route's stops
+      // and children, as tripJson lists them before anybody is marked.
+      'roster': {'stops': tripJson()['stops'], 'riders': tripJson()['riders']},
     },
   ],
 };
@@ -233,9 +236,17 @@ class FakeMyTripApi implements MyTripApi {
     return serverTrip;
   }
 
+  /// The `started_at` the last start sent - set by a phone-started trip (2.4).
+  String? lastStartedAt;
+
   @override
-  Future<Map<String, dynamic>> startTrip({required int routeId, required TripDirection direction}) async {
+  Future<Map<String, dynamic>> startTrip({
+    required int routeId,
+    required TripDirection direction,
+    String? startedAt,
+  }) async {
     startCalls++;
+    lastStartedAt = startedAt;
     if (offline) throw offlineError('/transport/trips');
     if (startError != null) throw startError!;
 
@@ -247,6 +258,9 @@ class FakeMyTripApi implements MyTripApi {
     return serverTrip;
   }
 
+  /// Which trip each batch was sent to (2.4: never a stand-in).
+  final syncedTripIds = <int>[];
+
   @override
   Future<Map<String, dynamic>> sync(int tripId, List<TripMark> marks) async {
     syncAttempts++;
@@ -255,6 +269,7 @@ class FakeMyTripApi implements MyTripApi {
 
     final ops = marks.map((m) => m.toSyncJson()).toList();
     syncBatches.add(ops);
+    syncedTripIds.add(tripId);
 
     final results = <Map<String, dynamic>>[];
     for (final op in ops) {
@@ -276,6 +291,9 @@ class FakeMyTripApi implements MyTripApi {
     return {'results': results, 'trip': serverTrip};
   }
 
+  /// Which trip each batch of positions went to (2.4).
+  final locationTripIds = <int>[];
+
   /// What the server says of the trip with each upload (2.3).
   bool tripInProgress = true;
 
@@ -285,6 +303,7 @@ class FakeMyTripApi implements MyTripApi {
     if (locationsError != null) throw locationsError!;
 
     locationBatches.add(points);
+    locationTripIds.add(tripId);
     return {'accepted': points.length, 'refused': 0, 'in_progress': tripInProgress};
   }
 

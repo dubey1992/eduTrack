@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/offline_start.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_format.dart';
@@ -35,10 +36,26 @@ class _RouteCardState extends ConsumerState<RouteCard> {
     try {
       final trip = await ref.read(myRoutesProvider.notifier).start(routeId: widget.route.id, direction: direction);
       widget.onOpenTrip(trip.id);
+      if (isLocalTrip(trip.id) && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              key: Key('trip-started-on-phone'),
+              content: Text(
+                'No signal: the trip has started on this phone. Mark children as usual - the school gets it all '
+                'when signal returns.',
+              ),
+            ),
+          );
+      }
     } on Failure catch (failure) {
       if (!mounted) return;
+      // Only when this phone has never seen the route's children - a trip
+      // needs them, and they come with My routes.
       final message = failure.isOffline
-          ? 'Starting a trip needs a connection. Try again when you have signal.'
+          ? 'No signal, and this phone has not saved this route yet. Open My Trip once with signal; '
+                'after that a trip can start without.'
           : failure.message;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()

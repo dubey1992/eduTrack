@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/key_value_store.dart';
+import 'offline_start.dart';
 import 'models/location_point.dart';
 import 'models/not_sent_mark.dart';
 import 'models/trip_mark.dart';
@@ -28,6 +29,8 @@ class TripOfflineStore {
   static const _routesKey = 'my_trip.routes';
   static const _tripIdsKey = 'my_trip.trip_ids';
   static const _shareLocationKey = 'my_trip.share_location';
+  static const _pendingStartsKey = 'my_trip.pending_starts';
+  static const _realIdsKey = 'my_trip.real_ids';
 
   static String _tripKey(int tripId) => 'my_trip.trip.$tripId';
 
@@ -58,6 +61,24 @@ class TripOfflineStore {
     if (!ids.contains(tripId)) await _store.write(_tripIdsKey, jsonEncode([...ids, tripId]));
   }
 
+  /// Trips started on this phone with no signal, waiting to be started on
+  /// the server (2.4).
+  Future<List<PendingStart>> readPendingStarts() async =>
+      (await _readList(_pendingStartsKey)).map(PendingStart.fromJson).toList();
+
+  Future<void> savePendingStarts(List<PendingStart> starts) =>
+      _writeList(_pendingStartsKey, starts.map((s) => s.toJson()));
+
+  /// Each stand-in trip id the server has since given a real one.
+  Future<Map<int, int>> readRealIds() async {
+    final json = await _readMap(_realIdsKey);
+    if (json == null) return {};
+    return {for (final entry in json.entries) int.parse(entry.key): entry.value as int};
+  }
+
+  Future<void> saveRealIds(Map<int, int> ids) =>
+      _store.write(_realIdsKey, jsonEncode({for (final entry in ids.entries) '${entry.key}': entry.value}));
+
   /// The attendant's own choice on "Share my location"; null until they make one.
   Future<bool?> readShareLocation() async {
     final value = await _store.read(_shareLocationKey);
@@ -72,7 +93,16 @@ class TripOfflineStore {
     for (final tripId in await _readTripIds()) {
       await _store.delete(_tripKey(tripId));
     }
-    for (final key in [_marksKey, _notSentKey, _pointsKey, _routesKey, _tripIdsKey, _shareLocationKey]) {
+    for (final key in [
+      _marksKey,
+      _notSentKey,
+      _pointsKey,
+      _routesKey,
+      _tripIdsKey,
+      _shareLocationKey,
+      _pendingStartsKey,
+      _realIdsKey,
+    ]) {
       await _store.delete(key);
     }
   }

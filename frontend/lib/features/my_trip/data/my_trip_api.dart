@@ -25,8 +25,17 @@ class MyTripApi {
     return response.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> startTrip({required int routeId, required TripDirection direction}) async {
-    final response = await _dio.post('/transport/trips', data: {'route_id': routeId, 'direction': direction.apiValue});
+  /// [startedAt]: when Start was pressed on a phone with no signal (2.4);
+  /// null for now.
+  Future<Map<String, dynamic>> startTrip({
+    required int routeId,
+    required TripDirection direction,
+    String? startedAt,
+  }) async {
+    final response = await _dio.post(
+      '/transport/trips',
+      data: {'route_id': routeId, 'direction': direction.apiValue, 'started_at': ?startedAt},
+    );
     return response.data as Map<String, dynamic>;
   }
 

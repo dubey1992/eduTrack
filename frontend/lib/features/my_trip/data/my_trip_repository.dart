@@ -9,6 +9,7 @@ import 'models/my_route.dart';
 import 'models/not_sent_mark.dart';
 import 'models/trip_mark.dart';
 import 'my_trip_api.dart';
+import 'offline_start.dart';
 import 'trip_offline_store.dart';
 
 final myTripRepositoryProvider = Provider<MyTripRepository>(
@@ -38,20 +39,96 @@ class MyTripRepository {
   final TripOfflineStore _store;
 
   /// Today's routes. With no signal, the copy last fetched - marked as such.
+  /// A trip started on this phone that the answer does not have yet is laid
+  /// over it, so its route offers Continue rather than Start (2.4).
   Future<MyRoutesDay> myRoutes() async {
+    Map<String, dynamic> json;
+    var fromCache = false;
     try {
-      final json = await _guard(_api.myRoutes);
+      json = await _guard(_api.myRoutes);
       await _store.saveRoutes(json);
-      return MyRoutesDay.fromJson(json);
     } on Failure catch (failure) {
       final cached = failure.isOffline ? await _store.readRoutes() : null;
       if (cached == null) rethrow;
-      return MyRoutesDay.fromJson(cached, fromCache: true);
+      json = cached;
+      fromCache = true;
     }
+    return MyRoutesDay.fromJson(await _withPhoneStarts(json), fromCache: fromCache);
   }
 
-  /// One trip in full. With no signal, the copy last fetched.
+  Future<Map<String, dynamic>> _withPhoneStarts(Map<String, dynamic> json) async {
+    final starts = await _store.readPendingStarts();
+    if (starts.isEmpty) return json;
+
+    final routes = [
+      for (final route in ((json['routes'] as List?) ?? const []).cast<Map<String, dynamic>>())
+        await _withPhoneStart(route, starts),
+    ];
+    return {...json, 'routes': routes};
+  }
+
+  Future<Map<String, dynamic>> _withPhoneStart(Map<String, dynamic> route, List<PendingStart> starts) async {
+    final today = Map<String, dynamic>.of((route['today'] as Map<String, dynamic>?) ?? const {});
+    for (final start in starts.where((s) => s.routeId == route['id'])) {
+      final trip = await _store.readTrip(start.localId);
+      if (today[start.direction.apiValue] == null && trip != null) today[start.direction.apiValue] = trip;
+    }
+    return {...route, 'today': today};
+  }
+
+  /// The server's id for [tripId]: itself for a real trip, the real one a
+  /// stand-in was mapped to, or null while its start is still waiting.
+  Future<int?> serverIdFor(int tripId) async {
+    if (!isLocalTrip(tripId)) return tripId;
+    return (await _store.readRealIds())[tripId];
+  }
+
+  Future<List<PendingStart>> pendingStarts() => _store.readPendingStarts();
+
+  /// Starts on the server a trip started on this phone, with the moment
+  /// Start was pressed; maps the stand-in to the real trip. Throws the
+  /// server's refusal - and "no signal", to try again later.
+  Future<int> startOnServer(PendingStart start) async {
+    final json = await _guard(
+      () => _api.startTrip(routeId: start.routeId, direction: start.direction, startedAt: start.startedAt),
+    );
+    final trip = tripFromJson(json);
+    await _store.saveTrip(trip.id, json);
+    await settleStart(start, realId: trip.id);
+    return trip.id;
+  }
+
+  /// The trip already running on [start]'s route and direction - started by
+  /// the other crew member meanwhile - or null.
+  Future<int?> runningTripFor(PendingStart start) async {
+    final routes = await myRoutes();
+    final route = routes.routes.where((r) => r.id == start.routeId).firstOrNull;
+    final trip = route?.tripFor(start.direction);
+    return trip != null && !isLocalTrip(trip.id) && trip.isInProgress ? trip.id : null;
+  }
+
+  /// Takes [start] off the waiting list; [realId] is the trip it became, or
+  /// null when the server would not start it.
+  Future<void> settleStart(PendingStart start, {int? realId}) async {
+    final starts = await _store.readPendingStarts();
+    await _store.savePendingStarts([
+      for (final s in starts)
+        if (s.localId != start.localId) s,
+    ]);
+    if (realId != null) await _store.saveRealIds({...await _store.readRealIds(), start.localId: realId});
+  }
+
+  /// One trip in full. With no signal, the copy last fetched. A trip
+  /// started on this phone is the server's once it has it, and the phone's
+  /// own until then.
   Future<(TransportTrip, {bool fromCache})> trip(int tripId) async {
+    if (isLocalTrip(tripId)) {
+      final real = await serverIdFor(tripId);
+      if (real != null) return trip(real);
+      final saved = await _store.readTrip(tripId);
+      if (saved == null) throw Failure.network();
+      return (tripFromJson(saved), fromCache: true);
+    }
     try {
       final json = await _guard(() => _api.trip(tripId));
       await _store.saveTrip(tripId, json);
@@ -63,12 +140,51 @@ class MyTripRepository {
     }
   }
 
-  /// Starting a trip needs the server: it is what creates the rider list.
+  /// Starts today's trip. With no signal it starts on the phone instead,
+  /// from the route's roster on the phone's copy of My routes (2.4), and
+  /// waits to be started on the server; without a roster saved there is
+  /// nothing to run it from, and "no signal" stands.
   Future<TransportTrip> startTrip({required int routeId, required TripDirection direction}) async {
-    final json = await _guard(() => _api.startTrip(routeId: routeId, direction: direction));
-    final trip = tripFromJson(json);
-    await _store.saveTrip(trip.id, json);
-    return trip;
+    try {
+      final json = await _guard(() => _api.startTrip(routeId: routeId, direction: direction));
+      final trip = tripFromJson(json);
+      await _store.saveTrip(trip.id, json);
+      return trip;
+    } on Failure catch (failure) {
+      if (!failure.isOffline) rethrow;
+      final onPhone = await _startOnPhone(routeId, direction);
+      if (onPhone == null) rethrow;
+      return onPhone;
+    }
+  }
+
+  Future<TransportTrip?> _startOnPhone(int routeId, TripDirection direction) async {
+    final routes = await _store.readRoutes();
+    final route = ((routes?['routes'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .where((r) => r['id'] == routeId)
+        .firstOrNull;
+    if (routes == null || route == null || route['roster'] == null) return null;
+
+    final start = PendingStart(
+      localId: localTripId(routeId, direction),
+      routeId: routeId,
+      direction: direction,
+      startedAt: DateTime.now().toUtc().toIso8601String(),
+    );
+    final json = localTripJson(route: route, date: routes['date'] as String, direction: direction, start: start);
+
+    // A stand-in reused from another day starts clean.
+    final realIds = await _store.readRealIds()
+      ..remove(start.localId);
+    await _store.saveRealIds(realIds);
+    await _store.saveTrip(start.localId, json);
+    await _store.savePendingStarts([
+      for (final s in await _store.readPendingStarts())
+        if (s.localId != start.localId) s,
+      start,
+    ]);
+    return tripFromJson(json);
   }
 
   Future<SyncOutcome> sync(int tripId, List<TripMark> marks) async {
