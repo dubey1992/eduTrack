@@ -244,7 +244,7 @@ def figure(key: str, value, escape: bool = True) -> str:
         return "-"
     if isinstance(value, list):
         return show(", ".join(str(item) for item in value)) or "-"
-    if key.endswith(("rate", "completion")):
+    if key.endswith(("rate", "completion", "percentage")):
         return f"{show(value)}%"
     return show(value)
 

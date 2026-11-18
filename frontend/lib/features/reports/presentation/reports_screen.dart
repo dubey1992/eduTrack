@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/date_range_picker.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -168,8 +169,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Future<void> _pickRange() async {
     final today = ref.read(schoolClockProvider).today;
-    final picked = await showDateRangePicker(
-      context: context,
+    final picked = await pickDateRange(
+      context,
       firstDate: DateTime(today.year - 2),
       // A report covers days that have happened; the API refuses the rest.
       lastDate: today,
@@ -289,6 +290,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           ? '${formatDate(_from!)} - ${formatDate(_to!)}'
                           : _yearPeriod != null
                           ? 'Whole of ${ref.read(viewedYearProvider).value?.name}'
+                          : _kind.defaultsToTerm
+                          ? 'Current term'
                           : 'This month',
                       key: const Key('report-period'),
                     ),
@@ -540,7 +543,8 @@ class _ReportTable extends StatelessWidget {
       // A group's rows come from several branches, so each line has to say
       // which - otherwise the table is a heap.
       if (report.isGroup) const ReportColumn('school_name', 'School'),
-      ...reportColumns[kind] ?? const <ReportColumn>[],
+      for (final column in reportColumns[kind] ?? const <ReportColumn>[])
+        if (!column.hideWhenEmpty || report.rows.any((row) => row[column.key] != null)) column,
     ];
 
     return Card(
@@ -721,7 +725,7 @@ String _humanise(String key) {
   return words.map((word) => word.isEmpty ? word : word[0].toUpperCase() + word.substring(1)).join(' ');
 }
 
-bool _isRateKey(String key) => key.endsWith('rate') || key.endsWith('completion');
+bool _isRateKey(String key) => key.endsWith('rate') || key.endsWith('completion') || key.endsWith('percentage');
 
 String _format(Object? value, bool isRate) {
   if (value == null) return '-';
