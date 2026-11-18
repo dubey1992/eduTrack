@@ -11,6 +11,7 @@ import '../data/my_trip_repository.dart';
 import '../data/trip_service.dart';
 import '../data/trip_health_log.dart';
 import '../data/trip_offline_store.dart';
+import 'leftover_points.dart';
 
 class LocationSharingState {
   const LocationSharingState({this.enabled = false, this.starting = false, this.message});
@@ -71,6 +72,10 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
   static const unsupportedMessage = 'This device cannot share its location.';
   static const tripEndedMessage = 'The trip is no longer running, so location sharing has stopped.';
 
+  /// The trips whose sharing is on in this app right now - their points are
+  /// this notifier's to send, not [LeftoverPoints]'s.
+  static final Set<int> sharingNow = {};
+
   StreamSubscription<DevicePosition>? _positions;
   Timer? _timer;
   late TripService _service;
@@ -88,12 +93,17 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
     // onDispose, and _turnOff runs after this notifier is gone.
     _service = ref.read(tripServiceProvider);
     _log = ref.read(tripHealthLogProvider);
+    final leftovers = ref.read(leftoverPointsProvider);
 
     ref.onDispose(() {
+      sharingNow.remove(tripId);
       unawaited(_positions?.cancel());
       _timer?.cancel();
       // Leaving the screen ends the following, so it ends the notification.
       unawaited(_service.stop());
+      // The trip ended or the screen was left with points still on the
+      // phone: one more try, and My Trip tries again when it next opens.
+      unawaited(leftovers.send());
     });
     Future.microtask(_startIfWanted);
     return const LocationSharingState();
@@ -134,6 +144,7 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
     if (!ref.mounted) return;
 
     _buffer = [...stored.where((p) => p.tripId == tripId), ..._buffer];
+    sharingNow.add(tripId);
     state = const LocationSharingState(enabled: true);
     unawaited(_log.add(TripHealthKind.sharingOn, tripId: tripId, count: _buffer.length));
 
@@ -166,6 +177,7 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
   }
 
   void _turnOff({String? message}) {
+    sharingNow.remove(tripId);
     unawaited(_log.add(TripHealthKind.sharingOff, tripId: tripId, detail: message ?? 'Switched off'));
     unawaited(_positions?.cancel());
     _positions = null;
@@ -250,15 +262,26 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
     while (_buffer.isNotEmpty && ref.mounted && state.enabled) {
       final batch = _buffer.take(maxBatch).toList();
       try {
-        await repository.sendLocations(tripId, batch);
+        final upload = await repository.sendLocations(tripId, batch);
         _buffer.removeRange(0, batch.length);
         unawaited(_log.add(TripHealthKind.sent, tripId: tripId, count: batch.length));
+
+        // Ended elsewhere - by the office, or the other crew member. What
+        // was taken before the end is in; the rest goes with the next
+        // batch, and sharing stops.
+        if (!upload.inProgress) {
+          if (_buffer.isNotEmpty) continue;
+          _turnOff(message: tripEndedMessage);
+          break;
+        }
       } on Failure catch (failure) {
         if (failure.isOffline) {
           unawaited(_log.add(TripHealthKind.waiting, tripId: tripId, count: _buffer.length));
           break;
         }
 
+        // Nothing in the batch was from before the end, or the trip was
+        // cancelled: none of it can ever be taken.
         if (failure.code == 'TRIP_NOT_IN_PROGRESS') {
           unawaited(_log.add(TripHealthKind.cleared, tripId: tripId, count: _buffer.length));
           _buffer.clear();

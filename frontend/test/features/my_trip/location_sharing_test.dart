@@ -1,8 +1,11 @@
 import 'package:edutrack_app/core/storage/key_value_store.dart';
+import 'package:edutrack_app/features/my_trip/application/leftover_points.dart';
 import 'package:edutrack_app/features/my_trip/application/location_sharing_notifier.dart';
 import 'package:edutrack_app/features/my_trip/data/location_source.dart';
+import 'package:edutrack_app/features/my_trip/data/models/location_point.dart';
 import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
+import 'package:edutrack_app/features/my_trip/data/trip_offline_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -184,6 +187,75 @@ void main() {
     expect(location.positionsTaken, taken, reason: 'no more positions once stopped');
 
     container.dispose();
+  });
+
+  group('a trip that ended while points were on the phone (docs/mobile-apps-review.md, 2.3)', () {
+    LocationPoint stored(int tripId, String at) =>
+        LocationPoint(tripId: tripId, latitude: 12.97, longitude: 77.59, accuracy: 8, recordedAt: at);
+
+    ProviderContainer phone() => ProviderContainer(
+      overrides: [myTripApiProvider.overrideWithValue(api), keyValueStoreProvider.overrideWithValue(store)],
+    );
+
+    testWidgets('an upload that says the trip is over stops sharing, with the points kept', (tester) async {
+      api.tripInProgress = false;
+      final container = openTrip();
+      await tester.pump();
+
+      expect(api.locationBatches, hasLength(1));
+      expect(stateOf(container).enabled, isFalse);
+      expect(stateOf(container).message, LocationSharingNotifier.tripEndedMessage);
+
+      container.dispose();
+    });
+
+    testWidgets('points left from an ended trip are sent, then forgotten', (tester) async {
+      final offline = TripOfflineStore(store);
+      await offline.savePoints([stored(40, '2026-11-18T07:50:00Z'), stored(40, '2026-11-18T07:51:00Z')]);
+      final container = phone();
+
+      await container.read(leftoverPointsProvider).send();
+
+      expect(api.locationBatches.single, hasLength(2));
+      expect(await offline.readPoints(), isEmpty);
+      container.dispose();
+    });
+
+    testWidgets('with no signal they stay for the next try', (tester) async {
+      api.offline = true;
+      final offline = TripOfflineStore(store);
+      await offline.savePoints([stored(40, '2026-11-18T07:50:00Z')]);
+      final container = phone();
+
+      await container.read(leftoverPointsProvider).send();
+
+      expect(await offline.readPoints(), hasLength(1));
+      container.dispose();
+    });
+
+    testWidgets('points the server can never take are dropped, not sent for ever', (tester) async {
+      api.locationsError = apiError('/locations', 409, 'TRIP_NOT_IN_PROGRESS', 'This trip is no longer in progress.');
+      final offline = TripOfflineStore(store);
+      await offline.savePoints([stored(40, '2026-11-18T07:50:00Z')]);
+      final container = phone();
+
+      await container.read(leftoverPointsProvider).send();
+
+      expect(await offline.readPoints(), isEmpty);
+      container.dispose();
+    });
+
+    testWidgets('a trip still sharing is left to its own sender', (tester) async {
+      api.offline = true;
+      final sharing = openTrip();
+      await tester.pump();
+      api.offline = false;
+
+      await sharing.read(leftoverPointsProvider).send();
+
+      expect(api.locationBatches, isEmpty);
+      sharing.dispose();
+    });
   });
 
   testWidgets('with no signal, points wait on the phone and go together with the next batch', (tester) async {

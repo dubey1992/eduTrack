@@ -786,7 +786,7 @@ class Positions(AttendantTest):
     def test_positions_are_kept_and_the_latest_one_is_live_with_the_distance_to_the_next_stop(self):
         response = self.send([self.point(-1), self.point(0, lat="18.5210000")])
 
-        self.assertEqual({"accepted": 2, "refused": 0}, response.data)
+        self.assertEqual({"accepted": 2, "refused": 0, "in_progress": True}, response.data)
 
         live = self.as_user(self.f["teacher"]).get(f"{TRIPS}/{self.trip_id}/live")
         self.assertEqual(200, live.status_code, live.data)
@@ -802,7 +802,7 @@ class Positions(AttendantTest):
 
         response = self.send([self.point(0, accuracy=500), self.point(-30), self.point(10), self.point(0)])
 
-        self.assertEqual({"accepted": 1, "refused": 3}, response.data)
+        self.assertEqual({"accepted": 1, "refused": 3, "in_progress": True}, response.data)
 
     def test_sharing_is_audited_once_not_per_point(self):
         self.send([self.point(-1)])
@@ -814,7 +814,25 @@ class Positions(AttendantTest):
         self.assertEqual(403, self.send([self.point(0)], user=self.f["teacher"]).status_code)
 
         self.act(self.trip_id, "/end", self.f["admin"])
+        TransportTrip.objects.filter(pk=self.trip_id).update(ended_at=WEDNESDAY - dt.timedelta(minutes=10))
         self.assertEqual(409, self.send([self.point(0)]).status_code)
+
+    def test_a_cancelled_trip_takes_no_positions_at_all(self):
+        self.act(self.trip_id, "/cancel", self.f["admin"])
+
+        response = self.send([self.point(-30)])
+
+        self.assertEqual((409, "TRIP_NOT_IN_PROGRESS"), (response.status_code, response.data["code"]))
+
+    def test_points_from_before_the_end_still_count_when_the_end_arrived_first(self):
+        self.act(self.trip_id, "/end", self.f["admin"])
+        TransportTrip.objects.filter(pk=self.trip_id).update(ended_at=WEDNESDAY - dt.timedelta(minutes=10))
+
+        # Two from the no-signal stretch before the end, one from after it.
+        response = self.send([self.point(-20), self.point(-12), self.point(0)])
+
+        self.assertEqual({"accepted": 2, "refused": 1, "in_progress": False}, response.data)
+        self.assertEqual(2, TransportTripLocation.objects.filter(trip_id=self.trip_id).count())
 
     def test_a_stranger_does_not_see_where_the_bus_is(self):
         stranger = self.ready_route()["admin"]

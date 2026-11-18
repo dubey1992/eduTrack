@@ -57,10 +57,15 @@ class TripDetailNotifier extends AsyncNotifier<TripSnapshot> {
     await _mark(TripMarkType.stopReached, 'Reached ${stop.name}', stopId: stop.id);
   }
 
-  Future<void> markRider(TripRider rider, TripRiderStatus status) async {
+  /// Marks [rider], held for [TripMarkQueue.undoWindow] so a wrong tap can
+  /// be taken back. Returns the mark's id for [undoMark], or null when
+  /// nothing was marked.
+  Future<String?> markRider(TripRider rider, TripRiderStatus status) async {
     final trip = _shown;
     final current = trip?.riders.where((r) => r.studentId == rider.studentId).firstOrNull;
-    if (trip == null || !trip.isInProgress || current == null || !riderCanBecome(current.status, status)) return;
+    if (trip == null || !trip.isInProgress || current == null || !riderCanBecome(current.status, status)) {
+      return null;
+    }
 
     final type = switch (status) {
       TripRiderStatus.boarded => TripMarkType.boarded,
@@ -68,8 +73,16 @@ class TripDetailNotifier extends AsyncNotifier<TripSnapshot> {
       TripRiderStatus.absent => TripMarkType.absent,
       TripRiderStatus.pending => throw ArgumentError('A rider is never marked back to pending.'),
     };
-    await _mark(type, '${rider.name} ${status.label.toLowerCase()}', studentId: rider.studentId);
+    return _mark(
+      type,
+      '${rider.name} ${status.label.toLowerCase()}',
+      studentId: rider.studentId,
+      hold: TripMarkQueue.undoWindow,
+    );
   }
+
+  /// Takes back a rider mark inside its undo window; false once it is sent.
+  Future<bool> undoMark(String clientId) => ref.read(tripMarkQueueProvider.notifier).undo(clientId);
 
   /// Opens the dialler with the guardian's number, and records that the call
   /// was made. Returns false when the dialler could not be opened.
@@ -101,9 +114,10 @@ class TripDetailNotifier extends AsyncNotifier<TripSnapshot> {
     await _mark(TripMarkType.end, 'End trip');
   }
 
-  Future<void> _mark(TripMarkType type, String label, {int? stopId, int? studentId}) {
+  Future<String> _mark(TripMarkType type, String label, {int? stopId, int? studentId, Duration? hold}) async {
     final mark = TripMark.now(tripId: tripId, type: type, label: label, stopId: stopId, studentId: studentId);
-    return ref.read(tripMarkQueueProvider.notifier).enqueue(mark);
+    await ref.read(tripMarkQueueProvider.notifier).enqueue(mark, hold: hold);
+    return mark.clientId;
   }
 }
 

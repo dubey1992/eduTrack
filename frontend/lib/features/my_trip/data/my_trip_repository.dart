@@ -82,10 +82,13 @@ class MyTripRepository {
     );
   }
 
-  /// Returns how many points the server kept.
-  Future<int> sendLocations(int tripId, List<LocationPoint> points) async {
+  /// How many points the server kept, and whether the trip is still
+  /// running. A finished trip still takes points from before its end
+  /// (docs/mobile-apps-review.md, 2.3); a server too old to say is taken as
+  /// "still running", which is what it would have refused otherwise.
+  Future<({int accepted, bool inProgress})> sendLocations(int tripId, List<LocationPoint> points) async {
     final json = await _guard(() => _api.sendLocations(tripId, points));
-    return json['accepted'] as int? ?? 0;
+    return (accepted: json['accepted'] as int? ?? 0, inProgress: json['in_progress'] as bool? ?? true);
   }
 
   /// No answer at all, or a server fault, is "offline": worth trying again.
