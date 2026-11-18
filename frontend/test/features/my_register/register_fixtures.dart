@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/absence_notes/data/absence_notes.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/storage/key_value_store.dart';
@@ -22,9 +23,20 @@ const day = '2026-10-26';
 
 const teacherId = 7;
 
-AttendanceRegister registerOf({bool submitted = false, Map<int, AttendanceStatus> marks = const {}}) {
-  AttendanceRosterEntry student(int id, String name, String roll) =>
-      AttendanceRosterEntry(studentId: id, name: name, rollNumber: roll, status: marks[id], remarks: null);
+/// [notes]: a parent's absence note for the day, by student id.
+AttendanceRegister registerOf({
+  bool submitted = false,
+  Map<int, AttendanceStatus> marks = const {},
+  Map<int, RegisterAbsenceNote> notes = const {},
+}) {
+  AttendanceRosterEntry student(int id, String name, String roll) => AttendanceRosterEntry(
+    studentId: id,
+    name: name,
+    rollNumber: roll,
+    status: marks[id],
+    remarks: null,
+    absenceNote: notes[id],
+  );
 
   return AttendanceRegister(
     classSectionId: sectionId,
@@ -85,3 +97,5 @@ AttendanceRegister holidayRegister() => AttendanceRegister(
   students: registerOf().students,
   holiday: const HolidaySummary(id: 1, name: 'Diwali', type: HolidayType.religious),
 );
+
+const feverNote = RegisterAbsenceNote(id: 9, reason: 'Fever since last night', acknowledged: false, hasPhoto: false);

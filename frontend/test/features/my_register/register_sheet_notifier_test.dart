@@ -34,13 +34,13 @@ void main() {
   }
 
   group('opening', () {
-    test('a day not yet taken opens unmarked, and keeps the class list for no signal', () async {
+    test('a day not yet taken opens with everyone present, and keeps the class list for no signal', () async {
       final (_, sheet) = await open();
 
       expect(sheet.mode, RegisterMode.taking);
       expect(sheet.students.map((s) => s.name), ['Aarav Shah', 'Diya Patel', 'Kabir Rao']);
-      expect(sheet.unmarked, 3);
-      expect(sheet.complete, isFalse);
+      expect(sheet.count(AttendanceStatus.present), 3);
+      expect(sheet.complete, isTrue);
       expect(attendance.lastRegisterDate, day, reason: "the school's date from Today, not the phone's");
       expect(await RegisterStore(store).readRoster(sectionId), hasLength(3));
     });
@@ -139,7 +139,16 @@ void main() {
       expect(sheet.complete, isTrue);
     });
 
+    test("a child with a parent's note is left for the teacher, and the register waits for them", () async {
+      attendance = FakeAttendanceRepository(register: registerOf(notes: const {2: feverNote}));
+      final (_, sheet) = await open();
+
+      expect(sheet.marks, {1: AttendanceStatus.present, 3: AttendanceStatus.present});
+      expect(sheet.complete, isFalse);
+    });
+
     test('an incomplete register is not submitted', () async {
+      attendance = FakeAttendanceRepository(register: registerOf(notes: const {2: feverNote}));
       final (phone, _) = await open();
       final notifier = phone.read(registerSheetProvider(key).notifier);
       notifier.setMark(1, AttendanceStatus.present);

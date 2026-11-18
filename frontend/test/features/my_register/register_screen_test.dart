@@ -49,7 +49,7 @@ void main() {
 
   FilledButton submitButton(WidgetTester tester) => tester.widget(find.byKey(const Key('register-submit')));
 
-  testWidgets('shows the class, the date and every student, all unmarked', (tester) async {
+  testWidgets('shows the class, the date and every student, all starting present', (tester) async {
     await pump(tester);
 
     expect(find.text('Grade 3 A register'), findsOneWidget);
@@ -57,30 +57,68 @@ void main() {
     for (final name in ['Aarav Shah', 'Diya Patel', 'Kabir Rao']) {
       expect(find.text(name), findsOneWidget);
     }
-    expect(tally(tester, 'unmarked'), '3');
-    expect(find.text('Mark everyone (3 left)'), findsOneWidget);
-    expect(submitButton(tester).onPressed, isNull, reason: 'nobody is left out by accident');
+    expect(tally(tester, 'present'), '3');
+    expect(tally(tester, 'unmarked'), '0');
+    expect(find.byKey(const Key('register-by-exception')), findsOneWidget);
+    expect(submitButton(tester).onPressed, isNotNull);
   });
 
-  testWidgets('the tally follows every mark, and Submit opens once everyone is marked', (tester) async {
+  testWidgets("a child with a parent's note waits for the teacher, and so does Submit", (tester) async {
+    attendance = FakeAttendanceRepository(register: registerOf(notes: const {2: feverNote}));
+    await pump(tester);
+
+    expect(tally(tester, 'unmarked'), '1');
+    expect(find.text('Mark everyone (1 left)'), findsOneWidget);
+    expect(submitButton(tester).onPressed, isNull, reason: 'nobody is left out by accident');
+
+    await tester.tap(find.byKey(const Key('register-2-absent')));
+    await tester.pump();
+    expect(submitButton(tester).onPressed, isNotNull);
+  });
+
+  testWidgets('the tally follows every mark', (tester) async {
     await pump(tester);
 
     await tester.tap(find.byKey(const Key('register-2-absent')));
     await tester.pump();
-    expect(tally(tester, 'absent'), '1');
-    expect(tally(tester, 'unmarked'), '2');
+    expect((tally(tester, 'present'), tally(tester, 'absent')), ('2', '1'));
 
     await tester.tap(find.byKey(const Key('register-2-leave')));
     await tester.pump();
     expect(tally(tester, 'absent'), '0', reason: 'changing a mark moves it, it does not add one');
     expect(tally(tester, 'leave'), '1');
+  });
 
-    await tester.tap(find.byKey(const Key('register-all-present')));
+  testWidgets('a swipe marks the row and leaves it in the list', (tester) async {
+    await pump(tester);
+
+    await tester.drag(find.byKey(const Key('register-row-3')), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+    expect(tally(tester, 'absent'), '1');
+    expect(find.text('Kabir Rao'), findsOneWidget);
+
+    await tester.drag(find.byKey(const Key('register-row-3')), const Offset(400, 0));
+    await tester.pumpAndSettle();
+    expect(tally(tester, 'absent'), '0');
+    expect(tally(tester, 'present'), '3');
+  });
+
+  testWidgets('the search finds a child by name or by roll number', (tester) async {
+    await pump(tester);
+
+    await tester.enterText(find.byKey(const Key('register-search')), 'diya');
     await tester.pump();
-    expect(tally(tester, 'present'), '2');
-    expect(tally(tester, 'leave'), '1', reason: 'All present leaves marks already made');
-    expect(tally(tester, 'unmarked'), '0');
-    expect(submitButton(tester).onPressed, isNotNull);
+    expect(find.text('Diya Patel'), findsOneWidget);
+    expect(find.text('Aarav Shah'), findsNothing);
+
+    await tester.enterText(find.byKey(const Key('register-search')), '3');
+    await tester.pump();
+    expect(find.text('Kabir Rao'), findsOneWidget);
+    expect(find.text('Diya Patel'), findsNothing);
+
+    await tester.enterText(find.byKey(const Key('register-search')), 'zzz');
+    await tester.pump();
+    expect(find.byKey(const Key('register-search-empty')), findsOneWidget);
   });
 
   testWidgets('Submit asks first with the counts, and Check again sends nothing', (tester) async {
