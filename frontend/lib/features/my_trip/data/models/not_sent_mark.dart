@@ -1,15 +1,28 @@
+import 'trip_mark.dart';
+
 /// A mark the server turned down - kept so the attendant can read why, and
-/// dismiss it once read. It is never retried: the reason says it cannot be
-/// recorded ("The trip had already ended, so this mark was not recorded.").
+/// dismiss it once read. It is never retried by itself: the reason usually
+/// says it cannot be recorded ("The trip had already ended, so this mark
+/// was not recorded."). While the trip still runs the crew may try it
+/// again, which is why the mark itself is kept (docs/mobile-apps-review.md,
+/// 2.5).
 class NotSentMark {
-  const NotSentMark({required this.clientId, required this.tripId, required this.label, required this.reason});
+  const NotSentMark({
+    required this.clientId,
+    required this.tripId,
+    required this.label,
+    required this.reason,
+    this.mark,
+  });
 
   factory NotSentMark.fromJson(Map<String, dynamic> json) {
+    final mark = json['mark'];
     return NotSentMark(
       clientId: json['client_id'] as String,
       tripId: json['trip_id'] as int,
       label: json['label'] as String,
       reason: json['reason'] as String,
+      mark: mark is Map<String, dynamic> ? TripMark.fromJson(mark) : null,
     );
   }
 
@@ -18,7 +31,17 @@ class NotSentMark {
   final String label;
   final String reason;
 
-  Map<String, dynamic> toJson() => {'client_id': clientId, 'trip_id': tripId, 'label': label, 'reason': reason};
+  /// What was turned down, to try again. Null for one saved by an older
+  /// version of the app, which can only be dismissed.
+  final TripMark? mark;
+
+  Map<String, dynamic> toJson() => {
+    'client_id': clientId,
+    'trip_id': tripId,
+    'label': label,
+    'reason': reason,
+    if (mark != null) 'mark': mark!.toJson(),
+  };
 }
 
 /// The server's answer for one mark in a sync batch.

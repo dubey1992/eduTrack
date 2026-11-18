@@ -22,6 +22,7 @@ import 'not_sent_card.dart';
 import 'rider_search_field.dart';
 import 'rider_tile.dart';
 import 'sos_button.dart';
+import 'trip_screen_hold.dart';
 
 /// One trip, stop by stop, with each stop's children under it.
 ///
@@ -164,37 +165,40 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
 
     // The search box stays above the list rather than scrolling off with
     // it: the moment it is wanted is the moment the sheet is longest.
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      // SOS and End trip stay put under the thumb, however long the sheet:
-      // scrolling to the foot of forty children to find SOS is the wrong
-      // moment to be scrolling (docs/mobile-apps-review.md, 1.4).
-      bottomNavigationBar: running
-          ? _TripActionBar(aboard: aboard, onSos: _trip.raiseSos, onEnd: () => _end(trip))
-          : null,
-      body: Column(
-        children: [
-          if (trip.riders.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: RiderSearchField(onChanged: (query) => setState(() => _query = query)),
+    return TripScreenHold(
+      active: running,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        // SOS and End trip stay put under the thumb, however long the sheet:
+        // scrolling to the foot of forty children to find SOS is the wrong
+        // moment to be scrolling (docs/mobile-apps-review.md, 1.4).
+        bottomNavigationBar: running
+            ? _TripActionBar(aboard: aboard, onSos: _trip.raiseSos, onEnd: () => _end(trip))
+            : null,
+        body: Column(
+          children: [
+            if (trip.riders.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: RiderSearchField(onChanged: (query) => setState(() => _query = query)),
+              ),
+            Expanded(
+              child: _buildSheet(
+                context,
+                trip,
+                snapshot,
+                notSent,
+                stops,
+                nextStop,
+                shown,
+                unplaced,
+                searching,
+                aboard,
+                running,
+              ),
             ),
-          Expanded(
-            child: _buildSheet(
-              context,
-              trip,
-              snapshot,
-              notSent,
-              stops,
-              nextStop,
-              shown,
-              unplaced,
-              searching,
-              aboard,
-              running,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -237,6 +241,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
           NotSentCard(
             marks: notSent,
             onDismiss: (mark) => ref.read(tripMarkQueueProvider.notifier).dismissNotSent(mark.clientId),
+            onRetry: running ? (mark) => ref.read(tripMarkQueueProvider.notifier).retryNotSent(mark.clientId) : null,
           ),
         if (searching && shown.isEmpty)
           Padding(

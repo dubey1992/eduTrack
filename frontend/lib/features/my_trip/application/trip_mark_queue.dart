@@ -209,6 +209,7 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
               tripId: tripId,
               label: mark.label,
               reason: results[mark.clientId]?.reason ?? 'The server did not record this mark.',
+              mark: mark,
             ),
       ];
 
@@ -221,7 +222,7 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
       if (!ref.mounted) return;
       await _settle(batch, [
         for (final mark in batch)
-          NotSentMark(clientId: mark.clientId, tripId: tripId, label: mark.label, reason: failure.message),
+          NotSentMark(clientId: mark.clientId, tripId: tripId, label: mark.label, reason: failure.message, mark: mark),
       ]);
     }
   }
@@ -254,6 +255,16 @@ class TripMarkQueue extends Notifier<TripMarkQueueState> {
   Future<int> waitingCount() async {
     await _loaded;
     return ref.mounted ? state.pendingCount : 0;
+  }
+
+  /// The crew think the server was wrong, or something has changed since:
+  /// the turned-down mark goes back in the queue as it was made.
+  Future<void> retryNotSent(String clientId) async {
+    final mark = state.notSent.where((m) => m.clientId == clientId).firstOrNull?.mark;
+    if (mark == null) return;
+
+    await dismissNotSent(clientId);
+    await enqueue(mark);
   }
 
   /// The attendant has read a turned-down mark.

@@ -27,5 +27,24 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // A running trip's sheet asks for this while it is open
+        // (lib/features/my_trip/presentation/widgets/trip_screen_hold.dart):
+        // the screen stays on in the cradle. Android drops it by itself when
+        // the phone is locked or the app is put away.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "school365ai/keep_awake")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setKeepAwake" -> {
+                        if (call.arguments == true) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 }
