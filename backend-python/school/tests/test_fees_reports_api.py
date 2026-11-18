@@ -79,7 +79,8 @@ class Collection(FeeReportsTestCase):
                 "receipt_id": self.upi["id"], "student_id": self.aarav.id, "receipt_date": "2026-07-10",
                 "receipt_number": self.upi["receipt_number"], "admission_number": "ADM-1", "student": "Aarav Shah",
                 "class_section": "Class 8 - A", "payment_mode": mode_label("upi"), "reference": "UTR123",
-                "received_by": self.accountant.name, "amount": "400.00", "currency_code": "INR",
+                "received_by": self.accountant.name, "amount": "400.00", "credit_amount": "0.00",
+                "currency_code": "INR",
             },
             data["rows"][0],
         )

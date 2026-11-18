@@ -18,6 +18,8 @@ class FakeReportRepository implements ReportRepository {
   int? lastSchoolId;
   bool? lastCompare;
   int? lastBelow;
+  int? lastReceivedBy;
+  String? lastPaymentMode;
   ExportFormat? lastFormat;
   int downloadCalls = 0;
 
@@ -31,6 +33,8 @@ class FakeReportRepository implements ReportRepository {
     int? departmentId,
     bool compare = false,
     int? below,
+    int? receivedBy,
+    String? paymentMode,
   }) async {
     if (failWith != null) throw failWith!;
 
@@ -40,6 +44,8 @@ class FakeReportRepository implements ReportRepository {
     lastSchoolId = schoolId;
     lastCompare = compare;
     lastBelow = below;
+    lastReceivedBy = receivedBy;
+    lastPaymentMode = paymentMode;
 
     return resultsByKind[kind] ?? _result;
   }
@@ -55,6 +61,8 @@ class FakeReportRepository implements ReportRepository {
     int? departmentId,
     bool compare = false,
     int? below,
+    int? receivedBy,
+    String? paymentMode,
   }) async {
     if (failWith != null) throw failWith!;
 
@@ -62,6 +70,8 @@ class FakeReportRepository implements ReportRepository {
     lastKind = kind;
     lastFormat = format;
     lastCompare = compare;
+    lastReceivedBy = receivedBy;
+    lastPaymentMode = paymentMode;
 
     return 'Admission No.,Student\nSTU-0042,Arjun Kumar\n'.codeUnits;
   }

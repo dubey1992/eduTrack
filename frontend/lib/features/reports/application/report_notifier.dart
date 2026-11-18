@@ -18,6 +18,8 @@ class ReportQuery {
     this.departmentId,
     this.compare = false,
     this.below,
+    this.receivedBy,
+    this.paymentMode,
   });
 
   final ReportKind kind;
@@ -33,6 +35,10 @@ class ReportQuery {
   /// Student attendance only: list just the students under this rate.
   final int? below;
 
+  /// Fee collection only: one person's receipts, or one way of paying.
+  final int? receivedBy;
+  final String? paymentMode;
+
   @override
   bool operator ==(Object other) {
     return other is ReportQuery &&
@@ -43,11 +49,14 @@ class ReportQuery {
         other.classSectionId == classSectionId &&
         other.departmentId == departmentId &&
         other.compare == compare &&
-        other.below == below;
+        other.below == below &&
+        other.receivedBy == receivedBy &&
+        other.paymentMode == paymentMode;
   }
 
   @override
-  int get hashCode => Object.hash(kind, schoolId, from, to, classSectionId, departmentId, compare, below);
+  int get hashCode =>
+      Object.hash(kind, schoolId, from, to, classSectionId, departmentId, compare, below, receivedBy, paymentMode);
 }
 
 /// The report for the current query.
@@ -67,5 +76,7 @@ final reportProvider = FutureProvider.autoDispose.family<ReportResult, ReportQue
         departmentId: query.departmentId,
         compare: query.compare,
         below: query.below,
+        receivedBy: query.receivedBy,
+        paymentMode: query.paymentMode,
       );
 }, retry: (retryCount, error) => null);

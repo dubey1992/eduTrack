@@ -14,6 +14,8 @@ import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../academic_years/application/viewed_year.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../auth/application/school_clock_provider.dart';
+import '../../fees/data/models/fee_receipt.dart';
+import '../application/report_link.dart';
 import '../application/report_notifier.dart';
 import '../data/models/report.dart';
 import '../data/report_repository.dart';
@@ -25,7 +27,11 @@ import '../../../core/utils/date_format.dart';
 /// an export, and only their columns differ. Which reports a role may open is decided by the
 /// API; this only avoids offering a tab that would answer 403.
 class ReportsScreen extends ConsumerStatefulWidget {
-  const ReportsScreen({super.key});
+  const ReportsScreen({super.key, this.link = const ReportLink()});
+
+  /// How the screen opens: a report, a period and filters picked by the
+  /// dashboard link that brought somebody here, or nothing picked.
+  final ReportLink link;
 
   @override
   ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
@@ -39,6 +45,50 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   bool _compare = false;
   int? _below;
   ExportFormat? _downloading;
+
+  /// Fee collection's two filters (docs/dashboard.md).
+  int? _receivedBy;
+  String? _paymentMode;
+
+  /// Everyone who has taken money in a report seen on this screen, so the
+  /// "Received by" list keeps them once it is narrowed to one of them. The
+  /// report's own per-person totals fill it: there is no separate list of
+  /// who may take fees, because the matrix lets any role do it.
+  final Map<int, String> _staffNames = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _apply(widget.link);
+  }
+
+  @override
+  void didUpdateWidget(covariant ReportsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Another dashboard link while the screen is already open.
+    if (oldWidget.link != widget.link) _apply(widget.link);
+  }
+
+  void _apply(ReportLink link) {
+    if (link.isEmpty) return;
+
+    _kind = link.kind ?? _kind;
+    _schoolId = link.schoolId ?? _schoolId;
+    _from = link.from;
+    _to = link.to;
+    _receivedBy = link.receivedBy;
+    _paymentMode = PaymentMode.values.any((mode) => mode.wire == link.paymentMode) ? link.paymentMode : null;
+    if (link.receivedBy != null && link.receivedByName != null) _staffNames[link.receivedBy!] = link.receivedByName!;
+  }
+
+  bool get _isCollection => _kind == ReportKind.feeCollection;
+
+  void _rememberStaff(ReportResult report) {
+    for (final line in _listOfMaps(report.totals['by_staff'])) {
+      final id = line['received_by_id'];
+      if (id is int) _staffNames[id] = line['received_by'] as String? ?? 'Not recorded';
+    }
+  }
 
   /// The thresholds on offer, as a percentage. Attendance and marks are
   /// asked about at different levels: 75% attendance is a worry, 75% in a
@@ -104,7 +154,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     compare: _compare,
     // Only the student report narrows to chronic absentees.
     below: _takesBelow ? _below : null,
+    receivedBy: _isCollection ? _receivedBy : null,
+    paymentMode: _isCollection ? _paymentMode : null,
   );
+
+  void _today() {
+    final today = ref.read(schoolClockProvider).today;
+    setState(() {
+      _from = today;
+      _to = today;
+    });
+  }
 
   Future<void> _pickRange() async {
     final today = ref.read(schoolClockProvider).today;
@@ -143,6 +203,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             departmentId: query.departmentId,
             compare: query.compare,
             below: query.below,
+            receivedBy: query.receivedBy,
+            paymentMode: query.paymentMode,
           );
 
       saveBytes(
@@ -193,6 +255,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     if (!kinds.contains(_kind)) _kind = kinds.first;
 
     final needsSchool = role == UserRole.superAdmin && _schoolId == null;
+    final report = needsSchool ? null : ref.watch(reportProvider(_query));
+    final loaded = report?.value;
+    if (_isCollection && loaded != null) _rememberStaff(loaded);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -215,6 +280,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     selected: _schoolId,
                     onChanged: (schoolId) => setState(() => _schoolId = schoolId),
                   ),
+                  OutlinedButton(key: const Key('report-today'), onPressed: _today, child: const Text('Today')),
                   OutlinedButton.icon(
                     onPressed: _pickRange,
                     icon: const Icon(Icons.date_range, size: 18),
@@ -284,6 +350,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ],
                   onChanged: (value) => setState(() => _below = value),
                 ),
+              if (_isCollection) ...[
+                DropdownButton<int?>(
+                  key: const Key('report-received-by'),
+                  value: _staffNames.containsKey(_receivedBy) ? _receivedBy : null,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    const DropdownMenuItem<int?>(value: null, child: Text('Everyone')),
+                    for (final entry in _staffNames.entries)
+                      DropdownMenuItem<int?>(value: entry.key, child: Text('Received by ${entry.value}')),
+                  ],
+                  onChanged: (value) => setState(() => _receivedBy = value),
+                ),
+                DropdownButton<String?>(
+                  key: const Key('report-payment-mode'),
+                  value: _paymentMode,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('Every payment mode')),
+                    for (final mode in PaymentMode.values)
+                      DropdownMenuItem<String?>(value: mode.wire, child: Text(mode.label)),
+                  ],
+                  onChanged: (value) => setState(() => _paymentMode = value),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -296,7 +386,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             )
           else
             AsyncValueView<ReportResult>(
-              value: ref.watch(reportProvider(_query)),
+              value: report!,
               onRetry: () => ref.invalidate(reportProvider(_query)),
               data: (context, report) => _ReportBody(kind: _kind, report: report),
             ),
@@ -338,6 +428,10 @@ class _ReportBody extends StatelessWidget {
                   if (entry.value != null &&
                       entry.key != 'working_days' &&
                       entry.key != 'by_currency' &&
+                      // Lists drawn below as their own lines - empty on a
+                      // quiet period, which is not a figure to print as "-".
+                      entry.key != 'by_mode' &&
+                      entry.key != 'by_staff' &&
                       !_isMoneyList(entry.value))
                     _Fact(
                       label: _humanise(entry.key),
@@ -350,7 +444,7 @@ class _ReportBody extends StatelessWidget {
                 // reports' collected, cancelled, discounted and waived
                 // (docs/fees.md, F5). One figure per currency, never added.
                 for (final entry in report.totals.entries)
-                  if (_isMoneyList(entry.value) && entry.key != 'by_mode')
+                  if (_isMoneyList(entry.value) && entry.key != 'by_mode' && entry.key != 'by_staff')
                     for (final money in (entry.value as List).cast<Map<String, dynamic>>())
                       _Fact(
                         label: '${_humanise(entry.key)} (${money['currency_code']})',
@@ -364,6 +458,13 @@ class _ReportBody extends StatelessWidget {
                   _Fact(
                     label: '${mode['label']} (${mode['receipts']})',
                     value: _money(mode['amount'], mode['currency_code'] as String),
+                  ),
+                // And by who took it (docs/dashboard.md) - each receipt once,
+                // so these add up to the collected total above.
+                for (final person in _listOfMaps(report.totals['by_staff']))
+                  _Fact(
+                    label: '${person['received_by']} (${person['receipts']})',
+                    value: _money(person['amount'], person['currency_code'] as String),
                   ),
                 if (kind == ReportKind.feeOutstanding)
                   // What is owed, and how long it has been overdue - per
@@ -683,7 +784,7 @@ class _BranchBreakdown extends StatelessWidget {
         .expand((branch) => branch.totals.keys)
         // The by-mode split is in the summary above; a column of it per
         // branch would be a table inside a cell.
-        .where((key) => key != 'branches' && key != 'by_mode')
+        .where((key) => key != 'branches' && key != 'by_mode' && key != 'by_staff')
         .toSet()
         .toList();
     // Working days are the denominator of attendance rates; a fee report

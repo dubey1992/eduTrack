@@ -17,6 +17,7 @@ from django.db.models import Count, Exists, F, OuterRef, Sum
 from . import dates, modules, money, permissions
 from .clock import SchoolClock
 from .fees import ledger as fee_ledger
+from .reports.fees import by_staff as receipts_by_staff
 from .reports.performance import term_summary
 from .enums import (
     FAMILY_ROLES,
@@ -114,7 +115,22 @@ class DashboardService:
             "holiday": holiday.name if holiday else None,
             **payload,
             "breakdowns": breakdowns,
+            # The dashboard enhancement (docs/dashboard.md). One school in
+            # view only, each behind the gate of the screen it summarises.
+            "collections_today": collections_today(school_id, today) if fee_schools == [school_id] else None,
+            "messages_this_month": (
+                messages_this_month(school_id, clock, today) if cls._reads_messages(actor, school_id) else None
+            ),
         }
+
+    @staticmethod
+    def _reads_messages(actor: User, school_id: int | None) -> bool:
+        """Whoever reads the message log - the log's own rule, so the
+        dashboard never shows counts of messages its reader may not open."""
+        if school_id is None or not modules.is_enabled(school_id, "communication"):
+            return False
+
+        return permissions.may_view(actor, "communication")
 
     # -- per role -----------------------------------------------------------
 
@@ -487,6 +503,99 @@ def fee_cards(school_ids: list[int], today: dt.date) -> list[dict]:
         ),
     ]
 
+
+
+def collections_today(school_id: int, today: dt.date) -> dict:
+    """Today's fee receipts per person who took them (docs/dashboard.md).
+
+    The fee collection report's own grouping over today, so the panel and the
+    report it opens agree to the rupee. Cancelled receipts are left out of
+    the money and counted beside it, as the report does.
+    """
+    receipts = list(
+        FeeReceipt.objects.filter(school_id=school_id, receipt_date=today).select_related("received_by")
+    )
+    valid = [receipt for receipt in receipts if receipt.status != FeeReceiptStatus.CANCELLED]
+    currency = School.objects.filter(pk=school_id).values_list("currency_code", flat=True).first() or ""
+
+    totals: dict[str, Decimal] = {}
+    for receipt in valid:
+        totals[receipt.currency_code] = totals.get(receipt.currency_code, Decimal("0")) + receipt.amount
+
+    return {
+        "date": today.isoformat(),
+        "receipts": len(valid),
+        "cancelled_receipts": len(receipts) - len(valid),
+        # One line per currency; the school's own at zero when nothing came in.
+        "collected": [
+            money.formatted(amount, code) for code, amount in sorted(totals.items())
+        ] or [money.formatted(Decimal("0.00"), currency)],
+        "by_staff": [
+            {
+                **line,
+                "amount_display": money.formatted(Decimal(line["amount"]), line["currency_code"]),
+                "cash_display": money.formatted(Decimal(line["cash"]), line["currency_code"]),
+                "credit_display": money.formatted(Decimal(line["credit_amount"]), line["currency_code"]),
+            }
+            for line in receipts_by_staff(valid)
+        ],
+    }
+
+
+# The channels that leave the school and come back with a status. In-app
+# messages are read or unread, not sent, and email has no provider status.
+REPORTED_CHANNELS = (MessageChannel.SMS, MessageChannel.WHATSAPP)
+
+
+def messages_this_month(school_id: int, clock: SchoolClock, today: dt.date) -> dict:
+    """SMS and WhatsApp this month at the school, by the status the log keeps
+    (docs/dashboard.md).
+
+    The log's statuses only: queued (waiting to go), sent (the provider took
+    it), failed, and skipped (never sent - usually no number on file). No
+    provider reports delivery back yet, so nothing here says "delivered":
+    "sent" is the provider accepting a message, not the family reading it.
+    """
+    start = clock.start_of_day_utc(today.replace(day=1))
+    end = clock.end_of_day_utc(today)
+    month = Message.objects.filter(
+        school_id=school_id, channel__in=REPORTED_CHANNELS, created_at__gte=start, created_at__lt=end
+    )
+
+    counts: dict[tuple[str, str], int] = {
+        (row["channel"], row["status"]): row["total"]
+        for row in month.order_by().values("channel", "status").annotate(total=Count("id"))
+    }
+
+    def line(channel: str | None, label: str) -> dict:
+        def count(status: str) -> int:
+            return sum(total for (ch, st), total in counts.items() if st == status and channel in (None, ch))
+
+        return {
+            "channel": channel or "all",
+            "label": label,
+            "sent": count(MessageStatus.SENT),
+            "queued": count(MessageStatus.QUEUED),
+            "failed": count(MessageStatus.FAILED),
+            "skipped": count(MessageStatus.SKIPPED),
+        }
+
+    from . import sms
+    from .models import CommunicationSetting
+
+    provider = CommunicationSetting.objects.filter(school_id=school_id).values_list("provider", flat=True).first()
+
+    return {
+        "month": period_label(today.year, today.month),
+        "total": line(None, "SMS and WhatsApp"),
+        "channels": [line(channel.value, channel.label) for channel in REPORTED_CHANNELS],
+        # Fee reminders and the like - category "fee" - of the month's SMS
+        # and WhatsApp, whatever became of them.
+        "fee_related": month.filter(category="fee").count(),
+        # Said beside every figure, so "sent" is never read as "delivered".
+        "delivery_reported": False,
+        "provider_delivers": sms.delivers(provider),
+    }
 
 
 def plural(count: int, word: str) -> str:

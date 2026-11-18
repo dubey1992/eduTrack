@@ -20,10 +20,22 @@ class ReportApi {
     int? departmentId,
     bool compare = false,
     int? below,
+    int? receivedBy,
+    String? paymentMode,
   }) async {
     final response = await _dio.get(
       '/reports/${kind.apiPath}',
-      queryParameters: _params(schoolId, from, to, classSectionId, departmentId, compare, below),
+      queryParameters: _params(
+        schoolId,
+        from,
+        to,
+        classSectionId,
+        departmentId,
+        compare,
+        below,
+        receivedBy,
+        paymentMode,
+      ),
     );
 
     return ReportResult.fromJson(response.data as Map<String, dynamic>);
@@ -41,11 +53,13 @@ class ReportApi {
     int? departmentId,
     bool compare = false,
     int? below,
+    int? receivedBy,
+    String? paymentMode,
   }) async {
     final response = await _dio.get<List<int>>(
       '/reports/${kind.apiPath}',
       queryParameters: {
-        ..._params(schoolId, from, to, classSectionId, departmentId, compare, below),
+        ..._params(schoolId, from, to, classSectionId, departmentId, compare, below, receivedBy, paymentMode),
         'format': format.apiValue,
       },
       options: Options(responseType: ResponseType.bytes),
@@ -62,6 +76,8 @@ class ReportApi {
     int? departmentId,
     bool compare,
     int? below,
+    int? receivedBy,
+    String? paymentMode,
   ) {
     return {
       'school_id': ?schoolId,
@@ -73,6 +89,9 @@ class ReportApi {
       // exactly as it always was.
       if (compare) 'compare': 1,
       'below': ?below,
+      // The fee collection report's narrowing (docs/dashboard.md).
+      'received_by': ?receivedBy,
+      'payment_mode': ?paymentMode,
     };
   }
 }

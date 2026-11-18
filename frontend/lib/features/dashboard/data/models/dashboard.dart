@@ -1,3 +1,7 @@
+import 'dashboard_sections.dart';
+
+export 'dashboard_sections.dart';
+
 /// The landing screen's figures, in the one shape every role shares.
 ///
 /// The server decides what a role may see and puts it in [cards]; the client
@@ -15,6 +19,8 @@ class Dashboard {
     required this.attention,
     this.breakdowns = const [],
     this.schoolId,
+    this.collectionsToday,
+    this.messagesThisMonth,
   });
 
   factory Dashboard.fromJson(Map<String, dynamic> json) {
@@ -36,6 +42,12 @@ class Dashboard {
       breakdowns: (json['breakdowns'] as List<dynamic>? ?? [])
           .map((ring) => DashboardBreakdown.fromJson(ring as Map<String, dynamic>))
           .toList(),
+      collectionsToday: json['collections_today'] == null
+          ? null
+          : CollectionsToday.fromJson(json['collections_today'] as Map<String, dynamic>),
+      messagesThisMonth: json['messages_this_month'] == null
+          ? null
+          : MessagesThisMonth.fromJson(json['messages_this_month'] as Map<String, dynamic>),
     );
   }
 
@@ -56,6 +68,14 @@ class Dashboard {
   /// The rings: today's students and staff split by the register, and fees
   /// collected of what has fallen due. One school in view only.
   final List<DashboardBreakdown> breakdowns;
+
+  /// Today's fee receipts per person (docs/dashboard.md); null for anybody
+  /// without the fee cards, or with no one school in view.
+  final CollectionsToday? collectionsToday;
+
+  /// This month's SMS and WhatsApp by status; null for anybody who may not
+  /// read the message log.
+  final MessagesThisMonth? messagesThisMonth;
 }
 
 class DashboardCard {

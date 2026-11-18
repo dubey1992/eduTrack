@@ -160,13 +160,21 @@ class FeeCollectionReport:
         return row["receipt_id"]
 
     def build(self, report_range: ReportRange, filters: dict) -> dict:
+        found = FeeReceipt.objects.filter(
+            school_id=report_range.school_id,
+            receipt_date__gte=report_range.start,
+            receipt_date__lte=report_range.end,
+        )
+        # Narrowed to one person's or one mode's receipts when asked
+        # (docs/dashboard.md) - cancelled ones too, so the count beside the
+        # lines is that person's own.
+        if filters.get("received_by"):
+            found = found.filter(received_by_id=filters["received_by"])
+        if filters.get("payment_mode"):
+            found = found.filter(payment_mode=filters["payment_mode"])
+
         receipts = list(
-            FeeReceipt.objects.filter(
-                school_id=report_range.school_id,
-                receipt_date__gte=report_range.start,
-                receipt_date__lte=report_range.end,
-            )
-            .select_related("student", "received_by")
+            found.select_related("student", "received_by")
             .order_by("receipt_date", "receipt_number", "id")
         )
         valid = [receipt for receipt in receipts if receipt.status != FeeReceiptStatus.CANCELLED]
@@ -187,6 +195,9 @@ class FeeCollectionReport:
                 "reference": receipt.reference,
                 "received_by": receipt.received_by.name if receipt.received_by_id else None,
                 "amount": cash(receipt.amount),
+                # The part kept as credit for the family (F6) - money paid
+                # ahead of anything owed. Inside `amount`, never on top of it.
+                "credit_amount": cash(receipt.credit_amount),
                 "currency_code": receipt.currency_code,
             }
             for receipt in valid
@@ -220,6 +231,7 @@ class FeeCollectionReport:
                     {**line, "amount": cash(line["amount"])}
                     for _, line in sorted(by_mode.items(), key=lambda item: (item[0][1], item[1]["label"]))
                 ],
+                "by_staff": by_staff(valid),
             },
         }
 
@@ -260,6 +272,12 @@ class FeeCollectionReport:
                 {**line, "amount": cash(line["amount"])}
                 for _, line in sorted(by_mode.items(), key=lambda item: (item[0][1], item[1]["label"]))
             ],
+            # A person works at one branch, so their lines are listed as they
+            # are - nothing to merge.
+            "by_staff": sorted(
+                (line for totals in branch_totals for line in totals.get("by_staff", [])),
+                key=lambda line: (-Decimal(line["amount"]), line["received_by"]),
+            ),
         }
 
     def pdf_totals(self, totals: dict, previous: dict | None) -> list[tuple]:
@@ -288,6 +306,46 @@ def _modes():
     from ..enums import FeePaymentMode
 
     return FeePaymentMode.choices
+
+
+NOT_RECORDED = "Not recorded"
+
+
+def by_staff(receipts) -> list[dict]:
+    """Valid receipts per person who took them, per currency (docs/dashboard.md).
+
+    Each receipt counts once, under one person, so the lines add up to the
+    report's own total - nothing is counted twice. `credit_amount` is the part
+    of `amount` held as credit for the family (an advance, F6), shown so the
+    money applied to fees and the money held are told apart; it is inside
+    `amount`, never added to it. Cash is split out because it is what
+    somebody has to hand over at the end of the day.
+    """
+    lines: dict[tuple, dict] = {}
+
+    for receipt in receipts:
+        person = receipt.received_by
+        line = lines.setdefault((receipt.received_by_id, receipt.currency_code), {
+            "received_by_id": receipt.received_by_id,
+            "received_by": person.name if person is not None else NOT_RECORDED,
+            "currency_code": receipt.currency_code,
+            "receipts": 0,
+            "amount": ZERO,
+            "cash": ZERO,
+            "credit_amount": ZERO,
+        })
+        line["receipts"] += 1
+        line["amount"] += receipt.amount
+        line["credit_amount"] += receipt.credit_amount
+        if receipt.payment_mode == "cash":
+            line["cash"] += receipt.amount
+
+    ordered = sorted(lines.values(), key=lambda line: (-line["amount"], line["received_by"], line["currency_code"]))
+
+    return [
+        {**line, "amount": cash(line["amount"]), "cash": cash(line["cash"]), "credit_amount": cash(line["credit_amount"])}
+        for line in ordered
+    ]
 
 
 # -- outstanding ------------------------------------------------------------------

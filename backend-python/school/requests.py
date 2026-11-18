@@ -5881,6 +5881,26 @@ class ReportRequest(serializers.Serializer):
             else:
                 values[field] = int(value)
 
+        # The fee collection report's two narrowing filters (the dashboard
+        # enhancement, docs/dashboard.md): who took the money, and how it was
+        # paid. No existence check on the person - one from another school
+        # simply matches none of this school's receipts, and saying "no such
+        # user" would tell a caller which ids exist elsewhere.
+        received_by = data.get("received_by")
+        if received_by is not None:
+            if not PHP_INTEGER.match(str(received_by)):
+                errors["received_by"] = [must_be_an_integer("received_by")]
+            else:
+                values["received_by"] = int(received_by)
+
+        if data.get("payment_mode") is not None:
+            from .enums import FeePaymentMode
+
+            if data["payment_mode"] not in FeePaymentMode.values:
+                errors["payment_mode"] = [selected_is_invalid("payment_mode")]
+            else:
+                values["payment_mode"] = data["payment_mode"]
+
         # PDF is Phase 20's, and Python's alone - Laravel refuses it as it
         # always has.
         if data.get("format") is not None and data["format"] not in ("json", "csv", "pdf"):
