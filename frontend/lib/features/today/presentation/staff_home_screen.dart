@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/models/module_access.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../check_in/application/check_in_notifier.dart';
@@ -15,9 +16,8 @@ import '../../check_in/presentation/check_in_card.dart';
 /// A teacher's day is periods and registers; theirs, in this app, is
 /// arriving and leaving. So: who they are, the school's date, and the
 /// check-in card - or, on a day there is nothing to check in to, why.
-/// Their leave, payslips and messages follow as the app grows; until then
-/// the website has them, and the screen says so rather than showing tiles
-/// that open nothing.
+/// Under it, where the rest of their app is: the Leave and Pay tabs where
+/// the school uses them, and the bell for messages.
 class StaffHomeScreen extends ConsumerWidget {
   const StaffHomeScreen({super.key});
 
@@ -54,13 +54,15 @@ class StaffHomeScreen extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.language, size: 18, color: colors.muted),
+              Icon(Icons.info_outline, size: 18, color: colors.muted),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Your leave, payslips and messages are on the School365ai website for now. '
-                  'They are coming to this app next.',
-                  key: const Key('staff-home-website-note'),
+                  whereThingsAre(
+                    leave: user?.canView(AppModules.leave) ?? false,
+                    pay: user?.moduleOn(AppModules.payroll) ?? false,
+                  ),
+                  key: const Key('staff-home-where-note'),
                   style: TextStyle(fontSize: 13, color: colors.muted, height: 1.4),
                 ),
               ),
@@ -70,6 +72,20 @@ class StaffHomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Where the rest of this app is, naming only the tabs this school has -
+/// the old note promised leave and payslips "next" after they had arrived
+/// (docs/mobile-apps-review.md, 7.6).
+String whereThingsAre({required bool leave, required bool pay}) {
+  final tabs = switch ((leave, pay)) {
+    (true, true) => 'Your leave and payslips are in the Leave and Pay tabs below. ',
+    (true, false) => 'Your leave is in the Leave tab below. ',
+    (false, true) => 'Your payslips are in the Pay tab below. ',
+    (false, false) => '',
+  };
+
+  return "${tabs}The school's messages are under the bell at the top.";
 }
 
 /// On a day the check-in card has nothing to offer, the reason in words -

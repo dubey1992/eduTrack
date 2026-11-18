@@ -49,10 +49,22 @@ void main() {
     expect(find.byKey(const Key('staff-home-no-check-in')), findsNothing);
   });
 
-  testWidgets('says plainly that the rest is on the website for now', (tester) async {
+  testWidgets('says where leave, payslips and messages are in this app', (tester) async {
     await show(tester, notCheckedIn());
 
-    expect(find.byKey(const Key('staff-home-website-note')), findsOneWidget);
+    expect(
+      find.text(
+        "Your leave and payslips are in the Leave and Pay tabs below. The school's messages are under the bell at the top.",
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('coming to this app'), findsNothing);
+  });
+
+  test('names only the tabs the school has switched on', () {
+    expect(whereThingsAre(leave: true, pay: false), startsWith('Your leave is in the Leave tab below.'));
+    expect(whereThingsAre(leave: false, pay: true), startsWith('Your payslips are in the Pay tab below.'));
+    expect(whereThingsAre(leave: false, pay: false), "The school's messages are under the bell at the top.");
   });
 
   for (final (label, day, title) in [

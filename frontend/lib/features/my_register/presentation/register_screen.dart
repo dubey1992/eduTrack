@@ -263,7 +263,15 @@ class _Banner extends ConsumerWidget {
     final (text, background, foreground, key) = problem != null
         ? (problem!, colors.dangerContainer, colors.onDangerContainer, 'register-problem')
         : sheet.refusal != null
-        ? ('Not sent: ${sheet.refusal}', colors.dangerContainer, colors.onDangerContainer, 'register-refused')
+        // The reason, then what to do about it (docs/mobile-apps-review.md,
+        // 2.5): the marks below start again, so taking them again is the retry.
+        ? (
+            'Not sent: ${sheet.refusal} If the register still needs taking, take it again below and submit it. '
+                'If this looks wrong, ask the school office.',
+            colors.dangerContainer,
+            colors.onDangerContainer,
+            'register-refused',
+          )
         : sheet.mode == RegisterMode.waiting
         ? (
             sending

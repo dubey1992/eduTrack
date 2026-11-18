@@ -336,14 +336,16 @@ class _RegisterCard extends ConsumerWidget {
     // What the phone knows comes first: the server cannot know about a
     // register still waiting on this phone for signal.
     final waiting = !register.submitted && queue.waitingFor(register.classSectionId, day) != null;
-    final refused = !register.submitted && !waiting && queue.unsentFor(register.classSectionId, day) != null;
+    final refusal = register.submitted || waiting ? null : queue.unsentFor(register.classSectionId, day)?.reason;
+    final refused = refusal != null;
 
     final (label, tone, hint) = register.submitted
         ? ('Taken', BadgeTone.success, 'Your class register')
         : waiting
         ? ('Saved, not sent', BadgeTone.info, 'Sends when there is signal')
         : refused
-        ? ('Not sent', BadgeTone.danger, 'Tap to see why')
+        // The server's reason itself, so the card explains without a tap.
+        ? ('Not sent', BadgeTone.danger, refusal)
         : ('Not taken', BadgeTone.warning, 'Tap to take the register');
 
     return Card(
@@ -353,7 +355,7 @@ class _RegisterCard extends ConsumerWidget {
         // The class as the title and what it is beneath: on a phone the badge
         // left "Grade 8 A register" cut short.
         title: Text(register.classSection, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(hint),
+        subtitle: Text(hint, maxLines: 2, overflow: TextOverflow.ellipsis),
         trailing: StatusBadge(label: label, tone: tone),
         onTap: () => context.push(
           Uri(
