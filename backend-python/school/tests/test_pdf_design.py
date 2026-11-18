@@ -224,9 +224,32 @@ class ThePage(SimpleTestCase):
         self.assertLess(html.index(".band td"), html.index(".mine"))
 
     def test_a_document_that_cannot_render_says_which(self):
-        with mock.patch.object(pdf_design.pisa, "CreatePDF", return_value=types.SimpleNamespace(err=1)):
+        with mock.patch("xhtml2pdf.pisa.CreatePDF", return_value=types.SimpleNamespace(err=1)):
             with self.assertRaisesMessage(RuntimeError, "Could not render payslip.pdf"):
                 pdf_design.render("<p>x</p>", "payslip.pdf")
+
+
+class LoadsLazily(SimpleTestCase):
+    """The live API is CGI: a fresh Python for every request. Loading the
+    PDF library at import time cost every request nine-tenths of a second,
+    and bursts ran into the host's process limit (2026-11-18)."""
+
+    def test_answering_a_request_does_not_load_the_pdf_library(self):
+        import os
+        import subprocess
+        import sys
+
+        code = (
+            "import os, sys, django;"
+            "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings');"
+            "django.setup(); import config.urls;"
+            "print(sorted(m for m in ('xhtml2pdf', 'reportlab', 'pyhanko') if m in sys.modules))"
+        )
+        env = {**os.environ, "DJANGO_DEBUG": "true"}
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, timeout=120)
+
+        self.assertEqual(0, result.returncode, result.stderr[-2000:])
+        self.assertEqual("[]", result.stdout.strip().splitlines()[-1])
 
 
 def png_uri(width: int, height: int) -> str:
