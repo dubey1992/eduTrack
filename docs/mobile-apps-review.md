@@ -1,0 +1,140 @@
+# Mobile apps review: what would set them apart
+
+**Status (2026-11-18): review and plan only - nothing here is built or approved.**
+
+The three phone apps - Staff (teachers, HODs, office, accountants), Driver
+(drivers and bus attendants) and Family (parents) - were read screen by screen
+against what Indian school apps commonly offer (Teachmint, Entab CampusCare,
+MyClassboard, Edunext, TrackSchoolBus and similar). Those rivals mostly sell
+the same list: attendance, fees, homework, notices, GPS bus tracking, RFID or
+QR boarding. Matching that list does not set School365ai apart. What can is:
+**doing the daily jobs in fewer taps, never losing data on a bad signal,
+telling the truth about every figure, and speaking the user's language** -
+things the apps already lean towards and rivals rarely do well.
+
+Each point says which app it is for: **[S]** Staff, **[D]** Driver,
+**[F]** Family. **Effort**: S small (days), M medium (a week or two), L large.
+**Kind**: *Fix* = something planned or promised that is missing or broken;
+*Gap* = rivals have it and we do not; *Edge* = would make us different.
+
+---
+
+## 1. The daily job in fewer taps
+
+The single biggest difference a teacher or driver feels.
+
+| # | Improvement | App | Kind | Effort |
+|---|---|---|---|---|
+| 1.1 | **"Board everyone at this stop"** with tap-to-remove exceptions, instead of one tap per child (40 children = 40+ taps today) | D | Edge | S |
+| 1.2 | **Undo snackbar** after every boarding/drop mark (the design promised it; only a superseding mark exists) | D | Fix | S |
+| 1.3 | **Auto "Reached"** when the bus is within the stop's radius, with the button kept as override | D | Edge | M |
+| 1.4 | **SOS and End trip in a fixed thumb bar**, not at the bottom of a long list (design said so) | D | Fix | S |
+| 1.5 | **Register by exception**: open with everyone present, tap only absentees; search by name/roll; swipe left/right | S | Edge | S |
+| 1.6 | **Teaching report in one tap**: "Same as yesterday", templates per subject, voice dictation, saved drafts | S | Edge | M |
+| 1.7 | **Marks entry by voice or camera**: read a column of marks from a photo of the answer-sheet list (OCR), teacher confirms | S | Edge | L |
+| 1.8 | **Shortcuts from Home** - Results card, "Report sick" on the attendance card, live map straight from the bus card | F | Fix | S |
+| 1.9 | **Leave**: balance card (planned in T4, not built), cancel/withdraw, half-day | S | Fix | S |
+
+## 2. Never lose work on a bad signal
+
+Rivals assume signal; Indian school buses and staff rooms often do not have it.
+
+| # | Improvement | App | Kind | Effort |
+|---|---|---|---|---|
+| 2.1 | **Offline queue for marks entry and teaching reports**, like the register already has | S | Edge | M |
+| 2.2 | **Read-only cache for every Family screen** (fees, results, notices), not just Home - "showing what was true at 9:40" | F | Edge | M |
+| 2.3 | **GPS points kept, not cleared**, when the server says the trip ended; refused batches logged, not discarded | D | Fix | S |
+| 2.4 | **Start a trip with no signal** and sync when back (today it is refused) | D | Edge | M |
+| 2.5 | **"Not sent" items can be retried or explained**, not only dismissed | D, S | Fix | S |
+| 2.6 | **Today screen retries itself** when the connection returns (only a Retry button today) | S | Fix | S |
+
+## 3. Speaking the user's language
+
+No major rival does Hindi and regional languages well across all three apps; drivers and many parents need it most.
+
+| # | Improvement | App | Kind | Effort |
+|---|---|---|---|---|
+| 3.1 | **Hindi first, then regional languages** (Marathi, Tamil, Telugu, Bengali...), chosen per user; all strings are hard-coded English today | D, F, S | Edge | L |
+| 3.2 | **Spoken prompts for the driver** ("Next stop Green Park, 4 children") using text-to-speech | D | Edge | M |
+| 3.3 | **Child photos** on the driver's list and the teacher's register - faster and safer than reading names | D, S | Gap | M |
+| 3.4 | **Large-text and screen-reader pass**; dates in the user's local format rather than US order on phones | D, F, S | Fix | M |
+
+## 4. Trust and honesty - what the figures really mean
+
+Already the product's character on the web; carry it into the apps.
+
+| # | Improvement | App | Kind | Effort |
+|---|---|---|---|---|
+| 4.1 | **"Why am I seeing this?"** under every figure (attendance %, fees owed, grade) - one line saying how it was worked out | F | Edge | S |
+| 4.2 | **Delivery receipts visible to parents and staff**: "Your absence note was read by Ms Rao at 9:12" (seen exists; extend to calls, notices) | F, S | Edge | S |
+| 4.3 | **Trip proof for parents**: the actual time the child boarded/dropped and who marked it, already recorded - show it in a clean timeline with the stop map | F | Edge | S |
+| 4.4 | **App lock** (fingerprint/face) for the Family and Staff apps - payslips, fees and children's data | F, S | Gap | S |
+| 4.5 | **Privacy controls the parent can see**: which staff can see their number, when the bus shares location (only during their child's trip - already true, say so) | F | Edge | S |
+
+## 5. Proactive, not reactive - the app tells you before you ask
+
+| # | Improvement | App | Kind | Effort |
+|---|---|---|---|---|
+| 5.1 | **Reminders for staff**: register not marked by first period, reports owed at end of day, check-in missed (listed as "not yet") | S | Fix | M |
+| 5.2 | **Push routing to the right screen**: a fee alert opens Fees, a bus alert opens the live map (Family push always opens Notices today) | F | Fix | S |
+| 5.3 | **Turn on push for Family and Driver apps** - Family needs its Firebase app registered; the Driver app has the package but no use | F, D | Fix | S |
+| 5.4 | **Early-warning for parents**: "Attendance is 72% this term, below the school's 75% line" - the backend's early-warning already exists | F | Edge | M |
+| 5.5 | **Delay broadcast from the bus**: one tap "Running 15 min late" to every parent on the route | D | Gap | M |
+| 5.6 | **Fee due nudges with the amount and a pay link**, three days before the date | F | Gap | S |
+
+## 6. Phone-native touches rivals skip
+
+| # | Improvement | App | Kind | Effort |
+|---|---|---|---|---|
+| 6.1 | **Home-screen widget**: "Bus 4 min away" / "Today: present" for parents; "2 reports owed" for teachers | F, S | Edge | M |
+| 6.2 | **Keep screen awake and portrait lock** while a trip runs (design asked for both, not found) | D | Fix | S |
+| 6.3 | **Add to calendar** for exam date sheets, PTMs and holidays (.ics) | F | Gap | S |
+| 6.4 | **UPI intent** ("Pay with any UPI app") instead of copying the UPI ID, even before a gateway | F | Edge | S |
+| 6.5 | **Deep links** from SMS/WhatsApp messages straight into the right app screen | F, S | Gap | M |
+| 6.6 | **Camera in the Staff app** for profile photo (web-only today) and attaching a photo to a report | S | Fix | S |
+| 6.7 | **Share payslip/receipt PDFs** through the share sheet, not only by email | S | Fix | S |
+
+## 7. Role gaps inside the apps
+
+| # | Improvement | App | Kind | Effort |
+|---|---|---|---|---|
+| 7.1 | **HOD approves leave** and marks the staff register from the phone (web-only today) | S | Fix | M |
+| 7.2 | **Accountant home**: today's collection, recent receipts, students overdue - the office staff Home is only check-in | S | Fix | M |
+| 7.3 | **Call requests for teachers** in the Staff app (they reach the web only) | S | Fix | S |
+| 7.4 | **Student lookup** for teachers (planned in T4, no route) | S | Fix | M |
+| 7.5 | **Week timetable**, not only today | S | Gap | S |
+| 7.6 | **Fix stale copy**: office staff Home still says leave and payslips are "coming to this app next" - they are already there | S | Fix | S |
+
+## 8. Learning and engagement for families
+
+What rivals lead with; worth matching only where it fits the product.
+
+| # | Improvement | App | Kind | Effort |
+|---|---|---|---|---|
+| 8.1 | **Homework** the teacher already writes in the teaching report, shown to the parent that evening | F | Gap | M |
+| 8.2 | **Marks trend chart** per subject across tests and terms | F | Gap | S |
+| 8.3 | **Notice attachments** (PDF, photo) | F | Gap | M |
+| 8.4 | **PTM slot booking** with the class teacher | F | Gap | M |
+| 8.5 | **Second guardian invite** by the parent, not only by the office | F | Gap | S |
+| 8.6 | **Events and photo gallery** | F | Gap | L |
+
+## 9. Release readiness (blocks everything above)
+
+| # | Item | App |
+|---|---|---|
+| 9.1 | Family push: register `com.school365ai.family` in Firebase | F |
+| 9.2 | Real-device test of trip GPS on Xiaomi/Oppo/Vivo/Samsung (D4.4 open) | D |
+| 9.3 | Privacy policy legal review, Play listings and data-safety forms | D, F |
+| 9.4 | Decide the crew role label and launcher name ("Driver App" shown to attendants) | D |
+| 9.5 | Family app docs still say "plan only" at the top | F |
+
+---
+
+## Recommended first slice - the clearest difference for least effort
+
+1.1 board-all, 1.2 undo, 1.4 thumb bar, 1.5 register by exception, 1.8 Home
+shortcuts, 2.3 keep GPS points, 4.4 app lock, 5.2 push routing, 6.2 keep
+awake, 6.4 UPI intent, 7.6 stale copy - all small, and together they change
+how the apps feel day to day. Hindi (3.1) is the biggest single
+differentiator but is large; it is worth starting early because every new
+screen added later makes it larger.
