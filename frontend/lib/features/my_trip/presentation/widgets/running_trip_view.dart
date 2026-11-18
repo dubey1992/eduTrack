@@ -17,6 +17,7 @@ import '../../data/navigation_session.dart';
 import '../../data/rider_search.dart';
 import '../navigate_screen.dart';
 import '../../data/models/not_sent_mark.dart';
+import 'bulk_mark_sheet.dart';
 import 'location_sharing_tile.dart';
 import 'not_sent_card.dart';
 import 'rider_search_field.dart';
@@ -255,6 +256,8 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
           ),
         // While searching, a stop with nobody matching at it is left out
         // altogether - its header would only say where the child is not.
+        // On a drop the children board at school before the first stop.
+        if (running && !searching && trip.direction == TripDirection.drop) ?_schoolBulk(trip),
         for (final stop in stops)
           if (!searching || shown.any((r) => r.stopId == stop.id)) ...[
             _StopHeader(
@@ -266,13 +269,104 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
               },
               onNavigate: () => _navigateTo(stop),
             ),
+            if (running && !searching) ?_stopBulk(trip, stop),
             for (final rider in shown.where((r) => r.stopId == stop.id)) _riderTile(rider, running),
           ],
+        // On a pickup they leave the bus at school, after the last stop.
+        if (running && !searching && trip.direction == TripDirection.pickup) ?_schoolBulk(trip),
         if (unplaced.isNotEmpty) ...[
           const _SectionTitle('Other riders'),
           for (final rider in unplaced) _riderTile(rider, running),
         ],
       ],
+    );
+  }
+
+  /// Many children at once (docs/mobile-apps-review.md, 1.1): the sheet
+  /// picks who, each is marked as one tap would mark them, and one Undo
+  /// takes the lot back while they wait on the phone.
+  Future<void> _markMany(List<TripRider> riders, TripRiderStatus to, String where) async {
+    final chosen = await showBulkMarkSheet(context, riders: riders, to: to, where: where);
+    if (chosen == null || chosen.isEmpty || !mounted) return;
+
+    final marked = <String>[];
+    for (final rider in chosen) {
+      final clientId = await _trip.markRider(rider, to);
+      if (clientId != null) marked.add(clientId);
+    }
+    if (marked.isEmpty || !mounted) return;
+
+    final what = '${marked.length} ${to.label.toLowerCase()} at $where';
+    _snackBars
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const Key('bulk-undo-snackbar'),
+          content: Text(what),
+          duration: TripMarkQueue.undoWindow,
+          action: SnackBarAction(
+            key: const Key('bulk-undo'),
+            label: 'Undo',
+            onPressed: () async {
+              var undone = 0;
+              for (final clientId in marked) {
+                if (await _trip.undoMark(clientId)) undone++;
+              }
+              if (!mounted) return;
+              _snackBars
+                ?..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      undone == marked.length
+                          ? 'Taken back - nobody was marked.'
+                          : 'Taken back: $undone. The rest had already been sent to the school.',
+                    ),
+                  ),
+                );
+            },
+          ),
+        ),
+      );
+  }
+
+  /// The button under a stop: board who waits there on a pickup, drop who
+  /// lives there on a drop. Nothing to do there, no button.
+  Widget? _stopBulk(TransportTrip trip, TripStop stop) {
+    final pickup = trip.direction == TripDirection.pickup;
+    final from = pickup ? TripRiderStatus.pending : TripRiderStatus.boarded;
+    final to = pickup ? TripRiderStatus.boarded : TripRiderStatus.dropped;
+    final riders = trip.riders.where((r) => r.stopId == stop.id && r.status == from).toList();
+    if (riders.isEmpty) return null;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        key: Key('bulk-stop-${stop.id}'),
+        onPressed: () => _markMany(riders, to, stop.name),
+        icon: Icon(pickup ? Icons.how_to_reg : Icons.home_outlined),
+        label: Text('${bulkVerb(to)} all ${riders.length} here'),
+      ),
+    );
+  }
+
+  /// The school end of the run: everyone still aboard dropped at school on
+  /// a pickup; everyone boarding at school on a drop.
+  Widget? _schoolBulk(TransportTrip trip) {
+    final pickup = trip.direction == TripDirection.pickup;
+    final from = pickup ? TripRiderStatus.boarded : TripRiderStatus.pending;
+    final to = pickup ? TripRiderStatus.dropped : TripRiderStatus.boarded;
+    final riders = trip.riders.where((r) => r.status == from).toList();
+    if (riders.isEmpty) return null;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: OutlinedButton.icon(
+        key: const Key('bulk-school'),
+        onPressed: () => _markMany(riders, to, 'school'),
+        icon: const Icon(Icons.school_outlined),
+        label: Text('${bulkVerb(to)} all ${riders.length} at school'),
+      ),
     );
   }
 
