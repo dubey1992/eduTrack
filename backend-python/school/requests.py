@@ -3463,6 +3463,16 @@ class AssignStudentTransportRequest(serializers.Serializer):
 class StartTripRequest(ScopedSerializer):
     route_id = LaravelIntegerField("route_id")
     direction = LaravelCharField("direction", max_length=255)
+    # When the crew pressed Start - sent by a phone that had no signal then
+    # and is only now getting through (docs/mobile-apps-review.md, 2.4).
+    # Absent means now. How far back it may be is the service's rule.
+    started_at = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    def validate_started_at(self, value):
+        if not value:
+            return None
+
+        return parse_instant("started_at", value)
 
     def validate_route_id(self, value):
         if not self.scope.apply_to(TransportRoute.objects.filter(pk=value)).exists():

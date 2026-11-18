@@ -698,3 +698,60 @@ class ATripNobodyEnded(TripTestCase):
             }, format="json")
 
         self.assertEqual(201, response.status_code, response.data)
+
+
+class StartedWithNoSignal(TripTestCase):
+    """A phone that pressed Start with no signal sends the moment it was
+    pressed once it gets through (docs/mobile-apps-review.md, 2.4)."""
+
+    def start_at(self, instant):
+        return self.as_user(self.f["manager"]).post(
+            TRIPS, {"route_id": self.f["route"].id, "direction": "pickup", "started_at": instant}, format="json"
+        )
+
+    def test_the_trip_and_its_started_event_keep_the_moment_start_was_pressed(self):
+        pressed = WEDNESDAY - dt.timedelta(minutes=20)
+
+        response = self.start_at(pressed.isoformat())
+
+        self.assertEqual(201, response.status_code, response.data)
+        trip = TransportTrip.objects.get(pk=response.data["id"])
+        self.assertEqual(pressed, trip.started_at)
+        self.assertEqual(pressed, TransportTripEvent.objects.get(trip=trip, type="started").recorded_at)
+
+    def test_the_marks_made_since_then_are_accepted(self):
+        pressed = WEDNESDAY - dt.timedelta(minutes=20)
+        trip_id = self.start_at(pressed.isoformat()).data["id"]
+        rider = TransportTripRider.objects.filter(trip_id=trip_id).first()
+
+        response = self.as_user(self.f["manager"]).post(f"{TRIPS}/{trip_id}/sync", {"operations": [{
+            "client_id": "a" * 32, "type": "boarded", "student_id": rider.student_id,
+            "occurred_at": (pressed + dt.timedelta(minutes=5)).isoformat(),
+        }]}, format="json")
+
+        self.assertEqual("applied", response.data["results"][0]["status"], response.data)
+
+    def test_a_start_ahead_of_the_servers_clock_is_refused(self):
+        response = self.start_at((WEDNESDAY + dt.timedelta(minutes=10)).isoformat())
+
+        self.assertEqual((409, "TRIP_START_IN_FUTURE"), (response.status_code, response.data["code"]))
+
+    def test_a_start_from_too_long_ago_or_another_day_is_refused(self):
+        for instant in (WEDNESDAY - dt.timedelta(hours=13), WEDNESDAY - dt.timedelta(days=1)):
+            with self.subTest(instant=instant):
+                response = self.start_at(instant.isoformat())
+
+                self.assertEqual((409, "TRIP_START_TOO_OLD"), (response.status_code, response.data["code"]))
+        self.assertFalse(TransportTrip.objects.exists())
+
+    def test_a_time_with_no_zone_is_refused(self):
+        response = self.start_at("2026-09-09T07:10:00")
+
+        self.assertEqual(422, response.status_code)
+
+    def test_the_route_rules_still_apply(self):
+        self.assertEqual(201, self.start_at((WEDNESDAY - dt.timedelta(minutes=5)).isoformat()).status_code)
+
+        again = self.start_at((WEDNESDAY - dt.timedelta(minutes=4)).isoformat())
+
+        self.assertEqual((409, "TRIP_ALREADY_IN_PROGRESS"), (again.status_code, again.data["code"]))
