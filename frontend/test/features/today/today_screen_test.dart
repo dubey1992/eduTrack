@@ -25,11 +25,7 @@ void main() {
   late InMemoryKeyValueStore store;
   setUp(() => store = InMemoryKeyValueStore());
 
-  Widget screen(
-    FakeTodayRepository today, {
-    ThemeData? theme,
-    UserRole role = UserRole.teacher,
-  }) {
+  Widget screen(FakeTodayRepository today, {ThemeData? theme, UserRole role = UserRole.teacher}) {
     return ProviderScope(
       overrides: [
         todayRepositoryProvider.overrideWithValue(today),
