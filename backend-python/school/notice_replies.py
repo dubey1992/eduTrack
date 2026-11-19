@@ -82,6 +82,11 @@ def reply_block(announcement: Announcement, children) -> dict | None:
                 "name": child.first_name,
                 "answer": answers[child.id].answer if child.id in answers else None,
                 "note": answers[child.id].note if child.id in answers else None,
+                # When the school got it (4.2): the last change, as an instant.
+                "answered_at": (
+                    answers[child.id].updated_at.isoformat()
+                    if child.id in answers and answers[child.id].updated_at else None
+                ),
             }
             for child in asked
         ],

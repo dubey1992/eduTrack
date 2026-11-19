@@ -203,6 +203,9 @@ def note_resource(note: AbsenceNote) -> dict:
         "has_photo": bool(note.photo_path),
         "status": note.status,
         "acknowledged_at": note.acknowledged_at.isoformat() if note.acknowledged_at else None,
+        # Who read it, for the parent too: "Seen by Ms Rao at 9:12"
+        # (docs/mobile-apps-review.md, 4.2).
+        "acknowledged_by": note.acknowledged_by.name if note.acknowledged_by_id else None,
         "sent_at": note.created_at.isoformat() if note.created_at else None,
     }
 
@@ -214,5 +217,4 @@ def staff_note_resource(note: AbsenceNote) -> dict:
         **note_resource(note),
         "student": {"id": student.id, "name": student.name, "class_section_id": student.class_section_id},
         "sent_by": note.submitted_by.name,
-        "acknowledged_by": note.acknowledged_by.name if note.acknowledged_by_id else None,
     }

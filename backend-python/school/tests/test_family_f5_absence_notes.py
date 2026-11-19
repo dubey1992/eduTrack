@@ -178,6 +178,9 @@ class TheSchoolSeesTheNotes(NotesTest):
         self.assertEqual(("acknowledged", "Neha Iyer"), (response.data["status"], response.data["acknowledged_by"]))
         [listed] = self.parent.get(f"{FAMILY}/children/{self.child.id}/absence-notes").data["data"]
         self.assertEqual("acknowledged", listed["status"])
+        # Who read it, and when - for the parent too (4.2).
+        self.assertEqual("Neha Iyer", listed["acknowledged_by"])
+        self.assertIsNotNone(listed["acknowledged_at"])
 
     def test_a_teacher_of_another_class_cannot_acknowledge(self):
         response = self.as_user(self.other_teacher).post(f"/api/v1/absence-notes/{self.note.id}/acknowledge")

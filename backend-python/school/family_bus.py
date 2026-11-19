@@ -19,9 +19,11 @@ numbers unless the school has switched that on.
 
 from __future__ import annotations
 
+from django.db.models import Q
+
 from . import geo, modules
 from .clock import SchoolClock
-from .enums import MessageChannel, MessageEvent, TripDirection, TripEventType, TripRiderStatus, TripStatus
+from .enums import MessageChannel, MessageEvent, TripDirection, TripEventType, TripRiderStatus, TripStatus, UserRole
 from .models import (
     Message,
     Student,
@@ -83,6 +85,7 @@ def bus_of(student: Student) -> dict | None:
         ).order_by("recorded_at")
     } if stop else {}
 
+    timelines = _timelines(trips, student, stop, at)
     show_crew = bool(modules.setting(student.school_id, MODULE, "show_crew_phone_to_parents"))
     attendant = route.attendant_user
 
@@ -118,10 +121,50 @@ def bus_of(student: Student) -> dict | None:
                 "boarded_at": at(riders[trip.id].boarded_at) if trip.id in riders else None,
                 "dropped_at": at(riders[trip.id].dropped_at) if trip.id in riders else None,
                 "is_live": live_trip(trip, riders.get(trip.id)),
+                "timeline": timelines.get(trip.id, []),
             }
             for trip in trips
         ],
     }
+
+
+# What a parent sees of a trip (docs/mobile-apps-review.md, 4.3): the bus
+# leaving, reaching their stop, their child on or off - each with the time
+# and who marked it - and the trip ending. Nothing about other children.
+_TRIP_WIDE = (TripEventType.STARTED, TripEventType.COMPLETED, TripEventType.CANCELLED)
+_THE_CHILD = (TripEventType.BOARDED, TripEventType.DROPPED, TripEventType.ABSENT)
+
+_ROLE_WORDS = {
+    UserRole.DRIVER: "driver",
+    UserRole.BUS_ATTENDANT: "attendant",
+    UserRole.TRANSPORT_MANAGER: "transport office",
+}
+
+
+def _timelines(trips, student: Student, stop, at) -> dict[int, list[dict]]:
+    if not trips:
+        return {}
+
+    concerns = Q(type__in=_TRIP_WIDE) | Q(type__in=_THE_CHILD, student_id=student.id)
+    if stop is not None:
+        concerns |= Q(type=TripEventType.STOP_REACHED, stop_id=stop.id)
+
+    timelines: dict[int, list[dict]] = {}
+    events = (
+        TransportTripEvent.objects.select_related("recorded_by")
+        .filter(concerns, trip__in=trips)
+        .order_by("recorded_at", "id")
+    )
+    for event in events:
+        by = event.recorded_by
+        timelines.setdefault(event.trip_id, []).append({
+            "type": event.type,
+            "at": at(event.recorded_at),
+            "stop_name": event.stop_name,
+            "by": by.name if by else None,
+            "by_role": _ROLE_WORDS.get(by.role, "school") if by else None,
+        })
+    return timelines
 
 
 def live_trip(trip: TransportTrip, rider: TransportTripRider | None) -> bool:

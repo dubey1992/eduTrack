@@ -165,6 +165,9 @@ def request_resource(request: CallRequest) -> dict:
         "status": request.status,
         "sent_at": request.created_at.isoformat() if request.created_at else None,
         "called_at": request.called_at.isoformat() if request.called_at else None,
+        # Who rang, for the parent too (4.2) - the note about the call stays
+        # with the school.
+        "called_by": request.called_by.name if request.called_by_id else None,
     }
 
 
@@ -174,6 +177,5 @@ def staff_request_resource(request: CallRequest) -> dict:
         "student": {"id": request.student_id, "name": request.student.name},
         "parent": {"name": request.requested_by.name, "mobile": parent_mobile(request.requested_by)},
         "teacher_name": request.teacher_user.name if request.teacher_user_id else None,
-        "called_by": request.called_by.name if request.called_by_id else None,
         "outcome_note": request.outcome_note,
     }

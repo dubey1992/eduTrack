@@ -125,6 +125,9 @@ class TheSchoolCallsBack(CallTest):
         [mine] = self.parent.get(f"{FAMILY}/children/{self.child.id}/call-requests").data["data"]
         self.assertEqual("called", mine["status"])
         self.assertNotIn("outcome_note", mine)
+        # Who rang, and when (4.2).
+        self.assertEqual(self.teacher.name, mine["called_by"])
+        self.assertIsNotNone(mine["called_at"])
 
     def test_another_teacher_cannot_mark_it_but_the_admin_can(self):
         self.assertEqual(403, self.as_user(self.other_teacher).post(
@@ -207,6 +210,29 @@ class AParentAnswers(ReplyTest):
 
         self.assertEqual([False], [c["answer"] for c in response.data["children"]])
         self.assertEqual(1, AnnouncementReply.objects.count())
+
+    def test_the_parent_sees_when_their_answer_reached_the_school(self):
+        notice_id = self.notice()["id"]
+        self.assertEqual([None], [c["answered_at"] for c in self.notice()["reply"]["children"]])
+
+        self.reply(notice_id, True)
+
+        [child] = self.notice()["reply"]["children"]
+        self.assertIsNotNone(child["answered_at"])
+
+    def test_the_school_sees_how_many_opened_it_in_the_app(self):
+        def counts():
+            [row] = self.as_user(self.admin).get("/api/v1/announcements").data["data"]
+            detail = self.as_user(self.admin).get(f"/api/v1/announcements/{row['id']}").data
+            return row["in_app_read_count"], detail["in_app_read_count"]
+
+        self.assertEqual((0, 0), counts())
+
+        Message.objects.filter(announcement=self.announcement, channel="in_app").update(read_at=timezone.now())
+
+        opened = Message.objects.filter(announcement=self.announcement, channel="in_app").count()
+        self.assertGreater(opened, 0)
+        self.assertEqual((opened, opened), counts())
 
     def test_a_child_the_notice_is_not_about_is_not_found(self):
         classmate_elsewhere = self.other_family_child()

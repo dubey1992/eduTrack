@@ -570,11 +570,27 @@ def announcement_resource(announcement) -> dict:
         "recipients_count": announcement.recipients_count,
         "sms_count": announcement.sms_count,
         "in_app_count": announcement.in_app_count,
+        # Of those in-app copies, how many have been opened (4.2).
+        "in_app_read_count": _in_app_read_count(announcement),
         # A notice that asks parents (Family app, F5): the question and the answers so far.
         "reply_question": announcement.reply_question,
         "reply_by": announcement.reply_by.isoformat() if announcement.reply_by else None,
         "reply_counts": _reply_counts(announcement) if announcement.reply_question else None,
     }
+
+
+def _in_app_read_count(announcement) -> int:
+    """Read from the list's annotation when there is one, else counted."""
+    annotated = getattr(announcement, "in_app_read", None)
+    if annotated is not None:
+        return annotated
+
+    from .enums import MessageChannel
+    from .models import Message
+
+    return Message.objects.filter(
+        announcement_id=announcement.id, channel=MessageChannel.IN_APP, read_at__isnull=False
+    ).count()
 
 
 def _reply_counts(announcement) -> dict:

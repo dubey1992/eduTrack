@@ -140,6 +140,59 @@ class TheBusTab(BusTest):
         self.assertEqual(404, self.parent.get(f"{FAMILY}/children/{self.child.id}/bus").status_code)
 
 
+class TheTripTimeline(BusTest):
+    """Trip proof for parents (docs/mobile-apps-review.md, 4.3): what happened
+    on the child's trip, when, and who marked it."""
+
+    def event(self, trip, kind, *, student=None, stop=None, by=None, minutes_ago=0):
+        now = timezone.now()
+        TransportTripEvent.objects.create(
+            school=self.school, trip=trip, type=kind, stop=stop, stop_name=stop.name if stop else None,
+            student=student, student_name=student.name if student else None, recorded_by=by or self.attendant,
+            recorded_at=now - dt.timedelta(minutes=minutes_ago), created_at=now, updated_at=now,
+        )
+
+    def test_the_bus_leaving_reaching_the_stop_and_the_child_boarding_in_order_with_who_marked_it(self):
+        trip = self.trip(rider_status="boarded")
+        self.event(trip, "started", minutes_ago=20)
+        self.event(trip, "stop_reached", stop=self.stop_2, minutes_ago=5)
+        self.event(trip, "boarded", student=self.child, stop=self.stop_2, minutes_ago=4)
+
+        [today] = self.bus()["trips"]
+
+        self.assertEqual(["started", "stop_reached", "boarded"], [e["type"] for e in today["timeline"]])
+        boarded = today["timeline"][-1]
+        self.assertEqual(("Sakal Nagar", "Ravi Kumar", "attendant"),
+                         (boarded["stop_name"], boarded["by"], boarded["by_role"]))
+        self.assertRegex(boarded["at"], r"^\d\d:\d\d$")
+
+    def test_nothing_about_other_children_or_other_stops(self):
+        other = factories.StudentFactory(school=self.school, class_section=self.child.class_section)
+        trip = self.trip(rider_status="pending")
+        self.event(trip, "stop_reached", stop=self.stop_1, minutes_ago=6)
+        self.event(trip, "boarded", student=other, stop=self.stop_1, minutes_ago=6)
+        self.event(trip, "guardian_called", student=self.child, minutes_ago=3)
+
+        [today] = self.bus()["trips"]
+
+        self.assertEqual([], today["timeline"])
+
+    def test_marked_by_the_transport_office_says_so(self):
+        manager = factories.UserFactory(school=self.school, role="TRANSPORT_MANAGER")
+        trip = self.trip(rider_status="dropped")
+        self.event(trip, "dropped", student=self.child, stop=self.stop_2, by=manager)
+
+        [today] = self.bus()["trips"]
+
+        self.assertEqual("transport office", today["timeline"][0]["by_role"])
+
+    def test_another_days_trip_is_not_shown(self):
+        trip = self.trip(rider_status="boarded")
+        TransportTrip.objects.filter(id=trip.id).update(trip_date=self.today() - dt.timedelta(days=1))
+
+        self.assertEqual([], self.bus()["trips"])
+
+
 class TheLiveBus(BusTest):
     def test_while_the_childs_trip_runs_the_bus_their_stop_and_how_far(self):
         trip = self.trip()
