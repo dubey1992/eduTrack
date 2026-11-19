@@ -196,6 +196,14 @@ the product owner before that phase starts.
 - 2.2 Family: **Fees, Bus, Attendance, Results, Notices, Timetable, Syllabus and Admit cards** keep their last answer on the phone and, with no signal, show it with *No connection. Showing what was true at 9:40 AM.* - as Home did. Signing out now forgets every copy, Home's included (Home's was kept before). A refusal is never covered by an old copy; the live bus map never uses one.
 - 2.4 Bus: **Start works with no signal**. My routes now carries each route's roster (its stops and children); the phone opens the trip from it under a stand-in id, and marks, positions and End collect there. When signal returns the start goes first - `POST /transport/trips` now takes `started_at`, today only, at most 12 hours old - and everything moves onto the real trip. If the other crew member started it meanwhile, this phone joins that trip; any other refusal moves its marks to *Not sent* with the reason. A phone that never saved the roster (an app or server older than this) still needs signal to start.
 
+**M5 progress (2026-11-19, built on main, not deployed). Decided by the owner: all four accountant screens; report photos wait for M9:**
+
+- 6.6 The **profile photo** comes from the camera or the phone's photos (it was web-only; the file chooser it used works only in a browser).
+- 7.3 **Call requests** in the Staff app - parents asking the class teacher to call - with a card on Today while anybody waits.
+- 7.4 **Find a student** by name or admission number, guardian one tap away; only for roles that may see students (a teacher: their own class).
+- 7.1 The HOD's Department gets **Leave** (pending requests in the department, never their own - new `GET /leaves?to_review=1`; "At work that day" asked first) and the **Staff** tab now marks the register (the web's own notifier and "On leave that day" question, shared).
+- 7.2 A **Fees** tab for whoever may manage fees: **Collect** (find the student, open their statement, record the payment, share the receipt), **Today** (the day's receipts per currency and per mode), **Overdue** (with the guardian to call - `fees/balances` now carries the guardian).
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?
