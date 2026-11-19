@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/photo_picker.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/file_picker.dart';
@@ -164,9 +166,14 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
   Future<void> _upload() async {
     if (_busy) return;
 
+    // On a phone, the camera or the phone's photos (docs/mobile-apps-
+    // review.md, 6.6); the web's file chooser offers both by itself.
+    final source = kIsWeb ? PhotoSource.gallery : await _askSource();
+    if (source == null || !mounted) return;
+
     final PickedFile? file;
     try {
-      file = await pickFile(accept: '.jpg,.jpeg,.png,image/jpeg,image/png');
+      file = await ref.read(photoPickerProvider)(source);
     } catch (error) {
       debugPrint('Picking a profile photo failed: $error');
       if (mounted) setState(() => _error = 'The photo could not be read. Try another file.');
@@ -185,6 +192,30 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
       success: 'Photo updated.',
     );
   }
+
+  Future<PhotoSource?> _askSource() => showModalBottomSheet<PhotoSource>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            key: const Key('profile-photo-camera'),
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: const Text('Take a photo'),
+            onTap: () => Navigator.of(context).pop(PhotoSource.camera),
+          ),
+          ListTile(
+            key: const Key('profile-photo-gallery'),
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('Choose from photos'),
+            onTap: () => Navigator.of(context).pop(PhotoSource.gallery),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Future<void> _remove() async {
     if (_busy) return;
@@ -232,29 +263,21 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
         children: [
           UserAvatar(photoUrl: profile.photoUrl, name: profile.name, radius: 56),
           const SizedBox(height: 16),
-          if (canPickFile)
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                FilledButton.icon(
-                  key: const Key('profile-upload-photo'),
-                  onPressed: _busy ? null : _upload,
-                  icon: const Icon(Icons.upload_outlined, size: 18),
-                  label: const Text('Upload photo'),
-                ),
-                if (profile.photoUrl != null) _removeButton(),
-              ],
-            )
-          else ...[
-            Text(
-              'Photos can be uploaded from the web app for now.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: colors.muted),
-            ),
-            if (profile.photoUrl != null) ...[const SizedBox(height: 8), _removeButton()],
-          ],
+          // The web's file chooser, or a phone's camera and photos (6.6).
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                key: const Key('profile-upload-photo'),
+                onPressed: _busy ? null : _upload,
+                icon: Icon(kIsWeb ? Icons.upload_outlined : Icons.photo_camera_outlined, size: 18),
+                label: Text(kIsWeb ? 'Upload photo' : 'Change photo'),
+              ),
+              if (profile.photoUrl != null) _removeButton(),
+            ],
+          ),
           if (_busy) ...[const SizedBox(height: 12), const LinearProgressIndicator()],
           if (_error != null) ...[
             const SizedBox(height: 12),

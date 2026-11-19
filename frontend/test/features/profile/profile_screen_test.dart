@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:edutrack_app/core/utils/picked_file.dart';
+import 'package:edutrack_app/core/utils/photo_picker.dart';
 import 'package:edutrack_app/core/widgets/brand_loader.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
@@ -19,7 +22,7 @@ import '../../support/fake_profile_repository.dart';
 
 const _session = AuthenticatedUser(id: 12, name: 'Asha Rao', email: 'asha@example.com', role: UserRole.teacher);
 
-Widget wrap(FakeProfileRepository fake) {
+Widget wrap(FakeProfileRepository fake, {List<Override> extra = const []}) {
   return ProviderScope(
     retry: (retryCount, error) => null,
     overrides: [
@@ -27,6 +30,7 @@ Widget wrap(FakeProfileRepository fake) {
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(sessionOnRestore: _session)),
       // A photo that cannot be fetched: the avatar falls back to initials.
       dioClientProvider.overrideWithValue(fakePhotoDio()),
+      ...extra,
     ],
     child: MaterialApp(
       theme: AppTheme.light(),
@@ -349,11 +353,54 @@ void main() {
   });
 
   group('the photo', () {
-    testWidgets('outside the web app the upload button is replaced by a note', (tester) async {
-      await pumpScreen(tester, FakeProfileRepository());
+    testWidgets('on a phone the photo comes from the camera or the photos on the phone (6.6)', (tester) async {
+      final fake = FakeProfileRepository();
+      final asked = <PhotoSource>[];
+      useDesktop(tester);
+      await tester.pumpWidget(
+        wrap(
+          fake,
+          extra: [
+            photoPickerProvider.overrideWithValue((source) async {
+              asked.add(source);
+              return PickedFile(name: 'me.jpg', bytes: List.filled(1000, 1));
+            }),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
 
-      expect(find.text('Photos can be uploaded from the web app for now.'), findsOneWidget);
-      expect(find.byKey(const Key('profile-upload-photo')), findsNothing);
+      expect(find.text('Photos can be uploaded from the web app for now.'), findsNothing);
+      await tester.tap(find.byKey(const Key('profile-upload-photo')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('profile-photo-camera')));
+      await tester.pumpAndSettle();
+
+      expect(asked, [PhotoSource.camera]);
+      expect(fake.lastUpload?.fileName, 'me.jpg');
+      expect(find.text('Photo updated.'), findsOneWidget);
+    });
+
+    testWidgets('a photo that is not a JPEG or PNG is refused before it is sent', (tester) async {
+      final fake = FakeProfileRepository();
+      useDesktop(tester);
+      await tester.pumpWidget(
+        wrap(
+          fake,
+          extra: [
+            photoPickerProvider.overrideWithValue((source) async => PickedFile(name: 'me.heic', bytes: [1, 2])),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('profile-upload-photo')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('profile-photo-gallery')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The photo must be a JPEG or PNG image.'), findsOneWidget);
+      expect(fake.lastUpload, isNull);
     });
 
     testWidgets('removing it asks first, and Cancel keeps it', (tester) async {
