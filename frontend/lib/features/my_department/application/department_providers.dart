@@ -1,3 +1,5 @@
+import '../../staff_leave/data/staff_leave_repository.dart';
+import '../../staff_leave/data/models/staff_leave.dart';
 import '../../reports/data/models/report.dart';
 import '../../reports/data/report_repository.dart';
 import '../../../core/utils/date_period.dart';
@@ -180,6 +182,13 @@ class StaffViewNotifier extends AsyncNotifier<StaffView> {
     state = await AsyncValue.guard(build);
   }
 }
+
+/// Leave waiting for this HOD's decision: pending, in their department,
+/// never their own (`to_review`, docs/mobile-apps-review.md, 7.1).
+final leaveToDecideProvider = FutureProvider.autoDispose<List<StaffLeave>>((ref) async {
+  final page = await ref.read(staffLeaveRepositoryProvider).list(toReview: true, page: 1, perPage: 50);
+  return page.items;
+}, retry: (retryCount, error) => null);
 
 /// This month for each teacher of the department - the web's HOD report.
 final departmentMonthProvider = FutureProvider.autoDispose<HodDepartmentReport>((ref) async {

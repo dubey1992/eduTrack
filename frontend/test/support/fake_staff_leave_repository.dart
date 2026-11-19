@@ -34,6 +34,9 @@ class FakeStaffLeaveRepository implements StaffLeaveRepository {
   int approveCallCount = 0;
   bool? lastApproveConfirmed;
 
+  /// Whether the last list() asked for the requests to decide (7.1).
+  bool? lastListToReview;
+
   /// Whether the last list() asked for the caller's own requests only.
   bool? lastListMine;
   Failure? failListWith;
@@ -90,14 +93,18 @@ class FakeStaffLeaveRepository implements StaffLeaveRepository {
     required int page,
     required int perPage,
     bool mine = false,
+    bool toReview = false,
     String? dateFrom,
     String? dateTo,
   }) async {
     lastListMine = mine;
     lastListRange = (dateFrom, dateTo);
     lastListStatus = status;
+    lastListToReview = toReview;
     if (failListWith != null) throw failListWith!;
-    return PaginatedResponse(items: leaves, currentPage: page, lastPage: 1, total: leaves.length, perPage: perPage);
+    // As the server: pending only - the fake has no other person to leave out.
+    final rows = toReview ? leaves.where((l) => l.status == LeaveStatus.pending).toList() : leaves;
+    return PaginatedResponse(items: rows, currentPage: page, lastPage: 1, total: rows.length, perPage: perPage);
   }
 
   @override

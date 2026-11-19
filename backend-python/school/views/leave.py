@@ -54,6 +54,9 @@ def collection(request) -> Response:
             # The School365ai app's "My leave": the caller's own, whatever
             # else their role lets them see.
             "mine": request.query_params.get("mine") in ("1", "true"),
+            # The Staff app's "to decide" (docs/mobile-apps-review.md, 7.1):
+            # pending, and never the caller's own - nobody reviews those.
+            "to_review": request.query_params.get("to_review") in ("1", "true"),
             "date_from": dates.iso_or_none(request.query_params.get("date_from")),
             "date_to": dates.iso_or_none(request.query_params.get("date_to")),
         },

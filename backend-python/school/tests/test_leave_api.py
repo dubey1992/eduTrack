@@ -763,3 +763,30 @@ class LeaveTakenThisYear(StaffLeaveTest):
 
         self.assertEqual((409, "STAFF_PROFILE_REQUIRED"), (response.status_code, response.data["code"]))
         self.assertIn("staff profile", response.data["message"])
+
+
+class LeaveToDecide(StaffLeaveTest):
+    """`to_review=1` - the HOD's "Leave" on the phone (docs/mobile-apps-review.md,
+    7.1): pending requests they may decide, never their own."""
+
+    def ids(self, user):
+        response = self.as_user(user).get("/api/v1/leaves", {"to_review": "1"})
+        self.assertEqual(200, response.status_code, response.data)
+
+        return sorted(row["id"] for row in response.data["data"])
+
+    def test_an_hod_gets_their_departments_pending_requests_and_not_their_own(self):
+        teachers = factories.StaffLeaveFactory(school=self.school, staff_profile=self.teacher_profile, status="pending")
+        factories.StaffLeaveFactory(school=self.school, staff_profile=self.teacher_profile, status="approved")
+        factories.StaffLeaveFactory(school=self.school, staff_profile=self.hod_profile, status="pending")
+        other_department = self.employee(factories.UserFactory(school=self.school, role=UserRole.TEACHER), self.arts)
+        factories.StaffLeaveFactory(school=self.school, staff_profile=other_department, status="pending")
+
+        self.assertEqual([teachers.id], self.ids(self.hod))
+
+    def test_another_schools_requests_never_appear(self):
+        other = factories.SchoolFactory()
+        stranger = factories.StaffProfileFactory(school=other, user=factories.UserFactory(school=other, role=UserRole.TEACHER))
+        factories.StaffLeaveFactory(school=other, staff_profile=stranger, status="pending")
+
+        self.assertEqual([], self.ids(self.hod))
