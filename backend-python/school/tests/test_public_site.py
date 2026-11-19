@@ -21,6 +21,7 @@ from django.core.cache import cache
 from django.core.management import call_command
 from django.utils import timezone
 from django.core.management.base import CommandError
+from django.template.loader import render_to_string
 from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIClient
 
@@ -790,3 +791,30 @@ class TheLinksIntoTheFamilyApp(TestCase):
             ("com.school365ai.family", ["AA:BB"]),
             (links[0]["target"]["package_name"], links[0]["target"]["sha256_cert_fingerprints"]),
         )
+
+
+class NoTemplateCommentShows(SimpleTestCase):
+    """Django's {# #} ends at the line: one that runs onto a second line is
+    printed as page text (found on every product page, 2026-11-19). Longer
+    notes use {% comment %}."""
+
+    def test_no_template_has_a_comment_that_runs_onto_a_second_line(self):
+        root = Path(__file__).resolve().parent.parent / "templates"
+        broken = [
+            f"{path.relative_to(root)}:{number}"
+            for path in root.rglob("*.html")
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1)
+            if "{#" in line and "#}" not in line.split("{#", 1)[1]
+        ]
+
+        self.assertEqual([], broken)
+
+    def test_a_product_page_with_further_reading_shows_no_template_text(self):
+        html = render_to_string(
+            "public_site/page.html",
+            {"further_posts": [{"title": "A post", "url": "/blog/a-post"}], "further_articles": [], "words": {}},
+        )
+
+        self.assertNotIn("{#", html)
+        self.assertNotIn("docs/seo.md", html)
+
