@@ -25,14 +25,18 @@ void main() {
   late InMemoryKeyValueStore store;
   setUp(() => store = InMemoryKeyValueStore());
 
-  Widget screen(FakeTodayRepository today, {ThemeData? theme}) {
+  Widget screen(
+    FakeTodayRepository today, {
+    ThemeData? theme,
+    UserRole role = UserRole.teacher,
+  }) {
     return ProviderScope(
       overrides: [
         todayRepositoryProvider.overrideWithValue(today),
         keyValueStoreProvider.overrideWithValue(store),
         checkInRepositoryProvider.overrideWithValue(FakeCheckInRepository()),
         authRepositoryProvider.overrideWithValue(
-          FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher, name: 'Asha Rao')),
+          FakeAuthRepository(sessionOnRestore: sessionUser(role, name: 'Asha Rao')),
         ),
       ],
       child: MaterialApp(
@@ -80,6 +84,24 @@ void main() {
     await pump(tester, FakeTodayRepository());
 
     expect(find.byKey(const Key('today-report-waiting')), findsOneWidget);
+  });
+
+  testWidgets('a teacher may find a student from Today; an HOD, who may not see students, is not offered it', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(480, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(screen(FakeTodayRepository()));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('today-open-students')), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(screen(FakeTodayRepository(), role: UserRole.hod));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('today-open-students')), findsNothing);
   });
 
   testWidgets('the whole week is one tap from Today', (tester) async {
