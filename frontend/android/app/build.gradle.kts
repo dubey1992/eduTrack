@@ -159,6 +159,10 @@ dependencies {
     // The _nio flavour, not the plain one: the Navigation SDK uses
     // java.nio.file, and AGP refuses the build without it.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
+    // The window themes in res/values*/styles.xml are AppCompat ones: the
+    // app lock's fingerprint dialog (local_auth) crashes on Android 8 and
+    // older under a plain platform theme (docs/mobile-apps-review.md, 4.4).
+    implementation("androidx.appcompat:appcompat:1.7.1")
 }
 
 kotlin {

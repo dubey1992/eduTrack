@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/env.dart';
 import 'core/routing/teacher_router.dart';
+import 'core/security/app_lock_gate.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/application/auth_notifier.dart';
 import 'features/my_register/presentation/register_sender.dart';
 import 'features/push/push_registrar.dart';
 
@@ -50,7 +52,10 @@ class TeacherApp extends ConsumerWidget {
             // The inbox opens over the frame; the rest are tabs.
             route == '/inbox' ? router.push(route) : router.go(route);
           },
-          child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+          child: AppLockGate(
+            signedIn: ref.watch(authNotifierProvider).value != null,
+            child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+          ),
         ),
       ),
     );
