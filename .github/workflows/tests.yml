@@ -246,6 +246,14 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned to the Flutter the app is built and tested with. "Latest
+          # stable" moved to 3.50 on 2026-11-11, which deprecates
+          # package:flutter/material.dart for package:material_ui - 549
+          # analyzer infos, fatal here - with no change to our code. Moving
+          # to material_ui waits until the packages we use move too: until
+          # then the two are separate copies of every Material class. Bump
+          # this deliberately, with the local SDK, when that migration is done.
+          flutter-version: '3.47.0'
           channel: stable
           cache: true
 
@@ -289,6 +297,14 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned to the Flutter the app is built and tested with. "Latest
+          # stable" moved to 3.50 on 2026-11-11, which deprecates
+          # package:flutter/material.dart for package:material_ui - 549
+          # analyzer infos, fatal here - with no change to our code. Moving
+          # to material_ui waits until the packages we use move too: until
+          # then the two are separate copies of every Material class. Bump
+          # this deliberately, with the local SDK, when that migration is done.
+          flutter-version: '3.47.0'
           channel: stable
           cache: true
 
