@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/security/app_lock_gate.dart';
 import '../../../core/utils/photo_picker.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
@@ -600,21 +601,29 @@ class _SecurityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _ProfileCard(
       title: 'Security',
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (hasPassword)
-            OutlinedButton.icon(
-              onPressed: () => showDialog(context: context, builder: (_) => const ChangePasswordDialog()),
-              icon: const Icon(Icons.lock_outline, size: 18),
-              label: const Text('Change password'),
-            ),
-          OutlinedButton.icon(
-            onPressed: () => showDialog(context: context, builder: (_) => const SignedInDevicesDialog()),
-            icon: const Icon(Icons.devices_outlined, size: 18),
-            label: const Text('Signed-in devices'),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              if (hasPassword)
+                OutlinedButton.icon(
+                  onPressed: () => showDialog(context: context, builder: (_) => const ChangePasswordDialog()),
+                  icon: const Icon(Icons.lock_outline, size: 18),
+                  label: const Text('Change password'),
+                ),
+              OutlinedButton.icon(
+                onPressed: () => showDialog(context: context, builder: (_) => const SignedInDevicesDialog()),
+                icon: const Icon(Icons.devices_outlined, size: 18),
+                label: const Text('Signed-in devices'),
+              ),
+            ],
           ),
+          // The app lock (docs/mobile-apps-review.md, 4.4) - only on a phone
+          // that can have one, so never on the web.
+          const AppLockSwitch(),
         ],
       ),
     );

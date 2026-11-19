@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/security/app_lock_gate.dart';
 import '../../../core/theme/app_colors.dart';
 import 'widgets/family_widgets.dart';
 
@@ -16,10 +17,7 @@ import 'widgets/family_widgets.dart';
 /// drops every location permission in its manifest. Change the code, change
 /// this page.
 class FamilyPrivacyScreen extends StatelessWidget {
-  const FamilyPrivacyScreen({super.key, this.extra = const []});
-
-  /// More cards below the facts - the app lock, where this phone has one.
-  final List<Widget> extra;
+  const FamilyPrivacyScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +64,9 @@ class FamilyPrivacyScreen extends StatelessWidget {
               child: const Text('Choose notifications'),
             ),
           ),
-          for (final card in extra) ...[const SizedBox(height: 12), card],
+          const SizedBox(height: 12),
+          // The app lock (4.4), on a phone that can have one.
+          const FamilyCard(child: AppLockSwitch()),
         ],
       ),
     );
