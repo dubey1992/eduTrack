@@ -39,6 +39,7 @@ const syllabusReview = Announcement(
   recipientsCount: 6,
   smsCount: 0,
   inAppCount: 6,
+  inAppReadCount: 4,
 );
 
 /// One whose expiry has passed, so it has dropped out of the feed.

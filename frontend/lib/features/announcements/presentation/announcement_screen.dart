@@ -316,6 +316,12 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
               '${announcement.expiresAt == null ? '' : ' · expires ${_expiresOn(announcement.expiresAt!)}'}',
               style: muted,
             ),
+            if (announcement.inAppCount > 0)
+              Text(
+                'Opened in the app by ${announcement.inAppReadCount} of ${announcement.inAppCount}',
+                key: Key('announcement-opened-${announcement.id}'),
+                style: muted,
+              ),
             if (announcement.asksParents) ...[
               const SizedBox(height: 10),
               Container(

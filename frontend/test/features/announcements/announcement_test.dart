@@ -192,6 +192,16 @@ void main() {
       expect(find.text('SMS + In-app'), findsOneWidget);
       expect(find.textContaining('reached 42 people'), findsOneWidget);
       expect(find.text('Expired'), findsOneWidget);
+      // No in-app copies, so nothing to have opened.
+      expect(find.byKey(const Key('announcement-opened-1')), findsNothing);
+    });
+
+    testWidgets('an in-app notice says how many have opened it (4.2)', (tester) async {
+      useDesktop(tester);
+      await tester.pumpWidget(wrap(FakeAnnouncementRepository(announcements: [syllabusReview])));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Opened in the app by 4 of 6'), findsOneWidget);
     });
 
     testWidgets('a notice that asks shows the counts, and who answered what', (tester) async {

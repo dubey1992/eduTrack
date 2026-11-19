@@ -67,6 +67,7 @@ class Announcement {
     required this.recipientsCount,
     required this.smsCount,
     required this.inAppCount,
+    this.inAppReadCount = 0,
     this.replyQuestion,
     this.replyBy,
     this.replyYes = 0,
@@ -96,6 +97,7 @@ class Announcement {
       recipientsCount: json['recipients_count'] as int? ?? 0,
       smsCount: json['sms_count'] as int? ?? 0,
       inAppCount: json['in_app_count'] as int? ?? 0,
+      inAppReadCount: json['in_app_read_count'] as int? ?? 0,
       replyQuestion: json['reply_question'] as String?,
       replyBy: json['reply_by'] as String?,
       replyYes: (json['reply_counts'] as Map<String, dynamic>?)?['yes'] as int? ?? 0,
@@ -127,6 +129,10 @@ class Announcement {
   final int recipientsCount;
   final int smsCount;
   final int inAppCount;
+
+  /// Of the in-app copies, how many have been opened
+  /// (docs/mobile-apps-review.md, 4.2).
+  final int inAppReadCount;
 
   /// A Yes/No question for parents (Family app, F5), and the last day for answers.
   final String? replyQuestion;
