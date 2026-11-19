@@ -1467,6 +1467,9 @@ class StaffLeaveService:
         if filters.get("mine"):
             leaves = leaves.filter(staff_profile__user_id=actor.id)
 
+        if filters.get("to_review"):
+            leaves = leaves.filter(status=LeaveStatus.PENDING).exclude(staff_profile__user_id=actor.id)
+
         if filters.get("staff_profile_id"):
             leaves = leaves.filter(staff_profile_id=filters["staff_profile_id"])
 

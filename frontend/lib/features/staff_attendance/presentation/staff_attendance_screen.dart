@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'save_staff_register.dart';
 import '../../../core/utils/date_period.dart';
 import '../../../core/widgets/period_filter.dart';
 import '../../reports/data/models/report.dart';
 import '../application/staff_attendance_period_provider.dart';
-import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
-import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -337,7 +336,9 @@ class _RegisterView extends ConsumerWidget {
                       TextButton(onPressed: notifier.markAllPresent, child: const Text('Mark All Present')),
                       const SizedBox(width: 8),
                       FilledButton(
-                        onPressed: isComplete ? () => _save(context, notifier, submitted: register.submitted) : null,
+                        onPressed: isComplete
+                            ? () => saveStaffRegister(context, notifier, submitted: register.submitted)
+                            : null,
                         child: Text(register.submitted ? 'Update Attendance' : 'Submit Attendance'),
                       ),
                     ],
@@ -635,40 +636,5 @@ class _CheckInLog extends ConsumerWidget {
         ),
       ),
     );
-  }
-}
-
-/// Submits or updates the register. Marking present somebody on leave that
-/// day - approved or applied for - is asked about first (decided
-/// 2026-11-02): the server names them, and the office may know better.
-Future<void> _save(BuildContext context, StaffAttendanceRegisterNotifier notifier, {required bool submitted}) async {
-  var confirmLeave = false;
-
-  while (true) {
-    try {
-      await notifier.submitOrUpdate(confirmLeave: confirmLeave);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(submitted ? 'Attendance updated.' : 'Attendance submitted.')));
-      }
-      return;
-    } catch (error) {
-      final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (!context.mounted) return;
-
-      if (failure.code == 'STAFF_ON_LEAVE' && !confirmLeave) {
-        confirmLeave = await confirmDialog(
-          context,
-          title: 'On leave that day',
-          message: failure.message,
-          confirmLabel: 'Mark present anyway',
-        );
-        if (confirmLeave) continue;
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
-      return;
-    }
   }
 }

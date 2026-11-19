@@ -1,3 +1,11 @@
+import '../../staff_leave/data/staff_leave_repository.dart';
+import '../../staff_leave/data/models/staff_leave.dart';
+import '../../staff_attendance/presentation/save_staff_register.dart';
+import '../../staff_attendance/application/staff_attendance_register_notifier.dart';
+import '../../auth/application/auth_notifier.dart';
+import '../../../core/widgets/confirm_dialog.dart';
+import '../../../core/models/module_access.dart';
+import '../../../core/errors/failure.dart';
 import '../../../core/utils/date_period.dart';
 import '../../../core/widgets/period_filter.dart';
 import '../../reports/data/models/report.dart';
@@ -17,27 +25,36 @@ import '../../teaching_reports/data/models/teaching_report.dart';
 import '../application/department_providers.dart';
 
 /// The Department tab, for an HOD (docs/teacher-app.md, T7): the reports
-/// waiting for their review, who in the department is in today, and how
-/// each teacher's month is going. The register itself is marked on the
-/// website; here it is read.
-class DepartmentScreen extends StatelessWidget {
+/// waiting for their review, the department's leave to decide, who is in
+/// today - marked here too (docs/mobile-apps-review.md, 7.1) - and how each
+/// teacher's month is going.
+class DepartmentScreen extends ConsumerWidget {
   const DepartmentScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const DefaultTabController(
-      length: 3,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authNotifierProvider).value;
+    // Leave is decided where the role may manage it - an HOD, by default.
+    final decidesLeave = user?.canManage(AppModules.leave) ?? false;
+
+    return DefaultTabController(
+      length: decidesLeave ? 4 : 3,
       child: Column(
         children: [
           TabBar(
-            key: Key('department-tabs'),
+            key: const Key('department-tabs'),
             tabs: [
-              Tab(key: Key('department-tab-review'), text: 'To review'),
-              Tab(key: Key('department-tab-staff'), text: 'Staff'),
-              Tab(key: Key('department-tab-month'), text: 'Teachers'),
+              const Tab(key: Key('department-tab-review'), text: 'To review'),
+              if (decidesLeave) const Tab(key: Key('department-tab-leave'), text: 'Leave'),
+              const Tab(key: Key('department-tab-staff'), text: 'Staff'),
+              const Tab(key: Key('department-tab-month'), text: 'Teachers'),
             ],
           ),
-          Expanded(child: TabBarView(children: [_ReviewTab(), _StaffTab(), _MonthTab()])),
+          Expanded(
+            child: TabBarView(
+              children: [const _ReviewTab(), if (decidesLeave) const _LeaveTab(), const _StaffTab(), const _MonthTab()],
+            ),
+          ),
         ],
       ),
     );
@@ -202,7 +219,7 @@ class _StaffTab extends ConsumerWidget {
         children: [
           _Intro(
             period == DatePeriod.day
-                ? 'Your department today: who is in, and when they arrived. The register is marked on the website.'
+                ? 'Your department today: who is in, and when they arrived. Mark anyone the register is missing.'
                 : 'Your department ${period.label.toLowerCase()}: each person\'s days in, absent and on leave, '
                       'out of the school days so far.',
           ),
@@ -332,30 +349,112 @@ class _Register extends StatelessWidget {
       );
     }
 
-    final present = register.staff
-        .where((s) => s.status == StaffAttendanceStatus.present || s.status == StaffAttendanceStatus.halfDay)
-        .length;
-    final unmarked = register.staff.where((s) => s.status == null).length;
+    return _MarkableRegister(date: register.attendanceDate);
+  }
+}
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$present of ${register.staff.length} in${unmarked > 0 ? ' · $unmarked not marked yet' : ''}',
-          key: const Key('staff-today-summary'),
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 12),
-        for (final person in register.staff) ...[_StaffRow(person: person), const SizedBox(height: 8)],
-      ],
+/// The department's register for the day, marked here (7.1): the web's own
+/// register notifier, so the same rules and the same "on leave that day"
+/// question. Only for a role that may manage staff attendance - an HOD by
+/// default - and read-only otherwise.
+class _MarkableRegister extends ConsumerStatefulWidget {
+  const _MarkableRegister({required this.date});
+
+  final String date;
+
+  @override
+  ConsumerState<_MarkableRegister> createState() => _MarkableRegisterState();
+}
+
+class _MarkableRegisterState extends ConsumerState<_MarkableRegister> {
+  bool _saving = false;
+
+  StaffAttendanceRegisterParams get _params => StaffAttendanceRegisterParams(date: widget.date);
+
+  Future<void> _save(bool submitted) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final saved = await saveStaffRegister(
+      context,
+      ref.read(staffAttendanceRegisterProvider(_params).notifier),
+      submitted: submitted,
+    );
+    if (mounted) setState(() => _saving = false);
+    if (saved) ref.invalidate(staffViewProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(authNotifierProvider).value;
+    final marks = user?.canManage(AppModules.staffAttendance) ?? false;
+    final register = ref.watch(staffAttendanceRegisterProvider(_params));
+    final notifier = ref.read(staffAttendanceRegisterProvider(_params).notifier);
+
+    return AsyncValueView<StaffAttendanceRegister>(
+      value: register,
+      onRetry: () => ref.invalidate(staffAttendanceRegisterProvider(_params)),
+      data: (context, day) {
+        final present = day.staff
+            .where((s) => s.status == StaffAttendanceStatus.present || s.status == StaffAttendanceStatus.halfDay)
+            .length;
+        final unmarked = day.staff.where((s) => s.status == null).length;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$present of ${day.staff.length} in${unmarked > 0 ? ' · $unmarked not marked yet' : ''}',
+              key: const Key('staff-today-summary'),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            for (final person in day.staff) ...[
+              _StaffRow(
+                person: person,
+                onMark: marks && !_saving ? (status) => notifier.setStatus(person.staffProfileId, status) : null,
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (marks) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  OutlinedButton(
+                    key: const Key('staff-register-all-present'),
+                    onPressed: _saving ? null : notifier.markAllPresent,
+                    child: const Text('All present'),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      key: const Key('staff-register-save'),
+                      onPressed: _saving || !notifier.isComplete ? null : () => _save(day.submitted),
+                      child: Text(
+                        _saving
+                            ? 'Saving...'
+                            : notifier.isComplete
+                            ? (day.submitted ? 'Update register' : 'Submit register')
+                            : 'Mark everyone ($unmarked left)',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
 
 class _StaffRow extends StatelessWidget {
-  const _StaffRow({required this.person});
+  const _StaffRow({required this.person, this.onMark});
 
   final StaffRosterEntry person;
+
+  /// Null where the register is only read.
+  final ValueChanged<StaffAttendanceStatus>? onMark;
 
   @override
   Widget build(BuildContext context) {
@@ -366,21 +465,201 @@ class _StaffRow extends StatelessWidget {
       if (person.checkedInFromApp) 'from the app',
     ].join(' · ');
 
+    final mark = onMark;
+    final badge = _badge();
+    if (mark != null) {
+      return Card(
+        key: Key('staff-today-${person.staffProfileId}'),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(person.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+              if (times.isNotEmpty) Text(times, style: TextStyle(color: colors.muted, fontSize: 13)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final status in StaffAttendanceStatus.values)
+                    ChoiceChip(
+                      key: Key('staff-mark-${person.staffProfileId}-${status.apiValue}'),
+                      label: Text(status.label),
+                      selected: person.status == status,
+                      onSelected: (_) => mark(status),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Card(
       key: Key('staff-today-${person.staffProfileId}'),
       child: ListTile(
         title: Text(person.name),
         subtitle: times.isEmpty ? null : Text(times, style: TextStyle(color: colors.muted)),
-        trailing: switch (person.status) {
-          null => const StatusBadge(label: 'Not marked', tone: BadgeTone.neutral),
-          StaffAttendanceStatus.present =>
-            person.late
-                ? const StatusBadge(label: 'Present · late', tone: BadgeTone.warning)
-                : const StatusBadge(label: 'Present', tone: BadgeTone.success),
-          StaffAttendanceStatus.halfDay => const StatusBadge(label: 'Half day', tone: BadgeTone.info),
-          StaffAttendanceStatus.leave => const StatusBadge(label: 'Leave', tone: BadgeTone.info),
-          StaffAttendanceStatus.absent => const StatusBadge(label: 'Absent', tone: BadgeTone.danger),
-        },
+        trailing: badge,
+      ),
+    );
+  }
+
+  Widget _badge() {
+    return switch (person.status) {
+      null => const StatusBadge(label: 'Not marked', tone: BadgeTone.neutral),
+      StaffAttendanceStatus.present =>
+        person.late
+            ? const StatusBadge(label: 'Present · late', tone: BadgeTone.warning)
+            : const StatusBadge(label: 'Present', tone: BadgeTone.success),
+      StaffAttendanceStatus.halfDay => const StatusBadge(label: 'Half day', tone: BadgeTone.info),
+      StaffAttendanceStatus.leave => const StatusBadge(label: 'Leave', tone: BadgeTone.info),
+      StaffAttendanceStatus.absent => const StatusBadge(label: 'Absent', tone: BadgeTone.danger),
+    };
+  }
+}
+
+// -- Leave --------------------------------------------------------------------
+
+/// The department's leave waiting for a decision (7.1). Asked before either
+/// way: on a phone a tap meant for the next card is easy, and the person
+/// is told at once.
+class _LeaveTab extends ConsumerWidget {
+  const _LeaveTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return RefreshIndicator(
+      key: const Key('department-leave-refresh'),
+      onRefresh: () => ref.refresh(leaveToDecideProvider.future),
+      child: ListView(
+        key: const Key('department-leave-list'),
+        padding: const EdgeInsets.all(16),
+        children: [
+          const _Intro('Leave your department has asked for, waiting for your decision.'),
+          const SizedBox(height: 16),
+          AsyncValueView<List<StaffLeave>>(
+            value: ref.watch(leaveToDecideProvider),
+            onRetry: () => ref.invalidate(leaveToDecideProvider),
+            isEmpty: (list) => list.isEmpty,
+            emptyBuilder: (context) => const _Empty(
+              key: Key('department-leave-empty'),
+              icon: Icons.event_available_outlined,
+              title: 'Nothing to decide.',
+              body: 'New requests from your department appear here.',
+            ),
+            data: (context, list) => Column(
+              children: [
+                for (final leave in list) ...[_LeaveCard(leave: leave), const SizedBox(height: 10)],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LeaveCard extends ConsumerStatefulWidget {
+  const _LeaveCard({required this.leave});
+
+  final StaffLeave leave;
+
+  @override
+  ConsumerState<_LeaveCard> createState() => _LeaveCardState();
+}
+
+class _LeaveCardState extends ConsumerState<_LeaveCard> {
+  bool _busy = false;
+
+  StaffLeave get leave => widget.leave;
+
+  String get _dates {
+    final start = formatIsoDate(leave.startDate);
+    return leave.startDate == leave.endDate ? start : '$start to ${formatIsoDate(leave.endDate)}';
+  }
+
+  Future<void> _decide({required bool approve}) async {
+    if (_busy) return;
+    final confirmed = await confirmDialog(
+      context,
+      title: approve ? 'Approve this leave?' : 'Reject this leave?',
+      message: '${leave.staffName ?? 'This request'}: ${leave.leaveType.label}, $_dates.',
+      confirmLabel: approve ? 'Approve' : 'Reject',
+      isDestructive: !approve,
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final repository = ref.read(staffLeaveRepositoryProvider);
+    try {
+      var confirm = false;
+      while (true) {
+        try {
+          approve ? await repository.approve(leave.id, confirm: confirm) : await repository.reject(leave.id);
+          break;
+        } on Failure catch (failure) {
+          // Leave for a day the person was at work is asked about first
+          // (decided 2026-11-02); the server names the days.
+          if (failure.code == 'WORKED_ON_LEAVE_DAY' && !confirm && mounted) {
+            confirm = await confirmDialog(
+              context,
+              title: 'At work that day',
+              message: failure.message,
+              confirmLabel: 'Approve anyway',
+            );
+            if (confirm) continue;
+            return;
+          }
+          rethrow;
+        }
+      }
+      messenger.showSnackBar(SnackBar(content: Text(approve ? 'Leave approved.' : 'Leave rejected.')));
+      ref.invalidate(leaveToDecideProvider);
+    } on Failure catch (failure) {
+      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+
+    return Card(
+      key: Key('department-leave-${leave.id}'),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(leave.staffName ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text('${leave.leaveType.label} · $_dates', style: TextStyle(color: colors.muted)),
+            const SizedBox(height: 6),
+            Text(leave.reason),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  key: Key('department-leave-reject-${leave.id}'),
+                  onPressed: _busy ? null : () => _decide(approve: false),
+                  child: const Text('Reject'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  key: Key('department-leave-approve-${leave.id}'),
+                  onPressed: _busy ? null : () => _decide(approve: true),
+                  child: const Text('Approve'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

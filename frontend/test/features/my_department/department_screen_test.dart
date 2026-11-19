@@ -1,3 +1,5 @@
+import 'package:edutrack_app/features/staff_leave/data/staff_leave_repository.dart';
+import 'package:edutrack_app/core/models/permission_level.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
@@ -21,6 +23,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import '../my_leave/my_leave_test.dart' show leave;
+import '../../support/fake_staff_leave_repository.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_hod_report_repository.dart';
 import '../../support/fake_report_repository.dart';
@@ -152,7 +156,15 @@ void main() {
     );
   });
 
-  Future<void> pump(WidgetTester tester, {String at = '/department', UserRole role = UserRole.hod}) async {
+  late FakeStaffLeaveRepository leaves;
+  setUp(() => leaves = FakeStaffLeaveRepository(leaves: [leave(id: 1)]));
+
+  Future<void> pump(
+    WidgetTester tester, {
+    String at = '/department',
+    UserRole role = UserRole.hod,
+    Map<String, PermissionLevel>? permissions,
+  }) async {
     tester.view.physicalSize = const Size(400, 860);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -178,12 +190,13 @@ void main() {
         overrides: [
           teachingReportRepositoryProvider.overrideWithValue(reports),
           staffAttendanceRepositoryProvider.overrideWithValue(staff),
+          staffLeaveRepositoryProvider.overrideWithValue(leaves),
           hodReportRepositoryProvider.overrideWithValue(month),
           reportRepositoryProvider.overrideWithValue(staffReport),
           todayRepositoryProvider.overrideWithValue(FakeTodayRepository()),
           authRepositoryProvider.overrideWithValue(
             FakeAuthRepository(
-              sessionOnRestore: sessionUser(role, id: hodId, name: 'Rohit Verma'),
+              sessionOnRestore: sessionUser(role, id: hodId, name: 'Rohit Verma', permissions: permissions),
             ),
           ),
         ],
@@ -265,6 +278,64 @@ void main() {
     });
   });
 
+  group('Leave to decide (docs/mobile-apps-review.md, 7.1)', () {
+    testWidgets("lists the department's pending requests and approves one after asking", (tester) async {
+      await pump(tester);
+      await openTab(tester, 'leave');
+
+      expect(leaves.lastListToReview, isTrue);
+      expect(find.text('Meera Joshi'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('department-leave-approve-1')));
+      await tester.pumpAndSettle();
+      expect(find.text('Approve this leave?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Approve').last);
+      await tester.pumpAndSettle();
+
+      expect(leaves.lastApprovedId, 1);
+      expect(find.text('Leave approved.'), findsOneWidget);
+      expect(find.byKey(const Key('department-leave-empty')), findsOneWidget);
+    });
+
+    testWidgets('a day they were at work is asked about, and approved only if the HOD says so', (tester) async {
+      leaves.refuseUnconfirmedApproveWith = const Failure(
+        code: 'WORKED_ON_LEAVE_DAY',
+        message: 'Meera Joshi was at work on 10/28/2026 (checked in at 8:10 AM). Approve the leave anyway?',
+      );
+      await pump(tester);
+      await openTab(tester, 'leave');
+
+      await tester.tap(find.byKey(const Key('department-leave-approve-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Approve').last);
+      await tester.pumpAndSettle();
+      expect(find.text('At work that day'), findsOneWidget);
+      await tester.tap(find.text('Approve anyway'));
+      await tester.pumpAndSettle();
+
+      expect(leaves.lastApproveConfirmed, isTrue);
+      expect(leaves.lastApprovedId, 1);
+    });
+
+    testWidgets('rejecting asks first, and backing out decides nothing', (tester) async {
+      await pump(tester);
+      await openTab(tester, 'leave');
+
+      await tester.tap(find.byKey(const Key('department-leave-reject-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(leaves.lastRejectedId, isNull);
+    });
+
+    testWidgets('a role that may not manage leave has no Leave tab', (tester) async {
+      await pump(tester, permissions: {...allModulesAt(PermissionLevel.view)});
+
+      expect(find.byKey(const Key('department-tab-leave')), findsNothing);
+    });
+  });
+
   group('Staff today', () {
     testWidgets("reads the register for the school's today and shows who is in", (tester) async {
       await pump(tester);
@@ -273,14 +344,30 @@ void main() {
       expect(staff.lastRegisterDate, '2026-10-26');
       expect(find.text('1 of 3 in · 1 not marked yet'), findsOneWidget);
       expect(find.text('In 8:20 AM · from the app'), findsOneWidget);
-      expect(
-        find.descendant(of: find.byKey(const Key('staff-today-2')), matching: find.text('Absent')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: find.byKey(const Key('staff-today-3')), matching: find.text('Not marked')),
-        findsOneWidget,
-      );
+      bool selected(int person, String status) =>
+          tester.widget<ChoiceChip>(find.byKey(Key('staff-mark-$person-$status'))).selected;
+      expect(selected(2, 'absent'), isTrue);
+      expect(StaffAttendanceStatus.values.any((s) => selected(3, s.apiValue)), isFalse, reason: 'not marked');
+    });
+
+    testWidgets('an HOD marks who is missing, then saves the register (7.1)', (tester) async {
+      await pump(tester);
+      await openTab(tester, 'staff');
+      expect(tester.widget<FilledButton>(find.byKey(const Key('staff-register-save'))).onPressed, isNull);
+
+      await tester.ensureVisible(find.byKey(const Key('staff-mark-3-present')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('staff-mark-3-present')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('staff-register-save')));
+      expect(tester.widget<FilledButton>(find.byKey(const Key('staff-register-save'))).onPressed, isNotNull);
+      await tester.tap(find.byKey(const Key('staff-register-save')));
+      await tester.pumpAndSettle();
+
+      // Already begun today (some are marked), so it is an update.
+      final sent = staff.lastSubmitPayload ?? staff.lastUpdatePayload;
+      expect((sent?['records'] as List).map((r) => r['status']), contains('present'));
+      expect(find.textContaining('Attendance '), findsOneWidget);
     });
 
     testWidgets('a holiday says the school is closed', (tester) async {

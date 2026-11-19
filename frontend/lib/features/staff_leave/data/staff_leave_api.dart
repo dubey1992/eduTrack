@@ -35,6 +35,7 @@ class StaffLeaveApi {
     int? page,
     int? perPage,
     bool mine = false,
+    bool toReview = false,
     String? dateFrom,
     String? dateTo,
   }) async {
@@ -43,6 +44,7 @@ class StaffLeaveApi {
       queryParameters: {
         // The caller's own requests only - the app's "My leave".
         if (mine) 'mine': 1,
+        if (toReview) 'to_review': 1,
         'school_id': ?schoolId,
         'department_id': ?departmentId,
         'status': ?status,
