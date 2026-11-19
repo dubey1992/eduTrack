@@ -17,6 +17,7 @@ import datetime as dt
 from unittest import mock
 
 from django.core.cache import cache
+from django.utils import timezone
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -217,6 +218,33 @@ class PublishingTest(AnnouncementTestCase):
         queue.work()
 
         self.assertFalse(Message.objects.exists())
+
+
+class OpenedTest(AnnouncementTestCase):
+    """How many in-app copies have been opened (docs/mobile-apps-review.md, 4.2)."""
+
+    def test_the_list_and_the_notice_count_the_copies_opened(self):
+        self.publish(self.f["admin"], channels="in_app")
+        announcement = Announcement.objects.get()
+
+        def counts():
+            [row] = self.as_user(self.f["admin"]).get(URL).data["data"]
+            detail = self.as_user(self.f["admin"]).get(f"{URL}/{announcement.id}").data
+            return row["in_app_read_count"], detail["in_app_read_count"]
+
+        self.assertEqual((0, 0), counts())
+
+        first, second = Message.objects.filter(announcement=announcement, channel="in_app")[:2]
+        Message.objects.filter(id__in=[first.id, second.id]).update(read_at=timezone.now())
+
+        self.assertEqual((2, 2), counts())
+
+    def test_sms_copies_never_count_as_opened(self):
+        self.publish(self.f["admin"])
+        Message.objects.filter(channel="sms").update(read_at=timezone.now())
+
+        [row] = self.as_user(self.f["admin"]).get(URL).data["data"]
+        self.assertEqual(0, row["in_app_read_count"])
 
 
 class ValidationTest(AnnouncementTestCase):

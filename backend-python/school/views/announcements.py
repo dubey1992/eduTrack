@@ -19,6 +19,7 @@ Fixed on both backends in the same change.
 
 from __future__ import annotations
 
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -26,7 +27,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..clock import SchoolClock
-from ..enums import AnnouncementAudience, AnnouncementChannels
+from ..enums import AnnouncementAudience, AnnouncementChannels, MessageChannel
 from ..errors import UnprocessableRequest
 from ..models import Announcement
 from ..pagination import LaravelPagination
@@ -53,6 +54,11 @@ def collection(request) -> Response:
     found = AnnouncementService.visible_to(
         request.user,
         {key: query.get(key) for key in ("school_id", "audience_type", "q", "active_only")},
+    )
+
+    # How many in-app copies were opened, counted with the page, not per row.
+    found = found.annotate(
+        in_app_read=Count("message", filter=Q(message__channel=MessageChannel.IN_APP, message__read_at__isnull=False))
     )
 
     paginator = LaravelPagination()
