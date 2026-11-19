@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/models/module_access.dart';
@@ -50,6 +51,17 @@ class StaffHomeScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           const CheckInCard(),
           if (day != null && day.hidden) ...[_WhyNoCheckIn(day: day), const SizedBox(height: 12)],
+          // The office finding a student (7.4), where its role may see them.
+          if (user?.canView(AppModules.students) ?? false)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const Key('staff-home-open-students'),
+                onPressed: () => context.push('/students'),
+                icon: const Icon(Icons.person_search_outlined),
+                label: const Text('Find a student'),
+              ),
+            ),
           const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,

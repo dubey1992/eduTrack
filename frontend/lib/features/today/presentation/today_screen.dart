@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../call_requests/call_requests.dart';
 import '../../my_teaching/data/outbox.dart';
 import '../../my_teaching/application/staff_outbox.dart';
+import '../../../core/models/module_access.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -77,16 +78,9 @@ class _DayView extends StatelessWidget {
         // It hides itself on a closed day, on leave, and where the school
         // marks staff in the office.
         const CheckInCard(),
-        // The rest of the week, one tap away (docs/mobile-apps-review.md, 7.5).
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            key: const Key('today-open-week'),
-            onPressed: () => context.push('/week'),
-            icon: const Icon(Icons.calendar_view_week_outlined),
-            label: const Text('My week'),
-          ),
-        ),
+        // The rest of the week (7.5), and finding a student (7.4) for those
+        // who may see students - a teacher, their own class.
+        const _QuickLinks(),
         if (!day.isOpen)
           _ClosedCard(holidayName: day.holidayName)
         else ...[
@@ -376,6 +370,37 @@ class _RegisterCard extends ConsumerWidget {
             queryParameters: {'date': day, 'label': register.classSection},
           ).toString(),
         ),
+      ),
+    );
+  }
+}
+
+class _QuickLinks extends ConsumerWidget {
+  const _QuickLinks();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authNotifierProvider).value;
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        spacing: 4,
+        children: [
+          if (user?.canView(AppModules.students) ?? false)
+            TextButton.icon(
+              key: const Key('today-open-students'),
+              onPressed: () => context.push('/students'),
+              icon: const Icon(Icons.person_search_outlined),
+              label: const Text('Students'),
+            ),
+          TextButton.icon(
+            key: const Key('today-open-week'),
+            onPressed: () => context.push('/week'),
+            icon: const Icon(Icons.calendar_view_week_outlined),
+            label: const Text('My week'),
+          ),
+        ],
       ),
     );
   }

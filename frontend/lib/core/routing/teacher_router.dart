@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/students/presentation/student_lookup_screen.dart';
 import '../../features/call_requests/call_requests.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/teacher/teacher_change_password_screen.dart';
@@ -59,6 +60,7 @@ const teacherPaths = {
   '/profile',
   '/week',
   '/call-requests',
+  '/students',
 };
 
 /// A payslip's own screen, `/pay/<id>`.
@@ -205,6 +207,8 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
       ),
       // Over the frame, from the bell, with a back arrow.
       GoRoute(path: '/inbox', builder: (context, state) => const MyInboxScreen()),
+      // Finding a student, over the frame (7.4).
+      GoRoute(path: '/students', builder: (context, state) => const StudentLookupScreen()),
       // Parents waiting for a call, over the frame, from Today (7.3).
       GoRoute(
         path: '/call-requests',
