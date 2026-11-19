@@ -272,3 +272,49 @@ class UpdatedLine extends StatelessWidget {
     );
   }
 }
+
+/// "How is this worked out?" under a figure (docs/mobile-apps-review.md,
+/// 4.1): one tap opens one line saying how the server counted it, in the
+/// words a parent would use. Closed at first, so the figure leads.
+class HowWorkedOut extends StatefulWidget {
+  const HowWorkedOut({super.key, required this.explanation});
+
+  final String explanation;
+
+  @override
+  State<HowWorkedOut> createState() => _HowWorkedOutState();
+}
+
+class _HowWorkedOutState extends State<HowWorkedOut> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.appColors.muted;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _open = !_open),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.info_outline_rounded, size: 16, color: muted),
+                const SizedBox(width: 6),
+                Text(
+                  'How is this worked out?',
+                  style: TextStyle(fontSize: 13, color: muted, decoration: TextDecoration.underline),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_open) Text(widget.explanation, style: TextStyle(fontSize: 13, color: muted, height: 1.35)),
+      ],
+    );
+  }
+}

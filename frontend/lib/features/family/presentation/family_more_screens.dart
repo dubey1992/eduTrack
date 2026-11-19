@@ -150,6 +150,13 @@ class FamilyMoreScreen extends ConsumerWidget {
                 subtitle: 'Choose what comes to this app',
                 onTap: () => context.push('/notifications'),
               ),
+              _MoreRow(
+                key: const Key('family-more-privacy'),
+                icon: Icons.shield_outlined,
+                title: 'Your privacy',
+                subtitle: 'Who sees your number, and the bus on the map',
+                onTap: () => context.push('/privacy'),
+              ),
             ],
           ),
         ),

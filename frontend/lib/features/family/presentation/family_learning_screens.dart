@@ -161,7 +161,7 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
                             message: 'A test appears here once the teacher publishes its marks.',
                           ),
                         )
-                      else
+                      else ...[
                         for (final subject in results.subjects) ...[
                           _SubjectCard(
                             subject: subject,
@@ -170,6 +170,14 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
                           ),
                           const SizedBox(height: 12),
                         ],
+                        const HowWorkedOut(
+                          key: Key('family-why-results'),
+                          explanation:
+                              "Each subject's figure is the average of its published test marks this term, as "
+                              'percentages - weighted when the school gave every test a weight. A test the child '
+                              "missed is left out. The grade comes from the school's own grading scale.",
+                        ),
+                      ],
                     ],
                   ],
                 ),

@@ -160,6 +160,13 @@ class _Summary extends StatelessWidget {
               if (fees.credit > 0) _Figure(label: 'Credit held', value: money(fees.credit)),
             ],
           ),
+          const SizedBox(height: 4),
+          const HowWorkedOut(
+            key: Key('family-why-fees'),
+            explanation:
+                "Left to pay is this year's fees, less any discount, less what the school has recorded as paid. "
+                'Overdue is the part of it from instalments whose due date has passed.',
+          ),
         ],
       ),
     );

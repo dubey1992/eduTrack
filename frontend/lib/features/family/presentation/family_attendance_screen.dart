@@ -121,6 +121,12 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
                     title: DateFormat('MMMM').format(data.month),
                     summary: data.monthSummary,
                   ),
+                  const HowWorkedOut(
+                    key: Key('family-why-attendance'),
+                    explanation:
+                        'Days present out of the days the class register was marked. A day on leave counts as '
+                        'not present; a day the school did not mark the register, and a holiday, are left out.',
+                  ),
                   const SizedBox(height: 12),
                   _MissedDays(days: data.missed),
                 ],
