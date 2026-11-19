@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/fees/presentation/accountant_fees_screen.dart';
 import 'package:edutrack_app/core/models/permission_level.dart';
 import 'package:edutrack_app/features/assessments/data/assessment_repository.dart';
 import 'package:edutrack_app/features/hod/data/hod_report_repository.dart';
@@ -251,6 +252,21 @@ void main() {
       expect(find.byKey(const Key('teacher-nav-department')), findsNothing);
       expect(find.byKey(const Key('teacher-nav-profile')), findsOneWidget);
       expect(find.byKey(const Key('teacher-profile')), findsNothing);
+    });
+
+    testWidgets('an accountant has Fees, and the tab opens without bouncing back (7.2)', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.accountant)));
+
+      expect(find.byKey(const Key('teacher-nav-fees')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('teacher-nav-fees')));
+      await tester.pumpAndSettle();
+      expect(find.byType(AccountantFeesScreen), findsOneWidget);
+    });
+
+    testWidgets('a teacher, who takes no fees, has no Fees tab', (tester) async {
+      await pump(tester, FakeAuthRepository(sessionOnRestore: sessionUser(UserRole.teacher)));
+
+      expect(find.byKey(const Key('teacher-nav-fees')), findsNothing);
     });
 
     testWidgets('opens the class register from Today, and comes back', (tester) async {

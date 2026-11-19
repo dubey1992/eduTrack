@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/fees/presentation/widgets/student_statement_view.dart';
+import '../../features/fees/presentation/accountant_fees_screen.dart';
 import '../../features/students/presentation/student_lookup_screen.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/teacher/teacher_change_password_screen.dart';
@@ -58,9 +60,12 @@ const teacherPaths = {
   '/inbox',
   '/profile',
   '/week',
-  '/call-requests',
-  '/students',
+  '/find-student',
+  '/fees',
 };
+
+/// A student's fee statement, `/fees/students/<id>`.
+final _feeStatementPath = RegExp(r'^/fees/students/\d+$');
 
 /// A payslip's own screen, `/pay/<id>`.
 final _payslipPath = RegExp(r'^/pay/\d+$');
@@ -206,8 +211,25 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
       ),
       // Over the frame, from the bell, with a back arrow.
       GoRoute(path: '/inbox', builder: (context, state) => const MyInboxScreen()),
+      // The accountant's fees (7.2): the tab, and a student's statement over it
+      // - the website's own, where the payment is recorded.
+      GoRoute(
+        path: '/fees',
+        builder: (context, state) => const TeacherFrame(place: TeacherPlace.fees, child: AccountantFeesScreen()),
+      ),
+      GoRoute(
+        path: '/fees/students/:id',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: const Text('Fees')),
+          body: StudentStatementView(
+            studentId: int.parse(state.pathParameters['id']!),
+            onBack: () => context.pop(),
+            canManage: true,
+          ),
+        ),
+      ),
       // Finding a student, over the frame (7.4).
-      GoRoute(path: '/students', builder: (context, state) => const StudentLookupScreen()),
+      GoRoute(path: '/find-student', builder: (context, state) => const StudentLookupScreen()),
       // The teacher's own week, over the frame, from Today (7.5).
       GoRoute(path: '/week', builder: (context, state) => const WeekScreen()),
       GoRoute(
@@ -251,6 +273,7 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
       final known =
           teacherPaths.contains(location) ||
           _payslipPath.hasMatch(location) ||
+          _feeStatementPath.hasMatch(location) ||
           _registerPath.hasMatch(location) ||
           _teachingPaths.any((path) => path.hasMatch(location));
       return known ? null : '/today';

@@ -388,7 +388,7 @@ class _QuickLinks extends ConsumerWidget {
           if (user?.canView(AppModules.students) ?? false)
             TextButton.icon(
               key: const Key('today-open-students'),
-              onPressed: () => context.push('/students'),
+              onPressed: () => context.push('/find-student'),
               icon: const Icon(Icons.person_search_outlined),
               label: const Text('Students'),
             ),

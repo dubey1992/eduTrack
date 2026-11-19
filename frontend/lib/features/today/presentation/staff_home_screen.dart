@@ -57,7 +57,7 @@ class StaffHomeScreen extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 key: const Key('staff-home-open-students'),
-                onPressed: () => context.push('/students'),
+                onPressed: () => context.push('/find-student'),
                 icon: const Icon(Icons.person_search_outlined),
                 label: const Text('Find a student'),
               ),

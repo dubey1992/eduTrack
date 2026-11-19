@@ -26,6 +26,7 @@ enum TeacherPlace {
   department('/department', 'Department', Icons.groups_outlined, Icons.groups),
   leave('/leave', 'Leave', Icons.event_note_outlined, Icons.event_note),
   pay('/pay', 'Pay', Icons.receipt_long_outlined, Icons.receipt_long),
+  fees('/fees', 'Fees', Icons.currency_rupee_outlined, Icons.currency_rupee),
   profile('/profile', 'Me', Icons.person_outline, Icons.person);
 
   const TeacherPlace(this.path, this.label, this.icon, this.selectedIcon);
@@ -52,6 +53,9 @@ bool _shows(TeacherPlace place, AuthenticatedUser? user) => switch (place) {
             user.canView(AppModules.assessments)),
   TeacherPlace.leave => user?.canView(AppModules.leave) ?? false,
   TeacherPlace.pay => user?.access.moduleOn(AppModules.payroll) ?? false,
+  // Taking fees (7.2): whoever the matrix lets manage them - the accountant
+  // and the School Admin by default. Never a Super Admin, who only reads.
+  TeacherPlace.fees => user != null && user.role != UserRole.superAdmin && user.canManage(AppModules.fees),
   _ => true,
 };
 

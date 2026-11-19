@@ -277,6 +277,8 @@ class FeeRepository {
     String? search,
     PaymentMode? mode,
     bool? cancelled,
+    String? from,
+    String? to,
     int page = 1,
     int perPage = 20,
   }) {
@@ -284,6 +286,8 @@ class FeeRepository {
       final response = await _dio.get(
         '/fees/receipts',
         queryParameters: {
+          'from': ?from,
+          'to': ?to,
           'school_id': ?schoolId,
           'student_id': ?studentId,
           if (search != null && search.isNotEmpty) 'search': search,
