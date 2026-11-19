@@ -154,6 +154,8 @@ class FeeStudent {
     this.className,
     this.sectionName,
     this.admissionDate,
+    this.guardianName,
+    this.guardianMobile,
   });
 
   factory FeeStudent.fromJson(Map<String, dynamic> json) => FeeStudent(
@@ -164,6 +166,8 @@ class FeeStudent {
     className: json['class_name'] as String?,
     sectionName: json['section_name'] as String?,
     admissionDate: json['admission_date'] is String ? DateTime.tryParse(json['admission_date'] as String) : null,
+    guardianName: json['guardian_name'] as String?,
+    guardianMobile: json['guardian_mobile'] as String?,
   );
 
   final int id;
@@ -173,6 +177,10 @@ class FeeStudent {
   final String? className;
   final String? sectionName;
   final DateTime? admissionDate;
+
+  /// Whom to call about the fees - sent with the balances list (7.2).
+  final String? guardianName;
+  final String? guardianMobile;
 
   /// "Class 8 - A", or whichever half is known.
   String get classLabel => [?className, ?sectionName].join(' - ');

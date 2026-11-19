@@ -394,11 +394,13 @@ class FakeFeeRepository implements FeeRepository {
     String? search,
     PaymentMode? mode,
     bool? cancelled,
+    String? from,
+    String? to,
     int page = 1,
     int perPage = 20,
   }) async {
     _check();
-    receiptQueries.add({'search': search, 'mode': mode, 'cancelled': cancelled, 'page': page});
+    receiptQueries.add({'search': search, 'mode': mode, 'cancelled': cancelled, 'page': page, 'from': from, 'to': to});
     final rows = [
       for (final row in receiptRows)
         if ((mode == null || row.paymentMode == mode) && (cancelled == null || row.isCancelled == cancelled)) row,
@@ -634,6 +636,8 @@ const _asha = FeeStudent(
   status: 'active',
   className: 'Class 8',
   sectionName: 'A',
+  guardianName: 'Meera Rao',
+  guardianMobile: '+91 98765 43210',
 );
 
 /// Asha owes 4,000, of which 2,000 is overdue.

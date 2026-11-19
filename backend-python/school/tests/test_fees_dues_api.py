@@ -227,7 +227,9 @@ class TheBalancesList(StatementTestCase):
         first = response.data["data"][0]
         self.assertEqual(
             {"id": self.bina.id, "name": "Bina Iyer", "admission_number": "ADM-2", "class_name": "Class 8",
-             "section_name": "A", "status": "active"},
+             "section_name": "A", "status": "active",
+             # Whom to call, for the accountant's overdue list (7.2).
+             "guardian_name": self.bina.guardian_name, "guardian_mobile": self.bina.guardian_mobile},
             first["student"],
         )
         self.assertEqual("INR", first["currency_code"])

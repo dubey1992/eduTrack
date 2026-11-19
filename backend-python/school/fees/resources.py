@@ -171,6 +171,10 @@ def balance_row_resource(row) -> dict:
             "class_name": class_name,
             "section_name": section_name,
             "status": student.status,
+            # Whom to call about it - the accountant's overdue list on the
+            # phone (docs/mobile-apps-review.md, 7.2). Seen by fee roles only.
+            "guardian_name": student.guardian_name,
+            "guardian_mobile": student.guardian_mobile,
         },
         "charged": cash(row.charged),
         "paid": cash(row.paid),
