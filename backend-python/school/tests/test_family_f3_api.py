@@ -187,6 +187,12 @@ class HowToPay(FeesTest):
             pay,
         )
 
+    def test_a_upi_app_is_told_whom_to_pay_and_whose_fees_they_are(self):
+        data = self.fees()
+
+        self.assertEqual(self.school.name, data["payee_name"])
+        self.assertEqual(f"Fees - {self.child.name} ({self.child.admission_number})", data["payment_note"])
+
     def test_what_the_school_left_empty_is_not_shown(self):
         pay = self.fees()["how_to_pay"]
 

@@ -218,6 +218,12 @@ class _RequestCard extends StatelessWidget {
                   '${request.preferredTime == null ? '' : ' · ${request.preferredTime}'}',
                   style: TextStyle(fontSize: 13, color: colours.muted),
                 ),
+                if (request.called && request.calledAt != null)
+                  Text(
+                    'Called by ${request.calledBy ?? 'the school'} · ${formatDateTime(request.calledAt!)}',
+                    key: Key('family-call-done-${request.id}'),
+                    style: TextStyle(fontSize: 13, color: colours.muted),
+                  ),
               ],
             ),
           ),
@@ -311,9 +317,9 @@ class _NoticeReplyPanelState extends ConsumerState<NoticeReplyPanel> {
               style: TextStyle(fontSize: 12, color: colours.muted),
             ),
           const SizedBox(height: 10),
-          for (final child in reply.children)
+          for (final child in reply.children) ...[
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.only(bottom: child.answeredAt == null ? 8 : 2),
               child: Row(
                 children: [
                   Expanded(
@@ -342,6 +348,16 @@ class _NoticeReplyPanelState extends ConsumerState<NoticeReplyPanel> {
                 ],
               ),
             ),
+            if (child.answeredAt != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Your answer reached the school · ${formatDateTime(child.answeredAt!)}',
+                  key: Key('family-reply-received-${child.studentId}'),
+                  style: TextStyle(fontSize: 12, color: colours.muted),
+                ),
+              ),
+          ],
           if (reply.open)
             TextField(
               key: const Key('family-reply-note'),

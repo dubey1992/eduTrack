@@ -221,7 +221,9 @@ class _TripTimeline extends StatelessWidget {
     final trip = this.trip;
     final stop = stopName ?? 'your stop';
 
-    final List<(String, String?)> steps;
+    // Each step: what happened, when, and for the child's own moments who
+    // marked it (4.3).
+    final List<(String, String?, String?)> steps;
     String? note;
 
     if (trip == null) {
@@ -235,17 +237,17 @@ class _TripTimeline extends StatelessWidget {
       note = '$childName is not on this trip\'s list today.';
     } else if (trip.isPickup) {
       steps = [
-        ('The bus set off', trip.startedAt),
-        ('Reached $stop', trip.reachedStopAt),
-        if (trip.riderStatus == 'absent') ('Did not board', null) else ('$childName boarded', trip.boardedAt),
-        ('Reached school', trip.status == 'completed' ? trip.endedAt : null),
+        ('The bus set off', trip.startedAt, null),
+        ('Reached $stop', trip.reachedStopAt, null),
+        _boarding(trip, childName),
+        ('Reached school', trip.status == 'completed' ? trip.endedAt : null, null),
       ];
     } else {
       steps = [
-        ('The bus left school', trip.startedAt),
-        if (trip.riderStatus == 'absent') ('Did not board', null) else ('$childName boarded', trip.boardedAt),
-        ('Reached $stop', trip.reachedStopAt),
-        ('$childName got off', trip.droppedAt),
+        ('The bus left school', trip.startedAt, null),
+        _boarding(trip, childName),
+        ('Reached $stop', trip.reachedStopAt, null),
+        ('$childName got off', trip.droppedAt, trip.droppedAt == null ? null : trip.marks['dropped']?.proof),
       ];
     }
 
@@ -261,19 +263,33 @@ class _TripTimeline extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           if (note != null) Text(note, style: TextStyle(color: colours.muted)),
-          for (final (index, (label, time)) in steps.indexed)
-            _Step(label: label, time: time, absent: label == 'Did not board', last: index == steps.length - 1),
+          for (final (index, (label, time, proof)) in steps.indexed)
+            _Step(
+              label: label,
+              time: time,
+              proof: proof,
+              absent: label == 'Did not board',
+              last: index == steps.length - 1,
+            ),
         ],
       ),
     );
   }
 }
 
+(String, String?, String?) _boarding(FamilyBusTrip trip, String childName) {
+  if (trip.riderStatus == 'absent') return ('Did not board', null, trip.marks['absent']?.proof);
+  return ('$childName boarded', trip.boardedAt, trip.boardedAt == null ? null : trip.marks['boarded']?.proof);
+}
+
 class _Step extends StatelessWidget {
-  const _Step({required this.label, required this.time, required this.absent, required this.last});
+  const _Step({required this.label, required this.time, this.proof, required this.absent, required this.last});
 
   final String label;
   final String? time;
+
+  /// Who marked it, and where.
+  final String? proof;
   final bool absent;
   final bool last;
 
@@ -301,18 +317,24 @@ class _Step extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontWeight: done ? FontWeight.w600 : FontWeight.w400,
-                        color: done || absent ? null : colours.muted,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontWeight: done ? FontWeight.w600 : FontWeight.w400,
+                            color: done || absent ? null : colours.muted,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (time != null) Text(formatClock(time!), style: TextStyle(color: colours.muted)),
+                    ],
                   ),
-                  if (time != null) Text(formatClock(time!), style: TextStyle(color: colours.muted)),
+                  if (proof != null) Text(proof!, style: TextStyle(fontSize: 12, color: colours.muted)),
                 ],
               ),
             ),

@@ -29,6 +29,8 @@ class FamilyFees {
     required this.receipts,
     required this.credit,
     required this.howToPay,
+    this.payeeName,
+    this.paymentNote,
   });
 
   factory FamilyFees.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,8 @@ class FamilyFees {
       ],
       credit: double.parse(json['credit'] as String),
       howToPay: HowToPay.fromJson(json['how_to_pay'] as Map<String, dynamic>),
+      payeeName: json['payee_name'] as String?,
+      paymentNote: json['payment_note'] as String?,
     );
   }
 
@@ -60,6 +64,41 @@ class FamilyFees {
   /// Money the school holds for the child, paid towards later instalments.
   final double credit;
   final HowToPay howToPay;
+
+  /// For "Pay with any UPI app" (docs/mobile-apps-review.md, 6.4): whom the
+  /// money goes to, and the note that tells the office whose fees it is.
+  final String? payeeName;
+  final String? paymentNote;
+
+  /// What to pay now: everything overdue, or else the next instalment still
+  /// owing. Null when nothing is owed.
+  double? get amountToPayNow {
+    final overdue = totals?.overdue ?? 0;
+    if (overdue > 0) return overdue;
+
+    final owing = instalments.where((line) => line.balance > 0).toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    return owing.isEmpty ? null : owing.first.balance;
+  }
+
+  /// A upi://pay link for the phone's UPI apps; null where UPI cannot be
+  /// used - no UPI ID, a school outside India's rupee, or nothing owed.
+  Uri? get upiPayLink {
+    final upiId = howToPay.upiId;
+    final amount = amountToPayNow;
+    if (upiId == null || currencyCode != 'INR' || amount == null) return null;
+
+    // Spaces as %20, not the + a query map would give: not every UPI app
+    // reads + as a space. The UPI ID is left as the school wrote it.
+    final parts = [
+      'pa=$upiId',
+      if (payeeName != null) 'pn=${Uri.encodeComponent(payeeName!)}',
+      'am=${amount.toStringAsFixed(2)}',
+      'cu=INR',
+      if (paymentNote != null) 'tn=${Uri.encodeComponent(paymentNote!)}',
+    ];
+    return Uri.parse('upi://pay?${parts.join('&')}');
+  }
 }
 
 class FeeTotals {

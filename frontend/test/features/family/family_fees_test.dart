@@ -1,4 +1,5 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/utils/currency_formatter.dart';
 import 'package:edutrack_app/features/family/data/models/family_fees.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -65,6 +66,44 @@ void main() {
 
       expect(copied, ['greenfield@okaxis']);
       expect(find.text('UPI ID copied'), findsOneWidget);
+    });
+
+    testWidgets('pays what is overdue with any UPI app, the school named and the child noted (6.4)', (tester) async {
+      final (_, _, opened) = await pumpFamilyApp(tester, goTo: '/fees');
+
+      await reveal(tester, find.byKey(const Key('family-pay-upi')));
+      expect(find.text('Pay ${formatCurrency(3500, 'INR')} with any UPI app'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('family-pay-upi')));
+      await tester.pumpAndSettle();
+
+      expect(
+        opened.single.toString(),
+        'upi://pay?pa=greenfield@okaxis&pn=Greenfield%20School&am=3500.00&cu=INR'
+        '&tn=Fees%20-%20Aarav%20Sharma%20(ADM-102)',
+      );
+      expect(find.textContaining('the school records it'), findsOneWidget);
+    });
+
+    testWidgets('a phone with no UPI app is told to copy the UPI ID instead', (tester) async {
+      await pumpFamilyApp(tester, goTo: '/fees', opens: false);
+
+      await reveal(tester, find.byKey(const Key('family-pay-upi')));
+      await tester.tap(find.byKey(const Key('family-pay-upi')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('No UPI app opened'), findsOneWidget);
+    });
+
+    testWidgets('no UPI button where UPI cannot be used: another currency, or no UPI ID', (tester) async {
+      final abroad = FakeFamilyRepository()..feesValue = familyFees(currencyCode: 'USD');
+      await pumpFamilyApp(tester, data: abroad, goTo: '/fees');
+      expect(find.byKey(const Key('family-pay-upi')), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+      final noUpi = FakeFamilyRepository()
+        ..feesValue = familyFees(howToPay: const HowToPay(counterHours: 'Mon-Sat, 9 am to 1 pm'));
+      await pumpFamilyApp(tester, data: noUpi, goTo: '/fees');
+      expect(find.byKey(const Key('family-pay-upi')), findsNothing);
     });
 
     testWidgets('calls the office about fees', (tester) async {

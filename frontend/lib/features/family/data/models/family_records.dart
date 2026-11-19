@@ -298,6 +298,9 @@ class NoticeReply {
                 name: child['name'] as String,
                 answer: child['answer'] as bool?,
                 note: child['note'] as String?,
+                answeredAt: child['answered_at'] == null
+                    ? null
+                    : DateTime.parse(child['answered_at'] as String).toLocal(),
               ),
           ],
         );
@@ -307,7 +310,9 @@ class NoticeReply {
 
   /// Answers are still taken.
   final bool open;
-  final List<({int studentId, String name, bool? answer, String? note})> children;
+
+  /// Each child asked about; [answeredAt] is when the school got the answer.
+  final List<({int studentId, String name, bool? answer, String? note, DateTime? answeredAt})> children;
 
   /// Still open, and a child without an answer.
   bool get awaitsAnswer => open && children.any((child) => child.answer == null);

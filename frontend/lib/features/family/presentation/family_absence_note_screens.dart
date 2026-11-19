@@ -111,6 +111,15 @@ class _NoteCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(note.reason),
+          if (note.seen && note.seenAt != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Seen by ${note.seenBy ?? 'the class teacher'} · ${formatDateTime(note.seenAt!)}',
+                key: Key('family-note-seen-${note.id}'),
+                style: TextStyle(fontSize: 13, color: colours.muted),
+              ),
+            ),
           if (note.hasPhoto)
             Padding(
               padding: const EdgeInsets.only(top: 6),

@@ -89,6 +89,7 @@ class FamilyBusTrip {
     this.boardedAt,
     this.droppedAt,
     required this.isLive,
+    this.marks = const {},
   });
 
   factory FamilyBusTrip.fromJson(Map<String, dynamic> json) => FamilyBusTrip(
@@ -102,6 +103,10 @@ class FamilyBusTrip {
     boardedAt: json['boarded_at'] as String?,
     droppedAt: json['dropped_at'] as String?,
     isLive: json['is_live'] as bool? ?? false,
+    marks: {
+      for (final event in json['timeline'] as List<dynamic>? ?? const [])
+        (event as Map<String, dynamic>)['type'] as String: BusMark.fromJson(event),
+    },
   );
 
   final int id;
@@ -125,11 +130,41 @@ class FamilyBusTrip {
   /// The parent may follow this trip on the map now.
   final bool isLive;
 
+  /// The trip's record, by kind - started, stop_reached, boarded, dropped,
+  /// absent, completed - the last of each (docs/mobile-apps-review.md, 4.3).
+  final Map<String, BusMark> marks;
+
   bool get isPickup => direction == 'pickup';
   bool get isCancelled => status == 'cancelled';
 }
 
 /// Where the bus is now, during the child's own trip.
+/// Who marked a moment of the trip, and where.
+class BusMark {
+  const BusMark({this.at, this.stopName, this.by, this.byRole});
+
+  factory BusMark.fromJson(Map<String, dynamic> json) => BusMark(
+    at: json['at'] as String?,
+    stopName: json['stop_name'] as String?,
+    by: json['by'] as String?,
+    byRole: json['by_role'] as String?,
+  );
+
+  final String? at;
+  final String? stopName;
+  final String? by;
+
+  /// "attendant", "driver", "transport office" or "school".
+  final String? byRole;
+
+  /// "Marked by Ravi Kumar (attendant) at Sakal Nagar".
+  String? get proof {
+    if (by == null) return null;
+    final who = byRole == null ? by! : '${by!} ($byRole)';
+    return stopName == null ? 'Marked by $who' : 'Marked by $who at ${stopName!}';
+  }
+}
+
 class FamilyBusLive {
   const FamilyBusLive({
     required this.direction,

@@ -1,4 +1,5 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/features/family/data/models/family_bus.dart';
 import 'package:edutrack_app/features/family/presentation/family_bus_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +19,38 @@ Future<void> revealOnBus(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  group('the trip record (4.3)', () {
+    test('is read by kind, with who marked each and where', () {
+      final trip = FamilyBusTrip.fromJson({
+        'id': 1,
+        'direction': 'drop',
+        'status': 'completed',
+        'is_live': false,
+        'timeline': [
+          {'type': 'started', 'at': '14:00', 'stop_name': null, 'by': 'Sunil Rao', 'by_role': 'driver'},
+          {
+            'type': 'dropped',
+            'at': '14:31',
+            'stop_name': 'Sakal Nagar',
+            'by': 'Asha Pillai',
+            'by_role': 'transport office',
+          },
+        ],
+      });
+
+      expect(trip.marks.keys, ['started', 'dropped']);
+      expect(trip.marks['dropped']!.proof, 'Marked by Asha Pillai (transport office) at Sakal Nagar');
+      expect(trip.marks['started']!.proof, 'Marked by Sunil Rao (driver)');
+    });
+
+    test('an older server with no record gives none, not an error', () {
+      final trip = FamilyBusTrip.fromJson({'id': 1, 'direction': 'pickup', 'status': 'in_progress'});
+
+      expect(trip.marks, isEmpty);
+      expect(const BusMark(at: '07:00').proof, isNull);
+    });
+  });
+
   group('the Bus tab', () {
     testWidgets('shows the route, the stop, the vehicle and the times', (tester) async {
       await pumpFamilyApp(tester, goTo: '/bus');
@@ -35,6 +68,11 @@ void main() {
       expect(find.descendant(of: pickup, matching: find.text('Aarav boarded')), findsOneWidget);
       expect(find.descendant(of: pickup, matching: find.text('Reached Sakal Nagar')), findsOneWidget);
       expect(find.descendant(of: pickup, matching: find.text('Reached school')), findsOneWidget);
+      // Trip proof (4.3): who marked the child on, and where.
+      expect(
+        find.descendant(of: pickup, matching: find.text('Marked by Ravi Kumar (attendant) at Sakal Nagar')),
+        findsOneWidget,
+      );
       expect(
         find.descendant(of: find.byKey(const Key('family-trip-drop')), matching: find.text('Not started yet')),
         findsOneWidget,
@@ -46,6 +84,7 @@ void main() {
       await pumpFamilyApp(tester, data: data, goTo: '/bus');
 
       expect(find.text('Did not board'), findsOneWidget);
+      expect(find.text('Marked by Ravi Kumar (attendant) at Sakal Nagar'), findsOneWidget);
       expect(find.byKey(const Key('family-track-bus')), findsNothing);
     });
 

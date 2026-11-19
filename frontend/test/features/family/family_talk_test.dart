@@ -68,6 +68,8 @@ void main() {
         find.descendant(of: find.byKey(const Key('family-call-31')), matching: find.text('Called')),
         findsOneWidget,
       );
+      // Who rang back, and when (4.2).
+      expect(find.text('Called by Neha Iyer · 11/03/2026 4:20 PM'), findsOneWidget);
     });
 
     testWidgets('More is the way in', (tester) async {
@@ -109,6 +111,16 @@ void main() {
 
       expect(data.replies.single, (noticeId: 5, studentId: aarav.id, answer: true, note: 'Packed lunch'));
       expect(find.text('Aarav: Yes'), findsOneWidget);
+      // The school's receipt for it (4.2).
+      expect(find.text('Your answer reached the school · 11/10/2026 6:05 PM'), findsOneWidget);
+    });
+
+    testWidgets('an unanswered question shows no receipt', (tester) async {
+      await pumpFamilyApp(tester, data: asking(), goTo: '/notices');
+      await tester.tap(find.byKey(const Key('family-notice-5')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(Key('family-reply-received-${aarav.id}')), findsNothing);
     });
 
     testWidgets('after the closing day the answer shows but cannot change', (tester) async {

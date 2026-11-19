@@ -19,6 +19,9 @@ void main() {
       );
       expect(find.descendant(of: find.byKey(const Key('family-note-8')), matching: find.text('Sent')), findsOneWidget);
       expect(find.text('With a photo of a note'), findsOneWidget);
+      // Who read it, and when (4.2); nothing like it on the note not yet seen.
+      expect(find.text('Seen by Neha Iyer · 11/03/2026 9:12 AM'), findsOneWidget);
+      expect(find.byKey(const Key('family-note-seen-8')), findsNothing);
     });
 
     testWidgets('none sent says how', (tester) async {

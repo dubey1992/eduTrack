@@ -64,6 +64,16 @@ def how_to_pay(school) -> dict:
     }
 
 
+def pay_by_upi(student: Student) -> dict:
+    """What "Pay with any UPI app" fills in besides the school's UPI ID
+    (docs/mobile-apps-review.md, 6.4): whom the money goes to, and a note
+    that tells the office whose fees it is."""
+    return {
+        "payee_name": student.school.name,
+        "payment_note": f"Fees - {student.name} ({student.admission_number})",
+    }
+
+
 def fees_of(student: Student) -> dict:
     """The child's fees for their current year, for the Fees tab."""
     today = today_for(student.school_id)
@@ -73,6 +83,7 @@ def fees_of(student: Student) -> dict:
         return {
             "academic_year": None, "currency_code": student.school.currency_code, "totals": None,
             "installments": [], "receipts": [], "credit": "0.00", "how_to_pay": how_to_pay(student.school),
+            **pay_by_upi(student),
         }
 
     found = ledger.statement(student, year, today)
@@ -117,6 +128,7 @@ def fees_of(student: Student) -> dict:
         ],
         "credit": money(found["credit"].get(currency, Decimal("0"))),
         "how_to_pay": how_to_pay(student.school),
+        **pay_by_upi(student),
     }
 
 

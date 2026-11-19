@@ -9,6 +9,7 @@ class FamilyAbsenceNote {
     required this.hasPhoto,
     required this.seen,
     this.seenAt,
+    this.seenBy,
   });
 
   factory FamilyAbsenceNote.fromJson(Map<String, dynamic> json) => FamilyAbsenceNote(
@@ -19,6 +20,7 @@ class FamilyAbsenceNote {
     hasPhoto: json['has_photo'] as bool,
     seen: json['status'] == 'acknowledged',
     seenAt: json['acknowledged_at'] == null ? null : DateTime.parse(json['acknowledged_at'] as String).toLocal(),
+    seenBy: json['acknowledged_by'] as String?,
   );
 
   final int id;
@@ -30,4 +32,7 @@ class FamilyAbsenceNote {
   /// The class teacher has seen it.
   final bool seen;
   final DateTime? seenAt;
+
+  /// Who read it (docs/mobile-apps-review.md, 4.2).
+  final String? seenBy;
 }

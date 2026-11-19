@@ -111,11 +111,15 @@ FamilyNotice familyNotice({
 }
 
 /// A notice asking about the museum trip, not yet answered for Aarav.
+final answeredAt = DateTime(2026, 11, 10, 18, 5);
+
 NoticeReply tripQuestion({bool? answer, bool open = true}) => NoticeReply(
   question: 'Can your child come on the trip to the science museum?',
   replyBy: DateTime(2026, 11, 12),
   open: open,
-  children: [(studentId: aarav.id, name: 'Aarav', answer: answer, note: null)],
+  children: [
+    (studentId: aarav.id, name: 'Aarav', answer: answer, note: null, answeredAt: answer == null ? null : answeredAt),
+  ],
 );
 
 final term1 = SchoolTerm(id: 1, name: 'Term 1', start: DateTime(2026, 4, 1), end: DateTime(2026, 9, 30));
@@ -195,76 +199,79 @@ const familySyllabus = [
 
 /// A child's fees: one paid, one overdue and part paid, one due later, a
 /// receipt and a cancelled one, and the school's own words on paying.
-FamilyFees familyFees({HowToPay? howToPay, bool empty = false, double credit = 0}) => FamilyFees(
-  yearName: empty ? null : '2026-27',
-  currencyCode: 'INR',
-  totals: empty ? null : const FeeTotals(charged: 15000, discount: 500, paid: 6000, balance: 8500, overdue: 3500),
-  instalments: empty
-      ? const []
-      : [
-          Instalment(
-            id: 1,
-            label: 'Term 1',
-            dueDate: DateTime(2026, 6, 10),
-            amount: 5000,
-            discount: 0,
-            paid: 5000,
-            balance: 0,
-            status: InstalmentStatus.paid,
+FamilyFees familyFees({HowToPay? howToPay, bool empty = false, double credit = 0, String currencyCode = 'INR'}) =>
+    FamilyFees(
+      yearName: empty ? null : '2026-27',
+      currencyCode: currencyCode,
+      payeeName: 'Greenfield School',
+      paymentNote: 'Fees - Aarav Sharma (ADM-102)',
+      totals: empty ? null : const FeeTotals(charged: 15000, discount: 500, paid: 6000, balance: 8500, overdue: 3500),
+      instalments: empty
+          ? const []
+          : [
+              Instalment(
+                id: 1,
+                label: 'Term 1',
+                dueDate: DateTime(2026, 6, 10),
+                amount: 5000,
+                discount: 0,
+                paid: 5000,
+                balance: 0,
+                status: InstalmentStatus.paid,
+              ),
+              Instalment(
+                id: 2,
+                label: 'Term 2',
+                dueDate: DateTime(2026, 10, 10),
+                amount: 5000,
+                discount: 500,
+                paid: 1000,
+                balance: 3500,
+                status: InstalmentStatus.overdue,
+              ),
+              Instalment(
+                id: 3,
+                label: 'Term 3',
+                dueDate: DateTime(2027, 1, 10),
+                amount: 5000,
+                discount: 0,
+                paid: 0,
+                balance: 5000,
+                status: InstalmentStatus.due,
+              ),
+            ],
+      receipts: empty
+          ? const []
+          : [
+              FamilyReceipt(
+                id: 11,
+                number: 'RC-2026-0042',
+                date: DateTime(2026, 6, 8),
+                amount: 5000,
+                currencyCode: 'INR',
+                paymentMode: 'upi',
+                cancelled: false,
+              ),
+              FamilyReceipt(
+                id: 12,
+                number: 'RC-2026-0077',
+                date: DateTime(2026, 9, 2),
+                amount: 300,
+                currencyCode: 'INR',
+                paymentMode: 'cash',
+                cancelled: true,
+              ),
+            ],
+      credit: credit,
+      howToPay:
+          howToPay ??
+          const HowToPay(
+            counterHours: 'Mon-Sat, 9 am to 1 pm',
+            bankDetails: 'Greenfield School, A/c 1234567890, IFSC HDFC0001234',
+            upiId: 'greenfield@okaxis',
+            officePhone: '+91 80 4000 1234',
           ),
-          Instalment(
-            id: 2,
-            label: 'Term 2',
-            dueDate: DateTime(2026, 10, 10),
-            amount: 5000,
-            discount: 500,
-            paid: 1000,
-            balance: 3500,
-            status: InstalmentStatus.overdue,
-          ),
-          Instalment(
-            id: 3,
-            label: 'Term 3',
-            dueDate: DateTime(2027, 1, 10),
-            amount: 5000,
-            discount: 0,
-            paid: 0,
-            balance: 5000,
-            status: InstalmentStatus.due,
-          ),
-        ],
-  receipts: empty
-      ? const []
-      : [
-          FamilyReceipt(
-            id: 11,
-            number: 'RC-2026-0042',
-            date: DateTime(2026, 6, 8),
-            amount: 5000,
-            currencyCode: 'INR',
-            paymentMode: 'upi',
-            cancelled: false,
-          ),
-          FamilyReceipt(
-            id: 12,
-            number: 'RC-2026-0077',
-            date: DateTime(2026, 9, 2),
-            amount: 300,
-            currencyCode: 'INR',
-            paymentMode: 'cash',
-            cancelled: true,
-          ),
-        ],
-  credit: credit,
-  howToPay:
-      howToPay ??
-      const HowToPay(
-        counterHours: 'Mon-Sat, 9 am to 1 pm',
-        bankDetails: 'Greenfield School, A/c 1234567890, IFSC HDFC0001234',
-        upiId: 'greenfield@okaxis',
-        officePhone: '+91 80 4000 1234',
-      ),
-);
+    );
 
 /// A child on the Baner Road bus: the pickup running (boarded, so it can be
 /// followed), the drop not started; the office's number, and the
@@ -297,6 +304,12 @@ FamilyBus familyBus({
       riderStatus: onList ? riderStatus : null,
       boardedAt: riderStatus == 'boarded' ? '07:38' : null,
       isLive: live,
+      marks: {
+        if (riderStatus == 'boarded')
+          'boarded': const BusMark(at: '07:38', stopName: 'Sakal Nagar', by: 'Ravi Kumar', byRole: 'attendant'),
+        if (riderStatus == 'absent')
+          'absent': const BusMark(at: '07:38', stopName: 'Sakal Nagar', by: 'Ravi Kumar', byRole: 'attendant'),
+      },
     ),
   ],
 );
@@ -392,6 +405,8 @@ class FakeFamilyRepository implements FamilyRepository {
       reason: 'About the maths homework.',
       called: true,
       sentAt: DateTime(2026, 11, 2),
+      calledBy: 'Neha Iyer',
+      calledAt: DateTime(2026, 11, 3, 16, 20),
     ),
   ];
   Failure? failCallWith;
@@ -429,6 +444,8 @@ class FakeFamilyRepository implements FamilyRepository {
       reason: 'Fever - the doctor advised two days of rest.',
       hasPhoto: true,
       seen: true,
+      seenAt: DateTime(2026, 11, 3, 9, 12),
+      seenBy: 'Neha Iyer',
     ),
     FamilyAbsenceNote(
       id: 8,

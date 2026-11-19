@@ -72,7 +72,7 @@ class _FeesList extends StatelessWidget {
           )
         else
           _Summary(fees: fees, totals: totals),
-        if (!fees.howToPay.isEmpty) ...[const SizedBox(height: 12), _HowToPay(pay: fees.howToPay)],
+        if (!fees.howToPay.isEmpty) ...[const SizedBox(height: 12), _HowToPay(fees: fees)],
         if (fees.instalments.isNotEmpty) ...[
           const _SectionTitle('Instalments'),
           for (final line in fees.instalments) ...[
@@ -187,9 +187,27 @@ class _Figure extends StatelessWidget {
 
 /// How to pay at this school, as it wrote it: counter hours, UPI, bank.
 class _HowToPay extends ConsumerWidget {
-  const _HowToPay({required this.pay});
+  const _HowToPay({required this.fees});
 
-  final HowToPay pay;
+  final FamilyFees fees;
+
+  HowToPay get pay => fees.howToPay;
+
+  Future<void> _payByUpi(BuildContext context, WidgetRef ref, Uri link) async {
+    final opened = await ref.read(externalOpenerProvider)(link);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            opened
+                ? 'Once you have paid, the school records it and the receipt appears here.'
+                : "No UPI app opened on this phone. Copy the UPI ID and pay from your bank's app instead.",
+          ),
+        ),
+      );
+  }
 
   Future<void> _copy(BuildContext context, String text, String what) async {
     await Clipboard.setData(ClipboardData(text: text));
@@ -214,6 +232,21 @@ class _HowToPay extends ConsumerWidget {
             'Pay the school directly. This app shows your fees; it does not take payments.',
             style: TextStyle(fontSize: 13, color: colours.muted),
           ),
+          if (fees.upiPayLink case final link?) ...[
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              key: const Key('family-pay-upi'),
+              onPressed: () => _payByUpi(context, ref, link),
+              icon: const Icon(Icons.currency_rupee_rounded),
+              label: Text('Pay ${formatCurrency(fees.amountToPayNow!, fees.currencyCode)} with any UPI app'),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Opens GPay, PhonePe, Paytm or your bank's app with the amount and your child's name filled in. "
+              'The school records the payment when it reaches them.',
+              style: TextStyle(fontSize: 12, color: colours.muted),
+            ),
+          ],
           if (pay.counterHours != null)
             _PayRow(icon: Icons.schedule_rounded, label: 'Fee counter', value: pay.counterHours!),
           if (pay.upiId != null)

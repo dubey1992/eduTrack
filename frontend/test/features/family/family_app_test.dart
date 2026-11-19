@@ -28,6 +28,7 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
   String? goTo,
   PdfHandOff? onPdf,
   PhotoPicker? onPickPhoto,
+  bool opens = true,
 }) async {
   tester.view.physicalSize = const Size(420, 900);
   tester.view.devicePixelRatio = 1;
@@ -50,7 +51,7 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
       if (onPickPhoto != null) photoPickerProvider.overrideWithValue(onPickPhoto),
       externalOpenerProvider.overrideWithValue((uri) async {
         opened.add(uri);
-        return true;
+        return opens;
       }),
     ],
   );
