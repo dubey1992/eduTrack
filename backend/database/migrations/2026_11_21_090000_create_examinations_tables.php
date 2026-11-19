@@ -63,8 +63,10 @@ return new class extends Migration
             $table->time('end_time');
             $table->timestamps();
 
-            $table->unique(['examination_id', 'school_class_id', 'subject_id']);
-            $table->index(['examination_id', 'school_class_id', 'exam_date']);
+            // Named: the generated names run past MySQL's 64 characters (PostgreSQL
+            // shortens them silently, which is how this reached main unnoticed).
+            $table->unique(['examination_id', 'school_class_id', 'subject_id'], 'exam_papers_exam_class_subject_unique');
+            $table->index(['examination_id', 'school_class_id', 'exam_date'], 'exam_papers_exam_class_date_index');
         });
 
         Schema::create('examination_versions', function (Blueprint $table) {
