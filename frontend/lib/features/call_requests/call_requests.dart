@@ -101,6 +101,14 @@ class CallRequestsOpen extends Notifier<bool> {
   void show({required bool open}) => state = open;
 }
 
+/// How many parents are waiting for this person's call - the card on the
+/// Staff app's Today (docs/mobile-apps-review.md, 7.3). The server counts
+/// only the caller's own (a teacher's) or their school's (the office).
+final callRequestsWaitingProvider = FutureProvider.autoDispose<int>(
+  (ref) async => (await ref.watch(callRequestsRepositoryProvider).list(open: true)).total,
+  retry: (retryCount, error) => null,
+);
+
 final callRequestsProvider = FutureProvider.autoDispose<PaginatedResponse<CallRequest>>(
   (ref) => ref.watch(callRequestsRepositoryProvider).list(open: ref.watch(callRequestsOpenProvider)),
 );
@@ -114,30 +122,37 @@ final diallerProvider = Provider<Dialler>(
 );
 
 class CallRequestsScreen extends ConsumerWidget {
-  const CallRequestsScreen({super.key});
+  const CallRequestsScreen({super.key, this.compact = false});
+
+  /// The Staff app's own screen (7.3): its app bar has the title, so the
+  /// page's heading goes and the filter sits on its own row.
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final open = ref.watch(callRequestsOpenProvider);
     final requests = ref.watch(callRequestsProvider);
 
+    final filter = SegmentedButton<bool>(
+      key: const Key('call-requests-filter'),
+      segments: const [
+        ButtonSegment(value: true, label: Text('To call')),
+        ButtonSegment(value: false, label: Text('Called')),
+      ],
+      selected: {open},
+      onSelectionChanged: (choice) => ref.read(callRequestsOpenProvider.notifier).show(open: choice.first),
+    );
+
     return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: EdgeInsets.only(top: compact ? 12 : 0, bottom: 24),
       children: [
-        SectionHeader(
-          title: 'Call Requests',
-          actions: [
-            SegmentedButton<bool>(
-              key: const Key('call-requests-filter'),
-              segments: const [
-                ButtonSegment(value: true, label: Text('To call')),
-                ButtonSegment(value: false, label: Text('Called')),
-              ],
-              selected: {open},
-              onSelectionChanged: (choice) => ref.read(callRequestsOpenProvider.notifier).show(open: choice.first),
-            ),
-          ],
-        ),
+        if (compact)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Align(alignment: Alignment.centerLeft, child: filter),
+          )
+        else
+          SectionHeader(title: 'Call Requests', actions: [filter]),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(

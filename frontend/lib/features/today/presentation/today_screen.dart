@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../call_requests/call_requests.dart';
 import '../../my_teaching/data/outbox.dart';
 import '../../my_teaching/application/staff_outbox.dart';
 import '../../../core/theme/app_colors.dart';
@@ -95,6 +96,7 @@ class _DayView extends StatelessWidget {
             _RegisterCard(register: register, date: day.date),
             const SizedBox(height: 12),
           ],
+          const _CallRequestsCard(),
           _SectionTitle(day.periods.isEmpty ? 'Your periods' : 'Your periods (${day.periods.length})'),
           const SizedBox(height: 8),
           if (day.periods.isEmpty)
@@ -373,6 +375,36 @@ class _RegisterCard extends ConsumerWidget {
             path: '/register/${register.classSectionId}',
             queryParameters: {'date': day, 'label': register.classSection},
           ).toString(),
+        ),
+      ),
+    );
+  }
+}
+
+/// "2 parents asked you to call" - only while somebody is waiting
+/// (docs/mobile-apps-review.md, 7.3). Nothing at all otherwise, and nothing
+/// when the count cannot be read: Today is not the place for that error.
+class _CallRequestsCard extends ConsumerWidget {
+  const _CallRequestsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final waiting = ref.watch(callRequestsWaitingProvider).value ?? 0;
+    if (waiting == 0) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        key: const Key('today-call-requests'),
+        child: ListTile(
+          leading: const Icon(Icons.phone_callback_outlined),
+          title: Text(waiting == 1 ? 'A parent asked you to call' : '$waiting parents asked you to call'),
+          subtitle: const Text('Tap to see who, and ring them'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () async {
+            await context.push('/call-requests');
+            ref.invalidate(callRequestsWaitingProvider);
+          },
         ),
       ),
     );

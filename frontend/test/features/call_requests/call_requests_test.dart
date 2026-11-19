@@ -137,4 +137,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Meera Sharma'), findsOneWidget);
   });
+
+  testWidgets('the Staff app shows them on a phone: the filter on its own row, nothing cut off', (tester) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [callRequestsRepositoryProvider.overrideWithValue(FakeCallRequestsRepository())],
+        child: MaterialApp(
+          theme: AppTheme.teacherLight(),
+          home: const Scaffold(body: CallRequestsScreen(compact: true)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Call Requests'), findsNothing, reason: 'the app bar has the title');
+    expect(find.byKey(const Key('call-requests-filter')), findsOneWidget);
+    expect(find.text('Meera Sharma'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

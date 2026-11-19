@@ -1,3 +1,4 @@
+import 'package:edutrack_app/features/call_requests/call_requests.dart';
 import 'package:edutrack_app/core/storage/key_value_store.dart';
 import 'package:edutrack_app/features/my_teaching/data/outbox.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
@@ -13,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../call_requests/call_requests_test.dart' show FakeCallRequestsRepository;
 import '../../support/in_memory_key_value_store.dart';
 import '../../support/fake_auth_repository.dart';
 import '../../support/fake_check_in_repository.dart';
@@ -25,9 +27,10 @@ void main() {
   late InMemoryKeyValueStore store;
   setUp(() => store = InMemoryKeyValueStore());
 
-  Widget screen(FakeTodayRepository today, {ThemeData? theme}) {
+  Widget screen(FakeTodayRepository today, {ThemeData? theme, CallRequestsRepository? calls}) {
     return ProviderScope(
       overrides: [
+        if (calls != null) callRequestsRepositoryProvider.overrideWithValue(calls),
         todayRepositoryProvider.overrideWithValue(today),
         keyValueStoreProvider.overrideWithValue(store),
         checkInRepositoryProvider.overrideWithValue(FakeCheckInRepository()),
@@ -80,6 +83,23 @@ void main() {
     await pump(tester, FakeTodayRepository());
 
     expect(find.byKey(const Key('today-report-waiting')), findsOneWidget);
+  });
+
+  testWidgets('parents waiting for a call show as a card on Today (7.3)', (tester) async {
+    tester.view.physicalSize = const Size(480, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(screen(FakeTodayRepository(), calls: FakeCallRequestsRepository()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('A parent asked you to call'), findsOneWidget);
+  });
+
+  testWidgets('with nobody waiting, or no answer about it, there is no call card', (tester) async {
+    await pump(tester, FakeTodayRepository());
+
+    expect(find.byKey(const Key('today-call-requests')), findsNothing);
   });
 
   testWidgets('the whole week is one tap from Today', (tester) async {
