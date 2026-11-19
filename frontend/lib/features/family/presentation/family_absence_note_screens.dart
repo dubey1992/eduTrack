@@ -99,7 +99,9 @@ class _NoteCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
-                  note.seen ? 'Seen by the class teacher' : 'Sent',
+                  // Just "Seen": the line below says who - the class teacher
+                  // or, as often, the office.
+                  note.seen ? 'Seen' : 'Sent',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,

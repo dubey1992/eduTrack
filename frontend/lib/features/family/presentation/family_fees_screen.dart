@@ -157,6 +157,7 @@ class _Summary extends StatelessWidget {
               _Figure(label: 'Charged', value: money(totals.charged)),
               if (totals.discount > 0) _Figure(label: 'Discount', value: money(totals.discount)),
               _Figure(label: 'Paid', value: money(totals.paid)),
+              if (fees.waived > 0) _Figure(label: 'Waived', value: money(fees.waived)),
               if (fees.credit > 0) _Figure(label: 'Credit held', value: money(fees.credit)),
             ],
           ),
@@ -164,8 +165,9 @@ class _Summary extends StatelessWidget {
           const HowWorkedOut(
             key: Key('family-why-fees'),
             explanation:
-                "Left to pay is this year's fees, less any discount, less what the school has recorded as paid. "
-                'Overdue is the part of it from instalments whose due date has passed.',
+                "Left to pay is this year's fees, less any discount, less what the school has recorded as paid, "
+                'less any instalment the school has waived. Overdue is the part of it from instalments whose due '
+                'date has passed.',
           ),
         ],
       ),

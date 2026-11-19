@@ -144,6 +144,10 @@ class BusTrip {
     if (status == 'cancelled') return 'Trip cancelled';
 
     return switch (riderStatus) {
+      // Still marked on board once the trip has ended: a pickup that has
+      // ended is at school (as the Bus tab's "Reached school" reads it); a
+      // drop whose crew did not mark the stop says no more than it knows.
+      'boarded' when !isRunning => isPickup ? 'Reached school' : 'Trip ended',
       'boarded' => isPickup ? 'On the bus to school' : 'On the bus home',
       'dropped' => isPickup ? 'Reached school' : 'Dropped at the stop',
       'absent' => 'Did not take the bus',

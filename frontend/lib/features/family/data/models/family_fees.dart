@@ -70,6 +70,12 @@ class FamilyFees {
   final String? payeeName;
   final String? paymentNote;
 
+  /// What the school has let off: the instalments it waived, after any
+  /// discount and anything paid on them before.
+  double get waived => instalments
+      .where((line) => line.status == InstalmentStatus.waived)
+      .fold(0, (sum, line) => sum + (line.amount - line.discount - line.paid));
+
   /// What to pay now: everything overdue, or else the next instalment still
   /// owing. Null when nothing is owed.
   double? get amountToPayNow {

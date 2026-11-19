@@ -13,10 +13,7 @@ void main() {
     testWidgets('each says sent, or seen by the class teacher', (tester) async {
       await pumpFamilyApp(tester, goTo: '/absence-notes');
 
-      expect(
-        find.descendant(of: find.byKey(const Key('family-note-7')), matching: find.text('Seen by the class teacher')),
-        findsOneWidget,
-      );
+      expect(find.descendant(of: find.byKey(const Key('family-note-7')), matching: find.text('Seen')), findsOneWidget);
       expect(find.descendant(of: find.byKey(const Key('family-note-8')), matching: find.text('Sent')), findsOneWidget);
       expect(find.text('With a photo of a note'), findsOneWidget);
       // Who read it, and when (4.2); nothing like it on the note not yet seen.
