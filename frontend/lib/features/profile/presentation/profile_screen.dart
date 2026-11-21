@@ -232,6 +232,27 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
       child: Column(
         children: [
           UserAvatar(photoUrl: profile.photoUrl, name: profile.name, radius: 56),
+          const SizedBox(height: 12),
+          // Who this is, and their role - shown here rather than as a badge
+          // in the top bar (asked for 2026-11-21).
+          Text(profile.name, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 6),
+          Container(
+            key: const Key('profile-role'),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              profile.roleLabel,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           if (canPickFile)
             Wrap(
@@ -534,7 +555,6 @@ class _WorkCard extends StatelessWidget {
           _InfoRow(label: 'Department', value: employment.departmentName ?? '-'),
           _InfoRow(label: 'Designation', value: employment.designation ?? '-'),
           _InfoRow(label: 'Joining date', value: employment.joiningDateLabel ?? employment.joiningDate ?? '-'),
-          _InfoRow(label: 'Role', value: profile.roleLabel),
           _InfoRow(label: 'School', value: profile.schoolName ?? '-'),
           const SizedBox(height: 8),
           Text("These are kept by your school's administrators.", style: muted),

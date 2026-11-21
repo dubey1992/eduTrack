@@ -75,9 +75,10 @@ void main() {
 
   final attendant = sessionUser(UserRole.busAttendant);
 
-  /// On a wide screen Log out is in the menu behind the name (2026-11-21).
+  /// On a wide screen Log out is in the menu behind the side panel's profile
+  /// (2026-11-21).
   Future<void> logOutFromTheAccountMenu(WidgetTester tester) async {
-    await tester.tap(find.byKey(const Key('header-profile-chip')));
+    await tester.tap(find.byKey(const Key('nav-account')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('account-menu-logout')));
   }
