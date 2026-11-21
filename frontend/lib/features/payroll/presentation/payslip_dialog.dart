@@ -13,6 +13,21 @@ import 'adjustment_dialog.dart';
 import 'pay_dialog.dart';
 import '../../../core/widgets/brand_loader.dart';
 
+/// The small print under a payslip line, or null for none.
+///
+/// An adjustment says so, with its note. A line with no full-month figure -
+/// an advance recovery - carries the server's own note ("Advance of ... : ...
+/// left after this"). A salary line says what it was pro-rated from only when
+/// it was cut, as the PDF payslip does.
+String? lineDetail(PayslipLine line, String Function(String value) cash) {
+  if (line.isAdjustment) return 'Adjustment${line.note == null ? '' : ' - ${line.note}'}';
+
+  final full = line.fullAmount;
+  if (full == null) return line.note;
+
+  return double.parse(full) == double.parse(line.amount) ? null : 'Pro-rated from ${cash(full)}';
+}
+
 /// One payslip, read fresh from the server: the days it pays for, every line,
 /// and - for whoever runs payroll - the draft's adjustments and the payment.
 ///
@@ -243,11 +258,10 @@ class _PayslipDialogState extends ConsumerState<PayslipDialog> {
                           )
                         : null,
                     title: Text(line.name),
-                    subtitle: Text(
-                      line.isAdjustment
-                          ? 'Adjustment${line.note == null ? '' : ' - ${line.note}'}'
-                          : 'Pro-rated from ${cash(line.fullAmount!)}',
-                    ),
+                    subtitle: switch (lineDetail(line, cash)) {
+                      final detail? => Text(detail),
+                      null => null,
+                    },
                     trailing: Text(cash(line.amount), style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 if (payslip.linesOf(type).isEmpty) Text('None', style: TextStyle(color: scheme.onSurfaceVariant)),

@@ -45,13 +45,18 @@ class _GenerateRunDialogState extends ConsumerState<GenerateRunDialog> {
       final PayrollRun run = await ref
           .read(payrollRunListNotifierProvider.notifier)
           .generate(year: _year, month: _month, schoolId: picksSchool ? _schoolId : null);
+      // The button stays off: the dialog is still on screen while it fades
+      // out, and a second click there would ask for the same month again -
+      // a "run already exists" refusal for a run that was just made.
       if (mounted) Navigator.of(context).pop(run);
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       final fieldMessages = failure.validationErrors.values.expand((messages) => messages).toList();
-      setState(() => _error = fieldMessages.isEmpty ? failure.message : fieldMessages.join('\n'));
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      if (!mounted) return;
+      setState(() {
+        _error = fieldMessages.isEmpty ? failure.message : fieldMessages.join('\n');
+        _saving = false;
+      });
     }
   }
 

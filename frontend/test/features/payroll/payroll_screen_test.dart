@@ -112,6 +112,27 @@ void main() {
       expect(find.text('Rahul Verma\nTCH-1'), findsOneWidget);
     });
 
+    testWidgets('a second click while the dialog closes does not ask for the month again', (tester) async {
+      useDesktop(tester);
+      final fake = FakePayrollRepository();
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Run Payroll'));
+      await tester.pumpAndSettle();
+      final generateButton = find.widgetWithText(FilledButton, 'Generate Draft');
+      await tester.tap(generateButton);
+      // The run is made and the dialog starts to fade; it is still there.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      if (generateButton.evaluate().isNotEmpty) {
+        expect(tester.widget<FilledButton>(generateButton).onPressed, isNull, reason: 'still off while it fades');
+      }
+      await tester.pumpAndSettle();
+
+      expect(fake.calls.where((call) => call == 'generate'), hasLength(1));
+    });
+
     testWidgets('a draft names who is missing a salary', (tester) async {
       useDesktop(tester);
       final fake = await withDraft(
@@ -231,6 +252,34 @@ void main() {
 
       expect(find.text('Adjustment - Board exams'), findsNothing);
       expect(fake.calls, containsAll(['addAdjustment', 'removeAdjustment']));
+    });
+
+    testWidgets('a payslip recovering an advance opens, with the recovery explained', (tester) async {
+      // Live, 2026-11-21: an advance recovery line has no full-month figure,
+      // and the dialog assumed every line but an adjustment had one - the
+      // payslip opened as a grey screen.
+      useDesktop(tester);
+      final fake = await withDraft();
+      final runId = fake.payslipsByRun.keys.first;
+      final slip = fake.payslipsByRun[runId]!.first;
+      fake.payslipsByRun[runId]![0] = withLines(slip, [
+        ...slip.lines,
+        const PayslipLine(
+          id: 999,
+          type: PayComponentType.deduction,
+          name: 'Advance recovery',
+          amount: '500.00',
+          isAdjustment: false,
+          note: 'Advance of INR 2,000.00 paid 10/05/2026: INR 1,500.00 left after this',
+        ),
+      ]);
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      await openPayslip(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Advance recovery'), findsOneWidget);
+      expect(find.text('Advance of INR 2,000.00 paid 10/05/2026: INR 1,500.00 left after this'), findsOneWidget);
     });
 
     testWidgets('a finalized payslip is paid and emailed, not adjusted', (tester) async {
@@ -514,3 +563,30 @@ void main() {
     });
   });
 }
+
+/// [slip] with other lines.
+Payslip withLines(Payslip slip, List<PayslipLine> lines) => Payslip(
+  id: slip.id,
+  payrollRunId: slip.payrollRunId,
+  periodLabel: slip.periodLabel,
+  runStatus: slip.runStatus,
+  schoolName: slip.schoolName,
+  staffProfileId: slip.staffProfileId,
+  employeeName: slip.employeeName,
+  employeeCode: slip.employeeCode,
+  currencyCode: slip.currencyCode,
+  workingDays: slip.workingDays,
+  paidDays: slip.paidDays,
+  absentDays: slip.absentDays,
+  halfDays: slip.halfDays,
+  unmarkedDays: slip.unmarkedDays,
+  grossEarnings: slip.grossEarnings,
+  totalDeductions: slip.totalDeductions,
+  netPay: slip.netPay,
+  shortfall: slip.shortfall,
+  status: slip.status,
+  paidOn: slip.paidOn,
+  paymentMode: slip.paymentMode,
+  paymentReference: slip.paymentReference,
+  lines: lines,
+);
