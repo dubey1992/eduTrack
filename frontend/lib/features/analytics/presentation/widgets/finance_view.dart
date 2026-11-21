@@ -217,7 +217,7 @@ class _ByClassCard extends StatelessWidget {
 
     return _Section(
       title: 'By class, today',
-      hue: ChartPalette.plum,
+      hue: ChartPalette.navy,
       icon: Icons.class_outlined,
       note:
           'Everything that has fallen due so far this year, by the class each student is in now. '
@@ -262,7 +262,7 @@ class _PayrollCard extends StatelessWidget {
 
     return _Section(
       title: 'Fees and payroll',
-      hue: ChartPalette.rose,
+      hue: ChartPalette.violet,
       icon: Icons.receipt_long_outlined,
       note: 'Fees collected in each month against the payroll finalized for it (net pay).',
       children: [

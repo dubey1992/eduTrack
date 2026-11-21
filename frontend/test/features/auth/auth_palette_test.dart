@@ -36,14 +36,14 @@ void main() {
   testWidgets("in the web app's light theme the card is white on the ivory page", (tester) async {
     await pump(tester, AppTheme.light(), const AuthCard(child: SizedBox(height: 20)));
 
-    expect(cardColour(tester), AuthPalette.editorialLight.surface);
-    expect(AuthPalette.of(tester.element(find.byType(AuthCard))), AuthPalette.editorialLight);
+    expect(cardColour(tester), AuthPalette.brandLight.surface);
+    expect(AuthPalette.of(tester.element(find.byType(AuthCard))), AuthPalette.brandLight);
   });
 
   testWidgets('in the dark theme the card is a dark surface, not a white block', (tester) async {
     await pump(tester, AppTheme.dark(), const AuthCard(child: SizedBox(height: 20)));
 
-    expect(cardColour(tester), AuthPalette.editorialDark.surface);
+    expect(cardColour(tester), AuthPalette.brandDark.surface);
     expect(cardColour(tester).computeLuminance(), lessThan(0.1));
   });
 
@@ -52,10 +52,10 @@ void main() {
     addTearDown(controller.dispose);
 
     await pump(tester, AppTheme.light(), CustomTextField(controller: controller, label: 'Email'));
-    expect(fieldFill(tester), AuthPalette.editorialLight.surface);
+    expect(fieldFill(tester), AuthPalette.brandLight.surface);
 
     await pump(tester, AppTheme.dark(), CustomTextField(controller: controller, label: 'Email'));
-    expect(fieldFill(tester), AuthPalette.editorialDark.surface);
+    expect(fieldFill(tester), AuthPalette.brandDark.surface);
   });
 
   testWidgets('the Driver app keeps the blue it launched with, in both themes', (tester) async {
@@ -70,12 +70,12 @@ void main() {
   test('each dark palette lightens its accent and its text', () {
     expect(AuthPalette.dark.primary.computeLuminance(), greaterThan(AuthPalette.light.primary.computeLuminance()));
     expect(
-      AuthPalette.editorialDark.primary.computeLuminance(),
-      greaterThan(AuthPalette.editorialLight.primary.computeLuminance()),
+      AuthPalette.brandDark.primary.computeLuminance(),
+      greaterThan(AuthPalette.brandLight.primary.computeLuminance()),
     );
     expect(AuthPalette.dark.text.computeLuminance(), greaterThan(0.8));
-    expect(AuthPalette.editorialDark.text.computeLuminance(), greaterThan(0.8));
+    expect(AuthPalette.brandDark.text.computeLuminance(), greaterThan(0.8));
     expect(AuthPalette.light.text.computeLuminance(), lessThan(0.1));
-    expect(AuthPalette.editorialLight.text.computeLuminance(), lessThan(0.1));
+    expect(AuthPalette.brandLight.text.computeLuminance(), lessThan(0.1));
   });
 }

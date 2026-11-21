@@ -22,16 +22,17 @@ class ChartHue {
 }
 
 /// The colours a dashboard figure is drawn in, and the icon that goes with
-/// it. Warm Editorial hues since 2026-11-14 - plum, rose, gold, coral and
-/// friends, each still distinct from its neighbours - so a colourful
-/// dashboard sits in the website's palette rather than against it. Colour here says *which* figure it is; whether a figure is good or bad
+/// it. Since 2026-11-21 navy and violet lead, beside green, gold, teal,
+/// coral and friends, each still distinct from its neighbours - so a
+/// colourful dashboard sits in the School365AI palette rather than against
+/// it. Colour here says *which* figure it is; whether a figure is good or bad
 /// is said separately, by the semantic colours in AppColors.
 abstract final class ChartPalette {
-  static const plum = ChartHue(
-    light: Color(0xFF6B3F73),
-    dark: Color(0xFFD7AEE0),
-    lightSoft: Color(0xFFF4EAF6),
-    darkSoft: Color(0xFF33223A),
+  static const navy = ChartHue(
+    light: Color(0xFF1D4E89),
+    dark: Color(0xFF9CC2F2),
+    lightSoft: Color(0xFFE8F0FA),
+    darkSoft: Color(0xFF15304F),
   );
   static const green = ChartHue(
     light: Color(0xFF277B62),
@@ -39,11 +40,11 @@ abstract final class ChartPalette {
     lightSoft: Color(0xFFE5F4EC),
     darkSoft: Color(0xFF173A30),
   );
-  static const rose = ChartHue(
-    light: Color(0xFFA33D63),
-    dark: Color(0xFFF0A7C3),
-    lightSoft: Color(0xFFFBE8EF),
-    darkSoft: Color(0xFF46202F),
+  static const violet = ChartHue(
+    light: Color(0xFF5B3FB0),
+    dark: Color(0xFFC3B0F2),
+    lightSoft: Color(0xFFF0ECFB),
+    darkSoft: Color(0xFF2B2250),
   );
   static const gold = ChartHue(
     light: Color(0xFFAD7531),
@@ -84,18 +85,18 @@ abstract final class ChartPalette {
 
   /// Used in turn for a figure this file does not name, so a new card the
   /// server starts sending is still coloured rather than left grey.
-  static const _sequence = [plum, green, rose, gold, teal, mauve, coral, sky, berry];
+  static const _sequence = [navy, green, violet, gold, teal, mauve, coral, sky, berry];
 
   /// Each dashboard card and trend the server sends, by its key.
   static const _byKey = <String, (ChartHue, IconData)>{
-    'students': (plum, Icons.school_outlined),
-    'active_students': (plum, Icons.school_outlined),
+    'students': (navy, Icons.school_outlined),
+    'active_students': (navy, Icons.school_outlined),
     // The roll by gender (docs/dashboard.md).
     'boys': (sky, Icons.boy_outlined),
     'girls': (berry, Icons.girl_outlined),
     'gender_other': (mauve, Icons.people_outline),
-    'staff': (rose, Icons.badge_outlined),
-    'teachers': (rose, Icons.groups_outlined),
+    'staff': (violet, Icons.badge_outlined),
+    'teachers': (violet, Icons.groups_outlined),
     'attendance': (green, Icons.fact_check_outlined),
     'student_attendance_rate': (green, Icons.fact_check_outlined),
     'staff_attendance_rate': (teal, Icons.how_to_reg_outlined),
@@ -113,20 +114,20 @@ abstract final class ChartPalette {
     'fees_collected': (green, Icons.payments_outlined),
     'fees_outstanding': (coral, Icons.account_balance_wallet_outlined),
     'fees_overdue': (berry, Icons.schedule_outlined),
-    'periods': (plum, Icons.schedule_outlined),
+    'periods': (navy, Icons.schedule_outlined),
     'reports': (mauve, Icons.edit_note_outlined),
     'reviews': (mauve, Icons.rate_review_outlined),
     'register': (green, Icons.checklist_outlined),
-    'payroll': (rose, Icons.receipt_long_outlined),
+    'payroll': (violet, Icons.receipt_long_outlined),
     'salaries': (coral, Icons.price_change_outlined),
     'unpaid': (berry, Icons.request_quote_outlined),
     'leave': (sky, Icons.event_busy_outlined),
-    'inbox': (plum, Icons.mail_outline),
+    'inbox': (navy, Icons.mail_outline),
     // Charted on the Analytics page only.
     'teaching_coverage_rate': (mauve, Icons.edit_note_outlined),
     'syllabus_topics_completed': (sky, Icons.menu_book_outlined),
-    'test_average': (rose, Icons.emoji_events_outlined),
-    'active_staff': (rose, Icons.badge_outlined),
+    'test_average': (violet, Icons.emoji_events_outlined),
+    'active_staff': (violet, Icons.badge_outlined),
     'fee_outstanding': (coral, Icons.account_balance_wallet_outlined),
     'fee_overdue': (berry, Icons.schedule_outlined),
   };

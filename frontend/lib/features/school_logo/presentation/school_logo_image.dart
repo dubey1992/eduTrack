@@ -23,7 +23,7 @@ class SchoolLogoImage extends ConsumerWidget {
   final String schoolName;
   final double size;
 
-  /// On the plum sidebar the initials are light on a faint tile.
+  /// On the navy sidebar the initials are light on a faint tile.
   final bool onDark;
 
   /// "Riverside Public School" is "RP": the first letters of the first two words.

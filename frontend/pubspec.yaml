@@ -118,6 +118,10 @@ flutter:
     # in Bengaluru, by Nikhita S on Unsplash (free under the Unsplash
     # License).
     - assets/images/login-classroom.jpg
+    # The School365AI logo (2026-11-21): the whole logo for a light ground,
+    # and the S mark alone (lib/core/widgets/school365_mark.dart).
+    - assets/brand/logo-full.png
+    - assets/brand/logo-mark.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

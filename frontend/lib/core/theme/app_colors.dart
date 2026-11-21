@@ -58,39 +58,39 @@ class AppColors extends ThemeExtension<AppColors> {
     muted: Color(0xFF64748B),
   );
 
-  /// The web app's set (Warm Editorial, 2026-11-14): the website's green,
-  /// gold and berry red, softened to sit beside plum on ivory. Each
+  /// The web app's set (School365AI palette, 2026-11-21): green, amber,
+  /// red and navy chosen to sit beside teal on off-white. Each
   /// "on...Container" text colour reads at 4.5:1 or better on its container.
-  static const warmLight = AppColors(
-    success: Color(0xFF277B62),
-    onSuccessContainer: Color(0xFF1D5E4A),
-    successContainer: Color(0xFFE5F4EC),
-    danger: Color(0xFFB03A4A),
-    onDangerContainer: Color(0xFF8E2A39),
-    dangerContainer: Color(0xFFFCE9EC),
-    warning: Color(0xFFAD7531),
-    onWarningContainer: Color(0xFF7D5218),
-    warningContainer: Color(0xFFFFF0DB),
-    info: Color(0xFF6A4378),
-    onInfoContainer: Color(0xFF5A3768),
-    infoContainer: Color(0xFFF3E8F6),
-    muted: Color(0xFF6F6574),
+  static const brandLight = AppColors(
+    success: Color(0xFF1F7A4D),
+    onSuccessContainer: Color(0xFF175E3B),
+    successContainer: Color(0xFFE4F5EC),
+    danger: Color(0xFFB42318),
+    onDangerContainer: Color(0xFF912018),
+    dangerContainer: Color(0xFFFDECEA),
+    warning: Color(0xFFB45309),
+    onWarningContainer: Color(0xFF8A3E06),
+    warningContainer: Color(0xFFFFF4E5),
+    info: Color(0xFF1D4E89),
+    onInfoContainer: Color(0xFF173F70),
+    infoContainer: Color(0xFFE8F0FA),
+    muted: Color(0xFF5B6C84),
   );
 
-  static const warmDark = AppColors(
-    success: Color(0xFF6FD3B0),
-    onSuccessContainer: Color(0xFF9FE3C8),
-    successContainer: Color(0xFF173A30),
-    danger: Color(0xFFF59AA5),
-    onDangerContainer: Color(0xFFF8B9C1),
-    dangerContainer: Color(0xFF4A1C26),
-    warning: Color(0xFFE9B86F),
-    onWarningContainer: Color(0xFFF2CF98),
-    warningContainer: Color(0xFF45300F),
-    info: Color(0xFFD6B3E3),
-    onInfoContainer: Color(0xFFE4CCEC),
-    infoContainer: Color(0xFF3A2744),
-    muted: Color(0xFFBDAFC1),
+  static const brandDark = AppColors(
+    success: Color(0xFF6FD3A0),
+    onSuccessContainer: Color(0xFF9FE3C0),
+    successContainer: Color(0xFF113A2A),
+    danger: Color(0xFFF59A92),
+    onDangerContainer: Color(0xFFF8BAB4),
+    dangerContainer: Color(0xFF4A1A18),
+    warning: Color(0xFFF2B86A),
+    onWarningContainer: Color(0xFFF6CF98),
+    warningContainer: Color(0xFF43300F),
+    info: Color(0xFF9CC2F2),
+    onInfoContainer: Color(0xFFC1D8F6),
+    infoContainer: Color(0xFF15304F),
+    muted: Color(0xFFA9B8CB),
   );
 
   static const dark = AppColors(

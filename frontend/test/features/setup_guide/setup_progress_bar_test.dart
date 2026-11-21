@@ -46,15 +46,15 @@ void main() {
   testWidgets('from halfway they turn blue', (tester) async {
     await pump(tester, 3);
 
-    expect(stepColour(tester, 2), ChartPalette.plum.light);
-    expect(stepColour(tester, 3), isNot(ChartPalette.plum.light));
+    expect(stepColour(tester, 2), ChartPalette.navy.light);
+    expect(stepColour(tester, 3), isNot(ChartPalette.navy.light));
   });
 
   testWidgets('every step done is green all the way', (tester) async {
     await pump(tester, 6);
 
     for (var step = 0; step < 6; step++) {
-      expect(stepColour(tester, step), AppColors.warmLight.success);
+      expect(stepColour(tester, step), AppColors.brandLight.success);
     }
   });
 
@@ -65,7 +65,7 @@ void main() {
     for (var step = 1; step < 6; step++) {
       expect(stepColour(tester, step), grey);
     }
-    expect(grey, isNot(anyOf(ChartPalette.coral.light, ChartPalette.plum.light, AppColors.warmLight.success)));
+    expect(grey, isNot(anyOf(ChartPalette.coral.light, ChartPalette.navy.light, AppColors.brandLight.success)));
   });
 
   testWidgets('takes the dark shades in the dark theme', (tester) async {

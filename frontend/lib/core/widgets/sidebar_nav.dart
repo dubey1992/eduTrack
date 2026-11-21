@@ -12,21 +12,21 @@ import '../storage/key_value_store.dart';
 import '../theme/brand_tokens.dart';
 import 'school365_mark.dart';
 
-/// The sidebar's colours (Warm Editorial, 2026-11-14): a plum surface
-/// whatever the app's light/dark mode, as in the redesign prototype, so they
+/// The sidebar's colours (School365AI design, 2026-11-21): a deep navy
+/// surface whatever the app's light/dark mode, as on the website, so they
 /// are not taken from [Theme.of(context).colorScheme]. What is open is
-/// white with plum text; every text colour reads at 4.5:1 on the plum.
+/// white with navy text; every text colour reads at 4.5:1 on the navy.
 class _SidebarColors {
   const _SidebarColors._();
 
-  static const background = BrandColors.plum;
-  static const text = Color(0xFFF0E4EF);
-  static const subtext = Color(0xFFD9C4DC);
-  static const groupLabel = Color(0xFFD4B9D8);
+  static const background = BrandColors.deep;
+  static const text = Color(0xFFE3EDF4);
+  static const subtext = Color(0xFFB9CDDB);
+  static const groupLabel = Color(0xFF8EDBCE);
   static const hover = Color(0x1FFFFFFF);
   static const divider = Color(0x24FFFFFF);
   static const activeBackground = Colors.white;
-  static const activeText = BrandColors.plum;
+  static const activeText = BrandColors.navy;
   static const heading = Colors.white;
 }
 
@@ -244,7 +244,12 @@ class _Rail extends StatelessWidget {
               key: const Key('nav-logo'),
               borderRadius: BorderRadius.circular(11),
               onTap: () => context.go('/dashboard'),
-              child: const Padding(padding: EdgeInsets.all(2), child: School365Mark(size: 42)),
+              // On a white tile: the mark's navy cap would sink into the navy.
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(11)),
+                child: const School365Mark(size: 38),
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -306,7 +311,7 @@ class _RailButton extends StatelessWidget {
                     color: selected ? _SidebarColors.activeBackground : Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: selected
-                        ? const [BoxShadow(color: Color(0x40160B1B), blurRadius: 12, offset: Offset(0, 4))]
+                        ? const [BoxShadow(color: Color(0x40051226), blurRadius: 12, offset: Offset(0, 4))]
                         : null,
                   ),
                   child: Icon(group.icon, size: 20, color: selected ? _SidebarColors.activeText : _SidebarColors.text),
@@ -353,16 +358,20 @@ class _Panel extends StatelessWidget {
         if (user.schoolId != null)
           _SchoolHeader(user: user)
         else ...[
-          // The name as the website writes it, "ai" in coral.
+          // The name as the logo writes it: "365" in teal, "AI" in violet.
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 10, 20, 2),
             child: Text.rich(
               TextSpan(
                 children: [
-                  TextSpan(text: 'School365'),
+                  TextSpan(text: 'School'),
                   TextSpan(
-                    text: 'ai',
-                    style: TextStyle(color: BrandColors.coral),
+                    text: '365',
+                    style: TextStyle(color: BrandColors.logoTealOnDark),
+                  ),
+                  TextSpan(
+                    text: 'AI',
+                    style: TextStyle(color: BrandColors.logoVioletOnDark),
                   ),
                 ],
               ),
@@ -456,7 +465,7 @@ class _NavTile extends StatelessWidget {
         color: selected ? _SidebarColors.activeBackground : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         elevation: selected ? 3 : 0,
-        shadowColor: const Color(0x66160B1B),
+        shadowColor: const Color(0x66051226),
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
           hoverColor: _SidebarColors.hover,

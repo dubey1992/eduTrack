@@ -7,8 +7,8 @@ import '../../../marketing/presentation/marketing_colors.dart';
 /// The colours of the public sign-in screens, in both themes.
 ///
 /// A [ThemeExtension], so each app carries its own (2026-11-14): the web app
-/// signs in under the website's Warm Editorial colours ([editorialLight],
-/// [editorialDark]), while the Driver and Teacher apps, which reuse some of
+/// signs in under the website's School365AI colours ([brandLight],
+/// [brandDark]), while the Driver and Teacher apps, which reuse some of
 /// these screens on a phone, keep the blue they launched with ([light],
 /// [dark]). A screen asks for the palette in `build` with [AuthPalette.of]
 /// and never names a constant of its own - a constant was how a dark phone
@@ -35,37 +35,37 @@ class AuthPalette extends ThemeExtension<AuthPalette> {
   static AuthPalette of(BuildContext context) {
     final theme = Theme.of(context);
 
-    return theme.extension<AuthPalette>() ?? (theme.brightness == Brightness.dark ? editorialDark : editorialLight);
+    return theme.extension<AuthPalette>() ?? (theme.brightness == Brightness.dark ? brandDark : brandLight);
   }
 
-  /// The web app's sign-in: plum and rose on warm ivory.
-  static const editorialLight = AuthPalette._(
-    primary: BrandColors.plum,
-    primaryLight: BrandColors.blush,
+  /// The web app's sign-in: teal actions and navy text on off-white.
+  static const brandLight = AuthPalette._(
+    primary: BrandColors.teal,
+    primaryLight: BrandColors.mint,
     text: BrandColors.ink,
     muted: BrandColors.muted,
     subtle: BrandColors.muted,
-    background: BrandColors.ivory,
+    background: BrandColors.offWhite,
     surface: Colors.white,
     border: BrandColors.line,
-    teal: Color(0xFF277B62),
-    danger: Color(0xFFB03A4A),
-    shadow: Color(0x1A492B4E),
+    teal: BrandColors.teal,
+    danger: Color(0xFFB42318),
+    shadow: Color(0x1A0D2140),
     serifHeadings: true,
   );
 
-  static const editorialDark = AuthPalette._(
-    primary: BrandColors.nightRose,
-    onPrimary: BrandColors.deepPlum,
-    primaryLight: Color(0xFF3A2440),
+  static const brandDark = AuthPalette._(
+    primary: BrandColors.nightTeal,
+    onPrimary: BrandColors.deep,
+    primaryLight: BrandColors.nightMint,
     text: BrandColors.nightText,
     muted: BrandColors.nightMuted,
     subtle: BrandColors.nightMuted,
     background: BrandColors.night,
     surface: BrandColors.nightSurface,
     border: BrandColors.nightLine,
-    teal: Color(0xFF6FD3B0),
-    danger: Color(0xFFF59AA5),
+    teal: BrandColors.nightTeal,
+    danger: Color(0xFFF59A92),
     shadow: Color(0x66000000),
     serifHeadings: true,
   );
@@ -117,13 +117,19 @@ class AuthPalette extends ThemeExtension<AuthPalette> {
   /// shadow would vanish into the page.
   final Color shadow;
 
-  /// Whether headings are set in the website's serif (the web app) or in
-  /// the text face, bold (the phone apps).
+  /// Whether headings are set in the website's heading face, Manrope (the
+  /// web app), or in the text face, bold (the phone apps).
   final bool serifHeadings;
 
   /// A screen's heading at [fontSize], in this palette's face.
   TextStyle heading(double fontSize) => serifHeadings
-      ? GoogleFonts.gelasio(fontSize: fontSize + 2, height: 1.15, fontWeight: FontWeight.w600, color: text)
+      ? GoogleFonts.manrope(
+          fontSize: fontSize + 2,
+          height: 1.15,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
+          color: text,
+        )
       : TextStyle(fontSize: fontSize, fontWeight: FontWeight.w800, color: text);
 
   @override
