@@ -148,6 +148,8 @@ void main() {
     expect(find.text('Science'), findsOneWidget);
     expect(find.text('Senior Teacher'), findsOneWidget);
     expect(find.text('01/06/2024'), findsOneWidget);
+    // The role once - under the photo (2026-11-21), not in Work details as well.
+    expect(find.descendant(of: find.byKey(const Key('profile-role')), matching: find.text('Teacher')), findsOneWidget);
     expect(find.text('Teacher'), findsOneWidget);
     expect(find.text('Green Valley School'), findsOneWidget);
     expect(find.text("These are kept by your school's administrators."), findsOneWidget);

@@ -9,7 +9,9 @@ import '../../features/auth/data/models/authenticated_user.dart';
 import '../routing/app_nav.dart';
 import '../storage/key_value_store.dart';
 import '../theme/brand_tokens.dart';
+import 'account_menu.dart';
 import 'school365_mark.dart';
+import 'user_avatar.dart';
 
 /// The sidebar's colours (School365AI design, 2026-11-21): a deep navy
 /// surface whatever the app's light/dark mode, as on the website, so they
@@ -130,27 +132,42 @@ class _SidebarNavState extends ConsumerState<SidebarNav> {
         groups.first;
     final panelOpen = widget.inDrawer || ref.watch(navPanelOpenProvider);
 
+    final sidebar = Row(
+      mainAxisSize: widget.inDrawer ? MainAxisSize.max : MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Rail(groups: groups, selected: shown, onSelect: (group, button) => _openArea(group, user, shown, button)),
+        if (panelOpen) ...[
+          const VerticalDivider(width: 1, thickness: 1, color: _SidebarColors.divider),
+          if (widget.inDrawer)
+            Expanded(
+              child: _Panel(group: shown, user: user, currentPath: currentPath, onNavigate: _navigated),
+            )
+          else
+            SizedBox(
+              width: 240,
+              child: _Panel(group: shown, user: user, currentPath: currentPath, onNavigate: _navigated),
+            ),
+        ],
+      ],
+    );
+
     return ColoredBox(
       color: _SidebarColors.background,
       child: SafeArea(
-        child: Row(
-          mainAxisSize: widget.inDrawer ? MainAxisSize.max : MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _Rail(groups: groups, selected: shown, onSelect: (group, button) => _openArea(group, user, shown, button)),
-            if (panelOpen) ...[
-              const VerticalDivider(width: 1, thickness: 1, color: _SidebarColors.divider),
-              if (widget.inDrawer)
-                Expanded(
-                  child: _Panel(group: shown, user: user, currentPath: currentPath, onNavigate: _navigated),
-                )
-              else
-                SizedBox(
-                  width: 240,
-                  child: _Panel(group: shown, user: user, currentPath: currentPath, onNavigate: _navigated),
-                ),
+        // A width of its own on the desktop, where the frame's Row gives it
+        // none: the icon strip, plus the list of screens when it is open.
+        child: SizedBox(
+          width: widget.inDrawer ? null : (panelOpen ? 80 + 1 + 240 : 80),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: sidebar),
+              // Who is signed in, and their role, at the foot (moved off the
+              // top bar 2026-11-21) - the way to the account's menu.
+              _AccountFoot(user: user, wide: panelOpen),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -243,12 +260,8 @@ class _Rail extends StatelessWidget {
               key: const Key('nav-logo'),
               borderRadius: BorderRadius.circular(11),
               onTap: () => context.go('/dashboard'),
-              // On a white tile: the mark's navy cap would sink into the navy.
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(11)),
-                child: const School365Mark(size: 38),
-              ),
+              // Straight on the navy, no tile behind it (asked for 2026-11-21).
+              child: const Padding(padding: EdgeInsets.all(2), child: School365Mark(size: 42)),
             ),
           ),
           const SizedBox(height: 10),
@@ -352,11 +365,10 @@ class _Panel extends StatelessWidget {
       key: const Key('nav-panel'),
       padding: const EdgeInsets.symmetric(vertical: 12),
       children: [
-        // Everyone at a school sees their school at the top (asked for
-        // 2026-11-17); the platform's own staff see the product's name.
-        if (user.schoolId != null)
-          _SchoolHeader(user: user)
-        else ...[
+        // The school's name and logo sit in the top bar's right corner
+        // (moved there 2026-11-21); the platform's own staff, who belong to
+        // no school, see the product's name here.
+        if (user.schoolId == null) ...[
           // The name as the logo writes it: "365" in teal, "AI" in violet.
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 10, 20, 2),
@@ -406,31 +418,71 @@ class _Panel extends StatelessWidget {
   }
 }
 
-/// The school's logo and name at the top of the list of screens. Its
-/// initials stand in until the school uploads a logo.
-class _SchoolHeader extends StatelessWidget {
-  const _SchoolHeader({required this.user});
+/// The signed-in person at the foot of the side panel: their photo, name
+/// and role, opening the account's menu. Folded to the icon strip, just the
+/// photo.
+class _AccountFoot extends StatelessWidget {
+  const _AccountFoot({required this.user, required this.wide});
 
   final AuthenticatedUser user;
+  final bool wide;
 
   @override
   Widget build(BuildContext context) {
-    final name = user.schoolName ?? 'Your school';
-
     return Container(
-      key: const Key('nav-school'),
-      margin: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-      padding: const EdgeInsets.only(bottom: 14),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: _SidebarColors.divider)),
+        border: Border(top: BorderSide(color: _SidebarColors.divider)),
       ),
-      // The name only: the school's logo sits in the top bar's corner
-      // (moved there 2026-11-21).
-      child: Text(
-        name,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, height: 1.25, color: _SidebarColors.heading),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+      child: AccountMenu(
+        builder: (context, toggle) => Tooltip(
+          message: 'Your account',
+          child: InkWell(
+            key: const Key('nav-account'),
+            borderRadius: BorderRadius.circular(12),
+            hoverColor: _SidebarColors.hover,
+            onTap: toggle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: wide
+                  ? Row(
+                      children: [
+                        UserAvatar(photoUrl: user.photoUrl, name: user.name, radius: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                user.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: _SidebarColors.heading,
+                                ),
+                              ),
+                              Text(
+                                user.role.label,
+                                key: const Key('nav-account-role'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12, color: _SidebarColors.subtext),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.unfold_more, size: 18, color: _SidebarColors.subtext),
+                      ],
+                    )
+                  : Center(
+                      child: UserAvatar(photoUrl: user.photoUrl, name: user.name, radius: 18),
+                    ),
+            ),
+          ),
+        ),
       ),
     );
   }

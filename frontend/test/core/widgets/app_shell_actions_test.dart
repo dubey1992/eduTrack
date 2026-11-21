@@ -60,23 +60,30 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// The account's actions live behind the name in the top bar (2026-11-21).
+  /// The account's actions live behind the profile at the foot of the side
+  /// panel (2026-11-21).
   Future<void> chooseFromAccountMenu(WidgetTester tester, String key) async {
-    await tester.tap(find.byKey(const Key('header-profile-chip')));
+    await tester.tap(find.byKey(const Key('nav-account')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(Key(key)));
     await tester.pumpAndSettle();
   }
 
   group('the top bar (2026-11-21)', () {
-    testWidgets('carries no account icons - they are in the menu behind the name', (tester) async {
+    testWidgets('is clean: no account icons, no name, no role - they are in the side panel', (tester) async {
       await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
 
       expect(find.byTooltip('Log out'), findsNothing);
       expect(find.byTooltip('Change password'), findsNothing);
       expect(find.byTooltip('Signed-in devices'), findsNothing);
+      // The name and the role once each - in the side panel's foot.
+      final foot = find.byKey(const Key('nav-account'));
+      expect(find.text('Priya Sharma'), findsOneWidget);
+      expect(find.descendant(of: foot, matching: find.text('Priya Sharma')), findsOneWidget);
+      expect(find.text('School Admin'), findsOneWidget);
+      expect(find.descendant(of: foot, matching: find.text('School Admin')), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('header-profile-chip')));
+      await tester.tap(foot);
       await tester.pumpAndSettle();
 
       for (final label in ['My profile', 'Signed-in devices', 'Change password', 'Log out']) {
@@ -84,7 +91,7 @@ void main() {
       }
     });
 
-    testWidgets("the school's logo sits in the corner for someone at a school", (tester) async {
+    testWidgets("the school's logo and name sit in the corner for someone at a school", (tester) async {
       // A teacher: a School Admin without a logo would be asked for one first.
       const atSchool = AuthenticatedUser(
         id: 1,
@@ -97,7 +104,10 @@ void main() {
       await pumpShell(tester, FakeAuthRepository(sessionOnRestore: atSchool));
 
       expect(find.byKey(const Key('header-school-logo')), findsOneWidget);
-      expect(find.byTooltip('Green Valley School'), findsOneWidget);
+      expect(
+        find.descendant(of: find.byKey(const Key('header-school')), matching: find.text('Green Valley School')),
+        findsOneWidget,
+      );
 
       // A school's screens ask the (fake) server for the year and retry
       // after a pause; let that pause run out before the test ends.
@@ -109,6 +119,7 @@ void main() {
       await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
 
       expect(find.byKey(const Key('header-school-logo')), findsNothing);
+      expect(find.byKey(const Key('header-school')), findsNothing);
     });
   });
 
@@ -264,11 +275,11 @@ void main() {
     });
   });
 
-  group('the profile chip', () {
+  group("the side panel's profile", () {
     testWidgets('shows the user with their initials when there is no photo', (tester) async {
       await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
 
-      final chip = find.byKey(const Key('header-profile-chip'));
+      final chip = find.byKey(const Key('nav-account'));
       expect(find.descendant(of: chip, matching: find.text('Priya Sharma')), findsOneWidget);
       expect(find.descendant(of: chip, matching: find.text('PS')), findsOneWidget);
       expect(find.byTooltip('Your account'), findsOneWidget);

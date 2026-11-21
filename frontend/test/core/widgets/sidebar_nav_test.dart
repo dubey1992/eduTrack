@@ -332,7 +332,7 @@ void main() {
       expect(find.byKey(const Key('nav-area-Fees')), findsOneWidget);
     });
 
-    testWidgets("everyone at a school sees the school's name - its logo is in the top bar since 2026-11-21", (
+    testWidgets("the school is not in the side panel - its logo and name are in the top bar since 2026-11-21", (
       tester,
     ) async {
       _useDesktop(tester);
@@ -340,8 +340,7 @@ void main() {
       await tester.pumpWidget(_menu(UserRole.teacher, user: teacher));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('nav-school')), findsOneWidget);
-      expect(find.text('Riverside Public School'), findsOneWidget);
+      expect(find.text('Riverside Public School'), findsNothing);
       expect(find.text('RP'), findsNothing);
       expect(find.text('School Management'), findsNothing);
     });
