@@ -17,6 +17,7 @@ import '../../features/announcements/presentation/announcement_screen.dart';
 import '../../features/auth/presentation/change_password_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/my_account_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/classes/presentation/class_list_screen.dart';
 import '../../features/communication/presentation/communication_screen.dart';
@@ -201,6 +202,7 @@ const appRoutePaths = {
   '/homepage-content',
   '/site-pages',
   '/profile',
+  '/account',
   '/module-settings',
   '/school-profile',
   '/permissions',
@@ -377,6 +379,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
+          GoRoute(path: '/account', builder: (context, state) => const MyAccountScreen()),
           GoRoute(path: '/school-profile', builder: (context, state) => const SchoolProfileScreen()),
           GoRoute(path: '/module-settings', builder: (context, state) => const ModuleSettingsScreen()),
           GoRoute(path: '/permissions', builder: (context, state) => const PermissionsScreen()),

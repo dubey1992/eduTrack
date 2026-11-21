@@ -60,12 +60,64 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// The account's actions live behind the name in the top bar (2026-11-21).
+  Future<void> chooseFromAccountMenu(WidgetTester tester, String key) async {
+    await tester.tap(find.byKey(const Key('header-profile-chip')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key(key)));
+    await tester.pumpAndSettle();
+  }
+
+  group('the top bar (2026-11-21)', () {
+    testWidgets('carries no account icons - they are in the menu behind the name', (tester) async {
+      await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
+
+      expect(find.byTooltip('Log out'), findsNothing);
+      expect(find.byTooltip('Change password'), findsNothing);
+      expect(find.byTooltip('Signed-in devices'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('header-profile-chip')));
+      await tester.pumpAndSettle();
+
+      for (final label in ['My profile', 'Signed-in devices', 'Change password', 'Log out']) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+    });
+
+    testWidgets("the school's logo sits in the corner for someone at a school", (tester) async {
+      // A teacher: a School Admin without a logo would be asked for one first.
+      const atSchool = AuthenticatedUser(
+        id: 1,
+        name: 'Priya Sharma',
+        email: 'priya@example.com',
+        role: UserRole.teacher,
+        schoolId: 4,
+        schoolName: 'Green Valley School',
+      );
+      await pumpShell(tester, FakeAuthRepository(sessionOnRestore: atSchool));
+
+      expect(find.byKey(const Key('header-school-logo')), findsOneWidget);
+      expect(find.byTooltip('Green Valley School'), findsOneWidget);
+
+      // A school's screens ask the (fake) server for the year and retry
+      // after a pause; let that pause run out before the test ends.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(minutes: 1));
+    });
+
+    testWidgets('and none for the platform staff, who belong to no school', (tester) async {
+      await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
+
+      expect(find.byKey(const Key('header-school-logo')), findsNothing);
+    });
+  });
+
   group('logging out', () {
     testWidgets('asks before throwing the session away', (tester) async {
       final fake = FakeAuthRepository(sessionOnRestore: _admin);
       await pumpShell(tester, fake);
 
-      await tester.tap(find.byTooltip('Log out'));
+      await chooseFromAccountMenu(tester, 'account-menu-logout');
       await tester.pumpAndSettle();
 
       expect(find.text('Log out?'), findsOneWidget);
@@ -78,7 +130,7 @@ void main() {
       final fake = FakeAuthRepository(sessionOnRestore: _admin);
       await pumpShell(tester, fake);
 
-      await tester.tap(find.byTooltip('Log out'));
+      await chooseFromAccountMenu(tester, 'account-menu-logout');
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(TextButton, 'Stay signed in'));
       await tester.pumpAndSettle();
@@ -92,7 +144,7 @@ void main() {
       final fake = FakeAuthRepository(sessionOnRestore: _admin);
       await pumpShell(tester, fake);
 
-      await tester.tap(find.byTooltip('Log out'));
+      await chooseFromAccountMenu(tester, 'account-menu-logout');
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Log out'));
       await tester.pumpAndSettle();
@@ -104,7 +156,7 @@ void main() {
       final fake = FakeAuthRepository(sessionOnRestore: _admin);
       await pumpShell(tester, fake);
 
-      await tester.tap(find.byTooltip('Log out'));
+      await chooseFromAccountMenu(tester, 'account-menu-logout');
       await tester.pumpAndSettle();
 
       // Tapping the barrier outside the dialog.
@@ -120,7 +172,7 @@ void main() {
     testWidgets('opens a dialog rather than navigating away', (tester) async {
       await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
 
-      await tester.tap(find.byTooltip('Change password'));
+      await chooseFromAccountMenu(tester, 'account-menu-password');
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsOneWidget);
@@ -133,7 +185,7 @@ void main() {
     testWidgets('carries all three fields, each hiding what is typed', (tester) async {
       await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
 
-      await tester.tap(find.byTooltip('Change password'));
+      await chooseFromAccountMenu(tester, 'account-menu-password');
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(TextFormField, 'Current password'), findsOneWidget);
@@ -146,7 +198,7 @@ void main() {
       final fake = FakeAuthRepository(sessionOnRestore: _admin);
       await pumpShell(tester, fake);
 
-      await tester.tap(find.byTooltip('Change password'));
+      await chooseFromAccountMenu(tester, 'account-menu-password');
       await tester.pumpAndSettle();
 
       await tester.enterText(find.widgetWithText(TextFormField, 'New password'), 'new-password-1');
@@ -164,7 +216,7 @@ void main() {
       final fake = FakeAuthRepository(sessionOnRestore: _admin);
       await pumpShell(tester, fake);
 
-      await tester.tap(find.byTooltip('Change password'));
+      await chooseFromAccountMenu(tester, 'account-menu-password');
       await tester.pumpAndSettle();
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Current password'), 'old-password-1');
@@ -185,7 +237,7 @@ void main() {
         ..failChangeWith = const Failure(code: 'VALIDATION_ERROR', message: 'That is not your current password.');
       await pumpShell(tester, fake);
 
-      await tester.tap(find.byTooltip('Change password'));
+      await chooseFromAccountMenu(tester, 'account-menu-password');
       await tester.pumpAndSettle();
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Current password'), 'wrong');
@@ -202,7 +254,7 @@ void main() {
       final fake = FakeAuthRepository(sessionOnRestore: _admin);
       await pumpShell(tester, fake);
 
-      await tester.tap(find.byTooltip('Change password'));
+      await chooseFromAccountMenu(tester, 'account-menu-password');
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
       await tester.pumpAndSettle();
@@ -219,14 +271,13 @@ void main() {
       final chip = find.byKey(const Key('header-profile-chip'));
       expect(find.descendant(of: chip, matching: find.text('Priya Sharma')), findsOneWidget);
       expect(find.descendant(of: chip, matching: find.text('PS')), findsOneWidget);
-      expect(find.byTooltip('My profile'), findsOneWidget);
+      expect(find.byTooltip('Your account'), findsOneWidget);
     });
 
     testWidgets('opens My Profile, titled as such without a sidebar entry', (tester) async {
       await pumpShell(tester, FakeAuthRepository(sessionOnRestore: _admin));
 
-      await tester.tap(find.byKey(const Key('header-profile-chip')));
-      await tester.pumpAndSettle();
+      await chooseFromAccountMenu(tester, 'account-menu-profile');
 
       expect(find.text('The profile page'), findsOneWidget);
       expect(find.text('My Profile'), findsOneWidget);
