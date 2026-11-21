@@ -8,7 +8,7 @@
   <title>{{ title }}</title>
   {% if description %}<meta name="description" content="{{ description }}">{% endif %}
   {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% else %}<meta name="robots" content="noindex">{% endif %}
-  <meta name="theme-color" content="#FFF8EF">
+  <meta name="theme-color" content="#FFFFFF">
   <meta property="og:type" content="{{ og_type|default:'website' }}">
   <meta property="og:site_name" content="School365ai">
   {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
@@ -29,7 +29,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=Manrope:wght@600;700;800&display=swap">
   <link rel="stylesheet" href="/site/site.css?v={{ asset_version }}">
   {% for block in structured_data %}<script type="application/ld+json">{{ block }}</script>
   {% endfor %}
@@ -40,10 +40,7 @@
   <header class="site-header">
     <div class="wrap nav-row">
       <a class="brand" href="/" aria-label="{{ nav.wordmark }} home">
-        <span class="mark" aria-hidden="true">
-          <svg viewBox="0 0 100 100"><path d="M30 50 L30 66 Q50 78 70 66 L70 50 Z" fill="#fff" fill-opacity=".82"/><path d="M50 24 L86 41 L50 58 L14 41 Z" fill="#fff"/><line x1="50" y1="41" x2="78" y2="45" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/><line x1="78" y1="45" x2="78" y2="65" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/><circle cx="78" cy="65" r="4.5" fill="#FFE0AA"/><circle cx="50" cy="41" r="3" fill="#FFE0AA"/></svg>
-        </span>
-        <span class="brand-words"><strong>{{ wordmark.main }}{% if wordmark.ai %}<span class="ai">{{ wordmark.ai }}</span>{% endif %}</strong><small>{{ nav.tagline }}</small></span>
+        <img src="/site/logo-full.png?v={{ asset_version }}" alt="{{ nav.wordmark }}" width="158" height="46">
       </a>
 
       <nav class="nav-links" aria-label="Main">
@@ -96,10 +93,7 @@
     <div class="wrap footer-grid">
       <div>
         <a class="brand" href="/" aria-label="{{ nav.wordmark }} home">
-          <span class="mark" aria-hidden="true">
-            <svg viewBox="0 0 100 100"><path d="M30 50 L30 66 Q50 78 70 66 L70 50 Z" fill="#fff" fill-opacity=".82"/><path d="M50 24 L86 41 L50 58 L14 41 Z" fill="#fff"/><line x1="50" y1="41" x2="78" y2="45" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/><line x1="78" y1="45" x2="78" y2="65" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/><circle cx="78" cy="65" r="4.5" fill="#FFE0AA"/></svg>
-          </span>
-          <span class="brand-words"><strong>{{ wordmark.main }}{% if wordmark.ai %}<span class="ai">{{ wordmark.ai }}</span>{% endif %}</strong></span>
+          <img src="/site/logo-full.png?v={{ asset_version }}" alt="{{ nav.wordmark }}" width="130" height="38" loading="lazy">
         </a>
         <p class="footer-blurb">{{ footer.blurb }}</p>
         <ul class="footer-contact">

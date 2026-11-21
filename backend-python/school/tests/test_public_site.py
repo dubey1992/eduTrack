@@ -566,7 +566,7 @@ class NoPageIsLeftAlone(SimpleTestCase):
         self.assertLessEqual(len(public_site.snippet("word " * 80)), public_site.SNIPPET_LIMIT + 1)
 
 
-class TheWarmEditorialDesign(TestCase):
+class TheSiteDesign(TestCase):
     """The redesign of 2026-11-14 (school365ai_alternative_b_warm_editorial.html):
     what it must keep doing, and what it must never claim."""
 
@@ -605,10 +605,19 @@ class TheWarmEditorialDesign(TestCase):
     def test_the_homepage_makes_no_claim_it_cannot_show(self):
         home = self.read("index.html")
 
-        for invented in ("(Target)", "Trusted by", "testimonial", "certified", "ISO"):
+        for invented in ("Trusted by", "testimonial", "certified", "ISO"):
             self.assertNotIn(invented, home)
         # What is not built yet says so.
         self.assertIn("Ideas we are exploring, not yet available", home)
+
+    def test_the_figures_band_says_its_numbers_are_targets(self):
+        # Back at the owner's request (2026-11-21): the school and student
+        # figures are aims, never totals, and the band says so.
+        home = self.read("index.html")
+
+        self.assertIn("<strong>500+</strong><span>Schools (Target)</span>", home)
+        self.assertIn("<strong>1M+</strong><span>Students (Target)</span>", home)
+        self.assertIn("School and student figures are targets, not current totals.", home)
 
     def test_every_page_has_the_bar_the_menu_and_both_forms(self):
         for name in ("index.html", "site/pages/about.html", "404.html"):

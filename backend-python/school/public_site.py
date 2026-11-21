@@ -254,7 +254,7 @@ def build(root: Path, server_files: bool = False) -> list[str]:
     write("sitemap.xml", render_sitemap(pages, posts, articles, changed_on=changed_on))
     write("robots.txt", render_robots())
 
-    for name in ("site.css", "site.js", "hero-app.jpg"):
+    for name in ("site.css", "site.js", "hero-app.jpg", "logo-full.png"):
         write(Path("site") / name, (ASSETS / name).read_bytes())
 
     # The icons at the sizes Google shows beside a search result - a square
