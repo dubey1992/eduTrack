@@ -21,7 +21,7 @@ import calendar
 import datetime as dt
 from decimal import Decimal
 
-from .. import dates, money, pdf_design
+from .. import dates, modules, money, pdf_design
 from ..clock import DATE_TIME, SchoolClock
 from ..enums import PayComponentType, PaymentMode, PayrollRunStatus
 from ..fees.words import amount_in_words
@@ -46,8 +46,25 @@ def file_name(slip) -> str:
     return f"{payslip_number(slip)}-{run.year}-{run.month:02d}.pdf"
 
 
+def classic(slip) -> bool:
+    """Whether the school prints its payslips in the classic layout
+    (Module Settings -> Payroll -> Payslip layout, 2026-11-21)."""
+    return modules.setting(slip.school_id, "payroll", "payslip_style") == "classic"
+
+
+def document_for(slip) -> str:
+    """The payslip as HTML in the layout the school chose."""
+    if classic(slip):
+        from . import payslip_classic
+
+        return payslip_classic.document(slip)
+
+    return document(slip)
+
+
 def render(slip) -> bytes:
-    return pdf_design.render(document(slip), file_name(slip))
+    """The PDF a download and the payslip email both carry."""
+    return pdf_design.render(document_for(slip), file_name(slip))
 
 
 def days(value) -> str:

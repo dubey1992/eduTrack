@@ -239,6 +239,16 @@ MODULES: tuple[Module, ...] = (
                 "email_payslips_on_finalize", "Email payslips when a run is finalized", "bool", True,
                 help="Each employee is emailed their payslip the moment the month is finalized.",
             ),
+            # Read by payroll/payslips.py (asked for 2026-11-21, as the fee
+            # receipt and the report card have): which layout a payslip PDF
+            # takes. Standard is the default, so no school's payslips change
+            # until it chooses.
+            Setting(
+                "payslip_style", "Payslip layout", "choice", "standard",
+                choices=(("standard", "Standard"), ("classic", "Classic printed")),
+                help="Classic printed: a black-and-white salary slip with earnings and deductions side by side, "
+                     "the net pay in words and signature lines, as on a printed salary register.",
+            ),
         ),
     ),
     Module(

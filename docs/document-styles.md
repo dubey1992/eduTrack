@@ -126,3 +126,24 @@ The layout is `report_card_classic.py`.
 
 - **The fee statement PDF** (`fees/statement_pdf.py`) keeps the standard look. A classic style for it is possible the same way, if a school asks.
 - **The Student Fees screen and the student search** already show payment history with View Receipt, dues by month and fee type, and the statement download. They were left as they are.
+
+## The classic payslip (2026-11-21)
+
+Asked for beside the classic receipt and report card. A per-school choice,
+**Module Settings -> Payroll -> Payslip layout** (`payroll.payslip_style`,
+Standard or Classic printed, Standard by default so no school's payslips
+change until it chooses). `payroll/payslips.render()` - the download and the
+payslip email both - picks the layout.
+
+The classic payslip (`payroll/payslip_classic.py`) uses the classic receipt's
+type and header (`fees/receipt_classic.header(school, "Salary Slip")`):
+black on white, the school centred over its address and phone, the pay
+period, the employee in two "Key : value" columns with the month's days, a
+bordered Earnings | Rate | Amount | Deductions | Amount table (Rate = the
+full month's figure a pro-rated line was cut from), gross, deductions and
+net pay, net pay in words on the Indian scale, the payment line, and
+employee / authorised-signatory signature lines. A draft carries the DRAFT
+box. Every figure is the payslip's own snapshot, as on the standard layout.
+
+xhtml2pdf trap met building it: an empty `<td></td>` collapses and the
+columns slide out of line - blank cells hold `&nbsp;`.
