@@ -176,7 +176,7 @@ def stamp(receipt, clock: SchoolClock) -> str:
         <div class="void-line">{body}</div></td></tr></table>"""
 
 
-def header(school) -> str:
+def header(school, title: str = "Fee Receipt") -> str:
     logo = pdf_design.stored_logo_data_uri(school) or pdf_design.logo_data_uri(school.logo_url)
     size = pdf_design.logo_size(logo) if logo else None
     logo_cell = (
@@ -192,7 +192,7 @@ def header(school) -> str:
         <td class="middle">
             <div class="school">{e(school.name.upper())}</div>
             {f'<div class="address">{e(address.upper())}</div>' if address else ""}
-            <div class="doc">Fee Receipt</div>
+            <div class="doc">{e(title)}</div>
             {f'<div class="phone">PH : {e(school.phone)}</div>' if school.phone else ""}
         </td>
         <td class="pad-cell"></td>
