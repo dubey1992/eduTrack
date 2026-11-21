@@ -823,6 +823,16 @@ class AppNav {
         pageTitle: 'Audit Log',
         pageSubtitle: 'Who changed what, and when',
       ),
+      NavItem(
+        path: '/account',
+        label: 'My Account',
+        icon: Icons.manage_accounts_outlined,
+        // The account's own actions, moved off the top bar (2026-11-21). The
+        // roles that have Settings; everyone has them under their name too.
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'My Account',
+        pageSubtitle: 'Signed-in devices, your password and logging out',
+      ),
     ],
   );
 

@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/data/models/authenticated_user.dart';
-import '../../features/school_logo/presentation/school_logo_image.dart';
 import '../routing/app_nav.dart';
 import '../storage/key_value_store.dart';
 import '../theme/brand_tokens.dart';
@@ -425,24 +424,13 @@ class _SchoolHeader extends StatelessWidget {
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: _SidebarColors.divider)),
       ),
-      child: Row(
-        children: [
-          SchoolLogoImage(logoUrl: user.schoolLogoUrl, schoolName: name, size: 44, onDark: true),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                height: 1.25,
-                color: _SidebarColors.heading,
-              ),
-            ),
-          ),
-        ],
+      // The name only: the school's logo sits in the top bar's corner
+      // (moved there 2026-11-21).
+      child: Text(
+        name,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, height: 1.25, color: _SidebarColors.heading),
       ),
     );
   }

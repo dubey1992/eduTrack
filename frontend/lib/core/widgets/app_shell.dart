@@ -10,6 +10,7 @@ import '../../features/auth/presentation/signed_in_devices_dialog.dart';
 import '../../features/my_trip/application/trip_mark_queue.dart';
 import '../../features/school_logo/application/school_logo_controller.dart';
 import '../../features/school_logo/presentation/logo_prompt.dart';
+import '../../features/school_logo/presentation/school_logo_image.dart';
 import '../routing/app_nav.dart';
 import 'confirm_dialog.dart';
 import 'responsive.dart';
@@ -138,8 +139,9 @@ class _AppShellState extends ConsumerState<AppShell> {
 
 /// The bar across the top of every desktop page (School365AI design,
 /// 2026-11-21): the area as a small teal eyebrow - where you are - over the
-/// page's serif title and what the page is for; the year, who is signed in
-/// and the account's actions on the right.
+/// page's title and what the page is for; on the right the year, the role,
+/// who is signed in (a menu with the account's actions) and, in the corner,
+/// the school's own logo.
 class _Topbar extends ConsumerWidget {
   const _Topbar({required this.heading, required this.area});
 
@@ -201,23 +203,23 @@ class _Topbar extends ConsumerWidget {
           if (user != null) ...[
             _Pill(text: user.role.label),
             const SizedBox(width: 8),
-            _ProfileChip(name: user.name, photoUrl: user.photoUrl),
-            const SizedBox(width: 8),
+            // The account's actions sit behind the name (asked for
+            // 2026-11-21); administrators also find them under Settings.
+            _AccountMenu(name: user.name, photoUrl: user.photoUrl),
+            // The school's own logo in the corner (asked for 2026-11-21).
+            if (user.schoolId != null) ...[
+              const SizedBox(width: 14),
+              Tooltip(
+                message: user.schoolName ?? 'Your school',
+                child: SchoolLogoImage(
+                  key: const Key('header-school-logo'),
+                  logoUrl: user.schoolLogoUrl,
+                  schoolName: user.schoolName ?? 'Your school',
+                  size: 42,
+                ),
+              ),
+            ],
           ],
-          _RoundAction(
-            icon: Icons.devices_outlined,
-            tooltip: 'Signed-in devices',
-            onPressed: () => showDialog(context: context, builder: (_) => const SignedInDevicesDialog()),
-          ),
-          _RoundAction(
-            icon: Icons.lock_outline,
-            tooltip: 'Change password',
-            // A dialog, not a page: changing a password is a two-minute
-            // errand, and whoever is halfway through marking attendance
-            // should get back to it rather than be navigated away.
-            onPressed: () => showDialog(context: context, builder: (_) => const ChangePasswordDialog()),
-          ),
-          _RoundAction(icon: Icons.logout, tooltip: 'Log out', onPressed: () => confirmLogout(context, ref)),
         ],
       ),
     );
@@ -248,37 +250,73 @@ Future<void> confirmLogout(BuildContext context, WidgetRef ref) async {
   if (confirmed) await ref.read(authNotifierProvider.notifier).logout();
 }
 
-/// The signed-in user's photo and name; opens My Profile.
-class _ProfileChip extends StatelessWidget {
-  const _ProfileChip({required this.name, required this.photoUrl});
+/// Who is signed in - photo and name - opening the account's menu: My
+/// profile, the signed-in devices, a new password, and logging out.
+class _AccountMenu extends ConsumerWidget {
+  const _AccountMenu({required this.name, required this.photoUrl});
 
   final String name;
   final String? photoUrl;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Tooltip(
-      message: 'My profile',
-      child: InkWell(
-        key: const Key('header-profile-chip'),
-        borderRadius: BorderRadius.circular(99),
-        onTap: () => context.go('/profile'),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(6, 4, 12, 4),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            border: Border.all(color: colorScheme.outlineVariant),
-            borderRadius: BorderRadius.circular(99),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              UserAvatar(photoUrl: photoUrl, name: name, radius: 14),
-              const SizedBox(width: 8),
-              Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-            ],
+    return MenuAnchor(
+      alignmentOffset: const Offset(0, 6),
+      menuChildren: [
+        MenuItemButton(
+          key: const Key('account-menu-profile'),
+          leadingIcon: const Icon(Icons.person_outline, size: 19),
+          onPressed: () => context.go('/profile'),
+          child: const Text('My profile'),
+        ),
+        MenuItemButton(
+          key: const Key('account-menu-devices'),
+          leadingIcon: const Icon(Icons.devices_outlined, size: 19),
+          onPressed: () => showDialog(context: context, builder: (_) => const SignedInDevicesDialog()),
+          child: const Text('Signed-in devices'),
+        ),
+        MenuItemButton(
+          key: const Key('account-menu-password'),
+          leadingIcon: const Icon(Icons.lock_outline, size: 19),
+          // A dialog, not a page: changing a password is a two-minute
+          // errand, and whoever is halfway through marking attendance
+          // should get back to it rather than be navigated away.
+          onPressed: () => showDialog(context: context, builder: (_) => const ChangePasswordDialog()),
+          child: const Text('Change password'),
+        ),
+        const Divider(height: 1),
+        MenuItemButton(
+          key: const Key('account-menu-logout'),
+          leadingIcon: const Icon(Icons.logout, size: 19),
+          onPressed: () => confirmLogout(context, ref),
+          child: const Text('Log out'),
+        ),
+      ],
+      builder: (context, controller, _) => Tooltip(
+        message: 'Your account',
+        child: InkWell(
+          key: const Key('header-profile-chip'),
+          borderRadius: BorderRadius.circular(99),
+          onTap: () => controller.isOpen ? controller.close() : controller.open(),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              border: Border.all(color: colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                UserAvatar(photoUrl: photoUrl, name: name, radius: 14),
+                const SizedBox(width: 8),
+                Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 4),
+                Icon(Icons.expand_more, size: 18, color: colorScheme.onSurfaceVariant),
+              ],
+            ),
           ),
         ),
       ),
@@ -319,37 +357,6 @@ class _Pill extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: colorScheme.onSecondaryContainer),
-      ),
-    );
-  }
-}
-
-/// One of the account's actions in the top bar: a soft round button, as in
-/// the redesign prototype.
-class _RoundAction extends StatelessWidget {
-  const _RoundAction({required this.icon, required this.tooltip, required this.onPressed});
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: IconButton(
-        icon: Icon(icon, size: 19),
-        tooltip: tooltip,
-        style: IconButton.styleFrom(
-          backgroundColor: colorScheme.primaryContainer,
-          foregroundColor: colorScheme.onPrimaryContainer,
-          hoverColor: colorScheme.secondary.withValues(alpha: 0.12),
-          fixedSize: const Size(38, 38),
-          minimumSize: const Size(38, 38),
-        ),
-        onPressed: onPressed,
       ),
     );
   }

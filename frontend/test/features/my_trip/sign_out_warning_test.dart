@@ -75,11 +75,18 @@ void main() {
 
   final attendant = sessionUser(UserRole.busAttendant);
 
+  /// On a wide screen Log out is in the menu behind the name (2026-11-21).
+  Future<void> logOutFromTheAccountMenu(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('header-profile-chip')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('account-menu-logout')));
+  }
+
   testWidgets('an attendant with marks waiting is told they will be lost', (tester) async {
     leaveMarksOnThePhone(6);
     await pumpShell(tester, attendant);
 
-    await tester.tap(find.byTooltip('Log out'));
+    await logOutFromTheAccountMenu(tester);
     await tester.pumpAndSettle();
 
     expect(find.text('6 marks have not been sent yet. Sign out anyway? They will be lost.'), findsOneWidget);
@@ -89,7 +96,7 @@ void main() {
     leaveMarksOnThePhone(2);
     final auth = await pumpShell(tester, attendant);
 
-    await tester.tap(find.byTooltip('Log out'));
+    await logOutFromTheAccountMenu(tester);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Stay signed in'));
     await tester.pumpAndSettle();
@@ -103,7 +110,7 @@ void main() {
     store.values['my_trip.routes'] = jsonEncode(myRoutesJson());
     final auth = await pumpShell(tester, attendant);
 
-    await tester.tap(find.byTooltip('Log out'));
+    await logOutFromTheAccountMenu(tester);
     await tester.pumpAndSettle();
     expect(find.text('1 mark has not been sent yet. Sign out anyway? They will be lost.'), findsOneWidget);
 
@@ -117,7 +124,7 @@ void main() {
   testWidgets('with nothing waiting, the ordinary question', (tester) async {
     await pumpShell(tester, attendant);
 
-    await tester.tap(find.byTooltip('Log out'));
+    await logOutFromTheAccountMenu(tester);
     await tester.pumpAndSettle();
 
     expect(find.text('You will need to sign in again to get back to your school.'), findsOneWidget);
