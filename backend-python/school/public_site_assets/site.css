@@ -531,7 +531,7 @@ section[id], #contact { scroll-margin-top: 96px; }
 /* -- the footer ---------------------------------------------------------------------------- */
 
 .footer { background: var(--deep); color: var(--on-dark-muted); padding: 72px 0 28px; }
-.footer-grid { display: grid; grid-template-columns: 1.5fr 1.7fr repeat(3, 1fr); gap: 32px; }
+.footer-grid { display: grid; grid-template-columns: 1.4fr 2fr repeat(3, 1fr); gap: 36px; }
 /* The logo is drawn for a light ground, so on the navy it sits on a white plate. */
 .footer .brand { display: inline-flex; background: #fff; border-radius: 12px; padding: 10px 14px; margin-bottom: 18px; }
 .footer .brand img { height: 38px; }
@@ -540,6 +540,12 @@ section[id], #contact { scroll-margin-top: 96px; }
 .footer-contact a { color: #E3EDF4; text-decoration: none; }
 .footer-contact a:hover { color: #fff; text-decoration: underline; }
 .footer-title { color: #8EDBCE; font: 700 .78rem var(--display); letter-spacing: .1em; text-transform: uppercase; margin: 0 0 16px; }
+.footer-title a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.footer-title a::after { content: "\2192"; letter-spacing: 0; transition: transform .15s; }
+.footer-title a:hover { color: #fff; }
+.footer-title a:hover::after { transform: translateX(3px); }
+/* A long list (the twelve product pages) in two short columns. */
+.footer-links.two-up { grid-template-columns: 1fr 1fr; column-gap: 24px; }
 .footer-links { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: .9rem; line-height: 1.4; }
 .footer-links li { color: #9FB3C4; }
 .footer-links a { color: #C3D3DF; text-decoration: none; }
@@ -550,7 +556,7 @@ section[id], #contact { scroll-margin-top: 96px; }
 .footer-base a:hover { color: #fff; text-decoration: underline; }
 @media (max-width: 1000px) {
   .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .footer-grid > :first-child, .footer-grid > :nth-child(2) { grid-column: 1 / -1; }
+  .footer-grid > :first-child, .footer-grid > .footer-wide { grid-column: 1 / -1; }
 }
 @media (max-width: 560px) {
   .footer-grid { grid-template-columns: 1fr 1fr; gap: 26px; }

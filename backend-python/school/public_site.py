@@ -404,11 +404,22 @@ def shared(words: Words, live: set[str], modules=()) -> dict:
         ]
         columns.append({"title": words.text(title_key), "links": links})
 
+    features_href = f"/{FEATURES_SLUG}" if FEATURES_SLUG in live else "/#features"
+
     if modules:
+        # The heading itself goes to the features page, so the Product
+        # column need not list it again (2026-11-21). Every product page
+        # stays in the footer - only its own link to the list is dropped.
         columns.insert(0, {
             "title": "Features",
+            "href": features_href,
             "links": [{"label": page.short_title, "href": page.path} for page in modules],
         })
+        for column in columns[1:]:
+            column["links"] = [link for link in column["links"] if link["href"] not in (features_href, "/#features")]
+
+    terms_href = "/terms" if "terms" in live else None
+    in_columns = {link["href"] for column in columns for link in column["links"]}
 
     return {
         "site_url": site_url(),
@@ -423,7 +434,9 @@ def shared(words: Words, live: set[str], modules=()) -> dict:
         "about_href": "/about" if "about" in live else None,
         "help_href": "/help" if "help" in live else None,
         "privacy_href": "/privacy" if "privacy" in live else None,
-        "terms_href": "/terms" if "terms" in live else None,
+        "terms_href": terms_href,
+        # The bar at the very bottom repeats Terms only when no column has it.
+        "terms_in_footer": terms_href is not None and terms_href in in_columns,
         "support": {
             "email": kinds.SUPPORT_EMAIL,
             "phone": kinds.SUPPORT_PHONE,
@@ -435,7 +448,7 @@ def shared(words: Words, live: set[str], modules=()) -> dict:
         "blog_href": "/blog" if "blog" in live else None,
         # The bar's Features link goes to the features page itself when there
         # is one, so every page links to it, rather than to a homepage section.
-        "features_href": f"/{FEATURES_SLUG}" if FEATURES_SLUG in live else "/#features",
+        "features_href": features_href,
         "nav": {
             "wordmark": words.text("nav.wordmark"),
             "tagline": words.text("nav.tagline"),
