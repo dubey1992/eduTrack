@@ -103,9 +103,9 @@
         </ul>
       </div>
       {% for column in footer.columns %}
-      <div>
-        <p class="footer-title">{{ column.title }}</p>
-        <ul class="footer-links">
+      <div{% if column.links|length > 6 %} class="footer-wide"{% endif %}>
+        <p class="footer-title">{% if column.href %}<a href="{{ column.href }}">{{ column.title }}</a>{% else %}{{ column.title }}{% endif %}</p>
+        <ul class="footer-links{% if column.links|length > 6 %} two-up{% endif %}">
           {% for link in column.links %}
           <li>{% if link.href %}<a href="{{ link.href }}"{% if link.href|slice:":4" == "http" %} rel="noopener" target="_blank"{% endif %}>{{ link.label }}</a>{% else %}{{ link.label }}{% endif %}</li>
           {% endfor %}
@@ -115,7 +115,7 @@
     </div>
     <div class="wrap footer-base">
       <span>{{ footer.copyright }}</span>
-      {% if terms_href %}<nav aria-label="Legal"><a href="{{ terms_href }}">Terms</a></nav>{% endif %}
+      {% if terms_href and not terms_in_footer %}<nav aria-label="Legal"><a href="{{ terms_href }}">Terms</a></nav>{% endif %}
       <span>{{ footer.tagline }}</span>
     </div>
   </footer>

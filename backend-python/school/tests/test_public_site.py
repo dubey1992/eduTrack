@@ -587,6 +587,20 @@ class TheSiteDesign(TestCase):
         self.assertIn('<a href="/school-fee-management-software">Fees</a>', home)
         self.assertIn("<h1>School Fee Management Software</h1>", page)
 
+    def test_the_footer_lists_the_features_page_once_from_its_heading(self):
+        # 2026-11-21: the Features heading is the link to the features page,
+        # so no column repeats it; the product pages sit in two short columns.
+        footer = self.read("index.html").split("<footer", 1)[1]
+
+        self.assertIn('<p class="footer-title"><a href="/school-management-features">Features</a></p>', footer)
+        self.assertEqual(1, footer.count('href="/school-management-features"'))
+        self.assertIn('class="footer-links two-up"', footer)
+
+    def test_terms_shows_once_in_the_footer(self):
+        footer = self.read("index.html").split("<footer", 1)[1]
+
+        self.assertLessEqual(footer.count('href="/terms"'), 1)
+
     def test_the_footer_base_has_no_privacy_or_contact_link(self):
         base = self.read("index.html").split('class="wrap footer-base"', 1)[1]
 
