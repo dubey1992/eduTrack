@@ -23,7 +23,7 @@
        page anybody should land on from a search. -->
   <meta name="description" content="School365ai - sign in to your school.">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#492B4E">
+  <meta name="theme-color" content="#0D2140">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -34,7 +34,7 @@
   <!-- Favicon. The ?v= is raised whenever the icon changes (scripts/web_icon.py):
        the host lets browsers keep images for a week, and a new address is
        fetched fresh, so nobody is left looking at the old one. -->
-  <link rel="icon" type="image/png" href="favicon.png?v=3"/>
+  <link rel="icon" type="image/png" href="favicon.png?v=4"/>
 
   <title>School365ai</title>
   <link rel="manifest" href="manifest.json">
@@ -47,21 +47,20 @@
   -->
   <style>
     #boot-loader { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 22px; background: #FFF8EF; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+      justify-content: center; gap: 22px; background: #F7F9FC; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
     #boot-loader .hop { display: flex; flex-direction: column; align-items: center; }
-    #boot-loader .tile { width: 72px; height: 72px; border-radius: 50%;
-      background: linear-gradient(135deg, #B24667, #E8916F); animation: boot-hop 1.2s ease-in-out infinite; }
-    #boot-loader .tile svg { width: 100%; height: 100%; display: block; animation: boot-tilt 1.2s ease-in-out infinite; }
-    #boot-loader .tassel { transform-origin: 78px 45px; animation: boot-swing 1.2s ease-in-out infinite; }
-    #boot-loader .floor { width: 52px; height: 6px; margin-top: 8px; border-radius: 50%; background: rgba(163, 61, 99, .22);
+    #boot-loader .tile { width: 72px; height: 72px; border-radius: 18px; background: #fff; border: 1px solid #E2E9F0;
+      display: grid; place-items: center; animation: boot-hop 1.2s ease-in-out infinite; }
+    #boot-loader .tile img { height: 54px; width: auto; display: block; animation: boot-tilt 1.2s ease-in-out infinite; }
+    #boot-loader .floor { width: 52px; height: 6px; margin-top: 8px; border-radius: 50%; background: rgba(13, 33, 64, .16);
       animation: boot-floor 1.2s ease-in-out infinite; }
-    #boot-loader .name { font-size: 22px; font-weight: 800; color: #492B4E; letter-spacing: -.02em; }
-    #boot-loader .name span { color: #A33D63; }
-    @media (prefers-color-scheme: dark) { #boot-loader { background: #1B1320; } #boot-loader .name { color: #F5ECF2; } #boot-loader .name span { color: #E69568; } }
+    #boot-loader .name { font-size: 22px; font-weight: 800; color: #142A49; letter-spacing: -.02em; }
+    #boot-loader .name .n { color: #087E79; }
+    #boot-loader .name .ai { color: #5B1FA8; }
+    @media (prefers-color-scheme: dark) { #boot-loader { background: #0A1628; } #boot-loader .name { color: #E8EEF6; } #boot-loader .name .n { color: #5FD3C8; } #boot-loader .name .ai { color: #B79CFF; } }
     @keyframes boot-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
     @keyframes boot-floor { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(.7); opacity: .5; } }
-    @keyframes boot-tilt { 0%, 50%, 100% { transform: rotate(0); } 25% { transform: rotate(6deg); } 75% { transform: rotate(-6deg); } }
-    @keyframes boot-swing { 0%, 100% { transform: rotate(-26deg); } 50% { transform: rotate(26deg); } }
+    @keyframes boot-tilt { 0%, 50%, 100% { transform: rotate(0); } 25% { transform: rotate(4deg); } 75% { transform: rotate(-4deg); } }
     @media (prefers-reduced-motion: reduce) { #boot-loader * { animation: none !important; } }
   </style>
 </head>
@@ -73,21 +72,10 @@
   </noscript>
   <div id="boot-loader" role="status" aria-label="Loading School365ai">
     <div class="hop">
-      <div class="tile">
-        <svg viewBox="0 0 100 100" aria-hidden="true">
-          <path d="M30 50 L30 66 Q50 78 70 66 L70 50 Z" fill="#fff" fill-opacity=".82"/>
-          <path d="M50 24 L86 41 L50 58 L14 41 Z" fill="#fff"/>
-          <line x1="50" y1="41" x2="78" y2="45" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/>
-          <g class="tassel">
-            <line x1="78" y1="45" x2="78" y2="65" stroke="#FFE0AA" stroke-width="3.5" stroke-linecap="round"/>
-            <circle cx="78" cy="65" r="4.5" fill="#FFE0AA"/>
-          </g>
-          <circle cx="50" cy="41" r="3" fill="#FFE0AA"/>
-        </svg>
-      </div>
+      <div class="tile"><img src="icons/logo-mark.png" alt=""></div>
       <div class="floor"></div>
     </div>
-    <div class="name">School365<span>ai</span></div>
+    <div class="name">School<span class="n">365</span><span class="ai">AI</span></div>
   </div>
   <script src="boot-loader.js"></script>
   <!--

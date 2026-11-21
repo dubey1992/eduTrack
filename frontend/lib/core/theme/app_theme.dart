@@ -8,10 +8,10 @@ import 'teacher_brand.dart';
 
 /// The apps' themes.
 ///
-/// **The web app** ([light], [dark]) wears the public website's Warm
-/// Editorial design (2026-11-14, docs/prototype school365ai_app_redesign):
-/// plum and rose on warm ivory, DM Sans for text, and Gelasio - a free
-/// metric twin of the website's Georgia - for headings. Every screen takes
+/// **The web app** ([light], [dark]) wears the public website's School365AI
+/// design (Homepage V3, 2026-11-21): teal actions and navy text on
+/// off-white, a deep navy sidebar, DM Sans for text and Manrope for
+/// headings. Every screen takes
 /// its look from here and from the [ThemeExtension]s below, so one change
 /// here reaches all of them.
 ///
@@ -47,18 +47,18 @@ class AppTheme {
   static ThemeData light() => _build(
     _Palette(
       brightness: Brightness.light,
-      primary: BrandColors.plum,
+      primary: BrandColors.teal,
       onPrimary: Colors.white,
-      primarySoft: BrandColors.blush,
-      accent: BrandColors.rose,
+      primarySoft: BrandColors.mint,
+      accent: BrandColors.teal,
       background: BrandColors.workspace,
       surface: Colors.white,
-      surfaceTints: const [Colors.white, Color(0xFFFDF9FA), Color(0xFFFAF4F7), Color(0xFFF6EEF2), Color(0xFFF2E8EE)],
+      surfaceTints: const [Colors.white, Color(0xFFFBFCFD), Color(0xFFF5F8FB), Color(0xFFEFF4F8), Color(0xFFE9EFF5)],
       text: BrandColors.ink,
       muted: BrandColors.muted,
       border: BrandColors.line,
-      appColors: AppColors.warmLight,
-      authPalette: AuthPalette.editorialLight,
+      appColors: AppColors.brandLight,
+      authPalette: AuthPalette.brandLight,
     ),
     editorial: true,
   );
@@ -66,24 +66,24 @@ class AppTheme {
   static ThemeData dark() => _build(
     _Palette(
       brightness: Brightness.dark,
-      primary: BrandColors.nightRose,
-      onPrimary: BrandColors.deepPlum,
-      primarySoft: const Color(0xFF3A2440),
-      accent: BrandColors.nightRose,
+      primary: BrandColors.nightTeal,
+      onPrimary: BrandColors.deep,
+      primarySoft: BrandColors.nightMint,
+      accent: BrandColors.nightTeal,
       background: BrandColors.night,
       surface: BrandColors.nightSurface,
       surfaceTints: const [
-        Color(0xFF20162A),
-        Color(0xFF241A2A),
-        Color(0xFF2A1E30),
-        Color(0xFF302336),
-        Color(0xFF36283C),
+        Color(0xFF0F1D33),
+        Color(0xFF13233B),
+        Color(0xFF172A44),
+        Color(0xFF1B304D),
+        Color(0xFF203656),
       ],
       text: BrandColors.nightText,
       muted: BrandColors.nightMuted,
       border: BrandColors.nightLine,
-      appColors: AppColors.warmDark,
-      authPalette: AuthPalette.editorialDark,
+      appColors: AppColors.brandDark,
+      authPalette: AuthPalette.brandDark,
     ),
     editorial: true,
   );
@@ -147,15 +147,15 @@ class AppTheme {
     );
     final colorScheme = editorial
         ? seeded.copyWith(
-            onPrimaryContainer: dark ? BrandColors.nightText : BrandColors.plum,
+            onPrimaryContainer: dark ? BrandColors.nightText : BrandColors.tealInk,
             secondary: p.accent,
-            onSecondary: dark ? BrandColors.deepPlum : Colors.white,
+            onSecondary: dark ? BrandColors.deep : Colors.white,
             secondaryContainer: p.primarySoft,
-            onSecondaryContainer: dark ? BrandColors.nightText : BrandColors.rose,
-            tertiary: BrandColors.coral,
+            onSecondaryContainer: dark ? BrandColors.nightText : BrandColors.tealInk,
+            tertiary: BrandColors.orange,
             onSurface: p.text,
             onSurfaceVariant: p.muted,
-            outline: dark ? const Color(0xFF6E5B74) : const Color(0xFFCBB9C4),
+            outline: dark ? BrandColors.nightOutline : BrandColors.outline,
             outlineVariant: p.border,
             surfaceContainerLowest: p.surfaceTints[0],
             surfaceContainerLow: p.surfaceTints[1],
@@ -166,7 +166,7 @@ class AppTheme {
           )
         : seeded;
 
-    // Text: DM Sans with Gelasio headings for the web app, Poppins for the
+    // Text: DM Sans with Manrope headings for the web app, Poppins for the
     // phone apps. Every sub-theme that carries its own TextStyle (buttons,
     // chips, the DataTable, the SnackBar) names the font again, since those
     // are not guaranteed to inherit it from [textTheme].
@@ -174,7 +174,12 @@ class AppTheme {
         ? GoogleFonts.dmSans(color: color, fontSize: fontSize, fontWeight: fontWeight)
         : GoogleFonts.poppins(color: color, fontSize: fontSize, fontWeight: fontWeight);
     TextStyle heading({Color? color, double? fontSize, FontWeight? fontWeight}) => editorial
-        ? GoogleFonts.gelasio(color: color, fontSize: fontSize, fontWeight: fontWeight, letterSpacing: -0.3)
+        ? GoogleFonts.manrope(
+            color: color,
+            fontSize: fontSize,
+            fontWeight: fontWeight == FontWeight.w600 ? FontWeight.w800 : fontWeight,
+            letterSpacing: -0.4,
+          )
         : body(color: color, fontSize: fontSize, fontWeight: fontWeight);
 
     final base = Typography.material2021(platform: TargetPlatform.android).black
@@ -188,7 +193,7 @@ class AppTheme {
             headlineLarge: heading(color: p.text, fontSize: 30, fontWeight: FontWeight.w600),
             headlineMedium: heading(color: p.text, fontSize: 26, fontWeight: FontWeight.w600),
             headlineSmall: heading(color: p.text, fontSize: 23, fontWeight: FontWeight.w600),
-            // A page's and a section's title: the serif, as on the website.
+            // A page's and a section's title: the heading face, as on the website.
             titleLarge: heading(color: p.text, fontSize: 22, fontWeight: FontWeight.w600),
             // A card's title: the text face, bold, so a dense screen stays easy to scan.
             titleMedium: body(color: p.text, fontSize: 16, fontWeight: FontWeight.w700),
@@ -358,12 +363,12 @@ class AppTheme {
             )
           : null,
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: editorial ? (dark ? BrandColors.blush : BrandColors.plum) : p.text,
+        backgroundColor: editorial ? (dark ? BrandColors.nightText : BrandColors.deep) : p.text,
         contentTextStyle: body(
-          color: editorial ? (dark ? BrandColors.plum : Colors.white) : p.background,
+          color: editorial ? (dark ? BrandColors.deep : Colors.white) : p.background,
           fontSize: 13,
         ),
-        actionTextColor: editorial ? (dark ? BrandColors.rose : BrandColors.coral) : null,
+        actionTextColor: editorial ? (dark ? BrandColors.teal : BrandColors.orange) : null,
         behavior: SnackBarBehavior.floating,
         // Floating alone still stretches to the full window width on
         // desktop/web - capping `width` is what actually makes it read as a
@@ -375,10 +380,10 @@ class AppTheme {
       tooltipTheme: editorial
           ? TooltipThemeData(
               decoration: BoxDecoration(
-                color: dark ? BrandColors.blush : BrandColors.deepPlum,
+                color: dark ? BrandColors.nightText : BrandColors.deep,
                 borderRadius: BorderRadius.circular(8),
               ),
-              textStyle: body(color: dark ? BrandColors.plum : Colors.white, fontSize: 12),
+              textStyle: body(color: dark ? BrandColors.deep : Colors.white, fontSize: 12),
             )
           : null,
       dividerTheme: DividerThemeData(color: p.border, space: 1),
@@ -493,7 +498,7 @@ class _Palette {
   final Color? onPrimary;
   final Color primarySoft;
 
-  /// The colour that marks what is active or chosen: rose in the web app.
+  /// The colour that marks what is active or chosen: teal in the web app.
   final Color accent;
   final Color background;
   final Color surface;

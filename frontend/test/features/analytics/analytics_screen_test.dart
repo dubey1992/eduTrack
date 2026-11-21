@@ -345,8 +345,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // September's 88% sits in the amber band; the fall from 91.5 is bad news.
-      expect(valueColour(tester, '88%'), AppColors.warmLight.warning);
-      expect(valueColour(tester, '-3.5 pts'), AppColors.warmLight.danger);
+      expect(valueColour(tester, '88%'), AppColors.brandLight.warning);
+      expect(valueColour(tester, '-3.5 pts'), AppColors.brandLight.danger);
       expect(find.text('90% and above'), findsOneWidget);
 
       final bars = tester
@@ -354,7 +354,7 @@ void main() {
           .map((box) => (box.decoration as BoxDecoration?)?.color)
           .whereType<Color>()
           .toSet();
-      expect(bars, containsAll([AppColors.warmLight.success, AppColors.warmLight.warning]));
+      expect(bars, containsAll([AppColors.brandLight.success, AppColors.brandLight.warning]));
     });
 
     testWidgets('each figure chip carries its own icon and colour', (tester) async {
@@ -401,7 +401,7 @@ void main() {
           .map((text) => text.style?.color)
           .whereType<Color>()
           .toSet();
-      expect(colours, containsAll([ChartPalette.green.light, ChartPalette.plum.light, ChartPalette.rose.light]));
+      expect(colours, containsAll([ChartPalette.green.light, ChartPalette.navy.light, ChartPalette.violet.light]));
     });
   });
 }

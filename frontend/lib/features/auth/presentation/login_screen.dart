@@ -161,8 +161,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ),
-        // The redesign prototype's split screen (Warm Editorial,
-        // 2026-11-14): the plum story on the left, the form on warm ivory on
+        // The split screen (School365AI design,
+        // 2026-11-21): the navy story on the left, the form on off-white on
         // the right.
         desktop: (context) => Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -5,8 +5,8 @@ import '../../../../core/theme/brand_tokens.dart';
 import '../../../../core/widgets/school365_mark.dart';
 import 'website_links.dart';
 
-/// The left half of the desktop sign-in page (Warm Editorial, 2026-11-14,
-/// after the redesign prototype's `.login-art`): the plum panel with the
+/// The left half of the desktop sign-in page (School365AI design,
+/// 2026-11-21, after the website's dark sections): the deep navy panel with the
 /// name, one sentence about the product, and who signs in where. Only shown
 /// on wide screens - [LoginScreen] keeps a phone to the form and [BrandMark].
 class LoginStoryPanel extends StatelessWidget {
@@ -18,13 +18,13 @@ class LoginStoryPanel extends StatelessWidget {
 
     return Container(
       key: const Key('login-story'),
-      color: dark ? const Color(0xFF2C1A31) : BrandColors.plum,
+      color: dark ? const Color(0xFF071427) : BrandColors.deep,
       child: Stack(
         children: [
-          // The prototype's two soft circles, rose at the top right and coral
-          // at the bottom left. Decoration only.
-          const Positioned(top: -240, right: -245, child: _Glow(size: 540, colour: Color(0x38A33D63))),
-          const Positioned(bottom: -240, left: -130, child: _Glow(size: 380, colour: Color(0x30E69568))),
+          // Two soft circles, teal at the top right and orange at the bottom
+          // left, as on the website. Decoration only.
+          const Positioned(top: -240, right: -245, child: _Glow(size: 540, colour: Color(0x40087E79))),
+          const Positioned(bottom: -240, left: -130, child: _Glow(size: 380, colour: Color(0x22FFB76A))),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -52,7 +52,7 @@ class LoginStoryPanel extends StatelessWidget {
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 2,
-                                    color: const Color(0xFFFFD5B4),
+                                    color: const Color(0xFF8EDBCE),
                                   ),
                                 ),
                                 const SizedBox(height: 14),
@@ -61,7 +61,7 @@ class LoginStoryPanel extends StatelessWidget {
                                 Text(
                                   'Attendance, timetables, fees, the school bus and messages to parents, '
                                   'for everyone who works at the school.',
-                                  style: GoogleFonts.dmSans(fontSize: 16, height: 1.55, color: const Color(0xFFF0E1ED)),
+                                  style: GoogleFonts.dmSans(fontSize: 16, height: 1.55, color: const Color(0xFFC2D7E1)),
                                 ),
                                 SizedBox(height: roomy ? 32 : 24),
                                 const _WhoSignsIn(),
@@ -69,7 +69,7 @@ class LoginStoryPanel extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Text('© School365ai', style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFFD6BBD6))),
+                        Text('© School365ai', style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF9FB3C4))),
                       ],
                     ),
                   ),
@@ -83,19 +83,19 @@ class LoginStoryPanel extends StatelessWidget {
   }
 }
 
-/// "Every school day, a little simpler." - the second half in italic coral,
-/// as the website sets its headlines.
+/// "Every school day, a little simpler." - the last word in teal, as the
+/// website sets its headlines.
 class _Headline extends StatelessWidget {
   const _Headline();
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final style = GoogleFonts.gelasio(
-      fontSize: width > 1400 ? 56 : 44,
+    final style = GoogleFonts.manrope(
+      fontSize: width > 1400 ? 54 : 42,
       height: 1.08,
-      letterSpacing: -1.2,
-      fontWeight: FontWeight.w500,
+      letterSpacing: -1.6,
+      fontWeight: FontWeight.w800,
       color: Colors.white,
     );
 
@@ -105,7 +105,7 @@ class _Headline extends StatelessWidget {
           const TextSpan(text: 'Every school day,\na little '),
           TextSpan(
             text: 'simpler.',
-            style: style.copyWith(fontStyle: FontStyle.italic, color: const Color(0xFFF5B18C)),
+            style: style.copyWith(color: BrandColors.nightTeal),
           ),
         ],
       ),
@@ -139,7 +139,7 @@ class BrandMark extends StatelessWidget {
 
   final bool showTagline;
 
-  /// On the plum panel rather than the ivory page.
+  /// On the navy panel rather than the off-white page.
   final bool onDark;
 
   @override
@@ -183,7 +183,7 @@ class _WhoSignsIn extends StatelessWidget {
         children: [
           Text(
             'Who signs in here?',
-            style: GoogleFonts.gelasio(fontSize: 19, fontWeight: FontWeight.w600, color: Colors.white),
+            style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           const SizedBox(height: 6),
           const _WhoRow(
@@ -230,7 +230,7 @@ class _WhoRow extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(color: const Color(0x24FFFFFF), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 19, color: const Color(0xFFFFD5B4)),
+            child: Icon(icon, size: 19, color: const Color(0xFF8EDBCE)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -244,7 +244,7 @@ class _WhoRow extends StatelessWidget {
                   TextSpan(text: detail),
                 ],
               ),
-              style: GoogleFonts.dmSans(fontSize: 14, height: 1.45, color: const Color(0xFFE8D7E6)),
+              style: GoogleFonts.dmSans(fontSize: 14, height: 1.45, color: const Color(0xFFC2D7E1)),
             ),
           ),
         ],

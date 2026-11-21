@@ -162,10 +162,13 @@ void main() {
       await tester.pumpAndSettle();
 
       final colours = textColours(tester);
-      expect(colours, containsAll([AppColors.warmLight.warning, ChartPalette.coral.light, AppColors.warmLight.danger]));
+      expect(
+        colours,
+        containsAll([AppColors.brandLight.warning, ChartPalette.coral.light, AppColors.brandLight.danger]),
+      );
       // Fees and payroll: 1,000 in, 800 out.
       final difference = tester.widget<Text>(find.text(formatCurrency(200, 'INR')));
-      expect(difference.style?.color, AppColors.warmLight.success);
+      expect(difference.style?.color, AppColors.brandLight.success);
     });
 
     testWidgets('each section has its heading icon', (tester) async {

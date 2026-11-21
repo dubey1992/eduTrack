@@ -110,7 +110,7 @@ void main() {
     final box = tester.widget<Container>(
       find.descendant(of: find.byKey(const Key('year-switch')), matching: find.byType(Container)).first,
     );
-    expect((box.decoration! as BoxDecoration).color, AppColors.warmLight.warningContainer);
+    expect((box.decoration! as BoxDecoration).color, AppColors.brandLight.warningContainer);
   });
 
   testWidgets('going back to the current year forgets the choice', (tester) async {

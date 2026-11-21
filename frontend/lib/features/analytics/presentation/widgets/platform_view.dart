@@ -80,8 +80,8 @@ class _TotalsCard extends StatelessWidget {
           _Fact(label: 'Active schools', value: '${totals.schoolsActive}', hue: ChartPalette.green),
           _Fact(label: 'Inactive schools', value: '${totals.schoolsInactive}', hue: ChartPalette.berry),
           _Fact(label: 'Demo & testing (not counted)', value: '${totals.schoolsNotCounted}', hue: ChartPalette.gold),
-          _Fact(label: 'Students', value: '${totals.students}', hue: ChartPalette.plum),
-          _Fact(label: 'Staff', value: '${totals.staff}', hue: ChartPalette.rose),
+          _Fact(label: 'Students', value: '${totals.students}', hue: ChartPalette.navy),
+          _Fact(label: 'Staff', value: '${totals.staff}', hue: ChartPalette.violet),
           _Fact(label: 'Accounts', value: '${totals.users}', hue: ChartPalette.mauve),
         ],
       ),
@@ -98,7 +98,7 @@ class _MonthsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: 'Month by month',
-      hue: ChartPalette.plum,
+      hue: ChartPalette.navy,
       icon: Icons.calendar_month_outlined,
       note:
           'People signing in counts each person once a month. Messages are those sent or failed; '
@@ -280,7 +280,7 @@ class _ModulesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       title: 'Modules in use',
-      hue: ChartPalette.rose,
+      hue: ChartPalette.violet,
       icon: Icons.extension_outlined,
       note: 'How many active schools have each module switched on.',
       child: _Table(

@@ -136,8 +136,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 }
 
-/// The bar across the top of every desktop page (Warm Editorial,
-/// 2026-11-14): the area as a small rose eyebrow - where you are - over the
+/// The bar across the top of every desktop page (School365AI design,
+/// 2026-11-21): the area as a small teal eyebrow - where you are - over the
 /// page's serif title and what the page is for; the year, who is signed in
 /// and the account's actions on the right.
 class _Topbar extends ConsumerWidget {

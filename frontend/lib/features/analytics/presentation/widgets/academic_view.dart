@@ -64,7 +64,7 @@ class _AcademicViewState extends ConsumerState<AcademicView> {
             const SizedBox(height: 16),
             _LinesCard(
               title: 'By class',
-              hue: ChartPalette.plum,
+              hue: ChartPalette.navy,
               icon: Icons.class_outlined,
               overview: overview,
               lines: overview.classes,
@@ -73,7 +73,7 @@ class _AcademicViewState extends ConsumerState<AcademicView> {
             const SizedBox(height: 16),
             _LinesCard(
               title: 'Each class, by subject',
-              hue: ChartPalette.rose,
+              hue: ChartPalette.violet,
               icon: Icons.grid_view_outlined,
               overview: overview,
               lines: overview.cells,
