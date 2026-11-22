@@ -1,6 +1,6 @@
 // Renders the brochure and the one-pager to A4 PDFs (docs/marketing/brochure).
 //   NODE_PATH="$(npm root -g)" node render.js <output folder>
-// Needs Playwright's Chromium; the pages load Poppins from Google Fonts.
+// Needs Playwright's Chromium; the pages load Manrope and DM Sans from Google Fonts.
 const { chromium } = require('playwright');
 const path = require('path');
 
