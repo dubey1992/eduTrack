@@ -12,6 +12,7 @@ class AttendanceRosterEntry {
     required this.status,
     required this.remarks,
     this.absenceNote,
+    this.photoUrl,
   });
 
   factory AttendanceRosterEntry.fromJson(Map<String, dynamic> json) {
@@ -22,6 +23,7 @@ class AttendanceRosterEntry {
       status: json['status'] == null ? null : AttendanceStatus.fromApiValue(json['status'] as String),
       remarks: json['remarks'] as String?,
       absenceNote: RegisterAbsenceNote.fromJson(json['absence_note'] as Map<String, dynamic>?),
+      photoUrl: json['photo_url'] as String?,
     );
   }
 
@@ -34,6 +36,9 @@ class AttendanceRosterEntry {
   /// A parent's note for this day, from the Family app; never a mark.
   final RegisterAbsenceNote? absenceNote;
 
+  /// The student's photo (docs/student-photos.md), or null for initials.
+  final String? photoUrl;
+
   AttendanceRosterEntry copyWith({AttendanceStatus? status, String? remarks}) {
     return AttendanceRosterEntry(
       studentId: studentId,
@@ -42,6 +47,7 @@ class AttendanceRosterEntry {
       status: status ?? this.status,
       remarks: remarks ?? this.remarks,
       absenceNote: absenceNote,
+      photoUrl: photoUrl,
     );
   }
 }

@@ -23,11 +23,13 @@ const day = '2026-10-26';
 
 const teacherId = 7;
 
-/// [notes]: a parent's absence note for the day, by student id.
+/// [notes]: a parent's absence note for the day, by student id. [photos]: each
+/// student's photo address, by student id (docs/student-photos.md).
 AttendanceRegister registerOf({
   bool submitted = false,
   Map<int, AttendanceStatus> marks = const {},
   Map<int, RegisterAbsenceNote> notes = const {},
+  Map<int, String> photos = const {},
 }) {
   AttendanceRosterEntry student(int id, String name, String roll) => AttendanceRosterEntry(
     studentId: id,
@@ -36,6 +38,7 @@ AttendanceRegister registerOf({
     status: marks[id],
     remarks: null,
     absenceNote: notes[id],
+    photoUrl: photos[id],
   );
 
   return AttendanceRegister(

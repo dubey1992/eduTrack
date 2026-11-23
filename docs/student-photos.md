@@ -213,6 +213,30 @@ window.
 - **Audit:** each student's photo is logged as `student.photo_changed`, and
   each batch adds one `student_photos.bulk_uploaded` row with its counts.
 
+## As built - P3 (2026-11-23)
+
+- **Admit card:** the photo is printed in the box at 72 x 96 px. A black-and-
+  white card prints it in grey. With no photo, or a stored file that has
+  gone missing, the box prints its "Student photo" words as before.
+- **Classic report card:** the photo is printed in the box at 60 x 80 px, or
+  "STUDENT PHOTO" as before. The Standard progress report is unchanged.
+- **Register (D4):** the server's register carries each student's
+  `photo_url`, and each row in the staff app shows the photo or the
+  initials. The class list kept on the phone for no signal holds no photo,
+  so a register opened offline shows the initials.
+- **Find a student:** the photo is beside each name. A teacher - whose list
+  holds only their own section - and the school's admins get a "Photo"
+  button that opens the same photo control as Edit Student (D3). The
+  server still decides: a teacher of another section is refused.
+- **One photo control:** `StudentPhotoField` saves through the repository
+  and reports the changed student back. Edit Student puts it in the
+  Students list; Find a student asks for its list again.
+- **No new automated end-to-end test.** The integration tests start the
+  real app, where the photo picker cannot be replaced, so they cannot
+  choose a file. The flows were instead driven in a real browser against
+  the local API: one photo (P1), and bulk upload with matching, held-back
+  files and replacing (P2).
+
 ## Slices
 
 1. **P1 - one student's photo:** the migration, the model, the endpoints,

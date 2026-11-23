@@ -28,7 +28,13 @@ enum RegisterMode {
 }
 
 class RegisterStudent {
-  const RegisterStudent({required this.id, required this.name, required this.rollNumber, this.absenceNote});
+  const RegisterStudent({
+    required this.id,
+    required this.name,
+    required this.rollNumber,
+    this.absenceNote,
+    this.photoUrl,
+  });
 
   final int id;
   final String name;
@@ -37,6 +43,11 @@ class RegisterStudent {
   /// A parent's note for the day (Family app, F5). Not kept offline: a
   /// register opened from the phone's copy shows none.
   final RegisterAbsenceNote? absenceNote;
+
+  /// Beside the name, to help a new or substitute teacher
+  /// (docs/student-photos.md, D4). Not kept offline: a register opened from
+  /// the phone's copy shows the initials.
+  final String? photoUrl;
 }
 
 class RegisterSheet {
@@ -117,7 +128,13 @@ class RegisterSheetNotifier extends AsyncNotifier<RegisterSheet> {
           .register(classSectionId: key.sectionId, date: key.date);
       final students = [
         for (final s in register.students)
-          RegisterStudent(id: s.studentId, name: s.name, rollNumber: s.rollNumber, absenceNote: s.absenceNote),
+          RegisterStudent(
+            id: s.studentId,
+            name: s.name,
+            rollNumber: s.rollNumber,
+            absenceNote: s.absenceNote,
+            photoUrl: s.photoUrl,
+          ),
       ];
 
       // Kept for the next time there is no signal.

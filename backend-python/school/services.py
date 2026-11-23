@@ -37,6 +37,7 @@ from . import (
     route_paths,
     school_breaks,
     sms,
+    student_photos,
     syllabus_scope,
     tokens,
     whatsapp,
@@ -733,6 +734,9 @@ class AttendanceService:
                     "student_id": student.id,
                     "name": student.name,
                     "roll_number": student.roll_number,
+                    # Beside the name, to help a new or substitute teacher
+                    # (docs/student-photos.md, D4); null shows the initials.
+                    "photo_url": student_photos.photo_url(student),
                     "status": existing[student.id].status if student.id in existing else None,
                     "remarks": existing[student.id].remarks if student.id in existing else None,
                     "absence_note": (

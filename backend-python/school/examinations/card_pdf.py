@@ -3,7 +3,7 @@
 
 - **Header.** The school's logo, name, address and the academic session.
 - **Title.** "EXAMINATION ADMIT CARD", then the exam, the term, and when this version was issued.
-- **Student block.** Name, admission no, class and section that year, roll no, guardian (a father or mother where a Family-app link names one), centre, reporting time, and a box for the photo, which the product does not hold yet.
+- **Student block.** Name, admission no, class and section that year, roll no, guardian (a father or mother where a Family-app link names one), centre, reporting time, and the student's photo in its box (docs/student-photos.md), or the empty box where there is none.
 - **The date sheet.** The papers the student's class sits, with the table header repeated on a new page.
 - **The rest.** The school's instructions, and the signature lines.
 
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .. import pdf_design
+from .. import pdf_design, student_photos
 from ..models import StudentEnrollment
 from ..parent_names import parent_names
 from ..receipts import e
@@ -144,7 +144,7 @@ def student_rows(card: Card, year_id: int) -> tuple[list, list]:
     return left, right
 
 
-def one_card(card: Card, school, logo: str | None, year_id: int) -> str:
+def one_card(card: Card, school, logo: str | None, year_id: int, *, mono: bool = False) -> str:
     snap = card.snapshot
     papers = snap["classes"][str(card.class_id)]["papers"]
     left, right = student_rows(card, year_id)
@@ -160,6 +160,9 @@ def one_card(card: Card, school, logo: str | None, year_id: int) -> str:
         for index, paper in enumerate(papers, start=1)
     )
     instructions = "".join(f"<li>{e(line)}</li>" for line in snap.get("instructions") or [])
+    # The student's photo (docs/student-photos.md, P3), grey on a
+    # black-and-white card; the empty box as before when there is none.
+    photo = student_photos.photo_cell(card.student, placeholder="Student<br/>photo", width=72, grey=mono)
     draft = (
         f'{spacer(4)}<table class="draft"><tr><td>DRAFT - NOT ISSUED. Publish the exam before handing out admit '
         f"cards.</td></tr></table>" if card.version is None else ""
@@ -174,7 +177,7 @@ def one_card(card: Card, school, logo: str | None, year_id: int) -> str:
     <table class="block"><tr>
         <td class="b-left" width="45%"><table class="pairs">{"".join(pair(k, v) for k, v in left)}</table></td>
         <td class="b-mid" width="39%"><table class="pairs">{"".join(pair(k, v) for k, v in right)}</table></td>
-        <td class="b-right" width="16%"><table class="photo"><tr><td>Student<br/>photo</td></tr></table></td>
+        <td class="b-right" width="16%"><table class="photo"><tr><td>{photo}</td></tr></table></td>
     </tr></table>
     {spacer(10)}
     <table class="sheet" repeat="1">
@@ -196,7 +199,7 @@ def document(cards: list[Card], *, school, year_id: int) -> str:
     """One or many cards, each starting on its own sheet."""
     logo = pdf_design.stored_logo_data_uri(school) or pdf_design.logo_data_uri(school.logo_url)
     mono = bool(cards) and cards[0].snapshot.get("card_style") == "mono"
-    body = "<pdf:nextpage />".join(one_card(card, school, logo, year_id) for card in cards)
+    body = "<pdf:nextpage />".join(one_card(card, school, logo, year_id, mono=mono) for card in cards)
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Admit card</title><style>{styles(mono)}</style></head>

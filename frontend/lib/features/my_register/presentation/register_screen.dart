@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../../absence_notes/presentation/absence_note_chip.dart';
 import '../../attendance/data/models/attendance_status.dart';
 import '../application/register_queue.dart';
@@ -423,6 +424,9 @@ class _StudentRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                 ],
+                // The photo, or the initials (docs/student-photos.md, D4).
+                UserAvatar(photoUrl: student.photoUrl, name: student.name, radius: 18),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(student.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
