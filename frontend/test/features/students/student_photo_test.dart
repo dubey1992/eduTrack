@@ -254,19 +254,19 @@ void main() {
       expect(fake.calls, isNot(contains('uploadPhoto')));
     });
 
-    testWidgets('a photo over 2 MB is refused before it is sent', (tester) async {
+    testWidgets('a photo over 5 MB is refused before it is sent', (tester) async {
       final fake = FakeStudentRepository(students: [_arjun()]);
       await tester.pumpWidget(
         _dialogApp(
           fake,
-          picker: _gives(PickedFile(name: 'big.jpg', bytes: List.filled(2 * 1024 * 1024 + 1, 1))),
+          picker: _gives(PickedFile(name: 'big.jpg', bytes: List.filled(5 * 1024 * 1024 + 1, 1))),
         ),
       );
       await _open(tester);
 
       await _pickFromPhotos(tester);
 
-      expect(find.text('The photo must be 2 MB or smaller.'), findsOneWidget);
+      expect(find.text('The photo must be 5 MB or smaller.'), findsOneWidget);
       expect(fake.calls, isNot(contains('uploadPhoto')));
     });
 

@@ -9,6 +9,7 @@ student's photo adds: the 3:4 passport shape.
 """
 
 import io
+import os
 import shutil
 import tempfile
 
@@ -18,11 +19,19 @@ from django.test import TestCase, override_settings
 from PIL import Image
 from rest_framework.test import APIClient
 
-from school import factories, photos, tokens
+from school import factories, photos, student_photos, tokens
 from school.enums import UserRole
 from school.models import AuditLog, Student
 
 from .test_profile_api import image_bytes, upload
+
+
+def _noisy_png(width: int, height: int) -> bytes:
+    """A PNG that does not compress - random pixels - so it is really big."""
+    out = io.BytesIO()
+    Image.frombytes("RGB", (width, height), os.urandom(width * height * 3)).save(out, format="PNG")
+
+    return out.getvalue()
 
 
 def photo_url(student_id: int) -> str:
@@ -112,11 +121,20 @@ class AddingAPhoto(StudentPhotoTest):
         self.assertEqual(["The photo must be a JPEG or PNG image."], response.data["details"]["errors"]["photo"])
         self.assertIsNone(Student.objects.get(pk=self.student.pk).photo_path)
 
-    def test_a_photo_over_2_mb_is_refused(self):
-        response = self.post_photo(self.admin, b"0" * (photos.MAX_BYTES + 1))
+    def test_a_photo_over_5_mb_is_refused(self):
+        response = self.post_photo(self.admin, b"0" * (student_photos.MAX_BYTES + 1))
 
         self.assertEqual(422, response.status_code)
-        self.assertIn("2 MB", response.data["details"]["errors"]["photo"][0])
+        self.assertIn("5 MB", response.data["details"]["errors"]["photo"][0])
+
+    def test_a_camera_photo_over_2_mb_but_under_5_is_kept(self):
+        """A profile photo's 2 MB would turn away most class photos."""
+        big = _noisy_png(1000, 1000)
+        self.assertGreater(len(big), 2 * 1024 * 1024)
+
+        response = self.post_photo(self.admin, big)
+
+        self.assertEqual(200, response.status_code, response.data)
 
     def test_asking_with_no_file_is_refused(self):
         response = self.client_for(self.admin).post(photo_url(self.student.id), {}, format="multipart")

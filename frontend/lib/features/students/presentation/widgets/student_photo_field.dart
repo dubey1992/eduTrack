@@ -11,8 +11,9 @@ import '../../../../core/widgets/user_avatar.dart';
 import '../../application/student_list_notifier.dart';
 import '../../data/models/student.dart';
 
-/// The largest photo the server accepts.
-const _maxPhotoBytes = 2 * 1024 * 1024;
+/// The largest photo the server accepts (school/student_photos.py) - more
+/// than a profile photo's 2 MB, since class photos come off a camera.
+const _maxPhotoBytes = 5 * 1024 * 1024;
 
 const _photoExtensions = ['.jpg', '.jpeg', '.png'];
 
@@ -41,7 +42,7 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
   static String? _problemWith(PickedFile file) {
     final name = file.name.toLowerCase();
     if (!_photoExtensions.any(name.endsWith)) return 'The photo must be a JPEG or PNG image.';
-    if (file.bytes.length > _maxPhotoBytes) return 'The photo must be 2 MB or smaller.';
+    if (file.bytes.length > _maxPhotoBytes) return 'The photo must be 5 MB or smaller.';
     return null;
   }
 

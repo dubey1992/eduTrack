@@ -10,3 +10,7 @@ bool get canPickFile => false;
 Future<PickedFile?> pickFile({required String accept}) {
   throw UnsupportedError('Uploading a file is only available in the web app for now.');
 }
+
+Future<List<ChosenFile>> pickFiles({required String accept}) {
+  throw UnsupportedError('Uploading files is only available in the web app for now.');
+}

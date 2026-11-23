@@ -55,7 +55,7 @@ This reuses school/photos.py, the profile photo code:
 - **Checking:** the bytes are decoded with Pillow, so only a real JPEG or
   PNG is accepted. They are then re-encoded, which leaves EXIF data, GPS and
   anything appended to the file behind. Decompression bombs are refused,
-  and each file may be at most 2 MB.
+  and each file may be at most 5 MB (raised from 2 MB in P2).
 - **Size and shape:** scaled to at most **600 px** on the longer side, enough
   for the printed box at 300 dpi. Profile photos are 512 px. With D2, the
   photo is cut to passport shape first.
@@ -135,7 +135,7 @@ row per student, plus one summary row ("42 photos uploaded").
 
 - **Single photo:**
   - A JPEG and a PNG are accepted and re-encoded. A non-image, a file over
-    2 MB and a decompression bomb are refused with a sentence.
+    5 MB and a decompression bomb are refused with a sentence.
   - Replacing a photo deletes the old file, and removing one clears the path.
   - The resource carries `photo_url`, and its `v` changes with each photo.
 - **Who may (ALLOW / DENY):**
@@ -189,6 +189,29 @@ window.
 - **The avatar** reuses `UserAvatar`, the staff photo widget. It already
   takes any authenticated photo address and falls back to the initials, so
   no separate `StudentAvatar` was needed.
+
+## As built - P2 (2026-11-23)
+
+- **"Upload Photos"** sits beside Bulk Upload on the Students page. It is
+  web only, like Bulk Upload: the Android app has no way to choose many
+  files.
+- **Up to 5 MB a photo**, single or bulk, instead of the profile photo's
+  2 MB. Class photos come off a camera or a phone at 3-5 MB, and every one
+  is cut down to 600 px anyway. The app holds back a larger file before
+  sending it.
+- **Batches are at most 10 files and about 10 MB**, whichever comes first,
+  so a request stays small on the CGI host. A failed batch pauses the
+  upload. What was sent is kept, and "Try again" sends only the rest.
+- **Files are read one batch at a time**, never all at once, so a whole
+  school's photos do not have to fit in the browser tab's memory.
+- **Held back at the preview**: not JPEG/PNG by name, no matching student,
+  two students matching the same name (`ambiguous`), two files for one
+  student (`duplicate`, both held back), or over 5 MB. Each is shown with
+  its reason.
+- **The server judges every file again** when it arrives. One bad file is
+  answered `skipped` with a reason, and the rest of the batch is kept.
+- **Audit:** each student's photo is logged as `student.photo_changed`, and
+  each batch adds one `student_photos.bulk_uploaded` row with its counts.
 
 ## Slices
 
