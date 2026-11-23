@@ -1,7 +1,7 @@
 # Student photos
 
-Asked for 2026-11-23. Plan only, nothing built. The decisions marked
-**D1-D4** at the end wait on the owner.
+Asked for 2026-11-23. Plan only, nothing built yet. The owner settled
+**D1-D4** the same day; all four went the recommended way (see the end).
 
 ## Why
 
@@ -186,7 +186,14 @@ window.
 Each slice is deployed only with the owner's go-ahead. P1's migration has to
 be applied on the live database before P1's code goes live.
 
-## Decisions for the owner
+## Decisions (settled 2026-11-23)
+
+All four taken as recommended: **D1** `/`, `-` and `_` count as the same;
+**D2** cut to a 3:4 passport shape, centred; **D3** a class teacher may set
+photos for their own section one at a time, while bulk upload stays with
+admins; **D4** photos go beside names in the staff app's register, in P3.
+
+As they were asked:
 
 - **D1 - file names for admission numbers with `/`:** treat `/`, `-` and `_`
   as the same (recommended), or require the school to rename its admission
