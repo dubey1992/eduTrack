@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from . import dates, mailer, modules, money, payment_items, permissions, school_logo, sms, syllabus_scope, whatsapp, working_hours
+from . import dates, mailer, modules, money, payment_items, permissions, school_logo, sms, student_photos, syllabus_scope, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
 from .enums import SchoolCategory, DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageDeliveryStatus, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
@@ -1703,6 +1703,8 @@ def student_resource(student: Student) -> dict:
         # The day they joined (docs/fees.md, F2), or null.
         "admission_date": None if student.admission_date is None else student.admission_date.isoformat(),
         "gender": student.gender,
+        # The photo's address (docs/student-photos.md), or null for initials.
+        "photo_url": student_photos.photo_url(student),
         "created_at": timestamp(student.created_at),
     }
 

@@ -138,6 +138,22 @@ class StudentRepository {
     }
   }
 
+  Future<Student> uploadPhoto(int studentId, {required List<int> bytes, required String fileName}) async {
+    try {
+      return await _api.uploadPhoto(studentId, bytes: bytes, fileName: fileName);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<Student> removePhoto(int studentId) async {
+    try {
+      return await _api.removePhoto(studentId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<Student> setActive(int studentId, bool active) async {
     try {
       return active ? await _api.activate(studentId) : await _api.deactivate(studentId);

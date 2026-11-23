@@ -174,6 +174,22 @@ Admin -> Students -> Bulk upload -> photos -> check -> upload -> the list
 shows the photos. This runs against the test database, with a visible
 window.
 
+## As built - P1 (2026-11-23)
+
+- **Changing a photo** from another school, or by a role that may not,
+  answers **403**, the same as every other change to a student. Only
+  *reading* the image answers 404 for "not yours", so the image cannot tell
+  anyone whether a photo exists.
+- **The photo is set from Edit Student**, saved the moment it changes (like
+  My Profile), not from Add Student: a photo needs the student to exist
+  first. Add the student, then open them and add the photo.
+- **Class teachers:** the server lets a class teacher set photos for their
+  own section (D3). The web app only opens Edit Student for people who
+  manage students, so a teacher's way in arrives with P3, in the staff app.
+- **The avatar** reuses `UserAvatar`, the staff photo widget. It already
+  takes any authenticated photo address and falls back to the initials, so
+  no separate `StudentAvatar` was needed.
+
 ## Slices
 
 1. **P1 - one student's photo:** the migration, the model, the endpoints,

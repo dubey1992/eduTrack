@@ -155,6 +155,18 @@ class StudentApi {
     return Student.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Adds or replaces the student's photo (docs/student-photos.md).
+  Future<Student> uploadPhoto(int studentId, {required List<int> bytes, required String fileName}) async {
+    final form = FormData.fromMap({'photo': MultipartFile.fromBytes(bytes, filename: fileName)});
+    final response = await _dio.post('/students/$studentId/photo', data: form);
+    return Student.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<Student> removePhoto(int studentId) async {
+    final response = await _dio.delete('/students/$studentId/photo');
+    return Student.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<Student> activate(int studentId) async {
     final response = await _dio.patch('/students/$studentId/activate');
     return Student.fromJson(response.data as Map<String, dynamic>);

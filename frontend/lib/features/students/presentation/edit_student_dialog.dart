@@ -11,6 +11,7 @@ import '../data/models/student.dart';
 import 'widgets/student_transport_picker.dart';
 import 'widgets/admission_date_field.dart';
 import 'widgets/gender_field.dart';
+import 'widgets/student_photo_field.dart';
 import '../../../core/widgets/searchable_dropdown.dart';
 
 class EditStudentDialog extends ConsumerStatefulWidget {
@@ -113,6 +114,9 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
                   Text(_errorMessage!, style: TextStyle(color: context.appColors.danger)),
                   const SizedBox(height: 12),
                 ],
+                // Saved on its own, the moment it changes (docs/student-photos.md).
+                StudentPhotoField(student: widget.student),
+                const SizedBox(height: 16),
                 _ClassSectionPicker(
                   schoolId: widget.student.schoolId,
                   selected: _classSectionId,

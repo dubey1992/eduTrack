@@ -1541,6 +1541,9 @@ class Student(models.Model):
     admission_date = models.DateField(blank=True, null=True)
     # male, female or other; null is "not given" (docs/dashboard.md).
     gender = models.CharField(max_length=10, blank=True, null=True)
+    # Where the photo is stored (docs/student-photos.md) - a storage path,
+    # never a URL. Null means no photo.
+    photo_path = models.CharField(max_length=255, blank=True, null=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 

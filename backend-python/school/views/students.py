@@ -8,14 +8,16 @@ already read the row is a policy that has already leaked it.
 
 from __future__ import annotations
 
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
+from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import jobs, notifications, progress_reports
+from .. import jobs, notifications, photos, progress_reports, student_photos
 from ..clock import DATE_TIME, SchoolClock
 from ..enums import MessageEvent, StudentStatus
 from ..errors import EmailNotSent, NoGuardianEmail, NothingToReport
@@ -178,6 +180,56 @@ def set_status(request, student_id: int, status_value: str) -> Response:
     StudentService.set_status(student, status_value)
 
     return Response(student_resource(reload(student.id)))
+
+
+@api_view(["GET", "POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def photo(request, student_id: int):
+    """The student's photo (docs/student-photos.md): read it, add or replace
+    it (multipart `photo`), or remove it."""
+    student = get_object_or_404(Student, pk=student_id)
+
+    if request.method == "GET":
+        return photo_image(request, student)
+
+    authorize(StudentPolicy.set_photo(request.user, student))
+
+    if request.method == "DELETE":
+        student_photos.remove_photo(student, request=request)
+
+        return Response(student_resource(reload(student.id)))
+
+    try:
+        data, extension = student_photos.prepare(request.FILES.get("photo"))
+    except photos.PhotoRejected as rejected:
+        # Shaped like any other field error, so the app shows it under the
+        # photo the way it shows a bad mobile number under the mobile field.
+        raise ValidationError({"photo": [str(rejected)]})
+
+    student_photos.set_photo(student, data, extension, request=request)
+
+    return Response(student_resource(reload(student.id)))
+
+
+def photo_image(request, student: Student) -> HttpResponse:
+    """The image itself. "Not yours to see" and "no photo" are the same 404,
+    so nobody learns whether another school's student has a photo."""
+    if not StudentPolicy.view(request.user, student):
+        raise Http404
+
+    stored = photos.read(student.photo_path)
+
+    if stored is None:
+        raise Http404
+
+    data, content_type = stored
+    response = HttpResponse(data, content_type=content_type)
+    # Private: a shared cache must never hand one school's photo to another.
+    # The address changes with every new photo, so the browser may keep it.
+    response["Cache-Control"] = "private, max-age=86400"
+
+    return response
 
 
 def reload(student_id: int) -> Student:

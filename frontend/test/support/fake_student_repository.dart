@@ -273,6 +273,33 @@ class FakeStudentRepository implements StudentRepository {
     return updated;
   }
 
+  /// How many photos have been uploaded, so each gets a new address.
+  int _photoVersion = 0;
+
+  @override
+  Future<Student> uploadPhoto(int studentId, {required List<int> bytes, required String fileName}) async {
+    calls.add('uploadPhoto');
+    final failure = failWith['uploadPhoto'];
+    if (failure != null) throw failure;
+
+    final index = _students.indexWhere((s) => s.id == studentId);
+    final updated = _students[index].copyWith(photoUrl: '/students/$studentId/photo?v=${++_photoVersion}');
+    _students[index] = updated;
+    return updated;
+  }
+
+  @override
+  Future<Student> removePhoto(int studentId) async {
+    calls.add('removePhoto');
+    final failure = failWith['removePhoto'];
+    if (failure != null) throw failure;
+
+    final index = _students.indexWhere((s) => s.id == studentId);
+    final updated = _students[index].copyWith(clearPhoto: true);
+    _students[index] = updated;
+    return updated;
+  }
+
   @override
   Future<StudentPerformance> performance(int studentId, {int? academicTermId}) async {
     calls.add('performance');

@@ -416,6 +416,7 @@ urlpatterns = [
     path("api/v1/students/<int:student_id>/enrollments", students.enrollments),
     path("api/v1/students/<int:student_id>/activate", students.activate),
     path("api/v1/students/<int:student_id>/deactivate", students.deactivate),
+    path("api/v1/students/<int:student_id>/photo", students.photo),
     # -- bulk upload -------------------------------------------------------
     # The kind of record is a path segment, so one pair of endpoints serves
     # every importer. M8 registers `students`; the rest arrive with their

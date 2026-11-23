@@ -12,6 +12,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/school_filter_dropdown.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../imports/presentation/bulk_import_button.dart';
 import '../application/student_list_notifier.dart';
@@ -299,6 +300,7 @@ class _StudentListMobile extends StatelessWidget {
         final student = students[index];
         return Card(
           child: ListTile(
+            leading: UserAvatar(photoUrl: student.photoUrl, name: student.name),
             title: Text('${student.rollNumber == null ? '' : 'Roll ${student.rollNumber} · '}${student.name}'),
             subtitle: Text(
               '${student.admissionNumber} · ${student.classSectionName ?? '-'} · Guardian: ${student.guardianName} · '
@@ -362,12 +364,19 @@ class _StudentListDesktop extends StatelessWidget {
                   cells: [
                     DataCell(Text(student.rollNumber ?? '-')),
                     DataCell(
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
                         children: [
-                          Text(student.name),
-                          Text(student.admissionNumber, style: Theme.of(context).textTheme.bodySmall),
+                          // The photo, or the initials (docs/student-photos.md).
+                          UserAvatar(photoUrl: student.photoUrl, name: student.name, radius: 18),
+                          const SizedBox(width: 10),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(student.name),
+                              Text(student.admissionNumber, style: Theme.of(context).textTheme.bodySmall),
+                            ],
+                          ),
                         ],
                       ),
                     ),

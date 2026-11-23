@@ -236,6 +236,26 @@ class StudentListNotifier extends AsyncNotifier<PagedList<Student>> {
     );
   }
 
+  /// Adds or replaces [student]'s photo, and returns the student as the
+  /// server now has them, so an open dialog can show the new photo.
+  Future<Student> uploadPhoto(Student student, {required List<int> bytes, required String fileName}) async {
+    final updated = await ref.read(studentRepositoryProvider).uploadPhoto(student.id, bytes: bytes, fileName: fileName);
+    _replace(updated);
+    return updated;
+  }
+
+  Future<Student> removePhoto(Student student) async {
+    final updated = await ref.read(studentRepositoryProvider).removePhoto(student.id);
+    _replace(updated);
+    return updated;
+  }
+
+  void _replace(Student updated) {
+    state = state.whenData(
+      (page) => page.withItems([for (final existing in page.items) existing.id == updated.id ? updated : existing]),
+    );
+  }
+
   Future<void> setActive(Student student, bool active) async {
     final updated = await ref.read(studentRepositoryProvider).setActive(student.id, active);
     ref.invalidate(studentClassesProvider);

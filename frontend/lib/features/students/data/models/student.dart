@@ -72,6 +72,7 @@ class Student {
     this.studentEmail,
     this.admissionDate,
     this.gender,
+    this.photoUrl,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -98,6 +99,7 @@ class Student {
       studentEmail: json['student_email'] as String?,
       admissionDate: json['admission_date'] is String ? DateTime.tryParse(json['admission_date'] as String) : null,
       gender: StudentGender.fromApiValue(json['gender'] as String?),
+      photoUrl: json['photo_url'] as String?,
     );
   }
 
@@ -132,7 +134,12 @@ class Student {
   /// dashboard (docs/dashboard.md).
   final StudentGender? gender;
 
-  Student copyWith({StudentStatus? status}) {
+  /// The photo's path relative to the API base (docs/student-photos.md), or
+  /// null when there is none - the initials are shown instead.
+  final String? photoUrl;
+
+  /// [photoUrl] replaces the photo's address; [clearPhoto] removes it.
+  Student copyWith({StudentStatus? status, String? photoUrl, bool clearPhoto = false}) {
     return Student(
       id: id,
       schoolId: schoolId,
@@ -154,6 +161,7 @@ class Student {
       studentEmail: studentEmail,
       admissionDate: admissionDate,
       gender: gender,
+      photoUrl: clearPhoto ? null : (photoUrl ?? this.photoUrl),
     );
   }
 }
