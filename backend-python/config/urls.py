@@ -61,6 +61,7 @@ from school.views import (
     schools,
     staff,
     staff_attendance,
+    student_photo_imports,
     students,
     syllabus,
     teaching_reports,
@@ -421,6 +422,9 @@ urlpatterns = [
     # The kind of record is a path segment, so one pair of endpoints serves
     # every importer. M8 registers `students`; the rest arrive with their
     # modules, and anything else is a 404.
+    # Before the <kind> routes, which would otherwise take "student-photos".
+    path("api/v1/imports/student-photos/preview", student_photo_imports.preview),
+    path("api/v1/imports/student-photos", student_photo_imports.store),
     path("api/v1/imports/<str:kind>/preview", imports.preview),
     path("api/v1/imports/<str:kind>", imports.store),
     path("api/v1/imports/<str:kind>/template", imports.template),

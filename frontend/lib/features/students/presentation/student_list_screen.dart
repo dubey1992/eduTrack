@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/network/paged_list.dart';
+import '../../../core/utils/file_picker.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/debounced_search_field.dart';
 import '../../../core/widgets/horizontal_scroll_table.dart';
@@ -18,6 +19,7 @@ import '../../imports/presentation/bulk_import_button.dart';
 import '../application/student_list_notifier.dart';
 import '../data/models/student.dart';
 import 'add_student_dialog.dart';
+import 'bulk_photo_upload_dialog.dart';
 import 'edit_student_dialog.dart';
 import 'student_history_dialog.dart';
 import 'student_performance_dialog.dart';
@@ -237,6 +239,22 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   ref.invalidate(studentClassesProvider);
                   ref.read(studentListNotifierProvider.notifier).refresh();
                 },
+              ),
+            // A whole class's photos at once, named by admission number
+            // (docs/student-photos.md, P2). Web only, like Bulk Upload.
+            if (canManage && canPickFile)
+              OutlinedButton.icon(
+                key: const Key('students-upload-photos'),
+                onPressed: () => showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => BulkPhotoUploadDialog(
+                    schoolId: _schoolFilter,
+                    onUploaded: () => ref.read(studentListNotifierProvider.notifier).refresh(),
+                  ),
+                ),
+                icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                label: const Text('Upload Photos'),
               ),
             SchoolFilterDropdown(
               selected: _schoolFilter,

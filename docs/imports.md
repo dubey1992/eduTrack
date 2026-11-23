@@ -16,6 +16,11 @@ spreadsheet instead.
 | `drivers` | Drivers | Super Admin, School Admin, Transport Manager |
 | `assessments` | Class tests, as drafts | School Admin (not the Super Admin, who sets no tests) |
 
+Student photos are uploaded in bulk too, but they are not a spreadsheet:
+they have their own two endpoints, `imports/student-photos/preview` and
+`imports/student-photos`, with the same `create` permission on `Student`.
+See docs/student-photos.md.
+
 Class tests are the one type a teacher may create by hand and not in bulk,
 and the reason is worth stating: a file crosses classes, and "is this your
 class" is a per-row question the shared reader has no actor to ask. So bulk
