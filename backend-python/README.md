@@ -17,6 +17,7 @@ below answers a `NOT_FOUND` envelope, not an HTML page.
 | `GET /me` | the session user, including `manages_branches` |
 | `GET`/`POST /students`, `GET`/`PATCH /students/{id}` | list, admit, read, edit |
 | `PATCH /students/{id}/activate`, `/deactivate` | a student is never deleted |
+| `GET`/`POST`/`DELETE /students/{id}/photo` | the student's photo, cut to 3:4 (docs/student-photos.md) |
 | `GET /imports/students/template`, `POST /imports/students` | bulk upload, all or nothing |
 | `GET`/`POST /schools`, `GET`/`PATCH /schools/{id}` | platform records; a group is one level deep |
 | `PATCH /schools/{id}/activate`, `/deactivate` | no delete, deliberately |

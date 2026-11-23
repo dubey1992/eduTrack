@@ -41,12 +41,23 @@ class PhotoRejected(Exception):
     """The upload is not a photo we will keep. The message is for the person."""
 
 
-def prepare(upload, *, max_side: int = MAX_SIDE, max_bytes: int = MAX_BYTES, noun: str = "photo") -> tuple[bytes, str]:
+def prepare(
+    upload,
+    *,
+    max_side: int = MAX_SIDE,
+    max_bytes: int = MAX_BYTES,
+    noun: str = "photo",
+    aspect: tuple[int, int] | None = None,
+) -> tuple[bytes, str]:
     """The upload, checked and re-encoded: (bytes, extension).
 
     [max_side] and [max_bytes] are a profile photo's unless given; a blog
     post's cover is larger (school/views/site_pages.py). [noun] names it in
-    the refusals. Raises PhotoRejected with a sentence the person can act on.
+    the refusals. [aspect], as (width, height), first cuts the picture to
+    that shape around its centre - a student's photo is cut to 3:4, the
+    passport shape of the box printed on admit cards and report cards
+    (docs/student-photos.md, D2). Raises PhotoRejected with a sentence the
+    person can act on.
     """
     if upload is None:
         raise PhotoRejected(f"Choose {_article(noun)} {noun} to upload.")
@@ -74,6 +85,10 @@ def prepare(upload, *, max_side: int = MAX_SIDE, max_bytes: int = MAX_BYTES, nou
     # A phone photo is often stored sideways with a note saying which way
     # is up; that note is about to be dropped, so the turn is applied first.
     image = ImageOps.exif_transpose(image)
+
+    if aspect is not None:
+        image = centre_crop(image, aspect)
+
     image.thumbnail((max_side, max_side))
 
     out = io.BytesIO()
@@ -84,6 +99,23 @@ def prepare(upload, *, max_side: int = MAX_SIDE, max_bytes: int = MAX_BYTES, nou
         image.save(out, format="PNG", optimize=True)
 
     return out.getvalue(), extension
+
+
+def centre_crop(image: Image.Image, aspect: tuple[int, int]) -> Image.Image:
+    """The largest [aspect]-shaped part of [image] around its centre."""
+    width, height = image.size
+    ratio_w, ratio_h = aspect
+
+    if width * ratio_h > height * ratio_w:
+        # Too wide: keep the full height, trim the sides.
+        new_width = max(1, round(height * ratio_w / ratio_h))
+        left = (width - new_width) // 2
+        return image.crop((left, 0, left + new_width, height))
+
+    # Too tall (or already right): keep the full width, trim top and bottom.
+    new_height = max(1, round(width * ratio_h / ratio_w))
+    top = (height - new_height) // 2
+    return image.crop((0, top, width, top + new_height))
 
 
 def store(data: bytes, extension: str, folder: str = FOLDER) -> str:

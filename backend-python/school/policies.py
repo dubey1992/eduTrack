@@ -1315,6 +1315,18 @@ class StudentPolicy:
     def set_status(cls, actor: User, student: Student) -> bool:
         return cls._manages(actor, student)
 
+    @classmethod
+    def set_photo(cls, actor: User, student: Student) -> bool:
+        """Adding, replacing or removing the student's photo
+        (docs/student-photos.md, D3): whoever manages the student, and also
+        the class teacher of the student's own section - they take the
+        class photo - even where the matrix lets teachers only view
+        students. Bulk upload is not this: it stays with `create`."""
+        if cls._manages(actor, student):
+            return True
+
+        return actor.role == UserRole.TEACHER and cls.view(actor, student)
+
     @staticmethod
     def renumber(actor: User, section) -> bool:
         """Renumbering a section is managing every student in it: the same
