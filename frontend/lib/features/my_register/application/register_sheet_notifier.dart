@@ -27,11 +27,21 @@ enum RegisterMode {
 }
 
 class RegisterStudent {
-  const RegisterStudent({required this.id, required this.name, required this.rollNumber});
+  const RegisterStudent({
+    required this.id,
+    required this.name,
+    required this.rollNumber,
+    this.photoUrl,
+  });
 
   final int id;
   final String name;
   final String? rollNumber;
+
+  /// Beside the name, to help a new or substitute teacher
+  /// (docs/student-photos.md, D4). Not kept offline: a register opened from
+  /// the phone's copy shows the initials.
+  final String? photoUrl;
 }
 
 class RegisterSheet {
@@ -109,7 +119,13 @@ class RegisterSheetNotifier extends AsyncNotifier<RegisterSheet> {
           .read(attendanceRepositoryProvider)
           .register(classSectionId: key.sectionId, date: key.date);
       final students = [
-        for (final s in register.students) RegisterStudent(id: s.studentId, name: s.name, rollNumber: s.rollNumber),
+        for (final s in register.students)
+          RegisterStudent(
+            id: s.studentId,
+            name: s.name,
+            rollNumber: s.rollNumber,
+            photoUrl: s.photoUrl,
+          ),
       ];
 
       // Kept for the next time there is no signal.

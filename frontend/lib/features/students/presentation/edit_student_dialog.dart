@@ -115,7 +115,10 @@ class _EditStudentDialogState extends ConsumerState<EditStudentDialog> {
                   const SizedBox(height: 12),
                 ],
                 // Saved on its own, the moment it changes (docs/student-photos.md).
-                StudentPhotoField(student: widget.student),
+                StudentPhotoField(
+                  student: widget.student,
+                  onChanged: ref.read(studentListNotifierProvider.notifier).replaceStudent,
+                ),
                 const SizedBox(height: 16),
                 _ClassSectionPicker(
                   schoolId: widget.student.schoolId,

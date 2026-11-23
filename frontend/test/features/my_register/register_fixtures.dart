@@ -22,9 +22,21 @@ const day = '2026-10-26';
 
 const teacherId = 7;
 
-AttendanceRegister registerOf({bool submitted = false, Map<int, AttendanceStatus> marks = const {}}) {
-  AttendanceRosterEntry student(int id, String name, String roll) =>
-      AttendanceRosterEntry(studentId: id, name: name, rollNumber: roll, status: marks[id], remarks: null);
+/// [photos]: each student's photo address, by student id
+/// (docs/student-photos.md).
+AttendanceRegister registerOf({
+  bool submitted = false,
+  Map<int, AttendanceStatus> marks = const {},
+  Map<int, String> photos = const {},
+}) {
+  AttendanceRosterEntry student(int id, String name, String roll) => AttendanceRosterEntry(
+    studentId: id,
+    name: name,
+    rollNumber: roll,
+    status: marks[id],
+    remarks: null,
+    photoUrl: photos[id],
+  );
 
   return AttendanceRegister(
     classSectionId: sectionId,

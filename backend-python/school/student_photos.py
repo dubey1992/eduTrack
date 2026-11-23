@@ -19,11 +19,18 @@ file is reported and the rest are kept.
 
 from __future__ import annotations
 
+import base64
+import io
+import logging
+
 from django.db import transaction
 from django.utils import timezone
+from PIL import Image
 
 from . import audit, photos
 from .models import Student
+
+logger = logging.getLogger(__name__)
 
 FOLDER = "student-photos"
 MAX_SIDE = 600
@@ -250,3 +257,46 @@ def upload_batch(school_id: int, uploads: list, *, request=None) -> list[dict]:
     )
 
     return results
+
+
+# -- on paper (P3) ------------------------------------------------------------
+
+
+def data_uri(student: Student, *, grey: bool = False) -> str | None:
+    """The student's photo inlined for a PDF - the admit card and the Classic
+    report card print it in their photo box - or None, which leaves the box
+    as it always printed. [grey] is for a black-and-white admit card. A file
+    that has gone missing or cannot be read costs the document its photo and
+    nothing else."""
+    if not getattr(student, "photo_path", None):
+        return None
+
+    stored = photos.read(student.photo_path)
+
+    if stored is None:
+        return None
+
+    data, content_type = stored
+
+    if grey:
+        try:
+            with Image.open(io.BytesIO(data)) as image:
+                out = io.BytesIO()
+                image.convert("L").save(out, format="JPEG", quality=85)
+            data, content_type = out.getvalue(), "image/jpeg"
+        except Exception as error:  # noqa: BLE001 - an unreadable photo means "no photo", by design
+            logger.warning("Student %s: the photo could not be read (%s)", student.id, error)
+            return None
+
+    return f"data:{content_type};base64,{base64.b64encode(data).decode('ascii')}"
+
+
+def photo_cell(student: Student, *, placeholder: str, width: int, grey: bool = False) -> str:
+    """What goes inside a document's photo box: the photo at [width] and the
+    3:4 height that goes with it, or the box's own placeholder words."""
+    uri = data_uri(student, grey=grey)
+
+    if uri is None:
+        return placeholder
+
+    return f'<img src="{uri}" width="{width}" height="{round(width * ASPECT[1] / ASPECT[0])}">'

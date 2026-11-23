@@ -16,7 +16,7 @@ from __future__ import annotations
 import decimal
 from types import SimpleNamespace
 
-from . import pdf_design, report_card
+from . import pdf_design, report_card, student_photos
 from .clock import SchoolClock
 from .enums import GradeScaleKind
 from .models import AcademicTerm, StudentEnrollment, StudentTermRemark
@@ -154,12 +154,14 @@ def student_block(student, year_id: int) -> str:
 
     left.append(("Address", (student.address or "").upper()))
     right = [("Roll No", roll), ("Class", class_name), ("Section", section)]
+    # The student's photo (docs/student-photos.md, P3), or the empty box.
+    photo = student_photos.photo_cell(student, placeholder="STUDENT<br/>PHOTO", width=60)
 
     return f"""
     <table><tr>
         <td style="width: 52%"><table class="meta">{"".join(meta_row(k, v) for k, v in left)}</table></td>
         <td style="width: 34%"><table class="meta">{"".join(meta_row(k, v) for k, v in right)}</table></td>
-        <td style="width: 14%"><table class="photo"><tr><td>STUDENT<br/>PHOTO</td></tr></table></td>
+        <td style="width: 14%"><table class="photo"><tr><td>{photo}</td></tr></table></td>
     </tr></table>"""
 
 

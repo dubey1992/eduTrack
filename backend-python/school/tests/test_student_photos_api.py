@@ -264,3 +264,24 @@ class TheShape(TestCase):
 
         self.assertEqual((150, 200), cut.size)
         self.assertEqual((255, 0, 0), cut.getpixel((75, 100)))
+
+
+class InTheRegister(StudentPhotoTest):
+    """Beside each name in the class register, to help a new or substitute
+    teacher (D4)."""
+
+    def register(self):
+        return self.client_for(self.class_teacher).get(
+            "/api/v1/attendance/register", {"class_section_id": self.section.id, "date": "2026-11-23"}
+        )
+
+    def test_each_student_carries_their_photo_address_or_none(self):
+        no_photo = factories.StudentFactory(class_section=self.section)
+        self.post_photo(self.admin)
+
+        response = self.register()
+
+        self.assertEqual(200, response.status_code, response.data)
+        rows = {row["student_id"]: row for row in response.data["students"]}
+        self.assertTrue(rows[self.student.id]["photo_url"].startswith(f"/students/{self.student.id}/photo?v="))
+        self.assertIsNone(rows[no_photo.id]["photo_url"])

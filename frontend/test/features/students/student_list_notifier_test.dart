@@ -88,32 +88,17 @@ void main() {
   });
 
   group('a student photo (docs/student-photos.md)', () {
-    test('uploadPhoto() puts the new address on that student in the list, and only that one', () async {
+    test('replaceStudent() puts the changed student in the list, and only that one', () async {
       final container = makeContainer(FakeStudentRepository(students: [_student(), _student(id: 2)]));
       addTearDown(container.dispose);
       final page = await container.read(studentListNotifierProvider.future);
 
-      final updated = await container
+      container
           .read(studentListNotifierProvider.notifier)
-          .uploadPhoto(page.items.first, bytes: [1, 2, 3], fileName: 'a.jpg');
+          .replaceStudent(page.items.first.copyWith(photoUrl: '/students/1/photo?v=1'));
 
-      expect(updated.photoUrl, '/students/1/photo?v=1');
       final items = container.read(studentListNotifierProvider).value!.items;
       expect(items.map((s) => s.photoUrl), ['/students/1/photo?v=1', null]);
-    });
-
-    test('removePhoto() clears it in the list', () async {
-      final fake = FakeStudentRepository(students: [_student()]);
-      final container = makeContainer(fake);
-      addTearDown(container.dispose);
-      final notifier = container.read(studentListNotifierProvider.notifier);
-      final page = await container.read(studentListNotifierProvider.future);
-      final withPhoto = await notifier.uploadPhoto(page.items.first, bytes: [1], fileName: 'a.png');
-
-      final removed = await notifier.removePhoto(withPhoto);
-
-      expect(removed.photoUrl, isNull);
-      expect(container.read(studentListNotifierProvider).value!.items.single.photoUrl, isNull);
     });
   });
 

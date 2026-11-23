@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
+import '../../../core/widgets/user_avatar.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../data/models/student.dart';
 import '../data/student_repository.dart';
+import 'widgets/student_photo_field.dart';
 
 /// What was typed into the search box; empty is the whole list the server
 /// lets this person see.
@@ -125,6 +129,7 @@ class _StudentCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
     final mobile = student.guardianMobile;
+    final role = ref.watch(authNotifierProvider).value?.role;
 
     return Card(
       key: Key('student-lookup-${student.id}'),
@@ -133,14 +138,37 @@ class _StudentCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(student.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-            Text(
-              [
-                ?student.classSectionName,
-                if (student.rollNumber != null) 'Roll ${student.rollNumber}',
-                'Adm. ${student.admissionNumber}',
-              ].join(' · '),
-              style: TextStyle(color: colors.muted),
+            Row(
+              children: [
+                UserAvatar(photoUrl: student.photoUrl, name: student.name, radius: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        student.name,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        [
+                          ?student.classSectionName,
+                          if (student.rollNumber != null) 'Roll ${student.rollNumber}',
+                          'Adm. ${student.admissionNumber}',
+                        ].join(' · '),
+                        style: TextStyle(color: colors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                if (mayChangePhoto(role))
+                  TextButton.icon(
+                    key: Key('student-lookup-photo-${student.id}'),
+                    onPressed: () => _editPhoto(context),
+                    icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                    label: const Text('Photo'),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
             Row(
@@ -156,6 +184,41 @@ class _StudentCard extends ConsumerWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Who is offered the photo here (docs/student-photos.md, D3): a teacher -
+  /// the list only ever holds their own section, as its class teacher - and
+  /// the school's administrators. The server decides either way.
+  static bool mayChangePhoto(UserRole? role) =>
+      role == UserRole.teacher ||
+      role == UserRole.schoolAdmin ||
+      role == UserRole.groupAdmin ||
+      role == UserRole.superAdmin;
+
+  Future<void> _editPhoto(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("${student.name}'s photo", style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 16),
+              // The sheet's own ref: the card behind can be rebuilt while it is open.
+              Consumer(
+                builder: (context, sheetRef, _) =>
+                    StudentPhotoField(student: student, onChanged: (_) => sheetRef.invalidate(studentLookupProvider)),
+              ),
+            ],
+          ),
         ),
       ),
     );

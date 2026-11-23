@@ -8,8 +8,8 @@ import '../../../../core/utils/photo_picker.dart';
 import '../../../../core/utils/picked_file.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/user_avatar.dart';
-import '../../application/student_list_notifier.dart';
 import '../../data/models/student.dart';
+import '../../data/student_repository.dart';
 
 /// The largest photo the server accepts (school/student_photos.py) - more
 /// than a profile photo's 2 MB, since class photos come off a camera.
@@ -23,10 +23,17 @@ const _photoExtensions = ['.jpg', '.jpeg', '.png'];
 /// A change is saved the moment it is made, like the photo on My Profile -
 /// not with the rest of the form - so a photo is never lost to a form
 /// error elsewhere. The server cuts it to a 3:4 passport shape.
+///
+/// Used in Edit Student on the web and in Find a student in the staff app,
+/// where a class teacher sets photos for their own section (D3).
 class StudentPhotoField extends ConsumerStatefulWidget {
-  const StudentPhotoField({super.key, required this.student});
+  const StudentPhotoField({super.key, required this.student, this.onChanged});
 
   final Student student;
+
+  /// The student as the server now has them, after each change - to update
+  /// whatever list the student came from.
+  final ValueChanged<Student>? onChanged;
 
   @override
   ConsumerState<StudentPhotoField> createState() => _StudentPhotoFieldState();
@@ -71,8 +78,7 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
     }
 
     await _run(
-      () =>
-          ref.read(studentListNotifierProvider.notifier).uploadPhoto(_student, bytes: file!.bytes, fileName: file.name),
+      () => ref.read(studentRepositoryProvider).uploadPhoto(_student.id, bytes: file!.bytes, fileName: file.name),
       success: 'Photo saved.',
     );
   }
@@ -113,7 +119,7 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
     );
     if (!confirmed || !mounted) return;
 
-    await _run(() => ref.read(studentListNotifierProvider.notifier).removePhoto(_student), success: 'Photo removed.');
+    await _run(() => ref.read(studentRepositoryProvider).removePhoto(_student.id), success: 'Photo removed.');
   }
 
   Future<void> _run(Future<Student> Function() change, {required String success}) async {
@@ -126,6 +132,7 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
     try {
       final updated = await change();
       if (mounted) setState(() => _student = updated);
+      widget.onChanged?.call(updated);
       messenger
         ..clearSnackBars()
         ..showSnackBar(SnackBar(content: Text(success)));
