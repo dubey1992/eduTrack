@@ -2,7 +2,6 @@ import 'package:edutrack_app/core/theme/app_colors.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/core/theme/brand_tokens.dart';
 import 'package:edutrack_app/core/theme/driver_brand.dart';
-import 'package:edutrack_app/core/theme/family_brand.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,7 +13,7 @@ void main() {
   // which a testWidgets body keeps off the network.
   final apps = {
     'Staff': (AppTheme.teacherLight, AppTheme.teacherDark, BrandColors.teal),
-    'Driver': (AppTheme.crewLight, AppTheme.crewDark, DriverBrand.navy),
+    'Driver': (AppTheme.crewLight, AppTheme.crewDark, DriverBrand.navy),
   };
 
   for (final MapEntry(key: app, value: (lightOf, darkOf, accent)) in apps.entries) {
