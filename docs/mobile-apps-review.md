@@ -226,10 +226,17 @@ the product owner before that phase starts.
 - **3.2 Spoken prompts**: on starting a trip and after each stop, the phone says "Next stop Green Park, 4 children to pick up" (or "to drop"). A speaker button on the trip screen mutes it, remembered on the phone. Uses `flutter_tts` (the phone's own text-to-speech; nothing leaves the phone) - the one new dependency, since Flutter has no speech of its own.
 - **5.5 Delay message**: a "Running late" button on the running trip offers 10, 15 and 30 minutes. It goes to the parents on the route still waiting - on a pickup, children not yet boarded or marked absent; on a drop, children still aboard - on the school's transport-alert channels (the existing switch), and onto the trip's timeline for the office. It is a trip mark, so it is queued without signal.
 
+**M8 decided by the owner 2026-11-24, and planned.** Family app only - built on main and kept off live until the Family app ships (D-rule since 2026-11-07).
+
+- **8.1 Homework** - every Homework box a teacher fills on a filed teaching report is shown to the parents of that class, under the day it was set, with one evening push per family ("3 homework items for today"). No new tick box and no database change: `daily_teaching_reports.homework` already exists.
+- **8.5 Second guardian** - a parent asks from the Family app (name, mobile, relationship); the school office sees the request and approves or declines it; on approval the guardian link is made and the set-up code goes out as for any guardian. The second guardian has **the same rights** as the first (fees, absence notes, call requests). New table `guardian_invites` (who asked, for which student, the name, mobile, relationship, status pending/approved/declined, decided by and when).
+- **5.4 Attendance warning** - when a child's attendance this term falls below the school's early-warning line (`early_warning_attendance_below`, 75% by default), the parents get one Family-app message with the figure; not again until it has risen back above the line and fallen again. New table `attendance_warnings` (student, term, warned at, cleared at), so "once per drop" survives a restart. Family app push only - free.
+- **8.2 Marks trend** - a small chart per subject on the Results screen, test by test and term by term, from marks the Family app already reads. No database change.
+- **6.3 Add to calendar** - an .ics file for the exam date sheet, holidays and the school calendar, shared through the phone's share sheet. No database change.
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?
-- **M8** - should every period's homework go to parents, or only what the teacher marks "send to parents"? Does a second guardian get the same rights as the first (fees, absence notes)?
 - **M9** - who uploads student photos (office, class teacher, or the parent), and are they shown to bus crew? Which notice attachments are allowed (PDF and images only?) and how large?
 - **M11** - which languages after Hindi, and in what order? Does each user choose, or does the school set it?
 - **M12** - only on a school's request.
