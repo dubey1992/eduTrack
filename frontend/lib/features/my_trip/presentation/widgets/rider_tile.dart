@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../../core/widgets/user_avatar.dart';
 import '../../../transport/data/models/transport_trip.dart';
 import '../../data/apply_marks.dart';
 
@@ -43,6 +44,14 @@ class RiderTile extends StatelessWidget {
         children: [
           Row(
             children: [
+              // Large enough to know a face at a glance in a moving bus.
+              UserAvatar(
+                key: Key('rider-photo-${rider.studentId}'),
+                photoUrl: rider.photoUrl,
+                name: rider.name,
+                radius: 24,
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

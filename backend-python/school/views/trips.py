@@ -22,6 +22,7 @@ from rest_framework.response import Response
 
 from django.db.models import Count
 
+from .. import student_photos
 from ..clock import SchoolClock
 from ..enums import StudentStatus, TripDirection, TripRiderStatus, TripStatus
 from ..models import (
@@ -309,6 +310,7 @@ def route_roster(route) -> dict:
                 ),
                 "guardian_name": a.student.guardian_name,
                 "guardian_mobile": a.student.guardian_mobile,
+                "photo_url": student_photos.photo_url(a.student),
                 "stop_id": a.transport_stop_id,
                 "stop_name": a.transport_stop.name,
                 "stop_sequence_number": a.transport_stop.sequence_number,

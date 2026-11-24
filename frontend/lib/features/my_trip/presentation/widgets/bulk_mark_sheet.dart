@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/user_avatar.dart';
 import '../../../transport/data/models/transport_trip.dart';
 
 /// "Board everyone at this stop" (docs/mobile-apps-review.md, 1.1): every
@@ -78,6 +79,7 @@ class _BulkMarkSheetState extends State<_BulkMarkSheet> {
                           _ticked.remove(rider.studentId);
                         }
                       }),
+                      secondary: UserAvatar(photoUrl: rider.photoUrl, name: rider.name),
                       title: Text(rider.name),
                       subtitle: rider.classSectionName == null ? null : Text(rider.classSectionName!),
                     ),
