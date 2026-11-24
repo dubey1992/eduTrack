@@ -8,6 +8,7 @@ import 'package:edutrack_app/features/family/data/family_auth_repository.dart';
 import 'package:edutrack_app/features/family/data/family_device_storage.dart';
 import 'package:edutrack_app/features/family/data/family_repository.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
+import 'package:edutrack_app/core/utils/calendar_file.dart';
 import 'package:edutrack_app/core/utils/pdf_hand_off.dart';
 import 'package:edutrack_app/features/maps/data/maps_config.dart';
 import 'package:edutrack_app/core/utils/photo_picker.dart';
@@ -27,6 +28,7 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
   FakeFamilyAuthRepository? auth,
   String? goTo,
   PdfHandOff? onPdf,
+  CalendarHandOff? onCalendar,
   PhotoPicker? onPickPhoto,
   bool opens = true,
 }) async {
@@ -44,6 +46,7 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
       familyRepositoryProvider.overrideWithValue(repository),
       familyAuthRepositoryProvider.overrideWithValue(session),
       if (onPdf != null) pdfHandOffProvider.overrideWithValue(onPdf),
+      if (onCalendar != null) calendarHandOffProvider.overrideWithValue(onCalendar),
       // No map key in tests: every map shows its plain-words fallback.
       mapsConfigProvider.overrideWith((ref) async => const MapsConfig.none()),
       // A fixed day for the forms' date pickers (Monday 9 Nov 2026).

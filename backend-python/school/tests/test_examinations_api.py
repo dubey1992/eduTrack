@@ -594,6 +594,20 @@ class AParentsAdmitCards(FamilyAppTest):
     def test_an_unpublished_exam_is_not_listed(self):
         self.assertEqual([], self.cards())
 
+    def test_the_childs_class_papers_come_with_the_card_for_add_to_calendar(self):
+        # M8, 6.3: the published date sheet, so the app can put it in the
+        # phone's calendar.
+        self.publish()
+
+        [card] = self.cards()
+
+        [paper] = card["papers"]
+        self.assertEqual(
+            ((self.today() + dt.timedelta(days=20)).isoformat(), "09:00", "12:00"),
+            (paper["date"], paper["start"], paper["end"]),
+        )
+        self.assertIn("reporting_time", card)
+
     def test_a_published_card_is_listed_and_downloads(self):
         self.publish()
 

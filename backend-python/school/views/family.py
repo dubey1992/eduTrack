@@ -543,7 +543,7 @@ def child_admit_cards(request, child_id: int) -> Response:
     saying whether the card can be downloaded. A withheld card says to
     contact the school - never why."""
     from ..examinations.resources import family_card_resource
-    from ..examinations.service import card_state, latest_version
+    from ..examinations.service import card_state, class_of, latest_version
     from ..models import Examination, StudentEnrollment
 
     child = child_of(exams_reader(request), child_id)
@@ -560,7 +560,7 @@ def child_admit_cards(request, child_id: int) -> Response:
         state = card_state(exam, child, today)
 
         if state.code != "no_papers":
-            cards.append(family_card_resource(exam, state, latest_version(exam)))
+            cards.append(family_card_resource(exam, state, latest_version(exam), class_of(child, exam.academic_year_id)))
 
     return Response({"data": cards})
 

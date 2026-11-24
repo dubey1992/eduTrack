@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/calendar_file.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../application/family_notifiers.dart';
@@ -472,6 +473,30 @@ class FamilyCalendarScreen extends ConsumerStatefulWidget {
 class _FamilyCalendarScreenState extends ConsumerState<FamilyCalendarScreen> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
 
+  /// The coming holidays into the phone's calendar, each over its own days
+  /// (M8, 6.3).
+  Future<void> _addHolidays(List<SchoolHoliday> holidays) async {
+    final file = calendarFile([
+      for (final holiday in holidays)
+        CalendarItem.allDay(
+          uid: 'holiday-${holiday.start.toIso8601String().substring(0, 10)}-${holiday.name.hashCode}',
+          title: holiday.name,
+          day: holiday.start,
+          lastDay: holiday.end,
+        ),
+    ], name: 'School holidays');
+
+    try {
+      await ref.read(calendarHandOffProvider)(file, 'school-holidays.ics');
+    } catch (error) {
+      debugPrint('Sharing the holidays calendar failed: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('The calendar file could not be shared.')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final key = monthKey(_month);
@@ -539,6 +564,17 @@ class _FamilyCalendarScreenState extends ConsumerState<FamilyCalendarScreen> {
                   ],
                   const SizedBox(height: 12),
                   _HolidayList(title: 'Coming up', holidays: data.upcoming, empty: 'No holidays planned yet.'),
+                  // The school's coming holidays into the phone's calendar (M8, 6.3).
+                  if (data.upcoming.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        key: const Key('family-holidays-calendar'),
+                        onPressed: () => _addHolidays(data.upcoming),
+                        icon: const Icon(Icons.event_available_rounded, size: 18),
+                        label: const Text('Add these holidays to my calendar'),
+                      ),
+                    ),
                 ],
               ),
             ),

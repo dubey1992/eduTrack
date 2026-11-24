@@ -12,6 +12,9 @@ class FamilyAdmitCard {
     required this.message,
     this.version,
     this.issuedOn,
+    this.papers = const [],
+    this.reportingTime,
+    this.centre,
   });
 
   factory FamilyAdmitCard.fromJson(Map<String, dynamic> json) => FamilyAdmitCard(
@@ -24,6 +27,12 @@ class FamilyAdmitCard {
     message: json['message'] as String? ?? '',
     version: json['version'] as int?,
     issuedOn: json['issued_on'] as String?,
+    papers: [
+      for (final paper in (json['papers'] as List<dynamic>?) ?? const [])
+        ExamPaper.fromJson(paper as Map<String, dynamic>),
+    ],
+    reportingTime: json['reporting_time'] as String?,
+    centre: json['centre'] as String?,
   );
 
   final int examinationId;
@@ -37,4 +46,31 @@ class FamilyAdmitCard {
 
   /// The day this version was published, in the app's date order.
   final String? issuedOn;
+
+  /// The child's class's papers on the published date sheet - what "Add to
+  /// calendar" puts in the phone (M8, 6.3). Empty from an older server.
+  final List<ExamPaper> papers;
+
+  /// `HH:mm`, when the school gives one.
+  final String? reportingTime;
+  final String? centre;
+}
+
+/// One paper of an exam's date sheet.
+class ExamPaper {
+  const ExamPaper({required this.subject, required this.date, required this.start, required this.end});
+
+  factory ExamPaper.fromJson(Map<String, dynamic> json) => ExamPaper(
+    subject: json['subject'] as String,
+    date: DateTime.parse(json['date'] as String),
+    start: json['start'] as String,
+    end: json['end'] as String,
+  );
+
+  final String subject;
+  final DateTime date;
+
+  /// `HH:mm` on the school's clock.
+  final String start;
+  final String end;
 }

@@ -9,6 +9,7 @@ import '../application/family_session_notifier.dart';
 import '../data/family_repository.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_admit_card.dart';
+import '../../../core/utils/calendar_file.dart';
 import '../../../core/utils/pdf_hand_off.dart';
 import 'widgets/family_widgets.dart';
 
@@ -91,6 +92,34 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
     );
   }
 
+  Future<void> _addToCalendar(FamilyChild child, FamilyAdmitCard card) async {
+    final file = calendarFile([
+      for (final paper in card.papers)
+        CalendarItem.timed(
+          uid: 'exam-${card.examinationId}-${child.id}-${paper.date.toIso8601String().substring(0, 10)}-${paper.start}',
+          title: '${paper.subject} - ${card.name} (${child.firstName})',
+          day: paper.date,
+          start: paper.start,
+          end: paper.end,
+          location: card.centre,
+          note: card.reportingTime == null ? null : 'Reporting time ${card.reportingTime}.',
+        ),
+    ], name: card.name);
+
+    try {
+      await ref.read(calendarHandOffProvider)(file, '${_fileStem(card.name)}.ics');
+    } catch (error) {
+      debugPrint('Sharing the exam calendar failed: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('The calendar file could not be shared.')));
+      }
+    }
+  }
+
+  static String _fileStem(String name) =>
+      name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-|-$'), '');
+
   Widget _card(FamilyChild child, FamilyAdmitCard card) {
     final colors = context.appColors;
     final busy = _downloading == card.examinationId;
@@ -120,6 +149,17 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
                     ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.download_rounded, size: 18),
                 label: const Text('Download admit card'),
+              ),
+            ],
+            // The date sheet into the phone's calendar (M8, 6.3) - offered
+            // even when the card itself is held back: the dates are the class's.
+            if (card.papers.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              TextButton.icon(
+                key: Key('family-exam-calendar-${card.examinationId}'),
+                onPressed: () => _addToCalendar(child, card),
+                icon: const Icon(Icons.event_available_rounded, size: 18),
+                label: Text('Add ${card.papers.length} ${card.papers.length == 1 ? 'paper' : 'papers'} to calendar'),
               ),
             ],
           ],

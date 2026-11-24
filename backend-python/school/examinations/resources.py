@@ -91,10 +91,15 @@ def candidate_resource(enrollment, state, *, exception=None) -> dict:
     }
 
 
-def family_card_resource(exam: Examination, state, version: ExaminationVersion | None) -> dict:
+def family_card_resource(exam: Examination, state, version: ExaminationVersion | None, class_id=None) -> dict:
     """What a parent sees of one exam: never the reason a card is withheld,
-    and no figures."""
+    and no figures. With [class_id], the published date sheet's papers for
+    the child's class - what "Add to calendar" reads (M8, 6.3). A withheld
+    card still shows them: the date sheet is the class's, not the card's."""
     clock = SchoolClock.for_school(exam.school_id)
+    papers = []
+    if version is not None and class_id is not None:
+        papers = (version.snapshot.get("classes") or {}).get(str(class_id), {}).get("papers", [])
 
     return {
         "examination_id": exam.id,
@@ -106,4 +111,7 @@ def family_card_resource(exam: Examination, state, version: ExaminationVersion |
         "message": PARENT_WORDS[state.code],
         "version": version.version if version is not None else None,
         "issued_on": clock.format(version.published_at, DATE) if version is not None else None,
+        "reporting_time": version.snapshot.get("reporting_time") if version is not None else None,
+        "centre": version.snapshot.get("centre") if version is not None else None,
+        "papers": papers,
     }
