@@ -21,8 +21,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 RES = Path(__file__).resolve().parent.parent / "frontend" / "android" / "app" / "src" / "family" / "res"
-BLUE = (0x25, 0x63, 0xEB, 255)
-BLUE_DEEP = (0x1D, 0x4E, 0xD8, 255)
+BLUE = (0x6D, 0x3B, 0xD8, 255)  # the logo's violet (slice B1, 2026-11-24)
+BLUE_DEEP = (0x4C, 0x25, 0xA8, 255)
 WHITE = (255, 255, 255, 255)
 CORAL = (0xFB, 0x71, 0x85, 255)
 CLEAR = (0, 0, 0, 0)

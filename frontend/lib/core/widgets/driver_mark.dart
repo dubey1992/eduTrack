@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../theme/brand_tokens.dart';
+import '../theme/driver_brand.dart';
+
 /// The Driver app's mark: the shuttle from the splash animation, side on.
 ///
 /// Drawn rather than shipped as an image so it is sharp at every size. The
@@ -11,12 +14,12 @@ class DriverMark extends StatelessWidget {
 
   final double size;
 
-  /// On the rounded brand-blue tile, as on the launcher. Without it the
+  /// On the rounded brand-navy tile, as on the launcher. Without it the
   /// shuttle sits on whatever is behind it.
   final bool tile;
 
-  static const blue = Color(0xFF2563EB);
-  static const blueDeep = Color(0xFF1D4ED8);
+  static const blue = DriverBrand.navy;
+  static const blueDeep = BrandColors.navy;
 
   @override
   Widget build(BuildContext context) {
@@ -48,11 +51,11 @@ class _ShuttlePainter extends CustomPainter {
   const _ShuttlePainter();
 
   static const white = Color(0xFFFFFFFF);
-  static const skirt = Color(0xFFDBEAFE);
-  static const glass = Color(0xFF1D4ED8);
+  static const skirt = Color(0xFFE2E9F0);
+  static const glass = BrandColors.navy;
   static const tyre = Color(0xFF0F172A);
   static const hub = Color(0xFFCBD5E1);
-  static const amber = Color(0xFFF59E0B);
+  static const amber = DriverBrand.orange;
 
   @override
   void paint(Canvas canvas, Size size) {

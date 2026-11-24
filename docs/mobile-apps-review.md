@@ -213,6 +213,12 @@ the product owner before that phase starts.
 - 4.5 **Your privacy** page in the Family app: who may see the parent's number, the bus on the map only during the child's own trip, the app never asks for the phone's location.
 - 6.4 **Pay with any UPI app**: a upi://pay link with the school's UPI ID, the school as payee, the amount overdue (else the next instalment owing) and "Fees - <name> (<admission no>)"; only for a rupee school with a UPI ID and something owed. The school still records the payment.
 
+**Decided by the owner 2026-11-24 (M7 and the phone apps' colours):**
+
+- **M7, auto "Reached":** yes, it sends the parents the same "bus at your stop" alert as the crew's button. The button stays as an override, and a stop is never announced twice.
+- **M7, delay message:** three fixed choices, 10, 15 and 30 minutes, to every parent on the route still waiting. No free text while driving.
+- **Brand colours in the phone apps (slice B1, built before M7):** all three apps take the School365AI design - navy and teal, Manrope headings over DM Sans, as the web app does since 2026-11-21. Each keeps one accent so they are still told apart: **Staff** teal, **Driver** navy with the brand orange (high contrast in sunlight), **Family** the logo's violet. Status colours (present, absent, late) do not change. Play Store screenshots are retaken after it.
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?

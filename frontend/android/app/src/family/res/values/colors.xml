@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The adaptive icon's background: the School365ai blue (FamilyBrand.blue). -->
-    <color name="ic_launcher_background">#FF2563EB</color>
+    <color name="ic_launcher_background">#FF6D3BD8</color>
     <!-- The window the app opens in: the same blue the Flutter splash paints
          first (FamilySplashScreen), so a cold start is one colour. -->
-    <color name="splash_background">#FF2563EB</color>
+    <color name="splash_background">#FF6D3BD8</color>
 </resources>

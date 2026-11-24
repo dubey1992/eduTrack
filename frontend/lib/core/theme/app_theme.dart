@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../features/auth/presentation/widgets/auth_palette.dart';
 import 'app_colors.dart';
 import 'brand_tokens.dart';
+import 'driver_brand.dart';
 import 'family_brand.dart';
 import 'teacher_brand.dart';
 
@@ -16,144 +17,124 @@ import 'teacher_brand.dart';
 /// its look from here and from the [ThemeExtension]s below, so one change
 /// here reaches all of them.
 ///
-/// **The phone apps** keep the look they launched with: the Driver app the
-/// slate monochrome ([crewLight], [crewDark]), the Teacher app its teal, the
-/// Family app its blue - all in Poppins.
+/// **The phone apps** wear the same design since 2026-11-24 (slice B1,
+/// docs/mobile-apps-review.md): the web app's grounds, navy text, DM Sans and
+/// Manrope - each with one accent so they are told apart in a hand. Staff
+/// is the brand teal ([teacherLight]), the Driver app navy with the brand
+/// orange ([crewLight]), the Family app the logo's violet ([familyLight]).
+/// The status colours (present, absent, late) are the same in every app.
 ///
 /// Both follow the device's light/dark setting (ThemeMode.system).
 class AppTheme {
   const AppTheme._();
 
-  // ---- The phone apps' slate ground ----
-  static const _lightPrimary = Color(0xFF0F172A);
-  static const _lightPrimarySoft = Color(0xFFE9ECF1);
-  static const _lightBackground = Colors.white;
-  static const _lightSurface = Colors.white;
-  static const _lightText = Color(0xFF0F172A);
-  static const _lightBorder = Color(0xFFCFD5DE);
-
-  static const _darkPrimary = Color(0xFFE2E8F0);
-  static const _darkPrimarySoft = Color(0xFF1E293B);
-  static const _darkBackground = Color(0xFF0B0F1A);
-  static const _darkSurface = Color(0xFF111827);
-  static const _darkText = Color(0xFFF1F5F9);
-  static const _darkBorder = Color(0xFF263042);
-
-  /// The phone apps' radii. The web app's are [BrandRadii].
+  /// The phone apps' radii before B1. Kept for the few widgets that name
+  /// them; every theme now uses [BrandRadii].
   static const radiusCard = 8.0;
   static const radiusControl = 6.0;
 
   // ---- The web app ----
 
   static ThemeData light() => _build(
-    _Palette(
+    _Palette.brand(
       brightness: Brightness.light,
       primary: BrandColors.teal,
       onPrimary: Colors.white,
       primarySoft: BrandColors.mint,
-      accent: BrandColors.teal,
-      background: BrandColors.workspace,
-      surface: Colors.white,
-      surfaceTints: const [Colors.white, Color(0xFFFBFCFD), Color(0xFFF5F8FB), Color(0xFFEFF4F8), Color(0xFFE9EFF5)],
-      text: BrandColors.ink,
-      muted: BrandColors.muted,
-      border: BrandColors.line,
-      appColors: AppColors.brandLight,
-      authPalette: AuthPalette.brandLight,
+      primaryInk: BrandColors.tealInk,
     ),
     editorial: true,
   );
 
   static ThemeData dark() => _build(
-    _Palette(
+    _Palette.brand(
       brightness: Brightness.dark,
       primary: BrandColors.nightTeal,
       onPrimary: BrandColors.deep,
       primarySoft: BrandColors.nightMint,
-      accent: BrandColors.nightTeal,
-      background: BrandColors.night,
-      surface: BrandColors.nightSurface,
-      surfaceTints: const [
-        Color(0xFF0F1D33),
-        Color(0xFF13233B),
-        Color(0xFF172A44),
-        Color(0xFF1B304D),
-        Color(0xFF203656),
-      ],
-      text: BrandColors.nightText,
-      muted: BrandColors.nightMuted,
-      border: BrandColors.nightLine,
-      appColors: AppColors.brandDark,
-      authPalette: AuthPalette.brandDark,
+      primaryInk: BrandColors.nightText,
     ),
     editorial: true,
   );
 
   // ---- The Driver app ----
-
+  //
+  // Navy buttons with white text - the strongest contrast there is, for a
+  // phone read in sunlight on a bus - and the brand orange as the warm note
+  // on what is chosen. At night the orange leads, dark text on it.
   static ThemeData crewLight() => _build(
-    _Palette.phone(
+    _Palette.brand(
       brightness: Brightness.light,
-      primary: _lightPrimary,
-      primarySoft: _lightPrimarySoft,
-      background: _lightBackground,
+      primary: DriverBrand.navy,
+      onPrimary: Colors.white,
+      primarySoft: DriverBrand.orangeSoft,
+      primaryInk: DriverBrand.orangeInk,
     ),
+    editorial: true,
   );
 
   static ThemeData crewDark() => _build(
-    _Palette.phone(
+    _Palette.brand(
       brightness: Brightness.dark,
-      primary: _darkPrimary,
-      primarySoft: _darkPrimarySoft,
-      background: _darkBackground,
+      primary: DriverBrand.orange,
+      onPrimary: BrandColors.deep,
+      primarySoft: DriverBrand.orangeNight,
+      primaryInk: BrandColors.nightText,
     ),
+    editorial: true,
   );
 
-  // ---- The Teacher app (docs/teacher-app.md) ----
+  // ---- The Staff app (docs/teacher-app.md) ----
   //
-  // The slate theme with the teacher brand's teal for its primary, so the
-  // app reads as its own product on a phone while every widget, badge and
-  // spacing stays the same. The semantic colours are unchanged: a "Report
-  // owed" means the same thing everywhere.
+  // The brand teal: the same look as the web app, so a teacher who uses both
+  // meets one product. Status colours unchanged: a "Report owed" means the
+  // same thing everywhere.
   static ThemeData teacherLight() => _build(
-    _Palette.phone(
+    _Palette.brand(
       brightness: Brightness.light,
       primary: TeacherBrand.teal,
+      onPrimary: Colors.white,
       primarySoft: TeacherBrand.mint,
-      background: _lightBackground,
+      primaryInk: BrandColors.tealInk,
     ),
+    editorial: true,
   );
 
   static ThemeData teacherDark() => _build(
-    _Palette.phone(
+    _Palette.brand(
       brightness: Brightness.dark,
       primary: TeacherBrand.tealBright,
+      onPrimary: BrandColors.deep,
       primarySoft: TeacherBrand.tealNight,
-      background: _darkBackground,
+      primaryInk: BrandColors.nightText,
     ),
+    editorial: true,
   );
 
   // ---- The Family app (docs/parent-student-app.md) ----
   //
-  // The School365ai blue, on a soft off-white ground so the white cards
-  // stand off it. Status colours unchanged: "Absent" is the same red a
-  // teacher sees.
+  // The violet of the logo's "AI", on the brand's grounds. Status colours
+  // unchanged: "Absent" is the same red a teacher sees.
   static ThemeData familyLight() => _build(
-    _Palette.phone(
+    _Palette.brand(
       brightness: Brightness.light,
-      primary: FamilyBrand.blue,
+      primary: FamilyBrand.violet,
+      onPrimary: Colors.white,
       primarySoft: FamilyBrand.mist,
-      background: FamilyBrand.ground,
+      primaryInk: FamilyBrand.violetDeep,
     ),
+    editorial: true,
   );
 
   static ThemeData familyDark() => _build(
-    _Palette.phone(
+    _Palette.brand(
       brightness: Brightness.dark,
-      primary: FamilyBrand.blueBright,
-      primarySoft: FamilyBrand.blueNight,
-      background: _darkBackground,
+      primary: FamilyBrand.violetBright,
+      onPrimary: BrandColors.deep,
+      primarySoft: FamilyBrand.violetNight,
+      primaryInk: BrandColors.nightText,
     ),
+    editorial: true,
   );
 
   static ThemeData _build(_Palette p, {bool editorial = false}) {
@@ -171,11 +152,11 @@ class AppTheme {
     );
     final colorScheme = editorial
         ? seeded.copyWith(
-            onPrimaryContainer: dark ? BrandColors.nightText : BrandColors.tealInk,
+            onPrimaryContainer: p.primaryInk,
             secondary: p.accent,
             onSecondary: dark ? BrandColors.deep : Colors.white,
             secondaryContainer: p.primarySoft,
-            onSecondaryContainer: dark ? BrandColors.nightText : BrandColors.tealInk,
+            onSecondaryContainer: p.primaryInk,
             tertiary: BrandColors.orange,
             onSurface: p.text,
             onSurfaceVariant: p.muted,
@@ -487,33 +468,37 @@ class _Palette {
     required this.border,
     required this.appColors,
     required this.authPalette,
+    required this.primaryInk,
   });
 
-  /// A phone app's palette: its own primary on the slate ground.
-  factory _Palette.phone({
+  /// An app's palette on the School365AI grounds - the web app's, and since
+  /// B1 every phone app's - with its own [primary].
+  factory _Palette.brand({
     required Brightness brightness,
     required Color primary,
+    required Color onPrimary,
     required Color primarySoft,
-    required Color background,
+    required Color primaryInk,
   }) {
     final dark = brightness == Brightness.dark;
-    final surface = dark ? AppTheme._darkSurface : AppTheme._lightSurface;
 
     return _Palette(
       brightness: brightness,
       primary: primary,
-      // Left to the seed, as before the web app's redesign.
-      onPrimary: null,
+      onPrimary: onPrimary,
       primarySoft: primarySoft,
       accent: primary,
-      background: background,
-      surface: surface,
-      surfaceTints: List.filled(5, surface),
-      text: dark ? AppTheme._darkText : AppTheme._lightText,
-      muted: (dark ? AppColors.dark : AppColors.light).muted,
-      border: dark ? AppTheme._darkBorder : AppTheme._lightBorder,
-      appColors: dark ? AppColors.dark : AppColors.light,
-      authPalette: dark ? AuthPalette.dark : AuthPalette.light,
+      background: dark ? BrandColors.night : BrandColors.workspace,
+      surface: dark ? BrandColors.nightSurface : Colors.white,
+      surfaceTints: dark
+          ? const [Color(0xFF0F1D33), Color(0xFF13233B), Color(0xFF172A44), Color(0xFF1B304D), Color(0xFF203656)]
+          : const [Colors.white, Color(0xFFFBFCFD), Color(0xFFF5F8FB), Color(0xFFEFF4F8), Color(0xFFE9EFF5)],
+      text: dark ? BrandColors.nightText : BrandColors.ink,
+      muted: dark ? BrandColors.nightMuted : BrandColors.muted,
+      border: dark ? BrandColors.nightLine : BrandColors.line,
+      appColors: dark ? AppColors.brandDark : AppColors.brandLight,
+      authPalette: dark ? AuthPalette.brandDark : AuthPalette.brandLight,
+      primaryInk: primaryInk,
     );
   }
 
@@ -521,6 +506,9 @@ class _Palette {
   final Color primary;
   final Color? onPrimary;
   final Color primarySoft;
+
+  /// Text and icons on [primarySoft]: a chosen chip, a selected row.
+  final Color primaryInk;
 
   /// The colour that marks what is active or chosen: teal in the web app.
   final Color accent;

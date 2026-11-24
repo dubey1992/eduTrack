@@ -25,14 +25,14 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 RES = Path(__file__).resolve().parent.parent / "frontend" / "android" / "app" / "src" / "main" / "res"
-BLUE = (0x25, 0x63, 0xEB, 255)
-BLUE_DEEP = (0x1D, 0x4E, 0xD8, 255)
+BLUE = (0x0D, 0x21, 0x40, 255)  # School365AI navy (slice B1, 2026-11-24)
+BLUE_DEEP = (0x14, 0x2A, 0x49, 255)
 WHITE = (255, 255, 255, 255)
-SKIRT = (0xDB, 0xEA, 0xFE, 255)
-GLASS = (0x1D, 0x4E, 0xD8, 255)
+SKIRT = (0xE2, 0xE9, 0xF0, 255)
+GLASS = (0x14, 0x2A, 0x49, 255)
 TYRE = (0x0F, 0x17, 0x2A, 255)
 HUB = (0xCB, 0xD5, 0xE1, 255)
-AMBER = (0xF5, 0x9E, 0x0B, 255)
+AMBER = (0xFF, 0xB7, 0x6A, 255)  # the brand orange
 
 SUPERSAMPLE = 8
 DENSITIES = {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}

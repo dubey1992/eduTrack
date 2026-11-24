@@ -2,7 +2,6 @@ import 'package:edutrack_app/core/theme/app_theme.dart';
 import 'package:edutrack_app/features/auth/presentation/widgets/auth_card.dart';
 import 'package:edutrack_app/features/auth/presentation/widgets/auth_palette.dart';
 import 'package:edutrack_app/features/auth/presentation/widgets/custom_text_field.dart';
-import 'package:edutrack_app/features/marketing/presentation/marketing_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -58,14 +57,22 @@ void main() {
     expect(fieldFill(tester), AuthPalette.brandDark.surface);
   });
 
-  testWidgets('the Driver app keeps the blue it launched with, in both themes', (tester) async {
-    await pump(tester, AppTheme.crewLight(), const AuthCard(child: SizedBox(height: 20)));
-    expect(cardColour(tester), MarketingColors.surface);
-    expect(AuthPalette.of(tester.element(find.byType(AuthCard))).primary, MarketingColors.primary);
+  // Since slice B1 (2026-11-24) every phone app signs in on the School365AI
+  // design, as the web app does (docs/mobile-apps-review.md).
+  for (final (app, light, dark) in [
+    ('Driver', AppTheme.crewLight, AppTheme.crewDark),
+    ('Staff', AppTheme.teacherLight, AppTheme.teacherDark),
+    ('Family', AppTheme.familyLight, AppTheme.familyDark),
+  ]) {
+    testWidgets('the $app app signs in on the School365AI design, in both themes', (tester) async {
+      await pump(tester, light(), const AuthCard(child: SizedBox(height: 20)));
+      expect(cardColour(tester), AuthPalette.brandLight.surface);
+      expect(AuthPalette.of(tester.element(find.byType(AuthCard))), AuthPalette.brandLight);
 
-    await pump(tester, AppTheme.crewDark(), const AuthCard(child: SizedBox(height: 20)));
-    expect(cardColour(tester), AuthPalette.dark.surface);
-  });
+      await pump(tester, dark(), const AuthCard(child: SizedBox(height: 20)));
+      expect(cardColour(tester), AuthPalette.brandDark.surface);
+    });
+  }
 
   test('each dark palette lightens its accent and its text', () {
     expect(AuthPalette.dark.primary.computeLuminance(), greaterThan(AuthPalette.light.primary.computeLuminance()));

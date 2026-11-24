@@ -39,7 +39,7 @@ class FamilyMark extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.26),
         boxShadow: [
           BoxShadow(
-            color: FamilyBrand.blueDeep.withValues(alpha: 0.25),
+            color: FamilyBrand.violetDeep.withValues(alpha: 0.25),
             blurRadius: size * 0.2,
             offset: Offset(0, size * 0.06),
           ),

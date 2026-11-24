@@ -24,10 +24,10 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 RES = Path(__file__).resolve().parent.parent / "frontend" / "android" / "app" / "src" / "teacher" / "res"
-TEAL = (0x0F, 0x76, 0x6E, 255)
-TEAL_DEEP = (0x11, 0x5E, 0x59, 255)
+TEAL = (0x08, 0x7E, 0x79, 255)  # School365AI teal (slice B1, 2026-11-24)
+TEAL_DEEP = (0x14, 0x2A, 0x49, 255)  # into the brand navy
 PAPER = (255, 255, 255, 255)
-AMBER = (0xF5, 0x9E, 0x0B, 255)
+AMBER = (0xFF, 0xB7, 0x6A, 255)  # the brand orange
 
 SUPERSAMPLE = 8
 

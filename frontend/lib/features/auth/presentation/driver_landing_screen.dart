@@ -138,7 +138,7 @@ class _DriverLandingScreenState extends ConsumerState<DriverLandingScreen> {
                       onPressed: () => context.go('/sign-in'),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 16),
                       ),
                       child: Text(registered ? 'Sign in' : 'Set up this phone'),
                     ),
