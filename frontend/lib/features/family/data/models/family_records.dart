@@ -87,10 +87,12 @@ class AttendanceMonth {
     required this.days,
     required this.monthSummary,
     required this.yearSummary,
+    this.belowLine,
   });
 
   factory AttendanceMonth.fromJson(Map<String, dynamic> json) {
     final year = json['year_summary'] as Map<String, dynamic>?;
+    final below = json['below_line'] as Map<String, dynamic>?;
 
     return AttendanceMonth(
       month: DateTime.parse('${json['month']}-01'),
@@ -98,8 +100,15 @@ class AttendanceMonth {
       days: [for (final d in json['days'] as List<dynamic>) AttendanceDay.fromJson(d as Map<String, dynamic>)],
       monthSummary: AttendanceSummary.fromJson(json['month_summary'] as Map<String, dynamic>),
       yearSummary: year == null ? null : AttendanceSummary.fromJson(year),
+      belowLine: below == null
+          ? null
+          : (rate: double.parse(below['rate'] as String), line: below['line'] as int, days: below['days'] as int),
     );
   }
+
+  /// While attendance stands below the school's early-warning line (M8, 5.4):
+  /// the figure over the last [days] school days, and the line.
+  final ({double rate, int line, int days})? belowLine;
 
   /// The 1st of the month shown.
   final DateTime month;

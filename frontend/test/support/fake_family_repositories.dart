@@ -57,7 +57,11 @@ FamilyToday familyToday({
   );
 }
 
-AttendanceMonth attendanceMonth({List<AttendanceDay>? days, double? rate = 92.5}) {
+AttendanceMonth attendanceMonth({
+  List<AttendanceDay>? days,
+  double? rate = 92.5,
+  ({double rate, int line, int days})? belowLine,
+}) {
   return AttendanceMonth(
     month: DateTime(2026, 11),
     today: DateTime(2026, 11, 9),
@@ -89,6 +93,7 @@ AttendanceMonth attendanceMonth({List<AttendanceDay>? days, double? rate = 92.5}
       rate: 90.0,
       label: '2026-27',
     ),
+    belowLine: belowLine,
   );
 }
 

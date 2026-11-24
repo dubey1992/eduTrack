@@ -305,6 +305,9 @@ class MessageEvent(models.TextChoices):
 
     ATTENDANCE_PRESENT = "attendance.present", "Marked present"
     ATTENDANCE_ABSENT = "attendance.absent", "Marked absent"
+    # M8 (docs/mobile-apps-review.md, 5.4): the child's attendance fell below
+    # the school's early-warning line - once per drop, the Family app only.
+    ATTENDANCE_BELOW_LINE = "attendance.below_line", "Attendance below the line"
     TRANSPORT_BOARDED = "transport.boarded", "Boarded the bus"
     TRANSPORT_DROPPED = "transport.dropped", "Dropped off"
     TRANSPORT_ABSENT = "transport.absent", "Did not board"
@@ -431,6 +434,10 @@ DEFAULT_BODIES = {
     MessageEvent.ABSENCE_NOTE: (
         "{guardian_name} says {student_name} will be away {dates}: {reason}"
     ),
+    MessageEvent.ATTENDANCE_BELOW_LINE: (
+        "{student_name}'s attendance is {rate} over the last {days} school days, below the school's {line} line. "
+        "Please talk to the class teacher if something is keeping them away. - {school_name}"
+    ),
     MessageEvent.HOMEWORK_FOR_FAMILY: (
         "{student_name} has {count} {items} for today: {subjects}. Open Homework to read them."
     ),
@@ -538,6 +545,9 @@ CALL_REQUEST_TOKENS = [
 
 ABSENCE_NOTE_TOKENS = ["staff_name", "student_name", "guardian_name", "dates", "reason", "school_name"]
 
+# Attendance below the school's line (M8, 5.4): the figure and the line.
+ATTENDANCE_BELOW_LINE_TOKENS = ["student_name", "rate", "line", "days", "school_name", "guardian_name"]
+
 # Today's homework for a child (M8, 8.1): how many, and in which subjects.
 HOMEWORK_FOR_FAMILY_TOKENS = ["student_name", "count", "items", "subjects", "date", "school_name", "guardian_name"]
 
@@ -563,6 +573,7 @@ PER_EVENT_TOKENS = {
     MessageEvent.TRANSPORT_DELAY: TRANSPORT_DELAY_TOKENS,
     MessageEvent.ABSENCE_NOTE: ABSENCE_NOTE_TOKENS,
     MessageEvent.HOMEWORK_FOR_FAMILY: HOMEWORK_FOR_FAMILY_TOKENS,
+    MessageEvent.ATTENDANCE_BELOW_LINE: ATTENDANCE_BELOW_LINE_TOKENS,
     MessageEvent.CALL_REQUEST: CALL_REQUEST_TOKENS,
     MessageEvent.TRIP_LEFT_OPEN: TRIP_LEFT_OPEN_TOKENS,
     MessageEvent.TRIP_SOS: TRIP_SOS_TOKENS,

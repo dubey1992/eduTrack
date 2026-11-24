@@ -83,6 +83,28 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
                   SavedCopyLine(name: 'attendance:${child.id}:${monthKey(_month)}'),
+                  // Below the school's early-warning line (M8, 5.4): said plainly,
+                  // with the figure, the same one the school sees.
+                  if (data.belowLine case final below?) ...[
+                    FamilyCard(
+                      key: const Key('family-below-line'),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: context.appColors.warning),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Attendance is ${below.rate % 1 == 0 ? below.rate.toInt() : below.rate}% over the last ${below.days} '
+                              "school days, below the school's ${below.line}% line. The class teacher can help if "
+                              'something is keeping ${child.firstName} away.',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   // A parent tells the school about an absence from here (F5).
                   FamilyCard(
                     key: const Key('family-tell-absence'),

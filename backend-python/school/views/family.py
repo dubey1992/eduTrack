@@ -64,6 +64,7 @@ from rest_framework.response import Response
 
 from .. import (
     absence_notes,
+    attendance_warnings,
     call_requests,
     family_bus,
     family_day,
@@ -199,7 +200,11 @@ def child_attendance(request, child_id: int) -> Response:
     child = child_of(user, child_id)
     year, month = month_of(request, child.school_id)
 
-    return Response(family_day.month_for(child, year, month))
+    month_data = family_day.month_for(child, year, month)
+    # While the child's attendance stands below the school's line (M8, 5.4).
+    month_data["below_line"] = attendance_warnings.warning_resource(attendance_warnings.open_warning_of(child))
+
+    return Response(month_data)
 
 
 @api_view(["GET"])

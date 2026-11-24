@@ -2362,3 +2362,23 @@ class ExaminationException(models.Model):
         managed = False
         db_table = 'examination_exceptions'
         unique_together = (('examination', 'student'),)
+
+
+class AttendanceWarning(models.Model):
+    """A child's attendance fell below the school's early-warning line and the
+    family was told (docs/mobile-apps-review.md, M8, 5.4). Open until
+    attendance is back up to the line; while open, nothing more is sent."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='attendance_warnings')
+    rate = models.DecimalField(max_digits=5, decimal_places=1)
+    line = models.PositiveSmallIntegerField()
+    warned_at = UtcDateTimeField()
+    cleared_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'attendance_warnings'

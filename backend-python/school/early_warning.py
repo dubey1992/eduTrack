@@ -198,8 +198,8 @@ def _row(student, found: list[dict]) -> dict:
 
 
 def _attendance_signals(school_id: int, student_ids: list[int], windows: Windows, thresholds: Thresholds) -> dict:
-    now = _attendance_rates(school_id, student_ids, windows.attendance)
-    before = _attendance_rates(school_id, student_ids, windows.attendance_before)
+    now = attendance_rates(school_id, student_ids, windows.attendance)
+    before = attendance_rates(school_id, student_ids, windows.attendance_before)
     found: dict[int, list[dict]] = {}
 
     for student_id, rate in now.items():
@@ -220,7 +220,7 @@ def _attendance_signals(school_id: int, student_ids: list[int], windows: Windows
     return found
 
 
-def _attendance_rates(school_id: int, student_ids: list[int], dates: list[dt.date]) -> dict[int, float]:
+def attendance_rates(school_id: int, student_ids: list[int], dates: list[dt.date]) -> dict[int, float]:
     """Present out of the days each student was marked - only for those
     marked often enough to say anything."""
     if not dates:
