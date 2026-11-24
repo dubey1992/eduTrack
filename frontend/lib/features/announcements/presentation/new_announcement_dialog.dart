@@ -59,6 +59,13 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
 
   bool get _ready => !_audience.needsTarget || _target != null;
 
+  /// The school the notice is for: the branch picked on the page, else the
+  /// person's own - an admin of a branch group looking at the whole group
+  /// announces from their head office, which is also what the audience
+  /// count above Publish reckons with. A Super Admin, who belongs to no
+  /// school, still has to pick one on the page first.
+  int? get _schoolId => widget.schoolId ?? ref.read(authNotifierProvider).value?.schoolId;
+
   /// A head of department may only reach the department they head, so the
   /// form offers them that and nothing else rather than inviting a refusal.
   bool get _departmentOnly => ref.watch(authNotifierProvider).value?.role == UserRole.hod;
@@ -79,7 +86,9 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
       return;
     }
 
-    if (_files.isNotEmpty && !_channels.contains(MessageChannel.inApp)) {
+    // Files are seen in an app: a staff inbox, or the Family app, whose copy
+    // of a parents' notice comes with its SMS or WhatsApp.
+    if (_files.isNotEmpty && !_channels.contains(MessageChannel.inApp) && !_audience.reachesParents) {
       setState(() => _error = 'Files are seen in the app. Turn on In-app to send them.');
       return;
     }
@@ -96,7 +105,7 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
       final published = await ref
           .read(announcementPageNotifierProvider.notifier)
           .publish(
-            schoolId: widget.schoolId,
+            schoolId: _schoolId,
             title: _titleController.text.trim(),
             body: _bodyController.text.trim(),
             audienceType: _audience,
@@ -149,10 +158,13 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
     try {
       final uploaded = await ref
           .read(announcementRepositoryProvider)
-          .uploadAttachment(schoolId: widget.schoolId, name: picked.name, bytes: picked.bytes);
+          .uploadAttachment(schoolId: _schoolId, name: picked.name, bytes: picked.bytes);
       if (mounted) setState(() => _files.add(uploaded));
     } on Failure catch (failure) {
-      if (mounted) setState(() => _error = failure.validationErrors['file']?.first ?? failure.message);
+      if (mounted) {
+        final errors = failure.validationErrors;
+        setState(() => _error = errors['file']?.first ?? errors['school_id']?.first ?? failure.message);
+      }
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -250,7 +262,7 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
                 if (_audience == AnnouncementAudience.classSection) ...[
                   const SizedBox(height: 12),
                   _ClassPicker(
-                    schoolId: widget.schoolId,
+                    schoolId: _schoolId,
                     selected: _target,
                     onChanged: (value) => setState(() => _target = value),
                   ),
@@ -258,7 +270,7 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
                 if (_audience == AnnouncementAudience.department) ...[
                   const SizedBox(height: 12),
                   _DepartmentPicker(
-                    schoolId: widget.schoolId,
+                    schoolId: _schoolId,
                     selected: _target,
                     onlyHeadedBy: _departmentOnly ? ref.watch(authNotifierProvider).value?.id : null,
                     onChanged: (value) => setState(() {
@@ -421,7 +433,7 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
                     query: AudienceQuery(
                       audienceType: _audience,
                       channels: MessageChannel.joined(_channels),
-                      schoolId: widget.schoolId,
+                      schoolId: _schoolId,
                       audienceId: _audience.needsTarget ? _target : null,
                     ),
                   ),

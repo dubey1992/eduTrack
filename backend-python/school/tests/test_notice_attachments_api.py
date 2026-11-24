@@ -103,6 +103,15 @@ class AddingAFile(AttachmentTest):
 
         self.assertEqual(["Choose a file to attach."], self.errors(response)["file"])
 
+    def test_someone_with_many_schools_names_the_school(self):
+        root = self.as_user(self.f["root"])
+
+        missing = self.add_file(root)
+        named = self.add_file(root, school_id=self.f["school"].id)
+
+        self.assertEqual(["The school id field is required."], self.errors(missing)["school_id"])
+        self.assertEqual(201, named.status_code, named.data)
+
     def test_only_someone_who_may_announce(self):
         self.assertEqual(403, self.add_file(self.as_user(self.f["teacher"])).status_code)
 
@@ -150,8 +159,9 @@ class PublishingWithFiles(AttachmentTest):
 
         self.assertEqual(["A notice can carry at most 3 files."], self.errors(response)["attachment_ids"])
 
-    def test_sms_only_cannot_carry_files(self):
-        response = self.publish(self.f["admin"], channels="sms", attachment_ids=[self.uploaded()])
+    def test_sms_only_to_staff_cannot_carry_files(self):
+        response = self.publish(self.f["admin"], audience_type="teachers", channels="sms",
+                                attachment_ids=[self.uploaded()])
 
         self.assertEqual(["Files are seen in the app. Send the notice in-app to attach them."],
                          self.errors(response)["attachment_ids"])
@@ -172,6 +182,14 @@ class PublishingWithFiles(AttachmentTest):
         response = self.publish(self.f["admin"], attachment_ids=[attachment_id])
 
         self.assertEqual(422, response.status_code)
+
+    def test_a_notice_to_parents_by_sms_carries_them_to_the_family_app(self):
+        # The Family app's copy of a parents' notice comes with its SMS.
+        response = self.publish(self.f["admin"], audience_type="parents", channels="sms",
+                                attachment_ids=[self.uploaded()])
+
+        self.assertEqual(201, response.status_code, response.data)
+        self.assertEqual(1, len(response.data["attachments"]))
 
     def test_a_sent_file_cannot_be_taken_back(self):
         attachment_id = self.uploaded()
@@ -203,6 +221,13 @@ class ReadingAFile(AttachmentTest):
         self.assertEqual(PDF_BYTES, response.content)
         self.assertEqual("nosniff", response["X-Content-Type-Options"])
         self.assertIn("private", response["Cache-Control"])
+
+    def test_marking_it_read_keeps_its_files(self):
+        inbox = self.as_user(self.f["teacher"]).get("/api/v1/inbox").json()["data"]
+
+        response = self.as_user(self.f["teacher"]).post(f"/api/v1/inbox/{inbox[0]['id']}/read")
+
+        self.assertEqual(["circular.pdf"], [f["name"] for f in response.data["attachments"]])
 
     def test_the_publishers_read_it(self):
         self.assertEqual(200, self.read(self.f["admin"]).status_code)

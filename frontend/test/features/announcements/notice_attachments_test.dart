@@ -1,4 +1,5 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/models/user_role.dart';
 import 'package:edutrack_app/core/models/notice_attachment.dart';
 import 'package:edutrack_app/core/network/dio_client.dart';
 import 'package:edutrack_app/core/theme/app_theme.dart';
@@ -6,6 +7,7 @@ import 'package:edutrack_app/core/utils/picked_file.dart';
 import 'package:edutrack_app/core/widgets/notice_attachment_chips.dart';
 import 'package:edutrack_app/features/announcements/data/models/announcement.dart';
 import 'package:edutrack_app/features/announcements/presentation/new_announcement_dialog.dart';
+import 'package:edutrack_app/features/auth/data/models/authenticated_user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -135,7 +137,27 @@ void main() {
       expect(fake.removed, [1]);
     });
 
-    testWidgets('files need the in-app channel', (tester) async {
+    testWidgets('files to staff need the in-app channel', (tester) async {
+      useDesktop(tester);
+      final fake = FakeAnnouncementRepository();
+      await openDialog(tester, fake, overrides: picking([circular]));
+      await tester.tap(find.byKey(const Key('announcement-attach')));
+      await tester.pumpAndSettle();
+      await fillIn(tester);
+      await tester.tap(find.text('All School'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Teachers').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilterChip, 'In-app'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Files are seen in the app. Turn on In-app to send them.'), findsOneWidget);
+      expect(fake.lastCall, isNull);
+    });
+
+    testWidgets('a notice to parents by SMS carries its files to the Family app', (tester) async {
       useDesktop(tester);
       final fake = FakeAnnouncementRepository();
       await openDialog(tester, fake, overrides: picking([circular]));
@@ -147,8 +169,34 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Publish'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Files are seen in the app. Turn on In-app to send them.'), findsOneWidget);
-      expect(fake.lastCall, isNull);
+      expect(fake.lastCall!['channels'], 'sms');
+      expect(fake.lastCall!['attachment_ids'], [1]);
+    });
+
+    testWidgets("a group admin on the whole group announces from their own school", (tester) async {
+      useDesktop(tester);
+      final fake = FakeAnnouncementRepository();
+      await openDialog(
+        tester,
+        fake,
+        overrides: picking([circular]),
+        actor: const AuthenticatedUser(
+          id: 5,
+          name: 'Group Admin',
+          email: 'group@example.com',
+          role: UserRole.schoolAdmin,
+          schoolId: 420,
+          managesBranches: true,
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('announcement-attach')));
+      await tester.pumpAndSettle();
+      await fillIn(tester);
+      await tester.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await tester.pumpAndSettle();
+
+      expect(fake.lastCall!['school_id'], 420);
     });
 
     testWidgets('where files cannot be picked, the button is not offered', (tester) async {

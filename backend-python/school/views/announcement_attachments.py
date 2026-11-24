@@ -21,6 +21,7 @@ from .. import notice_attachments
 from ..models import AnnouncementAttachment
 from ..policies import authorize, permitted
 from ..requests import php_int
+from ..validation import required
 from ..scope import SchoolScope
 
 
@@ -34,7 +35,12 @@ def collection(request) -> Response:
     requested = None if raw_school in (None, "") else php_int(raw_school)
     school_id = SchoolScope.for_actor(actor).writable_school_id(requested)
 
-    authorize(school_id is not None and permitted(actor, "announcements", write=True, school_id=school_id))
+    if school_id is None:
+        # Somebody who could mean more than one school - a Super Admin, an
+        # admin of a branch group - names it, as the publish itself demands.
+        raise ValidationError({"school_id": [required("school_id")]})
+
+    authorize(permitted(actor, "announcements", write=True, school_id=school_id))
 
     try:
         attachment = notice_attachments.upload(request.FILES.get("file"), actor, school_id)

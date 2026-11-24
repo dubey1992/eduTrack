@@ -100,8 +100,10 @@ def publish(request) -> Response:
 
 def attachment_ids(data, actor, form) -> list[int]:
     """The files the notice carries (M9, 8.3): ids of this person's own
-    uploads, not yet published, at most three. Files are seen in the app, so
-    a notice that goes out by SMS or WhatsApp only cannot carry any."""
+    uploads, not yet published, at most three. Files are seen in an app: a
+    staff inbox (the in-app channel) or the Family app, whose copy of a
+    parents' notice comes with its SMS or WhatsApp - so a notice to staff
+    alone by SMS cannot carry any."""
     raw = data.get("attachment_ids")
 
     if raw in (None, "", []):
@@ -113,7 +115,8 @@ def attachment_ids(data, actor, form) -> list[int]:
     if len(raw) > notice_attachments.MAX_FILES:
         raise ValidationError({"attachment_ids": [f"A notice can carry at most {notice_attachments.MAX_FILES} files."]})
 
-    if MessageChannel.IN_APP not in (AnnouncementChannels.parse(form.validated_data["channels"]) or []):
+    in_app = MessageChannel.IN_APP in (AnnouncementChannels.parse(form.validated_data["channels"]) or [])
+    if not in_app and not AnnouncementAudience.reaches_guardians(form.validated_data["audience_type"]):
         raise ValidationError({"attachment_ids": ["Files are seen in the app. Send the notice in-app to attach them."]})
 
     if notice_attachments.pending_of(actor, form.validated_data["school_id"], raw) is None:

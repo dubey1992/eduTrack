@@ -49,11 +49,13 @@ Future<void> openDialog(
   WidgetTester tester,
   FakeAnnouncementRepository fake, {
   List<Override> overrides = const [],
+  AuthenticatedUser actor = _admin,
 }) async {
   await tester.pumpWidget(
     wrap(
       fake,
       overrides: overrides,
+      actor: actor,
       home: Builder(
         builder: (context) => Center(
           child: ElevatedButton(
