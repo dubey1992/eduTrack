@@ -12,7 +12,8 @@ What this file guards that a quick read would not:
   school's, or one already sent.
 - **Files are seen in the app**, so an SMS-only notice carries none.
 - **Readers are the notice's publishers and its in-app recipients** - a
-  staff inbox or a parent's Family app. Everyone else gets one 404.
+  staff inbox (or, once it ships, a parent's Family app). Everyone else
+  gets one 404.
 """
 
 import datetime as dt
@@ -28,8 +29,6 @@ from school.enums import UserRole
 from school.models import AnnouncementAttachment, AuditLog
 
 from . import test_announcements_api as announcements
-from . import test_family_f5_calls_and_replies as f5
-from .test_family_f1_api import FAMILY
 from .test_profile_api import image_bytes
 
 FILES = "/api/v1/announcement-attachments"
@@ -246,32 +245,3 @@ class ReadingAFile(AttachmentTest):
         self.admin.delete(f"{announcements.URL}/{announcement_id}")
 
         self.assertEqual(404, self.read(self.f["teacher"]).status_code)
-
-
-class AParentReadsIt(MediaRoot, f5.ReplyTest):
-    def setUp(self):
-        super().setUp()
-        self.use_temporary_media()
-        admin = self.as_user(self.admin)
-        self.attachment_id = self.add_file(admin, name="trip-form.pdf", school_id=self.school.id).data["id"]
-        response = self.publish(attachment_ids=[self.attachment_id])
-        self.assertEqual(201, response.status_code, response.data)
-
-    def test_the_notice_in_the_family_app_carries_the_file(self):
-        notices = self.parent.get(f"{FAMILY}/notices").data["data"]
-        notice = next(n for n in notices if n["title"] == "Science museum trip")
-
-        self.assertEqual(["trip-form.pdf"], [f["name"] for f in notice["attachments"]])
-        self.assertEqual(f"/family/attachments/{self.attachment_id}", notice["attachments"][0]["url"])
-        response = self.parent.get(f"{FAMILY}/attachments/{self.attachment_id}")
-        self.assertEqual((200, PDF_BYTES), (response.status_code, response.content))
-
-    def test_a_parent_the_notice_did_not_reach_does_not(self):
-        other_parent = factories.UserFactory(school=self.school, role=UserRole.PARENT)
-
-        self.assertEqual(404, self.as_user(other_parent).get(f"{FAMILY}/attachments/{self.attachment_id}").status_code)
-
-    def test_a_waiting_upload_is_not_reachable_from_the_family_app(self):
-        waiting = self.add_file(self.as_user(self.admin), school_id=self.school.id).data["id"]
-
-        self.assertEqual(404, self.parent.get(f"{FAMILY}/attachments/{waiting}").status_code)

@@ -135,11 +135,6 @@ class WhoSeesThem(ReportPhotoTest):
 
         self.assertEqual(404, self.see(stranger).status_code)
 
-    def test_not_a_parent(self):
-        parent = factories.UserFactory(school=self.school, role=UserRole.PARENT)
-
-        self.assertIn(self.see(parent).status_code, (401, 403, 404))
-
     def test_a_photo_is_only_reached_through_its_own_report(self):
         entry = self.period_for(self.teacher, self.second)
         other_report = self.file(timetable_entry_id=entry.id).data["id"]

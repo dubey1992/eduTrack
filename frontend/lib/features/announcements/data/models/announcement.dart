@@ -17,6 +17,13 @@ enum AnnouncementAudience {
   /// Audiences that name one class or one department.
   bool get needsTarget => this == AnnouncementAudience.classSection || this == AnnouncementAudience.department;
 
+  /// Audiences that include guardians - whose copy of a notice comes with
+  /// its SMS or WhatsApp, which is how a notice's files reach the Family app.
+  bool get reachesParents =>
+      this == AnnouncementAudience.allSchool ||
+      this == AnnouncementAudience.parents ||
+      this == AnnouncementAudience.classSection;
+
   /// Guardians have no login, so these can never be reached in-app.
   bool get reachesStaff =>
       this == AnnouncementAudience.allSchool ||
