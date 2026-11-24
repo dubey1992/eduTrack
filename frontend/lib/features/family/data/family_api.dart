@@ -10,6 +10,7 @@ import 'models/family_bus.dart';
 import 'models/family_call_request.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
+import 'models/family_homework.dart';
 import 'models/family_records.dart';
 
 final familyApiProvider = Provider<FamilyApi>(
@@ -132,6 +133,13 @@ class FamilyApi {
   Future<List<SubjectSyllabus>> syllabus(int childId) async {
     final json = await _kept('syllabus:$childId', '/family/children/$childId/syllabus') as Map<String, dynamic>;
     return [for (final s in json['subjects'] as List<dynamic>) SubjectSyllabus.fromJson(s as Map<String, dynamic>)];
+  }
+
+  /// The class's homework over the last two weeks (M8, 8.1), kept for no
+  /// signal like the rest of the learning screens.
+  Future<List<HomeworkDay>> homework(int childId) async {
+    final json = await _kept('homework:$childId', '/family/children/$childId/homework') as Map<String, dynamic>;
+    return [for (final d in json['days'] as List<dynamic>) HomeworkDay.fromJson(d as Map<String, dynamic>)];
   }
 
   Future<FamilyFees> fees(int childId) async {

@@ -121,6 +121,33 @@ void main() {
     });
   });
 
+  group('Homework (M8)', () {
+    testWidgets('shows each day newest first, today marked, each subject with what was set', (tester) async {
+      await pumpFamilyApp(tester, goTo: '/homework');
+
+      expect(find.text('Today - 11/24/2026'), findsOneWidget);
+      expect(find.text('Exercise 4.2, questions 1-10'), findsOneWidget);
+      expect(find.text('Read chapter 3'), findsOneWidget);
+      expect(find.text('11/22/2026'), findsOneWidget);
+      expect(find.text('Draw the water cycle'), findsOneWidget);
+    });
+
+    testWidgets('no homework says so', (tester) async {
+      final data = FakeFamilyRepository()..homeworkDays = const [];
+      await pumpFamilyApp(tester, data: data, goTo: '/homework');
+
+      expect(find.text('No homework in the last two weeks'), findsOneWidget);
+    });
+
+    testWidgets('a failure offers Retry', (tester) async {
+      final data = FakeFamilyRepository()..homeworkError = Failure.network();
+      await pumpFamilyApp(tester, data: data, goTo: '/homework');
+
+      expect(find.text('No connection'), findsOneWidget);
+      expect(find.byKey(const Key('family-retry')), findsOneWidget);
+    });
+  });
+
   test('marks read the way a person writes them', () {
     expect(readableNumber('18.00'), '18');
     expect(readableNumber('17.50'), '17.5');
@@ -130,7 +157,12 @@ void main() {
   testWidgets('More leads to the three learning screens', (tester) async {
     await pumpFamilyApp(tester, goTo: '/more');
 
-    for (final key in ['family-more-results', 'family-more-timetable', 'family-more-syllabus']) {
+    for (final key in [
+      'family-more-results',
+      'family-more-timetable',
+      'family-more-syllabus',
+      'family-more-homework',
+    ]) {
       expect(find.byKey(Key(key)), findsOneWidget);
     }
   });

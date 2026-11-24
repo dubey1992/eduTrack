@@ -45,7 +45,10 @@ SWITCHES = {
     MessageCategory.GENERAL: "notices",
 }
 ALWAYS = (MessageCategory.EMERGENCY,)
-SETTINGS = ("attendance", "transport", "fee", "result", "notices")
+# Events with a switch of their own, whatever their category: homework is
+# about teaching, which otherwise never reaches a guardian (M8, 8.1).
+EVENT_SWITCHES = {MessageEvent.HOMEWORK_FOR_FAMILY: "homework"}
+SETTINGS = ("attendance", "transport", "fee", "result", "notices", "homework")
 
 
 def settings_of(user) -> dict:
@@ -71,11 +74,11 @@ def save_settings(user, changes: dict) -> dict:
     return settings_of(user)
 
 
-def wants(user_id, category: str, settings_by_user: dict) -> bool:
+def wants(user_id, category: str, settings_by_user: dict, event: str | None = None) -> bool:
     if category in ALWAYS:
         return True
 
-    switch = SWITCHES.get(category)
+    switch = EVENT_SWITCHES.get(event) or SWITCHES.get(category)
     if switch is None:
         # Teaching, leave - never addressed to a guardian.
         return False
@@ -127,7 +130,7 @@ def copy_to_family(event: str, student, render_for, subject=None, announcement=N
     now = timezone.now()
 
     for guardian in guardians:
-        if not wants(guardian.user_id, category, settings_by_user):
+        if not wants(guardian.user_id, category, settings_by_user, event):
             continue
 
         if announcement is not None and Message.objects.filter(

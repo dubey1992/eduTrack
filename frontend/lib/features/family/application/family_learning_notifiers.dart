@@ -6,6 +6,7 @@ import '../data/models/family_bus.dart';
 import '../data/models/family_call_request.dart';
 import '../data/models/family_fees.dart';
 import '../data/models/family_learning.dart';
+import '../data/models/family_homework.dart';
 
 /// One child's results for one term, keyed by (child, term id or null for
 /// the term being lived).
@@ -62,6 +63,26 @@ class FamilySyllabusNotifier extends AsyncNotifier<List<SubjectSyllabus>> {
 
   @override
   Future<List<SubjectSyllabus>> build() => ref.read(familyRepositoryProvider).syllabus(childId);
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(build);
+  }
+}
+
+/// One child's homework over the last two weeks (M8, 8.1).
+final familyHomeworkProvider = AsyncNotifierProvider.autoDispose.family<FamilyHomeworkNotifier, List<HomeworkDay>, int>(
+  FamilyHomeworkNotifier.new,
+  retry: (retryCount, error) => null,
+);
+
+class FamilyHomeworkNotifier extends AsyncNotifier<List<HomeworkDay>> {
+  FamilyHomeworkNotifier(this.childId);
+
+  final int childId;
+
+  @override
+  Future<List<HomeworkDay>> build() => ref.read(familyRepositoryProvider).homework(childId);
 
   Future<void> refresh() async {
     state = const AsyncLoading();

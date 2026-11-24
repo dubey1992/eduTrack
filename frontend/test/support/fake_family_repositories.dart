@@ -10,6 +10,7 @@ import 'package:edutrack_app/features/family/data/models/family_bus.dart';
 import 'package:edutrack_app/features/family/data/models/family_call_request.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
 import 'package:edutrack_app/features/family/data/models/family_fees.dart';
+import 'package:edutrack_app/features/family/data/models/family_homework.dart';
 import 'package:edutrack_app/features/family/data/models/family_learning.dart';
 import 'package:edutrack_app/features/family/data/models/family_records.dart';
 
@@ -607,7 +608,36 @@ class FakeFamilyRepository implements FamilyRepository {
 
   @override
   Future<List<SubjectSyllabus>> syllabus(int childId) async => familySyllabus;
+
+  /// The class's homework, newest day first (M8, 8.1).
+  List<HomeworkDay> homeworkDays = familyHomework;
+  Failure? homeworkError;
+
+  @override
+  Future<List<HomeworkDay>> homework(int childId) async {
+    if (homeworkError != null) throw homeworkError!;
+    return homeworkDays;
+  }
 }
+
+/// Two days of homework: today's two subjects, and one from two days ago.
+const familyHomework = [
+  HomeworkDay(
+    date: '2026-11-24',
+    dateLabel: '11/24/2026',
+    today: true,
+    items: [
+      HomeworkItem(id: 1, subject: 'Mathematics', homework: 'Exercise 4.2, questions 1-10'),
+      HomeworkItem(id: 2, subject: 'English', homework: 'Read chapter 3'),
+    ],
+  ),
+  HomeworkDay(
+    date: '2026-11-22',
+    dateLabel: '11/22/2026',
+    today: false,
+    items: [HomeworkItem(id: 3, subject: 'Science', homework: 'Draw the water cycle')],
+  ),
+];
 
 /// The family sign-in, in memory.
 class FakeFamilyAuthRepository implements FamilyAuthRepository {

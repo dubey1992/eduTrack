@@ -1008,6 +1008,8 @@ class FamilyNotificationSetting(models.Model):
     fee = models.BooleanField(default=True)
     result = models.BooleanField(default=True)
     notices = models.BooleanField(default=True)
+    # The evening "homework for today" message (M8, 8.1).
+    homework = models.BooleanField(default=True)
     created_at = UtcDateTimeField(blank=True, null=True)
     updated_at = UtcDateTimeField(blank=True, null=True)
 

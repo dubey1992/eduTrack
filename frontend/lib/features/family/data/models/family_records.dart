@@ -250,6 +250,7 @@ class FamilyNotificationSettings {
     required this.fee,
     required this.result,
     required this.notices,
+    this.homework = true,
   });
 
   factory FamilyNotificationSettings.fromJson(Map<String, dynamic> json) => FamilyNotificationSettings(
@@ -258,6 +259,8 @@ class FamilyNotificationSettings {
     fee: json['fee'] as bool,
     result: json['result'] as bool,
     notices: json['notices'] as bool,
+    // An older server that does not know the switch sends nothing: on.
+    homework: json['homework'] as bool? ?? true,
   );
 
   final bool attendance;
@@ -265,6 +268,9 @@ class FamilyNotificationSettings {
   final bool fee;
   final bool result;
   final bool notices;
+
+  /// The evening "homework for today" message (M8, 8.1).
+  final bool homework;
 
   bool valueOf(String key) => toJson()[key]!;
 
@@ -277,6 +283,7 @@ class FamilyNotificationSettings {
     'fee': fee,
     'result': result,
     'notices': notices,
+    'homework': homework,
   };
 }
 

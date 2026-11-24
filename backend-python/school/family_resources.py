@@ -108,6 +108,8 @@ def family_me_resource(user: User, children) -> dict:
             "results": modules.is_enabled(user.school_id, "assessments"),
             "timetable": modules.is_enabled(user.school_id, "timetable"),
             "syllabus": modules.is_enabled(user.school_id, "syllabus"),
+            # Homework comes from the teaching reports (M8, 8.1).
+            "homework": modules.is_enabled(user.school_id, "teaching_reports"),
         } if user.school_id else {},
     }
 

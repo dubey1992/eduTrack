@@ -101,6 +101,7 @@ class FamilyFeatures {
     required this.results,
     required this.timetable,
     required this.syllabus,
+    this.homework = true,
   });
 
   factory FamilyFeatures.fromJson(Map<String, dynamic>? json) {
@@ -113,6 +114,7 @@ class FamilyFeatures {
       results: on('results'),
       timetable: on('timetable'),
       syllabus: on('syllabus'),
+      homework: on('homework'),
     );
   }
 
@@ -123,4 +125,7 @@ class FamilyFeatures {
   final bool results;
   final bool timetable;
   final bool syllabus;
+
+  /// From the teachers' teaching reports (M8, 8.1).
+  final bool homework;
 }

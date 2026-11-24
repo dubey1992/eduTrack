@@ -31,8 +31,12 @@ FAMILY_SCREENS = {
 }
 
 
+# A message whose screen is not its category's (M8, 8.1).
+FAMILY_EVENT_SCREENS = {MessageEvent.HOMEWORK_FOR_FAMILY: "homework"}
+
+
 def family_link(event: str) -> str:
-    screen = FAMILY_SCREENS.get(MessageEvent.category(event), "notices")
+    screen = FAMILY_EVENT_SCREENS.get(event) or FAMILY_SCREENS.get(MessageEvent.category(event), "notices")
 
     return f"{settings.PUBLIC_SITE_URL.rstrip('/')}/f/{screen}"
 

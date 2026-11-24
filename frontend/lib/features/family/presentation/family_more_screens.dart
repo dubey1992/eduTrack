@@ -85,6 +85,14 @@ class FamilyMoreScreen extends ConsumerWidget {
           subtitle: 'How far each subject has got',
           onTap: () => context.push('/syllabus'),
         ),
+      if (features.homework)
+        _MoreRow(
+          key: const Key('family-more-homework'),
+          icon: Icons.edit_note_rounded,
+          title: 'Homework',
+          subtitle: 'What the teachers set, day by day',
+          onTap: () => context.push('/homework'),
+        ),
     ];
 
     return ListView(
@@ -597,6 +605,7 @@ class FamilyNotificationsScreen extends ConsumerWidget {
     ('fee', 'Fees', 'Reminders and receipts', Icons.receipt_long_rounded),
     ('result', 'Results', 'When a test result is published', Icons.grade_rounded),
     ('notices', 'Notices', 'Announcements and messages from the school', Icons.campaign_rounded),
+    ('homework', 'Homework', "Each evening, the day's homework", Icons.edit_note_rounded),
   ];
 
   @override

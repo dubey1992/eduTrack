@@ -68,6 +68,7 @@ from .. import (
     family_bus,
     family_day,
     family_fees,
+    family_homework,
     family_inbox,
     family_learning,
     modules,
@@ -258,6 +259,8 @@ class NotificationSettingsRequest(serializers.Serializer):
     fee = serializers.BooleanField(required=False)
     result = serializers.BooleanField(required=False)
     notices = serializers.BooleanField(required=False)
+    # The evening homework message (M8, 8.1).
+    homework = serializers.BooleanField(required=False)
 
 
 @api_view(["GET", "PATCH"])
@@ -325,6 +328,15 @@ def child_syllabus(request, child_id: int) -> Response:
     user = family_reader(request)
 
     return Response(family_learning.syllabus_for(child_of(user, child_id)))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_homework(request, child_id: int) -> Response:
+    """The child's class's homework over the last two weeks (M8, 8.1)."""
+    user = family_reader(request)
+
+    return Response(family_homework.homework_for(child_of(user, child_id)))
 
 
 # -- Fees (F3) -------------------------------------------------------------------

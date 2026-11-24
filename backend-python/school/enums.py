@@ -340,6 +340,9 @@ class MessageEvent(models.TextChoices):
     ABSENCE_NOTE = "teaching.absence_note", "Absence note from a parent"
     # A parent's "please call me" (Family app, F5): the inbox only.
     CALL_REQUEST = "teaching.call_request", "Call request from a parent"
+    # M8 (docs/mobile-apps-review.md, 8.1): the evening push to a family -
+    # today's homework for the child's class. The Family app only.
+    HOMEWORK_FOR_FAMILY = "teaching.homework_for_family", "Homework for today"
     # Reminders from the school's own day (staff_reminders.py, decided
     # 2026-11-18): teaching events, so the inbox and its push, never an SMS.
     REGISTER_REMINDER = "teaching.register_reminder", "Register not taken"
@@ -427,6 +430,9 @@ DEFAULT_BODIES = {
     ),
     MessageEvent.ABSENCE_NOTE: (
         "{guardian_name} says {student_name} will be away {dates}: {reason}"
+    ),
+    MessageEvent.HOMEWORK_FOR_FAMILY: (
+        "{student_name} has {count} {items} for today: {subjects}. Open Homework to read them."
     ),
     MessageEvent.TRANSPORT_NEAR_STOP: (
         "The {route_name} bus is about {distance} from {stop_name}. Please be ready at the stop."
@@ -532,6 +538,9 @@ CALL_REQUEST_TOKENS = [
 
 ABSENCE_NOTE_TOKENS = ["staff_name", "student_name", "guardian_name", "dates", "reason", "school_name"]
 
+# Today's homework for a child (M8, 8.1): how many, and in which subjects.
+HOMEWORK_FOR_FAMILY_TOKENS = ["student_name", "count", "items", "subjects", "date", "school_name", "guardian_name"]
+
 TRIP_LEFT_OPEN_TOKENS = [
     "staff_name", "route_name", "vehicle_name", "direction", "date", "started_by", "on_board", "school_name",
 ]
@@ -553,6 +562,7 @@ PER_EVENT_TOKENS = {
     MessageEvent.TRANSPORT_NEAR_STOP: TRANSPORT_NEAR_STOP_TOKENS,
     MessageEvent.TRANSPORT_DELAY: TRANSPORT_DELAY_TOKENS,
     MessageEvent.ABSENCE_NOTE: ABSENCE_NOTE_TOKENS,
+    MessageEvent.HOMEWORK_FOR_FAMILY: HOMEWORK_FOR_FAMILY_TOKENS,
     MessageEvent.CALL_REQUEST: CALL_REQUEST_TOKENS,
     MessageEvent.TRIP_LEFT_OPEN: TRIP_LEFT_OPEN_TOKENS,
     MessageEvent.TRIP_SOS: TRIP_SOS_TOKENS,

@@ -12,6 +12,7 @@ import '../application/family_session_notifier.dart';
 import '../data/family_repository.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_learning.dart';
+import '../data/models/family_homework.dart';
 import '../../../core/utils/pdf_hand_off.dart';
 import 'widgets/family_widgets.dart';
 
@@ -501,6 +502,76 @@ class FamilySyllabusScreen extends ConsumerWidget {
                         : _SyllabusCard(subject: subjects[index - 1], index: index - 1),
                   ),
           ),
+    );
+  }
+}
+
+/// The class's homework, day by day, newest first (M8, 8.1): what the
+/// teachers wrote in their teaching reports.
+class FamilyHomeworkScreen extends ConsumerWidget {
+  const FamilyHomeworkScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _LearningScaffold(
+      title: 'Homework',
+      body: (child) => ref
+          .watch(familyHomeworkProvider(child.id))
+          .when(
+            loading: () => const PlaceholderCards(),
+            error: (error, _) => FamilyErrorView(
+              error: error,
+              onRetry: () => ref.read(familyHomeworkProvider(child.id).notifier).refresh(),
+            ),
+            data: (days) => days.isEmpty
+                ? const FamilyEmptyView(
+                    icon: Icons.edit_note_rounded,
+                    title: 'No homework in the last two weeks',
+                    message: 'When a teacher sets homework for the class, it appears here that day.',
+                  )
+                : ListView.separated(
+                    key: const Key('family-homework'),
+                    padding: const EdgeInsets.all(16),
+                    itemCount: days.length + 1,
+                    separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 0 : 12),
+                    itemBuilder: (context, index) => index == 0
+                        ? SavedCopyLine(name: 'homework:${child.id}')
+                        : _HomeworkDayCard(day: days[index - 1]),
+                  ),
+          ),
+    );
+  }
+}
+
+class _HomeworkDayCard extends StatelessWidget {
+  const _HomeworkDayCard({required this.day});
+
+  final HomeworkDay day;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.appColors.muted;
+
+    return FamilyCard(
+      key: Key('family-homework-${day.date}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            day.today ? 'Today - ${day.dateLabel}' : day.dateLabel,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          for (final item in day.items) ...[
+            const SizedBox(height: 10),
+            Text(
+              item.subject ?? 'Homework',
+              style: TextStyle(color: muted, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(item.homework),
+          ],
+        ],
+      ),
     );
   }
 }

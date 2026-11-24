@@ -14,6 +14,7 @@ import 'models/family_call_request.dart';
 import 'models/family_day.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
+import 'models/family_homework.dart';
 import 'models/family_records.dart';
 
 final familyRepositoryProvider = Provider<FamilyRepository>(
@@ -86,6 +87,8 @@ class FamilyRepository {
   Future<FamilyWeek> timetable(int childId) => _call(() => _api.timetable(childId));
 
   Future<List<SubjectSyllabus>> syllabus(int childId) => _call(() => _api.syllabus(childId));
+
+  Future<List<HomeworkDay>> homework(int childId) => _call(() => _api.homework(childId));
 
   Future<FamilyFees> fees(int childId) => _call(() => _api.fees(childId));
 

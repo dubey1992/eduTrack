@@ -133,6 +133,7 @@ urlpatterns = [
     path("api/v1/family/children/<int:child_id>/progress-report", family.child_progress_report),
     path("api/v1/family/children/<int:child_id>/timetable", family.child_timetable),
     path("api/v1/family/children/<int:child_id>/syllabus", family.child_syllabus),
+    path("api/v1/family/children/<int:child_id>/homework", family.child_homework),
     path("api/v1/family/children/<int:child_id>/fees", family.child_fees),
     path("api/v1/family/children/<int:child_id>/fees/statement.pdf", family.child_fee_statement),
     path("api/v1/family/children/<int:child_id>/receipts/<int:receipt_id>/pdf", family.child_receipt_pdf),

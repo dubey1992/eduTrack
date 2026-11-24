@@ -153,6 +153,9 @@ FAMILY_ROUTES = {
     MessageCategory.ATTENDANCE: "/attendance",
 }
 
+# A Family-app message whose screen is not its category's (M8, 8.1).
+FAMILY_EVENT_ROUTES = {MessageEvent.HOMEWORK_FOR_FAMILY: "/homework"}
+
 # Where a tapped notification opens in the School365ai Bus app: the trip,
 # its one screen that matters (docs/mobile-apps-review.md, M0). Nothing is
 # sent to crew yet - what they are told arrives with M7.
@@ -161,7 +164,7 @@ CREW_ROUTE = "/my-trip"
 
 def route_for(message: Message) -> str:
     if message.user_id and UserRole.is_family(message.user.role):
-        return FAMILY_ROUTES.get(message.category, FAMILY_ROUTE)
+        return FAMILY_EVENT_ROUTES.get(message.event) or FAMILY_ROUTES.get(message.category, FAMILY_ROUTE)
 
     if message.user_id and UserRole.is_crew(message.user.role):
         return CREW_ROUTE

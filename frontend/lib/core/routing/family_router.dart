@@ -47,6 +47,7 @@ const familyPaths = {
   '/admit-cards',
   '/timetable',
   '/syllabus',
+  '/homework',
 };
 
 /// The Family app screen a `school365ai.com/f/<screen>` link names - one of
@@ -94,6 +95,7 @@ final familyRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/admit-cards', builder: (context, state) => const FamilyAdmitCardsScreen()),
       GoRoute(path: '/timetable', builder: (context, state) => const FamilyTimetableScreen()),
       GoRoute(path: '/syllabus', builder: (context, state) => const FamilySyllabusScreen()),
+      GoRoute(path: '/homework', builder: (context, state) => const FamilyHomeworkScreen()),
       GoRoute(path: '/maintenance', builder: (context, state) => const MaintenanceScreen()),
     ],
     redirect: (context, state) {
