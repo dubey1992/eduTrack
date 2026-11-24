@@ -107,6 +107,62 @@ class FakeTeachingReportRepository implements TeachingReportRepository {
     return reports.firstWhere((r) => r.id == reportId);
   }
 
+  /// Photos added and removed (M9, 6.6); a refusal when [failPhotoWith] is set.
+  final List<String> addedPhotos = [];
+  final List<int> removedPhotos = [];
+  Failure? failPhotoWith;
+
+  @override
+  Future<TeachingReport> addPhoto(int reportId, {required String name, required List<int> bytes}) async {
+    if (failPhotoWith != null) throw failPhotoWith!;
+    addedPhotos.add(name);
+    final existing = reports.firstWhere((r) => r.id == reportId);
+    final id = 100 + addedPhotos.length;
+    return _withPhotos(existing, [
+      ...existing.photos,
+      ReportPhoto(id: id, url: '/teaching-reports/$reportId/photos/$id'),
+    ]);
+  }
+
+  @override
+  Future<TeachingReport> removePhoto(int reportId, int photoId) async {
+    if (failPhotoWith != null) throw failPhotoWith!;
+    removedPhotos.add(photoId);
+    final existing = reports.firstWhere((r) => r.id == reportId);
+    return _withPhotos(existing, [
+      for (final p in existing.photos)
+        if (p.id != photoId) p,
+    ]);
+  }
+
+  TeachingReport _withPhotos(TeachingReport r, List<ReportPhoto> photos) {
+    final updated = TeachingReport(
+      id: r.id,
+      schoolId: r.schoolId,
+      timetableEntryId: r.timetableEntryId,
+      classSectionName: r.classSectionName,
+      periodNumber: r.periodNumber,
+      subjectName: r.subjectName,
+      teacherId: r.teacherId,
+      teacherName: r.teacherName,
+      reportDate: r.reportDate,
+      topicTaught: r.topicTaught,
+      homework: r.homework,
+      remarks: r.remarks,
+      reviewedBy: r.reviewedBy,
+      reviewedByName: r.reviewedByName,
+      reviewedAt: r.reviewedAt,
+      syllabusTopicName: r.syllabusTopicName,
+      status: r.status,
+      reviewNote: r.reviewNote,
+      returnedAt: r.returnedAt,
+      returnedByName: r.returnedByName,
+      photos: photos,
+    );
+    reports = [for (final x in reports) x.id == r.id ? updated : x];
+    return updated;
+  }
+
   @override
   Future<TeachingReportSummary> summary({int? schoolId, required String date}) async {
     return summaryData;

@@ -432,6 +432,8 @@ class TeachingReportTest(TeachingReportCase):
                 "homework", "remarks", "reviewed_by", "reviewed_by_name", "reviewed_at",
                 # Sending a report back (docs/teacher-app.md, T7).
                 "status", "review_note", "returned_at", "returned_by_name",
+                # Photos of the board or the children's work (M9, 6.6).
+                "photos",
             },
             set(response.data),
         )

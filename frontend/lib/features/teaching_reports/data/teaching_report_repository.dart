@@ -79,6 +79,22 @@ class TeachingReportRepository {
     }
   }
 
+  Future<TeachingReport> addPhoto(int reportId, {required String name, required List<int> bytes}) async {
+    try {
+      return await _api.addPhoto(reportId, name: name, bytes: bytes);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
+  Future<TeachingReport> removePhoto(int reportId, int photoId) async {
+    try {
+      return await _api.removePhoto(reportId, photoId);
+    } on DioException catch (e) {
+      throw failureFromDioException(e);
+    }
+  }
+
   Future<TeachingReportSummary> summary({int? schoolId, required String date}) async {
     try {
       return await _api.summary(schoolId: schoolId, date: date);

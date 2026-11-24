@@ -25,6 +25,7 @@ import '../application/teaching_report_summary_notifier.dart';
 import '../data/models/teaching_report.dart';
 import '../data/models/teaching_report_summary.dart';
 import 'widgets/submit_report_dialog.dart';
+import 'widgets/report_photos.dart';
 
 /// Phase 11 - "My Teaching Today" (a Teacher/HOD's own scheduled periods for
 /// today, cross-referenced against what they've already filed - see
@@ -376,6 +377,10 @@ class _ReportListMobile extends ConsumerWidget {
                 Text('${report.subjectName ?? ''} · ${report.classSectionName ?? ''} · ${report.reportDate}'),
                 const SizedBox(height: 4),
                 Text(report.topicTaught),
+                if (report.photos.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ReportPhotos(report: report, canChange: false, onChanged: (_) {}),
+                ],
                 if (canReviewThis) ...[
                   const SizedBox(height: 8),
                   Align(
@@ -425,7 +430,35 @@ class _ReportListDesktop extends ConsumerWidget {
                   DataCell(Text(report.classSectionName ?? '—')),
                   DataCell(Text(report.subjectName ?? '—')),
                   DataCell(Text(report.reportDate)),
-                  DataCell(SizedBox(width: 220, child: Text(report.topicTaught, overflow: TextOverflow.ellipsis))),
+                  DataCell(
+                    SizedBox(
+                      width: 220,
+                      child: Row(
+                        children: [
+                          Expanded(child: Text(report.topicTaught, overflow: TextOverflow.ellipsis)),
+                          if (report.photos.isNotEmpty)
+                            IconButton(
+                              key: Key('report-photos-open-${report.id}'),
+                              tooltip: report.photos.length == 1 ? '1 photo' : '${report.photos.length} photos',
+                              icon: const Icon(Icons.photo_library_outlined, size: 18),
+                              onPressed: () => showDialog<void>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: Text('${report.subjectName ?? 'Report'} · ${report.reportDate}'),
+                                  content: ReportPhotos(report: report, canChange: false, onChanged: (_) {}),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(),
+                                      child: const Text('Close'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                   DataCell(_ReviewStatusBadge(report: report)),
                   DataCell(
                     (!report.isReviewed && report.teacherId != actorId)

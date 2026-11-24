@@ -12,6 +12,7 @@ import '../../my_department/application/department_providers.dart';
 import '../application/my_teaching_providers.dart';
 import 'file_report_screen.dart';
 import 'teaching_screen.dart';
+import '../../teaching_reports/presentation/widgets/report_photos.dart';
 
 /// One filed report, read-only (docs/teacher-app.md, T3). Opened from its
 /// period on Today or from the Reports list. There is no editing: the web
@@ -102,6 +103,11 @@ class _Report extends ConsumerWidget {
         field('Syllabus topic ticked off', report.syllabusTopicName),
         field('Homework', report.homework),
         field('Remarks', report.remarks),
+        ReportPhotos(
+          report: report,
+          canChange: !byAnother && !report.isReviewed,
+          onChanged: (_) => ref.invalidate(myReportProvider(report.id)),
+        ),
         if (report.reviewNote != null && report.reviewNote!.isNotEmpty) ...[
           HodNote(report: report),
           const SizedBox(height: 16),

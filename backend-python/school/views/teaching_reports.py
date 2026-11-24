@@ -13,16 +13,19 @@ a form request.
 
 from __future__ import annotations
 
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import dates
+from .. import dates, teaching_report_photos
+from .. import photos as photos_store
 from ..clock import SchoolClock
-from ..models import DailyTeachingReport, TimetableEntry
+from ..models import DailyTeachingReport, TeachingReportPhoto, TimetableEntry
 from ..pagination import LaravelPagination
 from ..policies import DailyTeachingReportPolicy, authorize
 from ..requests import (
@@ -63,7 +66,7 @@ def collection(request) -> Response:
     )
 
     paginator = LaravelPagination()
-    page = paginator.paginate_queryset(reports, request)
+    page = paginator.paginate_queryset(reports.prefetch_related("photos"), request)
 
     return paginator.get_paginated_response(
         [daily_teaching_report_resource(row) for row in page]
@@ -189,3 +192,61 @@ def _id_or_none(value):
     """A query-string id, or nothing for anything that is not one - a filter
     that cannot match is no filter, never a 500."""
     return int(value) if value and value.isdigit() else None
+
+
+def _visible_report(user, report_id: int) -> DailyTeachingReport:
+    """The report, for whoever may read it - the same rule as read_one."""
+    authorize(DailyTeachingReportPolicy.view_any(user))
+
+    report = (
+        DailyTeachingReportService.visible_to(user, {}).filter(pk=report_id).first()
+        or DailyTeachingReportService.visible_to(user, {"mine": True}).filter(pk=report_id).first()
+    )
+    if report is None:
+        raise Http404
+
+    return report
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def photos(request, report_id: int) -> Response:
+    """Adds a photo (multipart `photo`) to the author's own report (M9, 6.6)."""
+    report = _visible_report(request.user, report_id)
+    authorize(DailyTeachingReportPolicy.update(request.user, report))
+
+    try:
+        teaching_report_photos.add(report, request.FILES.get("photo"), request=request)
+    except teaching_report_photos.ReportPhotoRefused as refused:
+        raise ValidationError({"photo": [str(refused)]})
+
+    return Response(daily_teaching_report_resource(_visible_report(request.user, report_id)), status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "DELETE"])
+@permission_classes([IsAuthenticated])
+def photo(request, report_id: int, photo_id: int):
+    """One photo: seen by whoever may read the report; removed by its author
+    until the report is reviewed. Another report's photo is the same 404."""
+    report = _visible_report(request.user, report_id)
+    found = get_object_or_404(TeachingReportPhoto, pk=photo_id, daily_teaching_report_id=report.id)
+
+    if request.method == "DELETE":
+        authorize(DailyTeachingReportPolicy.update(request.user, report))
+        try:
+            teaching_report_photos.remove(report, found, request=request)
+        except teaching_report_photos.ReportPhotoRefused as refused:
+            raise ValidationError({"photo": [str(refused)]})
+
+        return Response(daily_teaching_report_resource(_visible_report(request.user, report_id)))
+
+    stored = photos_store.read(found.file_path)
+    if stored is None:
+        raise Http404
+
+    data, content_type = stored
+    response = HttpResponse(data, content_type=content_type)
+    response["Cache-Control"] = "private, max-age=86400"
+
+    return response

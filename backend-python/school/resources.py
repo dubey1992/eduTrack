@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from . import dates, mailer, modules, money, notice_attachments, payment_items, permissions, school_logo, sms, student_photos, syllabus_scope, whatsapp, working_hours
+from . import dates, mailer, modules, money, notice_attachments, payment_items, permissions, school_logo, sms, student_photos, teaching_report_photos, syllabus_scope, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
 from .enums import SchoolCategory, DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageDeliveryStatus, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
@@ -205,6 +205,8 @@ def daily_teaching_report_resource(report) -> dict:
         "reviewed_by": report.reviewed_by_id,
         "reviewed_by_name": report.reviewed_by.name if report.reviewed_by_id else None,
         "reviewed_at": timestamp(report.reviewed_at),
+        # Up to three photos, staff only (M9, 6.6); prefetched by the list.
+        "photos": teaching_report_photos.of_report(report),
     }
 
 
