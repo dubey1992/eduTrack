@@ -11,6 +11,6 @@
   - the same blue square the app shows beside its name.
 -->
 <resources>
-    <color name="window_background">#FFFFFFFF</color>
-    <color name="ic_launcher_background">#FF2563EB</color>
+    <color name="window_background">#FFF7F9FC</color>
+    <color name="ic_launcher_background">#FF0D2140</color>
 </resources>

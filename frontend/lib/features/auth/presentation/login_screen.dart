@@ -224,7 +224,7 @@ class _VisitWebsite extends StatelessWidget {
         side: BorderSide(color: palette.border),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         shape: const StadiumBorder(),
-        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+        textStyle: Theme.of(context).textTheme.titleSmall?.copyWith(fontSize: 13),
       ),
       icon: const Icon(Icons.arrow_back, size: 16),
       label: const Text('Visit website'),
@@ -267,7 +267,7 @@ class _HelpLinks extends StatelessWidget {
     final palette = AuthPalette.of(context);
     final style = TextButton.styleFrom(
       foregroundColor: palette.primary,
-      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      textStyle: Theme.of(context).textTheme.titleSmall?.copyWith(fontSize: 13),
     );
 
     return Wrap(

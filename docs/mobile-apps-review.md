@@ -196,6 +196,29 @@ the product owner before that phase starts.
 - 2.2 Family: **Fees, Bus, Attendance, Results, Notices, Timetable, Syllabus and Admit cards** keep their last answer on the phone and, with no signal, show it with *No connection. Showing what was true at 9:40 AM.* - as Home did. Signing out now forgets every copy, Home's included (Home's was kept before). A refusal is never covered by an old copy; the live bus map never uses one.
 - 2.4 Bus: **Start works with no signal**. My routes now carries each route's roster (its stops and children); the phone opens the trip from it under a stand-in id, and marks, positions and End collect there. When signal returns the start goes first - `POST /transport/trips` now takes `started_at`, today only, at most 12 hours old - and everything moves onto the real trip. If the other crew member started it meanwhile, this phone joins that trip; any other refusal moves its marks to *Not sent* with the reason. A phone that never saved the roster (an app or server older than this) still needs signal to start.
 
+**M5 progress (2026-11-19, built on main, not deployed). Decided by the owner: all four accountant screens; report photos wait for M9:**
+
+- 6.6 The **profile photo** comes from the camera or the phone's photos (it was web-only; the file chooser it used works only in a browser).
+- 7.3 **Call requests** in the Staff app - parents asking the class teacher to call - with a card on Today while anybody waits.
+- 7.4 **Find a student** by name or admission number, guardian one tap away; only for roles that may see students (a teacher: their own class).
+- 7.1 The HOD's Department gets **Leave** (pending requests in the department, never their own - new `GET /leaves?to_review=1`; "At work that day" asked first) and the **Staff** tab now marks the register (the web's own notifier and "On leave that day" question, shared).
+- 7.2 A **Fees** tab for whoever may manage fees: **Collect** (find the student, open their statement, record the payment, share the receipt), **Today** (the day's receipts per currency and per mode), **Overdue** (with the guardian to call - `fees/balances` now carries the guardian).
+
+**M6 progress (2026-11-19, built on main, not deployed). Decided by the owner: the app lock is off until the person turns it on; UPI fills in the amount due and a note naming the child:**
+
+- 4.1 **"How is this worked out?"** under the Family app's attendance rate, fees summary and results - one tap, one line, saying what the server counts.
+- 4.2 **Read receipts**: the parent sees who read their absence note and when, who rang them back, and when their answer to a notice reached the school; staff see "Opened in the app by N of M" under each notice (counted with the list page, not per row).
+- 4.3 **Trip proof**: under the child boarding, getting off or not boarding, who marked it and at which stop (the Bus tab's trips carry a `timeline` from the trip's own events; nothing about other children).
+- 4.4 **App lock** in the Staff and Family apps (`local_auth`): offered once after sign-in, a switch in My Profile / Your privacy; locks at start and after 5 minutes in the background; the phone's fingerprint, face or screen lock; a phone whose screen lock is removed is not shut out; signing out forgets it. Android: MainActivity is now a FlutterFragmentActivity and the window themes AppCompat ones.
+- 4.5 **Your privacy** page in the Family app: who may see the parent's number, the bus on the map only during the child's own trip, the app never asks for the phone's location.
+- 6.4 **Pay with any UPI app**: a upi://pay link with the school's UPI ID, the school as payee, the amount overdue (else the next instalment owing) and "Fees - <name> (<admission no>)"; only for a rupee school with a UPI ID and something owed. The school still records the payment.
+
+**Decided by the owner 2026-11-24 (M7 and the phone apps' colours):**
+
+- **M7, auto "Reached":** yes, it sends the parents the same "bus at your stop" alert as the crew's button. The button stays as an override, and a stop is never announced twice.
+- **M7, delay message:** three fixed choices, 10, 15 and 30 minutes, to every parent on the route still waiting. No free text while driving.
+- **Brand colours in the phone apps (slice B1, built before M7):** all three apps take the School365AI design - navy and teal, Manrope headings over DM Sans, as the web app does since 2026-11-21. Each keeps one accent so they are still told apart: **Staff** teal, **Driver** navy with the brand orange (high contrast in sunlight), **Family** the logo's violet. Status colours (present, absent, late) do not change. Play Store screenshots are retaken after it.
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?

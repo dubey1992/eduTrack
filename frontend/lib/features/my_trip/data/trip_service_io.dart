@@ -72,7 +72,8 @@ Future<void> start({required String title, required String body}) async {
 /// screen show one drawing.
 const _busMark = NotificationIcon(
   metaDataName: 'com.school365ai.app.trip_notification_icon',
-  backgroundColor: Color(0xFF2563EB),
+  // The Driver app's navy (slice B1).
+  backgroundColor: Color(0xFF0D2140),
 );
 
 Future<void> stop() async {

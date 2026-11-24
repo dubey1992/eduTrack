@@ -1,33 +1,37 @@
 import 'package:flutter/material.dart';
 
-/// The Teacher app's colours (docs/teacher-app.md).
+import 'brand_tokens.dart';
+
+/// The Staff app's colours (docs/teacher-app.md) - since 2026-11-24 the
+/// School365AI brand's own (slice B1, docs/mobile-apps-review.md).
 ///
-/// Teal for the classroom and the app's own mark, amber for the ribbon in
-/// the book - the one warm note, used sparingly. The driver app is blue, so
-/// the two read apart on a launcher and in a hand.
+/// Teal for the app and its mark, running into the brand navy on the splash
+/// and the hero band; the brand orange for the ribbon in the book - the one
+/// warm note, used sparingly.
 abstract final class TeacherBrand {
   /// The primary, and the launcher icon's ground (android/app/src/teacher).
-  static const teal = Color(0xFF0F766E);
+  static const teal = BrandColors.teal;
 
-  /// The far end of the splash and the hero's gradient.
-  static const tealDeep = Color(0xFF115E59);
+  /// Shadows under the teal tile.
+  static const tealDeep = BrandColors.tealInk;
 
-  /// The primary in dark mode: teal lifted until it reads on near-black.
-  static const tealBright = Color(0xFF2DD4BF);
+  /// The primary in dark mode: teal lifted until it reads on the night navy.
+  static const tealBright = BrandColors.nightTeal;
 
   /// A container in dark mode.
-  static const tealNight = Color(0xFF123A37);
+  static const tealNight = BrandColors.nightMint;
 
   /// A container in light mode, and the icons' soft circles.
-  static const mint = Color(0xFFE6F4F1);
+  static const mint = BrandColors.mint;
 
   /// The bookmark.
-  static const amber = Color(0xFFF59E0B);
+  static const amber = BrandColors.orange;
 
-  /// The splash and the hero band, top left to bottom right.
+  /// The splash and the hero band, top left to bottom right: teal into navy,
+  /// as on the website's hero.
   static const gradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [teal, tealDeep],
+    colors: [teal, BrandColors.navy],
   );
 }

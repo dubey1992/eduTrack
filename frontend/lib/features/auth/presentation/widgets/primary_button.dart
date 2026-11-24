@@ -28,7 +28,9 @@ class PrimaryButton extends StatelessWidget {
           backgroundColor: palette.primary,
           foregroundColor: palette.onPrimary,
           disabledBackgroundColor: palette.primary,
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          // The theme's bold text face: a bare TextStyle would ask for a
+          // weight of the font that was never loaded.
+          textStyle: Theme.of(context).textTheme.titleSmall?.copyWith(fontSize: 15),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,
         ),
