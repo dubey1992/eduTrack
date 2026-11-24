@@ -31,6 +31,7 @@ from school import (
     check_in,
     factories,
     family_accounts,
+    guardian_invites,
     notice_replies,
     platform_messaging,
     promotion,
@@ -86,7 +87,7 @@ WRITES = ("objects.create(", ".save(", ".delete()", "update_or_create(", "get_or
 # one slice invisible to this test for exactly that reason.
 SWEPT = (
     services, promotion, check_in, platform_messaging, family_accounts, absence_notes, call_requests,
-    notice_replies,
+    notice_replies, guardian_invites,
 )
 
 
@@ -150,6 +151,9 @@ class EveryWriteIsRecorded(TestCase):
             # The Family app's copies of the school's messages: rows of the
             # message log, which is the record, like notifications'.
             "family_inbox",
+            # The cron's note that a child fell below the attendance line
+            # (M8, 5.4): counted from the register, nobody's change to it.
+            "attendance_warnings",
         }
 
         self.assertEqual(set(), writes - swept - exempt, "add these to SWEPT, or say why they are exempt")
