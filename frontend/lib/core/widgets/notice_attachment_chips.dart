@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../l10n/failure_text.dart';
+import '../l10n/l10n.dart';
 import '../models/notice_attachment.dart';
 import '../network/dio_client.dart';
 import '../utils/file_saver.dart';
@@ -67,7 +69,7 @@ class _NoticeAttachmentChipsState extends ConsumerState<NoticeAttachmentChips> {
     } on DioException catch (error) {
       final failure = failureFromDioException(error);
       debugPrint('Opening attachment ${attachment.id} failed: ${failure.code}');
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      messenger.showSnackBar(SnackBar(content: Text(mounted ? failure.localizedMessage(context) : failure.message)));
     } finally {
       if (mounted) setState(() => _opening = null);
     }
@@ -116,9 +118,9 @@ class _PictureDialog extends ConsumerWidget {
               child: Image.memory(
                 Uint8List.fromList(bytes),
                 fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Text('This picture could not be shown.', textAlign: TextAlign.center),
+                errorBuilder: (context, _, _) => Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Text(context.l10n.staffPictureNotShown, textAlign: TextAlign.center),
                 ),
               ),
             ),
@@ -132,9 +134,9 @@ class _PictureDialog extends ConsumerWidget {
                   key: const Key('notice-attachment-save'),
                   onPressed: () => ref.read(fileHandOffProvider)(bytes, attachment.name, attachment.contentType),
                   icon: Icon(kIsWeb ? Icons.download_outlined : Icons.share_outlined),
-                  label: Text(kIsWeb ? 'Download' : 'Save or share'),
+                  label: Text(kIsWeb ? context.l10n.staffDownload : context.l10n.staffSaveOrShare),
                 ),
-                TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
+                TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.l10n.staffClose)),
               ],
             ),
           ),

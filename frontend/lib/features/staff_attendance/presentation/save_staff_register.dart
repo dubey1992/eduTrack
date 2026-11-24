@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../application/staff_attendance_register_notifier.dart';
 
@@ -22,8 +24,10 @@ Future<bool> saveStaffRegister(
     try {
       await notifier.submitOrUpdate(confirmLeave: confirmLeave);
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(submitted ? 'Attendance updated.' : 'Attendance submitted.')));
+        final l10n = context.l10n;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(submitted ? l10n.staffAttendanceUpdated : l10n.staffAttendanceSubmitted)),
+        );
       }
       return true;
     } catch (error) {
@@ -33,15 +37,15 @@ Future<bool> saveStaffRegister(
       if (failure.code == 'STAFF_ON_LEAVE' && !confirmLeave) {
         confirmLeave = await confirmDialog(
           context,
-          title: 'On leave that day',
+          title: context.l10n.staffOnLeaveThatDay,
           message: failure.message,
-          confirmLabel: 'Mark present anyway',
+          confirmLabel: context.l10n.staffMarkPresentAnyway,
         );
         if (confirmLeave) continue;
         return false;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.localizedMessage(context))));
       return false;
     }
   }

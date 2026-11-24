@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/errors/failure.dart';
+import '../../../../core/l10n/failure_text.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../data/auth_repository.dart';
 import 'teacher_auth_shell.dart';
 
@@ -47,7 +49,7 @@ class _TeacherForgotPasswordScreenState extends ConsumerState<TeacherForgotPassw
       if (mounted) setState(() => _sentTo = email);
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = failure.localizedMessage(context));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -56,12 +58,11 @@ class _TeacherForgotPasswordScreenState extends ConsumerState<TeacherForgotPassw
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
 
     return TeacherAuthShell(
-      title: _sentTo == null ? 'Reset your password' : 'Check your email',
-      subtitle: _sentTo == null
-          ? 'Enter your school email and we will send you a link to choose a new password.'
-          : 'A link to choose a new password is on its way.',
+      title: _sentTo == null ? l10n.staffResetPasswordTitle : l10n.staffCheckEmailTitle,
+      subtitle: _sentTo == null ? l10n.staffResetPasswordSubtitle : l10n.staffCheckEmailSubtitle,
       onBack: () => context.go('/login'),
       child: _sentTo != null
           ? Column(
@@ -71,21 +72,20 @@ class _TeacherForgotPasswordScreenState extends ConsumerState<TeacherForgotPassw
                 Icon(Icons.mark_email_read_outlined, size: 56, color: scheme.primary),
                 const SizedBox(height: 16),
                 Text(
-                  'If an account exists for $_sentTo, the email is on its way. The link works once and '
-                  'lasts one hour. If it does not arrive, look in your spam folder.',
+                  l10n.staffResetSentBody(_sentTo!),
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 15, height: 1.5),
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Choose your new password from the link, then come back here and sign in with it.',
+                  l10n.staffResetSentNext,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: scheme.onSurfaceVariant, height: 1.45),
                 ),
                 const SizedBox(height: 24),
                 TeacherPrimaryButton(
                   key: const Key('forgot-back-to-sign-in'),
-                  label: 'Back to sign in',
+                  label: l10n.staffBackToSignIn,
                   onPressed: () => context.go('/login'),
                 ),
               ],
@@ -107,19 +107,19 @@ class _TeacherForgotPasswordScreenState extends ConsumerState<TeacherForgotPassw
                     textInputAction: TextInputAction.send,
                     autocorrect: false,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline)),
+                    decoration: InputDecoration(labelText: l10n.staffEmail, prefixIcon: const Icon(Icons.mail_outline)),
                     onFieldSubmitted: (_) => _submit(),
                     validator: (value) {
                       final email = value?.trim() ?? '';
-                      if (email.isEmpty) return 'Enter your email.';
-                      if (!_emailShape.hasMatch(email)) return 'That does not look like an email address.';
+                      if (email.isEmpty) return l10n.staffEnterEmail;
+                      if (!_emailShape.hasMatch(email)) return l10n.staffNotAnEmail;
                       return null;
                     },
                   ),
                   const SizedBox(height: 22),
                   TeacherPrimaryButton(
                     key: const Key('forgot-submit'),
-                    label: 'Send reset link',
+                    label: l10n.staffSendResetLink,
                     busy: _isSubmitting,
                     onPressed: _submit,
                   ),

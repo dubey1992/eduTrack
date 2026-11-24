@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/security/app_lock_gate.dart';
 import '../../../core/theme/app_colors.dart';
 import 'widgets/family_widgets.dart';
@@ -21,47 +22,43 @@ class FamilyPrivacyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Your privacy')),
+      appBar: AppBar(title: Text(l10n.familyYourPrivacy)),
       body: ListView(
         key: const Key('family-privacy'),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          const _Fact(
-            key: Key('family-privacy-number'),
+          _Fact(
+            key: const Key('family-privacy-number'),
             icon: Icons.contact_phone_rounded,
-            title: 'Who can see your phone number',
+            title: l10n.familyPrivacyNumberTitle,
             lines: [
-              'The school office.',
-              'Your child\'s own class teachers - not teachers of other classes.',
-              'Staff who take fees, so they can call about a payment.',
-              'If your child takes the school bus: the transport office, and the bus crew on your child\'s route, '
-                  'so they can call you from the road.',
-              'The school decides whether any other staff may see it.',
+              l10n.familyPrivacyNumberOffice,
+              l10n.familyPrivacyNumberTeachers,
+              l10n.familyPrivacyNumberFees,
+              l10n.familyPrivacyNumberBus,
+              l10n.familyPrivacyNumberOthers,
             ],
           ),
           const SizedBox(height: 12),
-          const _Fact(
-            key: Key('family-privacy-location'),
+          _Fact(
+            key: const Key('family-privacy-location'),
             icon: Icons.location_on_rounded,
-            title: 'The bus on the map',
-            lines: [
-              'The location you see is the bus\'s, sent by the crew\'s phone while a trip runs.',
-              'You can follow it only while your child\'s own trip is running - until they are dropped off '
-                  'or marked as not on the bus.',
-              'This app never asks for your phone\'s location.',
-            ],
+            title: l10n.familyPrivacyBusTitle,
+            lines: [l10n.familyPrivacyBusSource, l10n.familyPrivacyBusWhen, l10n.familyPrivacyBusNoPhoneLocation],
           ),
           const SizedBox(height: 12),
           _Fact(
             key: const Key('family-privacy-messages'),
             icon: Icons.notifications_active_outlined,
-            title: 'What comes to this app',
-            lines: const ['You choose which kinds of message the school sends to this app.'],
+            title: l10n.familyPrivacyMessagesTitle,
+            lines: [l10n.familyPrivacyMessagesLine],
             action: TextButton(
               key: const Key('family-privacy-open-notifications'),
               onPressed: () => context.push('/notifications'),
-              child: const Text('Choose notifications'),
+              child: Text(l10n.familyChooseNotifications),
             ),
           ),
           const SizedBox(height: 12),

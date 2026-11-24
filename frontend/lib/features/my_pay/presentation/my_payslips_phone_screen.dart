@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/secure_screen.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -48,7 +49,10 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text('My pay', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800));
+    return Text(
+      context.l10n.staffMyPay,
+      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+    );
   }
 }
 
@@ -60,6 +64,7 @@ class _List extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return ListView(
       key: const Key('my-pay-list'),
@@ -67,7 +72,7 @@ class _List extends ConsumerWidget {
       children: [
         const _Heading(),
         const SizedBox(height: 4),
-        Text('Your payslips, once the month is finalized.', style: TextStyle(color: colors.muted)),
+        Text(l10n.staffMyPaySubtitle, style: TextStyle(color: colors.muted)),
         const SizedBox(height: 16),
         if (payslips.items.isEmpty)
           Padding(
@@ -77,10 +82,10 @@ class _List extends ConsumerWidget {
               children: [
                 Icon(Icons.receipt_long_outlined, size: 48, color: colors.muted),
                 const SizedBox(height: 12),
-                const Text('No payslips yet.', textAlign: TextAlign.center),
+                Text(l10n.staffNoPayslipsYet, textAlign: TextAlign.center),
                 const SizedBox(height: 4),
                 Text(
-                  'A payslip appears here once the school finalizes the month.',
+                  l10n.staffNoPayslipsHint,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: colors.muted),
                 ),
@@ -94,7 +99,7 @@ class _List extends ConsumerWidget {
               child: TextButton(
                 key: const Key('my-pay-more'),
                 onPressed: () => ref.read(myPayslipsProvider.notifier).loadMore(),
-                child: const Text('Show earlier months'),
+                child: Text(l10n.staffShowEarlierMonths),
               ),
             ),
         ],
@@ -132,12 +137,12 @@ class _PayslipCard extends StatelessWidget {
                       formatCurrency(double.parse(slip.netPay), slip.currencyCode),
                       style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                     ),
-                    Text('Net pay', style: TextStyle(fontSize: 12, color: colors.muted)),
+                    Text(context.l10n.staffNetPay, style: TextStyle(fontSize: 12, color: colors.muted)),
                   ],
                 ),
               ),
               StatusBadge(
-                label: slip.isPaid ? 'Paid' : 'Not paid yet',
+                label: slip.isPaid ? context.l10n.staffPaid : context.l10n.staffNotPaidYet,
                 tone: slip.isPaid ? BadgeTone.success : BadgeTone.warning,
               ),
               const SizedBox(width: 4),

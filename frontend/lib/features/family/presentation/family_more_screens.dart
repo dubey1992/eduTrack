@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/calendar_file.dart';
 import '../../../core/utils/date_format.dart';
@@ -15,6 +17,7 @@ import '../application/family_notifiers.dart';
 import '../application/family_session_notifier.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_records.dart';
+import 'family_words.dart';
 import 'widgets/family_widgets.dart';
 import 'family_talk_screens.dart';
 import '../../../core/widgets/notice_attachment_chips.dart';
@@ -39,35 +42,36 @@ class FamilyMoreScreen extends ConsumerWidget {
     final unread = ref.watch(familyNoticesProvider).value?.unreadCount ?? 0;
     final muted = context.appColors.muted;
     final features = account?.features ?? FamilyFeatures.all;
+    final l10n = context.l10n;
     // Only what the school uses: no Results row at a school without tests.
     final learning = [
       _MoreRow(
         key: const Key('family-more-absence-notes'),
         icon: Icons.edit_note_rounded,
-        title: 'Absence notes',
-        subtitle: 'Tell the school your child will be away',
+        title: l10n.familyAbsenceNotes,
+        subtitle: l10n.familyAbsenceNotesSub,
         onTap: () => context.push('/absence-notes'),
       ),
       _MoreRow(
         key: const Key('family-more-guardian'),
         icon: Icons.person_add_alt_1_rounded,
-        title: 'Add a guardian',
-        subtitle: 'Ask the school to add the other parent, or a relative',
+        title: l10n.familyAddGuardian,
+        subtitle: l10n.familyAddGuardianSub,
         onTap: () => context.push('/guardians/new'),
       ),
       _MoreRow(
         key: const Key('family-more-call'),
         icon: Icons.phone_callback_rounded,
-        title: 'Ask the school to call you',
-        subtitle: 'The class teacher or the office rings you back',
+        title: l10n.familyAskToCall,
+        subtitle: l10n.familyAskToCallSub,
         onTap: () => context.push('/call-requests'),
       ),
       if (features.results)
         _MoreRow(
           key: const Key('family-more-results'),
           icon: Icons.grade_rounded,
-          title: 'Results',
-          subtitle: 'Test marks and the progress report',
+          title: l10n.familyResults,
+          subtitle: l10n.familyResultsCardLine,
           onTap: () => context.push('/results'),
         ),
       // Exams sit under Class Tests: no row at a school without them.
@@ -75,32 +79,32 @@ class FamilyMoreScreen extends ConsumerWidget {
         _MoreRow(
           key: const Key('family-more-admit-cards'),
           icon: Icons.badge_rounded,
-          title: 'Admit cards',
-          subtitle: 'Exam date sheets to download and print',
+          title: l10n.familyAdmitCards,
+          subtitle: l10n.familyAdmitCardsSub,
           onTap: () => context.push('/admit-cards'),
         ),
       if (features.timetable)
         _MoreRow(
           key: const Key('family-more-timetable'),
           icon: Icons.schedule_rounded,
-          title: 'Timetable',
-          subtitle: "The class's week",
+          title: l10n.familyTimetable,
+          subtitle: l10n.familyTimetableSub,
           onTap: () => context.push('/timetable'),
         ),
       if (features.syllabus)
         _MoreRow(
           key: const Key('family-more-syllabus'),
           icon: Icons.menu_book_rounded,
-          title: 'Syllabus',
-          subtitle: 'How far each subject has got',
+          title: l10n.familySyllabus,
+          subtitle: l10n.familySyllabusSub,
           onTap: () => context.push('/syllabus'),
         ),
       if (features.homework)
         _MoreRow(
           key: const Key('family-more-homework'),
           icon: Icons.edit_note_rounded,
-          title: 'Homework',
-          subtitle: 'What the teachers set, day by day',
+          title: l10n.familyHomework,
+          subtitle: l10n.familyHomeworkSub,
           onTap: () => context.push('/homework'),
         ),
     ];
@@ -150,29 +154,29 @@ class FamilyMoreScreen extends ConsumerWidget {
               _MoreRow(
                 key: const Key('family-more-notices'),
                 icon: Icons.campaign_rounded,
-                title: 'Notices',
-                subtitle: unread > 0 ? '$unread new' : 'Messages from the school',
+                title: l10n.familyNotices,
+                subtitle: unread > 0 ? l10n.familyNewCount(unread) : l10n.familyNoticesSub,
                 onTap: () => context.push('/notices'),
               ),
               _MoreRow(
                 key: const Key('family-more-calendar'),
                 icon: Icons.calendar_month_rounded,
-                title: 'School calendar',
-                subtitle: 'Holidays and closed days',
+                title: l10n.familySchoolCalendar,
+                subtitle: l10n.familySchoolCalendarSub,
                 onTap: () => context.push('/calendar'),
               ),
               _MoreRow(
                 key: const Key('family-more-notifications'),
                 icon: Icons.notifications_active_outlined,
-                title: 'Notifications',
-                subtitle: 'Choose what comes to this app',
+                title: l10n.familyNotifications,
+                subtitle: l10n.familyNotificationsSub,
                 onTap: () => context.push('/notifications'),
               ),
               _MoreRow(
                 key: const Key('family-more-privacy'),
                 icon: Icons.shield_outlined,
-                title: 'Your privacy',
-                subtitle: 'Who sees your number, and the bus on the map',
+                title: l10n.familyYourPrivacy,
+                subtitle: l10n.familyYourPrivacySub,
                 onTap: () => context.push('/privacy'),
               ),
             ],
@@ -189,14 +193,14 @@ class FamilyMoreScreen extends ConsumerWidget {
           child: _MoreRow(
             key: const Key('family-sign-out'),
             icon: Icons.logout_rounded,
-            title: 'Sign out',
-            subtitle: 'This phone stays set up; sign in again with your passcode',
+            title: l10n.familySignOut,
+            subtitle: l10n.familySignOutSub,
             onTap: () async {
               final sure = await confirmDialog(
                 context,
-                title: 'Sign out?',
-                message: 'You will need your passcode to sign in again.',
-                confirmLabel: 'Sign out',
+                title: l10n.familySignOutQuestion,
+                message: l10n.familySignOutMessage,
+                confirmLabel: l10n.familySignOut,
               );
               if (sure) await ref.read(familySessionProvider.notifier).logout();
             },
@@ -243,7 +247,8 @@ class _ContactCard extends ConsumerWidget {
       debugPrint('Could not open ${uri.scheme}: $e');
     }
     if (!opened) {
-      messenger.showSnackBar(const SnackBar(content: Text('This phone could not open that. Please try another way.')));
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(context.l10n.familyCouldNotOpen)));
     }
   }
 
@@ -258,14 +263,14 @@ class _ContactCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CardHeading(icon: Icons.support_agent_rounded, title: 'Contact the school'),
+          CardHeading(icon: Icons.support_agent_rounded, title: context.l10n.familyContactSchool),
           const SizedBox(height: 6),
           Text(account.schoolName, style: const TextStyle(fontWeight: FontWeight.w600)),
           if (account.schoolAddress != null)
             Text(account.schoolAddress!, style: TextStyle(color: context.appColors.muted, fontSize: 13)),
           const SizedBox(height: 12),
           if (phone == null && email == null)
-            Text('The school has not added its contact details yet.', style: TextStyle(color: context.appColors.muted))
+            Text(context.l10n.familyNoContactDetails, style: TextStyle(color: context.appColors.muted))
           else
             Wrap(
               spacing: 8,
@@ -276,7 +281,7 @@ class _ContactCard extends ConsumerWidget {
                     key: const Key('family-call-school'),
                     onPressed: () => _open(context, ref, Uri(scheme: 'tel', path: phone)),
                     icon: const Icon(Icons.call_rounded, size: 18),
-                    label: const Text('Call'),
+                    label: Text(context.l10n.familyCall),
                   ),
                 if (digits != null && digits.length >= 8)
                   OutlinedButton.icon(
@@ -290,7 +295,7 @@ class _ContactCard extends ConsumerWidget {
                     key: const Key('family-email-school'),
                     onPressed: () => _open(context, ref, Uri(scheme: 'mailto', path: email)),
                     icon: const Icon(Icons.mail_outline_rounded, size: 18),
-                    label: const Text('Email'),
+                    label: Text(context.l10n.familyEmail),
                   ),
               ],
             ),
@@ -313,13 +318,13 @@ class FamilyNoticesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notices'),
+        title: Text(context.l10n.familyNotices),
         actions: [
           if (unread > 0)
             TextButton(
               key: const Key('family-read-all'),
               onPressed: () => _readAll(context, ref),
-              child: const Text('Mark all read'),
+              child: Text(context.l10n.familyMarkAllRead),
             ),
         ],
       ),
@@ -333,12 +338,12 @@ class FamilyNoticesScreen extends ConsumerWidget {
           child: state.notices.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    SizedBox(height: 80),
+                  children: [
+                    const SizedBox(height: 80),
                     FamilyEmptyView(
                       icon: Icons.mark_email_read_outlined,
-                      title: 'No notices yet',
-                      message: 'Messages from the school will appear here.',
+                      title: context.l10n.familyNoNoticesYet,
+                      message: context.l10n.familyNoNoticesYetMessage,
                     ),
                   ],
                 )
@@ -369,7 +374,8 @@ class FamilyNoticesScreen extends ConsumerWidget {
     try {
       await ref.read(familyNoticesProvider.notifier).markAllRead();
     } on Failure catch (failure) {
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(failure.localizedMessage(context))));
     }
   }
 }
@@ -406,7 +412,7 @@ class _NoticeTile extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  notice.title ?? notice.kindLabel,
+                  notice.title ?? notice.kindWords(context.l10n),
                   style: TextStyle(
                     fontWeight: notice.read ? FontWeight.w500 : FontWeight.w700,
                     color: emergency ? context.appColors.danger : null,
@@ -424,7 +430,7 @@ class _NoticeTile extends ConsumerWidget {
                     children: [
                       Icon(Icons.attach_file, size: 14, color: muted),
                       Text(
-                        notice.attachments.length == 1 ? '1 file' : '${notice.attachments.length} files',
+                        context.l10n.familyFilesCount(notice.attachments.length),
                         style: TextStyle(fontSize: 12, color: muted),
                       ),
                     ],
@@ -465,7 +471,10 @@ class _NoticeTile extends ConsumerWidget {
             key: const Key('family-notice-open'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(notice.title ?? notice.kindLabel, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Text(
+                notice.title ?? notice.kindWords(context.l10n),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 4),
               Text(
                 '${formatDate(notice.createdAt)} ${DateFormat('h:mm a').format(notice.createdAt)}',
@@ -510,15 +519,14 @@ class _FamilyCalendarScreenState extends ConsumerState<FamilyCalendarScreen> {
           day: holiday.start,
           lastDay: holiday.end,
         ),
-    ], name: 'School holidays');
+    ], name: context.l10n.familyHolidaysCalendarName);
 
     try {
       await ref.read(calendarHandOffProvider)(file, 'school-holidays.ics');
     } catch (error) {
       debugPrint('Sharing the holidays calendar failed: $error');
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('The calendar file could not be shared.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.familyCalendarShareFailed)));
       }
     }
   }
@@ -529,14 +537,14 @@ class _FamilyCalendarScreenState extends ConsumerState<FamilyCalendarScreen> {
     final calendar = ref.watch(schoolCalendarProvider(key));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('School calendar')),
+      appBar: AppBar(title: Text(context.l10n.familySchoolCalendar)),
       body: Column(
         children: [
           Row(
             children: [
               IconButton(
                 key: const Key('family-calendar-back'),
-                tooltip: 'Previous month',
+                tooltip: context.l10n.familyPreviousMonth,
                 onPressed: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
                 icon: const Icon(Icons.chevron_left_rounded),
               ),
@@ -549,7 +557,7 @@ class _FamilyCalendarScreenState extends ConsumerState<FamilyCalendarScreen> {
               ),
               IconButton(
                 key: const Key('family-calendar-next'),
-                tooltip: 'Next month',
+                tooltip: context.l10n.familyNextMonth,
                 onPressed: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
                 icon: const Icon(Icons.chevron_right_rounded),
               ),
@@ -567,9 +575,9 @@ class _FamilyCalendarScreenState extends ConsumerState<FamilyCalendarScreen> {
                 children: [
                   _HolidayList(
                     key: const Key('family-calendar-month'),
-                    title: 'This month',
+                    title: context.l10n.familyThisMonth,
                     holidays: data.holidays,
-                    empty: 'No holidays this month.',
+                    empty: context.l10n.familyNoHolidaysThisMonth,
                   ),
                   if (data.closedWeekdays.isNotEmpty) ...[
                     const SizedBox(height: 12),
@@ -580,8 +588,11 @@ class _FamilyCalendarScreenState extends ConsumerState<FamilyCalendarScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'The school is closed every '
-                              '${data.closedWeekdays.map((d) => '${d[0].toUpperCase()}${d.substring(1)}').join(' and ')}.',
+                              context.l10n.familyClosedEvery(
+                                data.closedWeekdays
+                                    .map((d) => context.l10n.familyWeekday(d))
+                                    .join(context.l10n.familyAndJoin),
+                              ),
                             ),
                           ),
                         ],
@@ -589,7 +600,11 @@ class _FamilyCalendarScreenState extends ConsumerState<FamilyCalendarScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  _HolidayList(title: 'Coming up', holidays: data.upcoming, empty: 'No holidays planned yet.'),
+                  _HolidayList(
+                    title: context.l10n.familyHolidaysComingUp,
+                    holidays: data.upcoming,
+                    empty: context.l10n.familyNoHolidaysPlanned,
+                  ),
                   // The school's coming holidays into the phone's calendar (M8, 6.3).
                   if (data.upcoming.isNotEmpty)
                     Align(
@@ -598,7 +613,7 @@ class _FamilyCalendarScreenState extends ConsumerState<FamilyCalendarScreen> {
                         key: const Key('family-holidays-calendar'),
                         onPressed: () => _addHolidays(data.upcoming),
                         icon: const Icon(Icons.event_available_rounded, size: 18),
-                        label: const Text('Add these holidays to my calendar'),
+                        label: Text(context.l10n.familyAddHolidaysToCalendar),
                       ),
                     ),
                 ],
@@ -661,13 +676,13 @@ class _HolidayList extends StatelessWidget {
 class FamilyNotificationsScreen extends ConsumerWidget {
   const FamilyNotificationsScreen({super.key});
 
-  static const _kinds = [
-    ('attendance', 'Attendance', 'Absent, or on leave', Icons.event_available_rounded),
-    ('transport', 'School bus', 'Boarded, dropped, did not take the bus', Icons.directions_bus_rounded),
-    ('fee', 'Fees', 'Reminders and receipts', Icons.receipt_long_rounded),
-    ('result', 'Results', 'When a test result is published', Icons.grade_rounded),
-    ('notices', 'Notices', 'Announcements and messages from the school', Icons.campaign_rounded),
-    ('homework', 'Homework', "Each evening, the day's homework", Icons.edit_note_rounded),
+  static List<(String, String, String, IconData)> _kinds(AppLocalizations l10n) => [
+    ('attendance', l10n.familyKindAttendance, l10n.familySwitchAttendanceSub, Icons.event_available_rounded),
+    ('transport', l10n.familySchoolBus, l10n.familySwitchBusSub, Icons.directions_bus_rounded),
+    ('fee', l10n.familyKindFees, l10n.familySwitchFeesSub, Icons.receipt_long_rounded),
+    ('result', l10n.familyResults, l10n.familySwitchResultsSub, Icons.grade_rounded),
+    ('notices', l10n.familyNotices, l10n.familySwitchNoticesSub, Icons.campaign_rounded),
+    ('homework', l10n.familyHomework, l10n.familySwitchHomeworkSub, Icons.edit_note_rounded),
   ];
 
   @override
@@ -675,7 +690,7 @@ class FamilyNotificationsScreen extends ConsumerWidget {
     final settings = ref.watch(familyNotificationSettingsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(title: Text(context.l10n.familyNotifications)),
       body: settings.when(
         loading: () => const PlaceholderCards(count: 2),
         error: (error, _) => FamilyErrorView(
@@ -689,7 +704,7 @@ class FamilyNotificationsScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Column(
                 children: [
-                  for (final (key, title, subtitle, icon) in _kinds)
+                  for (final (key, title, subtitle, icon) in _kinds(context.l10n))
                     SwitchListTile(
                       key: Key('family-switch-$key'),
                       secondary: Icon(icon),
@@ -707,7 +722,7 @@ class FamilyNotificationsScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.priority_high_rounded, color: context.appColors.danger),
                   const SizedBox(width: 12),
-                  const Expanded(child: Text('Emergency messages from the school always come through.')),
+                  Expanded(child: Text(context.l10n.familyEmergencyAlwaysComes)),
                 ],
               ),
             ),
@@ -719,15 +734,17 @@ class FamilyNotificationsScreen extends ConsumerWidget {
 
   Future<void> _set(BuildContext context, WidgetRef ref, String key, bool value) async {
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     try {
       await ref.read(familyNotificationSettingsProvider.notifier).set(key, value);
       messenger
         ..clearSnackBars()
-        ..showSnackBar(const SnackBar(content: Text('Saved.'), duration: Duration(seconds: 1)));
+        ..showSnackBar(SnackBar(content: Text(l10n.familySaved), duration: const Duration(seconds: 1)));
     } on Failure catch (failure) {
+      if (!context.mounted) return;
       messenger
         ..clearSnackBars()
-        ..showSnackBar(SnackBar(content: Text(failure.message)));
+        ..showSnackBar(SnackBar(content: Text(failure.localizedMessage(context))));
     }
   }
 }

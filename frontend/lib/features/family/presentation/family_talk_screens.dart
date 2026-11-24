@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../application/family_learning_notifiers.dart';
@@ -52,6 +54,7 @@ class _FamilyCallRequestScreenState extends ConsumerState<FamilyCallRequestScree
       _problem = null;
     });
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
 
     try {
       final time = _time.text.trim();
@@ -67,17 +70,15 @@ class _FamilyCallRequestScreenState extends ConsumerState<FamilyCallRequestScree
       _reason.clear();
       _time.clear();
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            _toOffice ? 'Sent. The school office will call you.' : 'Sent. The class teacher will call you.',
-          ),
-        ),
+        SnackBar(content: Text(_toOffice ? l10n.familyCallSentOffice : l10n.familyCallSentTeacher)),
       );
     } on Failure catch (failure) {
       if (!mounted) return;
       setState(() {
         _fieldErrors = {for (final entry in failure.validationErrors.entries) entry.key: entry.value.first};
-        _problem = _fieldErrors.isEmpty || failure.code == 'CALL_REQUEST_OPEN' ? failure.message : null;
+        _problem = _fieldErrors.isEmpty || failure.code == 'CALL_REQUEST_OPEN'
+            ? failure.localizedMessage(context)
+            : null;
       });
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -90,21 +91,32 @@ class _FamilyCallRequestScreenState extends ConsumerState<FamilyCallRequestScree
     final colours = context.appColors;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ask the school to call you')),
+      appBar: AppBar(title: Text(context.l10n.familyAskToCall)),
       body: child == null
-          ? const FamilyEmptyView(icon: Icons.family_restroom_rounded, title: 'No children to show')
+          ? FamilyEmptyView(icon: Icons.family_restroom_rounded, title: context.l10n.familyNoChildrenTitle)
           : Form(
               key: _formKey,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [
-                  Text('Who should call you about ${child.firstName}?', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    context.l10n.familyWhoShouldCall(child.firstName),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 10),
                   SegmentedButton<bool>(
                     key: const Key('family-call-recipient'),
-                    segments: const [
-                      ButtonSegment(value: false, label: Text('Class teacher'), icon: Icon(Icons.school_outlined)),
-                      ButtonSegment(value: true, label: Text('School office'), icon: Icon(Icons.business_outlined)),
+                    segments: [
+                      ButtonSegment(
+                        value: false,
+                        label: Text(context.l10n.familyClassTeacher),
+                        icon: const Icon(Icons.school_outlined),
+                      ),
+                      ButtonSegment(
+                        value: true,
+                        label: Text(context.l10n.familySchoolOfficeShort),
+                        icon: const Icon(Icons.business_outlined),
+                      ),
                     ],
                     selected: {_toOffice},
                     onSelectionChanged: (choice) => setState(() => _toOffice = choice.first),
@@ -122,17 +134,20 @@ class _FamilyCallRequestScreenState extends ConsumerState<FamilyCallRequestScree
                     maxLines: 4,
                     maxLength: callReasonMax,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(labelText: 'What is it about?', errorText: _fieldErrors['reason']),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.familyWhatAbout,
+                      errorText: _fieldErrors['reason'],
+                    ),
                     validator: (value) =>
-                        (value ?? '').trim().length < callReasonMin ? 'Please say a little about what it is.' : null,
+                        (value ?? '').trim().length < callReasonMin ? context.l10n.familyWhatAboutTooShort : null,
                   ),
                   TextFormField(
                     key: const Key('family-call-time'),
                     controller: _time,
                     maxLength: 100,
                     decoration: InputDecoration(
-                      labelText: 'A good time to call (optional)',
-                      hintText: 'e.g. After 5 pm',
+                      labelText: context.l10n.familyGoodTimeToCall,
+                      hintText: context.l10n.familyGoodTimeHint,
                       errorText: _fieldErrors['preferred_time'],
                     ),
                   ),
@@ -154,10 +169,10 @@ class _FamilyCallRequestScreenState extends ConsumerState<FamilyCallRequestScree
                     onPressed: _sending ? null : _send,
                     child: _sending
                         ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Ask for a call'),
+                        : Text(context.l10n.familyAskForCall),
                   ),
                   const SizedBox(height: 24),
-                  Text('Your requests', style: Theme.of(context).textTheme.titleMedium),
+                  Text(context.l10n.familyYourRequests, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   _RequestList(childId: child.id),
                 ],
@@ -185,7 +200,7 @@ class _RequestList extends ConsumerWidget {
           error: (error, _) =>
               FamilyErrorView(error: error, onRetry: () => ref.invalidate(familyCallRequestsProvider(childId))),
           data: (requests) => requests.isEmpty
-              ? Text('None yet.', style: TextStyle(color: colours.muted))
+              ? Text(context.l10n.familyNoneYet, style: TextStyle(color: colours.muted))
               : Column(
                   children: [
                     for (final request in requests) ...[_RequestCard(request: request), const SizedBox(height: 8)],
@@ -203,6 +218,7 @@ class _RequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colours = context.appColors;
+    final l10n = context.l10n;
 
     return FamilyCard(
       key: Key('family-call-${request.id}'),
@@ -214,13 +230,13 @@ class _RequestCard extends StatelessWidget {
               children: [
                 Text(request.reason, style: const TextStyle(fontWeight: FontWeight.w600)),
                 Text(
-                  '${request.toOffice ? 'School office' : 'Class teacher'} · ${formatDate(request.sentAt)}'
+                  '${request.toOffice ? l10n.familySchoolOfficeShort : l10n.familyClassTeacher} · ${formatDate(request.sentAt)}'
                   '${request.preferredTime == null ? '' : ' · ${request.preferredTime}'}',
                   style: TextStyle(fontSize: 13, color: colours.muted),
                 ),
                 if (request.called && request.calledAt != null)
                   Text(
-                    'Called by ${request.calledBy ?? 'the school'} · ${formatDateTime(request.calledAt!)}',
+                    l10n.familyCalledBy(request.calledBy ?? l10n.familyTheSchool, formatDateTime(request.calledAt!)),
                     key: Key('family-call-done-${request.id}'),
                     style: TextStyle(fontSize: 13, color: colours.muted),
                   ),
@@ -234,7 +250,7 @@ class _RequestCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(99),
             ),
             child: Text(
-              request.called ? 'Called' : 'Waiting',
+              request.called ? l10n.familyCalled : l10n.familyWaiting,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -286,7 +302,7 @@ class _NoticeReplyPanelState extends ConsumerState<NoticeReplyPanel> {
           .reply(widget.notice, studentId: studentId, answer: answer, note: note.isEmpty ? null : note);
       if (mounted) setState(() => _reply = updated);
     } on Failure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = failure.localizedMessage(context));
     } finally {
       if (mounted) setState(() => _sendingFor = null);
     }
@@ -295,6 +311,7 @@ class _NoticeReplyPanelState extends ConsumerState<NoticeReplyPanel> {
   @override
   Widget build(BuildContext context) {
     final colours = context.appColors;
+    final l10n = context.l10n;
     final reply = _reply;
 
     return Container(
@@ -312,8 +329,8 @@ class _NoticeReplyPanelState extends ConsumerState<NoticeReplyPanel> {
           if (reply.replyBy != null)
             Text(
               reply.open
-                  ? 'Please answer by ${formatDate(reply.replyBy!)}'
-                  : 'Answers closed on ${formatDate(reply.replyBy!)}',
+                  ? l10n.familyAnswerBy(formatDate(reply.replyBy!))
+                  : l10n.familyAnswersClosedOn(formatDate(reply.replyBy!)),
               style: TextStyle(fontSize: 12, color: colours.muted),
             ),
           const SizedBox(height: 10),
@@ -324,14 +341,16 @@ class _NoticeReplyPanelState extends ConsumerState<NoticeReplyPanel> {
                 children: [
                   Expanded(
                     child: Text(
-                      child.answer == null ? child.name : '${child.name}: ${child.answer! ? 'Yes' : 'No'}',
+                      child.answer == null
+                          ? child.name
+                          : '${child.name}: ${child.answer! ? l10n.familyYes : l10n.familyNo}',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                   if (reply.open) ...[
                     _AnswerButton(
                       key: Key('family-reply-yes-${child.studentId}'),
-                      label: 'Yes',
+                      label: l10n.familyYes,
                       chosen: child.answer == true,
                       busy: _sendingFor == child.studentId,
                       onPressed: () => _answer(child.studentId, true),
@@ -339,7 +358,7 @@ class _NoticeReplyPanelState extends ConsumerState<NoticeReplyPanel> {
                     const SizedBox(width: 6),
                     _AnswerButton(
                       key: Key('family-reply-no-${child.studentId}'),
-                      label: 'No',
+                      label: l10n.familyNo,
                       chosen: child.answer == false,
                       busy: _sendingFor == child.studentId,
                       onPressed: () => _answer(child.studentId, false),
@@ -352,7 +371,7 @@ class _NoticeReplyPanelState extends ConsumerState<NoticeReplyPanel> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'Your answer reached the school · ${formatDateTime(child.answeredAt!)}',
+                  l10n.familyAnswerReached(formatDateTime(child.answeredAt!)),
                   key: Key('family-reply-received-${child.studentId}'),
                   style: TextStyle(fontSize: 12, color: colours.muted),
                 ),
@@ -363,7 +382,7 @@ class _NoticeReplyPanelState extends ConsumerState<NoticeReplyPanel> {
               key: const Key('family-reply-note'),
               controller: _note,
               maxLength: 300,
-              decoration: const InputDecoration(labelText: 'A note for the school (optional)', isDense: true),
+              decoration: InputDecoration(labelText: l10n.familyNoteForSchool, isDense: true),
             ),
           if (_error != null) Text(_error!, style: TextStyle(color: colours.danger, fontSize: 13)),
         ],
@@ -406,7 +425,7 @@ class AnswerNeededBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: colours.warningContainer, borderRadius: BorderRadius.circular(99)),
       child: Text(
-        'Answer needed',
+        context.l10n.familyAnswerNeeded,
         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: colours.onWarningContainer),
       ),
     );

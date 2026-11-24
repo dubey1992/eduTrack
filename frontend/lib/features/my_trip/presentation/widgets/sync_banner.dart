@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../application/trip_mark_queue.dart';
-
-/// "6 marks" / "1 mark".
-String marksLabel(int count) => '$count ${count == 1 ? 'mark' : 'marks'}';
 
 /// The strip at the top of My Trip saying what has not reached the server
 /// yet: "Offline - 6 marks waiting to send", "Sending 6 marks...", or nothing
@@ -20,11 +18,12 @@ class SyncBanner extends ConsumerWidget {
     if (count == 0) return const SizedBox.shrink();
 
     final colors = context.appColors;
+    final l10n = context.l10n;
     final (text, background, foreground) = queue.sending
-        ? ('Sending ${marksLabel(count)}...', colors.infoContainer, colors.onInfoContainer)
+        ? (l10n.busMarksSending(count), colors.infoContainer, colors.onInfoContainer)
         : queue.offline
-        ? ('Offline - ${marksLabel(count)} waiting to send', colors.warningContainer, colors.onWarningContainer)
-        : ('${marksLabel(count)} waiting to send', colors.infoContainer, colors.onInfoContainer);
+        ? (l10n.busMarksOffline(count), colors.warningContainer, colors.onWarningContainer)
+        : (l10n.busMarksWaiting(count), colors.infoContainer, colors.onInfoContainer);
 
     return Material(
       key: const Key('my-trip-sync-banner'),
@@ -48,7 +47,7 @@ class SyncBanner extends ConsumerWidget {
               TextButton(
                 onPressed: () => ref.read(tripMarkQueueProvider.notifier).retryNow(),
                 style: TextButton.styleFrom(foregroundColor: foreground),
-                child: const Text('Send now'),
+                child: Text(l10n.busSendNow),
               ),
           ],
         ),

@@ -7,6 +7,7 @@ import '../../core/home_widget/home_screen_widget.dart';
 import '../../core/home_widget/today_card.dart';
 import '../../core/security/app_lock.dart';
 import 'today_widget_refresh.dart';
+import '../../core/l10n/app_language.dart';
 
 /// Keeps the home-screen widget in step with the running app
 /// (docs/mobile-apps-review.md, M10). Sits above the app's pages, like
@@ -86,7 +87,9 @@ class _TodayWidgetSyncState extends ConsumerState<TodayWidgetSync> {
     if (before != false) {
       _soon?.cancel();
       await scheduler.stop();
-      await ref.read(homeScreenWidgetProvider).show(const TodayCard.signedOut());
+      final l10n = await widgetLocalizations(ref.read);
+      if (!mounted) return;
+      await ref.read(homeScreenWidgetProvider).show(TodayCard.signedOut(l10n));
     }
   }
 
@@ -103,6 +106,8 @@ class _TodayWidgetSyncState extends ConsumerState<TodayWidgetSync> {
   @override
   Widget build(BuildContext context) {
     ref.listen(appLockProvider.select((lock) => lock.enabled), (_, _) => _refreshSoon());
+    // Another language picked in the app: the widget follows (M11).
+    ref.listen(appLanguageProvider, (_, _) => _refreshSoon());
     if (widget.signedIn == true) widget.onChange?.call(ref, _refreshSoon);
 
     return widget.child;

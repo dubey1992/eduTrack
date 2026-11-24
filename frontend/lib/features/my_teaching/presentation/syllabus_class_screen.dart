@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../syllabus/application/syllabus_checklist_notifier.dart';
@@ -38,8 +40,8 @@ class _SyllabusClassScreenState extends ConsumerState<SyllabusClassScreen> {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) {
         final message = failure.code == 'NETWORK_ERROR'
-            ? 'No connection. "${topic.title}" was not changed.'
-            : failure.message;
+            ? context.l10n.staffTopicNotChanged(topic.title)
+            : failure.localizedMessage(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       }
     } finally {
@@ -79,6 +81,7 @@ class _Checklist extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     if (list.topics.isEmpty) {
       return Center(
@@ -90,10 +93,10 @@ class _Checklist extends StatelessWidget {
             children: [
               Icon(Icons.menu_book_outlined, size: 48, color: colors.muted),
               const SizedBox(height: 12),
-              const Text('No topics in this syllabus yet.', textAlign: TextAlign.center),
+              Text(l10n.staffNoTopicsInSyllabus, textAlign: TextAlign.center),
               const SizedBox(height: 4),
               Text(
-                'Your HOD or school office sets out the topics on the website.',
+                l10n.staffNoTopicsInSyllabusBody,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.muted),
               ),
@@ -108,7 +111,7 @@ class _Checklist extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
         Text(
-          '${list.completedTopics} of ${list.totalTopics} topics done · ${list.progressPercent}%',
+          l10n.staffTopicsDone(list.completedTopics, list.totalTopics, '${list.progressPercent}'),
           key: const Key('syllabus-class-progress'),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
@@ -131,7 +134,7 @@ class _Checklist extends StatelessWidget {
               controlAffinity: ListTileControlAffinity.leading,
               title: Text('${topic.sequenceNumber}. ${topic.title}'),
               subtitle: topic.completed && topic.completedByName != null
-                  ? Text('Done · ${topic.completedByName}', style: TextStyle(color: colors.muted))
+                  ? Text(l10n.staffDoneBy(topic.completedByName!), style: TextStyle(color: colors.muted))
                   : null,
               secondary: saving == topic.id
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))

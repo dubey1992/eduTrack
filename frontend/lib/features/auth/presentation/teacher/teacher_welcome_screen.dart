@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/teacher_brand.dart';
 import '../../../../core/widgets/teacher_mark.dart';
 import 'teacher_auth_shell.dart';
@@ -18,6 +19,7 @@ class TeacherWelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final l10n = context.l10n;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -44,7 +46,7 @@ class TeacherWelcomeScreen extends StatelessWidget {
                               const TeacherMark(key: Key('welcome-mark'), size: 72),
                               const SizedBox(height: 18),
                               Text(
-                                'Your school day,\nin your pocket.',
+                                l10n.staffWelcomeHeadline,
                                 style: theme.textTheme.headlineMedium?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
@@ -53,10 +55,9 @@ class TeacherWelcomeScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              const Text(
-                                'For everyone who works at your school. Sign in with the email '
-                                'and password you use for School365ai.',
-                                style: TextStyle(color: Color(0xD9FFFFFF), fontSize: 15.5, height: 1.45),
+                              Text(
+                                l10n.staffWelcomeIntro,
+                                style: const TextStyle(color: Color(0xD9FFFFFF), fontSize: 15.5, height: 1.45),
                               ),
                             ],
                           ),
@@ -77,25 +78,25 @@ class TeacherWelcomeScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _Point(
+                            _Point(
                               icon: Icons.fingerprint,
-                              title: 'Check in at school',
-                              body: 'Mark your arrival and departure from your phone, at school.',
+                              title: l10n.staffWelcomeCheckInTitle,
+                              body: l10n.staffWelcomeCheckInBody,
                             ),
-                            const _Point(
+                            _Point(
                               icon: Icons.today_outlined,
-                              title: 'Today at a glance',
-                              body: 'For teachers: your periods in order, with the one under way marked.',
+                              title: l10n.staffWelcomeTodayTitle,
+                              body: l10n.staffWelcomeTodayBody,
                             ),
-                            const _Point(
+                            _Point(
                               icon: Icons.task_alt,
-                              title: 'Register and reports',
-                              body: 'Take your class register, even without signal, and say what each period covered.',
+                              title: l10n.staffWelcomeRegisterTitle,
+                              body: l10n.staffWelcomeRegisterBody,
                             ),
-                            const _Point(
+                            _Point(
                               icon: Icons.event_available_outlined,
-                              title: "Your school's calendar",
-                              body: 'Holidays, half days and your approved leave, without asking the office.',
+                              title: l10n.staffWelcomeCalendarTitle,
+                              body: l10n.staffWelcomeCalendarBody,
                             ),
                             const SizedBox(height: 12),
                             SizedBox(
@@ -108,13 +109,12 @@ class TeacherWelcomeScreen extends StatelessWidget {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   textStyle: teacherButtonText(context),
                                 ),
-                                child: const Text('Sign in'),
+                                child: Text(l10n.staffSignIn),
                               ),
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'New here? Your school office creates your account and emails you a link '
-                              'to choose your password.',
+                              l10n.staffWelcomeNewHere,
                               style: TextStyle(fontSize: 13.5, color: scheme.onSurfaceVariant, height: 1.45),
                             ),
                           ],

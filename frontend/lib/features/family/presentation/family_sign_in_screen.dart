@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/network/session_ended_notifier.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/family_brand.dart';
@@ -88,7 +90,9 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
     } on Failure catch (failure) {
       if (!mounted) return;
       setState(() {
-        _problem = failure.message;
+        _problem = failure.message == FamilyAuthRepository.deviceNotRegisteredMessage
+            ? context.l10n.familyDeviceNotRegistered
+            : failure.localizedMessage(context);
         _passcode.clear();
         // The school removed this phone: the only way on is a new code.
         if (failure.code == FamilyAuthRepository.deviceNotRegisteredCode) _mode = FamilySignInMode.register;
@@ -106,17 +110,14 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
       context: context,
       builder: (context) => AlertDialog(
         key: const Key('family-forgot-dialog'),
-        title: const Text('Forgot your passcode?'),
-        content: const Text(
-          "Ask your child's school office for a new Family app letter. It has a new setup code: enter it here "
-          'with your mobile number, and choose a new passcode. Your phone stays the same.',
-        ),
+        title: Text(context.l10n.familyForgotPasscode),
+        content: Text(context.l10n.familyForgotPasscodeHelp),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Close')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(context.l10n.familyClose)),
           FilledButton(
             key: const Key('family-have-new-code'),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('I have a new code'),
+            child: Text(context.l10n.familyHaveNewCode),
           ),
         ],
       ),
@@ -154,6 +155,7 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
   Widget _form(BuildContext context) {
     final registering = _mode == FamilySignInMode.register;
     final muted = context.appColors.muted;
+    final l10n = context.l10n;
 
     return Form(
       key: _formKey,
@@ -163,22 +165,19 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
           const Align(alignment: Alignment.centerLeft, child: FamilyMark(size: 56, tile: true)),
           const SizedBox(height: 18),
           Text(
-            registering ? 'Set up the Family app' : 'Welcome back',
+            registering ? l10n.familySetUpApp : l10n.familyWelcomeBack,
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
-            registering
-                ? 'Use the letter from your child\'s school: your mobile number, the 8-digit setup code, '
-                      'and a 6-digit passcode you choose.'
-                : 'Sign in with your mobile number and your 6-digit passcode.',
+            registering ? l10n.familySetUpHelp : l10n.familySignInHelp,
             style: TextStyle(fontSize: 14, color: muted, height: 1.4),
           ),
           const SizedBox(height: 22),
           PhoneNumberField(
             key: ValueKey('family-mobile-$_mode'),
             controller: _mobile,
-            label: 'Mobile number',
+            label: l10n.familyMobileNumber,
             required: true,
           ),
           const SizedBox(height: 14),
@@ -186,40 +185,41 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
             _DigitsField(
               key: const Key('family-setup-code'),
               controller: _setupCode,
-              label: 'Setup code from the letter',
+              label: l10n.familySetupCodeLabel,
               length: 8,
               obscure: false,
-              validator: (value) => RegExp(r'^\d{8}$').hasMatch(value ?? '')
-                  ? null
-                  : 'Enter the 8-digit setup code from the school\'s letter.',
+              validator: (value) => RegExp(r'^\d{8}$').hasMatch(value ?? '') ? null : l10n.familySetupCodeInvalid,
             ),
             const SizedBox(height: 14),
             _DigitsField(
               key: const Key('family-new-passcode'),
               controller: _newPasscode,
-              label: 'Choose a passcode',
+              label: l10n.familyChoosePasscode,
               length: 6,
-              validator: (value) => passcodeProblem(value ?? '', length: 6),
+              validator: (value) => passcodeProblem(value ?? '', length: 6, l10n: context.l10n),
             ),
             const SizedBox(height: 14),
             _DigitsField(
               key: const Key('family-confirm-passcode'),
               controller: _confirmPasscode,
-              label: 'Type it again',
+              label: l10n.familyTypeItAgain,
               length: 6,
-              validator: (value) => value == _newPasscode.text ? null : 'The two passcodes are not the same.',
+              validator: (value) => value == _newPasscode.text ? null : l10n.familyPasscodesDiffer,
               onSubmitted: _submit,
             ),
           ] else
             _DigitsField(
               key: const Key('family-passcode'),
               controller: _passcode,
-              label: 'Passcode',
+              label: l10n.familyPasscode,
               length: 6,
-              validator: (value) => RegExp(r'^\d{6}$').hasMatch(value ?? '') ? null : 'Enter your 6-digit passcode.',
+              validator: (value) => RegExp(r'^\d{6}$').hasMatch(value ?? '') ? null : l10n.familyPasscodeInvalid,
               onSubmitted: _submit,
             ),
-          if (_problem != null) ...[const SizedBox(height: 14), _ProblemBanner(message: _problem!)],
+          if (_problem != null) ...[
+            const SizedBox(height: 14),
+            _ProblemBanner(message: _problem == sessionEndedMessage ? context.l10n.staffSessionEnded : _problem!),
+          ],
           const SizedBox(height: 20),
           SizedBox(
             height: 52,
@@ -228,7 +228,10 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
               onPressed: _submitting ? null : _submit,
               child: _submitting
                   ? const SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
-                  : Text(registering ? 'Set up and sign in' : 'Sign in', style: const TextStyle(fontSize: 16)),
+                  : Text(
+                      registering ? l10n.familySetUpAndSignIn : l10n.familySignIn,
+                      style: const TextStyle(fontSize: 16),
+                    ),
             ),
           ),
           const SizedBox(height: 10),
@@ -236,23 +239,23 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
             TextButton(
               key: const Key('family-forgot-passcode'),
               onPressed: _submitting ? null : _forgotPasscode,
-              child: const Text('Forgot your passcode?'),
+              child: Text(l10n.familyForgotPasscode),
             ),
           if (!registering)
             TextButton(
               key: const Key('family-use-new-code'),
               onPressed: _submitting ? null : () => _switchTo(FamilySignInMode.register),
-              child: const Text('New phone, or a new letter? Use the setup code'),
+              child: Text(l10n.familyUseSetupCode),
             )
           else
             TextButton(
               key: const Key('family-have-passcode'),
               onPressed: _submitting ? null : () => _switchTo(FamilySignInMode.passcode),
-              child: const Text('Already set up on this phone? Sign in'),
+              child: Text(l10n.familyAlreadySetUp),
             ),
           const SizedBox(height: 8),
           Text(
-            'No letter? Ask your child\'s school office for the Family app setup code.',
+            l10n.familyNoLetter,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: muted),
           ),

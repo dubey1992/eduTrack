@@ -1,3 +1,5 @@
+import '../../l10n/app_localizations.dart';
+
 /// What the home-screen widget shows (docs/mobile-apps-review.md, M10, 6.1).
 ///
 /// A title, up to four short lines and the time it was true. Three states:
@@ -9,16 +11,16 @@ class TodayCard {
   const TodayCard({required this.title, required this.lines, required this.asOf}) : state = TodayCardState.today;
 
   /// The app lock is on: no details, only a way in.
-  const TodayCard.locked()
+  TodayCard.locked(AppLocalizations l10n)
     : title = 'School365ai',
-      lines = const ['Tap to open'],
+      lines = [l10n.widgetTapToOpen],
       asOf = null,
       state = TodayCardState.locked;
 
   /// Nobody is signed in on this phone.
-  const TodayCard.signedOut()
+  TodayCard.signedOut(AppLocalizations l10n)
     : title = 'School365ai',
-      lines = const ['Sign in to see your day'],
+      lines = [l10n.widgetSignIn],
       asOf = null,
       state = TodayCardState.signedOut;
 

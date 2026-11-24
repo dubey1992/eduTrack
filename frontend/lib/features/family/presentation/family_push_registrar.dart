@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../push/device_repository.dart';
 import '../../push/push_messaging.dart';
 import '../application/family_notifiers.dart';
@@ -97,7 +98,10 @@ class _FamilyPushRegistrarState extends ConsumerState<FamilyPushRegistrar> {
       ..showSnackBar(
         SnackBar(
           content: Text(notice.body.isEmpty ? notice.title : '${notice.title}: ${notice.body}', maxLines: 3),
-          action: SnackBarAction(label: 'Open', onPressed: () => widget.onOpen(safeFamilyPushRoute(notice.route))),
+          action: SnackBarAction(
+            label: context.l10n.familyOpen,
+            onPressed: () => widget.onOpen(safeFamilyPushRoute(notice.route)),
+          ),
         ),
       );
   }

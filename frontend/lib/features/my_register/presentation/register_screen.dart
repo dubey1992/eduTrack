@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/user_avatar.dart';
@@ -30,7 +32,7 @@ class RegisterScreen extends ConsumerWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${registerKey.label} register'),
+            Text(context.l10n.staffRegisterTitle(registerKey.label)),
             Text(
               DateFormat('EEEE, MMMM d').format(date),
               style: TextStyle(fontSize: 13, color: context.appColors.muted, fontWeight: FontWeight.w400),
@@ -75,22 +77,23 @@ class _SheetState extends ConsumerState<_Sheet> {
 
   Future<void> _submit() async {
     final sheet = widget.sheet;
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         key: const Key('register-confirm'),
-        title: const Text('Submit the register?'),
-        content: Text(_summary(sheet)),
+        title: Text(l10n.staffSubmitRegisterQ),
+        content: Text(_summary(l10n, sheet)),
         actions: [
           TextButton(
             key: const Key('register-confirm-cancel'),
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Check again'),
+            child: Text(l10n.staffCheckAgain),
           ),
           FilledButton(
             key: const Key('register-confirm-submit'),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Submit'),
+            child: Text(l10n.staffSubmit),
           ),
         ],
       ),
@@ -106,8 +109,8 @@ class _SheetState extends ConsumerState<_Sheet> {
     setState(() => _busy = false);
 
     final message = switch (outcome) {
-      RegisterMode.submitted => 'Register submitted.',
-      RegisterMode.waiting => 'No signal: the register is saved on this phone and sent when there is.',
+      RegisterMode.submitted => l10n.staffRegisterSubmitted,
+      RegisterMode.waiting => l10n.staffRegisterSavedNoSignal,
       _ => null,
     };
     if (message != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -120,14 +123,16 @@ class _SheetState extends ConsumerState<_Sheet> {
     });
     try {
       await _notifier.saveCorrection();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Register corrected.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.staffRegisterCorrected)));
+      }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) {
         setState(
           () => _problem = failure.code == 'NETWORK_ERROR'
-              ? 'A correction needs a connection, because parents may already have been told. Try again with signal.'
-              : failure.message,
+              ? context.l10n.staffCorrectionNeedsConnection
+              : failure.localizedMessage(context),
         );
       }
     } finally {
@@ -136,6 +141,7 @@ class _SheetState extends ConsumerState<_Sheet> {
   }
 
   Widget _list(RegisterSheet sheet, AppColors colors) {
+    final l10n = context.l10n;
     final shown = [
       for (final student in sheet.students)
         if (matchesRegisterSearch(student, _query)) student,
@@ -146,7 +152,7 @@ class _SheetState extends ConsumerState<_Sheet> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Nobody in this class matches "${_query.trim()}".',
+            l10n.staffNobodyMatches(_query.trim()),
             textAlign: TextAlign.center,
             style: TextStyle(color: colors.muted),
           ),
@@ -181,8 +187,12 @@ class _SheetState extends ConsumerState<_Sheet> {
             );
             return false;
           },
-          background: _SwipeHint(colour: colors.success, label: 'Present', alignment: Alignment.centerLeft),
-          secondaryBackground: _SwipeHint(colour: colors.danger, label: 'Absent', alignment: Alignment.centerRight),
+          background: _SwipeHint(colour: colors.success, label: l10n.staffPresent, alignment: Alignment.centerLeft),
+          secondaryBackground: _SwipeHint(
+            colour: colors.danger,
+            label: l10n.staffAbsent,
+            alignment: Alignment.centerRight,
+          ),
           child: row,
         );
       },
@@ -193,22 +203,23 @@ class _SheetState extends ConsumerState<_Sheet> {
   Widget build(BuildContext context) {
     final sheet = widget.sheet;
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     if (sheet.mode == RegisterMode.closed) {
       return _Centered(
         key: const Key('register-closed'),
         icon: Icons.event_busy_outlined,
-        title: 'Holiday: ${sheet.holidayName}',
-        body: 'The school is closed, so there is no register to take.',
+        title: l10n.staffHolidayNamed('${sheet.holidayName}'),
+        body: l10n.staffClosedNoRegister,
       );
     }
 
     if (sheet.students.isEmpty) {
-      return const _Centered(
-        key: Key('register-no-students'),
+      return _Centered(
+        key: const Key('register-no-students'),
         icon: Icons.group_off_outlined,
-        title: 'No students in this class',
-        body: 'There is nobody on the class list to mark. Ask the office if that is wrong.',
+        title: l10n.staffNoStudentsInClass,
+        body: l10n.staffNoStudentsInClassBody,
       );
     }
 
@@ -221,8 +232,7 @@ class _SheetState extends ConsumerState<_Sheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: Text(
-              'Everyone starts as present. Tap Absent or Leave for anyone who is not - or swipe a row: '
-              'right for present, left for absent.',
+              l10n.staffRegisterByException,
               key: const Key('register-by-exception'),
               style: TextStyle(color: colors.muted, fontSize: 13),
             ),
@@ -232,10 +242,10 @@ class _SheetState extends ConsumerState<_Sheet> {
           child: TextField(
             key: const Key('register-search'),
             onChanged: (value) => setState(() => _query = value),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               isDense: true,
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Find by name or roll number',
+              prefixIcon: const Icon(Icons.search),
+              hintText: l10n.staffFindByNameOrRoll,
             ),
           ),
         ),
@@ -269,15 +279,15 @@ bool matchesRegisterSearch(RegisterStudent student, String query) {
   return student.name.toLowerCase().contains(asked) || (student.rollNumber?.toLowerCase() == asked);
 }
 
-String _summary(RegisterSheet sheet) {
+String _summary(AppLocalizations l10n, RegisterSheet sheet) {
   final parts = [
-    '${sheet.count(AttendanceStatus.present)} present',
-    '${sheet.count(AttendanceStatus.absent)} absent',
-    if (sheet.count(AttendanceStatus.leave) > 0) '${sheet.count(AttendanceStatus.leave)} on leave',
+    l10n.staffCountPresent(sheet.count(AttendanceStatus.present)),
+    l10n.staffCountAbsent(sheet.count(AttendanceStatus.absent)),
+    if (sheet.count(AttendanceStatus.leave) > 0) l10n.staffCountOnLeave(sheet.count(AttendanceStatus.leave)),
   ];
   final absent = sheet.count(AttendanceStatus.absent);
-  return '${parts.join(', ')}.'
-      '${absent > 0 ? ' Parents of absent children are told, as your school has set it up.' : ''}';
+  return '${l10n.staffSentence(parts.join(', '))}'
+      '${absent > 0 ? ' ${l10n.staffParentsAreTold}' : ''}';
 }
 
 class _Tally extends StatelessWidget {
@@ -288,6 +298,7 @@ class _Tally extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     Widget chip(String key, String label, int count, Color colour) => Expanded(
       child: Container(
@@ -310,13 +321,13 @@ class _Tally extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
       child: Row(
         children: [
-          chip('present', 'Present', sheet.count(AttendanceStatus.present), colors.success),
+          chip('present', l10n.staffPresent, sheet.count(AttendanceStatus.present), colors.success),
           const SizedBox(width: 8),
-          chip('absent', 'Absent', sheet.count(AttendanceStatus.absent), colors.danger),
+          chip('absent', l10n.staffAbsent, sheet.count(AttendanceStatus.absent), colors.danger),
           const SizedBox(width: 8),
-          chip('leave', 'Leave', sheet.count(AttendanceStatus.leave), colors.info),
+          chip('leave', l10n.staffNavLeave, sheet.count(AttendanceStatus.leave), colors.info),
           const SizedBox(width: 8),
-          chip('unmarked', 'Not marked', sheet.unmarked, colors.muted),
+          chip('unmarked', l10n.staffNotMarked, sheet.unmarked, colors.muted),
         ],
       ),
     );
@@ -333,6 +344,7 @@ class _Banner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
     final sending = ref.watch(registerQueueProvider).sending;
+    final l10n = context.l10n;
 
     final (text, background, foreground, key) = problem != null
         ? (problem!, colors.dangerContainer, colors.onDangerContainer, 'register-problem')
@@ -340,27 +352,19 @@ class _Banner extends ConsumerWidget {
         // The reason, then what to do about it (docs/mobile-apps-review.md,
         // 2.5): the marks below start again, so taking them again is the retry.
         ? (
-            'Not sent: ${sheet.refusal} If the register still needs taking, take it again below and submit it. '
-                'If this looks wrong, ask the school office.',
+            l10n.staffRegisterRefused('${sheet.refusal}'),
             colors.dangerContainer,
             colors.onDangerContainer,
             'register-refused',
           )
         : sheet.mode == RegisterMode.waiting
         ? (
-            sending
-                ? 'Sending the register…'
-                : 'Saved on this phone, not yet sent. It goes as soon as there is signal - you can close the app.',
+            sending ? l10n.staffSendingRegister : l10n.staffRegisterWaiting,
             colors.warningContainer,
             colors.onWarningContainer,
             'register-waiting',
           )
-        : (
-            'No connection. Take the register as usual: it is saved on this phone and sent when there is signal.',
-            colors.infoContainer,
-            colors.onInfoContainer,
-            'register-offline',
-          );
+        : (l10n.staffRegisterOffline, colors.infoContainer, colors.onInfoContainer, 'register-offline');
 
     return Container(
       key: Key(key),
@@ -384,6 +388,7 @@ class _StudentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     Widget button(AttendanceStatus status, String letter, Color colour) {
       final chosen = mark == status;
@@ -440,11 +445,11 @@ class _StudentRow extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                button(AttendanceStatus.present, 'Present', colors.success),
+                button(AttendanceStatus.present, l10n.staffPresent, colors.success),
                 const SizedBox(width: 8),
-                button(AttendanceStatus.absent, 'Absent', colors.danger),
+                button(AttendanceStatus.absent, l10n.staffAbsent, colors.danger),
                 const SizedBox(width: 8),
-                button(AttendanceStatus.leave, 'Leave', colors.info),
+                button(AttendanceStatus.leave, l10n.staffNavLeave, colors.info),
               ],
             ),
           ],
@@ -474,6 +479,7 @@ class _Actions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spinner = const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2));
+    final l10n = context.l10n;
 
     return switch (sheet.mode) {
       RegisterMode.taking => Row(
@@ -481,7 +487,7 @@ class _Actions extends StatelessWidget {
           OutlinedButton(
             key: const Key('register-all-present'),
             onPressed: busy ? null : onAllPresent,
-            child: const Text('All present'),
+            child: Text(l10n.staffAllPresent),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -490,7 +496,9 @@ class _Actions extends StatelessWidget {
               child: FilledButton(
                 key: const Key('register-submit'),
                 onPressed: busy || !sheet.complete ? null : onSubmit,
-                child: busy ? spinner : Text(sheet.complete ? 'Submit' : 'Mark everyone (${sheet.unmarked} left)'),
+                child: busy
+                    ? spinner
+                    : Text(sheet.complete ? l10n.staffSubmit : l10n.staffMarkEveryone(sheet.unmarked)),
               ),
             ),
           ),
@@ -502,22 +510,22 @@ class _Actions extends StatelessWidget {
         child: FilledButton(
           key: const Key('register-save-correction'),
           onPressed: busy ? null : onSaveCorrection,
-          child: busy ? spinner : const Text('Save correction'),
+          child: busy ? spinner : Text(l10n.staffSaveCorrection),
         ),
       ),
       RegisterMode.submitted => Row(
         children: [
           Icon(Icons.check_circle, color: context.appColors.success),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Submitted.', key: Key('register-submitted'))),
-          TextButton(key: const Key('register-correct'), onPressed: onCorrect, child: const Text('Correct')),
+          Expanded(child: Text(l10n.staffSubmittedDot, key: const Key('register-submitted'))),
+          TextButton(key: const Key('register-correct'), onPressed: onCorrect, child: Text(l10n.staffCorrect)),
         ],
       ),
-      RegisterMode.waiting => const Row(
+      RegisterMode.waiting => Row(
         children: [
-          Icon(Icons.schedule_send_outlined),
-          SizedBox(width: 8),
-          Expanded(child: Text('Waiting for signal to send.')),
+          const Icon(Icons.schedule_send_outlined),
+          const SizedBox(width: 8),
+          Expanded(child: Text(l10n.staffWaitingForSignal)),
         ],
       ),
       RegisterMode.closed => const SizedBox.shrink(),

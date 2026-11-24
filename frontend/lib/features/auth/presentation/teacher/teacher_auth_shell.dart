@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/teacher_brand.dart';
 import '../../../../core/widgets/teacher_mark.dart';
@@ -55,7 +56,7 @@ class TeacherAuthShell extends StatelessWidget {
                                         child: IconButton(
                                           key: const Key('auth-back'),
                                           onPressed: onBack,
-                                          tooltip: 'Back',
+                                          tooltip: context.l10n.staffBack,
                                           color: Colors.white,
                                           icon: const Icon(Icons.arrow_back),
                                         ),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/chart_palette.dart';
 import '../../../core/utils/date_format.dart';
@@ -32,7 +33,7 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
   Widget build(BuildContext context) {
     final child = ref.watch(selectedChildProvider);
     if (child == null) {
-      return const FamilyEmptyView(icon: Icons.event_available_rounded, title: 'No children to show');
+      return FamilyEmptyView(icon: Icons.event_available_rounded, title: context.l10n.familyNoChildrenTitle);
     }
 
     final key = (child.id, monthKey(_month));
@@ -47,7 +48,7 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
             children: [
               IconButton(
                 key: const Key('family-month-back'),
-                tooltip: 'Previous month',
+                tooltip: context.l10n.familyPreviousMonth,
                 onPressed: () => _step(-1),
                 icon: const Icon(Icons.chevron_left_rounded),
               ),
@@ -61,7 +62,7 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
               ),
               IconButton(
                 key: const Key('family-month-next'),
-                tooltip: 'Next month',
+                tooltip: context.l10n.familyNextMonth,
                 // No month after this one has anything to show yet.
                 onPressed: _month.isBefore(thisMonth) ? () => _step(1) : null,
                 icon: const Icon(Icons.chevron_right_rounded),
@@ -95,9 +96,12 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Attendance is ${below.rate % 1 == 0 ? below.rate.toInt() : below.rate}% over the last ${below.days} '
-                              "school days, below the school's ${below.line}% line. The class teacher can help if "
-                              'something is keeping ${child.firstName} away.',
+                              context.l10n.familyBelowLine(
+                                '${below.rate % 1 == 0 ? below.rate.toInt() : below.rate}',
+                                '${below.days}',
+                                '${below.line}',
+                                child.firstName,
+                              ),
                             ),
                           ),
                         ],
@@ -113,16 +117,16 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
                       children: [
                         Icon(Icons.edit_note_rounded, color: Theme.of(context).colorScheme.primary),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Tell the school about an absence',
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                            context.l10n.familyTellAboutAbsence,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
                         TextButton(
                           key: const Key('family-see-notes'),
                           onPressed: () => context.push('/absence-notes'),
-                          child: const Text('Notes sent'),
+                          child: Text(context.l10n.familyNotesSent),
                         ),
                       ],
                     ),
@@ -131,7 +135,7 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
                   if (data.yearSummary != null) ...[
                     _RateCard(
                       key: const Key('family-year-rate'),
-                      title: 'This school year',
+                      title: context.l10n.familyThisSchoolYear,
                       summary: data.yearSummary!,
                     ),
                     const SizedBox(height: 12),
@@ -143,12 +147,7 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
                     title: DateFormat('MMMM').format(data.month),
                     summary: data.monthSummary,
                   ),
-                  const HowWorkedOut(
-                    key: Key('family-why-attendance'),
-                    explanation:
-                        'Days present out of the days the class register was marked. A day on leave counts as '
-                        'not present; a day the school did not mark the register, and a holiday, are left out.',
-                  ),
+                  HowWorkedOut(key: const Key('family-why-attendance'), explanation: context.l10n.familyWhyAttendance),
                   const SizedBox(height: 12),
                   _MissedDays(days: data.missed),
                 ],
@@ -206,15 +205,18 @@ class _RateCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   rate == null
-                      ? 'No register marked yet.'
-                      : 'Present ${summary.present} of ${summary.markedDays ?? summary.workingDays} days'
-                            '${summary.absent > 0 ? ' · absent ${summary.absent}' : ''}'
-                            '${summary.leave > 0 ? ' · leave ${summary.leave}' : ''}',
+                      ? context.l10n.familyNoRegisterYet
+                      : context.l10n.familyPresentOfDays(
+                              '${summary.present}',
+                              '${summary.markedDays ?? summary.workingDays}',
+                            ) +
+                            (summary.absent > 0 ? context.l10n.familyAbsentPart(summary.absent) : '') +
+                            (summary.leave > 0 ? context.l10n.familyLeavePart(summary.leave) : ''),
                   style: TextStyle(color: muted, fontSize: 13),
                 ),
                 if (summary.notMarked > 0)
                   Text(
-                    '${summary.notMarked} school ${summary.notMarked == 1 ? 'day' : 'days'} not marked by the school',
+                    context.l10n.familyDaysNotMarked(summary.notMarked),
                     key: const Key('family-not-marked'),
                     style: TextStyle(color: muted, fontSize: 12),
                   ),
@@ -242,7 +244,7 @@ class _MonthGrid extends StatelessWidget {
       children: [
         Row(
           children: [
-            for (final name in const ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
+            for (final name in context.l10n.familyWeekdayInitials.split(' '))
               Expanded(
                 child: Center(
                   child: Text(
@@ -270,10 +272,10 @@ class _MonthGrid extends StatelessWidget {
           spacing: 14,
           runSpacing: 6,
           children: [
-            _Key(colour: colours.success, label: 'Present'),
-            _Key(colour: colours.danger, label: 'Absent'),
-            _Key(colour: colours.info, label: 'Leave'),
-            _Key(colour: colours.warning.withValues(alpha: 0.5), label: 'Holiday'),
+            _Key(colour: colours.success, label: context.l10n.familyMarkPresent),
+            _Key(colour: colours.danger, label: context.l10n.familyMarkAbsent),
+            _Key(colour: colours.info, label: context.l10n.familyLeave),
+            _Key(colour: colours.warning.withValues(alpha: 0.5), label: context.l10n.familyHoliday),
           ],
         ),
       ],
@@ -299,14 +301,15 @@ class _DayCell extends StatelessWidget {
       DayKind.notMarked => (Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06), colours.muted),
     };
 
+    final l10n = context.l10n;
     final label = switch (day.kind) {
-      DayKind.present => 'present',
-      DayKind.absent => 'absent',
-      DayKind.leave => 'on leave',
-      DayKind.holiday => day.holiday ?? 'holiday',
-      DayKind.closed => 'no school',
+      DayKind.present => l10n.familyDayPresent,
+      DayKind.absent => l10n.familyDayAbsent,
+      DayKind.leave => l10n.familyDayOnLeave,
+      DayKind.holiday => day.holiday ?? l10n.familyDayHoliday,
+      DayKind.closed => l10n.familyDayNoSchool,
       DayKind.future => '',
-      DayKind.notMarked => 'not marked',
+      DayKind.notMarked => l10n.familyDayNotMarked,
     };
 
     return Semantics(
@@ -367,10 +370,10 @@ class _MissedDays extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CardHeading(icon: Icons.event_busy_rounded, title: 'Days missed'),
+          CardHeading(icon: Icons.event_busy_rounded, title: context.l10n.familyDaysMissed),
           const SizedBox(height: 8),
           if (days.isEmpty)
-            Text('None this month.', style: TextStyle(color: colours.muted))
+            Text(context.l10n.familyNoneThisMonth, style: TextStyle(color: colours.muted))
           else
             for (final day in days)
               Padding(
@@ -390,10 +393,13 @@ class _MissedDays extends StatelessWidget {
                         children: [
                           Text(
                             '${DateFormat('EEEE').format(day.date)}, ${formatDate(day.date)} · '
-                            '${day.kind == DayKind.absent ? 'Absent' : 'Leave'}',
+                            '${day.kind == DayKind.absent ? context.l10n.familyMarkAbsent : context.l10n.familyLeave}',
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          Text(day.remarks ?? 'No reason noted.', style: TextStyle(color: colours.muted, fontSize: 13)),
+                          Text(
+                            day.remarks ?? context.l10n.familyNoReasonNoted,
+                            style: TextStyle(color: colours.muted, fontSize: 13),
+                          ),
                         ],
                       ),
                     ),

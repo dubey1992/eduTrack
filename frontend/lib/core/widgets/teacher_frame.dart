@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/data/models/authenticated_user.dart';
+import '../l10n/l10n.dart';
 import '../models/module_access.dart';
 import '../models/user_role.dart';
 import '../../features/my_inbox/application/my_inbox_notifier.dart';
@@ -36,6 +37,18 @@ enum TeacherPlace {
   final IconData icon;
   final IconData selectedIcon;
 }
+
+/// A tab's name in the person's language; [TeacherPlace.label] stays the
+/// English one.
+String teacherPlaceLabel(AppLocalizations l10n, TeacherPlace place) => switch (place) {
+  TeacherPlace.today => l10n.staffNavHome,
+  TeacherPlace.teaching => l10n.staffNavTeaching,
+  TeacherPlace.department => l10n.staffNavDepartment,
+  TeacherPlace.leave => l10n.staffNavLeave,
+  TeacherPlace.pay => l10n.staffNavPay,
+  TeacherPlace.fees => l10n.staffNavFees,
+  TeacherPlace.profile => l10n.staffNavMe,
+};
 
 /// Whether a tab is there at all: Leave where the school uses leave, Pay
 /// where it runs payroll - every employee reads their own payslips there,
@@ -129,7 +142,7 @@ class TeacherFrame extends ConsumerWidget {
             if (meUpTop)
               IconButton(
                 key: const Key('teacher-profile'),
-                tooltip: 'Me',
+                tooltip: context.l10n.staffNavMe,
                 isSelected: place == TeacherPlace.profile,
                 icon: const Icon(Icons.person_outline),
                 selectedIcon: const Icon(Icons.person),
@@ -138,7 +151,7 @@ class TeacherFrame extends ConsumerWidget {
             IconButton(
               key: const Key('teacher-logout'),
               icon: const Icon(Icons.logout),
-              tooltip: 'Log out',
+              tooltip: context.l10n.staffLogOut,
               onPressed: () => confirmLogout(context, ref),
             ),
           ],
@@ -165,7 +178,7 @@ class TeacherFrame extends ConsumerWidget {
                 key: Key('teacher-nav-${destination.name}'),
                 icon: Icon(destination.icon),
                 selectedIcon: Icon(destination.selectedIcon),
-                label: destination.label,
+                label: teacherPlaceLabel(context.l10n, destination),
               ),
           ],
         ),
@@ -185,7 +198,7 @@ class _InboxBell extends ConsumerWidget {
 
     return IconButton(
       key: const Key('teacher-inbox'),
-      tooltip: unread == 0 ? 'Messages' : 'Messages, $unread unread',
+      tooltip: unread == 0 ? context.l10n.staffMessages : context.l10n.staffMessagesUnread(unread),
       onPressed: () async {
         await context.push('/inbox');
         ref.invalidate(myUnreadCountProvider);

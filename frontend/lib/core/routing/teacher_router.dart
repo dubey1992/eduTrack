@@ -32,6 +32,7 @@ import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/today/presentation/week_screen.dart';
 import '../../features/today/presentation/staff_home_screen.dart';
 import '../../features/today/presentation/today_screen.dart';
+import '../l10n/l10n.dart';
 import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
 import '../utils/date_format.dart';
@@ -222,7 +223,7 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/fees/students/:id',
         builder: (context, state) => Scaffold(
-          appBar: AppBar(title: const Text('Fees')),
+          appBar: AppBar(title: Text(context.l10n.staffNavFees)),
           body: StudentStatementView(
             studentId: int.parse(state.pathParameters['id']!),
             onBack: () => context.pop(),
@@ -236,7 +237,7 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/call-requests',
         builder: (context, state) => Scaffold(
-          appBar: AppBar(title: const Text('Call requests')),
+          appBar: AppBar(title: Text(context.l10n.staffCallRequestsTitle)),
           body: const CallRequestsScreen(compact: true),
         ),
       ),
@@ -333,24 +334,20 @@ class _NotTeacherScreen extends ConsumerWidget {
               const TeacherMark(size: 72, tile: true),
               const SizedBox(height: 16),
               Text(
-                crew ? 'Use the School365ai Bus app' : 'Use the School365ai website',
+                crew ? context.l10n.staffNotTeacherCrewTitle : context.l10n.staffNotTeacherOfficeTitle,
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                crew
-                    ? 'Drivers and bus attendants sign in to School365ai Driver, with their mobile number '
-                          'and passcode.'
-                    : 'This app is for the staff of a school. Your account looks after more than one school, '
-                          'which the website is made for.',
+                crew ? context.l10n.staffNotTeacherCrewBody : context.l10n.staffNotTeacherOfficeBody,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
               FilledButton(
                 key: const Key('not-teacher-sign-out'),
                 onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
-                child: const Text('Sign out'),
+                child: Text(context.l10n.staffSignOut),
               ),
             ],
           ),

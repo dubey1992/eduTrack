@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../application/location_sharing_notifier.dart';
 
@@ -15,16 +16,17 @@ class LocationSharingTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sharing = ref.watch(locationSharingProvider(tripId));
     final message = sharing.message;
+    final l10n = context.l10n;
 
     final String subtitle;
     if (message != null) {
-      subtitle = message;
+      subtitle = _translated(l10n, message);
     } else if (sharing.starting) {
-      subtitle = 'Asking for your location...';
+      subtitle = l10n.busLocAsking;
     } else if (sharing.enabled) {
-      subtitle = 'The school can see where the bus is while this screen is open.';
+      subtitle = l10n.busLocOn;
     } else {
-      subtitle = 'Off - the school cannot see where the bus is.';
+      subtitle = l10n.busLocOff;
     }
 
     return Card(
@@ -32,7 +34,7 @@ class LocationSharingTile extends ConsumerWidget {
       child: SwitchListTile(
         key: const Key('share-location-switch'),
         secondary: const Icon(Icons.my_location),
-        title: const Text('Share my location'),
+        title: Text(l10n.busShareLocation),
         subtitle: Text(
           subtitle,
           style: message == null ? null : TextStyle(color: context.appColors.danger, fontWeight: FontWeight.w600),
@@ -44,4 +46,15 @@ class LocationSharingTile extends ConsumerWidget {
       ),
     );
   }
+
+  /// The notifier's own reasons in the person's language; anything else
+  /// (a server's words) as it came.
+  String _translated(AppLocalizations l10n, String message) => switch (message) {
+    LocationSharingNotifier.deniedMessage => l10n.busLocDenied,
+    LocationSharingNotifier.blockedMessage => l10n.busLocBlocked,
+    LocationSharingNotifier.serviceOffMessage => l10n.busLocServiceOff,
+    LocationSharingNotifier.unsupportedMessage => l10n.busLocUnsupported,
+    LocationSharingNotifier.tripEndedMessage => l10n.busLocTripEnded,
+    _ => message,
+  };
 }

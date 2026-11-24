@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
+
 /// The rule for a password being chosen, as the API applies it (Phase 21):
 /// at least 8 characters, with a letter and a number. The API also refuses
 /// common passwords, which it says so itself - that list is not shipped here.
@@ -71,7 +73,7 @@ class _PasswordFieldState extends State<PasswordField> {
         suffixIcon: IconButton(
           // The tooltip says what the button will do, not what the field is -
           // the icon alone is ambiguous to anyone who has not met it before.
-          tooltip: _obscured ? 'Show password' : 'Hide password',
+          tooltip: _obscured ? context.l10n.coreShowPassword : context.l10n.coreHidePassword,
           icon: Icon(_obscured ? Icons.visibility_outlined : Icons.visibility_off_outlined),
           onPressed: () => setState(() => _obscured = !_obscured),
         ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../application/auth_notifier.dart';
 import '../../../core/widgets/brand_loader.dart';
 
@@ -88,7 +89,7 @@ class _DriverSplashScreenState extends ConsumerState<DriverSplashScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _slow ? 'Still trying to reach your school.' : 'Getting your trips ready…',
+                  _slow ? context.l10n.busSplashSlow : context.l10n.busSplashLoading,
                   key: const Key('splash-status'),
                   style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 15),
                   textAlign: TextAlign.center,
@@ -99,14 +100,14 @@ class _DriverSplashScreenState extends ConsumerState<DriverSplashScreen> {
                     key: const Key('splash-try-again'),
                     onPressed: _tryAgain,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Try again'),
+                    label: Text(context.l10n.busTryAgain),
                   )
                 else
                   const BrandLoader(size: 36),
                 if (_slow) ...[
                   const SizedBox(height: 12),
                   Text(
-                    'Check that this phone has signal, then try again.',
+                    context.l10n.busSplashCheckSignal,
                     style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
                     textAlign: TextAlign.center,
                   ),

@@ -1,0 +1,88 @@
+{
+  "coreLogOutTitle": "Log out?",
+  "@coreLogOutTitle": {
+    "description": "Confirm before signing out."
+  },
+  "coreLogOutMessage": "You will need to sign in again to get back to your school.",
+  "@coreLogOutMessage": {
+    "description": "What signing out means."
+  },
+  "coreLogOutUnsent": "{count, plural, =1{1 mark has not been sent yet. Sign out anyway? They will be lost.} other{{count} marks have not been sent yet. Sign out anyway? They will be lost.}}",
+  "@coreLogOutUnsent": {
+    "description": "A bus attendant has trip marks still on the phone.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coreLogOut": "Log out",
+  "@coreLogOut": {
+    "description": "Sign out button."
+  },
+  "coreStaySignedIn": "Stay signed in",
+  "@coreStaySignedIn": {
+    "description": "Keep the session."
+  },
+  "coreLockedTitle": "School365ai is locked",
+  "@coreLockedTitle": {
+    "description": "The app lock screen."
+  },
+  "coreLockedHint": "Use your fingerprint, face or phone's screen lock to open it.",
+  "@coreLockedHint": {
+    "description": "How to unlock."
+  },
+  "coreNotUnlocked": "Not unlocked. Try again.",
+  "@coreNotUnlocked": {
+    "description": "The phone did not confirm the owner."
+  },
+  "coreUnlock": "Unlock",
+  "@coreUnlock": {
+    "description": "Unlock button."
+  },
+  "coreLockOfferTitle": "Lock the app with your fingerprint?",
+  "@coreLockOfferTitle": {
+    "description": "Offer to turn the app lock on."
+  },
+  "coreLockOfferBody": "Anyone who picks up this phone would need your fingerprint, face or screen lock to open School365ai. You can change this later.",
+  "@coreLockOfferBody": {
+    "description": "What the app lock does."
+  },
+  "coreNotNow": "Not now",
+  "@coreNotNow": {
+    "description": "Decline the offer."
+  },
+  "coreTurnOn": "Turn on",
+  "@coreTurnOn": {
+    "description": "Accept the offer."
+  },
+  "coreAppLock": "App lock",
+  "@coreAppLock": {
+    "description": "The app lock switch in the profile."
+  },
+  "coreAppLockHint": "Ask for your fingerprint, face or screen lock when the app opens, and after 5 minutes away",
+  "@coreAppLockHint": {
+    "description": "What the switch does."
+  },
+  "coreShowPassword": "Show password",
+  "coreHidePassword": "Hide password",
+  "corePasscodeDigits": "The passcode must be exactly {length} digits.",
+  "@corePasscodeDigits": {
+    "description": "Passcode length rule.",
+    "placeholders": {
+      "length": {
+        "type": "int"
+      }
+    }
+  },
+  "corePasscodeRepeated": "Choose a passcode that is not one digit repeated.",
+  "corePasscodeRun": "Choose a passcode that is not a straight run like {example}.",
+  "@corePasscodeRun": {
+    "description": "No 1234 or 123456.",
+    "placeholders": {
+      "example": {
+        "type": "String"
+      }
+    }
+  }
+}

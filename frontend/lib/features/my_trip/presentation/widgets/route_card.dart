@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/offline_start.dart';
 import '../../../../core/errors/failure.dart';
+import '../../../../core/l10n/failure_text.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_format.dart';
 import '../../../../core/widgets/status_badge.dart';
@@ -12,6 +14,7 @@ import '../../application/trip_mark_queue.dart';
 import '../../data/apply_marks.dart';
 import '../../data/models/my_route.dart';
 import '../../data/my_trip_repository.dart';
+import '../trip_words.dart';
 
 /// One of the attendant's routes, with a card for today's pickup and one for
 /// today's drop: Start, Continue, or how it went.
@@ -40,23 +43,14 @@ class _RouteCardState extends ConsumerState<RouteCard> {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(
-              key: Key('trip-started-on-phone'),
-              content: Text(
-                'No signal: the trip has started on this phone. Mark children as usual - the school gets it all '
-                'when signal returns.',
-              ),
-            ),
+            SnackBar(key: const Key('trip-started-on-phone'), content: Text(context.l10n.busStartedOnPhone)),
           );
       }
     } on Failure catch (failure) {
       if (!mounted) return;
       // Only when this phone has never seen the route's children - a trip
       // needs them, and they come with My routes.
-      final message = failure.isOffline
-          ? 'No signal, and this phone has not saved this route yet. Open My Trip once with signal; '
-                'after that a trip can start without.'
-          : failure.message;
+      final message = failure.isOffline ? context.l10n.busRouteNotSaved : failure.localizedMessage(context);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(message)));
@@ -70,6 +64,7 @@ class _RouteCardState extends ConsumerState<RouteCard> {
     final route = widget.route;
     final queue = ref.watch(tripMarkQueueProvider);
     final muted = context.appColors.muted;
+    final l10n = context.l10n;
 
     // Today's trips as the attendant left them - an "End trip" still waiting
     // for signal already shows the trip as completed.
@@ -91,13 +86,12 @@ class _RouteCardState extends ConsumerState<RouteCard> {
               [
                 if (route.vehicleName != null) route.vehicleName!,
                 if (route.vehicleRegistrationNumber != null) route.vehicleRegistrationNumber!,
-                if (route.driverName != null) 'Driver: ${route.driverName}',
+                if (route.driverName != null) l10n.busDriverName(route.driverName!),
               ].join(' · '),
               style: TextStyle(color: muted),
             ),
             Text(
-              '${route.stopsCount} ${route.stopsCount == 1 ? 'stop' : 'stops'} · '
-              '${route.studentsCount} ${route.studentsCount == 1 ? 'student' : 'students'}',
+              '${l10n.busStopsCount(route.stopsCount)} · ${l10n.busStudentsCount(route.studentsCount)}',
               style: TextStyle(color: muted),
             ),
             if (route.myLicenceExpiry != null) ...[
@@ -155,11 +149,12 @@ class _LicenceWarning extends StatelessWidget {
     if (days > notice.inDays) return const SizedBox.shrink();
 
     final lapsed = days < 0;
+    final l10n = context.l10n;
     final message = switch (days) {
-      < 0 => 'Your driving licence expired on ${formatDate(expiry)}. Tell your school office.',
-      0 => 'Your driving licence expires today. Tell your school office.',
-      1 => 'Your driving licence expires tomorrow. Tell your school office.',
-      _ => 'Your driving licence expires in $days days, on ${formatDate(expiry)}. Tell your school office.',
+      < 0 => l10n.busLicenceExpired(formatDate(expiry)),
+      0 => l10n.busLicenceToday,
+      1 => l10n.busLicenceTomorrow,
+      _ => l10n.busLicenceInDays(days, formatDate(expiry)),
     };
 
     return Container(
@@ -213,12 +208,13 @@ class _TripTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final trip = this.trip;
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
 
     final (badge, tone) = switch (trip?.status) {
-      null => ('Not started', BadgeTone.neutral),
-      TripStatus.inProgress => ('En route', BadgeTone.info),
-      TripStatus.completed => ('Completed', BadgeTone.success),
-      TripStatus.cancelled => ('Cancelled', BadgeTone.danger),
+      null => (l10n.busNotStarted, BadgeTone.neutral),
+      TripStatus.inProgress => (l10n.busEnRoute, BadgeTone.info),
+      TripStatus.completed => (l10n.busCompleted, BadgeTone.success),
+      TripStatus.cancelled => (l10n.busCancelled, BadgeTone.danger),
     };
 
     return Container(
@@ -233,23 +229,20 @@ class _TripTile extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(direction.label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                child: Text(direction.labelIn(l10n), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               ),
               StatusBadge(label: badge, tone: tone),
             ],
           ),
           if (trip != null && trip.status != TripStatus.inProgress) ...[
             const SizedBox(height: 6),
-            Text(_summary(trip), style: TextStyle(color: context.appColors.muted)),
+            Text(_summary(l10n, trip), style: TextStyle(color: context.appColors.muted)),
           ],
           // Why the button is grey, where it is. A disabled control with no
           // reason beside it reads as a broken app.
           if (trip == null && waitingForPickup) ...[
             const SizedBox(height: 6),
-            Text(
-              'Starts after the pickup. The drop takes home the children the pickup brought in.',
-              style: TextStyle(color: context.appColors.muted),
-            ),
+            Text(l10n.busDropWaits, style: TextStyle(color: context.appColors.muted)),
           ],
           const SizedBox(height: 10),
           SizedBox(
@@ -261,18 +254,18 @@ class _TripTile extends StatelessWidget {
                 icon: starting
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.play_arrow),
-                label: Text('Start ${direction.label.toLowerCase()}'),
+                label: Text(direction.startIn(l10n)),
               ),
               TripStatus.inProgress => FilledButton.icon(
                 key: Key('continue-${direction.apiValue}'),
                 onPressed: () => onOpen(trip!.id),
                 icon: const Icon(Icons.directions_bus_filled),
-                label: Text('Continue ${direction.label.toLowerCase()}'),
+                label: Text(direction.continueIn(l10n)),
               ),
               _ => OutlinedButton(
                 key: Key('view-${direction.apiValue}'),
                 onPressed: () => onOpen(trip!.id),
-                child: const Text('View trip'),
+                child: Text(l10n.busViewTrip),
               ),
             },
           ),
@@ -281,9 +274,9 @@ class _TripTile extends StatelessWidget {
     );
   }
 
-  String _summary(TransportTrip trip) {
+  String _summary(AppLocalizations l10n, TransportTrip trip) {
     final ended = trip.endedAtLabel;
-    final riders = '${trip.ridersCount} ${trip.ridersCount == 1 ? 'student' : 'students'}';
-    return ended == null ? riders : '$riders · ended $ended';
+    final riders = l10n.busStudentsCount(trip.ridersCount);
+    return ended == null ? riders : l10n.busEndedAt(riders, ended);
   }
 }

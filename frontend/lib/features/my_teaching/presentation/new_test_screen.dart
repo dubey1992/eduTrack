@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/searchable_dropdown.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -11,6 +13,7 @@ import '../../assessments/data/assessment_repository.dart';
 import '../../assessments/data/models/assessment.dart';
 import '../../assessments/data/models/assessment_setup.dart';
 import '../application/my_teaching_providers.dart';
+import '../../today/presentation/staff_words.dart';
 
 /// Setting a class test on the phone (docs/teacher-app.md, T5): which class
 /// and subject (only those the teacher teaches), a title, the kind, the day,
@@ -26,7 +29,7 @@ class NewTestScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('New class test')),
+      appBar: AppBar(title: Text(context.l10n.staffNewClassTest)),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -35,16 +38,16 @@ class NewTestScreen extends ConsumerWidget {
               value: ref.watch(assessmentSetupProvider),
               onRetry: () => ref.invalidate(assessmentSetupProvider),
               data: (context, setup) => setup.classes.isEmpty
-                  ? const _Explain(
-                      key: Key('new-test-no-classes'),
-                      title: 'No classes on your timetable this year.',
-                      body: 'A test is set for a class you teach. Your school office puts you on the timetable.',
+                  ? _Explain(
+                      key: const Key('new-test-no-classes'),
+                      title: context.l10n.staffNoClassesThisYear,
+                      body: context.l10n.staffNewTestNoClassesBody,
                     )
                   : setup.terms.isEmpty
-                  ? const _Explain(
-                      key: Key('new-test-no-terms'),
-                      title: 'This school year has no terms yet.',
-                      body: 'A test belongs to a term. Ask your school office to set up the terms under Academics.',
+                  ? _Explain(
+                      key: const Key('new-test-no-terms'),
+                      title: context.l10n.staffNoTermsYet,
+                      body: context.l10n.staffNoTermsYetBody,
                     )
                   : _Form(setup: setup, today: today ?? DateTime.now()),
             ),
@@ -123,11 +126,12 @@ class _FormState extends ConsumerState<_Form> {
 
   String? _checkMax(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Out of how many marks?';
+    final l10n = context.l10n;
+    if (text.isEmpty) return l10n.staffOutOfHowMany;
     final parsed = double.tryParse(text);
-    if (parsed == null) return 'Enter a number, like 20 or 25.5.';
-    if (parsed <= 0) return 'The maximum has to be more than 0.';
-    if (parsed > 9999) return 'That is more than a test can carry.';
+    if (parsed == null) return l10n.staffEnterANumber;
+    if (parsed <= 0) return l10n.staffMaxMoreThanZero;
+    if (parsed > 9999) return l10n.staffMaxTooBig;
     return null;
   }
 
@@ -135,9 +139,9 @@ class _FormState extends ConsumerState<_Form> {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return null;
     final parsed = double.tryParse(text);
-    if (parsed == null) return 'Enter a number, or leave it blank.';
+    if (parsed == null) return context.l10n.staffEnterNumberOrBlank;
     final maximum = double.tryParse(_maxMarks.text.trim());
-    if (parsed < 0 || (maximum != null && parsed > maximum)) return 'Between 0 and the maximum.';
+    if (parsed < 0 || (maximum != null && parsed > maximum)) return context.l10n.staffBetweenZeroAndMax;
     return null;
   }
 
@@ -160,7 +164,7 @@ class _FormState extends ConsumerState<_Form> {
 
     final term = _term;
     if (term == null) {
-      setState(() => _problem = 'No term of this school year covers ${formatDate(_date)}. Pick another day.');
+      setState(() => _problem = context.l10n.staffNoTermCovers(formatDate(_date)));
       return;
     }
 
@@ -186,16 +190,16 @@ class _FormState extends ConsumerState<_Form> {
           );
       ref.invalidate(myTestsProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Test set. Enter the marks.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.staffTestSet)));
       context.pop(created.id);
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) {
         setState(
           () => _problem = switch (failure.code) {
-            'NETWORK_ERROR' => 'No connection. Nothing was saved - try again when you have signal.',
+            'NETWORK_ERROR' => context.l10n.staffNothingSavedNoSignal,
             _ when failure.validationErrors.isNotEmpty => failure.validationErrors.values.expand((e) => e).join('\n'),
-            _ => failure.message,
+            _ => failure.localizedMessage(context),
           },
         );
       }
@@ -209,6 +213,7 @@ class _FormState extends ConsumerState<_Form> {
     final colors = context.appColors;
     final term = _term;
     final pass = widget.setup.passPercentage;
+    final l10n = context.l10n;
 
     return Form(
       key: _form,
@@ -229,7 +234,7 @@ class _FormState extends ConsumerState<_Form> {
             key: const Key('new-test-class'),
             initialValue: _class,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Class and subject'),
+            decoration: InputDecoration(labelText: l10n.staffClassAndSubject),
             items: [
               for (final taught in widget.setup.classes)
                 DropdownMenuItem(
@@ -246,15 +251,18 @@ class _FormState extends ConsumerState<_Form> {
             enabled: !_sending,
             maxLength: 150,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Title', hintText: 'e.g. Fractions - unit test'),
-            validator: (value) => (value == null || value.trim().isEmpty) ? 'Give the test a title.' : null,
+            decoration: InputDecoration(labelText: l10n.staffTitle, hintText: l10n.staffTestTitleHint),
+            validator: (value) => (value == null || value.trim().isEmpty) ? l10n.staffGiveTestTitle : null,
           ),
           const SizedBox(height: 4),
           DropdownButtonFormField<AssessmentType>(
             key: const Key('new-test-type'),
             initialValue: _type,
-            decoration: const InputDecoration(labelText: 'Kind of test'),
-            items: [for (final type in AssessmentType.values) DropdownMenuItem(value: type, child: Text(type.label))],
+            decoration: InputDecoration(labelText: l10n.staffKindOfTest),
+            items: [
+              for (final type in AssessmentType.values)
+                DropdownMenuItem(value: type, child: Text(assessmentTypeLabel(l10n, type))),
+            ],
             onChanged: _sending ? null : (value) => setState(() => _type = value ?? _type),
           ),
           const SizedBox(height: 12),
@@ -263,8 +271,8 @@ class _FormState extends ConsumerState<_Form> {
             onTap: _sending ? null : _pickDate,
             child: InputDecorator(
               decoration: InputDecoration(
-                labelText: 'Day of the test',
-                helperText: term == null ? 'No term covers this day' : term.name,
+                labelText: l10n.staffDayOfTest,
+                helperText: term == null ? l10n.staffNoTermCoversDay : term.name,
                 helperStyle: term == null ? TextStyle(color: colors.danger) : null,
                 suffixIcon: const Icon(Icons.calendar_today_outlined),
               ),
@@ -281,7 +289,7 @@ class _FormState extends ConsumerState<_Form> {
                   controller: _maxMarks,
                   enabled: !_sending,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Out of'),
+                  decoration: InputDecoration(labelText: l10n.staffOutOfLabel),
                   validator: _checkMax,
                 ),
               ),
@@ -293,8 +301,8 @@ class _FormState extends ConsumerState<_Form> {
                   enabled: !_sending,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'Pass mark',
-                    helperText: pass == null ? 'Optional' : 'Optional. Blank: $pass% of the maximum',
+                    labelText: l10n.staffPassMark,
+                    helperText: pass == null ? l10n.staffOptional : l10n.staffPassMarkDefault('$pass'),
                     helperMaxLines: 2,
                   ),
                   validator: _checkPass,
@@ -305,7 +313,7 @@ class _FormState extends ConsumerState<_Form> {
           const SizedBox(height: 8),
           if (widget.setup.defaultScale != null)
             Text(
-              'Grades by the ${widget.setup.defaultScale!.name} scale.',
+              l10n.staffGradesByScale(widget.setup.defaultScale!.name),
               style: TextStyle(color: colors.muted, fontSize: 13),
             ),
           const SizedBox(height: 16),
@@ -316,7 +324,7 @@ class _FormState extends ConsumerState<_Form> {
               onPressed: _sending ? null : _submit,
               child: _sending
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Set test'),
+                  : Text(l10n.staffSetTest),
             ),
           ),
         ],

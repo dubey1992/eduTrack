@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/family_brand.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -11,6 +12,7 @@ import '../application/family_notifiers.dart';
 import '../application/family_session_notifier.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_day.dart';
+import 'family_words.dart';
 import 'widgets/family_widgets.dart';
 
 /// Home: the morning's questions answered without a tap - is my child in
@@ -24,10 +26,10 @@ class FamilyHomeScreen extends ConsumerWidget {
     final child = ref.watch(selectedChildProvider);
 
     if (child == null) {
-      return const FamilyEmptyView(
+      return FamilyEmptyView(
         icon: Icons.family_restroom_rounded,
-        title: 'No children to show',
-        message: 'The school has no child linked to your number at the moment. Please contact the school office.',
+        title: context.l10n.familyNoChildrenTitle,
+        message: context.l10n.familyNoChildrenMessage,
       );
     }
 
@@ -72,7 +74,7 @@ class _TodayList extends ConsumerWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         Text(
-          '${_greeting(DateTime.now())}${parent == null ? '' : ', ${parent.firstName}'}',
+          '${_greeting(context.l10n, DateTime.now())}${parent == null ? '' : ', ${parent.firstName}'}',
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 2),
@@ -82,7 +84,7 @@ class _TodayList extends ConsumerWidget {
         ),
         const SizedBox(height: 6),
         UpdatedLine(
-          text: fetched.isStale ? 'No connection. Showing what was true at $updated.' : 'Updated $updated',
+          text: fetched.isStale ? context.l10n.familyShowingSavedAt(updated) : context.l10n.familyUpdatedAt(updated),
           stale: fetched.isStale,
         ),
         const SizedBox(height: 14),
@@ -99,11 +101,11 @@ class _TodayList extends ConsumerWidget {
     );
   }
 
-  static String _greeting(DateTime now) => now.hour < 12
-      ? 'Good morning'
+  static String _greeting(AppLocalizations l10n, DateTime now) => now.hour < 12
+      ? l10n.familyGoodMorning
       : now.hour < 17
-      ? 'Good afternoon'
-      : 'Good evening';
+      ? l10n.familyGoodAfternoon
+      : l10n.familyGoodEvening;
 }
 
 /// In school or not, in plain words and the colour that goes with it.
@@ -128,8 +130,11 @@ class _AttendanceCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('No school today', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                  Text(day.holidayName ?? 'The school is closed today.', style: TextStyle(color: colours.muted)),
+                  Text(
+                    context.l10n.familyNoSchoolToday,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  Text(day.holidayName ?? context.l10n.familySchoolClosedToday, style: TextStyle(color: colours.muted)),
                 ],
               ),
             ),
@@ -140,10 +145,10 @@ class _AttendanceCard extends StatelessWidget {
 
     final mark = day.attendance?.mark ?? AttendanceMark.notMarked;
     final (colour, icon, words) = switch (mark) {
-      AttendanceMark.present => (colours.success, Icons.check_circle_rounded, '$name is in school'),
-      AttendanceMark.absent => (colours.danger, Icons.cancel_rounded, '$name was marked absent'),
-      AttendanceMark.leave => (colours.info, Icons.event_busy_rounded, '$name is on leave today'),
-      AttendanceMark.notMarked => (colours.muted, Icons.hourglass_top_rounded, 'Register not marked yet'),
+      AttendanceMark.present => (colours.success, Icons.check_circle_rounded, context.l10n.familyChildInSchool(name)),
+      AttendanceMark.absent => (colours.danger, Icons.cancel_rounded, context.l10n.familyChildMarkedAbsent(name)),
+      AttendanceMark.leave => (colours.info, Icons.event_busy_rounded, context.l10n.familyChildOnLeave(name)),
+      AttendanceMark.notMarked => (colours.muted, Icons.hourglass_top_rounded, context.l10n.familyRegisterNotMarked),
     };
 
     return FamilyCard(
@@ -151,7 +156,7 @@ class _AttendanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CardHeading(icon: Icons.event_available_rounded, title: 'Attendance today'),
+          CardHeading(icon: Icons.event_available_rounded, title: context.l10n.familyAttendanceToday),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -167,11 +172,14 @@ class _AttendanceCard extends StatelessWidget {
                     ),
                     if (mark == AttendanceMark.notMarked)
                       Text(
-                        'The class teacher marks it in the morning.',
+                        context.l10n.familyTeacherMarksMorning,
                         style: TextStyle(color: colours.muted, fontSize: 13),
                       ),
                     if (day.attendance?.remarks != null)
-                      Text('Note: ${day.attendance!.remarks}', style: TextStyle(color: colours.muted, fontSize: 13)),
+                      Text(
+                        context.l10n.familyNote(day.attendance!.remarks!),
+                        style: TextStyle(color: colours.muted, fontSize: 13),
+                      ),
                   ],
                 ),
               ),
@@ -187,7 +195,9 @@ class _AttendanceCard extends StatelessWidget {
                 key: const Key('family-today-report-sick'),
                 onPressed: () => context.push('/absence-notes/new'),
                 icon: const Icon(Icons.sick_outlined, size: 18),
-                label: Text(mark == AttendanceMark.absent ? 'Tell the school why' : 'Report sick'),
+                label: Text(
+                  mark == AttendanceMark.absent ? context.l10n.familyTellSchoolWhy : context.l10n.familyReportSick,
+                ),
               ),
             ),
         ],
@@ -217,20 +227,20 @@ class _BusCard extends StatelessWidget {
         children: [
           CardHeading(
             icon: Icons.directions_bus_rounded,
-            title: 'School bus',
+            title: context.l10n.familySchoolBus,
             colour: FamilyBrand.childColours[3],
             trailing: Icon(Icons.chevron_right_rounded, color: muted),
           ),
           const SizedBox(height: 12),
           Text(
-            trip?.summary ?? 'No trip has started today',
+            trip?.summaryWords(context.l10n) ?? context.l10n.familyNoTripToday,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 2),
           Text(
             [
               if (bus.stop != null) bus.stop!,
-              if (bus.pickupTime != null) 'pick-up ${formatClock(bus.pickupTime!)}',
+              if (bus.pickupTime != null) context.l10n.familyPickupAt(formatClock(bus.pickupTime!)),
             ].join(' · '),
             style: TextStyle(color: muted, fontSize: 13),
           ),
@@ -243,7 +253,7 @@ class _BusCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Tap to watch the bus on the map',
+                    context.l10n.familyTapToWatchBus,
                     style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -273,9 +283,13 @@ class _ResultsCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CardHeading(icon: Icons.grade_rounded, title: 'Results', colour: FamilyBrand.childColours[1]),
+                CardHeading(
+                  icon: Icons.grade_rounded,
+                  title: context.l10n.familyResults,
+                  colour: FamilyBrand.childColours[1],
+                ),
                 const SizedBox(height: 8),
-                Text('Test marks and the progress report', style: TextStyle(color: muted)),
+                Text(context.l10n.familyResultsCardLine, style: TextStyle(color: muted)),
               ],
             ),
           ),
@@ -303,7 +317,7 @@ class _FeeCard extends StatelessWidget {
         children: [
           CardHeading(
             icon: Icons.receipt_long_rounded,
-            title: 'Next fee',
+            title: context.l10n.familyNextFee,
             colour: fee.isOverdue ? colours.danger : colours.warning,
             trailing: Icon(Icons.chevron_right_rounded, color: colours.muted),
           ),
@@ -313,7 +327,9 @@ class _FeeCard extends StatelessWidget {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           ),
           Text(
-            '${fee.label} · ${fee.isOverdue ? 'was due' : 'due'} on ${formatDate(fee.dueDate)}',
+            fee.isOverdue
+                ? context.l10n.familyFeeWasDueOn(fee.label, formatDate(fee.dueDate))
+                : context.l10n.familyFeeDueOn(fee.label, formatDate(fee.dueDate)),
             style: TextStyle(color: fee.isOverdue ? colours.danger : colours.muted, fontSize: 13),
           ),
         ],
@@ -341,7 +357,7 @@ class _LatestNoticeCard extends ConsumerWidget {
         children: [
           CardHeading(
             icon: Icons.campaign_rounded,
-            title: 'From the school',
+            title: context.l10n.familyFromTheSchool,
             colour: FamilyBrand.childColours[1],
             trailing: unread > 0
                 ? Container(
@@ -350,7 +366,10 @@ class _LatestNoticeCard extends ConsumerWidget {
                       color: Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text('$unread new', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    child: Text(
+                      context.l10n.familyNewCount(unread),
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
                   )
                 : Icon(Icons.chevron_right_rounded, color: muted),
           ),
@@ -358,10 +377,10 @@ class _LatestNoticeCard extends ConsumerWidget {
           if (notices.isLoading && latest == null)
             const ShapePlaceholder(height: 18)
           else if (latest == null)
-            Text('No messages yet.', style: TextStyle(color: muted))
+            Text(context.l10n.familyNoMessagesYet, style: TextStyle(color: muted))
           else ...[
             Text(
-              latest.title ?? latest.kindLabel,
+              latest.title ?? latest.kindWords(context.l10n),
               style: TextStyle(fontWeight: latest.read ? FontWeight.w500 : FontWeight.w700),
             ),
             const SizedBox(height: 2),
@@ -394,7 +413,7 @@ class _TimetableCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CardHeading(icon: Icons.schedule_rounded, title: 'Today\'s classes'),
+          CardHeading(icon: Icons.schedule_rounded, title: context.l10n.familyTodaysClasses),
           const SizedBox(height: 8),
           for (final period in day.periods)
             Padding(
@@ -410,7 +429,7 @@ class _TimetableCard extends StatelessWidget {
                   ),
                   Expanded(
                     child: Text(
-                      period.subject ?? 'Period ${period.number}',
+                      period.subject ?? context.l10n.familyPeriodNumber('${period.number}'),
                       style: TextStyle(
                         fontWeight: period.state == 'current' ? FontWeight.w700 : FontWeight.w500,
                         color: period.state == 'done' ? muted : null,
@@ -425,7 +444,7 @@ class _TimetableCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        'Now',
+                        context.l10n.familyNow,
                         style: TextStyle(color: primary, fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),

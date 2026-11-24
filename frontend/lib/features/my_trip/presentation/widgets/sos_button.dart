@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 
 /// Asks the school for help, and takes a two-second press to do it.
@@ -56,12 +57,13 @@ class _SosButtonState extends State<SosButton> with SingleTickerProviderStateMix
     setState(() => _sending = false);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('SOS sent. Your school has been told where you are.')));
+      ..showSnackBar(SnackBar(content: Text(context.l10n.busSosSent)));
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     // Raw pointer events rather than a GestureDetector, and deliberately.
     // A gesture recogniser has to win an arena, and this one cannot: the
@@ -93,7 +95,7 @@ class _SosButtonState extends State<SosButton> with SingleTickerProviderStateMix
       child: SelectionContainer.disabled(
         child: Semantics(
           button: true,
-          label: 'SOS. Hold for two seconds to ask your school for help.',
+          label: l10n.busSosSemantics,
           child: SizedBox(
             height: 56,
             child: AnimatedBuilder(
@@ -129,7 +131,7 @@ class _SosButtonState extends State<SosButton> with SingleTickerProviderStateMix
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              _held.isAnimating || _sending ? 'Keep holding...' : 'Hold for SOS',
+                              _held.isAnimating || _sending ? l10n.busSosHolding : l10n.busSosHold,
                               style: TextStyle(fontWeight: FontWeight.w800, color: colors.onDangerContainer),
                             ),
                           ),

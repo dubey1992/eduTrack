@@ -1,0 +1,1035 @@
+{
+  "busNavHome": "Home",
+  "@busNavHome": {
+    "description": "Bottom bar tab: the trip screen."
+  },
+  "busNavProfile": "Profile",
+  "@busNavProfile": {
+    "description": "Bottom bar tab: the crew member's profile."
+  },
+  "busMyTripTitle": "My Trip",
+  "@busMyTripTitle": {
+    "description": "App bar title when the signed-in name is not known yet."
+  },
+  "busLogOut": "Log out",
+  "@busLogOut": {
+    "description": "Tooltip of the sign-out button in the app bar."
+  },
+  "busNotCrewTitle": "This app is for the bus crew",
+  "@busNotCrewTitle": {
+    "description": "Heading when someone who is not a driver or attendant signs in to the Bus app."
+  },
+  "busNotCrewBody": "Your account signs in to the school on the web instead. Ask your school admin if you should be driving a route.",
+  "@busNotCrewBody": {
+    "description": "Explains the account is not a bus crew account."
+  },
+  "busSignOut": "Sign out",
+  "@busSignOut": {
+    "description": "Button on the not-crew screen."
+  },
+  "busSplashLoading": "Getting your trips ready…",
+  "@busSplashLoading": {
+    "description": "Splash screen while loading."
+  },
+  "busSplashSlow": "Still trying to reach your school.",
+  "@busSplashSlow": {
+    "description": "Splash screen when loading takes long."
+  },
+  "busSplashCheckSignal": "Check that this phone has signal, then try again.",
+  "@busSplashCheckSignal": {
+    "description": "Splash screen hint under Try again."
+  },
+  "busTryAgain": "Try again",
+  "@busTryAgain": {
+    "description": "Button or tooltip that tries something again."
+  },
+  "busLandingHeadline": "Your trip sheet, on this phone.",
+  "@busLandingHeadline": {
+    "description": "Landing headline."
+  },
+  "busLandingIntro": "For the driver and the attendant on the bus. Everything you need for the run, and nothing else from the school.",
+  "@busLandingIntro": {
+    "description": "Landing intro paragraph."
+  },
+  "busLandingStartTitle": "Start the run",
+  "@busLandingStartTitle": {
+    "description": "Landing point title."
+  },
+  "busLandingStartBody": "Today's routes are waiting when you open the app. One tap starts the pickup or the drop.",
+  "@busLandingStartBody": {
+    "description": "Landing point body."
+  },
+  "busLandingTickTitle": "Tick each child on and off",
+  "@busLandingTickTitle": {
+    "description": "Landing point title."
+  },
+  "busLandingTickBody": "Boarded, dropped or absent. The school sees it, and the parents are told.",
+  "@busLandingTickBody": {
+    "description": "Landing point body."
+  },
+  "busLandingOfflineTitle": "Works without signal",
+  "@busLandingOfflineTitle": {
+    "description": "Landing point title."
+  },
+  "busLandingOfflineBody": "Marks are kept on the phone and sent the moment you are back in range. Nothing is lost on the road.",
+  "@busLandingOfflineBody": {
+    "description": "Landing point body."
+  },
+  "busLandingCallTitle": "Call a child's parent",
+  "@busLandingCallTitle": {
+    "description": "Landing point title."
+  },
+  "busLandingCallBody": "One button opens the dialler. You never see the number, and the call is recorded in the log.",
+  "@busLandingCallBody": {
+    "description": "Landing point body."
+  },
+  "busLandingNeedSignIn": "To sign in you need",
+  "@busLandingNeedSignIn": {
+    "description": "Heading of the box on a phone already set up."
+  },
+  "busLandingNeedSetUp": "Before you start you need",
+  "@busLandingNeedSetUp": {
+    "description": "Heading of the box on a phone not yet set up."
+  },
+  "busLandingNeedSignInBody": "Your mobile number and the 4-digit passcode you chose on this phone.",
+  "@busLandingNeedSignInBody": {
+    "description": "What a set-up phone needs."
+  },
+  "busLandingNeedSetUpBody": "Your mobile number, and an 8-digit code from your school office. The code works for 24 hours. You choose a 4-digit passcode while setting up, and after that the passcode is all you need.",
+  "@busLandingNeedSetUpBody": {
+    "description": "What a new phone needs."
+  },
+  "busLandingSignIn": "Sign in",
+  "@busLandingSignIn": {
+    "description": "Landing button on a set-up phone."
+  },
+  "busLandingSetUp": "Set up this phone",
+  "@busLandingSetUp": {
+    "description": "Landing button on a new phone."
+  },
+  "busLandingLostPhone": "Lost your phone, or forgotten the passcode? Your school office can unlock your account and give you a new code.",
+  "@busLandingLostPhone": {
+    "description": "Landing footnote."
+  },
+  "busRegisterTitle": "Register this phone",
+  "@busRegisterTitle": {
+    "description": "Heading of the set-up form."
+  },
+  "busSignInTitle": "Bus crew sign in",
+  "@busSignInTitle": {
+    "description": "Heading of the passcode sign-in form."
+  },
+  "busRegisterHelp": "Enter your mobile number, the 8-digit setup code from your school office, and choose a 4-digit passcode.",
+  "@busRegisterHelp": {
+    "description": "Help under the set-up heading."
+  },
+  "busSignInHelp": "Enter your mobile number and your 4-digit passcode.",
+  "@busSignInHelp": {
+    "description": "Help under the sign-in heading."
+  },
+  "busMobileLabel": "Mobile",
+  "@busMobileLabel": {
+    "description": "Mobile number field label."
+  },
+  "busSetupCodeLabel": "Setup code",
+  "@busSetupCodeLabel": {
+    "description": "Setup code field label."
+  },
+  "busSetupCodeInvalid": "Enter the 8-digit setup code from your office",
+  "@busSetupCodeInvalid": {
+    "description": "Setup code validation error."
+  },
+  "busNewPasscodeLabel": "New passcode",
+  "@busNewPasscodeLabel": {
+    "description": "New passcode field label."
+  },
+  "busConfirmPasscodeLabel": "Confirm passcode",
+  "@busConfirmPasscodeLabel": {
+    "description": "Confirm passcode field label."
+  },
+  "busPasscodesDiffer": "The passcodes do not match",
+  "@busPasscodesDiffer": {
+    "description": "Confirm passcode error."
+  },
+  "busPasscodeLabel": "Passcode",
+  "@busPasscodeLabel": {
+    "description": "Passcode field label."
+  },
+  "busPasscodeInvalid": "Enter your 4-digit passcode",
+  "@busPasscodeInvalid": {
+    "description": "Passcode validation error."
+  },
+  "busRegisterButton": "Register and sign in",
+  "@busRegisterButton": {
+    "description": "Set-up form button."
+  },
+  "busSignInButton": "Sign In",
+  "@busSignInButton": {
+    "description": "Sign-in form button."
+  },
+  "busUsePasscode": "Already set up? Sign in with your passcode",
+  "@busUsePasscode": {
+    "description": "Link from the set-up form to the passcode form."
+  },
+  "busUseSetupCode": "Have a new setup code? Register this phone again",
+  "@busUseSetupCode": {
+    "description": "Link from the passcode form to the set-up form."
+  },
+  "busUseEmail": "Sign in with email instead",
+  "@busUseEmail": {
+    "description": "Web-only link to email sign-in."
+  },
+  "busBatteryWarning": "This phone may stop sending the bus's position when the screen is off.",
+  "@busBatteryWarning": {
+    "description": "Battery warning on the routes list."
+  },
+  "busBatteryHowToFix": "How to fix it",
+  "@busBatteryHowToFix": {
+    "description": "Link to the battery help screen."
+  },
+  "busNoRoutes": "No route is assigned to you yet. Ask your school office to add you to a route.",
+  "@busNoRoutes": {
+    "description": "Empty routes list."
+  },
+  "busRoutesFromPhone": "No signal - showing your routes as last saved on this phone.",
+  "@busRoutesFromPhone": {
+    "description": "Routes list shown from the phone's copy."
+  },
+  "busTripCheck": "Trip check",
+  "@busTripCheck": {
+    "description": "Link and title of the trip check screen."
+  },
+  "busStartedOnPhone": "No signal: the trip has started on this phone. Mark children as usual - the school gets it all when signal returns.",
+  "@busStartedOnPhone": {
+    "description": "Snackbar after starting a trip with no signal."
+  },
+  "busRouteNotSaved": "No signal, and this phone has not saved this route yet. Open My Trip once with signal; after that a trip can start without.",
+  "@busRouteNotSaved": {
+    "description": "Snackbar when a trip cannot start offline."
+  },
+  "busDriverName": "Driver: {name}",
+  "@busDriverName": {
+    "description": "The route's driver, on the route card.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "busStopsCount": "{count, plural, =1{1 stop} other{{count} stops}}",
+  "@busStopsCount": {
+    "description": "How many stops a route has.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busStudentsCount": "{count, plural, =1{1 student} other{{count} students}}",
+  "@busStudentsCount": {
+    "description": "How many students ride.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busEndedAt": "{riders} · ended {time}",
+  "@busEndedAt": {
+    "description": "Summary of a finished trip; time from server.",
+    "placeholders": {
+      "riders": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "busLicenceExpired": "Your driving licence expired on {date}. Tell your school office.",
+  "@busLicenceExpired": {
+    "description": "Licence has lapsed.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "busLicenceToday": "Your driving licence expires today. Tell your school office.",
+  "@busLicenceToday": {
+    "description": "Licence ends today."
+  },
+  "busLicenceTomorrow": "Your driving licence expires tomorrow. Tell your school office.",
+  "@busLicenceTomorrow": {
+    "description": "Licence ends tomorrow."
+  },
+  "busLicenceInDays": "Your driving licence expires in {days} days, on {date}. Tell your school office.",
+  "@busLicenceInDays": {
+    "description": "Licence ends soon.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "busNotStarted": "Not started",
+  "@busNotStarted": {
+    "description": "Badge: today's trip not started."
+  },
+  "busEnRoute": "En route",
+  "@busEnRoute": {
+    "description": "Badge: trip running."
+  },
+  "busCompleted": "Completed",
+  "@busCompleted": {
+    "description": "Badge: trip finished."
+  },
+  "busCancelled": "Cancelled",
+  "@busCancelled": {
+    "description": "Badge: trip cancelled."
+  },
+  "busPickup": "Pickup",
+  "@busPickup": {
+    "description": "Trip direction: to school."
+  },
+  "busDrop": "Drop",
+  "@busDrop": {
+    "description": "Trip direction: home from school."
+  },
+  "busDropWaits": "Starts after the pickup. The drop takes home the children the pickup brought in.",
+  "@busDropWaits": {
+    "description": "Why the drop cannot start yet."
+  },
+  "busStartPickup": "Start pickup",
+  "@busStartPickup": {
+    "description": "Button."
+  },
+  "busStartDrop": "Start drop",
+  "@busStartDrop": {
+    "description": "Button."
+  },
+  "busContinuePickup": "Continue pickup",
+  "@busContinuePickup": {
+    "description": "Button."
+  },
+  "busContinueDrop": "Continue drop",
+  "@busContinueDrop": {
+    "description": "Button."
+  },
+  "busViewTrip": "View trip",
+  "@busViewTrip": {
+    "description": "Button on a finished trip."
+  },
+  "busRunningLateQuestion": "Running late?",
+  "@busRunningLateQuestion": {
+    "description": "Title of the running-late sheet."
+  },
+  "busRunningLateHelp": "The parents still waiting on this route are told.",
+  "@busRunningLateHelp": {
+    "description": "Running-late sheet help."
+  },
+  "busLateMinutes": "About {minutes} minutes late",
+  "@busLateMinutes": {
+    "description": "Running-late choice.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "busParentsToldLate": "Parents told: about {minutes} minutes late.",
+  "@busParentsToldLate": {
+    "description": "Snackbar after reporting a delay.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "busNoDialler": "Could not open the phone's dialler.",
+  "@busNoDialler": {
+    "description": "Snackbar."
+  },
+  "busNoMapsApp": "Could not open a maps app on this phone.",
+  "@busNoMapsApp": {
+    "description": "Snackbar."
+  },
+  "busEndTripQuestion": "End this trip?",
+  "@busEndTripQuestion": {
+    "description": "End-trip dialog title."
+  },
+  "busEndAllMarked": "Every child has been marked. The trip will be recorded as completed.",
+  "@busEndAllMarked": {
+    "description": "End-trip dialog when nobody waits."
+  },
+  "busEndUnmarked": "{count, plural, =1{1 child has} other{{count} children have}} not been marked and will be recorded as absent.",
+  "@busEndUnmarked": {
+    "description": "End-trip dialog when children are unmarked.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busEndTrip": "End trip",
+  "@busEndTrip": {
+    "description": "Button."
+  },
+  "busKeepGoing": "Keep going",
+  "@busKeepGoing": {
+    "description": "End-trip dialog cancel."
+  },
+  "busTripEnded": "Trip ended.",
+  "@busTripEnded": {
+    "description": "Snackbar."
+  },
+  "busMyRoutes": "My routes",
+  "@busMyRoutes": {
+    "description": "Back button to the routes list."
+  },
+  "busStartedOnPhoneNoSignal": "Started on this phone with no signal. The school sees this trip when signal returns.",
+  "@busStartedOnPhoneNoSignal": {
+    "description": "A trip started offline."
+  },
+  "busTripFromPhone": "No signal - showing the trip as last saved on this phone.",
+  "@busTripFromPhone": {
+    "description": "Trip shown from the phone's copy."
+  },
+  "busSearchNoMatch": "No child on this trip matches \"{query}\". Check the spelling, or clear the search.",
+  "@busSearchNoMatch": {
+    "description": "Search found nobody.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "busOtherRiders": "Other riders",
+  "@busOtherRiders": {
+    "description": "Section for children with no stop on this trip."
+  },
+  "busSchoolPlace": "school",
+  "@busSchoolPlace": {
+    "description": "The school as a place, in 'Board at school'."
+  },
+  "busBulkDoneBoarded": "{count} boarded at {place}",
+  "@busBulkDoneBoarded": {
+    "description": "Snackbar after boarding many; place is a stop name or 'school'.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "busBulkDoneDropped": "{count} dropped at {place}",
+  "@busBulkDoneDropped": {
+    "description": "Snackbar after dropping many.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "busBulkDoneOther": "{count} {status} at {place}",
+  "@busBulkDoneOther": {
+    "description": "Snackbar after marking many with another status.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "status": {
+        "type": "String"
+      },
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "busUndo": "Undo",
+  "@busUndo": {
+    "description": "Snackbar action that takes a mark back."
+  },
+  "busUndoneAll": "Taken back - nobody was marked.",
+  "@busUndoneAll": {
+    "description": "Snackbar."
+  },
+  "busUndonePartly": "Taken back: {count}. The rest had already been sent to the school.",
+  "@busUndonePartly": {
+    "description": "Snackbar.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busBoardAllHere": "Board all {count} here",
+  "@busBoardAllHere": {
+    "description": "Bulk button at a stop.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busDropAllHere": "Drop all {count} here",
+  "@busDropAllHere": {
+    "description": "Bulk button at a stop.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busBoardAllAtSchool": "Board all {count} at school",
+  "@busBoardAllAtSchool": {
+    "description": "Bulk button.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busDropAllAtSchool": "Drop all {count} at school",
+  "@busDropAllAtSchool": {
+    "description": "Bulk button.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busMarkedBoarded": "{name} boarded",
+  "@busMarkedBoarded": {
+    "description": "Snackbar after a mark.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "busMarkedDropped": "{name} dropped",
+  "@busMarkedDropped": {
+    "description": "Snackbar after a mark.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "busMarkedAbsent": "{name} absent",
+  "@busMarkedAbsent": {
+    "description": "Snackbar after a mark.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "busMarkedPending": "{name} pending",
+  "@busMarkedPending": {
+    "description": "Snackbar after a mark.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "busUndoneOne": "Taken back - {name} is not marked.",
+  "@busUndoneOne": {
+    "description": "Snackbar.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "busUndoTooLate": "Already sent to the school, so it stands. Ask the office to correct it.",
+  "@busUndoTooLate": {
+    "description": "Snackbar."
+  },
+  "busVoiceMute": "Mute the spoken prompts",
+  "@busVoiceMute": {
+    "description": "Tooltip of the voice toggle."
+  },
+  "busVoiceSpeak": "Speak the next stop",
+  "@busVoiceSpeak": {
+    "description": "Tooltip of the voice toggle."
+  },
+  "busStillOnBoard": "{count, plural, =1{1 child is} other{{count} children are}} still on board. Drop them off before ending the trip.",
+  "@busStillOnBoard": {
+    "description": "Why End trip is disabled.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busRunningLate": "Running late",
+  "@busRunningLate": {
+    "description": "Button that opens the running-late sheet."
+  },
+  "busTripCounts": "{boarded} on board · {waiting} waiting · {dropped} dropped · {absent} absent",
+  "@busTripCounts": {
+    "description": "Trip header counts.",
+    "placeholders": {
+      "boarded": {
+        "type": "int"
+      },
+      "waiting": {
+        "type": "int"
+      },
+      "dropped": {
+        "type": "int"
+      },
+      "absent": {
+        "type": "int"
+      }
+    }
+  },
+  "busNavigateTo": "Navigate to {stop}",
+  "@busNavigateTo": {
+    "description": "Tooltip; stop name is data.",
+    "placeholders": {
+      "stop": {
+        "type": "String"
+      }
+    }
+  },
+  "busReached": "Reached",
+  "@busReached": {
+    "description": "Badge and button for a stop."
+  },
+  "busBulkTitleBoard": "Board at {place}",
+  "@busBulkTitleBoard": {
+    "description": "Bulk sheet title.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "busBulkTitleDrop": "Drop at {place}",
+  "@busBulkTitleDrop": {
+    "description": "Bulk sheet title.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "busUntickHelp": "Untick anyone who is not here.",
+  "@busUntickHelp": {
+    "description": "Bulk sheet help."
+  },
+  "busBulkConfirmBoard": "Board {count}",
+  "@busBulkConfirmBoard": {
+    "description": "Bulk sheet button.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busBulkConfirmDrop": "Drop {count}",
+  "@busBulkConfirmDrop": {
+    "description": "Bulk sheet button.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busShareLocation": "Share my location",
+  "@busShareLocation": {
+    "description": "Switch title."
+  },
+  "busLocAsking": "Asking for your location...",
+  "@busLocAsking": {
+    "description": "Switch subtitle."
+  },
+  "busLocOn": "The school can see where the bus is while this screen is open.",
+  "@busLocOn": {
+    "description": "Switch subtitle."
+  },
+  "busLocOff": "Off - the school cannot see where the bus is.",
+  "@busLocOff": {
+    "description": "Switch subtitle."
+  },
+  "busLocDenied": "Location permission was not given, so your location is not being shared.",
+  "@busLocDenied": {
+    "description": "Sharing stopped."
+  },
+  "busLocBlocked": "Location is blocked for this app. Allow it in the phone settings to share your location.",
+  "@busLocBlocked": {
+    "description": "Sharing stopped."
+  },
+  "busLocServiceOff": "Location is turned off on this phone. Turn it on to share your location.",
+  "@busLocServiceOff": {
+    "description": "Sharing stopped."
+  },
+  "busLocUnsupported": "This device cannot share its location.",
+  "@busLocUnsupported": {
+    "description": "Sharing stopped."
+  },
+  "busLocTripEnded": "The trip is no longer running, so location sharing has stopped.",
+  "@busLocTripEnded": {
+    "description": "Sharing stopped."
+  },
+  "busNotSent": "Not sent",
+  "@busNotSent": {
+    "description": "Heading of marks the server refused."
+  },
+  "busNotSentHelpEnded": "The school did not record these. Tell your school office, who can correct the trip.",
+  "@busNotSentHelpEnded": {
+    "description": "Help on a finished trip."
+  },
+  "busNotSentHelpRunning": "The school did not record these. Try again if something has changed, or tell your school office, who can correct the trip.",
+  "@busNotSentHelpRunning": {
+    "description": "Help on a running trip."
+  },
+  "busDismiss": "Dismiss",
+  "@busDismiss": {
+    "description": "Tooltip that removes a not-sent mark from the list."
+  },
+  "busMicFailed": "The microphone could not be used. Check the app's permission, or type the name.",
+  "@busMicFailed": {
+    "description": "Snackbar."
+  },
+  "busSearchListening": "Listening… say the child's name",
+  "@busSearchListening": {
+    "description": "Search hint while listening."
+  },
+  "busSearchHint": "Find a child by name, class or number",
+  "@busSearchHint": {
+    "description": "Search hint."
+  },
+  "busClear": "Clear",
+  "@busClear": {
+    "description": "Tooltip that clears the search."
+  },
+  "busStopListening": "Stop listening",
+  "@busStopListening": {
+    "description": "Tooltip of the microphone."
+  },
+  "busSayName": "Say the name",
+  "@busSayName": {
+    "description": "Tooltip of the microphone."
+  },
+  "busStatusPending": "Pending",
+  "@busStatusPending": {
+    "description": "A child not yet marked on this trip."
+  },
+  "busStatusBoarded": "Boarded",
+  "@busStatusBoarded": {
+    "description": "Child status / mark button."
+  },
+  "busStatusDropped": "Dropped",
+  "@busStatusDropped": {
+    "description": "Child status / mark button."
+  },
+  "busStatusAbsent": "Absent",
+  "@busStatusAbsent": {
+    "description": "Child status / mark button."
+  },
+  "busMarkedBy": "{status} by {name}",
+  "@busMarkedBy": {
+    "description": "Who marked a child; time may follow.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "busCallParent": "Call parent",
+  "@busCallParent": {
+    "description": "Tooltip."
+  },
+  "busNoNumber": "No number on record",
+  "@busNoNumber": {
+    "description": "Tooltip when no guardian number."
+  },
+  "busSosSent": "SOS sent. Your school has been told where you are.",
+  "@busSosSent": {
+    "description": "Snackbar after SOS."
+  },
+  "busSosSemantics": "SOS. Hold for two seconds to ask your school for help.",
+  "@busSosSemantics": {
+    "description": "Screen-reader label of the SOS button."
+  },
+  "busSosHolding": "Keep holding...",
+  "@busSosHolding": {
+    "description": "SOS button while held."
+  },
+  "busSosHold": "Hold for SOS",
+  "@busSosHold": {
+    "description": "SOS button."
+  },
+  "busMarksSending": "Sending {count, plural, =1{1 mark} other{{count} marks}}...",
+  "@busMarksSending": {
+    "description": "Sync banner.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busMarksOffline": "Offline - {count, plural, =1{1 mark} other{{count} marks}} waiting to send",
+  "@busMarksOffline": {
+    "description": "Sync banner.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busMarksWaiting": "{count, plural, =1{1 mark} other{{count} marks}} waiting to send",
+  "@busMarksWaiting": {
+    "description": "Sync banner.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "busSendNow": "Send now",
+  "@busSendNow": {
+    "description": "Sync banner button."
+  },
+  "busNavTermsRefused": "Guidance inside this app needs Google's terms, which you did not accept. You can still use Google Maps.",
+  "@busNavTermsRefused": {
+    "description": "Navigation fallback."
+  },
+  "busNavNoRoute": "No route to this stop could be worked out. Check your signal, or try Google Maps.",
+  "@busNavNoRoute": {
+    "description": "Navigation fallback."
+  },
+  "busNavUnavailable": "Guidance inside this app is not switched on for your school yet. Google Maps will take you there.",
+  "@busNavUnavailable": {
+    "description": "Navigation fallback."
+  },
+  "busOpenGoogleMaps": "Open Google Maps",
+  "@busOpenGoogleMaps": {
+    "description": "Button."
+  },
+  "busBatteryTitle": "Keep the bus on the map",
+  "@busBatteryTitle": {
+    "description": "Battery help title and tooltip."
+  },
+  "busBatteryDone": "Done. This phone will keep reporting with the screen off.",
+  "@busBatteryDone": {
+    "description": "Snackbar."
+  },
+  "busBatteryNotChanged": "Not changed. The steps below do the same thing by hand.",
+  "@busBatteryNotChanged": {
+    "description": "Snackbar."
+  },
+  "busBatteryWhy": "Why the school sometimes loses the bus",
+  "@busBatteryWhy": {
+    "description": "Heading."
+  },
+  "busBatteryIntro": "While a trip is running, this phone sends its position to the school so the office and parents can see where the bus is. Most phones stop apps they think you are not using - and a phone in a cradle with its screen off looks exactly like an app nobody is using.\n\nThese two settings tell the phone this one is different. You only have to do it once.",
+  "@busBatteryIntro": {
+    "description": "Battery help intro."
+  },
+  "busBatteryStep1Title": "Allow it to run in the background",
+  "@busBatteryStep1Title": {
+    "description": "Step 1 title."
+  },
+  "busBatteryStep1Done": "Already allowed on this phone.",
+  "@busBatteryStep1Done": {
+    "description": "Step 1 done."
+  },
+  "busBatteryStep1Body": "This is the setting Android itself controls, and the button below opens it.",
+  "@busBatteryStep1Body": {
+    "description": "Step 1 body."
+  },
+  "busBatteryAllow": "Allow",
+  "@busBatteryAllow": {
+    "description": "Step 1 button."
+  },
+  "busBatteryStep2Title": "Turn off your phone maker's battery saver for this app",
+  "@busBatteryStep2Title": {
+    "description": "Step 2 title."
+  },
+  "busBatteryStep2Body": "This one is not the same on every phone, and no app can change it for you. Find your make below.",
+  "@busBatteryStep2Body": {
+    "description": "Step 2 body."
+  },
+  "busBatteryNotSure": "If you are not sure which make your phone is, show this screen to your school office.",
+  "@busBatteryNotSure": {
+    "description": "Battery help footnote."
+  },
+  "busMakeXiaomi": "Xiaomi, Redmi or POCO",
+  "@busMakeXiaomi": {
+    "description": "Phone make group."
+  },
+  "busMakeXiaomi1": "Settings > Apps > Manage apps > School365ai Driver > Battery saver > No restrictions.",
+  "@busMakeXiaomi1": {
+    "description": "Settings path; menu names stay as the phone shows them in English."
+  },
+  "busMakeXiaomi2": "On the same screen, turn on Autostart.",
+  "@busMakeXiaomi2": {
+    "description": "Step."
+  },
+  "busMakeXiaomi3": "Open Recent apps, swipe down on this app's card and tap the padlock so it is not cleared.",
+  "@busMakeXiaomi3": {
+    "description": "Step."
+  },
+  "busMakeOppo": "Oppo, Realme or OnePlus",
+  "@busMakeOppo": {
+    "description": "Phone make group."
+  },
+  "busMakeOppo1": "Settings > Battery > Power saving > App battery usage (or App battery management).",
+  "@busMakeOppo1": {
+    "description": "Settings path."
+  },
+  "busMakeOppo2": "Find School365ai Driver and choose Allow background activity, or Don't optimise.",
+  "@busMakeOppo2": {
+    "description": "Step."
+  },
+  "busMakeOppo3": "Turn on Allow auto launch for this app.",
+  "@busMakeOppo3": {
+    "description": "Step."
+  },
+  "busMakeVivo": "Vivo or iQOO",
+  "@busMakeVivo": {
+    "description": "Phone make group."
+  },
+  "busMakeVivo1": "Settings > Battery > Background power consumption management > School365ai Driver > Allow high background power consumption.",
+  "@busMakeVivo1": {
+    "description": "Settings path."
+  },
+  "busMakeVivo2": "Settings > Apps > Autostart, and turn it on for this app.",
+  "@busMakeVivo2": {
+    "description": "Step."
+  },
+  "busMakeSamsung": "Samsung",
+  "@busMakeSamsung": {
+    "description": "Phone make group."
+  },
+  "busMakeSamsung1": "Settings > Apps > School365ai Driver > Battery > Unrestricted.",
+  "@busMakeSamsung1": {
+    "description": "Settings path."
+  },
+  "busMakeSamsung2": "Settings > Battery > Background usage limits, and make sure this app is not in Sleeping apps or Deep sleeping apps.",
+  "@busMakeSamsung2": {
+    "description": "Step."
+  },
+  "busMakeOther": "Any other phone",
+  "@busMakeOther": {
+    "description": "Phone make group."
+  },
+  "busMakeOther1": "Settings > Apps > School365ai Driver > Battery, and choose the least restricted option offered.",
+  "@busMakeOther1": {
+    "description": "Step."
+  },
+  "busMakeOther2": "If there is an Autostart or Auto launch setting, turn it on.",
+  "@busMakeOther2": {
+    "description": "Step."
+  },
+  "busTripLogUnreadable": "The trip log could not be read.",
+  "@busTripLogUnreadable": {
+    "description": "Trip check error."
+  },
+  "busTripCheckNone": "No trip has shared its location on this phone yet. Run a trip with \"Share my location\" on, then come back here.",
+  "@busTripCheckNone": {
+    "description": "Trip check with no log."
+  },
+  "busShareReport": "Share report",
+  "@busShareReport": {
+    "description": "Button."
+  },
+  "busClearLog": "Clear the log",
+  "@busClearLog": {
+    "description": "Button."
+  },
+  "busBatteryExempt": "Battery saving will not stop this app",
+  "@busBatteryExempt": {
+    "description": "Battery state."
+  },
+  "busBatteryMayStop": "Battery saving may stop this app",
+  "@busBatteryMayStop": {
+    "description": "Battery state."
+  },
+  "busBatteryChecking": "Checking battery settings...",
+  "@busBatteryChecking": {
+    "description": "Battery state."
+  },
+  "busBatteryOwnSetting": "Some phones have their own setting as well - see the phone's battery steps.",
+  "@busBatteryOwnSetting": {
+    "description": "Battery card subtitle."
+  },
+  "busSteps": "Steps",
+  "@busSteps": {
+    "description": "Button to the battery steps."
+  },
+  "busLastTrip": "Last trip",
+  "@busLastTrip": {
+    "description": "Trip check card heading."
+  },
+  "busPositionsTaken": "Positions taken",
+  "@busPositionsTaken": {
+    "description": "Trip check row."
+  },
+  "busLongestGap": "Longest gap between positions",
+  "@busLongestGap": {
+    "description": "Trip check row."
+  },
+  "busSentToSchool": "Sent to the school",
+  "@busSentToSchool": {
+    "description": "Trip check row."
+  },
+  "busStillWaiting": "Still waiting on this phone",
+  "@busStillWaiting": {
+    "description": "Trip check row."
+  },
+  "busRefused": "Refused by the server",
+  "@busRefused": {
+    "description": "Trip check row."
+  },
+  "busDroppedAfterEnd": "Dropped after the trip ended",
+  "@busDroppedAfterEnd": {
+    "description": "Trip check row."
+  },
+  "busBackgrounded": "Times the app went to the background",
+  "@busBackgrounded": {
+    "description": "Trip check row."
+  },
+  "busGapVerdict": "A gap of {gap} from {time}: the phone most likely paused the app. Follow the battery steps for this phone and run a trip again.",
+  "@busGapVerdict": {
+    "description": "Trip check verdict.",
+    "placeholders": {
+      "gap": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "busNoGapVerdict": "No long gaps: the phone kept sharing the whole way.",
+  "@busNoGapVerdict": {
+    "description": "Trip check verdict."
+  },
+  "busSharingStopped": "Sharing stopped: {reason}",
+  "@busSharingStopped": {
+    "description": "Why sharing stopped; reason is a log detail.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  }
+}

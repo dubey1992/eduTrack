@@ -14,6 +14,12 @@ import '../family/data/family_repository.dart';
 import '../today/application/staff_today_card.dart';
 import '../today/data/today_repository.dart';
 
+import 'dart:ui' show Locale, PlatformDispatcher;
+
+import '../../core/l10n/app_language.dart';
+import '../../l10n/app_localizations.dart';
+import '../../l10n/app_localizations_en.dart';
+
 /// Which app's card: also the background job's task name.
 const staffWidgetApp = 'staff';
 const familyWidgetApp = 'family';
@@ -33,14 +39,15 @@ typedef Reader = T Function<T>(ProviderListenable<T> provider);
 /// Signed out and app lock come first and need no network: nothing about a
 /// class or a child is fetched for a widget that must not show it.
 Future<TodayCard?> currentTodayCard(Reader read, String app, DateTime now) async {
-  if (await read(authTokenStorageProvider).readToken() == null) return const TodayCard.signedOut();
-  if (await AppLockController.isEnabledIn(read(keyValueStoreProvider))) return const TodayCard.locked();
+  final l10n = await widgetLocalizations(read);
+  if (await read(authTokenStorageProvider).readToken() == null) return TodayCard.signedOut(l10n);
+  if (await AppLockController.isEnabledIn(read(keyValueStoreProvider))) return TodayCard.locked(l10n);
 
   try {
     if (app == staffWidgetApp) {
       final day = await read(todayRepositoryProvider).today();
 
-      return staffTodayCard(day, await _myDay(read), now);
+      return staffTodayCard(l10n, day, await _myDay(read), now);
     }
 
     final widget = read(homeScreenWidgetProvider);
@@ -49,13 +56,29 @@ Future<TodayCard?> currentTodayCard(Reader read, String app, DateTime now) async
     if (childId == null) return null;
     final name = await widget.recall(widgetChildNameKey) ?? 'Today';
 
-    return familyTodayCard(name, await read(familyRepositoryProvider).today(childId), now);
+    return familyTodayCard(l10n, name, await read(familyRepositoryProvider).today(childId), now);
   } on Failure catch (failure) {
-    if (failure.code == 'UNAUTHENTICATED') return const TodayCard.signedOut();
+    if (failure.code == 'UNAUTHENTICATED') return TodayCard.signedOut(l10n);
 
     debugPrint('Today widget: not refreshed (${failure.code})');
     return null;
   }
+}
+
+/// The words for the widget (M11): the language the person picked in the
+/// app, else the phone's - the same rule the app follows - and English for
+/// a language the apps do not have. Read from the phone each time: the
+/// background job has no app around it to ask.
+Future<AppLocalizations> widgetLocalizations(Reader read) async {
+  String? code;
+  try {
+    code = await read(keyValueStoreProvider).read(AppLanguageController.key);
+  } on Exception catch (error) {
+    debugPrint('Today widget: could not read the language: $error');
+  }
+  final locale = Locale(code ?? PlatformDispatcher.instance.locale.languageCode);
+
+  return AppLocalizations.delegate.isSupported(locale) ? lookupAppLocalizations(locale) : AppLocalizationsEn();
 }
 
 /// Checking in is a line of its own: a school without it, or a refusal,

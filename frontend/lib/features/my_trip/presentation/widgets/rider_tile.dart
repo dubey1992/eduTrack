@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../core/widgets/user_avatar.dart';
 import '../../../transport/data/models/transport_trip.dart';
 import '../../data/apply_marks.dart';
+import '../trip_words.dart';
 
 /// One child on the trip: who, how they stand, and big buttons for what can
 /// happen next - Boarded / Dropped / Absent, each enabled only when the
@@ -29,6 +31,7 @@ class RiderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final muted = context.appColors.muted;
+    final l10n = context.l10n;
     final hasNumber = (rider.guardianMobile ?? '').trim().isNotEmpty;
 
     return Container(
@@ -69,27 +72,27 @@ class RiderTile extends StatelessWidget {
                     // a name put there had no width left to render in.
                     if (rider.markedByName != null)
                       Text(
-                        '${rider.status.label} by ${rider.markedByName}'
+                        '${l10n.busMarkedBy(rider.status.labelIn(l10n), rider.markedByName!)}'
                         '${rider.markedAtLabel == null ? '' : ', ${rider.markedAtLabel}'}',
                         style: TextStyle(fontSize: 12, color: muted),
                       ),
                   ],
                 ),
               ),
-              StatusBadge(label: rider.status.label, tone: _toneFor(rider.status)),
+              StatusBadge(label: rider.status.labelIn(l10n), tone: _toneFor(rider.status)),
               if (running) ...[
                 const SizedBox(width: 8),
                 if (hasNumber)
                   IconButton.filledTonal(
                     key: Key('call-parent-${rider.studentId}'),
-                    tooltip: 'Call parent',
+                    tooltip: l10n.busCallParent,
                     iconSize: 26,
                     onPressed: onCallParent,
                     icon: const Icon(Icons.call),
                   )
                 else
                   Tooltip(
-                    message: 'No number on record',
+                    message: l10n.busNoNumber,
                     child: IconButton.filledTonal(
                       key: Key('call-parent-${rider.studentId}'),
                       iconSize: 26,
@@ -112,7 +115,7 @@ class RiderTile extends StatelessWidget {
                   Expanded(
                     child: _MarkButton(
                       key: Key('mark-${status.apiValue}-${rider.studentId}'),
-                      label: status.label,
+                      label: status.labelIn(l10n),
                       icon: icon,
                       onPressed: riderCanBecome(rider.status, status) ? () => onMark(status) : null,
                     ),

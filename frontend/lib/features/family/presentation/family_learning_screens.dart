@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/family_brand.dart';
 import '../../../core/utils/date_format.dart';
@@ -14,6 +16,7 @@ import '../data/models/family_account.dart';
 import '../data/models/family_learning.dart';
 import '../data/models/family_homework.dart';
 import '../../../core/utils/pdf_hand_off.dart';
+import 'family_words.dart';
 import 'widgets/family_widgets.dart';
 import 'widgets/marks_trend.dart';
 
@@ -39,7 +42,7 @@ class _LearningScaffold extends ConsumerWidget {
         ),
       ),
       body: child == null
-          ? const FamilyEmptyView(icon: Icons.family_restroom_rounded, title: 'No children to show')
+          ? FamilyEmptyView(icon: Icons.family_restroom_rounded, title: context.l10n.familyNoChildrenTitle)
           : body(child),
     );
   }
@@ -79,7 +82,8 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
           'progress-report-${child.firstName.toLowerCase()}-${term.name.toLowerCase().replaceAll(' ', '-')}.pdf';
       await ref.read(pdfHandOffProvider)(bytes, name);
     } on Failure catch (failure) {
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(failure.localizedMessage(context))));
     } finally {
       if (mounted) setState(() => _downloading = false);
     }
@@ -88,7 +92,7 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
   @override
   Widget build(BuildContext context) {
     return _LearningScaffold(
-      title: 'Results',
+      title: context.l10n.familyResults,
       body: (child) {
         final key = (child.id, _termId);
         return ref
@@ -126,10 +130,10 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
                       const SizedBox(height: 12),
                     ],
                     if (results.term == null)
-                      const FamilyEmptyView(
+                      FamilyEmptyView(
                         icon: Icons.grade_outlined,
-                        title: 'No terms yet',
-                        message: 'Results appear here once the school sets up its terms.',
+                        title: context.l10n.familyNoTermsYet,
+                        message: context.l10n.familyNoTermsYetMessage,
                       )
                     else ...[
                       _ReportCard(
@@ -146,7 +150,7 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const CardHeading(icon: Icons.format_quote_rounded, title: 'From the class teacher'),
+                              CardHeading(icon: Icons.format_quote_rounded, title: context.l10n.familyFromClassTeacher),
                               const SizedBox(height: 10),
                               Text(results.remark!, style: const TextStyle(height: 1.4)),
                             ],
@@ -155,12 +159,12 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
                       ],
                       const SizedBox(height: 12),
                       if (results.subjects.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 24),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 24),
                           child: FamilyEmptyView(
                             icon: Icons.grade_outlined,
-                            title: 'No results yet this term',
-                            message: 'A test appears here once the teacher publishes its marks.',
+                            title: context.l10n.familyNoResultsThisTerm,
+                            message: context.l10n.familyNoResultsThisTermMessage,
                           ),
                         )
                       else ...[
@@ -172,13 +176,7 @@ class _FamilyResultsScreenState extends ConsumerState<FamilyResultsScreen> {
                           ),
                           const SizedBox(height: 12),
                         ],
-                        const HowWorkedOut(
-                          key: Key('family-why-results'),
-                          explanation:
-                              "Each subject's figure is the average of its published test marks this term, as "
-                              'percentages - weighted when the school gave every test a weight. A test the child '
-                              "missed is left out. The grade comes from the school's own grading scale.",
-                        ),
+                        HowWorkedOut(key: const Key('family-why-results'), explanation: context.l10n.familyWhyResults),
                       ],
                     ],
                   ],
@@ -217,11 +215,13 @@ class _ReportCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${term.name} progress report', style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(context.l10n.familyProgressReport(term.name), style: const TextStyle(fontWeight: FontWeight.w600)),
                 Text(
                   available
-                      ? 'Open it, save it or share it.'
-                      : 'Ready when the term ends${from == null ? '' : ', on ${formatDate(from!)}'}.',
+                      ? context.l10n.familyReportOpenSaveShare
+                      : from == null
+                      ? context.l10n.familyReportReadyTermEnds
+                      : context.l10n.familyReportReadyOn(formatDate(from!)),
                   style: TextStyle(color: context.appColors.muted, fontSize: 13),
                 ),
               ],
@@ -233,7 +233,7 @@ class _ReportCard extends StatelessWidget {
               onPressed: busy ? null : onDownload,
               child: busy
                   ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Get PDF'),
+                  : Text(context.l10n.familyGetPdf),
             ),
         ],
       ),
@@ -265,8 +265,9 @@ class _SubjectCard extends StatelessWidget {
           title: Text(subject.subject, style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(
             [
-              '${subject.tests.length} ${subject.tests.length == 1 ? 'test' : 'tests'}',
-              if (showsAverage && subject.classAverage != null) 'class ${readableNumber(subject.classAverage)}%',
+              context.l10n.familyTestsCount(subject.tests.length),
+              if (showsAverage && subject.classAverage != null)
+                context.l10n.familyClassPercent(readableNumber(subject.classAverage)),
             ].join(' · '),
             style: TextStyle(color: muted, fontSize: 13),
           ),
@@ -278,7 +279,8 @@ class _SubjectCard extends StatelessWidget {
                 subject.average == null ? '-' : '${readableNumber(subject.average)}%',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: colour),
               ),
-              if (subject.grade != null) Text('Grade ${subject.grade}', style: TextStyle(color: muted, fontSize: 12)),
+              if (subject.grade != null)
+                Text(context.l10n.familyGrade(subject.grade!), style: TextStyle(color: muted, fontSize: 12)),
             ],
           ),
           children: [
@@ -318,7 +320,7 @@ class _TestRow extends StatelessWidget {
                   [
                     if (test.date != null) formatDate(test.date!),
                     if (showsAverage && test.classAverage != null)
-                      'class average ${readableNumber(test.classAverage)}%',
+                      context.l10n.familyClassAverage(readableNumber(test.classAverage)),
                   ].join(' · '),
                   style: TextStyle(color: muted, fontSize: 12),
                 ),
@@ -330,7 +332,7 @@ class _TestRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                test.score,
+                test.scoreWords(context.l10n),
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: test.isAbsent ? context.appColors.warning : _markColour(context, test.percentage, weakBelow),
@@ -360,7 +362,7 @@ class _FamilyTimetableScreenState extends ConsumerState<FamilyTimetableScreen> {
   @override
   Widget build(BuildContext context) {
     return _LearningScaffold(
-      title: 'Timetable',
+      title: context.l10n.familyTimetable,
       body: (child) => ref
           .watch(familyWeekProvider(child.id))
           .when(
@@ -369,10 +371,10 @@ class _FamilyTimetableScreenState extends ConsumerState<FamilyTimetableScreen> {
                 FamilyErrorView(error: error, onRetry: () => ref.read(familyWeekProvider(child.id).notifier).refresh()),
             data: (week) {
               if (week.days.every((day) => day.periods.isEmpty)) {
-                return const FamilyEmptyView(
+                return FamilyEmptyView(
                   icon: Icons.schedule_rounded,
-                  title: 'No timetable yet',
-                  message: 'The class\'s timetable appears here once the school sets it.',
+                  title: context.l10n.familyNoTimetableYet,
+                  message: context.l10n.familyNoTimetableYetMessage,
                 );
               }
 
@@ -395,7 +397,11 @@ class _FamilyTimetableScreenState extends ConsumerState<FamilyTimetableScreen> {
                             padding: const EdgeInsets.only(right: 8),
                             child: ChoiceChip(
                               key: Key('family-day-${day.day}'),
-                              label: Text(day.day == week.today ? '${day.shortLabel} · today' : day.shortLabel),
+                              label: Text(
+                                day.day == week.today
+                                    ? context.l10n.familyDayToday(context.l10n.familyWeekdayShort(day.day))
+                                    : context.l10n.familyWeekdayShort(day.day),
+                              ),
                               selected: day.day == chosen.day,
                               onSelected: (_) => setState(() => _day = day.day),
                             ),
@@ -420,6 +426,7 @@ class _DayList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final muted = context.appColors.muted;
+    final dayName = context.l10n.familyWeekday(day.day);
     // Periods and breaks in the order the bells ring.
     final rows = <(String, Widget)>[
       for (final period in day.periods)
@@ -430,7 +437,10 @@ class _DayList extends StatelessWidget {
               width: 64,
               child: Text(formatClock(period.startTime), style: TextStyle(color: muted, fontSize: 13)),
             ),
-            title: Text(period.subject ?? 'Free period', style: const TextStyle(fontWeight: FontWeight.w600)),
+            title: Text(
+              period.subject ?? context.l10n.familyFreePeriod,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             subtitle: period.teacher == null ? null : Text(period.teacher!),
           ),
         ),
@@ -458,10 +468,10 @@ class _DayList extends StatelessWidget {
         if (day.isHalfDay)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text('${day.label} is a half day.', style: TextStyle(color: muted)),
+            child: Text(context.l10n.familyHalfDay(dayName), style: TextStyle(color: muted)),
           ),
         if (day.periods.isEmpty)
-          Text('No classes on ${day.label}.', style: TextStyle(color: muted))
+          Text(context.l10n.familyNoClassesOn(dayName), style: TextStyle(color: muted))
         else
           FamilyCard(
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -480,7 +490,7 @@ class FamilySyllabusScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return _LearningScaffold(
-      title: 'Syllabus',
+      title: context.l10n.familySyllabus,
       body: (child) => ref
           .watch(familySyllabusProvider(child.id))
           .when(
@@ -490,10 +500,10 @@ class FamilySyllabusScreen extends ConsumerWidget {
               onRetry: () => ref.read(familySyllabusProvider(child.id).notifier).refresh(),
             ),
             data: (subjects) => subjects.isEmpty
-                ? const FamilyEmptyView(
+                ? FamilyEmptyView(
                     icon: Icons.menu_book_rounded,
-                    title: 'No syllabus yet',
-                    message: 'What the class will cover appears here once the school adds it.',
+                    title: context.l10n.familyNoSyllabusYet,
+                    message: context.l10n.familyNoSyllabusYetMessage,
                   )
                 : ListView.separated(
                     key: const Key('family-syllabus'),
@@ -517,7 +527,7 @@ class FamilyHomeworkScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return _LearningScaffold(
-      title: 'Homework',
+      title: context.l10n.familyHomework,
       body: (child) => ref
           .watch(familyHomeworkProvider(child.id))
           .when(
@@ -527,10 +537,10 @@ class FamilyHomeworkScreen extends ConsumerWidget {
               onRetry: () => ref.read(familyHomeworkProvider(child.id).notifier).refresh(),
             ),
             data: (days) => days.isEmpty
-                ? const FamilyEmptyView(
+                ? FamilyEmptyView(
                     icon: Icons.edit_note_rounded,
-                    title: 'No homework in the last two weeks',
-                    message: 'When a teacher sets homework for the class, it appears here that day.',
+                    title: context.l10n.familyNoHomework,
+                    message: context.l10n.familyNoHomeworkMessage,
                   )
                 : ListView.separated(
                     key: const Key('family-homework'),
@@ -561,13 +571,13 @@ class _HomeworkDayCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            day.today ? 'Today - ${day.dateLabel}' : day.dateLabel,
+            day.today ? context.l10n.familyTodayDash(day.dateLabel) : day.dateLabel,
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           for (final item in day.items) ...[
             const SizedBox(height: 10),
             Text(
-              item.subject ?? 'Homework',
+              item.subject ?? context.l10n.familyHomework,
               style: TextStyle(color: muted, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 2),
@@ -618,12 +628,17 @@ class _SyllabusCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            subject.total == 0 ? 'No topics added yet.' : '${subject.covered} of ${subject.total} topics covered',
+            subject.total == 0
+                ? context.l10n.familyNoTopicsYet
+                : context.l10n.familyTopicsCovered('${subject.covered}', '${subject.total}'),
             style: TextStyle(color: muted, fontSize: 13),
           ),
           if (subject.nextTopics.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text('Coming up: ${subject.nextTopics.join(', ')}', style: TextStyle(color: muted, fontSize: 12)),
+            Text(
+              context.l10n.familyComingUp(subject.nextTopics.join(', ')),
+              style: TextStyle(color: muted, fontSize: 12),
+            ),
           ],
         ],
       ),

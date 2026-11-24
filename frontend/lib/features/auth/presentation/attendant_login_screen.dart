@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/auth_notifier.dart';
 import '../data/attendant_auth_repository.dart';
@@ -109,7 +111,7 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
     } on Failure catch (failure) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = failure.message;
+        _errorMessage = failure.localizedMessage(context);
         _passcodeController.clear();
         // The server no longer knows this phone (and its secret has been
         // forgotten): the only way on is a new setup code.
@@ -156,6 +158,7 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
   Widget _buildForm() {
     final registering = _mode == _Mode.register;
     final palette = AuthPalette.of(context);
+    final l10n = context.l10n;
 
     return Form(
       key: _formKey,
@@ -165,12 +168,10 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
         children: [
           const DriverMark(size: 48),
           const SizedBox(height: 12),
-          Text(registering ? 'Register this phone' : 'Bus crew sign in', style: palette.heading(24)),
+          Text(registering ? l10n.busRegisterTitle : l10n.busSignInTitle, style: palette.heading(24)),
           const SizedBox(height: 4),
           Text(
-            registering
-                ? 'Enter your mobile number, the 8-digit setup code from your school office, and choose a 4-digit passcode.'
-                : 'Enter your mobile number and your 4-digit passcode.',
+            registering ? l10n.busRegisterHelp : l10n.busSignInHelp,
             style: TextStyle(fontSize: 14, color: palette.muted),
           ),
           const SizedBox(height: 20),
@@ -178,7 +179,7 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
             // A new field per form, so it picks up the number already typed.
             key: ValueKey('mobile-$_mode'),
             controller: _mobileController,
-            label: 'Mobile',
+            label: l10n.busMobileLabel,
             required: true,
           ),
           const SizedBox(height: 14),
@@ -186,42 +187,46 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
             _DigitsField(
               key: const Key('attendant-setup-code'),
               controller: _setupCodeController,
-              label: 'Setup code',
+              label: l10n.busSetupCodeLabel,
               length: 8,
               obscure: false,
-              validator: (value) =>
-                  RegExp(r'^\d{8}$').hasMatch(value ?? '') ? null : 'Enter the 8-digit setup code from your office',
+              validator: (value) => RegExp(r'^\d{8}$').hasMatch(value ?? '') ? null : l10n.busSetupCodeInvalid,
             ),
             const SizedBox(height: 14),
             _DigitsField(
               key: const Key('attendant-new-passcode'),
               controller: _newPasscodeController,
-              label: 'New passcode',
+              label: l10n.busNewPasscodeLabel,
               length: 4,
-              validator: (value) => passcodeProblem(value ?? ''),
+              validator: (value) => passcodeProblem(value ?? '', l10n: context.l10n),
             ),
             const SizedBox(height: 14),
             _DigitsField(
               key: const Key('attendant-confirm-passcode'),
               controller: _confirmPasscodeController,
-              label: 'Confirm passcode',
+              label: l10n.busConfirmPasscodeLabel,
               length: 4,
-              validator: (value) => value == _newPasscodeController.text ? null : 'The passcodes do not match',
+              validator: (value) => value == _newPasscodeController.text ? null : l10n.busPasscodesDiffer,
               onSubmitted: _submit,
             ),
           ] else
             _DigitsField(
               key: const Key('attendant-passcode'),
               controller: _passcodeController,
-              label: 'Passcode',
+              label: l10n.busPasscodeLabel,
               length: 4,
-              validator: (value) => RegExp(r'^\d{4}$').hasMatch(value ?? '') ? null : 'Enter your 4-digit passcode',
+              validator: (value) => RegExp(r'^\d{4}$').hasMatch(value ?? '') ? null : l10n.busPasscodeInvalid,
               onSubmitted: _submit,
             ),
-          if (_errorMessage != null) ...[const SizedBox(height: 14), _ErrorBanner(message: _errorMessage!)],
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 14),
+            _ErrorBanner(
+              message: _errorMessage == sessionEndedMessage ? context.l10n.staffSessionEnded : _errorMessage!,
+            ),
+          ],
           const SizedBox(height: 20),
           PrimaryButton(
-            label: registering ? 'Register and sign in' : 'Sign In',
+            label: registering ? l10n.busRegisterButton : l10n.busSignInButton,
             isLoading: _isSubmitting,
             onPressed: _submit,
           ),
@@ -233,20 +238,20 @@ class _AttendantLoginScreenState extends ConsumerState<AttendantLoginScreen> {
               key: const Key('attendant-use-passcode'),
               onPressed: _isSubmitting ? null : () => _switchTo(_Mode.passcode),
               style: TextButton.styleFrom(foregroundColor: palette.primary),
-              child: const Text('Already set up? Sign in with your passcode'),
+              child: Text(l10n.busUsePasscode),
             )
           else
             TextButton(
               key: const Key('attendant-use-setup-code'),
               onPressed: _isSubmitting ? null : () => _switchTo(_Mode.register),
               style: TextButton.styleFrom(foregroundColor: palette.primary),
-              child: const Text('Have a new setup code? Register this phone again'),
+              child: Text(l10n.busUseSetupCode),
             ),
           if (widget.offersEmailSignIn)
             TextButton(
               onPressed: _isSubmitting ? null : () => context.go('/login'),
               style: TextButton.styleFrom(foregroundColor: palette.primary),
-              child: const Text('Sign in with email instead'),
+              child: Text(l10n.busUseEmail),
             ),
         ],
       ),

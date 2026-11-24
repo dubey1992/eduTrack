@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/failure_text.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/errors/failure.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/photo_picker.dart';
@@ -46,10 +48,10 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
 
   /// Checks what the server would refuse anyway, so a too-big photo is not
   /// uploaded only to be turned away.
-  static String? _problemWith(PickedFile file) {
+  static String? _problemWith(AppLocalizations l10n, PickedFile file) {
     final name = file.name.toLowerCase();
-    if (!_photoExtensions.any(name.endsWith)) return 'The photo must be a JPEG or PNG image.';
-    if (file.bytes.length > _maxPhotoBytes) return 'The photo must be 5 MB or smaller.';
+    if (!_photoExtensions.any(name.endsWith)) return l10n.staffPhotoMustBeImage;
+    if (file.bytes.length > _maxPhotoBytes) return l10n.staffStudentPhotoTooBig;
     return null;
   }
 
@@ -66,12 +68,12 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
       file = await ref.read(photoPickerProvider)(source);
     } catch (error) {
       debugPrint('Picking a student photo failed: $error');
-      if (mounted) setState(() => _error = 'The photo could not be read. Try another file.');
+      if (mounted) setState(() => _error = context.l10n.staffPhotoUnreadable);
       return;
     }
     if (file == null || !mounted) return;
 
-    final problem = _problemWith(file);
+    final problem = _problemWith(context.l10n, file);
     if (problem != null) {
       setState(() => _error = problem);
       return;
@@ -79,7 +81,7 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
 
     await _run(
       () => ref.read(studentRepositoryProvider).uploadPhoto(_student.id, bytes: file!.bytes, fileName: file.name),
-      success: 'Photo saved.',
+      success: context.l10n.staffPhotoSaved,
     );
   }
 
@@ -93,13 +95,13 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
           ListTile(
             key: const Key('student-photo-camera'),
             leading: const Icon(Icons.photo_camera_outlined),
-            title: const Text('Take a photo'),
+            title: Text(context.l10n.staffTakeAPhoto),
             onTap: () => Navigator.of(context).pop(PhotoSource.camera),
           ),
           ListTile(
             key: const Key('student-photo-gallery'),
             leading: const Icon(Icons.photo_library_outlined),
-            title: const Text('Choose from photos'),
+            title: Text(context.l10n.staffChooseFromPhotosShort),
             onTap: () => Navigator.of(context).pop(PhotoSource.gallery),
           ),
         ],
@@ -110,16 +112,17 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
   Future<void> _remove() async {
     if (_busy) return;
 
+    final l10n = context.l10n;
     final confirmed = await confirmDialog(
       context,
-      title: 'Remove photo?',
-      message: "${_student.name}'s initials will be shown instead.",
-      confirmLabel: 'Remove photo',
+      title: l10n.staffRemovePhotoShortQ,
+      message: l10n.staffStudentInitialsInstead(_student.name),
+      confirmLabel: l10n.staffRemovePhoto,
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
 
-    await _run(() => ref.read(studentRepositoryProvider).removePhoto(_student.id), success: 'Photo removed.');
+    await _run(() => ref.read(studentRepositoryProvider).removePhoto(_student.id), success: l10n.staffPhotoRemoved);
   }
 
   Future<void> _run(Future<Student> Function() change, {required String success}) async {
@@ -138,7 +141,9 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
         ..showSnackBar(SnackBar(content: Text(success)));
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _error = failure.validationErrors['photo']?.first ?? failure.message);
+      if (mounted) {
+        setState(() => _error = failure.validationErrors['photo']?.first ?? failure.localizedMessage(context));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -165,14 +170,14 @@ class _StudentPhotoFieldState extends ConsumerState<StudentPhotoField> {
                     key: const Key('student-photo-upload'),
                     onPressed: _busy ? null : _upload,
                     icon: Icon(kIsWeb ? Icons.upload_outlined : Icons.photo_camera_outlined, size: 18),
-                    label: Text(hasPhoto ? 'Change photo' : 'Add photo'),
+                    label: Text(hasPhoto ? context.l10n.staffChangePhoto : context.l10n.staffAddPhoto),
                   ),
                   if (hasPhoto)
                     TextButton.icon(
                       key: const Key('student-photo-remove'),
                       onPressed: _busy ? null : _remove,
                       icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Remove'),
+                      label: Text(context.l10n.staffRemove),
                     ),
                 ],
               ),

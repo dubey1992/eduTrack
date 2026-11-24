@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../call_requests/call_requests.dart';
 import '../../my_teaching/data/outbox.dart';
 import '../../my_teaching/application/staff_outbox.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
@@ -15,9 +16,9 @@ import '../../auth/application/auth_notifier.dart';
 import '../../check_in/application/check_in_notifier.dart';
 import '../../check_in/presentation/check_in_card.dart';
 import '../../my_register/application/register_queue.dart';
-import '../../staff_leave/data/models/leave_type.dart';
 import '../application/today_notifier.dart';
 import '../data/models/teacher_day.dart';
+import 'staff_words.dart';
 
 /// The teacher's day (docs/teacher-app.md, T1).
 ///
@@ -91,7 +92,11 @@ class _DayView extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           const _CallRequestsCard(),
-          _SectionTitle(day.periods.isEmpty ? 'Your periods' : 'Your periods (${day.periods.length})'),
+          _SectionTitle(
+            day.periods.isEmpty
+                ? context.l10n.staffYourPeriods
+                : context.l10n.staffYourPeriodsCount(day.periods.length),
+          ),
           const SizedBox(height: 8),
           if (day.periods.isEmpty)
             const _EmptyPeriods()
@@ -146,7 +151,7 @@ class _BreakLine extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              now ? '${found.name} - now' : found.name,
+              now ? context.l10n.staffBreakNow(found.name) : found.name,
               style: TextStyle(fontWeight: now ? FontWeight.w700 : FontWeight.w500),
             ),
           ),
@@ -157,17 +162,9 @@ class _BreakLine extends StatelessWidget {
   }
 }
 
-String _leaveLabel(String apiValue) {
-  for (final type in LeaveType.values) {
-    if (type.apiValue == apiValue) return type.label;
-  }
-
-  return apiValue;
-}
-
-String _span(LeaveSpan leave) => leave.startDate == leave.endDate
+String _span(AppLocalizations l10n, LeaveSpan leave) => leave.startDate == leave.endDate
     ? formatDate(leave.startDate)
-    : '${formatDate(leave.startDate)} to ${formatDate(leave.endDate)}';
+    : l10n.staffDateRange(formatDate(leave.startDate), formatDate(leave.endDate));
 
 class _Greeting extends ConsumerWidget {
   const _Greeting({required this.date, this.isHalfDay = false});
@@ -186,7 +183,7 @@ class _Greeting extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          firstName.isEmpty ? 'Good day' : 'Good day, $firstName',
+          firstName.isEmpty ? context.l10n.staffGoodDay : context.l10n.staffGoodDayName(firstName),
           key: const Key('today-greeting'),
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
         ),
@@ -203,7 +200,7 @@ class _Greeting extends ConsumerWidget {
               ),
               if (isHalfDay) ...[
                 const SizedBox(width: 8),
-                const StatusBadge(key: Key('today-half-day'), label: 'Half day', tone: BadgeTone.info),
+                StatusBadge(key: const Key('today-half-day'), label: context.l10n.staffHalfDay, tone: BadgeTone.info),
               ],
             ],
           ),
@@ -271,8 +268,8 @@ class _ClosedCard extends StatelessWidget {
     return _InfoCard(
       key: const Key('today-closed'),
       icon: Icons.event_busy_outlined,
-      title: holidayName == null ? 'No school today' : 'Holiday: $holidayName',
-      body: 'The school is closed, so there is no register to take and no report to write.',
+      title: holidayName == null ? context.l10n.staffNoSchoolToday : context.l10n.staffHolidayNamed(holidayName!),
+      body: context.l10n.staffClosedBody,
     );
   }
 }
@@ -288,8 +285,8 @@ class _OnLeaveCard extends StatelessWidget {
       key: const Key('today-on-leave'),
       icon: Icons.beach_access_outlined,
       color: context.appColors.info,
-      title: 'You are on leave today',
-      body: '${_leaveLabel(leave.leaveType)}, ${_span(leave)}. Nothing is owed while you are away.',
+      title: context.l10n.staffOnLeaveToday,
+      body: context.l10n.staffOnLeaveBody(leaveTypeLabelOf(context.l10n, leave.leaveType), _span(context.l10n, leave)),
     );
   }
 }
@@ -302,6 +299,7 @@ class _OwedLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     if (day.owed == 0) {
       return Row(
@@ -309,14 +307,14 @@ class _OwedLine extends StatelessWidget {
         children: [
           Icon(Icons.check_circle_outline, color: colors.success, size: 20),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Nothing owed so far today.')),
+          Expanded(child: Text(l10n.staffNothingOwed)),
         ],
       );
     }
 
     final parts = [
-      if (day.registersOwed > 0) day.registersOwed == 1 ? '1 register' : '${day.registersOwed} registers',
-      if (day.reportsOwed > 0) day.reportsOwed == 1 ? '1 teaching report' : '${day.reportsOwed} teaching reports',
+      if (day.registersOwed > 0) l10n.staffOwedRegisters(day.registersOwed),
+      if (day.reportsOwed > 0) l10n.staffOwedReports(day.reportsOwed),
     ];
 
     return Row(
@@ -324,7 +322,7 @@ class _OwedLine extends StatelessWidget {
       children: [
         Icon(Icons.pending_actions_outlined, color: colors.warning, size: 20),
         const SizedBox(width: 8),
-        Expanded(child: Text('Still to do: ${parts.join(' and ')}.')),
+        Expanded(child: Text(l10n.staffStillToDo(parts.join(l10n.staffAnd)))),
       ],
     );
   }
@@ -346,14 +344,15 @@ class _RegisterCard extends ConsumerWidget {
     final refusal = register.submitted || waiting ? null : queue.unsentFor(register.classSectionId, day)?.reason;
     final refused = refusal != null;
 
+    final l10n = context.l10n;
     final (label, tone, hint) = register.submitted
-        ? ('Taken', BadgeTone.success, 'Your class register')
+        ? (l10n.staffRegisterTaken, BadgeTone.success, l10n.staffYourClassRegister)
         : waiting
-        ? ('Saved, not sent', BadgeTone.info, 'Sends when there is signal')
+        ? (l10n.staffSavedNotSent, BadgeTone.info, l10n.staffSendsWithSignal)
         : refused
         // The server's reason itself, so the card explains without a tap.
-        ? ('Not sent', BadgeTone.danger, refusal)
-        : ('Not taken', BadgeTone.warning, 'Tap to take the register');
+        ? (l10n.staffNotSent, BadgeTone.danger, refusal)
+        : (l10n.staffRegisterNotTaken, BadgeTone.warning, l10n.staffTapToTakeRegister);
 
     return Card(
       key: Key('today-register-${register.classSectionId}'),
@@ -392,13 +391,13 @@ class _QuickLinks extends ConsumerWidget {
               key: const Key('today-open-students'),
               onPressed: () => context.push('/find-student'),
               icon: const Icon(Icons.person_search_outlined),
-              label: const Text('Students'),
+              label: Text(context.l10n.staffStudents),
             ),
           TextButton.icon(
             key: const Key('today-open-week'),
             onPressed: () => context.push('/week'),
             icon: const Icon(Icons.calendar_view_week_outlined),
-            label: const Text('My week'),
+            label: Text(context.l10n.staffMyWeek),
           ),
         ],
       ),
@@ -423,8 +422,8 @@ class _CallRequestsCard extends ConsumerWidget {
         key: const Key('today-call-requests'),
         child: ListTile(
           leading: const Icon(Icons.phone_callback_outlined),
-          title: Text(waiting == 1 ? 'A parent asked you to call' : '$waiting parents asked you to call'),
-          subtitle: const Text('Tap to see who, and ring them'),
+          title: Text(context.l10n.staffParentsAskedToCall(waiting)),
+          subtitle: Text(context.l10n.staffTapToSeeWho),
           trailing: const Icon(Icons.chevron_right),
           onTap: () async {
             await context.push('/call-requests');
@@ -482,7 +481,7 @@ class _PeriodCard extends StatelessWidget {
                   children: [
                     Text(period.subject, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                     Text(
-                      '${period.classSection} · Period ${period.periodNumber}',
+                      context.l10n.staffClassAndPeriod(period.classSection, period.periodNumber),
                       style: TextStyle(fontSize: 13, color: colors.muted),
                     ),
                     // Under the class rather than in a column of their own: on a
@@ -539,18 +538,19 @@ class _PeriodStatus extends ConsumerWidget {
     final waiting = !period.reportFiled && outbox.any((i) => i.key == key && i.refusal == null);
     final refused = !period.reportFiled && !waiting && outbox.any((i) => i.key == key && i.refusal != null);
 
+    final l10n = context.l10n;
     final badges = <Widget>[
-      if (period.state == PeriodState.current) const StatusBadge(label: 'Now', tone: BadgeTone.info),
+      if (period.state == PeriodState.current) StatusBadge(label: l10n.staffNow, tone: BadgeTone.info),
       if (waiting)
-        const StatusBadge(key: Key('today-report-waiting'), label: 'Saved, not sent', tone: BadgeTone.info)
+        StatusBadge(key: const Key('today-report-waiting'), label: l10n.staffSavedNotSent, tone: BadgeTone.info)
       else if (refused)
-        const StatusBadge(key: Key('today-report-refused'), label: 'Not sent - tap to see why', tone: BadgeTone.danger)
+        StatusBadge(key: const Key('today-report-refused'), label: l10n.staffNotSentTapWhy, tone: BadgeTone.danger)
       else if (period.reportReturned)
-        const StatusBadge(label: 'Sent back - tap to change', tone: BadgeTone.warning)
+        StatusBadge(label: l10n.staffSentBackTapChange, tone: BadgeTone.warning)
       else if (period.reportFiled)
-        const StatusBadge(label: 'Report filed', tone: BadgeTone.success)
+        StatusBadge(label: l10n.staffReportFiled, tone: BadgeTone.success)
       else if (period.reportOwed)
-        const StatusBadge(label: 'Report owed - tap to file', tone: BadgeTone.warning),
+        StatusBadge(label: l10n.staffReportOwedTapFile, tone: BadgeTone.warning),
     ];
 
     if (badges.isEmpty) return const SizedBox.shrink();
@@ -570,7 +570,7 @@ class _EmptyPeriods extends StatelessWidget {
     return Padding(
       key: const Key('today-no-periods'),
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text('You have no periods on the timetable today.', style: TextStyle(color: context.appColors.muted)),
+      child: Text(context.l10n.staffNoPeriodsToday, style: TextStyle(color: context.appColors.muted)),
     );
   }
 }
@@ -585,8 +585,11 @@ class _LeaveThisWeek extends StatelessWidget {
     return _InfoCard(
       key: const Key('today-leave-week'),
       icon: Icons.event_note_outlined,
-      title: 'Leave this week',
-      body: [for (final leave in leaves) '${_leaveLabel(leave.leaveType)}, ${_span(leave)}'].join('\n'),
+      title: context.l10n.staffLeaveThisWeek,
+      body: [
+        for (final leave in leaves)
+          context.l10n.staffLeaveLine(leaveTypeLabelOf(context.l10n, leave.leaveType), _span(context.l10n, leave)),
+      ].join('\n'),
     );
   }
 }

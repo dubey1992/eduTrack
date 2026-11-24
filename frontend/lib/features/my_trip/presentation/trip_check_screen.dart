@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/battery_guard.dart';
 import '../data/trip_health_log.dart';
@@ -35,12 +36,13 @@ class TripCheckScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final events = ref.watch(tripHealthEventsProvider);
     final mayStop = ref.watch(phoneMayStopSharingProvider);
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Trip check')),
+      appBar: AppBar(title: Text(l10n.busTripCheck)),
       body: events.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => const Center(child: Text('The trip log could not be read.')),
+        error: (error, _) => Center(child: Text(l10n.busTripLogUnreadable)),
         data: (list) {
           final summary = TripHealthSummary.of(list);
           final exempt = mayStop.value == null ? null : !mayStop.value!;
@@ -51,14 +53,8 @@ class TripCheckScreen extends ConsumerWidget {
               _PhoneCard(exempt: exempt),
               const SizedBox(height: 12),
               if (summary == null)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text(
-                      'No trip has shared its location on this phone yet. Run a trip with "Share my location" on, '
-                      'then come back here.',
-                    ),
-                  ),
+                Card(
+                  child: Padding(padding: const EdgeInsets.all(16), child: Text(l10n.busTripCheckNone)),
                 )
               else
                 _SummaryCard(summary: summary),
@@ -67,7 +63,7 @@ class TripCheckScreen extends ConsumerWidget {
                 key: const Key('trip-check-share'),
                 onPressed: () => ref.read(shareTextProvider)(reportText(summary, exempt: exempt, at: DateTime.now())),
                 icon: const Icon(Icons.share_outlined),
-                label: const Text('Share report'),
+                label: Text(l10n.busShareReport),
               ),
               const SizedBox(height: 8),
               TextButton(
@@ -78,7 +74,7 @@ class TripCheckScreen extends ConsumerWidget {
                         await ref.read(tripHealthLogProvider).clear();
                         ref.invalidate(tripHealthEventsProvider);
                       },
-                child: const Text('Clear the log'),
+                child: Text(l10n.busClearLog),
               ),
             ],
           );
@@ -96,6 +92,7 @@ class _PhoneCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colours = context.appColors;
+    final l10n = context.l10n;
 
     return Card(
       child: ListTile(
@@ -105,12 +102,12 @@ class _PhoneCard extends StatelessWidget {
           color: exempt == true ? colours.success : colours.warning,
         ),
         title: Text(switch (exempt) {
-          true => 'Battery saving will not stop this app',
-          false => 'Battery saving may stop this app',
-          null => 'Checking battery settings...',
+          true => l10n.busBatteryExempt,
+          false => l10n.busBatteryMayStop,
+          null => l10n.busBatteryChecking,
         }),
-        subtitle: const Text("Some phones have their own setting as well - see the phone's battery steps."),
-        trailing: TextButton(onPressed: () => context.push('/battery'), child: const Text('Steps')),
+        subtitle: Text(l10n.busBatteryOwnSetting),
+        trailing: TextButton(onPressed: () => context.push('/battery'), child: Text(l10n.busSteps)),
       ),
     );
   }
@@ -126,6 +123,7 @@ class _SummaryCard extends StatelessWidget {
     final colours = context.appColors;
     final time = DateFormat('h:mm a');
     final gapColour = summary.hadWorryingGap ? colours.danger : colours.success;
+    final l10n = context.l10n;
 
     Widget row(String label, String value, {Color? colour, Key? key}) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -147,36 +145,30 @@ class _SummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Last trip', style: Theme.of(context).textTheme.titleMedium),
+            Text(l10n.busLastTrip, style: Theme.of(context).textTheme.titleMedium),
             Text(
               '${DateFormat('MMM d').format(summary.from)}, ${time.format(summary.from)} - ${time.format(summary.to)}',
               style: TextStyle(color: colours.muted),
             ),
             const SizedBox(height: 8),
-            row('Positions taken', '${summary.points}'),
-            row(
-              'Longest gap between positions',
-              _minutes(summary.longestGap),
-              colour: gapColour,
-              key: const Key('trip-check-gap'),
-            ),
-            row('Sent to the school', '${summary.sent}'),
-            row('Still waiting on this phone', '${summary.stillWaiting}'),
-            if (summary.refused > 0) row('Refused by the server', '${summary.refused}', colour: colours.danger),
-            if (summary.cleared > 0) row('Dropped after the trip ended', '${summary.cleared}', colour: colours.warning),
-            row('Times the app went to the background', '${summary.backgrounded}'),
+            row(l10n.busPositionsTaken, '${summary.points}'),
+            row(l10n.busLongestGap, _minutes(summary.longestGap), colour: gapColour, key: const Key('trip-check-gap')),
+            row(l10n.busSentToSchool, '${summary.sent}'),
+            row(l10n.busStillWaiting, '${summary.stillWaiting}'),
+            if (summary.refused > 0) row(l10n.busRefused, '${summary.refused}', colour: colours.danger),
+            if (summary.cleared > 0) row(l10n.busDroppedAfterEnd, '${summary.cleared}', colour: colours.warning),
+            row(l10n.busBackgrounded, '${summary.backgrounded}'),
             const SizedBox(height: 8),
             Text(
               summary.hadWorryingGap
-                  ? 'A gap of ${_minutes(summary.longestGap)} from ${time.format(summary.longestGapAt!)}: the phone '
-                        'most likely paused the app. Follow the battery steps for this phone and run a trip again.'
-                  : 'No long gaps: the phone kept sharing the whole way.',
+                  ? l10n.busGapVerdict(_minutes(summary.longestGap), time.format(summary.longestGapAt!))
+                  : l10n.busNoGapVerdict,
               key: const Key('trip-check-verdict'),
               style: TextStyle(color: gapColour, fontWeight: FontWeight.w600),
             ),
             for (final reason in summary.stops) ...[
               const SizedBox(height: 4),
-              Text('Sharing stopped: $reason', style: TextStyle(color: colours.muted, fontSize: 12)),
+              Text(l10n.busSharingStopped(reason), style: TextStyle(color: colours.muted, fontSize: 12)),
             ],
           ],
         ),

@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/security/app_lock_gate.dart';
 import '../../../core/utils/photo_picker.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/file_picker.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -40,7 +42,7 @@ class ProfileScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(title: 'My Profile'),
+        SectionHeader(title: context.l10n.staffMyProfile),
         Expanded(
           child: AsyncValueView<Profile>(
             value: profileState,
@@ -158,10 +160,10 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
 
   /// Checks what the server would refuse anyway, so a too-big photo is not
   /// uploaded only to be turned away.
-  static String? _problemWith(PickedFile file) {
+  static String? _problemWith(AppLocalizations l10n, PickedFile file) {
     final name = file.name.toLowerCase();
-    if (!_photoExtensions.any(name.endsWith)) return 'The photo must be a JPEG or PNG image.';
-    if (file.bytes.length > _maxPhotoBytes) return 'The photo must be 2 MB or smaller.';
+    if (!_photoExtensions.any(name.endsWith)) return l10n.staffPhotoMustBeImage;
+    if (file.bytes.length > _maxPhotoBytes) return l10n.staffPhotoTooBig;
     return null;
   }
 
@@ -178,12 +180,12 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
       file = await ref.read(photoPickerProvider)(source);
     } catch (error) {
       debugPrint('Picking a profile photo failed: $error');
-      if (mounted) setState(() => _error = 'The photo could not be read. Try another file.');
+      if (mounted) setState(() => _error = context.l10n.staffPhotoUnreadable);
       return;
     }
     if (file == null || !mounted) return;
 
-    final problem = _problemWith(file);
+    final problem = _problemWith(context.l10n, file);
     if (problem != null) {
       setState(() => _error = problem);
       return;
@@ -191,7 +193,7 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
 
     await _run(
       () => ref.read(profileNotifierProvider.notifier).uploadPhoto(bytes: file!.bytes, fileName: file.name),
-      success: 'Photo updated.',
+      success: context.l10n.staffPhotoUpdated,
     );
   }
 
@@ -205,13 +207,13 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
           ListTile(
             key: const Key('profile-photo-camera'),
             leading: const Icon(Icons.photo_camera_outlined),
-            title: const Text('Take a photo'),
+            title: Text(context.l10n.staffTakeAPhoto),
             onTap: () => Navigator.of(context).pop(PhotoSource.camera),
           ),
           ListTile(
             key: const Key('profile-photo-gallery'),
             leading: const Icon(Icons.photo_library_outlined),
-            title: const Text('Choose from photos'),
+            title: Text(context.l10n.staffChooseFromPhotosShort),
             onTap: () => Navigator.of(context).pop(PhotoSource.gallery),
           ),
         ],
@@ -222,16 +224,17 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
   Future<void> _remove() async {
     if (_busy) return;
 
+    final l10n = context.l10n;
     final confirmed = await confirmDialog(
       context,
-      title: 'Remove photo?',
-      message: 'Your initials will be shown instead.',
-      confirmLabel: 'Remove photo',
+      title: l10n.staffRemovePhotoShortQ,
+      message: l10n.staffInitialsInstead,
+      confirmLabel: l10n.staffRemovePhoto,
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
 
-    await _run(() => ref.read(profileNotifierProvider.notifier).removePhoto(), success: 'Photo removed.');
+    await _run(() => ref.read(profileNotifierProvider.notifier).removePhoto(), success: l10n.staffPhotoRemoved);
   }
 
   Future<void> _run(Future<void> Function() change, {required String success}) async {
@@ -248,7 +251,9 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
         ..showSnackBar(SnackBar(content: Text(success)));
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _error = failure.validationErrors['photo']?.first ?? failure.message);
+      if (mounted) {
+        setState(() => _error = failure.validationErrors['photo']?.first ?? failure.localizedMessage(context));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -260,7 +265,7 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
     final colors = context.appColors;
 
     return _ProfileCard(
-      title: 'Photo',
+      title: context.l10n.staffPhoto,
       child: Column(
         children: [
           UserAvatar(photoUrl: profile.photoUrl, name: profile.name, radius: 56),
@@ -296,7 +301,7 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
                 key: const Key('profile-upload-photo'),
                 onPressed: _busy ? null : _upload,
                 icon: Icon(kIsWeb ? Icons.upload_outlined : Icons.photo_camera_outlined, size: 18),
-                label: Text(kIsWeb ? 'Upload photo' : 'Change photo'),
+                label: Text(kIsWeb ? context.l10n.staffUploadPhoto : context.l10n.staffChangePhoto),
               ),
               if (profile.photoUrl != null) _removeButton(),
             ],
@@ -320,7 +325,7 @@ class _PhotoCardState extends ConsumerState<_PhotoCard> {
       key: const Key('profile-remove-photo'),
       onPressed: _busy ? null : _remove,
       icon: const Icon(Icons.delete_outline, size: 18),
-      label: const Text('Remove photo'),
+      label: Text(context.l10n.staffRemovePhoto),
     );
   }
 }
@@ -381,10 +386,10 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
 
   String? _serverError(String field) => _fieldErrors[field]?.first;
 
-  static String? _nameProblem(String? value, String label) {
+  static String? _nameProblem(AppLocalizations l10n, String? value, String label) {
     final text = (value ?? '').trim();
-    if (text.isEmpty) return '$label is required';
-    if (text.length > 100) return '$label must be 100 characters or fewer';
+    if (text.isEmpty) return l10n.staffFieldRequired(label);
+    if (text.length > 100) return l10n.staffFieldMax100(label);
     return null;
   }
 
@@ -398,6 +403,7 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
     });
 
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     try {
       await ref
           .read(profileNotifierProvider.notifier)
@@ -409,14 +415,14 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
           );
       messenger
         ..clearSnackBars()
-        ..showSnackBar(const SnackBar(content: Text('Profile updated.')));
+        ..showSnackBar(SnackBar(content: Text(l10n.staffProfileUpdated)));
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) {
         setState(() {
           _fieldErrors = failure.validationErrors;
           // A message already shown under a field is not repeated below.
-          _error = _fieldErrors.isEmpty ? failure.message : null;
+          _error = _fieldErrors.isEmpty ? failure.localizedMessage(context) : null;
         });
       }
     } finally {
@@ -427,10 +433,11 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
     final mobileError = _serverError('mobile');
 
     return _ProfileCard(
-      title: 'My details',
+      title: l10n.staffMyDetails,
       child: Form(
         key: _formKey,
         child: Column(
@@ -440,15 +447,15 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
             TextFormField(
               key: const Key('profile-first-name'),
               controller: _firstNameController,
-              decoration: InputDecoration(labelText: 'First name', errorText: _serverError('first_name')),
-              validator: (v) => _nameProblem(v, 'First name'),
+              decoration: InputDecoration(labelText: l10n.staffFirstName, errorText: _serverError('first_name')),
+              validator: (v) => _nameProblem(l10n, v, l10n.staffFirstName),
             ),
             const SizedBox(height: 12),
             TextFormField(
               key: const Key('profile-last-name'),
               controller: _lastNameController,
-              decoration: InputDecoration(labelText: 'Last name', errorText: _serverError('last_name')),
-              validator: (v) => _nameProblem(v, 'Last name'),
+              decoration: InputDecoration(labelText: l10n.staffLastName, errorText: _serverError('last_name')),
+              validator: (v) => _nameProblem(l10n, v, l10n.staffLastName),
             ),
             const SizedBox(height: 12),
             // A crew member's mobile is how they sign in, so the server
@@ -459,14 +466,18 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
                 key: const Key('profile-mobile-locked'),
                 initialValue: widget.profile.mobile ?? '',
                 enabled: false,
-                decoration: const InputDecoration(
-                  labelText: 'Mobile',
-                  helperText: 'You sign in with this number. Ask your school office to change it.',
+                decoration: InputDecoration(
+                  labelText: l10n.staffMobile,
+                  helperText: l10n.staffMobileLockedHelper,
                   helperMaxLines: 2,
                 ),
               )
             else
-              PhoneNumberField(key: const Key('profile-mobile'), controller: _mobileController, label: 'Mobile'),
+              PhoneNumberField(
+                key: const Key('profile-mobile'),
+                controller: _mobileController,
+                label: l10n.staffMobile,
+              ),
             if (mobileError != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 12),
@@ -479,8 +490,8 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
                 controller: _addressController,
                 minLines: 2,
                 maxLines: 4,
-                decoration: InputDecoration(labelText: 'Home address', errorText: _serverError('address')),
-                validator: (v) => (v ?? '').trim().length > 500 ? 'Home address must be 500 characters or fewer' : null,
+                decoration: InputDecoration(labelText: l10n.staffHomeAddress, errorText: _serverError('address')),
+                validator: (v) => (v ?? '').trim().length > 500 ? l10n.staffHomeAddressTooLong : null,
               ),
             ],
             if (_error != null) ...[const SizedBox(height: 12), Text(_error!, style: TextStyle(color: colors.danger))],
@@ -495,7 +506,7 @@ class _DetailsCardState extends ConsumerState<_DetailsCard> {
                         dimension: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Save'),
+                    : Text(l10n.staffSave),
               ),
             ),
           ],
@@ -524,34 +535,32 @@ class _EmailCard extends StatelessWidget {
 
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(const SnackBar(content: Text('Email changed. Other devices have been signed out.')));
+      ..showSnackBar(SnackBar(content: Text(context.l10n.staffEmailChanged)));
   }
 
   @override
   Widget build(BuildContext context) {
     final muted = TextStyle(color: context.appColors.muted);
+    final l10n = context.l10n;
 
     return _ProfileCard(
-      title: keptBySchool ? 'Email' : 'Sign-in email',
+      title: keptBySchool ? l10n.staffEmail : l10n.staffSignInEmail,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (email == null)
-            Text('No email on record', key: const Key('profile-email'), style: muted)
+            Text(l10n.staffNoEmailOnRecord, key: const Key('profile-email'), style: muted)
           else
             SelectableText(email!, key: const Key('profile-email')),
           const SizedBox(height: 12),
           if (keptBySchool)
-            Text(
-              'You sign in with your mobile number and passcode. Your school office keeps your email address.',
-              style: muted,
-            )
+            Text(l10n.staffEmailKeptBySchool, style: muted)
           else
             OutlinedButton.icon(
               key: const Key('profile-change-email'),
               onPressed: () => _change(context),
               icon: const Icon(Icons.alternate_email, size: 18),
-              label: const Text('Change email'),
+              label: Text(l10n.staffChangeEmail),
             ),
         ],
       ),
@@ -569,19 +578,20 @@ class _WorkCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final muted = TextStyle(fontSize: 13, color: context.appColors.muted);
+    final l10n = context.l10n;
 
     return _ProfileCard(
-      title: 'Work details',
+      title: l10n.staffWorkDetails,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _InfoRow(label: 'Employee ID', value: employment.employeeId),
-          _InfoRow(label: 'Department', value: employment.departmentName ?? '-'),
-          _InfoRow(label: 'Designation', value: employment.designation ?? '-'),
-          _InfoRow(label: 'Joining date', value: employment.joiningDateLabel ?? employment.joiningDate ?? '-'),
-          _InfoRow(label: 'School', value: profile.schoolName ?? '-'),
+          _InfoRow(label: l10n.staffEmployeeId, value: employment.employeeId),
+          _InfoRow(label: l10n.staffNavDepartment, value: employment.departmentName ?? '-'),
+          _InfoRow(label: l10n.staffDesignation, value: employment.designation ?? '-'),
+          _InfoRow(label: l10n.staffJoiningDate, value: employment.joiningDateLabel ?? employment.joiningDate ?? '-'),
+          _InfoRow(label: l10n.staffSchool, value: profile.schoolName ?? '-'),
           const SizedBox(height: 8),
-          Text("These are kept by your school's administrators.", style: muted),
+          Text(l10n.staffKeptByAdmins, style: muted),
         ],
       ),
     );
@@ -621,7 +631,7 @@ class _SecurityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _ProfileCard(
-      title: 'Security',
+      title: context.l10n.staffSecurity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -633,12 +643,12 @@ class _SecurityCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: () => showDialog(context: context, builder: (_) => const ChangePasswordDialog()),
                   icon: const Icon(Icons.lock_outline, size: 18),
-                  label: const Text('Change password'),
+                  label: Text(context.l10n.staffChangePassword),
                 ),
               OutlinedButton.icon(
                 onPressed: () => showDialog(context: context, builder: (_) => const SignedInDevicesDialog()),
                 icon: const Icon(Icons.devices_outlined, size: 18),
-                label: const Text('Signed-in devices'),
+                label: Text(context.l10n.staffSignedInDevices),
               ),
             ],
           ),

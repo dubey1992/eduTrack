@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -26,7 +28,7 @@ class ReportDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Teaching report')),
+      appBar: AppBar(title: Text(context.l10n.staffTeachingReport)),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -54,13 +56,15 @@ class _Report extends ConsumerWidget {
     // author does not need telling.
     final byAnother = ref.watch(authNotifierProvider).value?.id != report.teacherId;
     final colors = context.appColors;
+    final l10n = context.l10n;
     final where = [
       report.classSectionName,
-      if (report.periodNumber != null) 'Period ${report.periodNumber}',
+      if (report.periodNumber != null) l10n.staffPeriodNumber(report.periodNumber!),
     ].whereType<String>().join(' · ');
-    final reviewedOn = report.reviewedAt == null || report.reviewedAt!.length < 10
-        ? ''
-        : ' on ${formatIsoDate(report.reviewedAt!.substring(0, 10))}';
+    final reviewer = report.reviewedByName ?? l10n.staffYourHod;
+    final reviewed = report.reviewedAt == null || report.reviewedAt!.length < 10
+        ? l10n.staffReviewedBy(reviewer)
+        : l10n.staffReviewedByOn(reviewer, formatIsoDate(report.reviewedAt!.substring(0, 10)));
 
     Widget field(String label, String? value) => value == null || value.isEmpty
         ? const SizedBox.shrink()
@@ -84,7 +88,7 @@ class _Report extends ConsumerWidget {
           children: [
             Expanded(
               child: Text(
-                report.subjectName ?? 'Report',
+                report.subjectName ?? l10n.staffReport,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
@@ -94,15 +98,15 @@ class _Report extends ConsumerWidget {
         Text('${formatIsoDate(report.reportDate)} · $where', style: TextStyle(color: colors.muted)),
         if (byAnother && report.teacherName != null)
           Text(
-            'By ${report.teacherName}',
+            l10n.staffByName(report.teacherName!),
             key: const Key('report-author'),
             style: TextStyle(color: colors.muted),
           ),
         const SizedBox(height: 20),
-        field('What was taught', report.topicTaught),
-        field('Syllabus topic ticked off', report.syllabusTopicName),
-        field('Homework', report.homework),
-        field('Remarks', report.remarks),
+        field(l10n.staffWhatWasTaught, report.topicTaught),
+        field(l10n.staffSyllabusTopicTicked, report.syllabusTopicName),
+        field(l10n.staffHomework, report.homework),
+        field(l10n.staffRemarks, report.remarks),
         ReportPhotos(
           report: report,
           canChange: !byAnother && !report.isReviewed,
@@ -116,7 +120,7 @@ class _Report extends ConsumerWidget {
         _ReviewAction(report: report),
         if (report.isReviewed)
           Text(
-            'Reviewed by ${report.reviewedByName ?? 'your HOD'}$reviewedOn.',
+            reviewed,
             key: const Key('report-reviewed-by'),
             style: TextStyle(color: colors.muted),
           ),
@@ -153,18 +157,18 @@ class _ReviewActionState extends ConsumerState<_ReviewAction> {
     try {
       await ref.read(sendBackReportProvider).call(widget.report.id, note);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent back to the teacher.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.staffSentBackToTeacher)));
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (!mounted) return;
       setState(
         () => _problem = switch (failure.code) {
-          'TEACHING_REPORT_ALREADY_REVIEWED' => 'Somebody has already reviewed this report.',
-          'TEACHING_REPORT_RETURNED' => 'This report is already back with its teacher.',
-          'FORBIDDEN' => 'This report is not from your department, so it is not yours to send back.',
-          'NETWORK_ERROR' => 'No connection. It was not sent back - try again when you have signal.',
-          _ => failure.message,
+          'TEACHING_REPORT_ALREADY_REVIEWED' => context.l10n.staffAlreadyReviewed,
+          'TEACHING_REPORT_RETURNED' => context.l10n.staffAlreadyBackWithTeacher,
+          'FORBIDDEN' => context.l10n.staffNotYoursToSendBack,
+          'NETWORK_ERROR' => context.l10n.staffNotSentBackNoSignal,
+          _ => failure.localizedMessage(context),
         },
       );
       ref.invalidate(myReportProvider(widget.report.id));
@@ -181,16 +185,18 @@ class _ReviewActionState extends ConsumerState<_ReviewAction> {
     });
     try {
       await ref.read(reviewReportProvider).call(widget.report.id);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report reviewed.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.staffReportReviewedDone)));
+      }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (!mounted) return;
       setState(
         () => _problem = switch (failure.code) {
-          'TEACHING_REPORT_ALREADY_REVIEWED' => 'Somebody has already reviewed this report.',
-          'FORBIDDEN' => 'This report is not from your department, so it is not yours to review.',
-          'NETWORK_ERROR' => 'No connection. It was not reviewed - try again when you have signal.',
-          _ => failure.message,
+          'TEACHING_REPORT_ALREADY_REVIEWED' => context.l10n.staffAlreadyReviewed,
+          'FORBIDDEN' => context.l10n.staffNotYoursToReview,
+          'NETWORK_ERROR' => context.l10n.staffNotReviewedNoSignal,
+          _ => failure.localizedMessage(context),
         },
       );
       if (failure.code == 'TEACHING_REPORT_ALREADY_REVIEWED') ref.invalidate(myReportProvider(widget.report.id));
@@ -207,6 +213,7 @@ class _ReviewActionState extends ConsumerState<_ReviewAction> {
     if (!mayReview) return const SizedBox.shrink();
 
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -223,8 +230,7 @@ class _ReviewActionState extends ConsumerState<_ReviewAction> {
           ],
           if (report.isReturned) ...[
             Text(
-              'Sent back to ${report.teacherName ?? 'the teacher'}. It comes back to your list when they send it '
-              'again - or mark it reviewed now if it was fine after all.',
+              l10n.staffReturnedWaiting(report.teacherName ?? l10n.staffTheTeacher),
               key: const Key('report-returned-waiting'),
               style: TextStyle(color: colors.muted),
             ),
@@ -238,7 +244,7 @@ class _ReviewActionState extends ConsumerState<_ReviewAction> {
               icon: _busy
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.done_all),
-              label: const Text('Mark reviewed'),
+              label: Text(l10n.staffMarkReviewed),
             ),
           ),
           if (!report.isReturned) ...[
@@ -249,7 +255,7 @@ class _ReviewActionState extends ConsumerState<_ReviewAction> {
                 key: const Key('report-send-back'),
                 onPressed: _busy ? null : _sendBack,
                 icon: const Icon(Icons.undo),
-                label: const Text('Send back with a note'),
+                label: Text(l10n.staffSendBackWithNote),
               ),
             ),
           ],
@@ -271,6 +277,7 @@ class HodNote extends StatelessWidget {
     final colors = context.appColors;
     final who = report.isReturned ? report.returnedByName : report.reviewedByName;
     final returned = report.isReturned;
+    final l10n = context.l10n;
 
     return Container(
       key: const Key('report-hod-note'),
@@ -284,7 +291,7 @@ class HodNote extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            returned ? 'Sent back by ${who ?? 'your HOD'}' : 'Note from ${who ?? 'your HOD'}',
+            returned ? l10n.staffSentBackBy(who ?? l10n.staffYourHod) : l10n.staffNoteFrom(who ?? l10n.staffYourHod),
             style: TextStyle(
               fontWeight: FontWeight.w700,
               color: returned ? colors.onWarningContainer : colors.onInfoContainer,
@@ -322,7 +329,7 @@ class _ChangeAction extends ConsumerWidget {
               Navigator.of(context)
                   .push(MaterialPageRoute<bool>(builder: (context) => FileReportScreen.change(changing: report))),
           icon: const Icon(Icons.edit_outlined),
-          label: const Text('Change and send again'),
+          label: Text(context.l10n.staffChangeAndSendAgain),
         ),
       ),
     );
@@ -351,7 +358,7 @@ class _SendBackDialogState extends State<_SendBackDialog> {
   void _send() {
     final note = _note.text.trim();
     if (note.isEmpty) {
-      setState(() => _error = 'Say what should change.');
+      setState(() => _error = context.l10n.staffSayWhatShouldChange);
       return;
     }
     Navigator.of(context).pop(note);
@@ -361,7 +368,7 @@ class _SendBackDialogState extends State<_SendBackDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       key: const Key('send-back-dialog'),
-      title: const Text('Send back to the teacher?'),
+      title: Text(context.l10n.staffSendBackToTeacherQ),
       content: TextField(
         key: const Key('send-back-note'),
         controller: _note,
@@ -371,8 +378,8 @@ class _SendBackDialogState extends State<_SendBackDialog> {
         maxLength: 500,
         textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(
-          labelText: 'What should change',
-          hintText: 'e.g. Please add what the class practised.',
+          labelText: context.l10n.staffWhatShouldChange,
+          hintText: context.l10n.staffWhatShouldChangeHint,
           errorText: _error,
         ),
         onChanged: (_) {
@@ -380,8 +387,8 @@ class _SendBackDialogState extends State<_SendBackDialog> {
         },
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(key: const Key('send-back-confirm'), onPressed: _send, child: const Text('Send back')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.l10n.cancel)),
+        FilledButton(key: const Key('send-back-confirm'), onPressed: _send, child: Text(context.l10n.staffSendBack)),
       ],
     );
   }

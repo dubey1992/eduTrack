@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failure.dart';
+import '../../../../core/l10n/failure_text.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/utils/decimal_input_formatter.dart';
 import '../../application/student_fees_providers.dart';
@@ -19,37 +21,38 @@ void _say(ScaffoldMessengerState messenger, String message) {
 
 /// Asks why, then forgives [due]. Returns true when it was waived.
 Future<bool> waiveDue(BuildContext context, WidgetRef ref, FeeDue due) async {
+  final l10n = context.l10n;
   final reason = await _askReason(
     context,
-    title: 'Waive "${due.label}"?',
-    message:
-        'What is still owed on it is forgiven and it no longer counts as owing. Anything already paid stays '
-        'paid. This cannot be undone.',
-    confirmLabel: 'Waive',
-    hint: 'e.g. Hardship, fine charged in error',
+    title: l10n.staffWaiveQ(due.label),
+    message: l10n.staffWaiveBody,
+    confirmLabel: l10n.staffWaive,
+    hint: l10n.staffWaiveHint,
   );
   if (reason == null || !context.mounted) return false;
 
   final messenger = ScaffoldMessenger.of(context);
   try {
     await ref.read(feeAdjustmentActionsProvider).waive(due.id, reason: reason);
-    _say(messenger, '"${due.label}" waived.');
+    _say(messenger, l10n.staffWaived(due.label));
     return true;
   } catch (error) {
-    _say(messenger, error is Failure ? error.message : 'It could not be waived. Try again.');
+    _say(
+      messenger,
+      error is Failure ? (context.mounted ? error.localizedMessage(context) : error.message) : l10n.staffWaiveFailed,
+    );
     return false;
   }
 }
 
 /// Asks first, then ends [concession]. Returns true when it was ended.
 Future<bool> revokeDiscount(BuildContext context, WidgetRef ref, FeeConcession concession) async {
+  final l10n = context.l10n;
   final confirmed = await confirmDialog(
     context,
-    title: 'End this discount?',
-    message:
-        'The installments it lowered that are still unpaid go back to their full amount. The discount stays '
-        'on record as ended.',
-    confirmLabel: 'End discount',
+    title: l10n.staffEndDiscountQ,
+    message: l10n.staffEndDiscountBody,
+    confirmLabel: l10n.staffEndDiscount,
     isDestructive: true,
   );
   if (!confirmed || !context.mounted) return false;
@@ -57,10 +60,15 @@ Future<bool> revokeDiscount(BuildContext context, WidgetRef ref, FeeConcession c
   final messenger = ScaffoldMessenger.of(context);
   try {
     await ref.read(feeAdjustmentActionsProvider).revokeDiscount(concession.id);
-    _say(messenger, 'Discount ended.');
+    _say(messenger, l10n.staffDiscountEnded);
     return true;
   } catch (error) {
-    _say(messenger, error is Failure ? error.message : 'The discount could not be ended. Try again.');
+    _say(
+      messenger,
+      error is Failure
+          ? (context.mounted ? error.localizedMessage(context) : error.message)
+          : l10n.staffDiscountEndFailed,
+    );
     return false;
   }
 }
@@ -124,20 +132,13 @@ class _AddDiscountDialogState extends ConsumerState<_AddDiscountDialog> {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-              'Discount added - ${concession.duesAffected} installment${concession.duesAffected == 1 ? '' : 's'} '
-              'lowered.',
-            ),
-          ),
-        );
+        ..showSnackBar(SnackBar(content: Text(context.l10n.staffDiscountAdded(concession.duesAffected))));
       Navigator.of(context).pop();
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) {
         setState(() {
-          _error = failure.message;
+          _error = failure.localizedMessage(context);
           _fieldErrors = {
             for (final entry in failure.validationErrors.entries)
               if (entry.value.isNotEmpty) entry.key: entry.value.join('\n'),
@@ -152,9 +153,10 @@ class _AddDiscountDialogState extends ConsumerState<_AddDiscountDialog> {
   @override
   Widget build(BuildContext context) {
     final statement = widget.statement;
+    final l10n = context.l10n;
 
     return AlertDialog(
-      title: Text('Add discount - ${statement.student.name}'),
+      title: Text(l10n.staffAddDiscountFor(statement.student.name)),
       content: SizedBox(
         width: 460,
         child: Form(
@@ -168,21 +170,18 @@ class _AddDiscountDialogState extends ConsumerState<_AddDiscountDialog> {
                   Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   const SizedBox(height: 12),
                 ],
-                Text(
-                  'For ${statement.academicYearName}. It lowers each unpaid installment now, and any charged later '
-                  'this year. Late fines are never discounted.',
-                ),
+                Text(l10n.staffDiscountIntro(statement.academicYearName)),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<int?>(
                   initialValue: _headId,
                   isExpanded: true,
                   decoration: InputDecoration(
-                    labelText: 'Fee type',
+                    labelText: l10n.staffFeeType,
                     errorText: _fieldErrors['fee_head_id'],
                     errorMaxLines: 3,
                   ),
                   items: [
-                    const DropdownMenuItem<int?>(value: null, child: Text('All fee types')),
+                    DropdownMenuItem<int?>(value: null, child: Text(l10n.staffAllFeeTypes)),
                     for (final head in statement.feeHeads)
                       DropdownMenuItem<int?>(value: head.id, child: Text(head.name)),
                   ],
@@ -190,9 +189,9 @@ class _AddDiscountDialogState extends ConsumerState<_AddDiscountDialog> {
                 ),
                 const SizedBox(height: 16),
                 SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Fixed amount')),
-                    ButtonSegment(value: true, label: Text('Percentage')),
+                  segments: [
+                    ButtonSegment(value: false, label: Text(l10n.staffFixedAmount)),
+                    ButtonSegment(value: true, label: Text(l10n.staffPercentage)),
                   ],
                   selected: {_percent},
                   onSelectionChanged: _saving ? null : (selected) => setState(() => _percent = selected.first),
@@ -204,19 +203,19 @@ class _AddDiscountDialogState extends ConsumerState<_AddDiscountDialog> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [DecimalTextInputFormatter()],
                   decoration: InputDecoration(
-                    labelText: _percent ? 'Percentage' : 'Amount (${statement.currencyCode})',
+                    labelText: _percent ? l10n.staffPercentage : l10n.staffAmountIn(statement.currencyCode),
                     suffixText: _percent ? '%' : null,
                     // The owner's rule: a fixed amount comes off every
                     // installment, like a percentage does - said here so
                     // nobody expects a once-a-year figure.
-                    helperText: _percent ? 'Off each installment.' : 'Off each installment, not once for the year.',
+                    helperText: _percent ? l10n.staffOffEach : l10n.staffOffEachNotOnce,
                     errorText: _fieldErrors['value'],
                     errorMaxLines: 3,
                   ),
                   validator: (value) {
                     final cents = centsOf(value ?? '');
-                    if (cents == null || cents == 0) return 'Enter a value above zero.';
-                    if (_percent && cents > 10000) return 'A percentage cannot be more than 100.';
+                    if (cents == null || cents == 0) return l10n.staffEnterValueAboveZero;
+                    if (_percent && cents > 10000) return l10n.staffPercentMax;
                     return null;
                   },
                 ),
@@ -226,11 +225,11 @@ class _AddDiscountDialogState extends ConsumerState<_AddDiscountDialog> {
                   enabled: !_saving,
                   maxLength: 255,
                   decoration: InputDecoration(
-                    labelText: 'Reason',
-                    hintText: 'e.g. Sibling discount, scholarship, staff child',
+                    labelText: l10n.staffReason,
+                    hintText: l10n.staffDiscountReasonHint,
                     errorText: _fieldErrors['reason'],
                   ),
-                  validator: (value) => (value ?? '').trim().length < 3 ? 'Say why the discount is given.' : null,
+                  validator: (value) => (value ?? '').trim().length < 3 ? l10n.staffSayWhyDiscount : null,
                 ),
               ],
             ),
@@ -238,12 +237,12 @@ class _AddDiscountDialogState extends ConsumerState<_AddDiscountDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: Text(l10n.cancel)),
         FilledButton(
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Add discount'),
+              : Text(l10n.staffAddDiscountButton),
         ),
       ],
     );
@@ -308,15 +307,15 @@ class _ReasonDialogState extends State<_ReasonDialog> {
                 controller: _reason,
                 autofocus: true,
                 maxLength: 255,
-                decoration: InputDecoration(labelText: 'Reason', hintText: widget.hint),
-                validator: (value) => (value ?? '').trim().length < 3 ? 'Give a reason.' : null,
+                decoration: InputDecoration(labelText: context.l10n.staffReason, hintText: widget.hint),
+                validator: (value) => (value ?? '').trim().length < 3 ? context.l10n.staffGiveAReason : null,
               ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.l10n.cancel)),
         FilledButton(onPressed: _confirm, child: Text(widget.confirmLabel)),
       ],
     );

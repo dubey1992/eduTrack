@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../application/auth_notifier.dart';
 import '../widgets/change_password_form.dart';
 import 'teacher_auth_shell.dart';
@@ -13,21 +14,23 @@ class TeacherChangePasswordScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+
     return TeacherAuthShell(
-      title: 'Choose your password',
-      subtitle: 'Your account was set up with a temporary password. Choose your own to continue.',
+      title: l10n.staffChoosePasswordTitle,
+      subtitle: l10n.staffChoosePasswordSubtitle,
       child: ChangePasswordForm(
-        submitLabel: 'Save password',
+        submitLabel: l10n.staffSavePassword,
         onChanged: () {
           // The session now says the change is done, and the router moves on
           // to Today by itself.
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password changed.')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.staffPasswordChanged)));
         },
         footer: (context, isSubmitting) => Center(
           child: TextButton(
             key: const Key('change-password-sign-out'),
             onPressed: isSubmitting ? null : () => ref.read(authNotifierProvider.notifier).logout(),
-            child: const Text('Sign out instead'),
+            child: Text(l10n.staffSignOutInstead),
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/async_value_view.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -18,6 +19,7 @@ import '../../data/navigation_session.dart';
 import '../../data/rider_search.dart';
 import '../../data/trip_voice.dart';
 import '../navigate_screen.dart';
+import '../trip_words.dart';
 import '../../data/models/not_sent_mark.dart';
 import 'bulk_mark_sheet.dart';
 import 'location_sharing_tile.dart';
@@ -100,12 +102,9 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Running late?', style: Theme.of(context).textTheme.titleLarge),
+              Text(context.l10n.busRunningLateQuestion, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 4),
-              Text(
-                'The parents still waiting on this route are told.',
-                style: TextStyle(color: context.appColors.muted),
-              ),
+              Text(context.l10n.busRunningLateHelp, style: TextStyle(color: context.appColors.muted)),
               const SizedBox(height: 16),
               for (final choice in TripDetailNotifier.delayChoices) ...[
                 SizedBox(
@@ -113,7 +112,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
                   child: FilledButton.tonal(
                     key: Key('trip-late-$choice'),
                     onPressed: () => Navigator.of(context).pop(choice),
-                    child: Text('About $choice minutes late', style: const TextStyle(fontSize: 16)),
+                    child: Text(context.l10n.busLateMinutes(choice), style: const TextStyle(fontSize: 16)),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -129,7 +128,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     if (!mounted) return;
     _snackBars
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('Parents told: about $minutes minutes late.')));
+      ..showSnackBar(SnackBar(content: Text(context.l10n.busParentsToldLate(minutes))));
   }
 
   Future<void> _callParent(TripRider rider) async {
@@ -137,7 +136,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     if (!opened && mounted) {
       _snackBars
         ?..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text("Could not open the phone's dialler.")));
+        ..showSnackBar(SnackBar(content: Text(context.l10n.busNoDialler)));
     }
   }
 
@@ -167,20 +166,19 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     if (!opened && mounted) {
       _snackBars
         ?..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Could not open a maps app on this phone.')));
+        ..showSnackBar(SnackBar(content: Text(context.l10n.busNoMapsApp)));
     }
   }
 
   Future<void> _end(TransportTrip trip) async {
     final waiting = trip.riders.where((r) => r.status == TripRiderStatus.pending).length;
+    final l10n = context.l10n;
     final confirmed = await confirmDialog(
       context,
-      title: 'End this trip?',
-      message: waiting == 0
-          ? 'Every child has been marked. The trip will be recorded as completed.'
-          : '$waiting ${waiting == 1 ? 'child has' : 'children have'} not been marked and will be recorded as absent.',
-      confirmLabel: 'End trip',
-      cancelLabel: 'Keep going',
+      title: l10n.busEndTripQuestion,
+      message: waiting == 0 ? l10n.busEndAllMarked : l10n.busEndUnmarked(waiting),
+      confirmLabel: l10n.busEndTrip,
+      cancelLabel: l10n.busKeepGoing,
     );
     if (!confirmed || !mounted) return;
 
@@ -188,7 +186,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     if (!mounted) return;
     _snackBars
       ?..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Trip ended.')));
+      ..showSnackBar(SnackBar(content: Text(context.l10n.busTripEnded)));
   }
 
   @override
@@ -278,6 +276,8 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     int aboard,
     bool running,
   ) {
+    final l10n = context.l10n;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
@@ -286,7 +286,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
             TextButton.icon(
               onPressed: widget.onBack,
               icon: const Icon(Icons.arrow_back),
-              label: const Text('My routes'),
+              label: Text(l10n.busMyRoutes),
             ),
             const Spacer(),
             // The spoken next-stop prompts (M7, 3.2), on until muted here.
@@ -298,9 +298,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              isLocalTrip(trip.id)
-                  ? 'Started on this phone with no signal. The school sees this trip when signal returns.'
-                  : 'No signal - showing the trip as last saved on this phone.',
+              isLocalTrip(trip.id) ? l10n.busStartedOnPhoneNoSignal : l10n.busTripFromPhone,
               key: const Key('trip-from-phone'),
               style: TextStyle(color: context.appColors.muted, fontStyle: FontStyle.italic),
             ),
@@ -317,7 +315,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
             key: const Key('rider-search-empty'),
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Text(
-              'No child on this trip matches "${_query.trim()}". Check the spelling, or clear the search.',
+              l10n.busSearchNoMatch(_query.trim()),
               textAlign: TextAlign.center,
               style: TextStyle(color: context.appColors.muted),
             ),
@@ -343,7 +341,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
         // On a pickup they leave the bus at school, after the last stop.
         if (running && !searching && trip.direction == TripDirection.pickup) ?_schoolBulk(trip),
         if (unplaced.isNotEmpty) ...[
-          const _SectionTitle('Other riders'),
+          _SectionTitle(l10n.busOtherRiders),
           for (final rider in unplaced) _riderTile(rider, running),
         ],
       ],
@@ -364,7 +362,12 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     }
     if (marked.isEmpty || !mounted) return;
 
-    final what = '${marked.length} ${to.label.toLowerCase()} at $where';
+    final l10n = context.l10n;
+    final what = switch (to) {
+      TripRiderStatus.boarded => l10n.busBulkDoneBoarded(marked.length, where),
+      TripRiderStatus.dropped => l10n.busBulkDoneDropped(marked.length, where),
+      _ => l10n.busBulkDoneOther(marked.length, to.labelIn(l10n).toLowerCase(), where),
+    };
     _snackBars
       ?..hideCurrentSnackBar()
       ..showSnackBar(
@@ -374,7 +377,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
           duration: TripMarkQueue.undoWindow,
           action: SnackBarAction(
             key: const Key('bulk-undo'),
-            label: 'Undo',
+            label: l10n.busUndo,
             onPressed: () async {
               var undone = 0;
               for (final clientId in marked) {
@@ -384,13 +387,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
               _snackBars
                 ?..hideCurrentSnackBar()
                 ..showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      undone == marked.length
-                          ? 'Taken back - nobody was marked.'
-                          : 'Taken back: $undone. The rest had already been sent to the school.',
-                    ),
-                  ),
+                  SnackBar(content: Text(undone == marked.length ? l10n.busUndoneAll : l10n.busUndonePartly(undone))),
                 );
             },
           ),
@@ -413,7 +410,11 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
         key: Key('bulk-stop-${stop.id}'),
         onPressed: () => _markMany(riders, to, stop.name),
         icon: Icon(pickup ? Icons.how_to_reg : Icons.home_outlined),
-        label: Text('${bulkVerb(to)} all ${riders.length} here'),
+        label: Text(
+          to == TripRiderStatus.dropped
+              ? context.l10n.busDropAllHere(riders.length)
+              : context.l10n.busBoardAllHere(riders.length),
+        ),
       ),
     );
   }
@@ -431,9 +432,13 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
       padding: const EdgeInsets.only(bottom: 8),
       child: OutlinedButton.icon(
         key: const Key('bulk-school'),
-        onPressed: () => _markMany(riders, to, 'school'),
+        onPressed: () => _markMany(riders, to, context.l10n.busSchoolPlace),
         icon: const Icon(Icons.school_outlined),
-        label: Text('${bulkVerb(to)} all ${riders.length} at school'),
+        label: Text(
+          to == TripRiderStatus.dropped
+              ? context.l10n.busDropAllAtSchool(riders.length)
+              : context.l10n.busBoardAllAtSchool(riders.length),
+        ),
       ),
     );
   }
@@ -448,9 +453,13 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
       ..showSnackBar(
         SnackBar(
           key: const Key('mark-undo-snackbar'),
-          content: Text('${rider.name} ${status.label.toLowerCase()}'),
+          content: Text(status.markedIn(context.l10n, rider.name)),
           duration: TripMarkQueue.undoWindow,
-          action: SnackBarAction(key: const Key('mark-undo'), label: 'Undo', onPressed: () => _undo(rider, clientId)),
+          action: SnackBarAction(
+            key: const Key('mark-undo'),
+            label: context.l10n.busUndo,
+            onPressed: () => _undo(rider, clientId),
+          ),
         ),
       );
   }
@@ -462,13 +471,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     _snackBars
       ?..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(
-            undone
-                ? 'Taken back - ${rider.name} is not marked.'
-                : 'Already sent to the school, so it stands. Ask the office to correct it.',
-          ),
-        ),
+        SnackBar(content: Text(undone ? context.l10n.busUndoneOne(rider.name) : context.l10n.busUndoTooLate)),
       );
   }
 
@@ -496,7 +499,7 @@ class _VoiceToggle extends ConsumerWidget {
 
     return IconButton(
       key: const Key('trip-voice'),
-      tooltip: on ? 'Mute the spoken prompts' : 'Speak the next stop',
+      tooltip: on ? context.l10n.busVoiceMute : context.l10n.busVoiceSpeak,
       icon: Icon(on ? Icons.volume_up_outlined : Icons.volume_off_outlined),
       onPressed: () => ref.read(tripVoiceOnProvider.notifier).set(!on),
     );
@@ -530,8 +533,7 @@ class _TripActionBar extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
-                    '$aboard ${aboard == 1 ? 'child is' : 'children are'} still on board. '
-                    'Drop them off before ending the trip.',
+                    context.l10n.busStillOnBoard(aboard),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: context.appColors.muted),
                   ),
@@ -543,7 +545,7 @@ class _TripActionBar extends StatelessWidget {
                   key: const Key('trip-late'),
                   onPressed: onLate,
                   icon: const Icon(Icons.schedule),
-                  label: const Text('Running late'),
+                  label: Text(context.l10n.busRunningLate),
                 ),
               ),
               const SizedBox(height: 10),
@@ -560,7 +562,7 @@ class _TripActionBar extends StatelessWidget {
                         onPressed: aboard > 0 ? null : onEnd,
                         style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error),
                         icon: const Icon(Icons.flag),
-                        label: const Text('End trip'),
+                        label: Text(context.l10n.busEndTrip),
                       ),
                     ),
                   ),
@@ -582,10 +584,12 @@ class _TripHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final muted = context.appColors.muted;
-    final (badge, tone) = switch (trip.status) {
-      TripStatus.inProgress => ('En route', BadgeTone.info),
-      TripStatus.completed => ('Completed', BadgeTone.success),
-      TripStatus.cancelled => ('Cancelled', BadgeTone.danger),
+    final l10n = context.l10n;
+    final badge = trip.status.badgeIn(l10n);
+    final tone = switch (trip.status) {
+      TripStatus.inProgress => BadgeTone.info,
+      TripStatus.completed => BadgeTone.success,
+      TripStatus.cancelled => BadgeTone.danger,
     };
     int count(TripRiderStatus status) => trip.riders.where((r) => r.status == status).length;
 
@@ -600,7 +604,7 @@ class _TripHeader extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${trip.routeName} - ${trip.direction.label}',
+                    '${trip.routeName} - ${trip.direction.labelIn(l10n)}',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
@@ -611,8 +615,12 @@ class _TripHeader extends StatelessWidget {
             Text('${trip.vehicleName} · ${trip.vehicleRegistrationNumber}', style: TextStyle(color: muted)),
             const SizedBox(height: 8),
             Text(
-              '${count(TripRiderStatus.boarded)} on board · ${count(TripRiderStatus.pending)} waiting · '
-              '${count(TripRiderStatus.dropped)} dropped · ${count(TripRiderStatus.absent)} absent',
+              l10n.busTripCounts(
+                count(TripRiderStatus.boarded),
+                count(TripRiderStatus.pending),
+                count(TripRiderStatus.dropped),
+                count(TripRiderStatus.absent),
+              ),
               key: const Key('trip-counts'),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
@@ -671,11 +679,11 @@ class _StopHeader extends StatelessWidget {
                 key: Key('navigate-stop-${stop.id}'),
                 onPressed: onNavigate,
                 icon: const Icon(Icons.directions),
-                tooltip: 'Navigate to ${stop.name}',
+                tooltip: context.l10n.busNavigateTo(stop.name),
               ),
             ),
           if (stop.reached)
-            const StatusBadge(label: 'Reached', tone: BadgeTone.success)
+            StatusBadge(label: context.l10n.busReached, tone: BadgeTone.success)
           else if (isNext)
             SizedBox(
               height: 48,
@@ -683,7 +691,7 @@ class _StopHeader extends StatelessWidget {
                 key: Key('reach-stop-${stop.id}'),
                 onPressed: onReached,
                 icon: const Icon(Icons.place),
-                label: const Text('Reached'),
+                label: Text(context.l10n.busReached),
               ),
             ),
         ],

@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../communication/data/models/message.dart';
 import '../application/my_inbox_notifier.dart';
+import '../../today/presentation/staff_words.dart';
 import '../../../core/widgets/notice_attachment_chips.dart';
 
 /// The School365ai app's inbox (docs/teacher-app.md, T4), opened from the
@@ -20,12 +23,16 @@ class MyInboxScreen extends ConsumerWidget {
     try {
       final marked = await ref.read(myInboxProvider.notifier).markAllRead();
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(marked == 0 ? 'Nothing was unread.' : 'Marked $marked as read.')));
+        final l10n = context.l10n;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(marked == 0 ? l10n.staffNothingWasUnread : l10n.staffMarkedRead(marked))),
+        );
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message)));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.localizedMessage(context))));
+      }
     }
   }
 
@@ -36,12 +43,12 @@ class MyInboxScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages'),
+        title: Text(context.l10n.staffMessages),
         actions: [
           TextButton(
             key: const Key('inbox-read-all'),
             onPressed: hasUnread ? () => _markAllRead(context, ref) : null,
-            child: const Text('Mark all read'),
+            child: Text(context.l10n.staffMarkAllRead),
           ),
         ],
       ),
@@ -90,13 +97,13 @@ class _Filter extends ConsumerWidget {
           children: [
             ChoiceChip(
               key: const Key('inbox-all'),
-              label: const Text('All'),
+              label: Text(context.l10n.staffPeriodAll),
               selected: !unreadOnly,
               onSelected: (_) => notifier.setUnreadOnly(false),
             ),
             ChoiceChip(
               key: const Key('inbox-unread'),
-              label: const Text('Unread'),
+              label: Text(context.l10n.staffUnread),
               selected: unreadOnly,
               onSelected: (_) => notifier.setUnreadOnly(true),
             ),
@@ -132,10 +139,13 @@ class _List extends ConsumerWidget {
               children: [
                 Icon(Icons.mark_email_read_outlined, size: 48, color: colors.muted),
                 const SizedBox(height: 12),
-                Text(inbox.unreadOnly ? 'Nothing unread.' : 'No messages yet.', textAlign: TextAlign.center),
+                Text(
+                  inbox.unreadOnly ? context.l10n.staffNothingUnread : context.l10n.staffNoMessagesYet,
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 4),
                 Text(
-                  'Announcements and notices from your school arrive here.',
+                  context.l10n.staffInboxEmptyHint,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: colors.muted),
                 ),
@@ -149,7 +159,7 @@ class _List extends ConsumerWidget {
               child: TextButton(
                 key: const Key('inbox-more'),
                 onPressed: () => ref.read(myInboxProvider.notifier).loadMore(),
-                child: const Text('Show older messages'),
+                child: Text(context.l10n.staffShowOlderMessages),
               ),
             ),
         ],
@@ -239,7 +249,10 @@ class _MessageTile extends ConsumerWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Text(message.category.label, style: TextStyle(fontSize: 12, color: theme.colorScheme.primary)),
+                        Text(
+                          messageCategoryLabel(context.l10n, message.category),
+                          style: TextStyle(fontSize: 12, color: theme.colorScheme.primary),
+                        ),
                         if (message.attachments.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           Icon(Icons.attach_file, size: 14, color: colors.muted),
@@ -281,10 +294,13 @@ class _MessageSheet extends StatelessWidget {
             children: [
               Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
-              Text('${message.category.label} · $when', style: TextStyle(color: colors.muted)),
+              Text(
+                '${messageCategoryLabel(context.l10n, message.category)} · $when',
+                style: TextStyle(color: colors.muted),
+              ),
               if (message.studentName != null) ...[
                 const SizedBox(height: 4),
-                Text('About ${message.studentName}', style: TextStyle(color: colors.muted)),
+                Text(context.l10n.staffAboutStudent(message.studentName!), style: TextStyle(color: colors.muted)),
               ],
               const SizedBox(height: 16),
               SelectableText(message.body, style: const TextStyle(fontSize: 16, height: 1.5)),

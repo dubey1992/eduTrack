@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/l10n/l10n.dart';
 import 'widgets/change_password_form.dart';
 
 /// Changing your own password without leaving what you were doing.
@@ -13,24 +14,26 @@ class ChangePasswordDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return AlertDialog(
-      title: const Text('Change Password'),
+      title: Text(l10n.staffChangePasswordTitle),
       content: SizedBox(
         width: 380,
         child: SingleChildScrollView(
           child: ChangePasswordForm(
-            intro: 'Choose a new password for your account.',
+            intro: l10n.staffChooseNewPassword,
             onChanged: () {
               // Taken before the pop: afterwards this context is on its way
               // out and cannot find the messenger.
               final messenger = ScaffoldMessenger.of(context);
               Navigator.of(context).pop();
-              messenger.showSnackBar(const SnackBar(content: Text('Password changed.')));
+              messenger.showSnackBar(SnackBar(content: Text(l10n.staffPasswordChanged)));
             },
             footer: (context, isSubmitting) => Center(
               child: TextButton(
                 onPressed: isSubmitting ? null : () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
+                child: Text(l10n.cancel),
               ),
             ),
           ),

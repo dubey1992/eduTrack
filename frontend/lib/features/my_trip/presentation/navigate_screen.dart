@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/map_navigator.dart';
 import '../data/navigation_session.dart';
@@ -81,13 +82,14 @@ class _NavigateScreenState extends ConsumerState<NavigateScreen> {
     } else {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Could not open a maps app on this phone.')));
+        ..showSnackBar(SnackBar(content: Text(context.l10n.busNoMapsApp)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final outcome = _outcome;
+    final l10n = context.l10n;
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.destination.stopName)),
@@ -96,21 +98,17 @@ class _NavigateScreenState extends ConsumerState<NavigateScreen> {
         NavigationOutcome.guiding => _session.view(),
         NavigationOutcome.termsRefused => _Fallback(
           key: const Key('nav-terms-refused'),
-          message:
-              'Guidance inside this app needs Google\'s terms, which you did not accept. '
-              'You can still use Google Maps.',
+          message: l10n.busNavTermsRefused,
           onHandOff: _handOff,
         ),
         NavigationOutcome.noRoute => _Fallback(
           key: const Key('nav-no-route'),
-          message: 'No route to this stop could be worked out. Check your signal, or try Google Maps.',
+          message: l10n.busNavNoRoute,
           onHandOff: _handOff,
         ),
         NavigationOutcome.unavailable => _Fallback(
           key: const Key('nav-unavailable'),
-          message:
-              'Guidance inside this app is not switched on for your school yet. '
-              'Google Maps will take you there.',
+          message: l10n.busNavUnavailable,
           onHandOff: _handOff,
         ),
       },
@@ -144,7 +142,7 @@ class _Fallback extends StatelessWidget {
                 key: const Key('nav-hand-off'),
                 onPressed: onHandOff,
                 icon: const Icon(Icons.directions),
-                label: const Text('Open Google Maps'),
+                label: Text(context.l10n.busOpenGoogleMaps),
               ),
             ),
           ],

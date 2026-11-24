@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../data/attendant_auth_repository.dart';
 
 /// What the app is, before anybody signs in.
@@ -41,6 +42,7 @@ class _DriverLandingScreenState extends ConsumerState<DriverLandingScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final registered = _registered ?? false;
+    final l10n = context.l10n;
 
     return Scaffold(
       body: SafeArea(
@@ -72,38 +74,32 @@ class _DriverLandingScreenState extends ConsumerState<DriverLandingScreen> {
                   ),
                   const SizedBox(height: 26),
                   Text(
-                    'Your trip sheet, on this phone.',
+                    l10n.busLandingHeadline,
                     style: Theme.of(context).textTheme.headlineSmall
                         ?.copyWith(fontWeight: FontWeight.w800, height: 1.15),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'For the driver and the attendant on the bus. Everything you '
-                    'need for the run, and nothing else from the school.',
+                    l10n.busLandingIntro,
                     style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant, height: 1.45),
                   ),
                   const SizedBox(height: 28),
-                  const _Point(
+                  _Point(
                     icon: Icons.play_circle_outline,
-                    title: 'Start the run',
-                    body: "Today's routes are waiting when you open the app. One tap starts the pickup or the drop.",
+                    title: l10n.busLandingStartTitle,
+                    body: l10n.busLandingStartBody,
                   ),
-                  const _Point(
+                  _Point(
                     icon: Icons.how_to_reg_outlined,
-                    title: 'Tick each child on and off',
-                    body: 'Boarded, dropped or absent. The school sees it, and the parents are told.',
+                    title: l10n.busLandingTickTitle,
+                    body: l10n.busLandingTickBody,
                   ),
-                  const _Point(
+                  _Point(
                     icon: Icons.wifi_off_outlined,
-                    title: 'Works without signal',
-                    body: 'Marks are kept on the phone and sent the moment you are back in range. Nothing is lost on the road.',
+                    title: l10n.busLandingOfflineTitle,
+                    body: l10n.busLandingOfflineBody,
                   ),
-                  const _Point(
-                    icon: Icons.call_outlined,
-                    title: "Call a child's parent",
-                    body:
-                        'One button opens the dialler. You never see the number, and the call is recorded in the log.',
-                  ),
+                  _Point(icon: Icons.call_outlined, title: l10n.busLandingCallTitle, body: l10n.busLandingCallBody),
                   const SizedBox(height: 22),
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -115,16 +111,12 @@ class _DriverLandingScreenState extends ConsumerState<DriverLandingScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          registered ? 'To sign in you need' : 'Before you start you need',
+                          registered ? l10n.busLandingNeedSignIn : l10n.busLandingNeedSetUp,
                           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          registered
-                              ? 'Your mobile number and the 4-digit passcode you chose on this phone.'
-                              : 'Your mobile number, and an 8-digit code from your school office. '
-                                    'The code works for 24 hours. You choose a 4-digit passcode while '
-                                    'setting up, and after that the passcode is all you need.',
+                          registered ? l10n.busLandingNeedSignInBody : l10n.busLandingNeedSetUpBody,
                           style: TextStyle(color: scheme.onSurfaceVariant, height: 1.45),
                         ),
                       ],
@@ -140,13 +132,12 @@ class _DriverLandingScreenState extends ConsumerState<DriverLandingScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 16),
                       ),
-                      child: Text(registered ? 'Sign in' : 'Set up this phone'),
+                      child: Text(registered ? l10n.busLandingSignIn : l10n.busLandingSetUp),
                     ),
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    'Lost your phone, or forgotten the passcode? Your school office '
-                    'can unlock your account and give you a new code.',
+                    l10n.busLandingLostPhone,
                     style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, height: 1.4),
                   ),
                 ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/not_sent_mark.dart';
 
@@ -17,6 +18,7 @@ class NotSentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return Card(
       key: const Key('not-sent-card'),
@@ -30,17 +32,14 @@ class NotSentCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
               child: Text(
-                'Not sent',
+                l10n.busNotSent,
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: colors.onDangerContainer),
               ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               child: Text(
-                onRetry == null
-                    ? 'The school did not record these. Tell your school office, who can correct the trip.'
-                    : 'The school did not record these. Try again if something has changed, '
-                          'or tell your school office, who can correct the trip.',
+                onRetry == null ? l10n.busNotSentHelpEnded : l10n.busNotSentHelpRunning,
                 key: const Key('not-sent-help'),
                 style: TextStyle(color: colors.onDangerContainer, fontSize: 13),
               ),
@@ -59,12 +58,12 @@ class NotSentCard extends StatelessWidget {
                     if (onRetry != null && mark.mark != null)
                       IconButton(
                         key: Key('not-sent-retry-${mark.clientId}'),
-                        tooltip: 'Try again',
+                        tooltip: l10n.busTryAgain,
                         icon: Icon(Icons.refresh, color: colors.onDangerContainer),
                         onPressed: () => onRetry!(mark),
                       ),
                     IconButton(
-                      tooltip: 'Dismiss',
+                      tooltip: l10n.busDismiss,
                       icon: Icon(Icons.close, color: colors.onDangerContainer),
                       onPressed: () => onDismiss(mark),
                     ),

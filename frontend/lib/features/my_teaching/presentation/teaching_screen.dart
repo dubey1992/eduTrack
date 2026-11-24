@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
@@ -27,13 +28,14 @@ class TeachingScreen extends ConsumerWidget {
     final user = ref.watch(authNotifierProvider).value;
     // Only the parts the school uses: a part switched off is left out
     // rather than shown answering "switched off".
+    final l10n = context.l10n;
     final parts = [
       if (user?.canView(AppModules.teachingReports) ?? false)
-        (const Tab(key: Key('teaching-tab-reports'), text: 'Reports'), const _ReportsTab()),
+        (Tab(key: const Key('teaching-tab-reports'), text: l10n.staffTabReports), const _ReportsTab()),
       if (user?.canView(AppModules.syllabus) ?? false)
-        (const Tab(key: Key('teaching-tab-syllabus'), text: 'Syllabus'), const _SyllabusTab()),
+        (Tab(key: const Key('teaching-tab-syllabus'), text: l10n.staffTabSyllabus), const _SyllabusTab()),
       if (user?.canView(AppModules.assessments) ?? false)
-        (const Tab(key: Key('teaching-tab-marks'), text: 'Marks'), const MarksTab()),
+        (Tab(key: const Key('teaching-tab-marks'), text: l10n.staffTabMarks), const MarksTab()),
     ];
 
     if (parts.isEmpty) return const SizedBox.shrink();
@@ -58,6 +60,7 @@ class _ReportsTab extends ConsumerWidget {
     final reports = ref.watch(myReportsProvider);
     final notifier = ref.read(myReportsProvider.notifier);
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return RefreshIndicator(
       key: const Key('my-reports-refresh'),
@@ -66,11 +69,7 @@ class _ReportsTab extends ConsumerWidget {
         key: const Key('my-reports-list'),
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            'What you taught, period by period, and whether it has been reviewed. '
-            'File a report from its period on Today.',
-            style: TextStyle(color: colors.muted),
-          ),
+          Text(l10n.staffReportsIntro, style: TextStyle(color: colors.muted)),
           const SizedBox(height: 12),
           PeriodFilter(value: notifier.period, onChanged: notifier.setPeriod),
           const SizedBox(height: 16),
@@ -84,8 +83,8 @@ class _ReportsTab extends ConsumerWidget {
             _Empty(
               key: const Key('my-reports-empty'),
               icon: Icons.description_outlined,
-              title: notifier.period.emptyPhrase('reports'),
-              body: 'Once a period has begun, tap it on Today to say what was taught.',
+              title: l10n.staffEmptyReports(notifier.period.name),
+              body: l10n.staffEmptyReportsBody,
             )
           else ...[
             for (final report in reports.requireValue.items) ...[
@@ -97,7 +96,7 @@ class _ReportsTab extends ConsumerWidget {
                 child: TextButton(
                   key: const Key('my-reports-more'),
                   onPressed: () => ref.read(myReportsProvider.notifier).loadMore(),
-                  child: const Text('Show older reports'),
+                  child: Text(l10n.staffShowOlderReports),
                 ),
               ),
           ],
@@ -117,7 +116,7 @@ class _ReportCard extends StatelessWidget {
     final colors = context.appColors;
     final where = [
       report.classSectionName,
-      if (report.periodNumber != null) 'Period ${report.periodNumber}',
+      if (report.periodNumber != null) context.l10n.staffPeriodNumber(report.periodNumber!),
     ].whereType<String>().join(' · ');
 
     return Card(
@@ -134,7 +133,7 @@ class _ReportCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      report.subjectName ?? 'Report',
+                      report.subjectName ?? context.l10n.staffReport,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -161,10 +160,10 @@ class ReviewBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => report.isReviewed
-      ? const StatusBadge(label: 'Reviewed', tone: BadgeTone.success)
+      ? StatusBadge(label: context.l10n.staffReviewed, tone: BadgeTone.success)
       : report.isReturned
-      ? const StatusBadge(label: 'Sent back', tone: BadgeTone.warning)
-      : const StatusBadge(label: 'Awaiting review', tone: BadgeTone.neutral);
+      ? StatusBadge(label: context.l10n.staffSentBack, tone: BadgeTone.warning)
+      : StatusBadge(label: context.l10n.staffAwaitingReview, tone: BadgeTone.neutral);
 }
 
 class _SyllabusTab extends ConsumerWidget {
@@ -182,20 +181,17 @@ class _SyllabusTab extends ConsumerWidget {
         key: const Key('my-syllabus-list'),
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            'Each class and subject you teach this year. Tap one to tick off topics.',
-            style: TextStyle(color: colors.muted),
-          ),
+          Text(context.l10n.staffSyllabusIntro, style: TextStyle(color: colors.muted)),
           const SizedBox(height: 16),
           AsyncValueView<List<MySyllabusClass>>(
             value: classes,
             onRetry: () => ref.invalidate(mySyllabusProvider),
             isEmpty: (rows) => rows.isEmpty,
-            emptyBuilder: (context) => const _Empty(
-              key: Key('my-syllabus-empty'),
+            emptyBuilder: (context) => _Empty(
+              key: const Key('my-syllabus-empty'),
               icon: Icons.menu_book_outlined,
-              title: 'No classes on your timetable this year.',
-              body: 'Your school office puts you on the timetable; your classes appear here once it does.',
+              title: context.l10n.staffNoClassesThisYear,
+              body: context.l10n.staffNoClassesThisYearBody,
             ),
             data: (context, rows) => Column(
               children: [
@@ -243,7 +239,9 @@ class _SyllabusCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    noOutline ? 'No topics yet' : '${row.completedTopics} of ${row.totalTopics}',
+                    noOutline
+                        ? context.l10n.staffNoTopicsYet
+                        : context.l10n.staffXOfY(row.completedTopics, row.totalTopics),
                     style: TextStyle(color: colors.muted, fontWeight: FontWeight.w600),
                   ),
                 ],

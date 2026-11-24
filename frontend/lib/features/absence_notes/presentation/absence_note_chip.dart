@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/absence_notes.dart';
 
@@ -27,7 +29,7 @@ class AbsenceNoteChip extends StatelessWidget {
     return ActionChip(
       key: Key('absence-note-${note.id}'),
       avatar: Icon(Icons.mail_outline_rounded, size: 16, color: colours.onInfoContainer),
-      label: Text(note.acknowledged ? 'Parent\'s note · seen' : 'Parent\'s note'),
+      label: Text(note.acknowledged ? context.l10n.staffParentsNoteSeen : context.l10n.staffParentsNote),
       labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colours.onInfoContainer),
       backgroundColor: colours.infoContainer,
       side: BorderSide.none,
@@ -67,7 +69,7 @@ class _AbsenceNoteDialogState extends ConsumerState<AbsenceNoteDialog> {
       final bytes = await ref.read(absenceNotesRepositoryProvider).photo(widget.note.id);
       if (mounted) setState(() => _photo = Uint8List.fromList(bytes));
     } on Failure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = failure.localizedMessage(context));
     }
   }
 
@@ -83,10 +85,9 @@ class _AbsenceNoteDialogState extends ConsumerState<AbsenceNoteDialog> {
       widget.onAcknowledged?.call();
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Marked as seen. The parent can see that.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.staffNoteMarkedSeen)));
     } on Failure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = failure.localizedMessage(context));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -97,7 +98,7 @@ class _AbsenceNoteDialogState extends ConsumerState<AbsenceNoteDialog> {
     final colours = context.appColors;
 
     return AlertDialog(
-      title: Text('Note about ${widget.studentName}'),
+      title: Text(context.l10n.staffNoteAbout(widget.studentName)),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(
@@ -114,10 +115,7 @@ class _AbsenceNoteDialogState extends ConsumerState<AbsenceNoteDialog> {
                 ),
               ],
               const SizedBox(height: 12),
-              Text(
-                'A note doesn\'t mark the register - mark it as usual.',
-                style: TextStyle(fontSize: 13, color: colours.muted),
-              ),
+              Text(context.l10n.staffNoteDoesNotMark, style: TextStyle(fontSize: 13, color: colours.muted)),
               if (_error != null) ...[
                 const SizedBox(height: 8),
                 Text(_error!, style: TextStyle(color: colours.danger, fontSize: 13)),
@@ -127,14 +125,14 @@ class _AbsenceNoteDialogState extends ConsumerState<AbsenceNoteDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.l10n.staffClose)),
         if (!widget.note.acknowledged)
           FilledButton(
             key: const Key('absence-note-acknowledge'),
             onPressed: _busy ? null : _acknowledge,
             child: _busy
                 ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Mark as seen'),
+                : Text(context.l10n.staffMarkAsSeen),
           ),
       ],
     );

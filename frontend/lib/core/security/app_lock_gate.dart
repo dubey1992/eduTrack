@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_lock.dart';
+import '../l10n/l10n.dart';
 
 /// Puts the app lock over the whole app (docs/mobile-apps-review.md, 4.4).
 ///
@@ -113,17 +114,17 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
               children: [
                 Icon(Icons.lock_rounded, size: 56, color: scheme.primary),
                 const SizedBox(height: 16),
-                Text('School365ai is locked', style: Theme.of(context).textTheme.titleLarge),
+                Text(context.l10n.coreLockedTitle, style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 Text(
-                  'Use your fingerprint, face or phone\'s screen lock to open it.',
+                  context.l10n.coreLockedHint,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: scheme.onSurfaceVariant),
                 ),
                 if (_failed) ...[
                   const SizedBox(height: 12),
                   Text(
-                    'Not unlocked. Try again.',
+                    context.l10n.coreNotUnlocked,
                     key: const Key('app-lock-failed'),
                     style: TextStyle(color: scheme.error),
                   ),
@@ -133,7 +134,7 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
                   key: const Key('app-lock-unlock'),
                   onPressed: _busy ? null : _unlock,
                   icon: const Icon(Icons.fingerprint_rounded),
-                  label: const Text('Unlock'),
+                  label: Text(context.l10n.coreUnlock),
                 ),
               ],
             ),
@@ -192,19 +193,12 @@ class _LockOfferState extends ConsumerState<_LockOffer> {
                     Icon(Icons.fingerprint_rounded, color: scheme.primary),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        'Lock the app with your fingerprint?',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                      child: Text(context.l10n.coreLockOfferTitle, style: Theme.of(context).textTheme.titleMedium),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  'Anyone who picks up this phone would need your fingerprint, face or screen lock to open '
-                  'School365ai. You can change this later.',
-                  style: TextStyle(color: scheme.onSurfaceVariant),
-                ),
+                Text(context.l10n.coreLockOfferBody, style: TextStyle(color: scheme.onSurfaceVariant)),
                 if (_problem != null) ...[
                   const SizedBox(height: 6),
                   Text(
@@ -219,13 +213,13 @@ class _LockOfferState extends ConsumerState<_LockOffer> {
                     TextButton(
                       key: const Key('app-lock-not-now'),
                       onPressed: _busy ? null : () => ref.read(appLockProvider.notifier).decline(),
-                      child: const Text('Not now'),
+                      child: Text(context.l10n.coreNotNow),
                     ),
                     const SizedBox(width: 4),
                     FilledButton(
                       key: const Key('app-lock-turn-on'),
                       onPressed: _busy ? null : _turnOn,
-                      child: const Text('Turn on'),
+                      child: Text(context.l10n.coreTurnOn),
                     ),
                   ],
                 ),
@@ -282,11 +276,8 @@ class _AppLockSwitchState extends ConsumerState<AppLockSwitch> {
           key: const Key('app-lock-switch'),
           contentPadding: EdgeInsets.zero,
           secondary: const Icon(Icons.fingerprint_rounded),
-          title: const Text('App lock'),
-          subtitle: const Text(
-            'Ask for your fingerprint, face or screen lock when the app opens, '
-            'and after 5 minutes away',
-          ),
+          title: Text(context.l10n.coreAppLock),
+          subtitle: Text(context.l10n.coreAppLockHint),
           value: lock.enabled,
           onChanged: _busy || !lock.loaded ? null : _change,
         ),

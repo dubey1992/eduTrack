@@ -12,6 +12,7 @@ import '../../features/my_trip/presentation/trip_check_screen.dart';
 import '../../features/my_trip/presentation/my_trip_screen.dart';
 import '../../features/my_trip/presentation/navigate_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../l10n/l10n.dart';
 import '../network/maintenance_notifier.dart';
 import '../widgets/crew_frame.dart';
 
@@ -182,6 +183,8 @@ class _NotCrewScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+
     return Scaffold(
       body: Center(
         child: Padding(
@@ -191,21 +194,13 @@ class _NotCrewScreen extends ConsumerWidget {
             children: [
               const Icon(Icons.directions_bus_outlined, size: 48),
               const SizedBox(height: 16),
-              Text(
-                'This app is for the bus crew',
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
+              Text(l10n.busNotCrewTitle, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
               const SizedBox(height: 8),
-              const Text(
-                'Your account signs in to the school on the web instead. '
-                'Ask your school admin if you should be driving a route.',
-                textAlign: TextAlign.center,
-              ),
+              Text(l10n.busNotCrewBody, textAlign: TextAlign.center),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () => ref.read(authNotifierProvider.notifier).logout(),
-                child: const Text('Sign out'),
+                child: Text(l10n.busSignOut),
               ),
             ],
           ),

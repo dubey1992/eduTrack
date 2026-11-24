@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failure.dart';
+import '../../../../core/l10n/failure_text.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_format.dart';
@@ -12,6 +14,7 @@ import '../../data/models/fee_credit.dart';
 import '../../data/models/fee_receipt.dart';
 import '../../data/models/student_fees.dart';
 import '../../data/money_text.dart';
+import '../../../today/presentation/staff_words.dart';
 
 /// A student's credit on their statement (docs/fees.md, F6): what they hold,
 /// its history, and - for those who take money - Refund. Shown only while
@@ -26,6 +29,7 @@ class CreditSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
     final held = statement.heldCredit;
+    final l10n = context.l10n;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -52,10 +56,7 @@ class CreditSection extends ConsumerWidget {
                       ].join(' + '),
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                     ),
-                    Text(
-                      'In credit - it pays the next fees charged, oldest first.',
-                      style: TextStyle(color: colors.muted, fontSize: 13),
-                    ),
+                    Text(l10n.staffInCredit, style: TextStyle(color: colors.muted, fontSize: 13)),
                   ],
                 ),
               ],
@@ -66,13 +67,13 @@ class CreditSection extends ConsumerWidget {
                 TextButton.icon(
                   onPressed: () => showCreditHistoryDialog(context, statement.student),
                   icon: const Icon(Icons.history),
-                  label: const Text('History'),
+                  label: Text(l10n.staffHistory),
                 ),
                 if (canManage)
                   OutlinedButton.icon(
                     onPressed: () => showRefundDialog(context, statement),
                     icon: const Icon(Icons.undo),
-                    label: const Text('Refund'),
+                    label: Text(l10n.staffRefund),
                   ),
               ],
             ),
@@ -107,9 +108,10 @@ class _CreditHistoryDialogState extends ConsumerState<_CreditHistoryDialog> {
   @override
   Widget build(BuildContext context) {
     final query = (studentId: widget.student.id, page: _page);
+    final l10n = context.l10n;
 
     return AlertDialog(
-      title: Text('Credit history - ${widget.student.name}'),
+      title: Text(l10n.staffCreditHistoryFor(widget.student.name)),
       content: SizedBox(
         width: 620,
         height: 460,
@@ -118,7 +120,7 @@ class _CreditHistoryDialogState extends ConsumerState<_CreditHistoryDialog> {
           onRetry: () => ref.invalidate(studentCreditHistoryProvider(query)),
           data: (context, page) {
             if (page.items.isEmpty) {
-              return const Center(child: Text('No credit has moved on this account yet.'));
+              return Center(child: Text(l10n.staffNoCreditMoved));
             }
 
             return Column(
@@ -134,14 +136,14 @@ class _CreditHistoryDialogState extends ConsumerState<_CreditHistoryDialog> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text('Page ${page.currentPage} of ${page.lastPage}'),
+                      Text(l10n.staffPageOf(page.currentPage, page.lastPage)),
                       IconButton(
-                        tooltip: 'Newer',
+                        tooltip: l10n.staffNewer,
                         onPressed: _page > 1 ? () => setState(() => _page--) : null,
                         icon: const Icon(Icons.chevron_left),
                       ),
                       IconButton(
-                        tooltip: 'Older',
+                        tooltip: l10n.staffOlder,
                         onPressed: _page < page.lastPage ? () => setState(() => _page++) : null,
                         icon: const Icon(Icons.chevron_right),
                       ),
@@ -152,7 +154,7 @@ class _CreditHistoryDialogState extends ConsumerState<_CreditHistoryDialog> {
           },
         ),
       ),
-      actions: [FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close'))],
+      actions: [FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.staffClose))],
     );
   }
 }
@@ -162,19 +164,20 @@ class _HistoryRow extends StatelessWidget {
 
   final FeeCreditEntry entry;
 
-  String get _about => [
+  String _about(AppLocalizations l10n) => [
     if (entry.dueLabel != null) entry.dueLabel!,
-    if (entry.receiptNumber != null) 'Receipt ${entry.receiptNumber}',
+    if (entry.receiptNumber != null) l10n.staffReceiptNumber(entry.receiptNumber!),
     if (entry.paymentModeLabel != null) entry.paymentModeLabel!,
     if (entry.reference != null) entry.reference!,
     if (entry.note != null) entry.note!,
-    if (entry.createdByName != null) 'by ${entry.createdByName}',
+    if (entry.createdByName != null) l10n.staffByLower(entry.createdByName!),
   ].join(' · ');
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final amount = formatCurrency((centsOf(entry.size) ?? 0) / 100, entry.currencyCode);
+    final about = _about(context.l10n);
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -184,7 +187,7 @@ class _HistoryRow extends StatelessWidget {
       ),
       title: Text(entry.kindLabel),
       subtitle: Text(
-        [formatDate(entry.entryDate), if (_about.isNotEmpty) _about].join(' · '),
+        [formatDate(entry.entryDate), if (about.isNotEmpty) about].join(' · '),
         style: TextStyle(color: colors.muted, fontSize: 13),
       ),
       trailing: Text(
@@ -207,7 +210,7 @@ Future<void> showRefundDialog(BuildContext context, StudentFeeStatement statemen
 
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
-    ..showSnackBar(SnackBar(content: Text('Refund of $refunded recorded.')));
+    ..showSnackBar(SnackBar(content: Text(context.l10n.staffRefundRecorded(refunded))));
 }
 
 class _RefundDialog extends ConsumerStatefulWidget {
@@ -247,8 +250,8 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
     final cents = centsOf(value ?? '');
     final held = centsOf(_credit.balance) ?? 0;
 
-    if (cents == null || cents == 0) return 'Enter an amount above zero.';
-    if (cents > held) return 'Only ${_money(held)} is held in credit.';
+    if (cents == null || cents == 0) return context.l10n.staffEnterAmountAboveZero;
+    if (cents > held) return context.l10n.staffOnlyHeldInCredit(_money(held));
     return null;
   }
 
@@ -292,7 +295,7 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) {
         setState(() {
-          _error = failure.message;
+          _error = failure.localizedMessage(context);
           _fieldErrors = {
             for (final entry in failure.validationErrors.entries)
               if (entry.value.isNotEmpty) entry.key: entry.value.join('\n'),
@@ -308,9 +311,10 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final held = widget.statement.heldCredit;
+    final l10n = context.l10n;
 
     return AlertDialog(
-      title: Text('Refund credit - ${widget.statement.student.name}'),
+      title: Text(l10n.staffRefundCreditFor(widget.statement.student.name)),
       content: SizedBox(
         width: 520,
         child: Form(
@@ -332,15 +336,14 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
                   const SizedBox(height: 12),
                 ],
                 Text(
-                  'Holds ${_money(centsOf(_credit.balance) ?? 0)} in credit. Record money you have handed back to '
-                  'the family - it comes off the credit.',
+                  l10n.staffHoldsCredit(_money(centsOf(_credit.balance) ?? 0)),
                   style: TextStyle(color: colors.muted),
                 ),
                 const SizedBox(height: 12),
                 if (held.length > 1) ...[
                   DropdownButtonFormField<FeeCreditBalance>(
                     initialValue: _credit,
-                    decoration: const InputDecoration(labelText: 'Currency'),
+                    decoration: InputDecoration(labelText: l10n.staffCurrency),
                     items: [for (final entry in held) DropdownMenuItem(value: entry, child: Text(entry.currencyCode))],
                     onChanged: _saving
                         ? null
@@ -363,7 +366,7 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: [DecimalTextInputFormatter()],
                         decoration: InputDecoration(
-                          labelText: 'Amount refunded',
+                          labelText: l10n.staffAmountRefunded,
                           errorText: _fieldErrors['amount'],
                           errorMaxLines: 3,
                         ),
@@ -376,7 +379,7 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
                         onTap: _saving ? null : _pickDate,
                         child: InputDecorator(
                           decoration: InputDecoration(
-                            labelText: 'Date refunded',
+                            labelText: l10n.staffDateRefunded,
                             errorText: _fieldErrors['refund_date'],
                             errorMaxLines: 3,
                           ),
@@ -389,9 +392,13 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
                       child: DropdownButtonFormField<PaymentMode>(
                         initialValue: _mode,
                         isExpanded: true,
-                        decoration: InputDecoration(labelText: 'Paid back by', errorText: _fieldErrors['payment_mode']),
+                        decoration: InputDecoration(
+                          labelText: l10n.staffPaidBackBy,
+                          errorText: _fieldErrors['payment_mode'],
+                        ),
                         items: [
-                          for (final mode in PaymentMode.values) DropdownMenuItem(value: mode, child: Text(mode.label)),
+                          for (final mode in PaymentMode.values)
+                            DropdownMenuItem(value: mode, child: Text(paymentModeLabel(l10n, mode.wire, mode.label))),
                         ],
                         onChanged: _saving ? null : (mode) => setState(() => _mode = mode!),
                       ),
@@ -403,13 +410,13 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
                         enabled: !_saving,
                         maxLength: 100,
                         decoration: InputDecoration(
-                          labelText: _mode.needsReference ? 'Cheque number' : 'Reference (optional)',
+                          labelText: _mode.needsReference ? l10n.staffChequeNumber : l10n.staffReferenceOptional,
                           counterText: '',
                           errorText: _fieldErrors['reference'],
                           errorMaxLines: 3,
                         ),
                         validator: (value) =>
-                            _mode.needsReference && (value ?? '').trim().isEmpty ? 'Enter the cheque number.' : null,
+                            _mode.needsReference && (value ?? '').trim().isEmpty ? l10n.staffEnterChequeNumber : null,
                       ),
                     ),
                   ],
@@ -421,11 +428,11 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
                   maxLength: 500,
                   maxLines: 2,
                   decoration: InputDecoration(
-                    labelText: 'Reason',
-                    hintText: 'e.g. Left the school',
+                    labelText: l10n.staffReason,
+                    hintText: l10n.staffRefundReasonHint,
                     errorText: _fieldErrors['reason'],
                   ),
-                  validator: (value) => (value ?? '').trim().length < 3 ? 'Say why the money is refunded.' : null,
+                  validator: (value) => (value ?? '').trim().length < 3 ? l10n.staffSayWhyRefund : null,
                 ),
               ],
             ),
@@ -433,12 +440,12 @@ class _RefundDialogState extends ConsumerState<_RefundDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: Text(l10n.cancel)),
         FilledButton(
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Record refund'),
+              : Text(l10n.staffRecordRefund),
         ),
       ],
     );

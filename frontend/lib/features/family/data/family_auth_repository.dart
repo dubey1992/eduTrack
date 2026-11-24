@@ -32,6 +32,11 @@ class FamilyAuthRepository {
   /// The server's answer when this phone's secret does not match the number.
   static const deviceNotRegisteredCode = 'DEVICE_NOT_REGISTERED';
 
+  /// What the phone itself says when it has no registration; the sign-in
+  /// screen shows it in the parent's language.
+  static const deviceNotRegisteredMessage =
+      'This phone is not registered yet. Enter the setup code from your school\'s letter.';
+
   final FamilyAuthApi _api;
   final AuthTokenStorage _tokenStorage;
   final FamilyDeviceStorage _deviceStorage;
@@ -65,10 +70,7 @@ class FamilyAuthRepository {
   Future<FamilyAccount> login({required String mobile, required String passcode}) async {
     final device = await _deviceStorage.read();
     if (device == null) {
-      throw const Failure(
-        code: deviceNotRegisteredCode,
-        message: 'This phone is not registered yet. Enter the setup code from your school\'s letter.',
-      );
+      throw const Failure(code: deviceNotRegisteredCode, message: deviceNotRegisteredMessage);
     }
 
     try {

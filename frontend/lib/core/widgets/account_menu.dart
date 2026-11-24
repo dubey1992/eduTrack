@@ -7,6 +7,7 @@ import '../../features/auth/presentation/change_password_dialog.dart';
 import '../../features/auth/presentation/signed_in_devices_dialog.dart';
 import '../../features/my_trip/application/trip_mark_queue.dart';
 import 'confirm_dialog.dart';
+import '../l10n/l10n.dart';
 
 /// The account's menu: My profile, the signed-in devices, a new password and
 /// logging out. Opened from the profile at the foot of the side panel
@@ -67,14 +68,13 @@ Future<void> confirmLogout(BuildContext context, WidgetRef ref) async {
   final unsent = isAttendant ? await ref.read(tripMarkQueueProvider.notifier).waitingCount() : 0;
   if (!context.mounted) return;
 
+  final l10n = context.l10n;
   final confirmed = await confirmDialog(
     context,
-    title: 'Log out?',
-    message: unsent > 0
-        ? '$unsent ${unsent == 1 ? 'mark has' : 'marks have'} not been sent yet. Sign out anyway? They will be lost.'
-        : 'You will need to sign in again to get back to your school.',
-    confirmLabel: 'Log out',
-    cancelLabel: 'Stay signed in',
+    title: l10n.coreLogOutTitle,
+    message: unsent > 0 ? l10n.coreLogOutUnsent(unsent) : l10n.coreLogOutMessage,
+    confirmLabel: l10n.coreLogOut,
+    cancelLabel: l10n.coreStaySignedIn,
     isDestructive: unsent > 0,
   );
 

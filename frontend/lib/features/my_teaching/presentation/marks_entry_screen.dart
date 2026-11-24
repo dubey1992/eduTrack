@@ -6,6 +6,8 @@ import '../application/staff_outbox.dart';
 import '../data/outbox.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -35,7 +37,7 @@ class MarksEntryScreen extends ConsumerWidget {
 
     // Loading, or failed with Retry: under a plain app bar of its own.
     return Scaffold(
-      appBar: AppBar(title: const Text('Marks')),
+      appBar: AppBar(title: Text(context.l10n.staffTabMarks)),
       body: SafeArea(
         child: AsyncValueView<AssessmentSheet>(
           value: sheet,
@@ -102,8 +104,10 @@ class _SheetState extends ConsumerState<_Sheet> {
     final value = text.trim();
     if (value.isEmpty) return null;
     final parsed = double.tryParse(value);
-    if (parsed == null) return 'Not a number';
-    if (parsed < 0 || parsed > _max) return 'Out of ${Assessment.tidyMarks(widget.initial.assessment.maxMarks)}';
+    if (parsed == null) return context.l10n.staffNotANumber;
+    if (parsed < 0 || parsed > _max) {
+      return context.l10n.staffOutOfMarks('${Assessment.tidyMarks(widget.initial.assessment.maxMarks)}');
+    }
     return null;
   }
 
@@ -117,6 +121,7 @@ class _SheetState extends ConsumerState<_Sheet> {
   Future<void> _save(AssessmentSheet sheet) async {
     if (_busy || _anyTypingError(sheet)) return;
     FocusScope.of(context).unfocus();
+    final l10n = context.l10n;
     setState(() {
       _busy = true;
       _problem = null;
@@ -133,10 +138,10 @@ class _SheetState extends ConsumerState<_Sheet> {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(
-              content: Text('Marks saved.'),
+            SnackBar(
+              content: Text(l10n.staffMarksSaved),
               behavior: SnackBarBehavior.floating,
-              margin: EdgeInsets.fromLTRB(16, 0, 16, 84),
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 84),
             ),
           );
       }
@@ -146,23 +151,22 @@ class _SheetState extends ConsumerState<_Sheet> {
       setState(() {
         _rowErrors = _byStudent(sheet, failure.validationErrors);
         _problem = switch (failure.code) {
-          'NETWORK_ERROR' =>
-            'No signal: these marks are saved on this phone and sent when there is. Publish once they are in.',
-          'ASSESSMENT_PUBLISHED' => 'This test has been published, so its marks cannot change here.',
-          _ when _rowErrors.isNotEmpty => 'Some marks were not accepted. See the highlighted students.',
-          _ => failure.message,
+          'NETWORK_ERROR' => l10n.staffMarksKeptForLater,
+          'ASSESSMENT_PUBLISHED' => l10n.staffTestAlreadyPublished,
+          _ when _rowErrors.isNotEmpty => l10n.staffSomeMarksRefused,
+          _ => failure.localizedMessage(context),
         };
       });
       if (failure.code == 'ASSESSMENT_PUBLISHED') await _notifier.reload();
       // Kept, and sent when there is signal (2.1): the newest marks replace
       // any saved before them.
-      if (failure.code == 'NETWORK_ERROR') await _keepForLater(sheet);
+      if (failure.code == 'NETWORK_ERROR') await _keepForLater(sheet, l10n);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _keepForLater(AssessmentSheet sheet) async {
+  Future<void> _keepForLater(AssessmentSheet sheet, AppLocalizations l10n) async {
     final me = (await ref.read(authNotifierProvider.future))?.id;
     if (me == null) return;
 
@@ -173,7 +177,7 @@ class _SheetState extends ConsumerState<_Sheet> {
             kind: OutboxKind.marks,
             key: OutboxItem.marksKey(widget.assessmentId),
             userId: me,
-            label: 'Marks: ${sheet.assessment.title}',
+            label: l10n.staffOutboxMarksLabel(sheet.assessment.title),
             payload: {
               'assessment_id': widget.assessmentId,
               'marks': [for (final entry in sheet.entries) entry.toJson()],
@@ -200,33 +204,25 @@ class _SheetState extends ConsumerState<_Sheet> {
     // on this phone (2.1).
     if (ref.read(staffOutboxProvider.notifier).waitingFor(OutboxItem.marksKey(widget.assessmentId)) != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          key: Key('marks-still-waiting'),
-          content: Text('These marks are still waiting on this phone for signal. Publish once they are sent.'),
-        ),
+        SnackBar(key: const Key('marks-still-waiting'), content: Text(context.l10n.staffMarksStillWaiting)),
       );
       return;
     }
     final test = sheet.assessment;
     final sitting = sheet.entries.where((entry) => !entry.isAbsent).length;
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         key: const Key('marks-publish-confirm'),
-        title: const Text('Publish the results?'),
-        content: Text(
-          test.willTellGuardians
-              ? 'The marks of $sitting students become final, and their guardians are told, '
-                    'as your school has set it up. Only your HOD or the office can reopen it.'
-              : 'The marks become final again. Guardians were told when it was first published, '
-                    'and are not messaged a second time.',
-        ),
+        title: Text(l10n.staffPublishResultsQ),
+        content: Text(test.willTellGuardians ? l10n.staffPublishFirstBody(sitting) : l10n.staffPublishAgainBody),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Not yet')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.staffNotYet)),
           FilledButton(
             key: const Key('marks-publish-yes'),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Publish'),
+            child: Text(l10n.staffPublish),
           ),
         ],
       ),
@@ -244,15 +240,15 @@ class _SheetState extends ConsumerState<_Sheet> {
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('Results published.')));
+          ..showSnackBar(SnackBar(content: Text(l10n.staffResultsPublished)));
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) {
         setState(
           () => _problem = failure.code == 'NETWORK_ERROR'
-              ? 'No connection. Nothing was published - try again when you have signal.'
-              : failure.message,
+              ? l10n.staffNothingPublishedNoSignal
+              : failure.localizedMessage(context),
         );
       }
     } finally {
@@ -261,18 +257,19 @@ class _SheetState extends ConsumerState<_Sheet> {
   }
 
   Future<bool> _leave() async {
+    final l10n = context.l10n;
     final go = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         key: const Key('marks-leave-confirm'),
-        title: const Text('Leave without saving?'),
-        content: const Text('The marks you typed since the last save will be lost.'),
+        title: Text(l10n.staffLeaveWithoutSavingQ),
+        content: Text(l10n.staffLeaveWithoutSavingBody),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Keep entering')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.staffKeepEntering)),
           TextButton(
             key: const Key('marks-leave-discard'),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Leave'),
+            child: Text(l10n.staffLeaveScreen),
           ),
         ],
       ),
@@ -287,6 +284,7 @@ class _SheetState extends ConsumerState<_Sheet> {
     final editable = test.isDraft;
     final dirty = _notifier.isDirty;
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return PopScope(
       canPop: !dirty || !editable,
@@ -321,7 +319,7 @@ class _SheetState extends ConsumerState<_Sheet> {
                   if (!editable)
                     _Banner(
                       key: const Key('marks-published'),
-                      text: 'Published. The marks are final here; your HOD or the office can reopen the test.',
+                      text: l10n.staffMarksPublishedBanner,
                       background: colors.successContainer,
                       foreground: colors.onSuccessContainer,
                     ),
@@ -336,7 +334,7 @@ class _SheetState extends ConsumerState<_Sheet> {
                     child: sheet.entries.isEmpty
                         ? Center(
                             key: const Key('marks-no-students'),
-                            child: Text('Nobody in this class to mark.', style: TextStyle(color: colors.muted)),
+                            child: Text(l10n.staffNobodyToMark, style: TextStyle(color: colors.muted)),
                           )
                         : ListView.separated(
                             key: const Key('marks-list'),
@@ -385,10 +383,7 @@ class _SheetState extends ConsumerState<_Sheet> {
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Text(
-                                _typingErrors(sheet) == 1
-                                    ? '1 mark is not a number or is out of range. Fix it to save.'
-                                    : '${_typingErrors(sheet)} marks are not numbers or are out of range. '
-                                          'Fix them to save.',
+                                l10n.staffMarksFixFirst(_typingErrors(sheet)),
                                 key: const Key('marks-fix-first'),
                                 style: TextStyle(color: colors.danger),
                               ),
@@ -407,7 +402,7 @@ class _SheetState extends ConsumerState<_Sheet> {
                                             height: 18,
                                             child: CircularProgressIndicator(strokeWidth: 2),
                                           )
-                                        : Text(dirty ? 'Save marks' : 'Saved'),
+                                        : Text(dirty ? l10n.staffSaveMarks : l10n.staffSaved),
                                   ),
                                 ),
                               ),
@@ -419,7 +414,7 @@ class _SheetState extends ConsumerState<_Sheet> {
                                   // Saved first, and everyone marked: the server
                                   // refuses anything less, so the button does too.
                                   onPressed: _busy || dirty || !sheet.isComplete ? null : () => _publish(sheet),
-                                  child: const Text('Publish'),
+                                  child: Text(l10n.staffPublish),
                                 ),
                               ),
                             ],
@@ -448,6 +443,7 @@ class _Summary extends StatelessWidget {
     final colors = context.appColors;
     final left = sheet.entries.length - sheet.markedCount;
     final pass = test.passMarks == null ? null : Assessment.tidyMarks(test.passMarks);
+    final l10n = context.l10n;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -455,16 +451,16 @@ class _Summary extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              '${sheet.markedCount} of ${sheet.entries.length} marked',
+              l10n.staffMarkedCount(sheet.markedCount, sheet.entries.length),
               key: const Key('marks-count'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           Text(
             [
-              'Out of ${test.maxMarksLabel}',
-              if (pass != null) 'pass $pass',
-              if (left > 0 && test.isDraft) '$left left',
+              l10n.staffOutOfMarks(test.maxMarksLabel),
+              if (pass != null) l10n.staffPassMarks(pass),
+              if (left > 0 && test.isDraft) l10n.staffLeft(left),
             ].join(' · '),
             style: TextStyle(color: colors.muted),
           ),
@@ -517,6 +513,7 @@ class _EditableRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
     final error = typingError ?? serverError;
 
     return Card(
@@ -531,7 +528,7 @@ class _EditableRow extends StatelessWidget {
                 children: [
                   Text(entry.studentName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   Text(
-                    entry.rollNumber == null ? entry.admissionNumber : 'Roll ${entry.rollNumber}',
+                    entry.rollNumber == null ? entry.admissionNumber : l10n.staffRoll('${entry.rollNumber}'),
                     style: TextStyle(color: colors.muted, fontSize: 13),
                   ),
                 ],
@@ -552,7 +549,7 @@ class _EditableRow extends StatelessWidget {
                 onChanged: onMark,
                 decoration: InputDecoration(
                   isDense: true,
-                  hintText: entry.isAbsent ? 'Absent' : '-',
+                  hintText: entry.isAbsent ? l10n.staffAbsent : '-',
                   errorText: error,
                   errorMaxLines: 3,
                 ),
@@ -566,7 +563,7 @@ class _EditableRow extends StatelessWidget {
                   value: entry.isAbsent,
                   onChanged: enabled ? onAbsent : null,
                 ),
-                Text('Absent', style: TextStyle(fontSize: 11, color: colors.muted)),
+                Text(l10n.staffAbsent, style: TextStyle(fontSize: 11, color: colors.muted)),
               ],
             ),
           ],
@@ -585,14 +582,15 @@ class _PublishedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return Card(
       key: Key('marks-row-${entry.studentId}'),
       child: ListTile(
         title: Text(entry.studentName),
-        subtitle: Text(entry.rollNumber == null ? entry.admissionNumber : 'Roll ${entry.rollNumber}'),
+        subtitle: Text(entry.rollNumber == null ? entry.admissionNumber : l10n.staffRoll('${entry.rollNumber}')),
         trailing: entry.isAbsent
-            ? const StatusBadge(label: 'Absent', tone: BadgeTone.neutral)
+            ? StatusBadge(label: l10n.staffAbsent, tone: BadgeTone.neutral)
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -605,7 +603,7 @@ class _PublishedRow extends StatelessWidget {
                     ),
                   ] else if (entry.passed == false) ...[
                     const SizedBox(width: 8),
-                    Text('Below pass', style: TextStyle(color: colors.danger, fontSize: 12)),
+                    Text(l10n.staffBelowPass, style: TextStyle(color: colors.danger, fontSize: 12)),
                   ],
                 ],
               ),

@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_format.dart';
@@ -14,6 +16,7 @@ import '../data/family_repository.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_fees.dart';
 import 'family_more_screens.dart';
+import 'family_words.dart';
 import '../../../core/utils/pdf_hand_off.dart';
 import 'widgets/family_widgets.dart';
 
@@ -27,7 +30,7 @@ class FamilyFeesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final child = ref.watch(selectedChildProvider);
     if (child == null) {
-      return const FamilyEmptyView(icon: Icons.family_restroom_rounded, title: 'No children to show');
+      return FamilyEmptyView(icon: Icons.family_restroom_rounded, title: context.l10n.familyNoChildrenTitle);
     }
 
     return ref
@@ -62,31 +65,28 @@ class _FeesList extends StatelessWidget {
       children: [
         SavedCopyLine(name: 'fees:${child.id}'),
         if (totals == null || fees.instalments.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 28),
             child: FamilyEmptyView(
               icon: Icons.receipt_long_rounded,
-              title: 'No fees set yet',
-              message: 'When the school sets this year\'s fees, they appear here.',
+              title: context.l10n.familyNoFeesYet,
+              message: context.l10n.familyNoFeesYetMessage,
             ),
           )
         else
           _Summary(fees: fees, totals: totals),
         if (!fees.howToPay.isEmpty) ...[const SizedBox(height: 12), _HowToPay(fees: fees)],
         if (fees.instalments.isNotEmpty) ...[
-          const _SectionTitle('Instalments'),
+          _SectionTitle(context.l10n.familyInstalments),
           for (final line in fees.instalments) ...[
             _InstalmentCard(line: line, currencyCode: fees.currencyCode),
             const SizedBox(height: 8),
           ],
         ],
-        const _SectionTitle('Receipts'),
+        _SectionTitle(context.l10n.familyReceipts),
         if (fees.receipts.isEmpty)
           FamilyCard(
-            child: Text(
-              'No payments this year yet. A receipt appears here as soon as the office records one.',
-              style: TextStyle(color: context.appColors.muted),
-            ),
+            child: Text(context.l10n.familyNoReceiptsYet, style: TextStyle(color: context.appColors.muted)),
           )
         else
           for (final receipt in fees.receipts) ...[
@@ -123,6 +123,7 @@ class _Summary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colours = context.appColors;
+    final l10n = context.l10n;
     String money(double amount) => formatCurrency(amount, fees.currencyCode);
     final allPaid = totals.balance <= 0;
 
@@ -133,11 +134,11 @@ class _Summary extends StatelessWidget {
         children: [
           CardHeading(
             icon: allPaid ? Icons.verified_rounded : Icons.account_balance_wallet_rounded,
-            title: fees.yearName == null ? 'This year' : 'Fees for ${fees.yearName}',
+            title: fees.yearName == null ? l10n.familyThisYear : l10n.familyFeesFor(fees.yearName!),
             colour: allPaid ? colours.success : (totals.overdue > 0 ? colours.danger : colours.warning),
           ),
           const SizedBox(height: 14),
-          Text(allPaid ? 'All paid' : 'Left to pay', style: TextStyle(color: colours.muted)),
+          Text(allPaid ? l10n.familyAllPaid : l10n.familyLeftToPay, style: TextStyle(color: colours.muted)),
           Text(
             money(totals.balance),
             key: const Key('family-fees-balance'),
@@ -145,7 +146,7 @@ class _Summary extends StatelessWidget {
           ),
           if (totals.overdue > 0)
             Text(
-              '${money(totals.overdue)} of it is overdue',
+              l10n.familyOfItOverdue(money(totals.overdue)),
               key: const Key('family-fees-overdue'),
               style: TextStyle(color: colours.danger, fontWeight: FontWeight.w600),
             ),
@@ -154,21 +155,15 @@ class _Summary extends StatelessWidget {
             spacing: 18,
             runSpacing: 6,
             children: [
-              _Figure(label: 'Charged', value: money(totals.charged)),
-              if (totals.discount > 0) _Figure(label: 'Discount', value: money(totals.discount)),
-              _Figure(label: 'Paid', value: money(totals.paid)),
-              if (fees.waived > 0) _Figure(label: 'Waived', value: money(fees.waived)),
-              if (fees.credit > 0) _Figure(label: 'Credit held', value: money(fees.credit)),
+              _Figure(label: l10n.familyCharged, value: money(totals.charged)),
+              if (totals.discount > 0) _Figure(label: l10n.familyDiscount, value: money(totals.discount)),
+              _Figure(label: l10n.familyFeeStatusPaid, value: money(totals.paid)),
+              if (fees.waived > 0) _Figure(label: l10n.familyFeeStatusWaived, value: money(fees.waived)),
+              if (fees.credit > 0) _Figure(label: l10n.familyCreditHeld, value: money(fees.credit)),
             ],
           ),
           const SizedBox(height: 4),
-          const HowWorkedOut(
-            key: Key('family-why-fees'),
-            explanation:
-                "Left to pay is this year's fees, less any discount, less what the school has recorded as paid, "
-                'less any instalment the school has waived. Overdue is the part of it from instalments whose due '
-                'date has passed.',
-          ),
+          HowWorkedOut(key: const Key('family-why-fees'), explanation: l10n.familyWhyFees),
         ],
       ),
     );
@@ -207,15 +202,7 @@ class _HowToPay extends ConsumerWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            opened
-                ? 'Once you have paid, the school records it and the receipt appears here.'
-                : "No UPI app opened on this phone. Copy the UPI ID and pay from your bank's app instead.",
-          ),
-        ),
-      );
+      ..showSnackBar(SnackBar(content: Text(opened ? context.l10n.familyUpiOpened : context.l10n.familyUpiNotOpened)));
   }
 
   Future<void> _copy(BuildContext context, String text, String what) async {
@@ -223,41 +210,35 @@ class _HowToPay extends ConsumerWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$what copied')));
+      ..showSnackBar(SnackBar(content: Text(context.l10n.familyCopied(what))));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colours = context.appColors;
+    final l10n = context.l10n;
 
     return FamilyCard(
       key: const Key('family-how-to-pay'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CardHeading(icon: Icons.payments_rounded, title: 'How to pay', colour: colours.info),
+          CardHeading(icon: Icons.payments_rounded, title: l10n.familyHowToPay, colour: colours.info),
           const SizedBox(height: 4),
-          Text(
-            'Pay the school directly. This app shows your fees; it does not take payments.',
-            style: TextStyle(fontSize: 13, color: colours.muted),
-          ),
+          Text(l10n.familyPaySchoolDirectly, style: TextStyle(fontSize: 13, color: colours.muted)),
           if (fees.upiPayLink case final link?) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
               key: const Key('family-pay-upi'),
               onPressed: () => _payByUpi(context, ref, link),
               icon: const Icon(Icons.currency_rupee_rounded),
-              label: Text('Pay ${formatCurrency(fees.amountToPayNow!, fees.currencyCode)} with any UPI app'),
+              label: Text(l10n.familyPayWithUpi(formatCurrency(fees.amountToPayNow!, fees.currencyCode))),
             ),
             const SizedBox(height: 4),
-            Text(
-              "Opens GPay, PhonePe, Paytm or your bank's app with the amount and your child's name filled in. "
-              'The school records the payment when it reaches them.',
-              style: TextStyle(fontSize: 12, color: colours.muted),
-            ),
+            Text(l10n.familyUpiExplain, style: TextStyle(fontSize: 12, color: colours.muted)),
           ],
           if (pay.counterHours != null)
-            _PayRow(icon: Icons.schedule_rounded, label: 'Fee counter', value: pay.counterHours!),
+            _PayRow(icon: Icons.schedule_rounded, label: l10n.familyFeeCounter, value: pay.counterHours!),
           if (pay.upiId != null)
             _PayRow(
               icon: Icons.qr_code_2_rounded,
@@ -265,31 +246,31 @@ class _HowToPay extends ConsumerWidget {
               value: pay.upiId!,
               action: IconButton(
                 key: const Key('family-copy-upi'),
-                tooltip: 'Copy the UPI ID',
+                tooltip: l10n.familyCopyUpiId,
                 icon: const Icon(Icons.copy_rounded, size: 18),
-                onPressed: () => _copy(context, pay.upiId!, 'UPI ID'),
+                onPressed: () => _copy(context, pay.upiId!, l10n.familyUpiId),
               ),
             ),
           if (pay.bankDetails != null)
             _PayRow(
               icon: Icons.account_balance_rounded,
-              label: 'Bank transfer',
+              label: l10n.familyPayModeBankTransfer,
               value: pay.bankDetails!,
               action: IconButton(
                 key: const Key('family-copy-bank'),
-                tooltip: 'Copy the bank details',
+                tooltip: l10n.familyCopyBankDetails,
                 icon: const Icon(Icons.copy_rounded, size: 18),
-                onPressed: () => _copy(context, pay.bankDetails!, 'Bank details'),
+                onPressed: () => _copy(context, pay.bankDetails!, l10n.familyBankDetails),
               ),
             ),
           if (pay.officePhone != null)
             _PayRow(
               icon: Icons.call_rounded,
-              label: 'Questions about fees',
+              label: l10n.familyFeeQuestions,
               value: pay.officePhone!,
               action: IconButton(
                 key: const Key('family-call-office'),
-                tooltip: 'Call the school office',
+                tooltip: l10n.familyCallSchoolOffice,
                 icon: const Icon(Icons.call_rounded, size: 18),
                 onPressed: () =>
                     ref.read(externalOpenerProvider)(Uri(scheme: 'tel', path: pay.officePhone!.replaceAll(' ', ''))),
@@ -365,7 +346,9 @@ class _InstalmentCard extends StatelessWidget {
                 Text(line.label, style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(
-                  '${line.status == InstalmentStatus.overdue ? 'Was due' : 'Due'} ${formatDate(line.dueDate)}',
+                  line.status == InstalmentStatus.overdue
+                      ? context.l10n.familyWasDueDate(formatDate(line.dueDate))
+                      : context.l10n.familyDueDate(formatDate(line.dueDate)),
                   style: TextStyle(
                     fontSize: 13,
                     color: line.status == InstalmentStatus.overdue ? colours.danger : colours.muted,
@@ -374,7 +357,7 @@ class _InstalmentCard extends StatelessWidget {
                 if (line.status == InstalmentStatus.partPaid ||
                     (line.status == InstalmentStatus.overdue && line.paid > 0))
                   Text(
-                    '${money(line.paid)} paid of ${money(line.amount - line.discount)}',
+                    context.l10n.familyPaidOf(money(line.paid), money(line.amount - line.discount)),
                     style: TextStyle(fontSize: 13, color: colours.muted),
                   ),
               ],
@@ -421,7 +404,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(99)),
       child: Text(
-        status.label,
+        status.words(context.l10n),
         style: TextStyle(color: foreground, fontSize: 12, fontWeight: FontWeight.w700),
       ),
     );
@@ -441,7 +424,8 @@ mixin _PdfDownload<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       final bytes = await fetch(ref.read(familyRepositoryProvider));
       await ref.read(pdfHandOffProvider)(bytes, fileName);
     } on Failure catch (failure) {
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(failure.localizedMessage(context))));
     } finally {
       if (mounted) setState(() => downloading = false);
     }
@@ -485,12 +469,12 @@ class _ReceiptCardState extends ConsumerState<_ReceiptCard> with _PdfDownload {
                   ),
                 ),
                 Text(
-                  '${receipt.number} · ${formatDate(receipt.date)} · ${receipt.paymentModeLabel}',
+                  '${receipt.number} · ${formatDate(receipt.date)} · ${receipt.paymentModeWords(context.l10n)}',
                   style: TextStyle(fontSize: 13, color: colours.muted),
                 ),
                 if (receipt.cancelled)
                   Text(
-                    'Cancelled by the office',
+                    context.l10n.familyCancelledByOffice,
                     style: TextStyle(fontSize: 13, color: colours.danger, fontWeight: FontWeight.w600),
                   ),
               ],
@@ -502,7 +486,7 @@ class _ReceiptCardState extends ConsumerState<_ReceiptCard> with _PdfDownload {
                   child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
                 )
               : IconButton(
-                  tooltip: 'Open the receipt',
+                  tooltip: context.l10n.familyOpenReceipt,
                   icon: const Icon(Icons.picture_as_pdf_rounded),
                   onPressed: () => download(
                     (repository) => repository.receiptPdf(widget.child.id, receipt.id),
@@ -541,7 +525,9 @@ class _StatementButtonState extends ConsumerState<_StatementButton> with _PdfDow
       icon: downloading
           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
           : const Icon(Icons.description_rounded, size: 18),
-      label: Text(widget.yearName == null ? 'The year\'s statement (PDF)' : 'Statement for ${widget.yearName} (PDF)'),
+      label: Text(
+        widget.yearName == null ? context.l10n.familyYearStatement : context.l10n.familyStatementFor(widget.yearName!),
+      ),
     );
   }
 }

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/utils/photo_picker.dart';
@@ -33,17 +35,21 @@ class FamilyAbsenceNotesScreen extends ConsumerWidget {
     final child = ref.watch(selectedChildProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(child == null ? 'Absence notes' : 'Absence notes for ${child.firstName}')),
+      appBar: AppBar(
+        title: Text(
+          child == null ? context.l10n.familyAbsenceNotes : context.l10n.familyAbsenceNotesFor(child.firstName),
+        ),
+      ),
       floatingActionButton: child == null
           ? null
           : FloatingActionButton.extended(
               key: const Key('family-new-note'),
               onPressed: () => context.push('/absence-notes/new'),
               icon: const Icon(Icons.edit_note_rounded),
-              label: const Text('Tell the school'),
+              label: Text(context.l10n.familyTellTheSchool),
             ),
       body: child == null
-          ? const FamilyEmptyView(icon: Icons.family_restroom_rounded, title: 'No children to show')
+          ? FamilyEmptyView(icon: Icons.family_restroom_rounded, title: context.l10n.familyNoChildrenTitle)
           : ref
                 .watch(familyAbsenceNotesProvider(child.id))
                 .when(
@@ -55,9 +61,8 @@ class FamilyAbsenceNotesScreen extends ConsumerWidget {
                   data: (notes) => notes.isEmpty
                       ? FamilyEmptyView(
                           icon: Icons.mark_email_read_outlined,
-                          title: 'No notes sent',
-                          message:
-                              'If ${child.firstName} will be away, tell the school here - the class teacher sees it.',
+                          title: context.l10n.familyNoNotesSent,
+                          message: context.l10n.familyNoNotesSentMessage(child.firstName),
                         )
                       : ListView(
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
@@ -101,7 +106,7 @@ class _NoteCard extends StatelessWidget {
                 child: Text(
                   // Just "Seen": the line below says who - the class teacher
                   // or, as often, the office.
-                  note.seen ? 'Seen' : 'Sent',
+                  note.seen ? context.l10n.familyNoteSeen : context.l10n.familyNoteSent,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -117,7 +122,10 @@ class _NoteCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
-                'Seen by ${note.seenBy ?? 'the class teacher'} · ${formatDateTime(note.seenAt!)}',
+                context.l10n.familySeenBy(
+                  note.seenBy ?? context.l10n.familyTheClassTeacher,
+                  formatDateTime(note.seenAt!),
+                ),
                 key: Key('family-note-seen-${note.id}'),
                 style: TextStyle(fontSize: 13, color: colours.muted),
               ),
@@ -125,7 +133,7 @@ class _NoteCard extends StatelessWidget {
           if (note.hasPhoto)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text('With a photo of a note', style: TextStyle(fontSize: 13, color: colours.muted)),
+              child: Text(context.l10n.familyWithPhoto, style: TextStyle(fontSize: 13, color: colours.muted)),
             ),
         ],
       ),
@@ -176,7 +184,7 @@ class _FamilyNewAbsenceNoteScreenState extends ConsumerState<FamilyNewAbsenceNot
       initialDate: first ? _start : _end,
       firstDate: first ? _today : _start,
       lastDate: _today.add(const Duration(days: maxNoteDaysAhead)),
-      helpText: first ? 'First day away' : 'Last day away',
+      helpText: first ? context.l10n.familyFirstDayAway : context.l10n.familyLastDayAway,
     );
     if (picked == null) return;
 
@@ -203,13 +211,13 @@ class _FamilyNewAbsenceNoteScreenState extends ConsumerState<FamilyNewAbsenceNot
               ListTile(
                 key: const Key('family-photo-camera'),
                 leading: const Icon(Icons.photo_camera_outlined),
-                title: const Text('Take a photo'),
+                title: Text(context.l10n.familyTakePhoto),
                 onTap: () => Navigator.of(context).pop(PhotoSource.camera),
               ),
               ListTile(
                 key: const Key('family-photo-gallery'),
                 leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Choose from your photos'),
+                title: Text(context.l10n.familyChoosePhoto),
                 onTap: () => Navigator.of(context).pop(PhotoSource.gallery),
               ),
             ],
@@ -235,6 +243,7 @@ class _FamilyNewAbsenceNoteScreenState extends ConsumerState<FamilyNewAbsenceNot
     });
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    final l10n = context.l10n;
 
     try {
       await ref
@@ -254,12 +263,14 @@ class _FamilyNewAbsenceNoteScreenState extends ConsumerState<FamilyNewAbsenceNot
       } else {
         router.go('/absence-notes');
       }
-      messenger.showSnackBar(SnackBar(content: Text('Sent. ${child.firstName}\'s class teacher will see it.')));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.familyNoteSentSnack(child.firstName))));
     } on Failure catch (failure) {
       if (!mounted) return;
       setState(() {
         _fieldErrors = {for (final entry in failure.validationErrors.entries) entry.key: entry.value.first};
-        _problem = _fieldErrors.isEmpty || failure.code == 'ABSENCE_NOTE_ALREADY_SENT' ? failure.message : null;
+        _problem = _fieldErrors.isEmpty || failure.code == 'ABSENCE_NOTE_ALREADY_SENT'
+            ? failure.localizedMessage(context)
+            : null;
       });
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -270,17 +281,19 @@ class _FamilyNewAbsenceNoteScreenState extends ConsumerState<FamilyNewAbsenceNot
   Widget build(BuildContext context) {
     final child = ref.watch(selectedChildProvider);
     final colours = context.appColors;
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: Text('${child?.firstName ?? 'Your child'} will be away')),
+      appBar: AppBar(
+        title: Text(child == null ? l10n.familyYourChildWillBeAway : l10n.familyChildWillBeAway(child.firstName)),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
             Text(
-              'The class teacher sees this on the register. It doesn\'t mark ${child?.firstName ?? 'your child'} '
-              'absent by itself.',
+              l10n.familyNoteExplain(child?.firstName ?? l10n.familyYourChild),
               style: TextStyle(color: colours.muted),
             ),
             const SizedBox(height: 16),
@@ -289,7 +302,7 @@ class _FamilyNewAbsenceNoteScreenState extends ConsumerState<FamilyNewAbsenceNot
                 Expanded(
                   child: _DayField(
                     key: const Key('family-note-start'),
-                    label: 'First day',
+                    label: l10n.familyFirstDay,
                     day: _start,
                     error: _fieldErrors['start_date'],
                     onTap: () => _pickDay(first: true),
@@ -299,7 +312,7 @@ class _FamilyNewAbsenceNoteScreenState extends ConsumerState<FamilyNewAbsenceNot
                 Expanded(
                   child: _DayField(
                     key: const Key('family-note-end'),
-                    label: 'Last day',
+                    label: l10n.familyLastDay,
                     day: _end,
                     error: _fieldErrors['end_date'],
                     onTap: () => _pickDay(first: false),
@@ -316,13 +329,13 @@ class _FamilyNewAbsenceNoteScreenState extends ConsumerState<FamilyNewAbsenceNot
               maxLength: noteReasonMax,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
-                labelText: 'Why will they be away?',
-                hintText: 'e.g. Fever since last night - the doctor has advised two days\' rest.',
+                labelText: l10n.familyWhyAway,
+                hintText: l10n.familyWhyAwayHint,
                 errorText: _fieldErrors['reason'],
               ),
               validator: (value) {
                 final length = (value ?? '').trim().length;
-                if (length < noteReasonMin) return 'Please write a little more - at least $noteReasonMin characters.';
+                if (length < noteReasonMin) return l10n.familyReasonTooShort(noteReasonMin);
                 return null;
               },
             ),
@@ -348,7 +361,7 @@ class _FamilyNewAbsenceNoteScreenState extends ConsumerState<FamilyNewAbsenceNot
               onPressed: _sending ? null : _send,
               child: _sending
                   ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Send to the school'),
+                  : Text(l10n.familySendToSchool),
             ),
           ],
         ),
@@ -404,7 +417,7 @@ class _PhotoField extends StatelessWidget {
             key: const Key('family-note-add-photo'),
             onPressed: onPick,
             icon: const Icon(Icons.add_a_photo_outlined, size: 18),
-            label: const Text('Add a photo of a doctor\'s note (optional)'),
+            label: Text(context.l10n.familyAddDoctorNote),
           )
         else
           Row(
@@ -427,7 +440,11 @@ class _PhotoField extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(child: Text(photo.name, overflow: TextOverflow.ellipsis)),
-              TextButton(key: const Key('family-note-remove-photo'), onPressed: onRemove, child: const Text('Remove')),
+              TextButton(
+                key: const Key('family-note-remove-photo'),
+                onPressed: onRemove,
+                child: Text(context.l10n.familyRemove),
+              ),
             ],
           ),
         if (error != null)

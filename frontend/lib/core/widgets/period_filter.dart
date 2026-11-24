@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../utils/date_period.dart';
 
 /// All / Today / This week / This month, above a list (docs/teacher-app.md,
@@ -28,7 +29,7 @@ class PeriodFilter extends StatelessWidget {
           for (final period in periods)
             ChoiceChip(
               key: Key('period-${period.name}'),
-              label: Text(period.label),
+              label: Text(_label(context.l10n, period)),
               selected: value == period,
               showCheckmark: false,
               // The chosen period solid, the others quiet: the theme's own
@@ -47,3 +48,12 @@ class PeriodFilter extends StatelessWidget {
     );
   }
 }
+
+/// The period's name in the person's language; [DatePeriod.label] stays
+/// the English one.
+String _label(AppLocalizations l10n, DatePeriod period) => switch (period) {
+  DatePeriod.all => l10n.staffPeriodAll,
+  DatePeriod.day => l10n.staffPeriodToday,
+  DatePeriod.week => l10n.staffPeriodWeek,
+  DatePeriod.month => l10n.staffPeriodMonth,
+};

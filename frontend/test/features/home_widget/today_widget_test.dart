@@ -14,6 +14,8 @@ import 'package:edutrack_app/features/home_widget/today_widget_sync.dart';
 import 'package:edutrack_app/features/today/application/staff_today_card.dart';
 import 'package:edutrack_app/features/today/data/models/teacher_day.dart';
 import 'package:edutrack_app/features/today/data/today_repository.dart';
+import 'package:edutrack_app/l10n/app_localizations_en.dart';
+import 'package:edutrack_app/l10n/app_localizations_hi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -53,6 +55,8 @@ class FakeScheduler implements TodayWidgetScheduler {
 }
 
 final at1105 = DateTime(2026, 10, 26, 11, 5);
+final en = AppLocalizationsEn();
+final hi = AppLocalizationsHi();
 
 void main() {
   group('the card', () {
@@ -71,15 +75,15 @@ void main() {
     });
 
     test('locked and signed out say nothing about the day', () {
-      expect(const TodayCard.locked().lines, ['Tap to open']);
-      expect(const TodayCard.signedOut().lines, ['Sign in to see your day']);
-      expect(const TodayCard.locked().asOf, isNull);
+      expect(TodayCard.locked(en).lines, ['Tap to open']);
+      expect(TodayCard.signedOut(en).lines, ['Sign in to see your day']);
+      expect(TodayCard.locked(en).asOf, isNull);
     });
   });
 
   group("a teacher's card", () {
     test('the period now, the register, the reports owed and checking in', () {
-      final card = staffTodayCard(teacherDay(), notCheckedIn(), at1105);
+      final card = staffTodayCard(en, teacherDay(), notCheckedIn(), at1105);
 
       expect(card.title, 'Today');
       expect(card.lines, [
@@ -108,11 +112,12 @@ void main() {
           ),
       ];
 
-      expect(staffTodayCard(teacherDay(periods: periods), null, at1105).lines.first, startsWith('Next: P5'));
+      expect(staffTodayCard(en, teacherDay(periods: periods), null, at1105).lines.first, startsWith('Next: P5'));
     });
 
     test('all done reads as done', () {
       final card = staffTodayCard(
+        en,
         teacherDay(
           registers: const [ClassRegister(classSectionId: 81, classSection: 'Grade 8 A', submitted: true)],
           reportsOwed: 0,
@@ -125,12 +130,12 @@ void main() {
     });
 
     test('a school without check-in has no check-in line', () {
-      expect(staffTodayCard(teacherDay(), attendanceDay(enabled: false), at1105).lines, hasLength(3));
-      expect(staffTodayCard(teacherDay(), null, at1105).lines, hasLength(3));
+      expect(staffTodayCard(en, teacherDay(), attendanceDay(enabled: false), at1105).lines, hasLength(3));
+      expect(staffTodayCard(en, teacherDay(), null, at1105).lines, hasLength(3));
     });
 
     test('a holiday says so, and nothing else', () {
-      final card = staffTodayCard(teacherDay(isOpen: false, holidayName: 'Diwali'), null, at1105);
+      final card = staffTodayCard(en, teacherDay(isOpen: false, holidayName: 'Diwali'), null, at1105);
 
       expect(card.lines, ['Holiday: Diwali']);
     });
@@ -143,7 +148,7 @@ void main() {
         endDate: DateTime(2026, 10, 26),
       );
 
-      expect(staffTodayCard(teacherDay(leaveToday: leave), null, at1105).lines, ['You are on leave today']);
+      expect(staffTodayCard(en, teacherDay(leaveToday: leave), null, at1105).lines, ['You are on leave today']);
     });
   });
 
@@ -174,7 +179,7 @@ void main() {
         ),
       );
 
-      final card = familyTodayCard('Aarav', today, at1105);
+      final card = familyTodayCard(en, 'Aarav', today, at1105);
 
       expect(card.title, 'Aarav');
       expect(card.lines[0], 'Today: Present');
@@ -195,16 +200,40 @@ void main() {
         ),
       );
 
-      final lines = familyTodayCard('Aarav', today, at1105).lines;
+      final lines = familyTodayCard(en, 'Aarav', today, at1105).lines;
 
       expect(lines, ['Today: Not marked yet', 'Bus pick-up 7:40 AM', startsWith('Fees: ')]);
       expect(lines.last, endsWith('overdue'));
     });
 
     test('no school today says so, with the holiday', () {
-      expect(familyTodayCard('Aarav', familyToday(isOpen: false, holiday: 'Diwali'), at1105).lines, [
+      expect(familyTodayCard(en, 'Aarav', familyToday(isOpen: false, holiday: 'Diwali'), at1105).lines, [
         'No school today: Diwali',
       ]);
+    });
+  });
+
+  group('in Hindi (M11)', () {
+    test("a teacher's card", () {
+      final card = staffTodayCard(hi, teacherDay(), notCheckedIn(), at1105);
+
+      expect(card.title, 'आज');
+      expect(card.lines, [
+        'अभी: पीरियड 3 Science · Grade 9 A',
+        'हाज़िरी नहीं ली गई: Grade 8 A',
+        '1 रिपोर्ट बाकी',
+        'अभी चेक इन नहीं किया',
+      ]);
+      expect(card.asOf, '11:05 AM तक की जानकारी');
+    });
+
+    test("a parent's card", () {
+      expect(familyTodayCard(hi, 'Aarav', familyToday(), at1105).lines, ['आज: उपस्थित']);
+    });
+
+    test('locked and signed out', () {
+      expect(TodayCard.locked(hi).lines, ['खोलने के लिए टैप करें']);
+      expect(TodayCard.signedOut(hi).lines, ['अपना दिन देखने के लिए साइन इन करें']);
     });
   });
 
@@ -245,6 +274,14 @@ void main() {
       await refreshTodayWidget(c.read, staffWidgetApp, at1105);
 
       expect(widget.shown.single.lines.first, 'Now: P3 Science · Grade 9 A');
+    });
+
+    test('Hindi picked in the app: the card is in Hindi (M11)', () async {
+      await store.write('app.language', 'hi');
+
+      await refreshTodayWidget(container().read, staffWidgetApp, at1105);
+
+      expect(widget.shown.single.title, 'आज');
     });
 
     test('nobody signed in: "Sign in", and nothing is fetched', () async {

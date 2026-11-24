@@ -4,12 +4,15 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../auth/application/school_clock_provider.dart';
 import '../../staff_leave/data/models/leave_status.dart';
 import '../../staff_leave/data/models/leave_type.dart';
 import '../application/my_leave_notifier.dart';
+import '../../today/presentation/staff_words.dart';
 
 /// Asking for leave from the phone - a whole screen rather than the web's
 /// dialog, so the keyboard has room for the reason.
@@ -93,15 +96,15 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
         SnackBar(
           content: Text(
             created.status == LeaveStatus.approved
-                ? 'Leave approved automatically.'
-                : 'Leave requested. You will see here when it is decided.',
+                ? context.l10n.staffLeaveAutoApproved
+                : context.l10n.staffLeaveRequested,
           ),
         ),
       );
       context.pop();
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = failure.localizedMessage(context));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -111,9 +114,10 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final halfDay = _type == LeaveType.halfDay;
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Apply for leave')),
+      appBar: AppBar(title: Text(l10n.staffApplyForLeave)),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -135,9 +139,10 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                   DropdownButtonFormField<LeaveType>(
                     key: const Key('apply-leave-type'),
                     initialValue: _type,
-                    decoration: const InputDecoration(labelText: 'Leave type'),
+                    decoration: InputDecoration(labelText: l10n.staffLeaveType),
                     items: [
-                      for (final type in LeaveType.values) DropdownMenuItem(value: type, child: Text(type.label)),
+                      for (final type in LeaveType.values)
+                        DropdownMenuItem(value: type, child: Text(leaveTypeLabel(l10n, type))),
                     ],
                     onChanged: _isSubmitting
                         ? null
@@ -149,7 +154,7 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                   const SizedBox(height: 14),
                   _DateField(
                     key: const Key('apply-leave-start'),
-                    label: halfDay ? 'Date' : 'From',
+                    label: halfDay ? l10n.staffDate : l10n.staffFrom,
                     date: _start,
                     onTap: _isSubmitting ? null : () => _pick(start: true),
                   ),
@@ -157,7 +162,7 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                     const SizedBox(height: 14),
                     _DateField(
                       key: const Key('apply-leave-end'),
-                      label: 'To',
+                      label: l10n.staffTo,
                       date: _end,
                       onTap: _isSubmitting ? null : () => _pick(start: false),
                     ),
@@ -170,17 +175,15 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                     maxLines: 4,
                     maxLength: 500,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(labelText: 'Reason', alignLabelWithHint: true),
+                    decoration: InputDecoration(labelText: l10n.staffReason, alignLabelWithHint: true),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) return 'Say why you need the leave.';
+                      if (value == null || value.trim().isEmpty) return l10n.staffSayWhyLeave;
                       return null;
                     },
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    halfDay
-                        ? 'Half-day leave: you check in for the half you work, and the day counts as a half day.'
-                        : 'Weekends and holidays inside the dates are not counted as leave.',
+                    halfDay ? l10n.staffHalfDayLeaveHint : l10n.staffWeekendsNotCounted,
                     style: TextStyle(fontSize: 13, color: colors.muted, height: 1.35),
                   ),
                   const SizedBox(height: 20),
@@ -191,7 +194,7 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                       onPressed: _isSubmitting ? null : _submit,
                       child: _isSubmitting
                           ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4))
-                          : const Text('Send request'),
+                          : Text(l10n.staffSendRequest),
                     ),
                   ),
                 ],

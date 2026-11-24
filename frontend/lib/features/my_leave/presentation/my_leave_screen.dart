@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/errors/failure.dart';
@@ -15,6 +17,8 @@ import '../../staff_leave/data/models/leave_taken.dart';
 import '../../staff_leave/data/models/leave_type.dart';
 import '../../staff_leave/data/models/staff_leave.dart';
 import '../application/my_leave_notifier.dart';
+import '../../../l10n/app_localizations_en.dart';
+import '../../today/presentation/staff_words.dart';
 
 /// "My leave" in the School365ai app (docs/teacher-app.md, T4): the person's
 /// own requests, newest first, each with where it stands, and the way to ask
@@ -32,7 +36,7 @@ class MyLeaveScreen extends ConsumerWidget {
         key: const Key('my-leave-apply'),
         onPressed: () => context.push('/leave/apply'),
         icon: const Icon(Icons.add),
-        label: const Text('Apply for leave'),
+        label: Text(context.l10n.staffApplyForLeave),
       ),
       body: RefreshIndicator(
         key: const Key('my-leave-refresh'),
@@ -63,7 +67,10 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text('My leave', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800));
+    return Text(
+      context.l10n.staffMyLeave,
+      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+    );
   }
 }
 
@@ -75,6 +82,7 @@ class _LeaveList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return ListView(
       key: const Key('my-leave-list'),
@@ -83,7 +91,7 @@ class _LeaveList extends ConsumerWidget {
       children: [
         const _Heading(),
         const SizedBox(height: 4),
-        Text('Your requests and where each one stands.', style: TextStyle(color: colors.muted)),
+        Text(l10n.staffMyLeaveSubtitle, style: TextStyle(color: colors.muted)),
         const SizedBox(height: 12),
         const _TakenCard(),
         const SizedBox(height: 12),
@@ -97,10 +105,10 @@ class _LeaveList extends ConsumerWidget {
               children: [
                 Icon(Icons.event_available_outlined, size: 48, color: colors.muted),
                 const SizedBox(height: 12),
-                Text(leave.period.emptyPhrase('leave requests'), textAlign: TextAlign.center),
+                Text(l10n.staffEmptyLeaveRequests(leave.period.name), textAlign: TextAlign.center),
                 const SizedBox(height: 4),
                 Text(
-                  'Tap Apply for leave to ask for a day off.',
+                  l10n.staffApplyForLeaveHint,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: colors.muted),
                 ),
@@ -114,7 +122,7 @@ class _LeaveList extends ConsumerWidget {
               child: TextButton(
                 key: const Key('my-leave-more'),
                 onPressed: () => ref.read(myLeaveProvider.notifier).loadMore(),
-                child: const Text('Show older requests'),
+                child: Text(l10n.staffShowOlderRequests),
               ),
             ),
         ],
@@ -141,12 +149,13 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
   Future<void> _withdraw() async {
     if (_withdrawing) return;
 
+    final l10n = context.l10n;
     final confirmed = await confirmDialog(
       context,
-      title: 'Withdraw this request?',
-      message: 'It will no longer wait for a decision. You can apply for the same days again.',
-      confirmLabel: 'Withdraw',
-      cancelLabel: 'Keep it',
+      title: l10n.staffWithdrawRequestQ,
+      message: l10n.staffWithdrawRequestBody,
+      confirmLabel: l10n.staffWithdraw,
+      cancelLabel: l10n.staffKeepIt,
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
@@ -155,9 +164,9 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(myLeaveProvider.notifier).withdraw(leave.id);
-      messenger.showSnackBar(const SnackBar(content: Text('Leave request withdrawn.')));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.staffLeaveWithdrawnDone)));
     } on Failure catch (failure) {
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      messenger.showSnackBar(SnackBar(content: Text(mounted ? failure.localizedMessage(context) : failure.message)));
     } finally {
       if (mounted) setState(() => _withdrawing = false);
     }
@@ -166,9 +175,10 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
     final start = formatIsoDate(leave.startDate);
     final end = formatIsoDate(leave.endDate);
-    final dates = leave.startDate == leave.endDate ? start : '$start to $end';
+    final dates = leave.startDate == leave.endDate ? start : l10n.staffDateRange(start, end);
 
     return Card(
       key: Key('my-leave-${leave.id}'),
@@ -181,12 +191,12 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
               children: [
                 Expanded(
                   child: Text(
-                    leave.leaveType.label,
+                    leaveTypeLabel(l10n, leave.leaveType),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
                 StatusBadge(
-                  label: leave.status.label,
+                  label: leaveStatusLabel(l10n, leave.status),
                   tone: switch (leave.status) {
                     LeaveStatus.approved => BadgeTone.success,
                     LeaveStatus.rejected => BadgeTone.danger,
@@ -198,7 +208,7 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
             ),
             const SizedBox(height: 4),
             Text(
-              leave.leaveType == LeaveType.halfDay ? '$dates · half a day' : dates,
+              leave.leaveType == LeaveType.halfDay ? l10n.staffDatesHalfADay(dates) : dates,
               style: TextStyle(color: colors.muted),
             ),
             const SizedBox(height: 8),
@@ -206,7 +216,7 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
             if (leave.reviewRemarks != null && leave.reviewRemarks!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                '${leave.reviewedByName ?? 'Reviewer'}: ${leave.reviewRemarks}',
+                '${leave.reviewedByName ?? l10n.staffReviewer}: ${leave.reviewRemarks}',
                 style: TextStyle(fontSize: 13, color: colors.muted, fontStyle: FontStyle.italic),
               ),
             ],
@@ -219,7 +229,7 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
                   key: Key('my-leave-withdraw-${leave.id}'),
                   onPressed: _withdrawing ? null : _withdraw,
                   icon: const Icon(Icons.undo, size: 18),
-                  label: Text(_withdrawing ? 'Withdrawing...' : 'Withdraw'),
+                  label: Text(_withdrawing ? l10n.staffWithdrawing : l10n.staffWithdraw),
                 ),
               ),
           ],
@@ -247,12 +257,12 @@ class _TakenCard extends ConsumerWidget {
           error: (error, _) => Row(
             children: [
               Expanded(
-                child: Text("Could not load this year's leave.", style: TextStyle(color: colors.muted)),
+                child: Text(context.l10n.staffLeaveTakenLoadFailed, style: TextStyle(color: colors.muted)),
               ),
               TextButton(
                 key: const Key('my-leave-taken-retry'),
                 onPressed: () => ref.invalidate(myLeaveTakenProvider),
-                child: const Text('Retry'),
+                child: Text(context.l10n.retry),
               ),
             ],
           ),
@@ -271,6 +281,7 @@ class _TakenFigures extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
     final kinds = [
       for (final entry in taken.days.entries)
         if (entry.value > 0) entry,
@@ -279,28 +290,24 @@ class _TakenFigures extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Taken in ${taken.label}', style: Theme.of(context).textTheme.titleSmall),
+        Text(l10n.staffTakenIn(taken.label), style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 4),
         Text(
-          dayCount(taken.totalDays),
+          dayCount(taken.totalDays, l10n),
           key: const Key('my-leave-taken-total'),
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
         ),
         if (kinds.isEmpty)
-          Text('No leave taken yet this year.', style: TextStyle(color: colors.muted))
+          Text(l10n.staffNoLeaveTakenYet, style: TextStyle(color: colors.muted))
         else
           Text(
-            [for (final kind in kinds) '${kind.key.label} ${dayCount(kind.value)}'].join(' · '),
+            [for (final kind in kinds) '${leaveTypeLabel(l10n, kind.key)} ${dayCount(kind.value, l10n)}'].join(' · '),
             style: TextStyle(color: colors.muted),
           ),
         if (taken.pendingRequests > 0)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '${taken.pendingRequests} ${taken.pendingRequests == 1 ? 'request is' : 'requests are'} '
-              'waiting for a decision.',
-              style: TextStyle(color: colors.muted),
-            ),
+            child: Text(l10n.staffRequestsWaiting(taken.pendingRequests), style: TextStyle(color: colors.muted)),
           ),
       ],
     );
@@ -308,10 +315,12 @@ class _TakenFigures extends StatelessWidget {
 }
 
 /// "1 day", "2.5 days", "0 days" - working days, halves where a half day was taken.
-String dayCount(double days) {
+/// English unless [l10n] is given.
+String dayCount(double days, [AppLocalizations? l10n]) {
+  final words = l10n ?? AppLocalizationsEn();
   final number = days == days.roundToDouble() ? days.toStringAsFixed(0) : days.toString();
 
-  return '$number ${days == 1 ? 'day' : 'days'}';
+  return days == 1 ? words.staffOneDay : words.staffDays(number);
 }
 
 /// All / Today / This week / This month - leave that touches the period.

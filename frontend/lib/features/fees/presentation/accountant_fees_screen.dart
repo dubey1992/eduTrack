@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_format.dart';
@@ -14,6 +15,7 @@ import '../../academic_years/data/models/academic_year.dart';
 import '../data/fee_repository.dart';
 import '../data/models/fee_receipt.dart';
 import '../data/models/student_fees.dart';
+import '../../today/presentation/staff_words.dart';
 
 /// The year the phone's fee screens are about: the school's current one,
 /// or its latest. The phone has no year picker - the website has.
@@ -71,19 +73,21 @@ class AccountantFeesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DefaultTabController(
+    final l10n = context.l10n;
+
+    return DefaultTabController(
       length: 3,
       child: Column(
         children: [
           TabBar(
-            key: Key('fees-tabs'),
+            key: const Key('fees-tabs'),
             tabs: [
-              Tab(key: Key('fees-tab-collect'), text: 'Collect'),
-              Tab(key: Key('fees-tab-today'), text: 'Today'),
-              Tab(key: Key('fees-tab-overdue'), text: 'Overdue'),
+              Tab(key: const Key('fees-tab-collect'), text: l10n.staffFeesCollect),
+              Tab(key: const Key('fees-tab-today'), text: l10n.staffPeriodToday),
+              Tab(key: const Key('fees-tab-overdue'), text: l10n.staffFeesOverdue),
             ],
           ),
-          Expanded(child: TabBarView(children: [_CollectTab(), _TodayTab(), _OverdueTab()])),
+          const Expanded(child: TabBarView(children: [_CollectTab(), _TodayTab(), _OverdueTab()])),
         ],
       ),
     );
@@ -121,6 +125,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return Column(
       children: [
@@ -129,10 +134,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
           child: TextField(
             key: const Key('fees-collect-search'),
             onChanged: _typed,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Find a student by name or admission number',
-            ),
+            decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: l10n.staffFeesFindStudent),
           ),
         ),
         Expanded(
@@ -140,7 +142,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
               ? Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'Find the student paying. Their statement opens, with Record payment.',
+                    l10n.staffFeesCollectHint,
                     textAlign: TextAlign.center,
                     style: TextStyle(color: colors.muted),
                   ),
@@ -151,7 +153,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
                   isEmpty: (rows) => rows.isEmpty,
                   emptyBuilder: (context) => Center(
                     key: const Key('fees-collect-empty'),
-                    child: Text('No student this year matches "$_search".', style: TextStyle(color: colors.muted)),
+                    child: Text(l10n.staffFeesNoMatch(_search), style: TextStyle(color: colors.muted)),
                   ),
                   data: (context, rows) => ListView(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -186,7 +188,7 @@ class _TodayTab extends ConsumerWidget {
               key: const Key('fees-today-empty'),
               padding: const EdgeInsets.all(32),
               child: Text(
-                'Nothing collected yet today.',
+                context.l10n.staffFeesNothingToday,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.muted),
               ),
@@ -205,7 +207,11 @@ class _TodayTab extends ConsumerWidget {
                 child: ListTile(
                   title: Text(receipt.studentName),
                   subtitle: Text(
-                    [receipt.receiptNumber, receipt.paymentMode.label, ?receipt.receivedByName].join(' · '),
+                    [
+                      receipt.receiptNumber,
+                      paymentModeLabel(context.l10n, receipt.paymentMode.wire, receipt.paymentMode.label),
+                      ?receipt.receivedByName,
+                    ].join(' · '),
                   ),
                   trailing: Text(
                     _money(receipt.amount, receipt.currencyCode),
@@ -231,6 +237,7 @@ class _TodayTotals extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
     final byCurrency = <String, double>{};
     final byMode = <(String, PaymentMode), double>{};
     for (final receipt in receipts) {
@@ -246,10 +253,7 @@ class _TodayTotals extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              receipts.length == 1 ? '1 receipt today' : '${receipts.length} receipts today',
-              style: TextStyle(color: colors.muted),
-            ),
+            Text(l10n.staffReceiptsToday(receipts.length), style: TextStyle(color: colors.muted)),
             for (final entry in byCurrency.entries)
               Text(
                 formatCurrency(entry.value, entry.key),
@@ -261,7 +265,7 @@ class _TodayTotals extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 2),
                 child: Row(
                   children: [
-                    Expanded(child: Text(entry.key.$2.label)),
+                    Expanded(child: Text(paymentModeLabel(l10n, entry.key.$2.wire, entry.key.$2.label))),
                     Text(formatCurrency(entry.value, entry.key.$1)),
                   ],
                 ),
@@ -295,7 +299,7 @@ class _OverdueTab extends ConsumerWidget {
               key: const Key('fees-overdue-empty'),
               padding: const EdgeInsets.all(32),
               child: Text(
-                'Nobody is overdue.',
+                context.l10n.staffFeesNobodyOverdue,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.muted),
               ),
@@ -306,10 +310,7 @@ class _OverdueTab extends ConsumerWidget {
           key: const Key('fees-overdue-list'),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            Text(
-              rows.length == 1 ? '1 student with fees overdue' : '${rows.length} students with fees overdue',
-              style: TextStyle(color: colors.muted),
-            ),
+            Text(context.l10n.staffStudentsOverdue(rows.length), style: TextStyle(color: colors.muted)),
             const SizedBox(height: 8),
             for (final row in rows) _BalanceTile(row: row, figure: _Figure.overdue, canCall: true),
           ],
@@ -334,6 +335,7 @@ class _BalanceTile extends ConsumerWidget {
     final student = row.student;
     final mobile = student.guardianMobile;
     final amount = figure == _Figure.overdue ? row.overdue : row.balance;
+    final l10n = context.l10n;
 
     return Card(
       key: Key('fees-student-${student.id}'),
@@ -354,7 +356,9 @@ class _BalanceTile extends ConsumerWidget {
                       style: TextStyle(color: colors.muted, fontSize: 13),
                     ),
                     Text(
-                      '${figure == _Figure.overdue ? 'Overdue' : 'Owes'} ${_money(amount, row.currencyCode)}',
+                      figure == _Figure.overdue
+                          ? l10n.staffOverdueAmount(_money(amount, row.currencyCode))
+                          : l10n.staffOwesAmount(_money(amount, row.currencyCode)),
                       style: TextStyle(
                         color: figure == _Figure.overdue ? colors.danger : null,
                         fontWeight: FontWeight.w600,
@@ -366,15 +370,14 @@ class _BalanceTile extends ConsumerWidget {
               if (canCall && mobile != null && mobile.trim().isNotEmpty)
                 IconButton(
                   key: Key('fees-call-${student.id}'),
-                  tooltip: 'Call ${student.guardianName ?? 'the guardian'}',
+                  tooltip: l10n.staffCallPerson(student.guardianName ?? l10n.staffTheGuardian),
                   icon: const Icon(Icons.call_outlined),
                   onPressed: () async {
                     final opened = await ref.read(feesDiallerProvider)(
                       Uri(scheme: 'tel', path: mobile.replaceAll(' ', '')),
                     );
                     if (!opened && context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(const SnackBar(content: Text("Could not open the phone's dialler.")));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.staffDiallerFailed)));
                     }
                   },
                 ),

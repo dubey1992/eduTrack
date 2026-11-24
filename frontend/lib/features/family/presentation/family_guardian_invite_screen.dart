@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/phone_number_field.dart';
 import '../application/family_learning_notifiers.dart';
 import '../application/family_session_notifier.dart';
 import '../data/family_repository.dart';
 import '../data/models/family_guardian_invite.dart';
+import 'family_words.dart';
 import 'widgets/family_widgets.dart';
 
 /// "Add a guardian" (docs/mobile-apps-review.md, M8, 8.5): a parent asks the
@@ -48,6 +51,7 @@ class _FamilyGuardianInviteScreenState extends ConsumerState<FamilyGuardianInvit
       _problem = null;
     });
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
 
     try {
       await ref
@@ -57,12 +61,12 @@ class _FamilyGuardianInviteScreenState extends ConsumerState<FamilyGuardianInvit
       _name.clear();
       _mobile.clear();
       setState(() => _relationship = null);
-      messenger.showSnackBar(const SnackBar(content: Text('Sent. The school will look at your request.')));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.familyGuardianSent)));
     } on Failure catch (failure) {
       if (!mounted) return;
       setState(() {
         _fieldErrors = {for (final entry in failure.validationErrors.entries) entry.key: entry.value.first};
-        _problem = _fieldErrors.isEmpty ? failure.message : null;
+        _problem = _fieldErrors.isEmpty ? failure.localizedMessage(context) : null;
       });
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -73,34 +77,31 @@ class _FamilyGuardianInviteScreenState extends ConsumerState<FamilyGuardianInvit
   Widget build(BuildContext context) {
     final child = ref.watch(selectedChildProvider);
     final colours = context.appColors;
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add a guardian')),
+      appBar: AppBar(title: Text(l10n.familyAddGuardian)),
       body: child == null
-          ? const FamilyEmptyView(icon: Icons.family_restroom_rounded, title: 'No children to show')
+          ? FamilyEmptyView(icon: Icons.family_restroom_rounded, title: l10n.familyNoChildrenTitle)
           : Form(
               key: _formKey,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [
-                  Text(
-                    'Ask the school to add another guardian of ${child.firstName}. Once the school agrees, it gives '
-                    'them their own set-up letter, and they see what you see.',
-                    style: TextStyle(color: colours.muted),
-                  ),
+                  Text(l10n.familyGuardianExplain(child.firstName), style: TextStyle(color: colours.muted)),
                   const SizedBox(height: 16),
                   TextFormField(
                     key: const Key('family-guardian-name'),
                     controller: _name,
                     maxLength: 150,
                     textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(labelText: 'Their full name', errorText: _fieldErrors['name']),
-                    validator: (value) => (value ?? '').trim().isEmpty ? 'Enter their name.' : null,
+                    decoration: InputDecoration(labelText: l10n.familyTheirFullName, errorText: _fieldErrors['name']),
+                    validator: (value) => (value ?? '').trim().isEmpty ? l10n.familyEnterTheirName : null,
                   ),
                   PhoneNumberField(
                     key: const Key('family-guardian-mobile'),
                     controller: _mobile,
-                    label: 'Their mobile number',
+                    label: l10n.familyTheirMobile,
                     required: true,
                   ),
                   if (_fieldErrors['mobile'] != null)
@@ -113,15 +114,18 @@ class _FamilyGuardianInviteScreenState extends ConsumerState<FamilyGuardianInvit
                     key: const Key('family-guardian-relationship'),
                     initialValue: _relationship,
                     decoration: InputDecoration(
-                      labelText: 'How they are related to ${child.firstName}',
+                      labelText: l10n.familyHowRelated(child.firstName),
                       errorText: _fieldErrors['relationship'],
                     ),
                     items: [
-                      for (final entry in guardianRelationships.entries)
-                        DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+                      for (final relationship in guardianRelationships.keys)
+                        DropdownMenuItem(
+                          value: relationship,
+                          child: Text(guardianRelationshipWords(l10n, relationship)),
+                        ),
                     ],
                     onChanged: (value) => setState(() => _relationship = value),
-                    validator: (value) => value == null ? 'Choose how they are related.' : null,
+                    validator: (value) => value == null ? l10n.familyChooseRelation : null,
                   ),
                   if (_problem != null) ...[
                     const SizedBox(height: 12),
@@ -141,10 +145,10 @@ class _FamilyGuardianInviteScreenState extends ConsumerState<FamilyGuardianInvit
                     onPressed: _sending ? null : _send,
                     child: _sending
                         ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Ask the school'),
+                        : Text(l10n.familyAskTheSchool),
                   ),
                   const SizedBox(height: 24),
-                  Text('Your requests', style: Theme.of(context).textTheme.titleMedium),
+                  Text(l10n.familyYourRequests, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   _InviteList(childId: child.id),
                 ],
@@ -170,7 +174,7 @@ class _InviteList extends ConsumerWidget {
           error: (error, _) =>
               FamilyErrorView(error: error, onRetry: () => ref.invalidate(familyGuardianInvitesProvider(childId))),
           data: (invites) => invites.isEmpty
-              ? Text('None yet.', style: TextStyle(color: colours.muted))
+              ? Text(context.l10n.familyNoneYet, style: TextStyle(color: colours.muted))
               : Column(
                   children: [
                     for (final invite in invites) ...[
@@ -180,12 +184,12 @@ class _InviteList extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${invite.name} · ${guardianRelationships[invite.relationship] ?? 'Other'}',
+                              '${invite.name} · ${guardianRelationshipWords(context.l10n, invite.relationship)}',
                               style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              invite.statusLabel,
+                              invite.statusWords(context.l10n),
                               style: TextStyle(
                                 color: switch (invite.status) {
                                   'approved' => colours.success,

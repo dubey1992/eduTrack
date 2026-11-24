@@ -1,0 +1,1909 @@
+{
+  "familyMarkPresent": "Present",
+  "@familyMarkPresent": {
+    "description": "Attendance mark: in school."
+  },
+  "familyMarkAbsent": "Absent",
+  "@familyMarkAbsent": {
+    "description": "Attendance mark, or a test missed."
+  },
+  "familyMarkLeave": "On leave",
+  "@familyMarkLeave": {
+    "description": "Attendance mark: on leave."
+  },
+  "familyMarkNotMarked": "Not marked yet",
+  "@familyMarkNotMarked": {
+    "description": "Attendance not yet taken."
+  },
+  "familyFeeStatusPaid": "Paid",
+  "@familyFeeStatusPaid": {
+    "description": "Instalment status."
+  },
+  "familyFeeStatusPartPaid": "Part paid",
+  "@familyFeeStatusPartPaid": {
+    "description": "Instalment status: partly paid."
+  },
+  "familyFeeStatusDue": "Due",
+  "@familyFeeStatusDue": {
+    "description": "Instalment status."
+  },
+  "familyFeeStatusOverdue": "Overdue",
+  "@familyFeeStatusOverdue": {
+    "description": "Instalment status: past its date."
+  },
+  "familyFeeStatusWaived": "Waived",
+  "@familyFeeStatusWaived": {
+    "description": "Instalment status: the school let it off."
+  },
+  "familyPayModeCash": "Cash",
+  "@familyPayModeCash": {
+    "description": "How a receipt was paid."
+  },
+  "familyPayModeBankTransfer": "Bank transfer",
+  "@familyPayModeBankTransfer": {
+    "description": "How a receipt was paid."
+  },
+  "familyPayModeCheque": "Cheque",
+  "@familyPayModeCheque": {
+    "description": "How a receipt was paid."
+  },
+  "familyPayModeCard": "Card",
+  "@familyPayModeCard": {
+    "description": "How a receipt was paid."
+  },
+  "familyPayModeOnlineTransfer": "Online transfer",
+  "@familyPayModeOnlineTransfer": {
+    "description": "How a receipt was paid."
+  },
+  "familyInviteApproved": "Approved - the school will give them a set-up letter",
+  "@familyInviteApproved": {
+    "description": "A guardian request the school approved."
+  },
+  "familyInviteDeclined": "Declined by the school",
+  "@familyInviteDeclined": {
+    "description": "A guardian request the school declined."
+  },
+  "familyInviteWaiting": "Waiting for the school",
+  "@familyInviteWaiting": {
+    "description": "A guardian request not yet answered."
+  },
+  "familyRelationMother": "Mother",
+  "@familyRelationMother": {
+    "description": "Guardian relationship."
+  },
+  "familyRelationFather": "Father",
+  "@familyRelationFather": {
+    "description": "Guardian relationship."
+  },
+  "familyRelationGuardian": "Guardian",
+  "@familyRelationGuardian": {
+    "description": "Guardian relationship."
+  },
+  "familyRelationOther": "Other",
+  "@familyRelationOther": {
+    "description": "Guardian relationship."
+  },
+  "familyTripCancelled": "Trip cancelled",
+  "@familyTripCancelled": {
+    "description": "Bus trip summary."
+  },
+  "familyTripReachedSchool": "Reached school",
+  "@familyTripReachedSchool": {
+    "description": "Bus trip summary: the morning trip got the child to school."
+  },
+  "familyTripEnded": "Trip ended",
+  "@familyTripEnded": {
+    "description": "Bus trip summary."
+  },
+  "familyTripOnBusToSchool": "On the bus to school",
+  "@familyTripOnBusToSchool": {
+    "description": "Bus trip summary."
+  },
+  "familyTripOnBusHome": "On the bus home",
+  "@familyTripOnBusHome": {
+    "description": "Bus trip summary."
+  },
+  "familyTripDroppedAtStop": "Dropped at the stop",
+  "@familyTripDroppedAtStop": {
+    "description": "Bus trip summary."
+  },
+  "familyTripNotTaken": "Did not take the bus",
+  "@familyTripNotTaken": {
+    "description": "Bus trip summary: child marked absent on the bus."
+  },
+  "familyTripOnItsWay": "Bus on its way",
+  "@familyTripOnItsWay": {
+    "description": "Bus trip summary."
+  },
+  "familyMarkedBy": "Marked by {who}",
+  "@familyMarkedBy": {
+    "description": "Who marked a bus moment; who = name (role).",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "familyMarkedByAt": "Marked by {who} at {stop}",
+  "@familyMarkedByAt": {
+    "description": "Who marked a bus moment, and at which stop.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "stop": {
+        "type": "String"
+      }
+    }
+  },
+  "familyKindAttendance": "Attendance",
+  "@familyKindAttendance": {
+    "description": "Kind of a school message with no title."
+  },
+  "familyKindBus": "School bus",
+  "@familyKindBus": {
+    "description": "Kind of a school message with no title."
+  },
+  "familyKindFees": "Fees",
+  "@familyKindFees": {
+    "description": "Kind of a school message with no title."
+  },
+  "familyKindResults": "Results",
+  "@familyKindResults": {
+    "description": "Kind of a school message with no title."
+  },
+  "familyKindEmergency": "Emergency",
+  "@familyKindEmergency": {
+    "description": "Kind of a school message with no title."
+  },
+  "familyKindNotice": "Notice",
+  "@familyKindNotice": {
+    "description": "Kind of a school message with no title."
+  },
+  "familyKindMessage": "Message from school",
+  "@familyKindMessage": {
+    "description": "Kind of a school message with no title."
+  },
+  "familyTabHome": "Home",
+  "@familyTabHome": {
+    "description": "Bottom tab."
+  },
+  "familyTabAttendance": "Attendance",
+  "@familyTabAttendance": {
+    "description": "Bottom tab."
+  },
+  "familyTabBus": "Bus",
+  "@familyTabBus": {
+    "description": "Bottom tab."
+  },
+  "familyTabFees": "Fees",
+  "@familyTabFees": {
+    "description": "Bottom tab."
+  },
+  "familyTabMore": "More",
+  "@familyTabMore": {
+    "description": "Bottom tab: everything else."
+  },
+  "familyNewNoticesCount": "{count} new notices",
+  "@familyNewNoticesCount": {
+    "description": "Bell tooltip with unread notices.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyNotices": "Notices",
+  "@familyNotices": {
+    "description": "Bell tooltip; the notices screen."
+  },
+  "familyChildrenCount": "{count} children",
+  "@familyChildrenCount": {
+    "description": "How many children the parent has (shown only when more than one).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familySwitch": "Switch",
+  "@familySwitch": {
+    "description": "Opens the list of children."
+  },
+  "familyWhoseDay": "Whose day?",
+  "@familyWhoseDay": {
+    "description": "Heading of the child picker."
+  },
+  "familyNoConnection": "No connection",
+  "@familyNoConnection": {
+    "description": "Error heading when offline."
+  },
+  "familyCouldNotLoad": "Could not load this",
+  "@familyCouldNotLoad": {
+    "description": "Error heading."
+  },
+  "familyTryAgain": "Try again",
+  "@familyTryAgain": {
+    "description": "Retry button."
+  },
+  "familyHowWorkedOut": "How is this worked out?",
+  "@familyHowWorkedOut": {
+    "description": "Opens the explanation of a figure."
+  },
+  "familyShowingSavedAt": "No connection. Showing what was true at {when}.",
+  "@familyShowingSavedAt": {
+    "description": "Above a screen showing the copy saved on the phone; when = time or date and time.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNoChildrenTitle": "No children to show",
+  "@familyNoChildrenTitle": {
+    "description": "Home with no linked child."
+  },
+  "familyNoChildrenMessage": "The school has no child linked to your number at the moment. Please contact the school office.",
+  "@familyNoChildrenMessage": {
+    "description": "Home with no linked child."
+  },
+  "familyGoodMorning": "Good morning",
+  "@familyGoodMorning": {
+    "description": "Greeting before noon."
+  },
+  "familyGoodAfternoon": "Good afternoon",
+  "@familyGoodAfternoon": {
+    "description": "Greeting in the afternoon."
+  },
+  "familyGoodEvening": "Good evening",
+  "@familyGoodEvening": {
+    "description": "Greeting in the evening."
+  },
+  "familyUpdatedAt": "Updated {time}",
+  "@familyUpdatedAt": {
+    "description": "When the screen was last refreshed.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNoSchoolToday": "No school today",
+  "@familyNoSchoolToday": {
+    "description": "Home on a closed day."
+  },
+  "familySchoolClosedToday": "The school is closed today.",
+  "@familySchoolClosedToday": {
+    "description": "Home on a closed day with no holiday name."
+  },
+  "familyChildInSchool": "{name} is in school",
+  "@familyChildInSchool": {
+    "description": "Attendance card; name = child's first name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyChildMarkedAbsent": "{name} was marked absent",
+  "@familyChildMarkedAbsent": {
+    "description": "Attendance card.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyChildOnLeave": "{name} is on leave today",
+  "@familyChildOnLeave": {
+    "description": "Attendance card.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyRegisterNotMarked": "Register not marked yet",
+  "@familyRegisterNotMarked": {
+    "description": "Attendance card."
+  },
+  "familyAttendanceToday": "Attendance today",
+  "@familyAttendanceToday": {
+    "description": "Card heading."
+  },
+  "familyTeacherMarksMorning": "The class teacher marks it in the morning.",
+  "@familyTeacherMarksMorning": {
+    "description": "Under 'Register not marked yet'."
+  },
+  "familyNote": "Note: {text}",
+  "@familyNote": {
+    "description": "A remark the teacher wrote.",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTellSchoolWhy": "Tell the school why",
+  "@familyTellSchoolWhy": {
+    "description": "Opens the absence note form after an absence."
+  },
+  "familyReportSick": "Report sick",
+  "@familyReportSick": {
+    "description": "Opens the absence note form."
+  },
+  "familySchoolBus": "School bus",
+  "@familySchoolBus": {
+    "description": "Card heading."
+  },
+  "familyNoTripToday": "No trip has started today",
+  "@familyNoTripToday": {
+    "description": "Bus card with no trip."
+  },
+  "familyPickupAt": "pick-up {time}",
+  "@familyPickupAt": {
+    "description": "Bus pick-up time.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTapToWatchBus": "Tap to watch the bus on the map",
+  "@familyTapToWatchBus": {
+    "description": "Bus card while the bus is live."
+  },
+  "familyResults": "Results",
+  "@familyResults": {
+    "description": "Results heading."
+  },
+  "familyResultsCardLine": "Test marks and the progress report",
+  "@familyResultsCardLine": {
+    "description": "Results card on Home."
+  },
+  "familyNextFee": "Next fee",
+  "@familyNextFee": {
+    "description": "Card heading."
+  },
+  "familyFeeWasDueOn": "{label} · was due on {date}",
+  "@familyFeeWasDueOn": {
+    "description": "Overdue fee; label = fee name as the school wrote it.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "familyFeeDueOn": "{label} · due on {date}",
+  "@familyFeeDueOn": {
+    "description": "Upcoming fee.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "familyFromTheSchool": "From the school",
+  "@familyFromTheSchool": {
+    "description": "Card heading for the newest message."
+  },
+  "familyNewCount": "{count} new",
+  "@familyNewCount": {
+    "description": "Unread badge.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyNoMessagesYet": "No messages yet.",
+  "@familyNoMessagesYet": {
+    "description": "No notices."
+  },
+  "familyTodaysClasses": "Today's classes",
+  "@familyTodaysClasses": {
+    "description": "Card heading."
+  },
+  "familyPeriodNumber": "Period {number}",
+  "@familyPeriodNumber": {
+    "description": "A period with no subject.",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNow": "Now",
+  "@familyNow": {
+    "description": "The period on now."
+  },
+  "familyTrendRisingLabel": "Marks over {count} tests, from {first}% to {last}%, rising",
+  "@familyTrendRisingLabel": {
+    "description": "Screen-reader label of the marks line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      }
+    }
+  },
+  "familyTrendFallingLabel": "Marks over {count} tests, from {first}% to {last}%, falling",
+  "@familyTrendFallingLabel": {
+    "description": "Screen-reader label of the marks line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      }
+    }
+  },
+  "familyTrendLine": "{first}% to {last}% over {count} tests",
+  "@familyTrendLine": {
+    "description": "Under the marks line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      }
+    }
+  },
+  "familyPreviousMonth": "Previous month",
+  "@familyPreviousMonth": {
+    "description": "Button tooltip."
+  },
+  "familyNextMonth": "Next month",
+  "@familyNextMonth": {
+    "description": "Button tooltip."
+  },
+  "familyBelowLine": "Attendance is {rate}% over the last {days} school days, below the school's {line}% line. The class teacher can help if something is keeping {name} away.",
+  "@familyBelowLine": {
+    "description": "Early warning when attendance is below the school's line; name = child's first name.",
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      },
+      "line": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTellAboutAbsence": "Tell the school about an absence",
+  "@familyTellAboutAbsence": {
+    "description": "Opens the absence note form."
+  },
+  "familyNotesSent": "Notes sent",
+  "@familyNotesSent": {
+    "description": "Opens the absence notes already sent."
+  },
+  "familyThisSchoolYear": "This school year",
+  "@familyThisSchoolYear": {
+    "description": "Attendance for the whole year."
+  },
+  "familyWhyAttendance": "Days present out of the days the class register was marked. A day on leave counts as not present; a day the school did not mark the register, and a holiday, are left out.",
+  "@familyWhyAttendance": {
+    "description": "How the attendance percentage is worked out."
+  },
+  "familyNoRegisterYet": "No register marked yet.",
+  "@familyNoRegisterYet": {
+    "description": "Rate card with no marked days."
+  },
+  "familyPresentOfDays": "Present {present} of {days} days",
+  "@familyPresentOfDays": {
+    "description": "Rate card.",
+    "placeholders": {
+      "present": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "familyAbsentPart": " · absent {count}",
+  "@familyAbsentPart": {
+    "description": "Added after the present count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyLeavePart": " · leave {count}",
+  "@familyLeavePart": {
+    "description": "Added after the present count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyDaysNotMarked": "{count, plural, =1{1 school day not marked by the school} other{{count} school days not marked by the school}}",
+  "@familyDaysNotMarked": {
+    "description": "School days with no register.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyWeekdayInitials": "M T W T F S S",
+  "@familyWeekdayInitials": {
+    "description": "Calendar column heads, Monday first, separated by single spaces (keep seven)."
+  },
+  "familyLeave": "Leave",
+  "@familyLeave": {
+    "description": "Calendar key / missed day kind."
+  },
+  "familyHoliday": "Holiday",
+  "@familyHoliday": {
+    "description": "Calendar key: a school holiday."
+  },
+  "familyDayPresent": "present",
+  "@familyDayPresent": {
+    "description": "Screen-reader word for a calendar day."
+  },
+  "familyDayAbsent": "absent",
+  "@familyDayAbsent": {
+    "description": "Screen-reader word for a calendar day."
+  },
+  "familyDayOnLeave": "on leave",
+  "@familyDayOnLeave": {
+    "description": "Screen-reader word for a calendar day."
+  },
+  "familyDayHoliday": "holiday",
+  "@familyDayHoliday": {
+    "description": "Screen-reader word for a calendar day."
+  },
+  "familyDayNoSchool": "no school",
+  "@familyDayNoSchool": {
+    "description": "Screen-reader word for a calendar day."
+  },
+  "familyDayNotMarked": "not marked",
+  "@familyDayNotMarked": {
+    "description": "Screen-reader word for a calendar day."
+  },
+  "familyDaysMissed": "Days missed",
+  "@familyDaysMissed": {
+    "description": "Card heading."
+  },
+  "familyNoneThisMonth": "None this month.",
+  "@familyNoneThisMonth": {
+    "description": "No missed days."
+  },
+  "familyNoReasonNoted": "No reason noted.",
+  "@familyNoReasonNoted": {
+    "description": "A missed day with no note."
+  },
+  "familyNotOnBus": "Not on a school bus",
+  "@familyNotOnBus": {
+    "description": "Bus tab when the child has no route."
+  },
+  "familyNotOnBusMessage": "If your child should be, the school office can add them to a route.",
+  "@familyNotOnBusMessage": {
+    "description": "Bus tab when the child has no route."
+  },
+  "familyBusOnWayToSchool": "The bus is on its way to school",
+  "@familyBusOnWayToSchool": {
+    "description": "Live trip card."
+  },
+  "familyBusOnWayHome": "The bus is on its way home",
+  "@familyBusOnWayHome": {
+    "description": "Live trip card."
+  },
+  "familyTrackOnMap": "Track it on the map",
+  "@familyTrackOnMap": {
+    "description": "Live trip card."
+  },
+  "familyRouteAndStop": "Route and stop",
+  "@familyRouteAndStop": {
+    "description": "Card heading."
+  },
+  "familyPickup": "Pick-up",
+  "@familyPickup": {
+    "description": "Pick-up time label."
+  },
+  "familyDrop": "Drop",
+  "@familyDrop": {
+    "description": "Drop time label."
+  },
+  "familyYourStop": "your stop",
+  "@familyYourStop": {
+    "description": "Stands in for a stop with no name."
+  },
+  "familyNotStartedYet": "Not started yet",
+  "@familyNotStartedYet": {
+    "description": "A trip not yet started."
+  },
+  "familyTripWasCancelled": "This trip was cancelled. The school will be in touch.",
+  "@familyTripWasCancelled": {
+    "description": "A cancelled trip."
+  },
+  "familyNotOnTripList": "{name} is not on this trip's list today.",
+  "@familyNotOnTripList": {
+    "description": "Child not on the trip's rider list.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyBusSetOff": "The bus set off",
+  "@familyBusSetOff": {
+    "description": "Trip step."
+  },
+  "familyReachedStop": "Reached {stop}",
+  "@familyReachedStop": {
+    "description": "Trip step: the bus reached a stop; stop = stop name.",
+    "placeholders": {
+      "stop": {
+        "type": "String"
+      }
+    }
+  },
+  "familyBusLeftSchool": "The bus left school",
+  "@familyBusLeftSchool": {
+    "description": "Trip step."
+  },
+  "familyChildGotOff": "{name} got off",
+  "@familyChildGotOff": {
+    "description": "Trip step.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyChildBoarded": "{name} boarded",
+  "@familyChildBoarded": {
+    "description": "Trip step.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyDidNotBoard": "Did not board",
+  "@familyDidNotBoard": {
+    "description": "Trip step when the child was marked absent."
+  },
+  "familyTripHome": "Home",
+  "@familyTripHome": {
+    "description": "Heading of the trip home."
+  },
+  "familyTripToSchool": "To school",
+  "@familyTripToSchool": {
+    "description": "Heading of the trip to school."
+  },
+  "familyCall": "Call",
+  "@familyCall": {
+    "description": "Button tooltip: phone someone."
+  },
+  "familyBusQuestions": "Questions about the bus",
+  "@familyBusQuestions": {
+    "description": "Card heading."
+  },
+  "familyBusAttendant": "Bus attendant",
+  "@familyBusAttendant": {
+    "description": "Who to call."
+  },
+  "familyTransportOffice": "Transport office",
+  "@familyTransportOffice": {
+    "description": "Who to call."
+  },
+  "familySchoolOffice": "The school office",
+  "@familySchoolOffice": {
+    "description": "Who to call."
+  },
+  "familyYourChild": "your child",
+  "@familyYourChild": {
+    "description": "Stands in for the child's name."
+  },
+  "familyBusNotOnRoadFor": "The bus isn't on the road for {name} now",
+  "@familyBusNotOnRoadFor": {
+    "description": "Live map when no trip is on the road.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyBusFollowDuringTrip": "You can follow it during their trip - on the way to school or home.",
+  "@familyBusFollowDuringTrip": {
+    "description": "Live map when no trip is on the road."
+  },
+  "familyWhereIsBus": "Where is the bus?",
+  "@familyWhereIsBus": {
+    "description": "Live map title."
+  },
+  "familyTheBus": "The bus",
+  "@familyTheBus": {
+    "description": "Map marker title."
+  },
+  "familyBusOnRoad": "The bus is on the road",
+  "@familyBusOnRoad": {
+    "description": "Live map headline."
+  },
+  "familyBusHasBeenTo": "The bus has been to {stop}",
+  "@familyBusHasBeenTo": {
+    "description": "Live map headline, morning trip after the stop.",
+    "placeholders": {
+      "stop": {
+        "type": "String"
+      }
+    }
+  },
+  "familyBusHasReached": "The bus has reached {stop}",
+  "@familyBusHasReached": {
+    "description": "Live map headline, trip home at the stop.",
+    "placeholders": {
+      "stop": {
+        "type": "String"
+      }
+    }
+  },
+  "familyOnWayTo": "On its way to {stop}",
+  "@familyOnWayTo": {
+    "description": "Live map headline.",
+    "placeholders": {
+      "stop": {
+        "type": "String"
+      }
+    }
+  },
+  "familyAboutTime": "about {time}",
+  "@familyAboutTime": {
+    "description": "How long until the bus arrives.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyDistanceAway": "{distance} away",
+  "@familyDistanceAway": {
+    "description": "How far the bus is; distance like '450 m'.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "familyStopsBeforeYours": "{count, plural, =1{1 stop before yours} other{{count} stops before yours}}",
+  "@familyStopsBeforeYours": {
+    "description": "Stops the bus makes before the child's.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyMinutes": "{count, plural, =1{1 minute} other{{count} minutes}}",
+  "@familyMinutes": {
+    "description": "A span of minutes.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyWaitingForBusLocation": "Waiting for the bus to share where it is.",
+  "@familyWaitingForBusLocation": {
+    "description": "Live map before a position."
+  },
+  "familyLastSeenAgo": "Last seen {time} ago - the bus may be out of signal.",
+  "@familyLastSeenAgo": {
+    "description": "Live map with an old position.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyOfflineLastUpdate": "No connection - showing the last update.",
+  "@familyOfflineLastUpdate": {
+    "description": "Live map when a refresh failed."
+  },
+  "familyNoFeesYet": "No fees set yet",
+  "@familyNoFeesYet": {
+    "description": "Fees tab with no fees."
+  },
+  "familyNoFeesYetMessage": "When the school sets this year's fees, they appear here.",
+  "@familyNoFeesYetMessage": {
+    "description": "Fees tab with no fees."
+  },
+  "familyInstalments": "Instalments",
+  "@familyInstalments": {
+    "description": "Section heading."
+  },
+  "familyReceipts": "Receipts",
+  "@familyReceipts": {
+    "description": "Section heading."
+  },
+  "familyNoReceiptsYet": "No payments this year yet. A receipt appears here as soon as the office records one.",
+  "@familyNoReceiptsYet": {
+    "description": "No receipts."
+  },
+  "familyThisYear": "This year",
+  "@familyThisYear": {
+    "description": "Fees heading with no year name."
+  },
+  "familyFeesFor": "Fees for {year}",
+  "@familyFeesFor": {
+    "description": "Fees heading; year = school year name.",
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "familyAllPaid": "All paid",
+  "@familyAllPaid": {
+    "description": "Nothing left to pay."
+  },
+  "familyLeftToPay": "Left to pay",
+  "@familyLeftToPay": {
+    "description": "Amount still to pay."
+  },
+  "familyOfItOverdue": "{amount} of it is overdue",
+  "@familyOfItOverdue": {
+    "description": "Part of the balance past its date.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "familyCharged": "Charged",
+  "@familyCharged": {
+    "description": "Total charged this year."
+  },
+  "familyDiscount": "Discount",
+  "@familyDiscount": {
+    "description": "Discount given."
+  },
+  "familyCreditHeld": "Credit held",
+  "@familyCreditHeld": {
+    "description": "Money the school holds for the family."
+  },
+  "familyWhyFees": "Left to pay is this year's fees, less any discount, less what the school has recorded as paid, less any instalment the school has waived. Overdue is the part of it from instalments whose due date has passed.",
+  "@familyWhyFees": {
+    "description": "How the balance is worked out."
+  },
+  "familyUpiOpened": "Once you have paid, the school records it and the receipt appears here.",
+  "@familyUpiOpened": {
+    "description": "After a UPI app opened."
+  },
+  "familyUpiNotOpened": "No UPI app opened on this phone. Copy the UPI ID and pay from your bank's app instead.",
+  "@familyUpiNotOpened": {
+    "description": "When no UPI app opened."
+  },
+  "familyCopied": "{what} copied",
+  "@familyCopied": {
+    "description": "After copying; what = 'UPI ID' or 'Bank details'.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "familyHowToPay": "How to pay",
+  "@familyHowToPay": {
+    "description": "Card heading."
+  },
+  "familyPaySchoolDirectly": "Pay the school directly. This app shows your fees; it does not take payments.",
+  "@familyPaySchoolDirectly": {
+    "description": "How to pay."
+  },
+  "familyPayWithUpi": "Pay {amount} with any UPI app",
+  "@familyPayWithUpi": {
+    "description": "UPI button.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "familyUpiExplain": "Opens GPay, PhonePe, Paytm or your bank's app with the amount and your child's name filled in. The school records the payment when it reaches them.",
+  "@familyUpiExplain": {
+    "description": "Under the UPI button."
+  },
+  "familyFeeCounter": "Fee counter",
+  "@familyFeeCounter": {
+    "description": "Counter hours label."
+  },
+  "familyCopyUpiId": "Copy the UPI ID",
+  "@familyCopyUpiId": {
+    "description": "Button tooltip."
+  },
+  "familyUpiId": "UPI ID",
+  "@familyUpiId": {
+    "description": "What was copied."
+  },
+  "familyCopyBankDetails": "Copy the bank details",
+  "@familyCopyBankDetails": {
+    "description": "Button tooltip."
+  },
+  "familyBankDetails": "Bank details",
+  "@familyBankDetails": {
+    "description": "What was copied."
+  },
+  "familyFeeQuestions": "Questions about fees",
+  "@familyFeeQuestions": {
+    "description": "Office phone label."
+  },
+  "familyCallSchoolOffice": "Call the school office",
+  "@familyCallSchoolOffice": {
+    "description": "Button tooltip."
+  },
+  "familyWasDueDate": "Was due {date}",
+  "@familyWasDueDate": {
+    "description": "Overdue instalment.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "familyDueDate": "Due {date}",
+  "@familyDueDate": {
+    "description": "Instalment due date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "familyPaidOf": "{paid} paid of {total}",
+  "@familyPaidOf": {
+    "description": "Part-paid instalment.",
+    "placeholders": {
+      "paid": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "familyCancelledByOffice": "Cancelled by the office",
+  "@familyCancelledByOffice": {
+    "description": "A cancelled receipt."
+  },
+  "familyOpenReceipt": "Open the receipt",
+  "@familyOpenReceipt": {
+    "description": "Button tooltip."
+  },
+  "familyYearStatement": "The year's statement (PDF)",
+  "@familyYearStatement": {
+    "description": "Statement button with no year name."
+  },
+  "familyStatementFor": "Statement for {year} (PDF)",
+  "@familyStatementFor": {
+    "description": "Statement button.",
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNoTermsYet": "No terms yet",
+  "@familyNoTermsYet": {
+    "description": "Results with no terms."
+  },
+  "familyNoTermsYetMessage": "Results appear here once the school sets up its terms.",
+  "@familyNoTermsYetMessage": {
+    "description": "Results with no terms."
+  },
+  "familyFromClassTeacher": "From the class teacher",
+  "@familyFromClassTeacher": {
+    "description": "Card heading for the teacher's remark."
+  },
+  "familyNoResultsThisTerm": "No results yet this term",
+  "@familyNoResultsThisTerm": {
+    "description": "Results with no tests."
+  },
+  "familyNoResultsThisTermMessage": "A test appears here once the teacher publishes its marks.",
+  "@familyNoResultsThisTermMessage": {
+    "description": "Results with no tests."
+  },
+  "familyWhyResults": "Each subject's figure is the average of its published test marks this term, as percentages - weighted when the school gave every test a weight. A test the child missed is left out. The grade comes from the school's own grading scale.",
+  "@familyWhyResults": {
+    "description": "How subject figures are worked out."
+  },
+  "familyProgressReport": "{term} progress report",
+  "@familyProgressReport": {
+    "description": "Report card row; term = term name.",
+    "placeholders": {
+      "term": {
+        "type": "String"
+      }
+    }
+  },
+  "familyReportOpenSaveShare": "Open it, save it or share it.",
+  "@familyReportOpenSaveShare": {
+    "description": "When the report is ready."
+  },
+  "familyReportReadyTermEnds": "Ready when the term ends.",
+  "@familyReportReadyTermEnds": {
+    "description": "Report not yet ready."
+  },
+  "familyReportReadyOn": "Ready when the term ends, on {date}.",
+  "@familyReportReadyOn": {
+    "description": "Report not yet ready.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "familyGetPdf": "Get PDF",
+  "@familyGetPdf": {
+    "description": "Download button."
+  },
+  "familyTestsCount": "{count, plural, =1{1 test} other{{count} tests}}",
+  "@familyTestsCount": {
+    "description": "Tests in a subject.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyClassPercent": "class {percent}%",
+  "@familyClassPercent": {
+    "description": "The class average for a subject.",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "familyGrade": "Grade {grade}",
+  "@familyGrade": {
+    "description": "A subject grade.",
+    "placeholders": {
+      "grade": {
+        "type": "String"
+      }
+    }
+  },
+  "familyClassAverage": "class average {percent}%",
+  "@familyClassAverage": {
+    "description": "The class average for a test.",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTimetable": "Timetable",
+  "@familyTimetable": {
+    "description": "Screen title."
+  },
+  "familyNoTimetableYet": "No timetable yet",
+  "@familyNoTimetableYet": {
+    "description": "Timetable empty."
+  },
+  "familyNoTimetableYetMessage": "The class's timetable appears here once the school sets it.",
+  "@familyNoTimetableYetMessage": {
+    "description": "Timetable empty."
+  },
+  "familyDayToday": "{day} · today",
+  "@familyDayToday": {
+    "description": "Day chip for today.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "familyWeekdayShort": "{day, select, monday{Mon} tuesday{Tue} wednesday{Wed} thursday{Thu} friday{Fri} saturday{Sat} sunday{Sun} other{{day}}}",
+  "@familyWeekdayShort": {
+    "description": "Short weekday name; day is the lower-case English day.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "familyWeekday": "{day, select, monday{Monday} tuesday{Tuesday} wednesday{Wednesday} thursday{Thursday} friday{Friday} saturday{Saturday} sunday{Sunday} other{{day}}}",
+  "@familyWeekday": {
+    "description": "Weekday name; day is the lower-case English day.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "familyFreePeriod": "Free period",
+  "@familyFreePeriod": {
+    "description": "A period with no subject."
+  },
+  "familyHalfDay": "{day} is a half day.",
+  "@familyHalfDay": {
+    "description": "Half day note.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNoClassesOn": "No classes on {day}.",
+  "@familyNoClassesOn": {
+    "description": "A day with no periods.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "familySyllabus": "Syllabus",
+  "@familySyllabus": {
+    "description": "Screen title."
+  },
+  "familyNoSyllabusYet": "No syllabus yet",
+  "@familyNoSyllabusYet": {
+    "description": "Syllabus empty."
+  },
+  "familyNoSyllabusYetMessage": "What the class will cover appears here once the school adds it.",
+  "@familyNoSyllabusYetMessage": {
+    "description": "Syllabus empty."
+  },
+  "familyHomework": "Homework",
+  "@familyHomework": {
+    "description": "Screen title; homework with no subject."
+  },
+  "familyNoHomework": "No homework in the last two weeks",
+  "@familyNoHomework": {
+    "description": "Homework empty."
+  },
+  "familyNoHomeworkMessage": "When a teacher sets homework for the class, it appears here that day.",
+  "@familyNoHomeworkMessage": {
+    "description": "Homework empty."
+  },
+  "familyTodayDash": "Today - {date}",
+  "@familyTodayDash": {
+    "description": "Homework day heading for today; date as the school wrote it.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNoTopicsYet": "No topics added yet.",
+  "@familyNoTopicsYet": {
+    "description": "Syllabus subject with no topics."
+  },
+  "familyTopicsCovered": "{covered} of {total} topics covered",
+  "@familyTopicsCovered": {
+    "description": "Syllabus progress.",
+    "placeholders": {
+      "covered": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "familyComingUp": "Coming up: {topics}",
+  "@familyComingUp": {
+    "description": "Next topics.",
+    "placeholders": {
+      "topics": {
+        "type": "String"
+      }
+    }
+  },
+  "familyAbsenceNotes": "Absence notes",
+  "@familyAbsenceNotes": {
+    "description": "More row; screen title."
+  },
+  "familyAbsenceNotesSub": "Tell the school your child will be away",
+  "@familyAbsenceNotesSub": {
+    "description": "More row."
+  },
+  "familyAddGuardian": "Add a guardian",
+  "@familyAddGuardian": {
+    "description": "More row; screen title."
+  },
+  "familyAddGuardianSub": "Ask the school to add the other parent, or a relative",
+  "@familyAddGuardianSub": {
+    "description": "More row."
+  },
+  "familyAskToCall": "Ask the school to call you",
+  "@familyAskToCall": {
+    "description": "More row; screen title."
+  },
+  "familyAskToCallSub": "The class teacher or the office rings you back",
+  "@familyAskToCallSub": {
+    "description": "More row."
+  },
+  "familyAdmitCards": "Admit cards",
+  "@familyAdmitCards": {
+    "description": "More row; screen title."
+  },
+  "familyAdmitCardsSub": "Exam date sheets to download and print",
+  "@familyAdmitCardsSub": {
+    "description": "More row."
+  },
+  "familyTimetableSub": "The class's week",
+  "@familyTimetableSub": {
+    "description": "More row."
+  },
+  "familySyllabusSub": "How far each subject has got",
+  "@familySyllabusSub": {
+    "description": "More row."
+  },
+  "familyHomeworkSub": "What the teachers set, day by day",
+  "@familyHomeworkSub": {
+    "description": "More row."
+  },
+  "familyNoticesSub": "Messages from the school",
+  "@familyNoticesSub": {
+    "description": "More row."
+  },
+  "familySchoolCalendar": "School calendar",
+  "@familySchoolCalendar": {
+    "description": "More row; screen title."
+  },
+  "familySchoolCalendarSub": "Holidays and closed days",
+  "@familySchoolCalendarSub": {
+    "description": "More row."
+  },
+  "familyNotifications": "Notifications",
+  "@familyNotifications": {
+    "description": "More row; screen title."
+  },
+  "familyNotificationsSub": "Choose what comes to this app",
+  "@familyNotificationsSub": {
+    "description": "More row."
+  },
+  "familyYourPrivacy": "Your privacy",
+  "@familyYourPrivacy": {
+    "description": "More row; screen title."
+  },
+  "familyYourPrivacySub": "Who sees your number, and the bus on the map",
+  "@familyYourPrivacySub": {
+    "description": "More row."
+  },
+  "familySignOut": "Sign out",
+  "@familySignOut": {
+    "description": "Sign out row and button."
+  },
+  "familySignOutSub": "This phone stays set up; sign in again with your passcode",
+  "@familySignOutSub": {
+    "description": "Sign out row."
+  },
+  "familySignOutQuestion": "Sign out?",
+  "@familySignOutQuestion": {
+    "description": "Confirm dialog title."
+  },
+  "familySignOutMessage": "You will need your passcode to sign in again.",
+  "@familySignOutMessage": {
+    "description": "Confirm dialog."
+  },
+  "familyCouldNotOpen": "This phone could not open that. Please try another way.",
+  "@familyCouldNotOpen": {
+    "description": "When the dialler, WhatsApp or mail did not open."
+  },
+  "familyContactSchool": "Contact the school",
+  "@familyContactSchool": {
+    "description": "Card heading."
+  },
+  "familyNoContactDetails": "The school has not added its contact details yet.",
+  "@familyNoContactDetails": {
+    "description": "No school phone or email."
+  },
+  "familyEmail": "Email",
+  "@familyEmail": {
+    "description": "Button: write to the school."
+  },
+  "familyMarkAllRead": "Mark all read",
+  "@familyMarkAllRead": {
+    "description": "Notices action."
+  },
+  "familyNoNoticesYet": "No notices yet",
+  "@familyNoNoticesYet": {
+    "description": "Notices empty."
+  },
+  "familyNoNoticesYetMessage": "Messages from the school will appear here.",
+  "@familyNoNoticesYetMessage": {
+    "description": "Notices empty."
+  },
+  "familyFilesCount": "{count, plural, =1{1 file} other{{count} files}}",
+  "@familyFilesCount": {
+    "description": "Attachments on a notice.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyHolidaysCalendarName": "School holidays",
+  "@familyHolidaysCalendarName": {
+    "description": "Name of the calendar file added to the phone's calendar."
+  },
+  "familyCalendarShareFailed": "The calendar file could not be shared.",
+  "@familyCalendarShareFailed": {
+    "description": "Error snackbar."
+  },
+  "familyThisMonth": "This month",
+  "@familyThisMonth": {
+    "description": "Holiday list heading."
+  },
+  "familyNoHolidaysThisMonth": "No holidays this month.",
+  "@familyNoHolidaysThisMonth": {
+    "description": "Holiday list empty."
+  },
+  "familyClosedEvery": "The school is closed every {days}.",
+  "@familyClosedEvery": {
+    "description": "Weekly closed days; days = weekday names joined.",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "familyAndJoin": " and ",
+  "@familyAndJoin": {
+    "description": "Joins weekday names: 'Saturday and Sunday'."
+  },
+  "familyHolidaysComingUp": "Coming up",
+  "@familyHolidaysComingUp": {
+    "description": "Holiday list heading."
+  },
+  "familyNoHolidaysPlanned": "No holidays planned yet.",
+  "@familyNoHolidaysPlanned": {
+    "description": "Holiday list empty."
+  },
+  "familyAddHolidaysToCalendar": "Add these holidays to my calendar",
+  "@familyAddHolidaysToCalendar": {
+    "description": "Button."
+  },
+  "familySwitchAttendanceSub": "Absent, or on leave",
+  "@familySwitchAttendanceSub": {
+    "description": "Notification switch."
+  },
+  "familySwitchBusSub": "Boarded, dropped, did not take the bus",
+  "@familySwitchBusSub": {
+    "description": "Notification switch."
+  },
+  "familySwitchFeesSub": "Reminders and receipts",
+  "@familySwitchFeesSub": {
+    "description": "Notification switch."
+  },
+  "familySwitchResultsSub": "When a test result is published",
+  "@familySwitchResultsSub": {
+    "description": "Notification switch."
+  },
+  "familySwitchNoticesSub": "Announcements and messages from the school",
+  "@familySwitchNoticesSub": {
+    "description": "Notification switch."
+  },
+  "familySwitchHomeworkSub": "Each evening, the day's homework",
+  "@familySwitchHomeworkSub": {
+    "description": "Notification switch."
+  },
+  "familyEmergencyAlwaysComes": "Emergency messages from the school always come through.",
+  "@familyEmergencyAlwaysComes": {
+    "description": "Notifications screen."
+  },
+  "familySaved": "Saved.",
+  "@familySaved": {
+    "description": "After saving a setting."
+  },
+  "familyCallSentOffice": "Sent. The school office will call you.",
+  "@familyCallSentOffice": {
+    "description": "After asking for a call."
+  },
+  "familyCallSentTeacher": "Sent. The class teacher will call you.",
+  "@familyCallSentTeacher": {
+    "description": "After asking for a call."
+  },
+  "familyWhoShouldCall": "Who should call you about {name}?",
+  "@familyWhoShouldCall": {
+    "description": "Call request form; name = child's first name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyClassTeacher": "Class teacher",
+  "@familyClassTeacher": {
+    "description": "Who calls back."
+  },
+  "familySchoolOfficeShort": "School office",
+  "@familySchoolOfficeShort": {
+    "description": "Who calls back."
+  },
+  "familyWhatAbout": "What is it about?",
+  "@familyWhatAbout": {
+    "description": "Call reason field."
+  },
+  "familyWhatAboutTooShort": "Please say a little about what it is.",
+  "@familyWhatAboutTooShort": {
+    "description": "Call reason too short."
+  },
+  "familyGoodTimeToCall": "A good time to call (optional)",
+  "@familyGoodTimeToCall": {
+    "description": "Optional field."
+  },
+  "familyGoodTimeHint": "e.g. After 5 pm",
+  "@familyGoodTimeHint": {
+    "description": "Hint in the time field."
+  },
+  "familyAskForCall": "Ask for a call",
+  "@familyAskForCall": {
+    "description": "Send button."
+  },
+  "familyYourRequests": "Your requests",
+  "@familyYourRequests": {
+    "description": "Section heading."
+  },
+  "familyNoneYet": "None yet.",
+  "@familyNoneYet": {
+    "description": "An empty list."
+  },
+  "familyCalledBy": "Called by {who} · {when}",
+  "@familyCalledBy": {
+    "description": "A call request marked done.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTheSchool": "the school",
+  "@familyTheSchool": {
+    "description": "Who called, when the school gave no name."
+  },
+  "familyCalled": "Called",
+  "@familyCalled": {
+    "description": "Call request status."
+  },
+  "familyWaiting": "Waiting",
+  "@familyWaiting": {
+    "description": "Call request status."
+  },
+  "familyAnswerBy": "Please answer by {date}",
+  "@familyAnswerBy": {
+    "description": "Reply deadline.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "familyAnswersClosedOn": "Answers closed on {date}",
+  "@familyAnswersClosedOn": {
+    "description": "Reply deadline passed.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "familyYes": "Yes",
+  "@familyYes": {
+    "description": "Answer."
+  },
+  "familyNo": "No",
+  "@familyNo": {
+    "description": "Answer."
+  },
+  "familyAnswerReached": "Your answer reached the school · {when}",
+  "@familyAnswerReached": {
+    "description": "After answering.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNoteForSchool": "A note for the school (optional)",
+  "@familyNoteForSchool": {
+    "description": "Optional note field."
+  },
+  "familyAnswerNeeded": "Answer needed",
+  "@familyAnswerNeeded": {
+    "description": "Badge on a notice waiting for an answer."
+  },
+  "familyAbsenceNotesFor": "Absence notes for {name}",
+  "@familyAbsenceNotesFor": {
+    "description": "Screen title; name = child's first name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTellTheSchool": "Tell the school",
+  "@familyTellTheSchool": {
+    "description": "Button: write a new absence note."
+  },
+  "familyNoNotesSent": "No notes sent",
+  "@familyNoNotesSent": {
+    "description": "Absence notes empty."
+  },
+  "familyNoNotesSentMessage": "If {name} will be away, tell the school here - the class teacher sees it.",
+  "@familyNoNotesSentMessage": {
+    "description": "Absence notes empty.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNoteSeen": "Seen",
+  "@familyNoteSeen": {
+    "description": "Absence note status."
+  },
+  "familyNoteSent": "Sent",
+  "@familyNoteSent": {
+    "description": "Absence note status."
+  },
+  "familySeenBy": "Seen by {who} · {when}",
+  "@familySeenBy": {
+    "description": "Who saw the note.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTheClassTeacher": "the class teacher",
+  "@familyTheClassTeacher": {
+    "description": "Who saw the note, when no name was given."
+  },
+  "familyWithPhoto": "With a photo of a note",
+  "@familyWithPhoto": {
+    "description": "Absence note with a photo."
+  },
+  "familyFirstDayAway": "First day away",
+  "@familyFirstDayAway": {
+    "description": "Date picker title."
+  },
+  "familyLastDayAway": "Last day away",
+  "@familyLastDayAway": {
+    "description": "Date picker title."
+  },
+  "familyTakePhoto": "Take a photo",
+  "@familyTakePhoto": {
+    "description": "Photo source."
+  },
+  "familyChoosePhoto": "Choose from your photos",
+  "@familyChoosePhoto": {
+    "description": "Photo source."
+  },
+  "familyNoteSentSnack": "Sent. {name}'s class teacher will see it.",
+  "@familyNoteSentSnack": {
+    "description": "After sending an absence note.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyYourChildWillBeAway": "Your child will be away",
+  "@familyYourChildWillBeAway": {
+    "description": "Form title with no child name."
+  },
+  "familyChildWillBeAway": "{name} will be away",
+  "@familyChildWillBeAway": {
+    "description": "Form title.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNoteExplain": "The class teacher sees this on the register. It doesn't mark {name} absent by itself.",
+  "@familyNoteExplain": {
+    "description": "Absence note form.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyFirstDay": "First day",
+  "@familyFirstDay": {
+    "description": "Date field."
+  },
+  "familyLastDay": "Last day",
+  "@familyLastDay": {
+    "description": "Date field."
+  },
+  "familyWhyAway": "Why will they be away?",
+  "@familyWhyAway": {
+    "description": "Reason field."
+  },
+  "familyWhyAwayHint": "e.g. Fever since last night - the doctor has advised two days' rest.",
+  "@familyWhyAwayHint": {
+    "description": "Reason hint."
+  },
+  "familyReasonTooShort": "Please write a little more - at least {min} characters.",
+  "@familyReasonTooShort": {
+    "description": "Reason too short.",
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "familySendToSchool": "Send to the school",
+  "@familySendToSchool": {
+    "description": "Send button."
+  },
+  "familyAddDoctorNote": "Add a photo of a doctor's note (optional)",
+  "@familyAddDoctorNote": {
+    "description": "Photo button."
+  },
+  "familyRemove": "Remove",
+  "@familyRemove": {
+    "description": "Remove the chosen photo."
+  },
+  "familyDeviceNotRegistered": "This phone is not registered yet. Enter the setup code from your school's letter.",
+  "@familyDeviceNotRegistered": {
+    "description": "Sign-in on a phone with no registration."
+  },
+  "familyForgotPasscode": "Forgot your passcode?",
+  "@familyForgotPasscode": {
+    "description": "Link and dialog title."
+  },
+  "familyForgotPasscodeHelp": "Ask your child's school office for a new Family app letter. It has a new setup code: enter it here with your mobile number, and choose a new passcode. Your phone stays the same.",
+  "@familyForgotPasscodeHelp": {
+    "description": "Forgot passcode dialog."
+  },
+  "familyClose": "Close",
+  "@familyClose": {
+    "description": "Closes a dialog."
+  },
+  "familyHaveNewCode": "I have a new code",
+  "@familyHaveNewCode": {
+    "description": "Forgot passcode dialog."
+  },
+  "familySetUpApp": "Set up the Family app",
+  "@familySetUpApp": {
+    "description": "Sign-in heading on a new phone."
+  },
+  "familyWelcomeBack": "Welcome back",
+  "@familyWelcomeBack": {
+    "description": "Sign-in heading."
+  },
+  "familySetUpHelp": "Use the letter from your child's school: your mobile number, the 8-digit setup code, and a 6-digit passcode you choose.",
+  "@familySetUpHelp": {
+    "description": "Set-up help."
+  },
+  "familySignInHelp": "Sign in with your mobile number and your 6-digit passcode.",
+  "@familySignInHelp": {
+    "description": "Sign-in help."
+  },
+  "familyMobileNumber": "Mobile number",
+  "@familyMobileNumber": {
+    "description": "Field label."
+  },
+  "familySetupCodeLabel": "Setup code from the letter",
+  "@familySetupCodeLabel": {
+    "description": "Field label."
+  },
+  "familySetupCodeInvalid": "Enter the 8-digit setup code from the school's letter.",
+  "@familySetupCodeInvalid": {
+    "description": "Setup code validation."
+  },
+  "familyChoosePasscode": "Choose a passcode",
+  "@familyChoosePasscode": {
+    "description": "Field label."
+  },
+  "familyTypeItAgain": "Type it again",
+  "@familyTypeItAgain": {
+    "description": "Confirm passcode field."
+  },
+  "familyPasscodesDiffer": "The two passcodes are not the same.",
+  "@familyPasscodesDiffer": {
+    "description": "Passcode confirmation validation."
+  },
+  "familyPasscode": "Passcode",
+  "@familyPasscode": {
+    "description": "Field label."
+  },
+  "familyPasscodeInvalid": "Enter your 6-digit passcode.",
+  "@familyPasscodeInvalid": {
+    "description": "Passcode validation."
+  },
+  "familySetUpAndSignIn": "Set up and sign in",
+  "@familySetUpAndSignIn": {
+    "description": "Button."
+  },
+  "familySignIn": "Sign in",
+  "@familySignIn": {
+    "description": "Button."
+  },
+  "familyUseSetupCode": "New phone, or a new letter? Use the setup code",
+  "@familyUseSetupCode": {
+    "description": "Link to the set-up form."
+  },
+  "familyAlreadySetUp": "Already set up on this phone? Sign in",
+  "@familyAlreadySetUp": {
+    "description": "Link to the sign-in form."
+  },
+  "familyNoLetter": "No letter? Ask your child's school office for the Family app setup code.",
+  "@familyNoLetter": {
+    "description": "Under the sign-in form."
+  },
+  "familyNoAdmitCards": "No admit cards yet",
+  "@familyNoAdmitCards": {
+    "description": "Admit cards empty."
+  },
+  "familyNoAdmitCardsMessage": "When the school publishes an exam your child sits, its admit card appears here.",
+  "@familyNoAdmitCardsMessage": {
+    "description": "Admit cards empty."
+  },
+  "familyReportingTime": "Reporting time {time}.",
+  "@familyReportingTime": {
+    "description": "Note in the phone's calendar entry for an exam paper.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyAdmitVersion": "Version {version}, issued {date}",
+  "@familyAdmitVersion": {
+    "description": "Admit card version line.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "familyDownloadAdmitCard": "Download admit card",
+  "@familyDownloadAdmitCard": {
+    "description": "Button."
+  },
+  "familyAddPapersToCalendar": "{count, plural, =1{Add 1 paper to calendar} other{Add {count} papers to calendar}}",
+  "@familyAddPapersToCalendar": {
+    "description": "Button: exam papers into the phone's calendar.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyGuardianSent": "Sent. The school will look at your request.",
+  "@familyGuardianSent": {
+    "description": "After asking for a guardian."
+  },
+  "familyGuardianExplain": "Ask the school to add another guardian of {name}. Once the school agrees, it gives them their own set-up letter, and they see what you see.",
+  "@familyGuardianExplain": {
+    "description": "Add a guardian form.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTheirFullName": "Their full name",
+  "@familyTheirFullName": {
+    "description": "Field label."
+  },
+  "familyEnterTheirName": "Enter their name.",
+  "@familyEnterTheirName": {
+    "description": "Validation."
+  },
+  "familyTheirMobile": "Their mobile number",
+  "@familyTheirMobile": {
+    "description": "Field label."
+  },
+  "familyHowRelated": "How they are related to {name}",
+  "@familyHowRelated": {
+    "description": "Field label.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyChooseRelation": "Choose how they are related.",
+  "@familyChooseRelation": {
+    "description": "Validation."
+  },
+  "familyAskTheSchool": "Ask the school",
+  "@familyAskTheSchool": {
+    "description": "Send button."
+  },
+  "familyPrivacyNumberTitle": "Who can see your phone number",
+  "@familyPrivacyNumberTitle": {
+    "description": "Privacy card heading."
+  },
+  "familyPrivacyNumberOffice": "The school office.",
+  "@familyPrivacyNumberOffice": {
+    "description": "Privacy line."
+  },
+  "familyPrivacyNumberTeachers": "Your child's own class teachers - not teachers of other classes.",
+  "@familyPrivacyNumberTeachers": {
+    "description": "Privacy line."
+  },
+  "familyPrivacyNumberFees": "Staff who take fees, so they can call about a payment.",
+  "@familyPrivacyNumberFees": {
+    "description": "Privacy line."
+  },
+  "familyPrivacyNumberBus": "If your child takes the school bus: the transport office, and the bus crew on your child's route, so they can call you from the road.",
+  "@familyPrivacyNumberBus": {
+    "description": "Privacy line."
+  },
+  "familyPrivacyNumberOthers": "The school decides whether any other staff may see it.",
+  "@familyPrivacyNumberOthers": {
+    "description": "Privacy line."
+  },
+  "familyPrivacyBusTitle": "The bus on the map",
+  "@familyPrivacyBusTitle": {
+    "description": "Privacy card heading."
+  },
+  "familyPrivacyBusSource": "The location you see is the bus's, sent by the crew's phone while a trip runs.",
+  "@familyPrivacyBusSource": {
+    "description": "Privacy line."
+  },
+  "familyPrivacyBusWhen": "You can follow it only while your child's own trip is running - until they are dropped off or marked as not on the bus.",
+  "@familyPrivacyBusWhen": {
+    "description": "Privacy line."
+  },
+  "familyPrivacyBusNoPhoneLocation": "This app never asks for your phone's location.",
+  "@familyPrivacyBusNoPhoneLocation": {
+    "description": "Privacy line."
+  },
+  "familyPrivacyMessagesTitle": "What comes to this app",
+  "@familyPrivacyMessagesTitle": {
+    "description": "Privacy card heading."
+  },
+  "familyPrivacyMessagesLine": "You choose which kinds of message the school sends to this app.",
+  "@familyPrivacyMessagesLine": {
+    "description": "Privacy line."
+  },
+  "familyChooseNotifications": "Choose notifications",
+  "@familyChooseNotifications": {
+    "description": "Button."
+  },
+  "familyOpen": "Open",
+  "@familyOpen": {
+    "description": "Snackbar action: opens the screen a push message is about."
+  }
+}

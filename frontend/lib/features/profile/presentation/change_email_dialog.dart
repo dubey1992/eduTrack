@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/password_field.dart';
 import '../application/profile_notifier.dart';
@@ -59,7 +61,7 @@ class _ChangeEmailDialogState extends ConsumerState<ChangeEmailDialog> {
         setState(() {
           _fieldErrors = failure.validationErrors;
           // A message already shown under a field is not repeated below.
-          _error = _fieldErrors.isEmpty ? failure.message : null;
+          _error = _fieldErrors.isEmpty ? failure.localizedMessage(context) : null;
         });
       }
     } finally {
@@ -71,9 +73,10 @@ class _ChangeEmailDialogState extends ConsumerState<ChangeEmailDialog> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final passwordError = _serverError('current_password');
+    final l10n = context.l10n;
 
     return AlertDialog(
-      title: const Text('Change sign-in email'),
+      title: Text(l10n.staffChangeSignInEmail),
       content: SizedBox(
         width: 400,
         child: SingleChildScrollView(
@@ -83,18 +86,18 @@ class _ChangeEmailDialogState extends ConsumerState<ChangeEmailDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('You sign in as ${widget.currentEmail}. Other devices will be signed out.'),
+                Text(l10n.staffYouSignInAs(widget.currentEmail)),
                 const SizedBox(height: 12),
                 TextFormField(
                   key: const Key('change-email-new'),
                   controller: _emailController,
                   autofocus: true,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(labelText: 'New email', errorText: _serverError('email')),
+                  decoration: InputDecoration(labelText: l10n.staffNewEmail, errorText: _serverError('email')),
                   validator: (v) {
                     final text = (v ?? '').trim();
-                    if (text.isEmpty) return 'Enter the new email';
-                    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(text)) return 'Enter a valid email';
+                    if (text.isEmpty) return l10n.staffEnterNewEmail;
+                    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(text)) return l10n.staffEnterValidEmail;
                     return null;
                   },
                 ),
@@ -102,9 +105,9 @@ class _ChangeEmailDialogState extends ConsumerState<ChangeEmailDialog> {
                 PasswordField(
                   key: const Key('change-email-password'),
                   controller: _passwordController,
-                  label: 'Current password',
+                  label: l10n.staffCurrentPassword,
                   onFieldSubmitted: (_) => _submit(),
-                  validator: (v) => (v == null || v.isEmpty) ? 'Enter your current password' : null,
+                  validator: (v) => (v == null || v.isEmpty) ? l10n.staffEnterCurrentPassword : null,
                 ),
                 if (passwordError != null)
                   Padding(
@@ -121,7 +124,7 @@ class _ChangeEmailDialogState extends ConsumerState<ChangeEmailDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(false), child: Text(l10n.cancel)),
         FilledButton(
           onPressed: _saving ? null : _submit,
           child: _saving
@@ -129,7 +132,7 @@ class _ChangeEmailDialogState extends ConsumerState<ChangeEmailDialog> {
                   dimension: 16,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Change email'),
+              : Text(l10n.staffChangeEmail),
         ),
       ],
     );

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failure.dart';
+import '../../../../core/l10n/failure_text.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_format.dart';
@@ -10,6 +12,7 @@ import '../../application/student_fees_providers.dart';
 import '../../data/models/fee_receipt.dart';
 import '../../data/models/student_fees.dart';
 import '../../data/money_text.dart';
+import '../../../today/presentation/staff_words.dart';
 import 'receipt_actions.dart';
 
 /// Takes money for one student's fees (docs/fees.md, F3). By default the
@@ -106,8 +109,8 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
       setState(
         () => _fieldErrors = {
           _choosing ? 'allocations' : 'amount': _choosing
-              ? 'Tick at least one installment, with an amount above zero.'
-              : 'Enter an amount above zero.',
+              ? context.l10n.staffTickInstallment
+              : context.l10n.staffEnterAmountAboveZero,
         },
       );
       return;
@@ -143,7 +146,7 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) {
         setState(() {
-          _error = failure.message;
+          _error = failure.localizedMessage(context);
           _fieldErrors = {
             for (final entry in failure.validationErrors.entries)
               if (entry.value.isNotEmpty) entry.key: entry.value.join('\n'),
@@ -159,9 +162,10 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
   Widget build(BuildContext context) {
     final statement = widget.statement;
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return AlertDialog(
-      title: Text('Record payment - ${statement.student.name}'),
+      title: Text(l10n.staffRecordPaymentFor(statement.student.name)),
       content: SizedBox(
         width: 620,
         child: Form(
@@ -181,9 +185,8 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
                 ],
                 Text(
                   _owedCents == 0
-                      ? 'Owes nothing for ${statement.academicYearName}. A payment now is held as credit for the '
-                            'next fees.'
-                      : 'Owes ${_money(textOfCents(_owedCents))} for ${statement.academicYearName}.',
+                      ? l10n.staffOwesNothingFor(statement.academicYearName)
+                      : l10n.staffOwesFor(_money(textOfCents(_owedCents)), statement.academicYearName),
                   style: TextStyle(color: colors.muted),
                 ),
                 const SizedBox(height: 12),
@@ -197,7 +200,7 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
                         onTap: _saving ? null : _pickDate,
                         child: InputDecorator(
                           decoration: InputDecoration(
-                            labelText: 'Date received',
+                            labelText: l10n.staffDateReceived,
                             errorText: _fieldErrors['receipt_date'],
                             errorMaxLines: 3,
                           ),
@@ -210,9 +213,13 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
                       child: DropdownButtonFormField<PaymentMode>(
                         initialValue: _mode,
                         isExpanded: true,
-                        decoration: InputDecoration(labelText: 'Paid by', errorText: _fieldErrors['payment_mode']),
+                        decoration: InputDecoration(
+                          labelText: l10n.staffPaidBy,
+                          errorText: _fieldErrors['payment_mode'],
+                        ),
                         items: [
-                          for (final mode in PaymentMode.values) DropdownMenuItem(value: mode, child: Text(mode.label)),
+                          for (final mode in PaymentMode.values)
+                            DropdownMenuItem(value: mode, child: Text(paymentModeLabel(l10n, mode.wire, mode.label))),
                         ],
                         onChanged: _saving ? null : (mode) => setState(() => _mode = mode!),
                       ),
@@ -224,13 +231,13 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
                         enabled: !_saving,
                         maxLength: 100,
                         decoration: InputDecoration(
-                          labelText: _mode.needsReference ? 'Cheque number' : 'Reference (optional)',
+                          labelText: _mode.needsReference ? l10n.staffChequeNumber : l10n.staffReferenceOptional,
                           counterText: '',
                           errorText: _fieldErrors['reference'],
                           errorMaxLines: 3,
                         ),
                         validator: (value) =>
-                            _mode.needsReference && (value ?? '').trim().isEmpty ? 'Enter the cheque number.' : null,
+                            _mode.needsReference && (value ?? '').trim().isEmpty ? l10n.staffEnterChequeNumber : null,
                       ),
                     ),
                   ],
@@ -238,8 +245,8 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
                 const SizedBox(height: 12),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Choose the installments it pays'),
-                  subtitle: const Text('Off: it goes to what is owed, oldest first.'),
+                  title: Text(l10n.staffChooseInstallments),
+                  subtitle: Text(l10n.staffChooseInstallmentsOff),
                   value: _choosing,
                   onChanged: _saving || statement.payable.isEmpty ? null : (value) => setState(() => _choosing = value),
                 ),
@@ -249,12 +256,12 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
                   controller: _note,
                   enabled: !_saving,
                   maxLength: 500,
-                  decoration: const InputDecoration(labelText: 'Note (optional)', counterText: ''),
+                  decoration: InputDecoration(labelText: l10n.staffNoteOptional, counterText: ''),
                 ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Email the receipt to the guardian'),
+                  title: Text(l10n.staffEmailReceiptToGuardian),
                   value: _emailGuardian,
                   onChanged: _saving ? null : (value) => setState(() => _emailGuardian = value ?? false),
                 ),
@@ -264,18 +271,20 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: _saving ? null : () => Navigator.of(context).pop(), child: Text(l10n.cancel)),
         FilledButton(
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Record payment'),
+              : Text(l10n.staffRecordPaymentButton),
         ),
       ],
     );
   }
 
   Widget _amountRow() {
+    final l10n = context.l10n;
+
     return Wrap(
       spacing: 12,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -288,7 +297,7 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [DecimalTextInputFormatter()],
             decoration: InputDecoration(
-              labelText: 'Amount received',
+              labelText: l10n.staffAmountReceived,
               errorText: _fieldErrors['amount'],
               errorMaxLines: 4,
             ),
@@ -297,13 +306,13 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
         ),
         TextButton(
           onPressed: _saving || _owedCents == 0 ? null : () => setState(() => _amount.text = textOfCents(_owedCents)),
-          child: const Text('Pay everything owed'),
+          child: Text(l10n.staffPayEverythingOwed),
         ),
         if (_creditCents > 0)
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
-              '${_money(textOfCents(_creditCents))} more than is owed - it will be held as credit for the next fees.',
+              l10n.staffMoreThanOwed(_money(textOfCents(_creditCents))),
               style: TextStyle(color: context.appColors.info),
             ),
           ),
@@ -313,6 +322,7 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
 
   Widget _installments() {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -330,7 +340,7 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
                   children: [
                     Text(due.label),
                     Text(
-                      'Due ${formatDate(due.dueDate)} · owes ${_money(due.balance)}',
+                      l10n.staffDueAndOwes(formatDate(due.dueDate), _money(due.balance)),
                       style: TextStyle(color: due.isOverdue ? colors.danger : colors.muted, fontSize: 12),
                     ),
                   ],
@@ -343,14 +353,14 @@ class _RecordPaymentDialogState extends ConsumerState<_RecordPaymentDialog> {
                   enabled: !_saving && (_picked[due.id] ?? false),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [DecimalTextInputFormatter()],
-                  decoration: const InputDecoration(labelText: 'Pay', isDense: true),
+                  decoration: InputDecoration(labelText: l10n.staffPay, isDense: true),
                   onChanged: (_) => setState(() {}),
                 ),
               ),
             ],
           ),
         const SizedBox(height: 6),
-        Text('Paying ${_money(textOfCents(_pickedCents))}', style: const TextStyle(fontWeight: FontWeight.w700)),
+        Text(l10n.staffPaying(_money(textOfCents(_pickedCents))), style: const TextStyle(fontWeight: FontWeight.w700)),
         if (_fieldErrors['allocations'] != null || _fieldErrors['amount'] != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
@@ -373,10 +383,11 @@ class _ReceiptDone extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     String money(String amount) => formatCurrency((centsOf(amount) ?? 0) / 100, receipt.currencyCode);
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return AlertDialog(
       icon: Icon(Icons.check_circle_outline, color: colors.success, size: 40),
-      title: Text('Receipt ${receipt.receiptNumber}'),
+      title: Text(l10n.staffReceiptNumber(receipt.receiptNumber)),
       content: SizedBox(
         width: 460,
         child: Column(
@@ -384,8 +395,12 @@ class _ReceiptDone extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${money(receipt.amount)} received from ${receipt.studentName} on ${formatDate(receipt.receiptDate)} '
-              'by ${receipt.paymentMode.label}.',
+              l10n.staffReceivedFrom(
+                money(receipt.amount),
+                receipt.studentName,
+                formatDate(receipt.receiptDate),
+                paymentModeLabel(l10n, receipt.paymentMode.wire, receipt.paymentMode.label),
+              ),
             ),
             const SizedBox(height: 12),
             for (final allocation in receipt.allocations)
@@ -401,15 +416,14 @@ class _ReceiptDone extends ConsumerWidget {
                 ),
               ),
             const Divider(),
-            if (receipt.balanceBefore != null)
-              _Line(label: 'Owed before this payment', value: money(receipt.balanceBefore!)),
-            _Line(label: 'Paid now', value: money(receipt.amount)),
+            if (receipt.balanceBefore != null) _Line(label: l10n.staffOwedBefore, value: money(receipt.balanceBefore!)),
+            _Line(label: l10n.staffPaidNow, value: money(receipt.amount)),
             if ((centsOf(receipt.creditAmount) ?? 0) > 0)
-              _Line(label: 'Held as credit for the next fees', value: money(receipt.creditAmount)),
-            _Line(label: 'Still owed', value: money(receipt.balanceAfter ?? receipt.studentBalance), bold: true),
+              _Line(label: l10n.staffHeldAsCredit, value: money(receipt.creditAmount)),
+            _Line(label: l10n.staffStillOwed, value: money(receipt.balanceAfter ?? receipt.studentBalance), bold: true),
             if (emailQueued) ...[
               const SizedBox(height: 8),
-              Text('The receipt is being emailed to the guardian.', style: TextStyle(color: colors.muted)),
+              Text(l10n.staffReceiptBeingEmailed, style: TextStyle(color: colors.muted)),
             ],
           ],
         ),
@@ -418,14 +432,14 @@ class _ReceiptDone extends ConsumerWidget {
         TextButton.icon(
           onPressed: () => emailReceipt(context, ref, id: receipt.id),
           icon: const Icon(Icons.outgoing_mail),
-          label: const Text('Email'),
+          label: Text(l10n.staffEmail),
         ),
         OutlinedButton.icon(
           onPressed: () => downloadReceipt(context, ref, id: receipt.id, number: receipt.receiptNumber),
           icon: const Icon(Icons.download_outlined),
-          label: const Text('Download PDF'),
+          label: Text(l10n.staffDownloadPdf),
         ),
-        FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
+        FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.staffDone)),
       ],
     );
   }

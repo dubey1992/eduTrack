@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../my_trip/data/location_source.dart';
 import '../../staff_attendance/data/models/staff_attendance_status.dart';
+import '../../today/presentation/staff_words.dart';
 import '../application/check_in_notifier.dart';
 import '../data/models/my_attendance_day.dart';
 
@@ -49,12 +52,13 @@ class _CheckInCardState extends ConsumerState<CheckInCard> {
       final day = arriving ? await notifier.checkIn() : await notifier.checkOut();
       if (!mounted) return;
       final time = arriving ? day.checkIn : day.checkOut;
+      final l10n = context.l10n;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             time == null
-                ? (arriving ? 'Checked in.' : 'Checked out.')
-                : '${arriving ? 'Checked in' : 'Checked out'} at ${formatClock(time)}.',
+                ? (arriving ? l10n.staffCheckedIn : l10n.staffCheckedOut)
+                : (arriving ? l10n.staffCheckedInAt(formatClock(time)) : l10n.staffCheckedOutAt(formatClock(time))),
           ),
         ),
       );
@@ -70,29 +74,26 @@ class _CheckInCardState extends ConsumerState<CheckInCard> {
   /// not. The app's own dialog, never the platform's alert.
   Future<bool> _confirmCheckOut() async {
     final day = ref.read(checkInProvider).value;
-    final since = day?.checkIn == null ? '' : ' You checked in at ${formatClock(day!.checkIn!)}.';
+    final l10n = context.l10n;
+    final since = day?.checkIn == null ? '' : ' ${l10n.staffYouCheckedInAt(formatClock(day!.checkIn!))}';
     final again = day?.checkOut != null;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         key: const Key('check-out-confirm'),
-        title: Text(again ? 'Check out again?' : 'Check out now?'),
-        content: Text(
-          again
-              ? 'Your leaving time will change to now. The last check-out is the one that counts.'
-              : 'This records the time you leave school.$since',
-        ),
+        title: Text(again ? l10n.staffCheckOutAgainQ : l10n.staffCheckOutNowQ),
+        content: Text(again ? l10n.staffCheckOutAgainBody : '${l10n.staffCheckOutBody}$since'),
         actions: [
           TextButton(
             key: const Key('check-out-cancel'),
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Not yet'),
+            child: Text(l10n.staffNotYet),
           ),
           FilledButton(
             key: const Key('check-out-confirm-button'),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Check out'),
+            child: Text(l10n.staffCheckOut),
           ),
         ],
       ),
@@ -107,9 +108,7 @@ class _CheckInCardState extends ConsumerState<CheckInCard> {
         ? await location.openLocationSettings()
         : await location.openAppSettings();
     if (!opened && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Open your phone's settings and allow location for School365ai.")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.staffOpenSettingsForLocation)));
     }
   }
 
@@ -166,9 +165,10 @@ class _Card extends StatelessWidget {
     final scheme = theme.colorScheme;
     final colors = context.appColors;
     final waiting = day.canCheckIn;
+    final l10n = context.l10n;
 
-    final (title, detail) = _words(day);
-    final notes = _notes(day);
+    final (title, detail) = _words(l10n, day);
+    final notes = _notes(l10n, day);
 
     return Card(
       key: const Key('check-in-card'),
@@ -208,7 +208,7 @@ class _Card extends StatelessWidget {
                           children: [
                             if (day.status != null)
                               StatusBadge(
-                                label: day.status!.label,
+                                label: staffAttendanceLabel(l10n, day.status!),
                                 tone: day.status == StaffAttendanceStatus.present
                                     ? BadgeTone.success
                                     : day.status == StaffAttendanceStatus.absent
@@ -216,7 +216,11 @@ class _Card extends StatelessWidget {
                                     : BadgeTone.info,
                               ),
                             if (day.late)
-                              const StatusBadge(key: Key('check-in-late'), label: 'Late', tone: BadgeTone.warning),
+                              StatusBadge(
+                                key: const Key('check-in-late'),
+                                label: l10n.staffLate,
+                                tone: BadgeTone.warning,
+                              ),
                           ],
                         ),
                       ],
@@ -240,7 +244,7 @@ class _Card extends StatelessWidget {
                         key: const Key('check-in-button'),
                         onPressed: busy ? null : onCheckIn,
                         icon: _icon(busy, Icons.login, scheme.onPrimary),
-                        label: Text(busy ? 'Finding your location…' : 'Check in'),
+                        label: Text(busy ? l10n.staffFindingLocation : l10n.staffCheckIn),
                       )
                     : OutlinedButton.icon(
                         key: const Key('check-out-button'),
@@ -248,19 +252,15 @@ class _Card extends StatelessWidget {
                         icon: _icon(busy, Icons.logout, scheme.primary),
                         label: Text(
                           busy
-                              ? 'Finding your location…'
+                              ? l10n.staffFindingLocation
                               : day.checkOut == null
-                              ? 'Check out'
-                              : 'Check out again',
+                              ? l10n.staffCheckOut
+                              : l10n.staffCheckOutAgain,
                         ),
                       ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Your location is used once, to confirm you are within ${day.radiusMetres} m of school. '
-                'It is not stored.',
-                style: TextStyle(fontSize: 12, color: colors.muted),
-              ),
+              Text(l10n.staffLocationUsedOnce(day.radiusMetres), style: TextStyle(fontSize: 12, color: colors.muted)),
             ],
           ],
         ),
@@ -273,45 +273,42 @@ class _Card extends StatelessWidget {
       : Icon(icon);
 
   /// What the card says, by where the day has got to.
-  (String, String) _words(MyAttendanceDay day) {
-    if (day.blockedReason != null) return ('Check-in unavailable', day.blockedReason!);
+  (String, String) _words(AppLocalizations l10n, MyAttendanceDay day) {
+    if (day.blockedReason != null) return (l10n.staffCheckInUnavailable, day.blockedReason!);
 
     final checkIn = day.checkIn;
     final checkOut = day.checkOut;
 
     if (checkIn == null) {
       if (day.markedBySomeoneElse && day.status == StaffAttendanceStatus.absent) {
-        return ('Marked absent today', 'The office marked you absent. Check in when you arrive and it is corrected.');
+        return (l10n.staffMarkedAbsent, l10n.staffMarkedAbsentBody);
       }
       if (day.halfDayLeave) {
-        return ('Half-day leave today', 'Check in for the half you work, and the day is recorded as a half day.');
+        return (l10n.staffHalfDayLeaveToday, l10n.staffHalfDayLeaveBody);
       }
-      return ('Check in to start your day', 'Tap Check in when you reach school.');
+      return (l10n.staffCheckInToStart, l10n.staffCheckInToStartBody);
     }
 
-    if (checkOut == null) return ('Checked in at ${formatClock(checkIn)}', 'Check out when you leave school.');
+    if (checkOut == null) return (l10n.staffCheckedInAtTitle(formatClock(checkIn)), l10n.staffCheckOutWhenLeaving);
 
     final hours = day.workingHours == null ? '' : ' · ${day.workingHours}';
-    return ('${formatClock(checkIn)} – ${formatClock(checkOut)}$hours', 'Checked in and out. See you tomorrow.');
+    return ('${formatClock(checkIn)} – ${formatClock(checkOut)}$hours', l10n.staffCheckedInAndOut);
   }
 
   /// The lines that are true only some days.
-  List<Widget> _notes(MyAttendanceDay day) {
+  List<Widget> _notes(AppLocalizations l10n, MyAttendanceDay day) {
     return [
       if (day.unfinishedDay != null)
         _Note(
           key: const Key('check-in-unfinished'),
           icon: Icons.history,
-          text:
-              'You did not check out on ${DateFormat('EEE, MMM d').format(day.unfinishedDay!.date)} '
-              '(checked in ${formatClock(day.unfinishedDay!.checkIn)}). Ask the office to add when you left.',
+          text: l10n.staffUnfinishedDay(
+            DateFormat('EEE, MMM d').format(day.unfinishedDay!.date),
+            formatClock(day.unfinishedDay!.checkIn),
+          ),
         ),
       if (day.markedBySomeoneElse && day.checkIn != null)
-        const _Note(
-          key: Key('check-in-office-changed'),
-          icon: Icons.edit_note,
-          text: 'The office has updated your day on the register. Ask them if something looks wrong.',
-        ),
+        _Note(key: const Key('check-in-office-changed'), icon: Icons.edit_note, text: l10n.staffOfficeUpdatedDay),
     ];
   }
 }
@@ -348,18 +345,25 @@ class _Problem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     // No signal: the time on the register is the moment the tap reaches
     // the school, so a tap that never arrived recorded nothing - and saying
     // so stops somebody believing they are checked in.
-    final message = failure.code == 'NETWORK_ERROR'
-        ? 'No connection, so nothing was recorded. Check in again when your phone is online - '
-              'the time saved is when it reaches the school.'
-        : failure.message;
+    final message = switch (failure.code) {
+      'NETWORK_ERROR' => l10n.staffCheckInNoConnection,
+      // The phone's own location troubles (check_in_notifier.locationFailure).
+      'LOCATION_SERVICEOFF' => l10n.staffLocationServiceOff,
+      'LOCATION_DENIEDFOREVER' => l10n.staffLocationDeniedForever,
+      'LOCATION_DENIED' => l10n.staffLocationDenied,
+      'LOCATION_UNSUPPORTED' => l10n.staffLocationUnsupported,
+      'LOCATION_GRANTED' => l10n.staffLocationNotFound,
+      _ => failure.localizedMessage(context),
+    };
 
     final fix = switch (failure.code) {
-      'LOCATION_SERVICEOFF' => ('Turn on location', LocationAccess.serviceOff),
-      'LOCATION_DENIEDFOREVER' => ('Open settings', LocationAccess.deniedForever),
+      'LOCATION_SERVICEOFF' => (l10n.staffTurnOnLocation, LocationAccess.serviceOff),
+      'LOCATION_DENIEDFOREVER' => (l10n.staffOpenSettings, LocationAccess.deniedForever),
       _ => null,
     };
 
@@ -399,8 +403,8 @@ class _LoadFailed extends StatelessWidget {
       key: const Key('check-in-load-failed'),
       child: ListTile(
         leading: const Icon(Icons.cloud_off_outlined),
-        title: const Text('Could not load your check-in'),
-        trailing: TextButton(onPressed: onRetry, child: const Text('Retry')),
+        title: Text(context.l10n.staffCheckInLoadFailed),
+        trailing: TextButton(onPressed: onRetry, child: Text(context.l10n.retry)),
       ),
     );
   }
@@ -411,12 +415,12 @@ class _NoStaffRecord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      key: Key('check-in-no-staff-record'),
+    return Card(
+      key: const Key('check-in-no-staff-record'),
       child: ListTile(
-        leading: Icon(Icons.badge_outlined),
-        title: Text('Check-in is not set up for your account'),
-        subtitle: Text('Your account has no staff record at this school. Ask the office to add one.'),
+        leading: const Icon(Icons.badge_outlined),
+        title: Text(context.l10n.staffNoStaffRecord),
+        subtitle: Text(context.l10n.staffNoStaffRecordBody),
       ),
     );
   }

@@ -1,0 +1,22 @@
+{
+  "coreLogOutTitle": "साइन आउट करें?",
+  "coreLogOutMessage": "अपने स्कूल में वापस आने के लिए आपको फिर से साइन इन करना होगा।",
+  "coreLogOutUnsent": "{count, plural, =1{1 निशान अभी भेजा नहीं गया है। फिर भी साइन आउट करें? यह मिट जाएगा।} other{{count} निशान अभी भेजे नहीं गए हैं। फिर भी साइन आउट करें? ये मिट जाएँगे।}}",
+  "coreLogOut": "साइन आउट करें",
+  "coreStaySignedIn": "साइन इन रहें",
+  "coreLockedTitle": "School365ai लॉक है",
+  "coreLockedHint": "खोलने के लिए अपना फ़िंगरप्रिंट, चेहरा या फ़ोन का स्क्रीन लॉक इस्तेमाल करें।",
+  "coreNotUnlocked": "अनलॉक नहीं हुआ। फिर से कोशिश करें।",
+  "coreUnlock": "अनलॉक करें",
+  "coreLockOfferTitle": "ऐप को फ़िंगरप्रिंट से लॉक करें?",
+  "coreLockOfferBody": "यह फ़ोन उठाने वाले किसी भी व्यक्ति को School365ai खोलने के लिए आपका फ़िंगरप्रिंट, चेहरा या स्क्रीन लॉक चाहिए होगा। आप इसे बाद में बदल सकते हैं।",
+  "coreNotNow": "अभी नहीं",
+  "coreTurnOn": "चालू करें",
+  "coreAppLock": "ऐप लॉक",
+  "coreAppLockHint": "ऐप खुलने पर, और 5 मिनट बाहर रहने के बाद, फ़िंगरप्रिंट, चेहरा या स्क्रीन लॉक माँगें",
+  "coreShowPassword": "पासवर्ड दिखाएँ",
+  "coreHidePassword": "पासवर्ड छिपाएँ",
+  "corePasscodeDigits": "पासकोड ठीक {length} अंकों का होना चाहिए।",
+  "corePasscodeRepeated": "ऐसा पासकोड चुनें जिसमें एक ही अंक बार-बार न हो।",
+  "corePasscodeRun": "{example} जैसा सीधा क्रम न चुनें।"
+}

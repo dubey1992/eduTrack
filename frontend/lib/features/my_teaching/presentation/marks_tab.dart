@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../assessments/data/models/assessment.dart';
 import '../application/my_teaching_providers.dart';
+import '../../today/presentation/staff_words.dart';
 
 /// The Marks part of the Teaching tab (docs/teacher-app.md, T5): the class
 /// tests of the classes the teacher teaches, newest first, and the way to
@@ -22,6 +24,7 @@ class MarksTab extends ConsumerWidget {
     final tests = ref.watch(myTestsProvider);
     final notifier = ref.read(myTestsProvider.notifier);
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -32,7 +35,7 @@ class MarksTab extends ConsumerWidget {
           if (created != null && context.mounted) context.push('/teaching/tests/$created');
         },
         icon: const Icon(Icons.add),
-        label: const Text('New test'),
+        label: Text(l10n.staffNewTest),
       ),
       body: RefreshIndicator(
         key: const Key('my-tests-refresh'),
@@ -42,11 +45,7 @@ class MarksTab extends ConsumerWidget {
           // Room under the last card for the floating button.
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
-            Text(
-              'Class tests for the classes you teach. Open one to enter marks; '
-              'publish when everyone is marked.',
-              style: TextStyle(color: colors.muted),
-            ),
+            Text(l10n.staffMarksIntro, style: TextStyle(color: colors.muted)),
             const SizedBox(height: 12),
             PeriodFilter(value: notifier.period, onChanged: notifier.setPeriod),
             const SizedBox(height: 16),
@@ -64,10 +63,10 @@ class MarksTab extends ConsumerWidget {
                   children: [
                     Icon(Icons.assignment_outlined, size: 48, color: colors.muted),
                     const SizedBox(height: 12),
-                    Text(notifier.period.emptyPhrase('class tests'), textAlign: TextAlign.center),
+                    Text(l10n.staffEmptyTests(notifier.period.name), textAlign: TextAlign.center),
                     const SizedBox(height: 4),
                     Text(
-                      'Tap New test to set one for a class you teach.',
+                      l10n.staffEmptyTestsBody,
                       textAlign: TextAlign.center,
                       style: TextStyle(color: colors.muted),
                     ),
@@ -81,7 +80,7 @@ class MarksTab extends ConsumerWidget {
                   child: TextButton(
                     key: const Key('my-tests-more'),
                     onPressed: () => ref.read(myTestsProvider.notifier).loadMore(),
-                    child: const Text('Show older tests'),
+                    child: Text(l10n.staffShowOlderTests),
                   ),
                 ),
             ],
@@ -100,6 +99,7 @@ class _TestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return Card(
       key: Key('my-test-${test.id}'),
@@ -120,14 +120,15 @@ class _TestCard extends StatelessWidget {
                     ),
                   ),
                   test.isDraft
-                      ? const StatusBadge(label: 'Draft', tone: BadgeTone.warning)
-                      : const StatusBadge(label: 'Published', tone: BadgeTone.success),
+                      ? StatusBadge(label: l10n.staffDraft, tone: BadgeTone.warning)
+                      : StatusBadge(label: l10n.staffPublished, tone: BadgeTone.success),
                 ],
               ),
               const SizedBox(height: 2),
               Text('${test.subjectName} · ${test.classSectionName}', style: TextStyle(color: colors.muted)),
               Text(
-                '${formatDate(test.assessmentDate)} · ${test.type.label} · out of ${test.maxMarksLabel}',
+                '${formatDate(test.assessmentDate)} · ${assessmentTypeLabel(l10n, test.type)} · '
+                '${l10n.staffOutOf(test.maxMarksLabel)}',
                 style: TextStyle(color: colors.muted, fontSize: 13),
               ),
             ],

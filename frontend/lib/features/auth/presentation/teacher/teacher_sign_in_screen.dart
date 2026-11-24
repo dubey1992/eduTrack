@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/errors/failure.dart';
+import '../../../../core/l10n/failure_text.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../application/auth_notifier.dart';
 import 'teacher_auth_shell.dart';
@@ -78,7 +80,7 @@ class _TeacherSignInScreenState extends ConsumerState<TeacherSignInScreen> {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
       if (mounted) {
         setState(() {
-          _error = failure.message;
+          _error = failure.localizedMessage(context);
           _isSubmitting = false;
         });
       }
@@ -97,10 +99,11 @@ class _TeacherSignInScreenState extends ConsumerState<TeacherSignInScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
 
     return TeacherAuthShell(
-      title: 'Welcome back',
-      subtitle: 'Sign in with your school email and password.',
+      title: l10n.staffWelcomeBack,
+      subtitle: l10n.staffSignInSubtitle,
       onBack: () => context.go('/welcome'),
       child: AutofillGroup(
         child: Form(
@@ -109,7 +112,10 @@ class _TeacherSignInScreenState extends ConsumerState<TeacherSignInScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (_error != null) ...[
-                TeacherErrorBanner(key: const Key('sign-in-error'), message: _error!),
+                TeacherErrorBanner(
+                  key: const Key('sign-in-error'),
+                  message: _error == sessionEndedMessage ? l10n.staffSessionEnded : _error!,
+                ),
                 const SizedBox(height: 16),
               ],
               TextFormField(
@@ -120,12 +126,12 @@ class _TeacherSignInScreenState extends ConsumerState<TeacherSignInScreen> {
                 textInputAction: TextInputAction.next,
                 autocorrect: false,
                 autofillHints: const [AutofillHints.email, AutofillHints.username],
-                decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline)),
+                decoration: InputDecoration(labelText: l10n.staffEmail, prefixIcon: const Icon(Icons.mail_outline)),
                 onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
                 validator: (value) {
                   final email = value?.trim() ?? '';
-                  if (email.isEmpty) return 'Enter your email.';
-                  if (!_emailShape.hasMatch(email)) return 'That does not look like an email address.';
+                  if (email.isEmpty) return l10n.staffEnterEmail;
+                  if (!_emailShape.hasMatch(email)) return l10n.staffNotAnEmail;
                   return null;
                 },
               ),
@@ -139,16 +145,16 @@ class _TeacherSignInScreenState extends ConsumerState<TeacherSignInScreen> {
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.password],
                 decoration: InputDecoration(
-                  labelText: 'Password',
+                  labelText: l10n.staffPassword,
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
-                    tooltip: _obscure ? 'Show password' : 'Hide password',
+                    tooltip: _obscure ? l10n.staffShowPassword : l10n.staffHidePassword,
                     icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
                 onFieldSubmitted: (_) => _submit(),
-                validator: (value) => (value == null || value.isEmpty) ? 'Enter your password.' : null,
+                validator: (value) => (value == null || value.isEmpty) ? l10n.staffEnterPassword : null,
               ),
               const SizedBox(height: 6),
               Wrap(
@@ -168,7 +174,7 @@ class _TeacherSignInScreenState extends ConsumerState<TeacherSignInScreen> {
                         ),
                         // Flexible so a phone set to large text wraps the
                         // label rather than pushing it off the edge.
-                        const Flexible(child: Text('Remember my email')),
+                        Flexible(child: Text(l10n.staffRememberEmail)),
                         const SizedBox(width: 8),
                       ],
                     ),
@@ -176,20 +182,20 @@ class _TeacherSignInScreenState extends ConsumerState<TeacherSignInScreen> {
                   TextButton(
                     key: const Key('sign-in-forgot'),
                     onPressed: _isSubmitting ? null : () => context.go('/forgot-password'),
-                    child: const Text('Forgot password?'),
+                    child: Text(l10n.staffForgotPassword),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               TeacherPrimaryButton(
                 key: const Key('sign-in-submit'),
-                label: 'Sign in',
+                label: l10n.staffSignIn,
                 busy: _isSubmitting,
                 onPressed: _submit,
               ),
               const SizedBox(height: 18),
               Text(
-                'Trouble signing in? Your school office can unlock your account or send you a new link.',
+                l10n.staffTroubleSigningIn,
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, height: 1.4),
               ),

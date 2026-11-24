@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/errors/failure.dart';
+import '../../../../core/l10n/failure_text.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/family_brand.dart';
 import '../../data/models/family_account.dart';
@@ -150,7 +152,7 @@ class FamilyErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final offline = error is Failure && (error as Failure).code == Failure.network().code;
-    final message = error is Failure ? (error as Failure).message : 'Something went wrong. Please try again.';
+    final message = error is Failure ? (error as Failure).localizedMessage(context) : context.l10n.errorUnknown;
 
     return Center(
       child: Padding(
@@ -160,7 +162,10 @@ class FamilyErrorView extends StatelessWidget {
           children: [
             Icon(offline ? Icons.wifi_off_rounded : Icons.cloud_off_rounded, size: 44, color: context.appColors.muted),
             const SizedBox(height: 12),
-            Text(offline ? 'No connection' : 'Could not load this', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              offline ? context.l10n.familyNoConnection : context.l10n.familyCouldNotLoad,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 6),
             Text(
               message,
@@ -172,7 +177,7 @@ class FamilyErrorView extends StatelessWidget {
               key: const Key('family-retry'),
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Try again'),
+              label: Text(context.l10n.familyTryAgain),
             ),
           ],
         ),
@@ -306,7 +311,7 @@ class _HowWorkedOutState extends State<HowWorkedOut> {
                 Icon(Icons.info_outline_rounded, size: 16, color: muted),
                 const SizedBox(width: 6),
                 Text(
-                  'How is this worked out?',
+                  context.l10n.familyHowWorkedOut,
                   style: TextStyle(fontSize: 13, color: muted, decoration: TextDecoration.underline),
                 ),
               ],

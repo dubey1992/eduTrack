@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/family_brand.dart';
 import '../application/family_notifiers.dart';
@@ -24,6 +25,15 @@ enum FamilyPlace {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+
+  /// [label] in the parent's language.
+  String words(AppLocalizations l10n) => switch (this) {
+    FamilyPlace.home => l10n.familyTabHome,
+    FamilyPlace.attendance => l10n.familyTabAttendance,
+    FamilyPlace.bus => l10n.familyTabBus,
+    FamilyPlace.fees => l10n.familyTabFees,
+    FamilyPlace.more => l10n.familyTabMore,
+  };
 }
 
 /// The tabs this family has: Bus only when the school runs transport and
@@ -100,7 +110,7 @@ class FamilyFrame extends ConsumerWidget {
                 key: Key('family-nav-${item.name}'),
                 icon: Icon(item.icon),
                 selectedIcon: Icon(item.selectedIcon),
-                label: item.label,
+                label: item.words(context.l10n),
               ),
           ],
         ),
@@ -120,7 +130,7 @@ class _NoticesBell extends ConsumerWidget {
 
     return IconButton(
       key: const Key('family-bell'),
-      tooltip: unread > 0 ? '$unread new notices' : 'Notices',
+      tooltip: unread > 0 ? context.l10n.familyNewNoticesCount(unread) : context.l10n.familyNotices,
       onPressed: () async {
         await context.push('/notices');
         // Read again on the way back: some were opened there.
@@ -146,7 +156,7 @@ class _PlainHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Align(
         alignment: Alignment.centerLeft,
-        child: Text(place.label, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+        child: Text(place.words(context.l10n), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
       ),
     );
   }
@@ -188,7 +198,7 @@ class _ChildSwitcher extends ConsumerWidget {
                       Text(
                         [
                           if (current.className != null) current.className!,
-                          if (several) '${children.length} children',
+                          if (several) context.l10n.familyChildrenCount(children.length),
                         ].join(' · '),
                         style: TextStyle(fontSize: 13, color: context.appColors.muted),
                       ),
@@ -200,7 +210,7 @@ class _ChildSwitcher extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Switch',
+                        context.l10n.familySwitch,
                         style: TextStyle(color: FamilyBrand.childColour(index), fontWeight: FontWeight.w600),
                       ),
                       Icon(Icons.expand_more_rounded, color: FamilyBrand.childColour(index)),
@@ -222,11 +232,14 @@ class _ChildSwitcher extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Whose day?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                child: Text(
+                  context.l10n.familyWhoseDay,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
               ),
             ),
             for (var i = 0; i < children.length; i++)

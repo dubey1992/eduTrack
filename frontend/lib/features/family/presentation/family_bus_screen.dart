@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../maps/data/polyline.dart';
@@ -18,6 +19,7 @@ import '../data/family_repository.dart';
 import '../data/models/family_account.dart';
 import '../data/models/family_bus.dart';
 import 'family_more_screens.dart';
+import 'family_words.dart';
 import 'widgets/family_widgets.dart';
 
 /// The Bus tab (docs/parent-student-app.md, F4): the child's route, stop and
@@ -30,7 +32,7 @@ class FamilyBusScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final child = ref.watch(selectedChildProvider);
     if (child == null) {
-      return const FamilyEmptyView(icon: Icons.family_restroom_rounded, title: 'No children to show');
+      return FamilyEmptyView(icon: Icons.family_restroom_rounded, title: context.l10n.familyNoChildrenTitle);
     }
 
     return ref
@@ -55,12 +57,12 @@ class _NotOnABus extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      children: const [
-        SizedBox(height: 60),
+      children: [
+        const SizedBox(height: 60),
         FamilyEmptyView(
           icon: Icons.directions_bus_outlined,
-          title: 'Not on a school bus',
-          message: 'If your child should be, the school office can add them to a route.',
+          title: context.l10n.familyNotOnBus,
+          message: context.l10n.familyNotOnBusMessage,
         ),
       ],
     );
@@ -88,9 +90,9 @@ class _BusList extends StatelessWidget {
         if (live != null) ...[_TrackTheBus(child: child, trip: live), const SizedBox(height: 12)],
         _RouteCard(bus: bus),
         const SizedBox(height: 12),
-        _TripTimeline(title: 'To school', trip: pickup, stopName: bus.stop?.name, childName: child.firstName),
+        _TripTimeline(home: false, trip: pickup, stopName: bus.stop?.name, childName: child.firstName),
         const SizedBox(height: 12),
-        _TripTimeline(title: 'Home', trip: drop, stopName: bus.stop?.name, childName: child.firstName),
+        _TripTimeline(home: true, trip: drop, stopName: bus.stop?.name, childName: child.firstName),
         if (bus.officePhone != null || bus.attendant != null) ...[const SizedBox(height: 12), _Contacts(bus: bus)],
       ],
     );
@@ -125,10 +127,10 @@ class _TrackTheBus extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  trip.isPickup ? 'The bus is on its way to school' : 'The bus is on its way home',
+                  trip.isPickup ? context.l10n.familyBusOnWayToSchool : context.l10n.familyBusOnWayHome,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                Text('Track it on the map', style: TextStyle(color: colours.muted, fontSize: 13)),
+                Text(context.l10n.familyTrackOnMap, style: TextStyle(color: colours.muted, fontSize: 13)),
               ],
             ),
           ),
@@ -154,7 +156,7 @@ class _RouteCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CardHeading(icon: Icons.route_rounded, title: 'Route and stop'),
+          CardHeading(icon: Icons.route_rounded, title: context.l10n.familyRouteAndStop),
           const SizedBox(height: 12),
           Text(bus.routeName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           if (stop != null) Text(stop.name, style: TextStyle(color: muted)),
@@ -173,11 +175,11 @@ class _RouteCard extends StatelessWidget {
               children: [
                 if (stop.pickupTime != null)
                   Expanded(
-                    child: _Time(label: 'Pick-up', time: stop.pickupTime!),
+                    child: _Time(label: context.l10n.familyPickup, time: stop.pickupTime!),
                   ),
                 if (stop.dropTime != null)
                   Expanded(
-                    child: _Time(label: 'Drop', time: stop.dropTime!),
+                    child: _Time(label: context.l10n.familyDrop, time: stop.dropTime!),
                   ),
               ],
             ),
@@ -208,9 +210,10 @@ class _Time extends StatelessWidget {
 
 /// One of today's trips, as the moments that matter to this child.
 class _TripTimeline extends StatelessWidget {
-  const _TripTimeline({required this.title, required this.trip, required this.stopName, required this.childName});
+  const _TripTimeline({required this.home, required this.trip, required this.stopName, required this.childName});
 
-  final String title;
+  /// The trip home; else the one to school.
+  final bool home;
   final FamilyBusTrip? trip;
   final String? stopName;
   final String childName;
@@ -218,8 +221,9 @@ class _TripTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colours = context.appColors;
+    final l10n = context.l10n;
     final trip = this.trip;
-    final stop = stopName ?? 'your stop';
+    final stop = stopName ?? l10n.familyYourStop;
 
     // Each step: what happened, when, and for the child's own moments who
     // marked it (4.3).
@@ -228,37 +232,41 @@ class _TripTimeline extends StatelessWidget {
 
     if (trip == null) {
       steps = const [];
-      note = 'Not started yet';
+      note = l10n.familyNotStartedYet;
     } else if (trip.isCancelled) {
       steps = const [];
-      note = 'This trip was cancelled. The school will be in touch.';
+      note = l10n.familyTripWasCancelled;
     } else if (trip.riderStatus == null) {
       steps = const [];
-      note = '$childName is not on this trip\'s list today.';
+      note = l10n.familyNotOnTripList(childName);
     } else if (trip.isPickup) {
       steps = [
-        ('The bus set off', trip.startedAt, null),
-        ('Reached $stop', trip.reachedStopAt, null),
-        _boarding(trip, childName),
-        ('Reached school', trip.status == 'completed' ? trip.endedAt : null, null),
+        (l10n.familyBusSetOff, trip.startedAt, null),
+        (l10n.familyReachedStop(stop), trip.reachedStopAt, null),
+        _boarding(l10n, trip, childName),
+        (l10n.familyTripReachedSchool, trip.status == 'completed' ? trip.endedAt : null, null),
       ];
     } else {
       steps = [
-        ('The bus left school', trip.startedAt, null),
-        _boarding(trip, childName),
-        ('Reached $stop', trip.reachedStopAt, null),
-        ('$childName got off', trip.droppedAt, trip.droppedAt == null ? null : trip.marks['dropped']?.proof),
+        (l10n.familyBusLeftSchool, trip.startedAt, null),
+        _boarding(l10n, trip, childName),
+        (l10n.familyReachedStop(stop), trip.reachedStopAt, null),
+        (
+          l10n.familyChildGotOff(childName),
+          trip.droppedAt,
+          trip.droppedAt == null ? null : trip.marks['dropped']?.proofWords(l10n),
+        ),
       ];
     }
 
     return FamilyCard(
-      key: Key('family-trip-${title == 'Home' ? 'drop' : 'pickup'}'),
+      key: Key('family-trip-${home ? 'drop' : 'pickup'}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CardHeading(
-            icon: title == 'Home' ? Icons.home_rounded : Icons.school_rounded,
-            title: title,
+            icon: home ? Icons.home_rounded : Icons.school_rounded,
+            title: home ? l10n.familyTripHome : l10n.familyTripToSchool,
             colour: trip?.isLive == true ? colours.success : colours.info,
           ),
           const SizedBox(height: 10),
@@ -268,7 +276,7 @@ class _TripTimeline extends StatelessWidget {
               label: label,
               time: time,
               proof: proof,
-              absent: label == 'Did not board',
+              absent: label == l10n.familyDidNotBoard,
               last: index == steps.length - 1,
             ),
         ],
@@ -277,9 +285,13 @@ class _TripTimeline extends StatelessWidget {
   }
 }
 
-(String, String?, String?) _boarding(FamilyBusTrip trip, String childName) {
-  if (trip.riderStatus == 'absent') return ('Did not board', null, trip.marks['absent']?.proof);
-  return ('$childName boarded', trip.boardedAt, trip.boardedAt == null ? null : trip.marks['boarded']?.proof);
+(String, String?, String?) _boarding(AppLocalizations l10n, FamilyBusTrip trip, String childName) {
+  if (trip.riderStatus == 'absent') return (l10n.familyDidNotBoard, null, trip.marks['absent']?.proofWords(l10n));
+  return (
+    l10n.familyChildBoarded(childName),
+    trip.boardedAt,
+    trip.boardedAt == null ? null : trip.marks['boarded']?.proofWords(l10n),
+  );
 }
 
 class _Step extends StatelessWidget {
@@ -358,7 +370,7 @@ class _Contacts extends ConsumerWidget {
       title: Text(who, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text('$label · $number'),
       trailing: IconButton(
-        tooltip: 'Call',
+        tooltip: context.l10n.familyCall,
         icon: const Icon(Icons.call_rounded),
         onPressed: () => ref.read(externalOpenerProvider)(Uri(scheme: 'tel', path: number.replaceAll(' ', ''))),
       ),
@@ -368,11 +380,21 @@ class _Contacts extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CardHeading(icon: Icons.support_agent_rounded, title: 'Questions about the bus'),
+          CardHeading(icon: Icons.support_agent_rounded, title: context.l10n.familyBusQuestions),
           if (bus.attendant != null)
-            row('Bus attendant', bus.attendant!.name, bus.attendant!.mobile, const Key('family-call-attendant')),
+            row(
+              context.l10n.familyBusAttendant,
+              bus.attendant!.name,
+              bus.attendant!.mobile,
+              const Key('family-call-attendant'),
+            ),
           if (bus.officePhone != null)
-            row('Transport office', 'The school office', bus.officePhone!, const Key('family-call-transport')),
+            row(
+              context.l10n.familyTransportOffice,
+              context.l10n.familySchoolOffice,
+              bus.officePhone!,
+              const Key('family-call-transport'),
+            ),
         ],
       ),
     );
@@ -451,15 +473,15 @@ class _FamilyBusLiveScreenState extends ConsumerState<FamilyBusLiveScreen> {
     } else if (live == null) {
       body = FamilyEmptyView(
         icon: Icons.directions_bus_outlined,
-        title: 'The bus isn\'t on the road for ${child?.firstName ?? 'your child'} now',
-        message: 'You can follow it during their trip - on the way to school or home.',
+        title: context.l10n.familyBusNotOnRoadFor(child?.firstName ?? context.l10n.familyYourChild),
+        message: context.l10n.familyBusFollowDuringTrip,
       );
     } else {
       body = _LiveView(live: live, offline: _error != null);
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Where is the bus?')),
+      appBar: AppBar(title: Text(context.l10n.familyWhereIsBus)),
       body: body,
     );
   }
@@ -497,7 +519,7 @@ class _LiveView extends StatelessWidget {
                           position: LatLng(position.point.latitude, position.point.longitude),
                           rotation: position.heading ?? 0,
                           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-                          infoWindow: const InfoWindow(title: 'The bus'),
+                          infoWindow: InfoWindow(title: context.l10n.familyTheBus),
                         ),
                       if (stopPoint != null)
                         Marker(
@@ -534,6 +556,7 @@ class _WhereItIs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colours = context.appColors;
+    final l10n = context.l10n;
     final stop = live.yourStop;
     final position = live.position;
 
@@ -541,15 +564,15 @@ class _WhereItIs extends StatelessWidget {
     final List<String> details = [];
 
     if (stop == null) {
-      headline = 'The bus is on the road';
+      headline = l10n.familyBusOnRoad;
     } else if (stop.reached) {
-      headline = live.direction == 'pickup' ? 'The bus has been to ${stop.name}' : 'The bus has reached ${stop.name}';
+      headline = live.direction == 'pickup' ? l10n.familyBusHasBeenTo(stop.name) : l10n.familyBusHasReached(stop.name);
     } else {
-      headline = 'On its way to ${stop.name}';
-      if (stop.etaSeconds != null) details.add('about ${_minutes(stop.etaSeconds!)}');
-      if (stop.distanceM != null) details.add('${_distance(stop.distanceM!)} away');
+      headline = l10n.familyOnWayTo(stop.name);
+      if (stop.etaSeconds != null) details.add(l10n.familyAboutTime(_minutes(l10n, stop.etaSeconds!)));
+      if (stop.distanceM != null) details.add(l10n.familyDistanceAway(_distance(stop.distanceM!)));
       if (stop.stopsBefore != null && stop.stopsBefore! > 0) {
-        details.add('${stop.stopsBefore} ${stop.stopsBefore == 1 ? 'stop' : 'stops'} before yours');
+        details.add(l10n.familyStopsBeforeYours(stop.stopsBefore!));
       }
     }
 
@@ -572,22 +595,19 @@ class _WhereItIs extends StatelessWidget {
               Text(details.join(' · '), style: TextStyle(color: colours.muted)),
             ],
             if (position == null)
-              _Warning(text: 'Waiting for the bus to share where it is.', colour: colours.muted)
+              _Warning(text: l10n.familyWaitingForBusLocation, colour: colours.muted)
             else if (position.isStale)
-              _Warning(
-                text: 'Last seen ${_minutes(position.ageSeconds)} ago - the bus may be out of signal.',
-                colour: colours.warning,
-              ),
-            if (offline) _Warning(text: 'No connection - showing the last update.', colour: colours.warning),
+              _Warning(text: l10n.familyLastSeenAgo(_minutes(l10n, position.ageSeconds)), colour: colours.warning),
+            if (offline) _Warning(text: l10n.familyOfflineLastUpdate, colour: colours.warning),
           ],
         ),
       ),
     );
   }
 
-  static String _minutes(int seconds) {
+  static String _minutes(AppLocalizations l10n, int seconds) {
     final minutes = (seconds / 60).ceil();
-    return minutes <= 1 ? '1 minute' : '$minutes minutes';
+    return l10n.familyMinutes(minutes <= 1 ? 1 : minutes);
   }
 
   static String _distance(int metres) =>

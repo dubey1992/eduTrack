@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -9,6 +10,7 @@ import '../../schools/data/models/working_week.dart';
 import '../../timetable/data/models/day_of_week.dart';
 import '../../timetable/data/models/timetable_entry.dart';
 import '../../timetable/data/timetable_repository.dart';
+import 'staff_words.dart';
 
 /// The signed-in teacher's own periods across the week - the school's
 /// timetable sliced by teacher, `GET /timetable?teacher_id=<me>`
@@ -41,7 +43,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
     final week = ref.watch(myWeekProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My week')),
+      appBar: AppBar(title: Text(context.l10n.staffMyWeek)),
       body: AsyncValueView<List<TimetableEntry>>(
         value: week,
         onRetry: () => ref.invalidate(myWeekProvider),
@@ -52,6 +54,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
 
   Widget _week(BuildContext context, List<TimetableEntry> entries) {
     final colors = context.appColors;
+    final l10n = context.l10n;
     final days = {for (final entry in entries) entry.dayOfWeek}.toList()..sort((a, b) => a.index.compareTo(b.index));
 
     if (days.isEmpty) {
@@ -60,7 +63,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'You have no periods on the timetable yet. The office sets it up.',
+            l10n.staffNoPeriodsYet,
             textAlign: TextAlign.center,
             style: TextStyle(color: colors.muted),
           ),
@@ -88,7 +91,9 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
             for (final option in days)
               ChoiceChip(
                 key: Key('week-day-${option.apiValue}'),
-                label: Text(option == today ? '${option.label.substring(0, 3)} (today)' : option.label.substring(0, 3)),
+                label: Text(
+                  option == today ? l10n.staffDayToday(dayShortLabel(l10n, option)) : dayShortLabel(l10n, option),
+                ),
                 selected: option == day,
                 onSelected: (_) => setState(() => _chosen = option),
               ),
@@ -96,7 +101,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          '${day.label}: ${periods.length} ${periods.length == 1 ? 'period' : 'periods'}',
+          l10n.staffDayPeriods(dayLabel(l10n, day), periods.length),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
@@ -105,7 +110,7 @@ class _WeekScreenState extends ConsumerState<WeekScreen> {
             key: Key('week-entry-${period.id}'),
             child: ListTile(
               leading: CircleAvatar(child: Text('${period.periodNumber ?? ''}')),
-              title: Text(period.subjectName ?? 'Period'),
+              title: Text(period.subjectName ?? l10n.staffPeriod),
               subtitle: Text(
                 [
                   ?period.classSectionName,

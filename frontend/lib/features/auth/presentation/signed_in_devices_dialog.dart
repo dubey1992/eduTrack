@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../application/signed_in_sessions_notifier.dart';
@@ -34,30 +36,34 @@ class _SignedInDevicesDialogState extends ConsumerState<SignedInDevicesDialog> {
       messenger.showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      messenger.showSnackBar(SnackBar(content: Text(mounted ? failure.localizedMessage(context) : failure.message)));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _signOut(SignedInSession session) => _run(() async {
-    await ref.read(signedInSessionsNotifierProvider.notifier).signOut(session.id);
-    return 'Signed out of ${session.deviceLabel}.';
-  });
+  Future<void> _signOut(SignedInSession session) {
+    final l10n = context.l10n;
+    return _run(() async {
+      await ref.read(signedInSessionsNotifierProvider.notifier).signOut(session.id);
+      return l10n.staffSignedOutOf(session.deviceLabel);
+    });
+  }
 
   Future<void> _signOutOthers() async {
+    final l10n = context.l10n;
     final confirmed = await confirmDialog(
       context,
-      title: 'Sign out of all other devices?',
-      message: 'Every other browser and phone signed in to this account will have to sign in again.',
-      confirmLabel: 'Sign out others',
+      title: l10n.staffSignOutOthersQ,
+      message: l10n.staffSignOutOthersBody,
+      confirmLabel: l10n.staffSignOutOthers,
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
 
     await _run(() async {
       final ended = await ref.read(signedInSessionsNotifierProvider.notifier).signOutOthers();
-      return ended == 1 ? 'Signed out of 1 other device.' : 'Signed out of $ended other devices.';
+      return l10n.staffSignedOutOthers(ended);
     });
   }
 
@@ -66,16 +72,17 @@ class _SignedInDevicesDialogState extends ConsumerState<SignedInDevicesDialog> {
     final sessions = ref.watch(signedInSessionsNotifierProvider);
     final hasOthers = sessions.value?.any((session) => !session.isCurrent) ?? false;
     final muted = TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant);
+    final l10n = context.l10n;
 
     return AlertDialog(
-      title: const Text('Signed-in devices'),
+      title: Text(l10n.staffSignedInDevices),
       content: SizedBox(
         width: 480,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('A device is signed out after 7 days without use, and 30 days after signing in.', style: muted),
+            Text(l10n.staffSessionLifetime, style: muted),
             const SizedBox(height: 12),
             Flexible(
               child: AsyncValueView<List<SignedInSession>>(
@@ -95,16 +102,16 @@ class _SignedInDevicesDialogState extends ConsumerState<SignedInDevicesDialog> {
                         title: Text(session.deviceLabel),
                         subtitle: Text(
                           [
-                            if (session.lastUsedLabel != null) 'Last used ${session.lastUsedLabel}',
-                            if (session.signedInLabel != null) 'Signed in ${session.signedInLabel}',
+                            if (session.lastUsedLabel != null) l10n.staffLastUsed(session.lastUsedLabel!),
+                            if (session.signedInLabel != null) l10n.staffSignedInAt(session.signedInLabel!),
                           ].join('\n'),
                         ),
                         isThreeLine: session.lastUsedLabel != null && session.signedInLabel != null,
                         trailing: session.isCurrent
-                            ? const Chip(label: Text('This device'))
+                            ? Chip(label: Text(l10n.staffThisDevice))
                             : TextButton(
                                 onPressed: _busy ? null : () => _signOut(session),
-                                child: const Text('Sign out'),
+                                child: Text(l10n.staffSignOut),
                               ),
                       ),
                   ],
@@ -115,11 +122,8 @@ class _SignedInDevicesDialogState extends ConsumerState<SignedInDevicesDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: _busy || !hasOthers ? null : _signOutOthers,
-          child: const Text('Sign out of all other devices'),
-        ),
-        FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
+        TextButton(onPressed: _busy || !hasOthers ? null : _signOutOthers, child: Text(l10n.staffSignOutAllOthers)),
+        FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.staffClose)),
       ],
     );
   }

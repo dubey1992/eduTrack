@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/models/user_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
@@ -74,9 +75,10 @@ class _StudentLookupScreenState extends ConsumerState<StudentLookupScreen> {
     final students = ref.watch(studentLookupProvider);
     final query = ref.watch(studentLookupQueryProvider);
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Students')),
+      appBar: AppBar(title: Text(l10n.staffStudents)),
       body: Column(
         children: [
           Padding(
@@ -86,7 +88,7 @@ class _StudentLookupScreenState extends ConsumerState<StudentLookupScreen> {
               autofocus: true,
               onChanged: _typed,
               textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Name or admission number'),
+              decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: l10n.staffNameOrAdmission),
             ),
           ),
           Expanded(
@@ -99,7 +101,7 @@ class _StudentLookupScreenState extends ConsumerState<StudentLookupScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    query.isEmpty ? 'No students to show.' : 'No student you can see matches "$query".',
+                    query.isEmpty ? l10n.staffNoStudentsToShow : l10n.staffNoStudentMatches(query),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: colors.muted),
                   ),
@@ -130,6 +132,7 @@ class _StudentCard extends ConsumerWidget {
     final colors = context.appColors;
     final mobile = student.guardianMobile;
     final role = ref.watch(authNotifierProvider).value?.role;
+    final l10n = context.l10n;
 
     return Card(
       key: Key('student-lookup-${student.id}'),
@@ -153,8 +156,8 @@ class _StudentCard extends ConsumerWidget {
                       Text(
                         [
                           ?student.classSectionName,
-                          if (student.rollNumber != null) 'Roll ${student.rollNumber}',
-                          'Adm. ${student.admissionNumber}',
+                          if (student.rollNumber != null) l10n.staffRoll('${student.rollNumber}'),
+                          l10n.staffAdmissionShort(student.admissionNumber),
                         ].join(' · '),
                         style: TextStyle(color: colors.muted),
                       ),
@@ -166,20 +169,20 @@ class _StudentCard extends ConsumerWidget {
                     key: Key('student-lookup-photo-${student.id}'),
                     onPressed: () => _editPhoto(context),
                     icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                    label: const Text('Photo'),
+                    label: Text(l10n.staffPhoto),
                   ),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: Text('Guardian: ${student.guardianName}')),
+                Expanded(child: Text(l10n.staffGuardian(student.guardianName))),
                 if (mobile != null && mobile.trim().isNotEmpty)
                   TextButton.icon(
                     key: Key('student-lookup-call-${student.id}'),
                     onPressed: () => _call(context, ref, mobile),
                     icon: const Icon(Icons.call_outlined, size: 18),
-                    label: const Text('Call'),
+                    label: Text(l10n.staffCall),
                   ),
               ],
             ),
@@ -210,7 +213,7 @@ class _StudentCard extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("${student.name}'s photo", style: Theme.of(context).textTheme.titleMedium),
+              Text(context.l10n.staffStudentsPhoto(student.name), style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 16),
               // The sheet's own ref: the card behind can be rebuilt while it is open.
               Consumer(
@@ -227,7 +230,7 @@ class _StudentCard extends ConsumerWidget {
   Future<void> _call(BuildContext context, WidgetRef ref, String mobile) async {
     final opened = await ref.read(studentDiallerProvider)(Uri(scheme: 'tel', path: mobile.replaceAll(' ', '')));
     if (!opened && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Could not open the phone's dialler.")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.staffDiallerFailed)));
     }
   }
 }

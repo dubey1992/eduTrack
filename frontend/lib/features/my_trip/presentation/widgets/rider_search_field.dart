@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../data/voice_search.dart';
 
 /// Finds a child on the trip sheet: type a name, or say it.
@@ -64,11 +65,7 @@ class _RiderSearchFieldState extends ConsumerState<RiderSearchField> {
               // phone may listen next time if the permission is granted.
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
-                ..showSnackBar(
-                  const SnackBar(
-                    content: Text("The microphone could not be used. Check the app's permission, or type the name."),
-                  ),
-                );
+                ..showSnackBar(SnackBar(content: Text(context.l10n.busMicFailed)));
             },
           );
     });
@@ -77,6 +74,7 @@ class _RiderSearchFieldState extends ConsumerState<RiderSearchField> {
   @override
   Widget build(BuildContext context) {
     final hasText = _controller.text.isNotEmpty;
+    final l10n = context.l10n;
 
     return FutureBuilder<bool>(
       future: _canListen,
@@ -89,7 +87,7 @@ class _RiderSearchFieldState extends ConsumerState<RiderSearchField> {
           onChanged: _set,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
-            hintText: _listening ? 'Listening… say the child\'s name' : 'Find a child by name, class or number',
+            hintText: _listening ? l10n.busSearchListening : l10n.busSearchHint,
             prefixIcon: const Icon(Icons.search),
             suffixIcon: Row(
               mainAxisSize: MainAxisSize.min,
@@ -97,14 +95,14 @@ class _RiderSearchFieldState extends ConsumerState<RiderSearchField> {
                 if (hasText)
                   IconButton(
                     key: const Key('rider-search-clear'),
-                    tooltip: 'Clear',
+                    tooltip: l10n.busClear,
                     onPressed: () => setState(() => _set('')),
                     icon: const Icon(Icons.close),
                   ),
                 if (canListen)
                   IconButton(
                     key: const Key('rider-search-voice'),
-                    tooltip: _listening ? 'Stop listening' : 'Say the name',
+                    tooltip: _listening ? l10n.busStopListening : l10n.busSayName,
                     onPressed: _toggleListening,
                     isSelected: _listening,
                     icon: Icon(_listening ? Icons.mic : Icons.mic_none),

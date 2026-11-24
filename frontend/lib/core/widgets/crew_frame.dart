@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_notifier.dart';
+import '../l10n/l10n.dart';
 import 'app_shell.dart';
 
 /// The frame around the one screen the bus crew has.
@@ -23,6 +24,12 @@ enum CrewPlace {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+
+  /// [label] in the person's language; the English stays for the code.
+  String labelIn(AppLocalizations l10n) => switch (this) {
+    CrewPlace.trip => l10n.busNavHome,
+    CrewPlace.profile => l10n.busNavProfile,
+  };
 }
 
 class CrewFrame extends ConsumerWidget {
@@ -34,10 +41,11 @@ class CrewFrame extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authNotifierProvider).value;
+    final l10n = context.l10n;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(user?.name ?? 'My Trip'),
+        title: Text(user?.name ?? l10n.busMyTripTitle),
         actions: [
           // Always reachable, not only while the warning is up: Android can
           // report this app as exempt while the phone's own battery manager
@@ -46,12 +54,12 @@ class CrewFrame extends ConsumerWidget {
           IconButton(
             key: const Key('crew-battery-help'),
             icon: const Icon(Icons.battery_alert_outlined),
-            tooltip: 'Keep the bus on the map',
+            tooltip: l10n.busBatteryTitle,
             onPressed: () => context.push('/battery'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
+            tooltip: l10n.busLogOut,
             // The same confirmation the office gets, which is the one that
             // counts the marks still waiting on the phone before throwing
             // them away.
@@ -86,7 +94,7 @@ class CrewFrame extends ConsumerWidget {
               key: Key('crew-nav-${destination.name}'),
               icon: Icon(destination.icon),
               selectedIcon: Icon(destination.selectedIcon),
-              label: destination.label,
+              label: destination.labelIn(l10n),
             ),
         ],
       ),

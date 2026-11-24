@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../application/leftover_points.dart';
@@ -102,16 +103,13 @@ class _BatteryWarning extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "This phone may stop sending the bus's position when the screen is off.",
-                  style: TextStyle(color: colors.onWarningContainer),
-                ),
+                Text(context.l10n.busBatteryWarning, style: TextStyle(color: colors.onWarningContainer)),
                 const SizedBox(height: 4),
                 TextButton(
                   key: const Key('open-battery-help'),
                   onPressed: () => context.push('/battery'),
                   style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
-                  child: const Text('How to fix it'),
+                  child: Text(context.l10n.busBatteryHowToFix),
                 ),
               ],
             ),
@@ -135,13 +133,10 @@ class _RoutesView extends ConsumerWidget {
       value: routes,
       onRetry: () => ref.read(myRoutesProvider.notifier).refresh(),
       isEmpty: (day) => day.routes.isEmpty,
-      emptyBuilder: (context) => const Center(
+      emptyBuilder: (context) => Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text(
-            'No route is assigned to you yet. Ask your school office to add you to a route.',
-            textAlign: TextAlign.center,
-          ),
+          padding: const EdgeInsets.all(32),
+          child: Text(context.l10n.busNoRoutes, textAlign: TextAlign.center),
         ),
       ),
       data: (context, day) => RefreshIndicator(
@@ -154,7 +149,7 @@ class _RoutesView extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'No signal - showing your routes as last saved on this phone.',
+                  context.l10n.busRoutesFromPhone,
                   style: TextStyle(color: context.appColors.muted, fontStyle: FontStyle.italic),
                 ),
               ),
@@ -169,7 +164,7 @@ class _RoutesView extends ConsumerWidget {
                 key: const Key('open-trip-check'),
                 onPressed: () => context.push('/trip-check'),
                 icon: const Icon(Icons.fact_check_outlined, size: 18),
-                label: const Text('Trip check'),
+                label: Text(context.l10n.busTripCheck),
               ),
             ),
           ],

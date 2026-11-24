@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/family_learning.dart';
 
@@ -34,11 +35,12 @@ class MarksTrend extends StatelessWidget {
     final colors = context.appColors;
     final scheme = Theme.of(context).colorScheme;
     final rising = points.last >= points.first;
+    final l10n = context.l10n;
 
     return Semantics(
-      label:
-          'Marks over ${points.length} tests, from ${points.first.round()}% to ${points.last.round()}%, '
-          '${rising ? 'rising' : 'falling'}',
+      label: rising
+          ? l10n.familyTrendRisingLabel(points.length, points.first.round(), points.last.round())
+          : l10n.familyTrendFallingLabel(points.length, points.first.round(), points.last.round()),
       excludeSemantics: true,
       child: Padding(
         key: const Key('family-marks-trend'),
@@ -61,7 +63,7 @@ class MarksTrend extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${points.first.round()}% to ${points.last.round()}% over ${points.length} tests',
+              l10n.familyTrendLine(points.length, points.first.round(), points.last.round()),
               style: TextStyle(color: colors.muted, fontSize: 12),
             ),
           ],

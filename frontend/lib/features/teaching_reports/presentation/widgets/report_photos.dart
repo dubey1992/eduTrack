@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failure.dart';
+import '../../../../core/l10n/failure_text.dart';
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/photo_picker.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -47,13 +49,13 @@ class _ReportPhotosState extends ConsumerState<ReportPhotos> {
               ListTile(
                 key: const Key('report-photo-camera'),
                 leading: const Icon(Icons.photo_camera_outlined),
-                title: const Text('Take a photo'),
+                title: Text(context.l10n.staffTakeAPhoto),
                 onTap: () => Navigator.of(context).pop(PhotoSource.camera),
               ),
               ListTile(
                 key: const Key('report-photo-gallery'),
                 leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Choose from your photos'),
+                title: Text(context.l10n.staffChooseFromPhotos),
                 onTap: () => Navigator.of(context).pop(PhotoSource.gallery),
               ),
             ],
@@ -69,23 +71,24 @@ class _ReportPhotosState extends ConsumerState<ReportPhotos> {
     await _change(
       () =>
           ref.read(teachingReportRepositoryProvider).addPhoto(widget.report.id, name: picked.name, bytes: picked.bytes),
-      done: 'Photo added.',
+      done: context.l10n.staffPhotoAdded,
     );
   }
 
   Future<void> _remove(ReportPhoto photo) async {
+    final l10n = context.l10n;
     final sure = await confirmDialog(
       context,
-      title: 'Remove this photo?',
-      message: 'It is taken off the report for good.',
-      confirmLabel: 'Remove',
+      title: l10n.staffRemovePhotoQ,
+      message: l10n.staffRemovePhotoBody,
+      confirmLabel: l10n.staffRemove,
       isDestructive: true,
     );
     if (!sure || !mounted) return;
 
     await _change(
       () => ref.read(teachingReportRepositoryProvider).removePhoto(widget.report.id, photo.id),
-      done: 'Photo removed.',
+      done: l10n.staffPhotoRemoved,
     );
   }
 
@@ -104,8 +107,8 @@ class _ReportPhotosState extends ConsumerState<ReportPhotos> {
       if (!mounted) return;
       setState(
         () => _problem = failure.code == 'NETWORK_ERROR'
-            ? 'No connection. Try again when you have signal.'
-            : failure.validationErrors['photo']?.first ?? failure.message,
+            ? context.l10n.staffNoConnectionTryLater
+            : failure.validationErrors['photo']?.first ?? failure.localizedMessage(context),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -116,6 +119,7 @@ class _ReportPhotosState extends ConsumerState<ReportPhotos> {
   Widget build(BuildContext context) {
     final photos = widget.report.photos;
     final colors = context.appColors;
+    final l10n = context.l10n;
     final canAdd = widget.canChange && photos.length < maxReportPhotos;
 
     if (photos.isEmpty && !widget.canChange) return const SizedBox.shrink();
@@ -126,7 +130,7 @@ class _ReportPhotosState extends ConsumerState<ReportPhotos> {
         key: const Key('report-photos'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Photos', style: TextStyle(color: colors.muted, fontSize: 13)),
+          Text(l10n.staffPhotos, style: TextStyle(color: colors.muted, fontSize: 13)),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -143,9 +147,13 @@ class _ReportPhotosState extends ConsumerState<ReportPhotos> {
                     onPressed: _busy ? null : _add,
                     child: _busy
                         ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Column(
+                        : Column(
                             mainAxisSize: MainAxisSize.min,
-                            children: [Icon(Icons.add_a_photo_outlined), SizedBox(height: 4), Text('Add')],
+                            children: [
+                              const Icon(Icons.add_a_photo_outlined),
+                              const SizedBox(height: 4),
+                              Text(l10n.staffAdd),
+                            ],
                           ),
                   ),
                 ),
@@ -155,8 +163,7 @@ class _ReportPhotosState extends ConsumerState<ReportPhotos> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
-                "Up to $maxReportPhotos - the board, or the children's work. Seen by your HOD and the office, "
-                'never by parents.',
+                l10n.staffReportPhotosHint(maxReportPhotos),
                 style: TextStyle(color: colors.muted, fontSize: 12),
               ),
             ),
@@ -207,9 +214,9 @@ class _Thumbnail extends ConsumerWidget {
                       child: Image.memory(
                         data,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => const Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Text('This photo could not be shown.', textAlign: TextAlign.center),
+                        errorBuilder: (context, _, _) => Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Text(context.l10n.staffPhotoNotShown, textAlign: TextAlign.center),
                         ),
                       ),
                     ),
@@ -232,7 +239,7 @@ class _Thumbnail extends ConsumerWidget {
             right: 2,
             child: IconButton.filledTonal(
               key: Key('report-photo-remove-${photo.id}'),
-              tooltip: 'Remove photo',
+              tooltip: context.l10n.staffRemovePhoto,
               visualDensity: VisualDensity.compact,
               iconSize: 16,
               onPressed: onRemove,

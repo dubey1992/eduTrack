@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/secure_screen.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_format.dart';
@@ -12,6 +14,7 @@ import '../../../core/widgets/status_badge.dart';
 import '../../payroll/data/models/payroll.dart';
 import '../application/my_pay_notifier.dart';
 import '../data/my_pay_repository.dart';
+import '../../today/presentation/staff_words.dart';
 
 /// One payslip on the phone (docs/teacher-app.md, T4): the net pay first,
 /// then the month's days, what was earned and what was taken off - the PDF's
@@ -31,7 +34,7 @@ class MyPayslipDetailScreen extends ConsumerWidget {
     final slip = ref.watch(myPayslipProvider(payslipId));
 
     return Scaffold(
-      appBar: AppBar(title: Text(slip.value?.periodLabel ?? 'Payslip')),
+      appBar: AppBar(title: Text(slip.value?.periodLabel ?? context.l10n.staffPayslip)),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -61,7 +64,13 @@ class _Detail extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.appColors;
+    final l10n = context.l10n;
     final earnings = slip.linesOf(PayComponentType.earning);
+    final paidOn = slip.paidOn == null ? l10n.staffPaid : l10n.staffPaidOn(formatIsoDate(slip.paidOn));
+    final mode = slip.paymentMode;
+    final paid = mode == null
+        ? paidOn
+        : '$paidOn ${l10n.staffByMode(paymentModeLabel(l10n, mode.apiValue, mode.label))}';
     final deductions = slip.linesOf(PayComponentType.deduction);
 
     return ListView(
@@ -75,7 +84,7 @@ class _Detail extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Net pay', style: TextStyle(color: colors.muted)),
+                Text(l10n.staffNetPay, style: TextStyle(color: colors.muted)),
                 const SizedBox(height: 2),
                 Text(
                   _money(slip.netPay),
@@ -84,10 +93,7 @@ class _Detail extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 StatusBadge(
-                  label: slip.isPaid
-                      ? 'Paid${slip.paidOn == null ? '' : ' on ${formatIsoDate(slip.paidOn)}'}'
-                            '${slip.paymentMode == null ? '' : ' by ${slip.paymentMode!.label}'}'
-                      : 'Not paid yet',
+                  label: slip.isPaid ? paid : l10n.staffNotPaidYet,
                   tone: slip.isPaid ? BadgeTone.success : BadgeTone.warning,
                 ),
               ],
@@ -96,39 +102,39 @@ class _Detail extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _Section(
-          title: 'Days',
+          title: l10n.staffDaysTitle,
           rows: [
-            ('Working days', _days(slip.workingDays)),
-            ('Paid days', _days(slip.paidDays)),
-            if (slip.absentDays > 0) ('Absent', _days(slip.absentDays)),
-            if (slip.halfDays > 0) ('Half days', '${slip.halfDays}'),
-            if (slip.unmarkedDays > 0) ('Not marked', '${slip.unmarkedDays}'),
+            (l10n.staffWorkingDays, _days(slip.workingDays)),
+            (l10n.staffPaidDays, _days(slip.paidDays)),
+            if (slip.absentDays > 0) (l10n.staffAbsent, _days(slip.absentDays)),
+            if (slip.halfDays > 0) (l10n.staffHalfDays, '${slip.halfDays}'),
+            if (slip.unmarkedDays > 0) (l10n.staffNotMarked, '${slip.unmarkedDays}'),
           ],
         ),
         const SizedBox(height: 12),
         _Section(
           key: const Key('my-payslip-earnings'),
-          title: 'Earnings',
+          title: l10n.staffEarnings,
           rows: [
             for (final line in earnings) (line.name, _money(line.amount)),
-            ('Total earnings', _money(slip.grossEarnings)),
+            (l10n.staffTotalEarnings, _money(slip.grossEarnings)),
           ],
           lastIsTotal: true,
         ),
         const SizedBox(height: 12),
         _Section(
           key: const Key('my-payslip-deductions'),
-          title: 'Deductions',
+          title: l10n.staffDeductions,
           rows: [
             for (final line in deductions) (line.name, _money(line.amount)),
-            ('Total deductions', _money(slip.totalDeductions)),
+            (l10n.staffTotalDeductions, _money(slip.totalDeductions)),
           ],
           lastIsTotal: true,
         ),
         if (double.parse(slip.shortfall) > 0) ...[
           const SizedBox(height: 12),
           Text(
-            'Unpaid days reduced this month by ${_money(slip.shortfall)}.',
+            l10n.staffUnpaidShortfall(_money(slip.shortfall)),
             key: const Key('my-payslip-shortfall'),
             style: TextStyle(color: colors.muted, height: 1.35),
           ),
@@ -215,7 +221,7 @@ class _SharePdfState extends ConsumerState<_SharePdf> {
       final bytes = await ref.read(myPayRepositoryProvider).pdf(widget.slip.id);
       await ref.read(pdfHandOffProvider)(bytes, payslipFileName(widget.slip));
     } on Failure catch (failure) {
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      messenger.showSnackBar(SnackBar(content: Text(mounted ? failure.localizedMessage(context) : failure.message)));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -231,7 +237,7 @@ class _SharePdfState extends ConsumerState<_SharePdf> {
         icon: _busy
             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
             : const Icon(Icons.ios_share),
-        label: Text(_busy ? 'Getting the PDF...' : 'Share the PDF'),
+        label: Text(_busy ? context.l10n.staffGettingPdf : context.l10n.staffSharePdf),
       ),
     );
   }
@@ -266,7 +272,7 @@ class _EmailMeState extends ConsumerState<_EmailMe> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      if (mounted) setState(() => _problem = failure.message);
+      if (mounted) setState(() => _problem = failure.localizedMessage(context));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -296,7 +302,7 @@ class _EmailMeState extends ConsumerState<_EmailMe> {
             icon: _busy
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.mail_outline),
-            label: Text(_busy ? 'Sending…' : 'Email me the PDF'),
+            label: Text(_busy ? context.l10n.staffSending : context.l10n.staffEmailMePdf),
           ),
         ),
       ],

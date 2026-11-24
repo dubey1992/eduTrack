@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_format.dart';
@@ -48,7 +49,7 @@ class StudentStatementView extends ConsumerWidget {
             child: TextButton.icon(
               onPressed: onBack,
               icon: const Icon(Icons.arrow_back),
-              label: const Text('All students'),
+              label: Text(context.l10n.staffAllStudents),
             ),
           ),
         ),
@@ -78,6 +79,7 @@ class _Statement extends StatelessWidget {
     final totals = statement.totals;
     final muted = context.appColors.muted;
     final admitted = student.admissionDate;
+    final l10n = context.l10n;
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -103,7 +105,7 @@ class _Statement extends StatelessWidget {
                       fileName: 'statement-${student.admissionNumber}-${statement.academicYearName}.pdf',
                     ),
                     icon: const Icon(Icons.download_outlined),
-                    label: const Text('Statement PDF'),
+                    label: Text(l10n.staffStatementPdf),
                   ),
                 ),
                 if (canManage) ...[
@@ -111,13 +113,13 @@ class _Statement extends StatelessWidget {
                     OutlinedButton.icon(
                       onPressed: () => showAddDiscountDialog(context, statement),
                       icon: const Icon(Icons.percent),
-                      label: const Text('Add Discount'),
+                      label: Text(l10n.staffAddDiscount),
                     ),
                   // Also when nothing is owed: the money is held as credit (F6).
                   FilledButton.icon(
                     onPressed: () => showRecordPaymentDialog(context, statement),
                     icon: const Icon(Icons.payments_outlined),
-                    label: const Text('Record Payment'),
+                    label: Text(l10n.staffRecordPayment),
                   ),
                 ],
               ],
@@ -127,10 +129,10 @@ class _Statement extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           [
-            'Adm. no. ${student.admissionNumber}',
+            l10n.staffAdmissionNo(student.admissionNumber),
             if (student.classLabel.isNotEmpty) student.classLabel,
             statement.academicYearName,
-            if (admitted != null) 'Joined ${formatDate(admitted)}',
+            if (admitted != null) l10n.staffJoined(formatDate(admitted)),
           ].join(' · '),
           style: TextStyle(color: muted),
         ),
@@ -139,12 +141,17 @@ class _Statement extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: [
-            _Total(label: 'Charged', value: _money(totals.charged)),
-            if ((centsOf(totals.discount) ?? 0) > 0) _Total(label: 'Discount', value: _money(totals.discount)),
-            _Total(label: 'Paid', value: _money(totals.paid)),
-            if ((centsOf(totals.waived) ?? 0) > 0) _Total(label: 'Waived', value: _money(totals.waived)),
-            _Total(label: 'Balance', value: _money(totals.balance)),
-            _Total(label: 'Overdue', value: _money(totals.overdue), alarming: (centsOf(totals.overdue) ?? 0) > 0),
+            _Total(label: l10n.staffFeeCharged, value: _money(totals.charged)),
+            if ((centsOf(totals.discount) ?? 0) > 0)
+              _Total(label: l10n.staffFeeDiscount, value: _money(totals.discount)),
+            _Total(label: l10n.staffFeePaid, value: _money(totals.paid)),
+            if ((centsOf(totals.waived) ?? 0) > 0) _Total(label: l10n.staffFeeWaived, value: _money(totals.waived)),
+            _Total(label: l10n.staffFeeBalance, value: _money(totals.balance)),
+            _Total(
+              label: l10n.staffFeesOverdue,
+              value: _money(totals.overdue),
+              alarming: (centsOf(totals.overdue) ?? 0) > 0,
+            ),
           ],
         ),
         if (statement.heldCredit.isNotEmpty) ...[
@@ -156,8 +163,7 @@ class _Statement extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              'Nothing has been charged for ${statement.academicYearName}. Fees are charged once they are published '
-              'for this student\'s class or bus route.',
+              l10n.staffNothingCharged(statement.academicYearName),
               textAlign: TextAlign.center,
               style: TextStyle(color: muted),
             ),
@@ -176,7 +182,7 @@ class _Statement extends StatelessWidget {
           ),
         if (statement.concessions.isNotEmpty) ...[
           const SizedBox(height: 24),
-          Text('Discounts', style: Theme.of(context).textTheme.titleMedium),
+          Text(l10n.staffDiscounts, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Card(
             margin: EdgeInsets.zero,
@@ -192,7 +198,7 @@ class _Statement extends StatelessWidget {
         ],
         if (statement.receipts.isNotEmpty) ...[
           const SizedBox(height: 24),
-          Text('Payments', style: Theme.of(context).textTheme.titleMedium),
+          Text(l10n.staffPayments, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Card(
             margin: EdgeInsets.zero,
@@ -251,21 +257,23 @@ class _DueRow extends ConsumerWidget {
   final String Function(String) money;
   final bool canManage;
 
-  static const _reasons = {
-    'class_changed': 'moved to another class',
-    'route_changed': 'moved to another bus route',
-    'left': 'no longer at the school',
-    'fee_changed': 'the fee was changed',
+  static String? _reason(AppLocalizations l10n, String? code) => switch (code) {
+    'class_changed' => l10n.staffReasonClassChanged,
+    'route_changed' => l10n.staffReasonRouteChanged,
+    'left' => l10n.staffReasonLeft,
+    'fee_changed' => l10n.staffReasonFeeChanged,
+    _ => null,
   };
 
-  String _subtitle() {
+  String _subtitle(AppLocalizations l10n) {
+    final date = formatDate(due.dueDate);
     if (due.isCancelled && due.cancelledReason != null) {
-      return 'Was due ${formatDate(due.dueDate)} - not charged: ${_reasons[due.cancelledReason] ?? due.cancelledReason}';
+      return l10n.staffWasDueNotCharged(date, _reason(l10n, due.cancelledReason) ?? due.cancelledReason!);
     }
     if (due.isWaived) {
-      return 'Was due ${formatDate(due.dueDate)} - waived${due.waiveReason == null ? '' : ': ${due.waiveReason}'}';
+      return due.waiveReason == null ? l10n.staffWasDueWaived(date) : l10n.staffWasDueWaivedWhy(date, due.waiveReason!);
     }
-    return due.isLateFine ? 'Added ${formatDate(due.dueDate)}' : 'Due ${formatDate(due.dueDate)}';
+    return due.isLateFine ? l10n.staffAddedOn(date) : l10n.staffDueOn(date);
   }
 
   @override
@@ -274,15 +282,16 @@ class _DueRow extends ConsumerWidget {
     final struck = due.isCancelled || due.isWaived;
     final strike = struck ? const TextStyle(decoration: TextDecoration.lineThrough) : null;
     final discounted = (centsOf(due.discountAmount) ?? 0) > 0;
+    final l10n = context.l10n;
 
     final (badge, tone) = switch (due) {
-      FeeDue(isCancelled: true) => ('Cancelled', BadgeTone.neutral),
-      FeeDue(isWaived: true) => ('Waived', BadgeTone.neutral),
-      FeeDue(isCoveredByDiscount: true) => ('Covered by discount', BadgeTone.info),
-      FeeDue(isOverdue: true) => ('Overdue', BadgeTone.danger),
-      FeeDue(status: FeeDueStatus.paid) => ('Paid', BadgeTone.success),
-      FeeDue(status: FeeDueStatus.partial) => ('Part paid', BadgeTone.info),
-      _ => ('Due', BadgeTone.warning),
+      FeeDue(isCancelled: true) => (l10n.staffCancelled, BadgeTone.neutral),
+      FeeDue(isWaived: true) => (l10n.staffFeeWaived, BadgeTone.neutral),
+      FeeDue(isCoveredByDiscount: true) => (l10n.staffCoveredByDiscount, BadgeTone.info),
+      FeeDue(isOverdue: true) => (l10n.staffFeesOverdue, BadgeTone.danger),
+      FeeDue(status: FeeDueStatus.paid) => (l10n.staffFeePaid, BadgeTone.success),
+      FeeDue(status: FeeDueStatus.partial) => (l10n.staffPartPaid, BadgeTone.info),
+      _ => (l10n.staffFeeDue, BadgeTone.warning),
     };
 
     return Padding(
@@ -305,10 +314,10 @@ class _DueRow extends ConsumerWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(due.label, style: const TextStyle(fontWeight: FontWeight.w600).merge(strike)),
-                    if (due.isLateFine) const StatusBadge(label: 'Late fine', tone: BadgeTone.danger),
+                    if (due.isLateFine) StatusBadge(label: l10n.staffLateFine, tone: BadgeTone.danger),
                   ],
                 ),
-                Text(_subtitle(), style: TextStyle(color: colors.muted, fontSize: 13)),
+                Text(_subtitle(l10n), style: TextStyle(color: colors.muted, fontSize: 13)),
               ],
             ),
             Wrap(
@@ -317,19 +326,23 @@ class _DueRow extends ConsumerWidget {
               children: [
                 Text(money(due.amount), style: strike),
                 if (!due.isCancelled && discounted)
-                  Text('Discount ${money(due.discountAmount)}', style: TextStyle(color: colors.info)),
+                  Text(l10n.staffDiscountAmount(money(due.discountAmount)), style: TextStyle(color: colors.info)),
                 if (!due.isCancelled && (centsOf(due.paidAmount) ?? 0) > 0)
-                  Text('Paid ${money(due.paidAmount)}', style: TextStyle(color: colors.success)),
+                  Text(l10n.staffPaidAmount(money(due.paidAmount)), style: TextStyle(color: colors.success)),
                 if (!due.isCancelled && due.isPaidFromCredit)
                   Tooltip(
-                    message: 'Paid from the student\'s credit',
-                    child: StatusBadge(label: '${money(due.paidFromCredit)} from credit', tone: BadgeTone.info),
+                    message: l10n.staffPaidFromCredit,
+                    child: StatusBadge(label: l10n.staffFromCredit(money(due.paidFromCredit)), tone: BadgeTone.info),
                   ),
-                if (!struck) Text('Balance ${money(due.balance)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                if (!struck)
+                  Text(
+                    l10n.staffBalanceAmount(money(due.balance)),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 StatusBadge(label: badge, tone: tone),
                 if (canManage && due.isOpen)
                   IconButton(
-                    tooltip: 'Waive',
+                    tooltip: l10n.staffWaive,
                     icon: const Icon(Icons.volunteer_activism_outlined),
                     onPressed: () => waiveDue(context, ref, due),
                   ),
@@ -353,6 +366,7 @@ class _DiscountRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
     final amount = concession.isPercent ? '${concession.value}%' : money(concession.value);
+    final l10n = context.l10n;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -368,20 +382,20 @@ class _DiscountRow extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$amount off each ${concession.feeHeadName ?? 'fee'} installment',
+                  l10n.staffOffEachInstallment(amount, concession.feeHeadName ?? l10n.staffFee),
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(
                   [
                     concession.reason,
-                    if (concession.createdByName != null) 'by ${concession.createdByName}',
+                    if (concession.createdByName != null) l10n.staffByLower(concession.createdByName!),
                   ].join(' · '),
                   style: TextStyle(color: colors.muted, fontSize: 13),
                 ),
               ],
             ),
             if (canManage)
-              TextButton(onPressed: () => revokeDiscount(context, ref, concession), child: const Text('End discount')),
+              TextButton(onPressed: () => revokeDiscount(context, ref, concession), child: Text(l10n.staffEndDiscount)),
           ],
         ),
       ),
@@ -400,6 +414,7 @@ class _ReceiptRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
     final strike = receipt.isCancelled ? const TextStyle(decoration: TextDecoration.lineThrough) : null;
+    final l10n = context.l10n;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -426,15 +441,15 @@ class _ReceiptRow extends ConsumerWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(money(receipt.amount), style: strike),
-                if (receipt.isCancelled) const StatusBadge(label: 'Cancelled', tone: BadgeTone.neutral),
+                if (receipt.isCancelled) StatusBadge(label: l10n.staffCancelled, tone: BadgeTone.neutral),
                 IconButton(
-                  tooltip: 'Download receipt',
+                  tooltip: l10n.staffDownloadReceipt,
                   icon: const Icon(Icons.download_outlined),
                   onPressed: () => downloadReceipt(context, ref, id: receipt.id, number: receipt.receiptNumber),
                 ),
                 if (canManage && !receipt.isCancelled)
                   IconButton(
-                    tooltip: 'Cancel receipt',
+                    tooltip: l10n.staffCancelReceipt,
                     icon: Icon(Icons.block, color: colors.danger),
                     onPressed: () => cancelReceipt(context, ref, id: receipt.id, number: receipt.receiptNumber),
                   ),

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/searchable_dropdown.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -125,7 +127,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
 
     _fill(draft);
     ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(key: Key('report-draft-restored'), content: Text('Your draft is back.')));
+        .showSnackBar(SnackBar(key: const Key('report-draft-restored'), content: Text(context.l10n.staffDraftIsBack)));
   }
 
   ReportWords get _words => ReportWords(topic: _topic.text, homework: _homework.text, remarks: _remarks.text);
@@ -147,9 +149,8 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
   /// subject, copied in to be changed where today differed.
   void _copyLast(TeachingReport last) {
     _fill(ReportWords(topic: last.topicTaught, homework: last.homework ?? '', remarks: last.remarks ?? ''));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Copied from ${formatIsoDate(last.reportDate)}. Change what was different today.')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(context.l10n.staffCopiedFrom(formatIsoDate(last.reportDate)))));
   }
 
   Future<void> _openTemplates(int subjectId) async {
@@ -205,7 +206,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
               remarks: _trimmedOrNull(_remarks),
             );
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent again for review.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.staffSentAgainForReview)));
         Navigator.of(context).pop(true);
         return;
       }
@@ -224,7 +225,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
       _draftTimer?.cancel();
       await _notes.forgetDraft(widget.period.timetableEntryId, widget.period.date);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report filed.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.staffReportFiledDone)));
       context.pop(true);
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
@@ -258,12 +259,16 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(color: colors.dangerContainer, borderRadius: BorderRadius.circular(8)),
-      child: Text('Not sent: ${refused.refusal}', style: TextStyle(color: colors.onDangerContainer, height: 1.35)),
+      child: Text(
+        context.l10n.staffNotSentReason('${refused.refusal}'),
+        style: TextStyle(color: colors.onDangerContainer, height: 1.35),
+      ),
     );
   }
 
   Future<void> _keepForLater() async {
     final period = widget.period;
+    final l10n = context.l10n;
     final me = (await ref.read(authNotifierProvider.future))?.id;
     if (me == null) return;
 
@@ -274,7 +279,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
             kind: OutboxKind.report,
             key: OutboxItem.reportKey(period.timetableEntryId, period.date),
             userId: me,
-            label: '${period.subject}, ${period.classSection}, period ${period.periodNumber}',
+            label: l10n.staffOutboxReportLabel(period.subject, period.classSection, period.periodNumber),
             payload: {
               'timetable_entry_id': period.timetableEntryId,
               'report_date': period.date,
@@ -291,27 +296,19 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
     _draftTimer?.cancel();
     await _notes.forgetDraft(period.timetableEntryId, period.date);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        key: Key('report-kept-for-later'),
-        content: Text('No signal: the report is saved on this phone and sent when there is.'),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(key: const Key('report-kept-for-later'), content: Text(l10n.staffReportKeptForLater)));
     context.pop(true);
   }
 
   /// The server's refusals in a teacher's words; anything else as it came.
   String _say(Failure failure) => switch (failure.code) {
-    'TEACHING_REPORT_ALREADY_SUBMITTED' =>
-      'This period already has a report for ${formatIsoDate(widget.period.date)}. '
-          'Pull down on Today to see it.',
-    'NETWORK_ERROR' => 'No connection. Nothing was sent - try again when you have signal.',
-    'FORBIDDEN' => 'This period is no longer yours on the timetable, so it cannot be reported from here.',
-    'TEACHING_REPORT_NOT_RETURNED' => 'This report is no longer waiting for changes - it may have been reviewed.',
-    'CHECK_IN_REQUIRED' =>
-      'Check in first. Your teaching reports open once you are marked present today. '
-          'What you typed is kept on this phone as a draft.',
-    _ => failure.message,
+    'TEACHING_REPORT_ALREADY_SUBMITTED' => context.l10n.staffReportAlreadyFiled(formatIsoDate(widget.period.date)),
+    'NETWORK_ERROR' => context.l10n.staffNothingSentNoSignal,
+    'FORBIDDEN' => context.l10n.staffPeriodNoLongerYours,
+    'TEACHING_REPORT_NOT_RETURNED' => context.l10n.staffReportNoLongerReturned,
+    'CHECK_IN_REQUIRED' => context.l10n.staffCheckInFirst,
+    _ => failure.localizedMessage(context),
   };
 
   /// Same as last time, and the subject's templates - each only where the
@@ -334,14 +331,14 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
             key: const Key('report-same-as-last'),
             onPressed: _sending ? null : () => _copyLast(last),
             icon: const Icon(Icons.content_copy, size: 18),
-            label: Text('Same as ${formatIsoDate(last.reportDate)}'),
+            label: Text(context.l10n.staffSameAs(formatIsoDate(last.reportDate))),
           ),
         if (subjectId != null)
           OutlinedButton.icon(
             key: const Key('report-templates'),
             onPressed: _sending ? null : () => _openTemplates(subjectId),
             icon: const Icon(Icons.bookmarks_outlined, size: 18),
-            label: const Text('Templates'),
+            label: Text(context.l10n.staffTemplates),
           ),
       ],
     );
@@ -351,15 +348,18 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
   Widget build(BuildContext context) {
     final period = widget.period;
     final colors = context.appColors;
+    final l10n = context.l10n;
+    // A report sent back with no subject: said in the person's language.
+    final subject = widget.changing != null && widget.changing!.subjectName == null ? l10n.staffReport : period.subject;
 
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.changing == null ? 'Teaching report' : 'Change the report'),
+            Text(widget.changing == null ? l10n.staffTeachingReport : l10n.staffChangeTheReport),
             Text(
-              '${period.subject} · ${period.classSection} · Period ${period.periodNumber}',
+              '$subject · ${period.classSection} · ${l10n.staffPeriodNumber(period.periodNumber)}',
               style: TextStyle(fontSize: 13, color: colors.muted, fontWeight: FontWeight.w400),
             ),
           ],
@@ -393,7 +393,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                           key: const Key('report-go-check-in'),
                           onPressed: () => context.pop(false),
                           icon: const Icon(Icons.login, size: 18),
-                          label: const Text('Back to Today to check in'),
+                          label: Text(l10n.staffBackToTodayToCheckIn),
                         ),
                       ),
                     ],
@@ -408,12 +408,11 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                     minLines: 2,
                     maxLength: topicLimit,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'What was taught',
-                      hintText: 'e.g. Fractions: adding unlike denominators',
+                    decoration: InputDecoration(
+                      labelText: l10n.staffWhatWasTaught,
+                      hintText: l10n.staffWhatWasTaughtHint,
                     ),
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty) ? 'Say what was taught in this period.' : null,
+                    validator: (value) => (value == null || value.trim().isEmpty) ? l10n.staffSayWhatWasTaught : null,
                   ),
                   const SizedBox(height: 8),
                   if (widget.changing?.reviewNote != null) ...[
@@ -436,7 +435,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                     minLines: 1,
                     maxLength: noteLimit,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(labelText: 'Homework (optional)'),
+                    decoration: InputDecoration(labelText: l10n.staffHomeworkOptional),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -447,7 +446,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                     minLines: 1,
                     maxLength: noteLimit,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(labelText: 'Remarks (optional)'),
+                    decoration: InputDecoration(labelText: l10n.staffRemarksOptional),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -457,7 +456,7 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                       onPressed: _sending ? null : _submit,
                       child: _sending
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Text(widget.changing == null ? 'File report' : 'Send again'),
+                          : Text(widget.changing == null ? l10n.staffFileReport : l10n.staffSendAgain),
                     ),
                   ),
                 ],
@@ -500,11 +499,7 @@ class _SyllabusTopicChoice extends ConsumerWidget {
           error: (_, _) => Padding(
             key: const Key('report-topics-unavailable'),
             padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              'The syllabus could not be loaded, so no topic can be ticked off with this report. '
-              'You can tick it later under Teaching.',
-              style: TextStyle(color: colors.muted, fontSize: 13),
-            ),
+            child: Text(context.l10n.staffSyllabusUnavailable, style: TextStyle(color: colors.muted, fontSize: 13)),
           ),
           data: (topics) {
             if (topics.isEmpty) return const SizedBox.shrink();
@@ -515,12 +510,12 @@ class _SyllabusTopicChoice extends ConsumerWidget {
                 key: const Key('report-syllabus-topic'),
                 initialValue: value,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Syllabus topic (optional)',
-                  helperText: 'Picking one ticks it off for this class',
+                decoration: InputDecoration(
+                  labelText: context.l10n.staffSyllabusTopicOptional,
+                  helperText: context.l10n.staffSyllabusTopicHelper,
                 ),
                 items: [
-                  const DropdownMenuItem<int?>(value: null, child: Text('Not a syllabus topic')),
+                  DropdownMenuItem<int?>(value: null, child: Text(context.l10n.staffNotASyllabusTopic)),
                   for (final topic in topics)
                     DropdownMenuItem<int?>(
                       value: topic.id,
@@ -574,6 +569,7 @@ class _TemplatesSheetState extends ConsumerState<_TemplatesSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
     final templates = _templates;
     final canSave = widget.current.topic.trim().isNotEmpty;
 
@@ -587,11 +583,11 @@ class _TemplatesSheetState extends ConsumerState<_TemplatesSheet> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: Text('${widget.subject} templates', style: Theme.of(context).textTheme.titleLarge),
+              child: Text(l10n.staffSubjectTemplates(widget.subject), style: Theme.of(context).textTheme.titleLarge),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text('Kept on this phone. Tap one to fill in the report.', style: TextStyle(color: colors.muted)),
+              child: Text(l10n.staffTemplatesHint, style: TextStyle(color: colors.muted)),
             ),
             if (templates == null)
               const Padding(
@@ -602,10 +598,7 @@ class _TemplatesSheetState extends ConsumerState<_TemplatesSheet> {
               Padding(
                 key: const Key('report-templates-empty'),
                 padding: const EdgeInsets.all(16),
-                child: Text(
-                  'None yet. Type a report you write often, then save it here.',
-                  style: TextStyle(color: colors.muted),
-                ),
+                child: Text(l10n.staffTemplatesEmpty, style: TextStyle(color: colors.muted)),
               )
             else
               Flexible(
@@ -618,11 +611,15 @@ class _TemplatesSheetState extends ConsumerState<_TemplatesSheet> {
                         title: Text(template.topic, maxLines: 2, overflow: TextOverflow.ellipsis),
                         subtitle: template.homework.isEmpty
                             ? null
-                            : Text('Homework: ${template.homework}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                            : Text(
+                                l10n.staffHomeworkLine(template.homework),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                         onTap: () => Navigator.of(context).pop(template),
                         trailing: IconButton(
                           key: Key('report-template-delete-$index'),
-                          tooltip: 'Delete this template',
+                          tooltip: l10n.staffDeleteTemplate,
                           icon: const Icon(Icons.delete_outline),
                           onPressed: () => _delete(template),
                         ),
@@ -636,7 +633,7 @@ class _TemplatesSheetState extends ConsumerState<_TemplatesSheet> {
                 key: const Key('report-template-save'),
                 onPressed: canSave ? _saveCurrent : null,
                 icon: const Icon(Icons.bookmark_add_outlined),
-                label: Text(canSave ? 'Save what is typed as a template' : 'Type what was taught to save a template'),
+                label: Text(canSave ? l10n.staffSaveAsTemplate : l10n.staffTypeToSaveTemplate),
               ),
             ),
           ],

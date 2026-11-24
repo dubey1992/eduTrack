@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/teacher_brand.dart';
 import '../../../core/widgets/teacher_mark.dart';
 import '../application/auth_notifier.dart';
@@ -127,9 +128,9 @@ class _TeacherSplashScreenState extends ConsumerState<TeacherSplashScreen> with 
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 6),
-                                const Text(
-                                  'Your school day, in your pocket.',
-                                  style: TextStyle(color: soft, fontSize: 15),
+                                Text(
+                                  context.l10n.staffSplashTagline,
+                                  style: const TextStyle(color: soft, fontSize: 15),
                                   textAlign: TextAlign.center,
                                 ),
                               ],
@@ -146,7 +147,7 @@ class _TeacherSplashScreenState extends ConsumerState<TeacherSplashScreen> with 
                               foregroundColor: TeacherBrand.tealDeep,
                             ),
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Try again'),
+                            label: Text(context.l10n.staffTryAgain),
                           ),
                           const SizedBox(height: 12),
                         ] else
@@ -157,9 +158,7 @@ class _TeacherSplashScreenState extends ConsumerState<TeacherSplashScreen> with 
                           ),
                         const SizedBox(height: 14),
                         Text(
-                          _slow
-                              ? 'Still trying to reach your school. Check that this phone is online.'
-                              : 'Getting your day ready…',
+                          _slow ? context.l10n.staffSplashSlow : context.l10n.staffSplashLoading,
                           key: const Key('splash-status'),
                           style: const TextStyle(color: soft, fontSize: 14),
                           textAlign: TextAlign.center,

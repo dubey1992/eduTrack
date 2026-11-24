@@ -249,6 +249,14 @@ the product owner before that phase starts.
 - **Native:** `TodayWidgetProvider` + `today_widget` layout in the shared Android code, registered only in the teacher and family manifests (the Bus app has none). New packages `home_widget` and `workmanager`; workmanager's `FOREGROUND_SERVICE_SHORT_SERVICE` permission is removed (the job is short). The Staff app's manifest already removes `RECEIVE_BOOT_COMPLETED`, so after a phone restart the background refresh resumes when the app is next opened.
 - **Shipping:** the Staff widget can go live with a new Staff APK; the Family widget waits with the Family app.
 
+**M11 decided by the owner 2026-11-24, and built on main (languages, 3.1).** Phone apps first (Bus, Staff, Family; the web office stays English, ready to follow); Hindi now, further languages when a school asks (one more `app_<code>.arb` each); each person picks in Profile / More, the phone's language by default, kept on the phone (no database change); app screens only - the server's own text (SMS/WhatsApp/push, notices, names, server error messages) stays English this phase.
+
+- **How:** Flutter's own localisation (SDK). Strings live in `frontend/lib/l10n/parts/<area>_{en,hi}.json` (common, core, widget, bus, staff, family); `python tool/merge_arb.py` builds the `.arb` files and the Dart. `context.l10n` falls back to English where no translations are set up (the web office, most widget tests), so shared screens never break. About 1,380 strings; the English is unchanged.
+- **Hindi:** drafted to `docs/hindi-glossary.md` - **needs a native speaker's review before release** (one open question there: masculine vs neutral wording about a child).
+- **Left English on purpose:** server-written text; weekday/month names inside dates (dates keep their US order); the Bus app's spoken next-stop prompt (needs a Hindi voice); phone-settings paths in the battery help.
+- **Home-screen widget:** its cards follow the same language choice.
+- **Still to do in M11:** 3.4 - large text and screen readers across the three apps.
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?

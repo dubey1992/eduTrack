@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/utils/date_format.dart';
 import '../../application/family_offline.dart';
 import 'family_widgets.dart';
@@ -27,7 +28,7 @@ class SavedCopyLine extends ConsumerWidget {
     return Padding(
       key: Key('family-saved-copy-$name'),
       padding: const EdgeInsets.only(bottom: 10),
-      child: UpdatedLine(text: 'No connection. Showing what was true at $when.', stale: true),
+      child: UpdatedLine(text: context.l10n.familyShowingSavedAt(when), stale: true),
     );
   }
 }

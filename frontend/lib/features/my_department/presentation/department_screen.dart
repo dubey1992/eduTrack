@@ -6,6 +6,8 @@ import '../../auth/application/auth_notifier.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/utils/date_period.dart';
 import '../../../core/widgets/period_filter.dart';
 import '../../reports/data/models/report.dart';
@@ -23,6 +25,7 @@ import '../../staff_attendance/data/models/staff_attendance_register.dart';
 import '../../staff_attendance/data/models/staff_attendance_status.dart';
 import '../../teaching_reports/data/models/teaching_report.dart';
 import '../application/department_providers.dart';
+import '../../today/presentation/staff_words.dart';
 
 /// The Department tab, for an HOD (docs/teacher-app.md, T7): the reports
 /// waiting for their review, the department's leave to decide, who is in
@@ -36,6 +39,7 @@ class DepartmentScreen extends ConsumerWidget {
     final user = ref.watch(authNotifierProvider).value;
     // Leave is decided where the role may manage it - an HOD, by default.
     final decidesLeave = user?.canManage(AppModules.leave) ?? false;
+    final l10n = context.l10n;
 
     return DefaultTabController(
       length: decidesLeave ? 4 : 3,
@@ -44,10 +48,10 @@ class DepartmentScreen extends ConsumerWidget {
           TabBar(
             key: const Key('department-tabs'),
             tabs: [
-              const Tab(key: Key('department-tab-review'), text: 'To review'),
-              if (decidesLeave) const Tab(key: Key('department-tab-leave'), text: 'Leave'),
-              const Tab(key: Key('department-tab-staff'), text: 'Staff'),
-              const Tab(key: Key('department-tab-month'), text: 'Teachers'),
+              Tab(key: const Key('department-tab-review'), text: l10n.staffTabToReview),
+              if (decidesLeave) Tab(key: const Key('department-tab-leave'), text: l10n.staffNavLeave),
+              Tab(key: const Key('department-tab-staff'), text: l10n.staffTabStaff),
+              Tab(key: const Key('department-tab-month'), text: l10n.staffTabTeachers),
             ],
           ),
           Expanded(
@@ -109,6 +113,7 @@ class _ReviewTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final queue = ref.watch(reviewQueueProvider);
     final notifier = ref.read(reviewQueueProvider.notifier);
+    final l10n = context.l10n;
 
     return RefreshIndicator(
       key: const Key('review-refresh'),
@@ -117,7 +122,7 @@ class _ReviewTab extends ConsumerWidget {
         key: const Key('review-list'),
         padding: const EdgeInsets.all(16),
         children: [
-          const _Intro('Reports from your department that nobody has reviewed yet. Open one to read and review it.'),
+          _Intro(l10n.staffReviewIntro),
           const SizedBox(height: 12),
           PeriodFilter(value: notifier.period, onChanged: notifier.setPeriod),
           const SizedBox(height: 16),
@@ -131,10 +136,8 @@ class _ReviewTab extends ConsumerWidget {
             _Empty(
               key: const Key('review-empty'),
               icon: Icons.task_alt,
-              title: notifier.period == DatePeriod.all
-                  ? 'Nothing waiting for review.'
-                  : 'Nothing waiting for review ${notifier.period == DatePeriod.day ? 'from today' : 'from ${notifier.period.label.toLowerCase()}'}.',
-              body: 'Reports your department files appear here until you review them.',
+              title: l10n.staffReviewEmpty(notifier.period.name),
+              body: l10n.staffReviewEmptyBody,
             )
           else ...[
             for (final report in queue.requireValue.items) ...[_ReviewCard(report: report), const SizedBox(height: 10)],
@@ -143,7 +146,7 @@ class _ReviewTab extends ConsumerWidget {
                 child: TextButton(
                   key: const Key('review-more'),
                   onPressed: () => ref.read(reviewQueueProvider.notifier).loadMore(),
-                  child: const Text('Show more'),
+                  child: Text(l10n.staffShowMore),
                 ),
               ),
           ],
@@ -164,7 +167,7 @@ class _ReviewCard extends StatelessWidget {
     final where = [
       report.subjectName,
       report.classSectionName,
-      if (report.periodNumber != null) 'Period ${report.periodNumber}',
+      if (report.periodNumber != null) context.l10n.staffPeriodNumber(report.periodNumber!),
     ].whereType<String>().join(' · ');
 
     return Card(
@@ -181,7 +184,7 @@ class _ReviewCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      report.teacherName ?? 'A teacher',
+                      report.teacherName ?? context.l10n.staffATeacher,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -219,9 +222,8 @@ class _StaffTab extends ConsumerWidget {
         children: [
           _Intro(
             period == DatePeriod.day
-                ? 'Your department today: who is in, and when they arrived. Mark anyone the register is missing.'
-                : 'Your department ${period.label.toLowerCase()}: each person\'s days in, absent and on leave, '
-                      'out of the school days so far.',
+                ? context.l10n.staffDeptTodayIntro
+                : context.l10n.staffDeptPeriodIntro(period.name),
           ),
           const SizedBox(height: 12),
           PeriodFilter(
@@ -242,7 +244,8 @@ class _StaffTab extends ConsumerWidget {
   }
 }
 
-String _schoolDays(Object count) => count == 1 ? '1 school day so far' : '$count school days so far';
+String _schoolDays(AppLocalizations l10n, Object count) =>
+    count == 1 ? l10n.staffOneSchoolDaySoFar : l10n.staffSchoolDaysSoFar('$count');
 
 /// A week or a month: each person's totals, out of the school days so far.
 class _Summary extends StatelessWidget {
@@ -253,13 +256,14 @@ class _Summary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     if (summary.rows.isEmpty) {
-      return const _Empty(
-        key: Key('staff-period-empty'),
+      return _Empty(
+        key: const Key('staff-period-empty'),
         icon: Icons.group_off_outlined,
-        title: 'Nobody in your department yet.',
-        body: 'The school office adds staff to departments on the website.',
+        title: l10n.staffNobodyInDept,
+        body: l10n.staffOfficeAddsStaff,
       );
     }
 
@@ -279,7 +283,7 @@ class _Summary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _schoolDays(summary.totals['working_days'] ?? 0),
+          _schoolDays(l10n, summary.totals['working_days'] ?? 0),
           key: const Key('staff-period-days'),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
@@ -306,11 +310,11 @@ class _Summary extends StatelessWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      figure(row['present'] ?? 0, 'present', colors.success),
-                      figure(row['half_day'] ?? 0, 'half day', colors.info),
-                      figure(row['absent'] ?? 0, 'absent', colors.danger),
-                      figure(row['leave'] ?? 0, 'leave', colors.info),
-                      figure(row['not_marked'] ?? 0, 'unmarked', colors.muted),
+                      figure(row['present'] ?? 0, l10n.staffFigPresent, colors.success),
+                      figure(row['half_day'] ?? 0, l10n.staffFigHalfDay, colors.info),
+                      figure(row['absent'] ?? 0, l10n.staffFigAbsent, colors.danger),
+                      figure(row['leave'] ?? 0, l10n.staffFigLeave, colors.info),
+                      figure(row['not_marked'] ?? 0, l10n.staffFigUnmarked, colors.muted),
                     ],
                   ),
                 ],
@@ -331,21 +335,22 @@ class _Register extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     if (register.holiday != null) {
       return _Empty(
         key: const Key('staff-today-holiday'),
         icon: Icons.event_busy_outlined,
-        title: 'Holiday: ${register.holiday!.name}',
-        body: 'The school is closed today.',
+        title: l10n.staffHolidayNamed(register.holiday!.name),
+        body: l10n.staffSchoolClosedToday,
       );
     }
 
     if (register.staff.isEmpty) {
-      return const _Empty(
-        key: Key('staff-today-empty'),
+      return _Empty(
+        key: const Key('staff-today-empty'),
         icon: Icons.group_off_outlined,
-        title: 'Nobody in your department yet.',
-        body: 'The school office adds staff to departments on the website.',
+        title: l10n.staffNobodyInDept,
+        body: l10n.staffOfficeAddsStaff,
       );
     }
 
@@ -398,12 +403,15 @@ class _MarkableRegisterState extends ConsumerState<_MarkableRegister> {
             .where((s) => s.status == StaffAttendanceStatus.present || s.status == StaffAttendanceStatus.halfDay)
             .length;
         final unmarked = day.staff.where((s) => s.status == null).length;
+        final l10n = context.l10n;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$present of ${day.staff.length} in${unmarked > 0 ? ' · $unmarked not marked yet' : ''}',
+              unmarked > 0
+                  ? l10n.staffInOfUnmarked(present, day.staff.length, unmarked)
+                  : l10n.staffInOf(present, day.staff.length),
               key: const Key('staff-today-summary'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
@@ -422,7 +430,7 @@ class _MarkableRegisterState extends ConsumerState<_MarkableRegister> {
                   OutlinedButton(
                     key: const Key('staff-register-all-present'),
                     onPressed: _saving ? null : notifier.markAllPresent,
-                    child: const Text('All present'),
+                    child: Text(l10n.staffAllPresent),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -431,10 +439,10 @@ class _MarkableRegisterState extends ConsumerState<_MarkableRegister> {
                       onPressed: _saving || !notifier.isComplete ? null : () => _save(day.submitted),
                       child: Text(
                         _saving
-                            ? 'Saving...'
+                            ? l10n.staffSaving
                             : notifier.isComplete
-                            ? (day.submitted ? 'Update register' : 'Submit register')
-                            : 'Mark everyone ($unmarked left)',
+                            ? (day.submitted ? l10n.staffUpdateRegister : l10n.staffSubmitRegister)
+                            : l10n.staffMarkEveryone(unmarked),
                       ),
                     ),
                   ),
@@ -459,14 +467,15 @@ class _StaffRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
     final times = [
-      if (person.checkIn != null) 'In ${formatClock(person.checkIn!)}',
-      if (person.checkOut != null) 'out ${formatClock(person.checkOut!)}',
-      if (person.checkedInFromApp) 'from the app',
+      if (person.checkIn != null) l10n.staffTimeIn(formatClock(person.checkIn!)),
+      if (person.checkOut != null) l10n.staffTimeOut(formatClock(person.checkOut!)),
+      if (person.checkedInFromApp) l10n.staffFromTheApp,
     ].join(' · ');
 
     final mark = onMark;
-    final badge = _badge();
+    final badge = _badge(l10n);
     if (mark != null) {
       return Card(
         key: Key('staff-today-${person.staffProfileId}'),
@@ -485,7 +494,7 @@ class _StaffRow extends StatelessWidget {
                   for (final status in StaffAttendanceStatus.values)
                     ChoiceChip(
                       key: Key('staff-mark-${person.staffProfileId}-${status.apiValue}'),
-                      label: Text(status.label),
+                      label: Text(staffAttendanceLabel(l10n, status)),
                       selected: person.status == status,
                       onSelected: (_) => mark(status),
                     ),
@@ -507,16 +516,16 @@ class _StaffRow extends StatelessWidget {
     );
   }
 
-  Widget _badge() {
+  Widget _badge(AppLocalizations l10n) {
     return switch (person.status) {
-      null => const StatusBadge(label: 'Not marked', tone: BadgeTone.neutral),
+      null => StatusBadge(label: l10n.staffNotMarked, tone: BadgeTone.neutral),
       StaffAttendanceStatus.present =>
         person.late
-            ? const StatusBadge(label: 'Present · late', tone: BadgeTone.warning)
-            : const StatusBadge(label: 'Present', tone: BadgeTone.success),
-      StaffAttendanceStatus.halfDay => const StatusBadge(label: 'Half day', tone: BadgeTone.info),
-      StaffAttendanceStatus.leave => const StatusBadge(label: 'Leave', tone: BadgeTone.info),
-      StaffAttendanceStatus.absent => const StatusBadge(label: 'Absent', tone: BadgeTone.danger),
+            ? StatusBadge(label: l10n.staffPresentLate, tone: BadgeTone.warning)
+            : StatusBadge(label: l10n.staffPresent, tone: BadgeTone.success),
+      StaffAttendanceStatus.halfDay => StatusBadge(label: l10n.staffHalfDay, tone: BadgeTone.info),
+      StaffAttendanceStatus.leave => StatusBadge(label: l10n.staffNavLeave, tone: BadgeTone.info),
+      StaffAttendanceStatus.absent => StatusBadge(label: l10n.staffAbsent, tone: BadgeTone.danger),
     };
   }
 }
@@ -538,17 +547,17 @@ class _LeaveTab extends ConsumerWidget {
         key: const Key('department-leave-list'),
         padding: const EdgeInsets.all(16),
         children: [
-          const _Intro('Leave your department has asked for, waiting for your decision.'),
+          _Intro(context.l10n.staffDeptLeaveIntro),
           const SizedBox(height: 16),
           AsyncValueView<List<StaffLeave>>(
             value: ref.watch(leaveToDecideProvider),
             onRetry: () => ref.invalidate(leaveToDecideProvider),
             isEmpty: (list) => list.isEmpty,
-            emptyBuilder: (context) => const _Empty(
-              key: Key('department-leave-empty'),
+            emptyBuilder: (context) => _Empty(
+              key: const Key('department-leave-empty'),
               icon: Icons.event_available_outlined,
-              title: 'Nothing to decide.',
-              body: 'New requests from your department appear here.',
+              title: context.l10n.staffNothingToDecide,
+              body: context.l10n.staffNothingToDecideBody,
             ),
             data: (context, list) => Column(
               children: [
@@ -576,18 +585,23 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
 
   StaffLeave get leave => widget.leave;
 
-  String get _dates {
+  String _dates(AppLocalizations l10n) {
     final start = formatIsoDate(leave.startDate);
-    return leave.startDate == leave.endDate ? start : '$start to ${formatIsoDate(leave.endDate)}';
+    return leave.startDate == leave.endDate ? start : l10n.staffDateRange(start, formatIsoDate(leave.endDate));
   }
 
   Future<void> _decide({required bool approve}) async {
     if (_busy) return;
+    final l10n = context.l10n;
     final confirmed = await confirmDialog(
       context,
-      title: approve ? 'Approve this leave?' : 'Reject this leave?',
-      message: '${leave.staffName ?? 'This request'}: ${leave.leaveType.label}, $_dates.',
-      confirmLabel: approve ? 'Approve' : 'Reject',
+      title: approve ? l10n.staffApproveLeaveQ : l10n.staffRejectLeaveQ,
+      message: l10n.staffLeaveDecideBody(
+        leave.staffName ?? l10n.staffThisRequest,
+        leaveTypeLabel(l10n, leave.leaveType),
+        _dates(l10n),
+      ),
+      confirmLabel: approve ? l10n.staffApprove : l10n.staffReject,
       isDestructive: !approve,
     );
     if (!confirmed || !mounted) return;
@@ -607,9 +621,9 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
           if (failure.code == 'WORKED_ON_LEAVE_DAY' && !confirm && mounted) {
             confirm = await confirmDialog(
               context,
-              title: 'At work that day',
+              title: l10n.staffAtWorkThatDay,
               message: failure.message,
-              confirmLabel: 'Approve anyway',
+              confirmLabel: l10n.staffApproveAnyway,
             );
             if (confirm) continue;
             return;
@@ -617,10 +631,12 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
           rethrow;
         }
       }
-      messenger.showSnackBar(SnackBar(content: Text(approve ? 'Leave approved.' : 'Leave rejected.')));
+      messenger.showSnackBar(
+        SnackBar(content: Text(approve ? l10n.staffLeaveApprovedDone : l10n.staffLeaveRejectedDone)),
+      );
       ref.invalidate(leaveToDecideProvider);
     } on Failure catch (failure) {
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      messenger.showSnackBar(SnackBar(content: Text(mounted ? failure.localizedMessage(context) : failure.message)));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -629,6 +645,7 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     return Card(
       key: Key('department-leave-${leave.id}'),
@@ -638,7 +655,7 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(leave.staffName ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-            Text('${leave.leaveType.label} · $_dates', style: TextStyle(color: colors.muted)),
+            Text('${leaveTypeLabel(l10n, leave.leaveType)} · ${_dates(l10n)}', style: TextStyle(color: colors.muted)),
             const SizedBox(height: 6),
             Text(leave.reason),
             const SizedBox(height: 10),
@@ -648,13 +665,13 @@ class _LeaveCardState extends ConsumerState<_LeaveCard> {
                 TextButton(
                   key: Key('department-leave-reject-${leave.id}'),
                   onPressed: _busy ? null : () => _decide(approve: false),
-                  child: const Text('Reject'),
+                  child: Text(l10n.staffReject),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
                   key: Key('department-leave-approve-${leave.id}'),
                   onPressed: _busy ? null : () => _decide(approve: true),
-                  child: const Text('Approve'),
+                  child: Text(l10n.staffApprove),
                 ),
               ],
             ),
@@ -679,17 +696,17 @@ class _MonthTab extends ConsumerWidget {
         key: const Key('month-list'),
         padding: const EdgeInsets.all(16),
         children: [
-          const _Intro('Each teacher this month: reports filed against periods taught, syllabus covered, attendance.'),
+          _Intro(context.l10n.staffMonthIntro),
           const SizedBox(height: 16),
           AsyncValueView<HodDepartmentReport>(
             value: ref.watch(departmentMonthProvider),
             onRetry: () => ref.invalidate(departmentMonthProvider),
             isEmpty: (report) => report.teachers.isEmpty,
-            emptyBuilder: (context) => const _Empty(
-              key: Key('month-empty'),
+            emptyBuilder: (context) => _Empty(
+              key: const Key('month-empty'),
               icon: Icons.group_off_outlined,
-              title: 'No teachers in your department yet.',
-              body: 'The school office adds staff to departments on the website.',
+              title: context.l10n.staffNoTeachersInDept,
+              body: context.l10n.staffOfficeAddsStaff,
             ),
             data: (context, report) => Column(
               children: [
@@ -711,6 +728,7 @@ class _TeacherCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final l10n = context.l10n;
 
     Widget figure(String value, String label) => Expanded(
       child: Column(
@@ -741,17 +759,17 @@ class _TeacherCard extends StatelessWidget {
                   ),
                 ),
                 row.status == HodTeacherStatus.onTrack
-                    ? const StatusBadge(label: 'On track', tone: BadgeTone.success)
-                    : const StatusBadge(label: 'Needs a look', tone: BadgeTone.warning),
+                    ? StatusBadge(label: l10n.staffOnTrack, tone: BadgeTone.success)
+                    : StatusBadge(label: l10n.staffNeedsALook, tone: BadgeTone.warning),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                figure('${row.reportsSubmitted}/${row.classesTaught}', 'reports / periods'),
-                figure('${row.reportsPendingReview}', 'to review'),
-                figure('${row.syllabusPercent}%', 'syllabus'),
-                figure('${row.attendancePercent.round()}%', 'attendance'),
+                figure('${row.reportsSubmitted}/${row.classesTaught}', l10n.staffFigReportsPeriods),
+                figure('${row.reportsPendingReview}', l10n.staffFigToReview),
+                figure('${row.syllabusPercent}%', l10n.staffFigSyllabus),
+                figure('${row.attendancePercent.round()}%', l10n.staffFigAttendance),
               ],
             ),
           ],

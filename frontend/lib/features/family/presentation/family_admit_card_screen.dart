@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/l10n/failure_text.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../application/family_session_notifier.dart';
 import '../data/family_repository.dart';
@@ -40,7 +42,8 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
       final name = 'admit-card-${child.firstName.toLowerCase()}-${card.name.toLowerCase().replaceAll(' ', '-')}.pdf';
       await ref.read(pdfHandOffProvider)(bytes, name);
     } on Failure catch (failure) {
-      messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(failure.localizedMessage(context))));
     } finally {
       if (mounted) setState(() => _downloading = null);
     }
@@ -56,13 +59,13 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Admit cards'),
+            Text(context.l10n.familyAdmitCards),
             if (child != null) Text(child.fullName, style: TextStyle(fontSize: 12, color: colors.muted)),
           ],
         ),
       ),
       body: child == null
-          ? const FamilyEmptyView(icon: Icons.family_restroom_rounded, title: 'No children to show')
+          ? FamilyEmptyView(icon: Icons.family_restroom_rounded, title: context.l10n.familyNoChildrenTitle)
           : ref
                 .watch(familyAdmitCardsProvider(child.id))
                 .when(
@@ -70,11 +73,11 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
                   error: (error, _) =>
                       FamilyErrorView(error: error, onRetry: () => ref.invalidate(familyAdmitCardsProvider(child.id))),
                   data: (cards) => cards.isEmpty
-                      ? const FamilyEmptyView(
-                          key: Key('family-admit-cards-empty'),
+                      ? FamilyEmptyView(
+                          key: const Key('family-admit-cards-empty'),
                           icon: Icons.badge_outlined,
-                          title: 'No admit cards yet',
-                          message: 'When the school publishes an exam your child sits, its admit card appears here.',
+                          title: context.l10n.familyNoAdmitCards,
+                          message: context.l10n.familyNoAdmitCardsMessage,
                         )
                       : RefreshIndicator(
                           onRefresh: () async => ref.invalidate(familyAdmitCardsProvider(child.id)),
@@ -93,6 +96,7 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
   }
 
   Future<void> _addToCalendar(FamilyChild child, FamilyAdmitCard card) async {
+    final l10n = context.l10n;
     final file = calendarFile([
       for (final paper in card.papers)
         CalendarItem.timed(
@@ -102,7 +106,7 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
           start: paper.start,
           end: paper.end,
           location: card.centre,
-          note: card.reportingTime == null ? null : 'Reporting time ${card.reportingTime}.',
+          note: card.reportingTime == null ? null : l10n.familyReportingTime(card.reportingTime!),
         ),
     ], name: card.name);
 
@@ -111,8 +115,7 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
     } catch (error) {
       debugPrint('Sharing the exam calendar failed: $error');
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('The calendar file could not be shared.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.familyCalendarShareFailed)));
       }
     }
   }
@@ -137,7 +140,7 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
             Text(card.message, style: TextStyle(color: card.available ? colors.success : colors.warning, fontSize: 14)),
             if (card.available && card.issuedOn != null)
               Text(
-                'Version ${card.version}, issued ${card.issuedOn}',
+                context.l10n.familyAdmitVersion('${card.version}', '${card.issuedOn}'),
                 style: TextStyle(color: colors.muted, fontSize: 12),
               ),
             if (card.available) ...[
@@ -148,7 +151,7 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
                 icon: busy
                     ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.download_rounded, size: 18),
-                label: const Text('Download admit card'),
+                label: Text(context.l10n.familyDownloadAdmitCard),
               ),
             ],
             // The date sheet into the phone's calendar (M8, 6.3) - offered
@@ -159,7 +162,7 @@ class _FamilyAdmitCardsScreenState extends ConsumerState<FamilyAdmitCardsScreen>
                 key: Key('family-exam-calendar-${card.examinationId}'),
                 onPressed: () => _addToCalendar(child, card),
                 icon: const Icon(Icons.event_available_rounded, size: 18),
-                label: Text('Add ${card.papers.length} ${card.papers.length == 1 ? 'paper' : 'papers'} to calendar'),
+                label: Text(context.l10n.familyAddPapersToCalendar(card.papers.length)),
               ),
             ],
           ],

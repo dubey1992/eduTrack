@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/battery_guard.dart';
 
@@ -34,61 +35,41 @@ class _BatteryHelpScreenState extends ConsumerState<BatteryHelpScreen> {
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            exempt
-                ? 'Done. This phone will keep reporting with the screen off.'
-                : 'Not changed. The steps below do the same thing by hand.',
-          ),
-        ),
-      );
+      ..showSnackBar(SnackBar(content: Text(exempt ? context.l10n.busBatteryDone : context.l10n.busBatteryNotChanged)));
   }
 
   @override
   Widget build(BuildContext context) {
     final exempt = ref.watch(phoneMayStopSharingProvider).value == false;
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Keep the bus on the map')),
+      appBar: AppBar(title: Text(l10n.busBatteryTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Why the school sometimes loses the bus', style: Theme.of(context).textTheme.titleLarge),
+          Text(l10n.busBatteryWhy, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          const Text(
-            'While a trip is running, this phone sends its position to the school so the office and '
-            'parents can see where the bus is. Most phones stop apps they think you are not using - '
-            'and a phone in a cradle with its screen off looks exactly like an app nobody is using.\n\n'
-            'These two settings tell the phone this one is different. You only have to do it once.',
-          ),
+          Text(l10n.busBatteryIntro),
           const SizedBox(height: 24),
           _Step(
             number: 1,
-            title: 'Allow it to run in the background',
-            body: exempt
-                ? 'Already allowed on this phone.'
-                : 'This is the setting Android itself controls, and the button below opens it.',
+            title: l10n.busBatteryStep1Title,
+            body: exempt ? l10n.busBatteryStep1Done : l10n.busBatteryStep1Body,
             trailing: exempt
                 ? Icon(Icons.check_circle, color: context.appColors.success)
                 : FilledButton(
                     key: const Key('allow-background'),
                     onPressed: _asking ? null : _ask,
-                    child: const Text('Allow'),
+                    child: Text(l10n.busBatteryAllow),
                   ),
           ),
           const SizedBox(height: 16),
-          _Step(
-            number: 2,
-            title: 'Turn off your phone maker\'s battery saver for this app',
-            body:
-                'This one is not the same on every phone, and no app can change it for you. '
-                'Find your make below.',
-          ),
+          _Step(number: 2, title: l10n.busBatteryStep2Title, body: l10n.busBatteryStep2Body),
           const SizedBox(height: 8),
-          for (final make in _makes)
+          for (final make in _makesIn(l10n))
             ExpansionTile(
-              key: Key('make-${make.name.toLowerCase()}'),
+              key: Key('make-${make.key}'),
               title: Text(make.name),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               children: [
@@ -106,10 +87,7 @@ class _BatteryHelpScreenState extends ConsumerState<BatteryHelpScreen> {
               ],
             ),
           const SizedBox(height: 24),
-          Text(
-            'If you are not sure which make your phone is, show this screen to your school office.',
-            style: TextStyle(color: context.appColors.muted),
-          ),
+          Text(l10n.busBatteryNotSure, style: TextStyle(color: context.appColors.muted)),
         ],
       ),
     );
@@ -155,8 +133,10 @@ class _Step extends StatelessWidget {
 }
 
 class _Make {
-  const _Make(this.name, this.steps);
+  const _Make(this.key, this.name, this.steps);
 
+  /// The make in English, lower case - stays the same in every language.
+  final String key;
   final String name;
   final List<String> steps;
 }
@@ -164,27 +144,12 @@ class _Make {
 /// The makes that actually kill foreground services, and the path through
 /// each one's settings. Written as what a driver reads on the screen in
 /// front of them, not as menu trees that change with every OS update.
-const _makes = [
-  _Make('Xiaomi, Redmi or POCO', [
-    'Settings > Apps > Manage apps > School365ai Driver > Battery saver > No restrictions.',
-    'On the same screen, turn on Autostart.',
-    'Open Recent apps, swipe down on this app\'s card and tap the padlock so it is not cleared.',
-  ]),
-  _Make('Oppo, Realme or OnePlus', [
-    'Settings > Battery > Power saving > App battery usage (or App battery management).',
-    'Find School365ai Driver and choose Allow background activity, or Don\'t optimise.',
-    'Turn on Allow auto launch for this app.',
-  ]),
-  _Make('Vivo or iQOO', [
-    'Settings > Battery > Background power consumption management > School365ai Driver > Allow high background power consumption.',
-    'Settings > Apps > Autostart, and turn it on for this app.',
-  ]),
-  _Make('Samsung', [
-    'Settings > Apps > School365ai Driver > Battery > Unrestricted.',
-    'Settings > Battery > Background usage limits, and make sure this app is not in Sleeping apps or Deep sleeping apps.',
-  ]),
-  _Make('Any other phone', [
-    'Settings > Apps > School365ai Driver > Battery, and choose the least restricted option offered.',
-    'If there is an Autostart or Auto launch setting, turn it on.',
-  ]),
+/// The menu names stay in English in every language: they are what the
+/// phone's own settings show.
+List<_Make> _makesIn(AppLocalizations l10n) => [
+  _Make('xiaomi, redmi or poco', l10n.busMakeXiaomi, [l10n.busMakeXiaomi1, l10n.busMakeXiaomi2, l10n.busMakeXiaomi3]),
+  _Make('oppo, realme or oneplus', l10n.busMakeOppo, [l10n.busMakeOppo1, l10n.busMakeOppo2, l10n.busMakeOppo3]),
+  _Make('vivo or iqoo', l10n.busMakeVivo, [l10n.busMakeVivo1, l10n.busMakeVivo2]),
+  _Make('samsung', l10n.busMakeSamsung, [l10n.busMakeSamsung1, l10n.busMakeSamsung2]),
+  _Make('any other phone', l10n.busMakeOther, [l10n.busMakeOther1, l10n.busMakeOther2]),
 ];

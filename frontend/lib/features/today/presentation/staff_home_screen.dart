@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/models/module_access.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../check_in/application/check_in_notifier.dart';
 import '../../check_in/data/models/my_attendance_day.dart';
 import '../../check_in/presentation/check_in_card.dart';
+import '../../../l10n/app_localizations_en.dart';
 
 /// Home for everybody in the school who does not teach a timetable - office
 /// staff, accountants, transport managers, the school's administrators
@@ -37,7 +39,7 @@ class StaffHomeScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           Text(
-            firstName.isEmpty ? 'Good day' : 'Good day, $firstName',
+            firstName.isEmpty ? context.l10n.staffGoodDay : context.l10n.staffGoodDayName(firstName),
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
           if (day != null) ...[
@@ -59,7 +61,7 @@ class StaffHomeScreen extends ConsumerWidget {
                 key: const Key('staff-home-open-students'),
                 onPressed: () => context.push('/find-student'),
                 icon: const Icon(Icons.person_search_outlined),
-                label: const Text('Find a student'),
+                label: Text(context.l10n.staffFindAStudent),
               ),
             ),
           const SizedBox(height: 12),
@@ -71,6 +73,7 @@ class StaffHomeScreen extends ConsumerWidget {
               Expanded(
                 child: Text(
                   whereThingsAre(
+                    l10n: context.l10n,
                     leave: user?.canView(AppModules.leave) ?? false,
                     pay: user?.moduleOn(AppModules.payroll) ?? false,
                   ),
@@ -89,15 +92,18 @@ class StaffHomeScreen extends ConsumerWidget {
 /// Where the rest of this app is, naming only the tabs this school has -
 /// the old note promised leave and payslips "next" after they had arrived
 /// (docs/mobile-apps-review.md, 7.6).
-String whereThingsAre({required bool leave, required bool pay}) {
+///
+/// English unless [l10n] is given.
+String whereThingsAre({required bool leave, required bool pay, AppLocalizations? l10n}) {
+  final words = l10n ?? AppLocalizationsEn();
   final tabs = switch ((leave, pay)) {
-    (true, true) => 'Your leave and payslips are in the Leave and Pay tabs below. ',
-    (true, false) => 'Your leave is in the Leave tab below. ',
-    (false, true) => 'Your payslips are in the Pay tab below. ',
+    (true, true) => '${words.staffWhereLeaveAndPay} ',
+    (true, false) => '${words.staffWhereLeave} ',
+    (false, true) => '${words.staffWherePay} ',
     (false, false) => '',
   };
 
-  return "${tabs}The school's messages are under the bell at the top.";
+  return '$tabs${words.staffWhereMessages}';
 }
 
 /// On a day the check-in card has nothing to offer, the reason in words -
@@ -109,15 +115,12 @@ class _WhyNoCheckIn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final (icon, title, body) = !day.isOpen
-        ? (Icons.event_busy_outlined, 'No school today', 'The school is closed, so there is nothing to check in to.')
+        ? (Icons.event_busy_outlined, l10n.staffNoSchoolToday, l10n.staffClosedNoCheckIn)
         : day.onLeave
-        ? (Icons.beach_access_outlined, 'You are on leave today', 'Nothing to check in to while you are away.')
-        : (
-            Icons.apartment_outlined,
-            'Attendance is marked in the office',
-            'Your school records staff attendance itself rather than from the app.',
-          );
+        ? (Icons.beach_access_outlined, l10n.staffOnLeaveToday, l10n.staffOnLeaveNoCheckIn)
+        : (Icons.apartment_outlined, l10n.staffMarkedInOffice, l10n.staffMarkedInOfficeBody);
 
     return Card(
       key: const Key('staff-home-no-check-in'),

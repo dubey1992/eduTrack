@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/l10n.dart';
 import '../../../../core/widgets/user_avatar.dart';
 import '../../../transport/data/models/transport_trip.dart';
 
@@ -23,9 +24,6 @@ Future<List<TripRider>?> showBulkMarkSheet(
   );
 }
 
-/// "Board" / "Drop" - the verb on the sheet's button.
-String bulkVerb(TripRiderStatus to) => to == TripRiderStatus.dropped ? 'Drop' : 'Board';
-
 class _BulkMarkSheet extends StatefulWidget {
   const _BulkMarkSheet({required this.riders, required this.to, required this.where});
 
@@ -42,7 +40,8 @@ class _BulkMarkSheetState extends State<_BulkMarkSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final verb = bulkVerb(widget.to);
+    final l10n = context.l10n;
+    final dropping = widget.to == TripRiderStatus.dropped;
     final chosen = [
       for (final rider in widget.riders)
         if (_ticked.contains(rider.studentId)) rider,
@@ -58,11 +57,14 @@ class _BulkMarkSheetState extends State<_BulkMarkSheet> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: Text('$verb at ${widget.where}', style: Theme.of(context).textTheme.titleLarge),
+              child: Text(
+                dropping ? l10n.busBulkTitleDrop(widget.where) : l10n.busBulkTitleBoard(widget.where),
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text('Untick anyone who is not here.', style: Theme.of(context).textTheme.bodyMedium),
+              child: Text(l10n.busUntickHelp, style: Theme.of(context).textTheme.bodyMedium),
             ),
             Flexible(
               child: ListView(
@@ -93,7 +95,9 @@ class _BulkMarkSheetState extends State<_BulkMarkSheet> {
                 child: FilledButton(
                   key: const Key('bulk-mark-confirm'),
                   onPressed: chosen.isEmpty ? null : () => Navigator.of(context).pop(chosen),
-                  child: Text('$verb ${chosen.length}'),
+                  child: Text(
+                    dropping ? l10n.busBulkConfirmDrop(chosen.length) : l10n.busBulkConfirmBoard(chosen.length),
+                  ),
                 ),
               ),
             ),

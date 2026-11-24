@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/errors/failure.dart';
+import '../../core/l10n/failure_text.dart';
+import '../../core/l10n/l10n.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/network/paginated_response.dart';
 import '../../core/theme/app_colors.dart';
@@ -132,12 +134,13 @@ class CallRequestsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final open = ref.watch(callRequestsOpenProvider);
     final requests = ref.watch(callRequestsProvider);
+    final l10n = context.l10n;
 
     final filter = SegmentedButton<bool>(
       key: const Key('call-requests-filter'),
-      segments: const [
-        ButtonSegment(value: true, label: Text('To call')),
-        ButtonSegment(value: false, label: Text('Called')),
+      segments: [
+        ButtonSegment(value: true, label: Text(l10n.staffToCall)),
+        ButtonSegment(value: false, label: Text(l10n.staffCalled)),
       ],
       selected: {open},
       onSelectionChanged: (choice) => ref.read(callRequestsOpenProvider.notifier).show(open: choice.first),
@@ -152,13 +155,10 @@ class CallRequestsScreen extends ConsumerWidget {
             child: Align(alignment: Alignment.centerLeft, child: filter),
           )
         else
-          SectionHeader(title: 'Call Requests', actions: [filter]),
+          SectionHeader(title: l10n.staffCallRequestsHeading, actions: [filter]),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'Parents ask to be called from the Family app. Ring them on the number shown, then mark it called.',
-            style: TextStyle(color: context.appColors.muted),
-          ),
+          child: Text(l10n.staffCallRequestsIntro, style: TextStyle(color: context.appColors.muted)),
         ),
         const SizedBox(height: 12),
         AsyncValueView(
@@ -169,7 +169,7 @@ class CallRequestsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(32),
             child: Center(
               child: Text(
-                open ? 'Nobody is waiting for a call.' : 'No calls marked yet.',
+                open ? l10n.staffNobodyWaitingForCall : l10n.staffNoCallsMarked,
                 style: TextStyle(color: context.appColors.muted),
               ),
             ),
@@ -197,6 +197,7 @@ class _RequestCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colours = context.appColors;
     final mobile = request.parentMobile;
+    final l10n = context.l10n;
 
     return Card(
       key: Key('call-request-${request.id}'),
@@ -211,9 +212,11 @@ class _RequestCard extends ConsumerWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(request.parentName, style: Theme.of(context).textTheme.titleMedium),
-                Text('about ${request.studentName}', style: TextStyle(color: colours.muted)),
+                Text(l10n.staffAboutStudentLower(request.studentName), style: TextStyle(color: colours.muted)),
                 StatusBadge(
-                  label: request.toOffice ? 'To the office' : 'To ${request.teacherName ?? 'the class teacher'}',
+                  label: request.toOffice
+                      ? l10n.staffToTheOffice
+                      : l10n.staffToPerson(request.teacherName ?? l10n.staffTheClassTeacher),
                   tone: BadgeTone.info,
                 ),
               ],
@@ -221,10 +224,11 @@ class _RequestCard extends ConsumerWidget {
             const SizedBox(height: 6),
             Text(request.reason),
             if (request.preferredTime != null)
-              Text('Good time: ${request.preferredTime}', style: TextStyle(color: colours.muted, fontSize: 13)),
+              Text(l10n.staffGoodTime(request.preferredTime!), style: TextStyle(color: colours.muted, fontSize: 13)),
             if (request.called)
               Text(
-                'Called by ${request.calledBy ?? 'the school'}${request.outcomeNote == null ? '' : ' · ${request.outcomeNote}'}',
+                '${l10n.staffCalledBy(request.calledBy ?? l10n.staffTheSchool)}'
+                '${request.outcomeNote == null ? '' : ' · ${request.outcomeNote}'}',
                 style: TextStyle(color: colours.muted, fontSize: 13),
               ),
             const SizedBox(height: 10),
@@ -246,7 +250,7 @@ class _RequestCard extends ConsumerWidget {
                       context: context,
                       builder: (_) => _CalledDialog(request: request),
                     ),
-                    child: const Text('Mark as called'),
+                    child: Text(l10n.staffMarkAsCalled),
                   ),
               ],
             ),
@@ -285,15 +289,16 @@ class _CalledDialogState extends ConsumerState<_CalledDialog> {
     });
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
 
     try {
       final note = _note.text.trim();
       await ref.read(callRequestsRepositoryProvider).markCalled(widget.request.id, note: note.isEmpty ? null : note);
       ref.invalidate(callRequestsProvider);
       navigator.pop();
-      messenger.showSnackBar(const SnackBar(content: Text('Marked as called. The parent can see that.')));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.staffMarkedAsCalled)));
     } on Failure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
+      if (mounted) setState(() => _error = failure.localizedMessage(context));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -301,8 +306,10 @@ class _CalledDialogState extends ConsumerState<_CalledDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return AlertDialog(
-      title: Text('Called ${widget.request.parentName}?'),
+      title: Text(l10n.staffCalledPersonQ(widget.request.parentName)),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -314,21 +321,18 @@ class _CalledDialogState extends ConsumerState<_CalledDialog> {
               controller: _note,
               maxLength: 500,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'How did it go? (optional)',
-                helperText: 'Only the school sees this note.',
-              ),
+              decoration: InputDecoration(labelText: l10n.staffHowDidItGo, helperText: l10n.staffOnlySchoolSeesNote),
             ),
             if (_error != null) Text(_error!, style: TextStyle(color: context.appColors.danger, fontSize: 13)),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.cancel)),
         FilledButton(
           key: const Key('call-request-save'),
           onPressed: _saving ? null : _save,
-          child: const Text('Mark as called'),
+          child: Text(l10n.staffMarkAsCalled),
         ),
       ],
     );
