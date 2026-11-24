@@ -58,7 +58,11 @@ def read(request, message_id: int) -> Response:
     if found.user_id != request.user.id:
         raise PermissionDenied()
 
-    return Response(message_resource(MessageService.mark_read(found)))
+    marked = MessageService.mark_read(found)
+    # The same shape as the inbox row it replaces, files included (M9, 8.3).
+    files = notice_attachments.of_announcements([marked.announcement_id] if marked.announcement_id else [])
+
+    return Response({**message_resource(marked), "attachments": files.get(marked.announcement_id, [])})
 
 
 @api_view(["POST"])
