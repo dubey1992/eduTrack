@@ -61,7 +61,7 @@ void main() {
   // design, as the web app does (docs/mobile-apps-review.md).
   for (final (app, light, dark) in [
     ('Driver', AppTheme.crewLight, AppTheme.crewDark),
-    ('Staff', AppTheme.teacherLight, AppTheme.teacherDark),
+    ('Staff', AppTheme.teacherLight, AppTheme.teacherDark),
   ]) {
     testWidgets('the $app app signs in on the School365AI design, in both themes', (tester) async {
       await pump(tester, light(), const AuthCard(child: SizedBox(height: 20)));
