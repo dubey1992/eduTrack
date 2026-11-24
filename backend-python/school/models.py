@@ -2382,3 +2382,29 @@ class AttendanceWarning(models.Model):
     class Meta:
         managed = False
         db_table = 'attendance_warnings'
+
+
+class GuardianInvite(models.Model):
+    """A parent's request that the school add another guardian of their child
+    (docs/mobile-apps-review.md, M8, 8.5). Pending until the office approves
+    (the guardian is then linked, `guardian_student`) or declines."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='guardian_invites')
+    requested_by = models.ForeignKey('User', models.DO_NOTHING, db_column='requested_by', related_name='+')
+    name = models.CharField(max_length=150)
+    mobile = models.CharField(max_length=20)
+    relationship = models.CharField(max_length=20)
+    status = models.CharField(max_length=20, default='pending')
+    decided_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='decided_by', blank=True, null=True, related_name='+'
+    )
+    decided_at = UtcDateTimeField(blank=True, null=True)
+    guardian_student = models.ForeignKey('GuardianStudent', models.DO_NOTHING, blank=True, null=True, related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'guardian_invites'

@@ -33,6 +33,19 @@ class GuardianRequest(_Normalised):
     is_primary = LaravelBooleanField("is_primary", required=False)
 
 
+class GuardianInviteRequest(_Normalised):
+    """A parent asking for another guardian of their child (M8, 8.5): who,
+    their mobile - what they will sign in with - and how they are related."""
+
+    name = LaravelCharField("name", max_length=150)
+    mobile = MobileField("mobile", required=True, allow_null=False, allow_blank=False)
+    relationship = serializers.ChoiceField(
+        choices=family.RELATIONSHIPS,
+        error_messages={"invalid_choice": "Choose mother, father, guardian or other.",
+                        "required": "Choose how they are related to your child."},
+    )
+
+
 class SetupCodeRequest(_Normalised):
     """Issuing a parent's setup code. The first time, the office confirms the
     guardian has agreed to use the Family app (DPDP Act 2023)."""

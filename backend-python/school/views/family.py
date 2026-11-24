@@ -72,6 +72,7 @@ from .. import (
     family_homework,
     family_inbox,
     family_learning,
+    guardian_invites,
     modules,
     notice_replies,
 )
@@ -80,7 +81,7 @@ from ..enums import UserRole
 from ..errors import BusNotLive, ModuleDisabled, NotAFamilyAccount, ProgressReportNotReady
 from ..fees import receipt_pdf, statement_pdf
 from ..family_accounts import FamilyAuthService, assert_family_app_on
-from ..family_requests import FamilyLoginRequest, FamilySetupRequest
+from ..family_requests import FamilyLoginRequest, FamilySetupRequest, GuardianInviteRequest
 from ..family_resources import family_me_resource, family_notice_resource
 from ..pagination import LaravelPagination
 from ..services import MessageService
@@ -496,6 +497,25 @@ def child_call_requests(request, child_id: int) -> Response:
     made = call_requests.ask(child, user, data["recipient"], data["reason"], data.get("preferred_time"))
 
     return Response(call_requests.request_resource(made), status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def child_guardian_invites(request, child_id: int) -> Response:
+    """A parent's requests for another guardian of this child, and asking
+    for one (M8, 8.5). The school decides; nothing is shared until it does."""
+    user = family_reader(request)
+    child = child_of(user, child_id)
+
+    if request.method == "GET":
+        rows = child.guardian_invites.order_by("-created_at", "-id")[:20]
+        return Response({"data": [guardian_invites.family_resource(row) for row in rows]})
+
+    form = GuardianInviteRequest(data=request.data)
+    form.is_valid(raise_exception=True)
+    made = guardian_invites.ask(child, form.validated_data, user)
+
+    return Response(guardian_invites.family_resource(made), status=status.HTTP_201_CREATED)
 
 
 class NoticeReplyRequest(serializers.Serializer):
