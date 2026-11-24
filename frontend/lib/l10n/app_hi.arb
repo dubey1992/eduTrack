@@ -1,0 +1,13 @@
+{
+  "@@locale": "hi",
+  "languageTitle": "भाषा",
+  "languagePhone": "फ़ोन की भाषा",
+  "languageEnglish": "English",
+  "languageHindi": "हिन्दी",
+  "languageChanged": "भाषा बदल दी गई।",
+  "cancel": "रद्द करें",
+  "retry": "फिर से कोशिश करें",
+  "errorNoConnection": "सर्वर से संपर्क नहीं हो सका। अपना इंटरनेट देखें और फिर से कोशिश करें।",
+  "errorTimeout": "सर्वर जवाब देने में सामान्य से ज़्यादा समय ले रहा है। थोड़ी देर में फिर से कोशिश करें।",
+  "errorUnknown": "कुछ गड़बड़ हो गई। कृपया फिर से कोशिश करें।"
+}

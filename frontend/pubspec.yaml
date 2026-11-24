@@ -30,6 +30,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # The phone apps in English and Hindi (docs/mobile-apps-review.md, M11).
+  # Part of the Flutter SDK, not a package from pub.
+  flutter_localizations:
+    sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -110,6 +114,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Builds lib/l10n/app_localizations*.dart from the .arb files beside them
+  # (l10n.yaml).
+  generate: true
 
   assets:
     # The driver app's opening animation - a shuttle running its route and

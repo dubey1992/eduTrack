@@ -18,6 +18,7 @@ import '../data/models/family_records.dart';
 import 'widgets/family_widgets.dart';
 import 'family_talk_screens.dart';
 import '../../../core/widgets/notice_attachment_chips.dart';
+import '../../../core/l10n/language_tile.dart';
 
 /// Opens the phone's dialler, WhatsApp or mail app. Swappable in tests.
 typedef ExternalOpener = Future<bool> Function(Uri uri);
@@ -177,6 +178,9 @@ class FamilyMoreScreen extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        // English or Hindi (M11).
+        const FamilyCard(padding: EdgeInsets.symmetric(vertical: 6), child: LanguageTile()),
         const SizedBox(height: 12),
         if (account != null) _ContactCard(account: account),
         const SizedBox(height: 12),

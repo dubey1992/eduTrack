@@ -13,6 +13,8 @@ import 'features/home_widget/today_widget_refresh.dart';
 import 'features/home_widget/today_widget_sync.dart';
 import 'features/push/push_registrar.dart';
 import 'features/today/application/today_notifier.dart';
+import 'core/l10n/app_language.dart';
+import 'core/l10n/l10n.dart';
 
 /// The app a teacher installs (docs/teacher-app.md).
 ///
@@ -29,7 +31,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // The home-screen widget's half-hourly refresh (M10).
   initialiseTodayWidget();
-  runApp(const ProviderScope(child: TeacherApp()));
+  runApp(ProviderScope(overrides: [languagePickerEnabledProvider.overrideWithValue(true)], child: const TeacherApp()));
 }
 
 class TeacherApp extends ConsumerWidget {
@@ -45,6 +47,10 @@ class TeacherApp extends ConsumerWidget {
       darkTheme: AppTheme.teacherDark(),
       themeMode: ThemeMode.system,
       routerConfig: ref.watch(teacherRouterProvider),
+      // English or Hindi (M11): the person's choice, else the phone's.
+      locale: ref.watch(appLanguageProvider).locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       // No SelectionArea, for the same reasons the driver app has none
       // (main_driver.dart): on a phone it claims every long press and
       // leaves selections behind scrolls, and nobody copies text off a

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'dialog_message.dart';
+import '../l10n/l10n.dart';
 
 /// Asks before doing something the person cannot simply undo.
 ///
@@ -16,7 +17,7 @@ Future<bool> confirmDialog(
   required String title,
   required String message,
   required String confirmLabel,
-  String cancelLabel = 'Cancel',
+  String? cancelLabel,
   bool isDestructive = false,
 }) async {
   final confirmed = await showDialog<bool>(
@@ -25,7 +26,7 @@ Future<bool> confirmDialog(
       title: Text(title),
       content: DialogMessage(message),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(cancelLabel)),
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(cancelLabel ?? context.l10n.cancel)),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
           style: isDestructive ? FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error) : null,

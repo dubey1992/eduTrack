@@ -6,6 +6,8 @@ import 'core/routing/driver_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/my_trip/presentation/trip_health_lifecycle.dart';
 import 'features/push/push_registrar.dart';
+import 'core/l10n/app_language.dart';
+import 'core/l10n/l10n.dart';
 
 /// The app the bus crew installs (docs/driver-app.md).
 ///
@@ -22,7 +24,7 @@ import 'features/push/push_registrar.dart';
 /// app is a day's work rather than a second project.
 void main() {
   Env.checkReleaseConfiguration();
-  runApp(const ProviderScope(child: DriverApp()));
+  runApp(ProviderScope(overrides: [languagePickerEnabledProvider.overrideWithValue(true)], child: const DriverApp()));
 }
 
 class DriverApp extends ConsumerWidget {
@@ -39,6 +41,10 @@ class DriverApp extends ConsumerWidget {
       darkTheme: AppTheme.crewDark(),
       themeMode: ThemeMode.system,
       routerConfig: ref.watch(driverRouterProvider),
+      // English or Hindi (M11): the person's choice, else the phone's.
+      locale: ref.watch(appLanguageProvider).locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       // **No SelectionArea here**, unlike the web app.
       //
       // The portal has one so an administrator can copy a phone number off

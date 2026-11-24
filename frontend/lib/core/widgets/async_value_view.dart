@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../errors/failure.dart';
 import '../theme/app_colors.dart';
 import 'brand_loader.dart';
+import '../l10n/failure_text.dart';
+import '../l10n/l10n.dart';
 
 /// Renders an [AsyncValue] with the app's standard loading / error / data
 /// states, so every API-driven screen behaves consistently (see backend
@@ -68,13 +70,13 @@ class _ErrorView extends StatelessWidget {
               Icon(Icons.error_outline, color: colors.danger, size: 36),
             const SizedBox(height: 12),
             Text(
-              failure.message,
+              failure.localizedMessage(context),
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.muted),
             ),
             if (onRetry != null && !switchedOff) ...[
               const SizedBox(height: 16),
-              OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+              OutlinedButton(onPressed: onRetry, child: Text(context.l10n.retry)),
             ],
           ],
         ),

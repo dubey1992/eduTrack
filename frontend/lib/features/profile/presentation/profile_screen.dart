@@ -17,6 +17,7 @@ import '../../auth/presentation/signed_in_devices_dialog.dart';
 import '../application/profile_notifier.dart';
 import '../data/models/profile.dart';
 import 'change_email_dialog.dart';
+import '../../../core/l10n/language_tile.dart';
 
 /// The largest photo the server accepts.
 const _maxPhotoBytes = 2 * 1024 * 1024;
@@ -644,6 +645,8 @@ class _SecurityCard extends StatelessWidget {
           // The app lock (docs/mobile-apps-review.md, 4.4) - only on a phone
           // that can have one, so never on the web.
           const AppLockSwitch(),
+          // English or Hindi (M11) - the phone apps only.
+          const LanguageTile(),
         ],
       ),
     );

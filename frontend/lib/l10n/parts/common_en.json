@@ -1,0 +1,42 @@
+{
+  "languageTitle": "Language",
+  "@languageTitle": {
+    "description": "Heading of the language setting in a phone app's profile."
+  },
+  "languagePhone": "Phone's language",
+  "@languagePhone": {
+    "description": "Follow the phone's own language setting (Hindi when the phone is in Hindi, else English)."
+  },
+  "languageEnglish": "English",
+  "@languageEnglish": {
+    "description": "The English option, always written in English."
+  },
+  "languageHindi": "हिन्दी",
+  "@languageHindi": {
+    "description": "The Hindi option, always written in Hindi."
+  },
+  "languageChanged": "Language changed.",
+  "@languageChanged": {
+    "description": "Confirmation after picking a language."
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Closes a dialog without doing anything."
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Button that tries a failed load again."
+  },
+  "errorNoConnection": "Could not reach the server. Check your connection and try again.",
+  "@errorNoConnection": {
+    "description": "The phone could not reach the server."
+  },
+  "errorTimeout": "The server is taking longer than usual to answer. Try again in a moment.",
+  "@errorTimeout": {
+    "description": "The server was reached but slow."
+  },
+  "errorUnknown": "Something went wrong. Please try again.",
+  "@errorUnknown": {
+    "description": "An unexpected failure with nothing more to say."
+  }
+}

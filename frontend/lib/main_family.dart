@@ -14,6 +14,8 @@ import 'features/home_widget/today_widget_background.dart';
 import 'features/home_widget/today_widget_refresh.dart';
 import 'features/home_widget/today_widget_sync.dart';
 import 'features/maps/data/maps_config.dart';
+import 'core/l10n/app_language.dart';
+import 'core/l10n/l10n.dart';
 
 /// The app a parent installs: School365ai Family (docs/parent-student-app.md).
 ///
@@ -33,6 +35,7 @@ void main() {
   runApp(
     ProviderScope(
       overrides: [
+        languagePickerEnabledProvider.overrideWithValue(true),
         // A family account cannot reach the staff maps/config (F4).
         mapsConfigRepositoryProvider.overrideWith(
           (ref) => MapsConfigRepository(ref.watch(dioClientProvider), path: '/family/maps-config'),
@@ -55,6 +58,10 @@ class FamilyApp extends ConsumerWidget {
       darkTheme: AppTheme.familyDark(),
       themeMode: ThemeMode.system,
       routerConfig: ref.watch(familyRouterProvider),
+      // English or Hindi (M11): the person's choice, else the phone's.
+      locale: ref.watch(appLanguageProvider).locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       // No SelectionArea, as in the other phone apps: on a phone it claims
       // every long press. The Overlay gives snackbars a home above the router.
       builder: (context, child) => FamilyPushRegistrar(
