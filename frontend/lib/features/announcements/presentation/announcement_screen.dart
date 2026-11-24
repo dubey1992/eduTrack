@@ -15,6 +15,7 @@ import '../data/models/announcement.dart';
 import '../../communication/presentation/widgets/demo_gateway_notice.dart';
 import 'new_announcement_dialog.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/notice_attachment_chips.dart';
 
 /// Phase 17 - what has been announced, and the button that publishes the next
 /// one. Reading an announcement as a recipient is the inbox, not this screen.
@@ -305,6 +306,10 @@ class _AnnouncementCardState extends ConsumerState<_AnnouncementCard> {
             ),
             const SizedBox(height: 6),
             Text(announcement.body),
+            if (announcement.attachments.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              NoticeAttachmentChips(attachments: announcement.attachments),
+            ],
             const SizedBox(height: 10),
             Text(
               'Sent ${_publishedAt(announcement.publishedAtLabel)}'

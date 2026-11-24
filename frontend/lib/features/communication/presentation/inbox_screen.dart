@@ -9,6 +9,7 @@ import '../application/inbox_notifier.dart';
 import '../data/models/message.dart';
 import '../../auth/application/school_clock_provider.dart';
 import 'communication_screen.dart' show messageTimeOf;
+import '../../../core/widgets/notice_attachment_chips.dart';
 
 /// Every user's own in-app messages - today that means leave decisions, and
 /// whatever later phases send them.
@@ -135,6 +136,10 @@ class _InboxList extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(message.body),
+                  if (message.attachments.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    NoticeAttachmentChips(attachments: message.attachments),
+                  ],
                   const SizedBox(height: 4),
                   Text(messageTimeOf(message, ref.watch(schoolClockProvider)), style: muted),
                 ],

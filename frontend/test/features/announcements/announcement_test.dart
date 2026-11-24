@@ -15,6 +15,7 @@ import 'package:edutrack_app/features/departments/data/department_repository.dar
 import 'package:edutrack_app/features/schools/data/school_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/announcement_fixtures.dart';
@@ -44,10 +45,15 @@ const _admin = AuthenticatedUser(id: 2, name: 'Anita Sharma', email: 'anita@exam
 /// The compose dialog is opened through a real showDialog route (behind an
 /// "Open" button), so popping it on success still leaves a page behind to
 /// show the confirmation on.
-Future<void> openDialog(WidgetTester tester, FakeAnnouncementRepository fake) async {
+Future<void> openDialog(
+  WidgetTester tester,
+  FakeAnnouncementRepository fake, {
+  List<Override> overrides = const [],
+}) async {
   await tester.pumpWidget(
     wrap(
       fake,
+      overrides: overrides,
       home: Builder(
         builder: (context) => Center(
           child: ElevatedButton(
@@ -64,9 +70,15 @@ Future<void> openDialog(WidgetTester tester, FakeAnnouncementRepository fake) as
   await tester.pumpAndSettle();
 }
 
-Widget wrap(FakeAnnouncementRepository fake, {Widget? home, AuthenticatedUser actor = _admin}) {
+Widget wrap(
+  FakeAnnouncementRepository fake, {
+  Widget? home,
+  AuthenticatedUser actor = _admin,
+  List<Override> overrides = const [],
+}) {
   return ProviderScope(
     overrides: [
+      ...overrides,
       announcementRepositoryProvider.overrideWithValue(fake),
       schoolRepositoryProvider.overrideWithValue(FakeSchoolRepository()),
       departmentRepositoryProvider.overrideWithValue(FakeDepartmentRepository()),

@@ -1,4 +1,5 @@
 import '../../../communication/data/models/message.dart';
+import '../../../../core/models/notice_attachment.dart';
 
 /// The prototype's audience picker.
 enum AnnouncementAudience {
@@ -61,6 +62,7 @@ class Announcement {
     required this.smsCount,
     required this.inAppCount,
     this.inAppReadCount = 0,
+    this.attachments = const [],
   });
 
   factory Announcement.fromJson(Map<String, dynamic> json) {
@@ -87,12 +89,16 @@ class Announcement {
       smsCount: json['sms_count'] as int? ?? 0,
       inAppCount: json['in_app_count'] as int? ?? 0,
       inAppReadCount: json['in_app_read_count'] as int? ?? 0,
+      attachments: NoticeAttachment.listFrom(json['attachments']),
     );
   }
 
   final int id;
   final int schoolId;
   final String? schoolName;
+
+  /// The files it carries (M9, 8.3).
+  final List<NoticeAttachment> attachments;
   final String title;
   final String body;
   final AnnouncementAudience audienceType;

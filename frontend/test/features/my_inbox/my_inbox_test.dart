@@ -16,6 +16,8 @@ import '../../support/fake_auth_repository.dart';
 import '../../support/fake_my_inbox_repository.dart';
 import '../../support/session_users.dart';
 
+import 'package:edutrack_app/core/models/notice_attachment.dart';
+
 /// Messages in the School365ai app (docs/teacher-app.md, T4): the bell and
 /// its count, the inbox, and opening a message.
 void main() {
@@ -132,6 +134,32 @@ void main() {
       await tester.tapAt(const Offset(200, 40));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('inbox-unread-dot-1')), findsNothing);
+    });
+
+    testWidgets("a notice's files show on its row and open from the message (M9, 8.3)", (tester) async {
+      const circular = NoticeAttachment(
+        id: 4,
+        name: 'circular.pdf',
+        contentType: 'application/pdf',
+        sizeBytes: 2048,
+        url: '/announcement-attachments/4',
+      );
+      await open(
+        tester,
+        FakeMyInboxRepository(
+          messages: [
+            inboxMessage(attachments: [circular]),
+          ],
+        ),
+      );
+      await toInbox(tester);
+
+      expect(find.byIcon(Icons.attach_file), findsOneWidget);
+      await tester.tap(find.byKey(const Key('inbox-message-1')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('notice-attachment-4')), findsOneWidget);
+      expect(find.text('circular.pdf · 2 KB'), findsOneWidget);
     });
 
     testWidgets('opening one already read does not ask the server again', (tester) async {

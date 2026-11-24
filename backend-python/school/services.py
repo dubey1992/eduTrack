@@ -27,6 +27,7 @@ from . import (
     mailer,
     modules,
     money,
+    notice_attachments,
     notices,
     notifications,
     payment_items,
@@ -3170,6 +3171,7 @@ class AnnouncementService:
                 updated_at=now,
             )
             audit.created("announcements", announcement, action="announcement.published")
+            notice_attachments.attach(announcement, data.get("attachment_ids") or [])
 
             # In the same transaction: the fan-out is queued if and only if
             # the announcement it is for was committed.

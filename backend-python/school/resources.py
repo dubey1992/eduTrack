@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from . import dates, mailer, modules, money, payment_items, permissions, school_logo, sms, student_photos, syllabus_scope, whatsapp, working_hours
+from . import dates, mailer, modules, money, notice_attachments, payment_items, permissions, school_logo, sms, student_photos, syllabus_scope, whatsapp, working_hours
 from .clock import DATE, DATE_TIME, TIME, SchoolClock
 from .enums import SchoolCategory, DemoRequestStatus, EarlyAccessStatus, PreferredTime, AnnouncementChannels, AttendanceAlertMode, MessageCategory, MessageChannel, MessageDeliveryStatus, MessageEvent, MessageStatus, UserRole
 from .fields import as_utc
@@ -572,6 +572,11 @@ def announcement_resource(announcement) -> dict:
         "in_app_count": announcement.in_app_count,
         # Of those in-app copies, how many have been opened (4.2).
         "in_app_read_count": _in_app_read_count(announcement),
+        # The files it carries (M9, 8.3); prefetched by the list.
+        "attachments": [
+            notice_attachments.resource(row)
+            for row in sorted(announcement.attachments.all(), key=lambda row: (row.sort_order, row.id))
+        ],
     }
 
 

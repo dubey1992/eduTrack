@@ -14,7 +14,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import dates
+from .. import dates, notice_attachments
 from ..models import Message
 from ..pagination import LaravelPagination
 from ..resources import message_resource
@@ -34,7 +34,12 @@ def messages(request) -> Response:
     paginator = LaravelPagination()
     page = paginator.paginate_queryset(found, request)
 
-    return paginator.get_paginated_response([message_resource(row) for row in page])
+    # A notice's files (M9, 8.3), one query for the page.
+    files = notice_attachments.of_announcements(row.announcement_id for row in page if row.announcement_id)
+
+    return paginator.get_paginated_response(
+        [{**message_resource(row), "attachments": files.get(row.announcement_id, [])} for row in page]
+    )
 
 
 @api_view(["GET"])

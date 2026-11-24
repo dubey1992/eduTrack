@@ -27,6 +27,7 @@ from school.views import (
     biometric,
     promotions,
     grade_scales,
+    announcement_attachments,
     announcements,
     attendance,
     attendants,
@@ -347,6 +348,8 @@ urlpatterns = [
     path("api/v1/announcements", announcements.collection),
     path("api/v1/announcements/preview", announcements.preview),
     path("api/v1/announcements/<int:announcement_id>", announcements.detail),
+    path("api/v1/announcement-attachments", announcement_attachments.collection),
+    path("api/v1/announcement-attachments/<int:attachment_id>", announcement_attachments.detail),
     # -- transport master data ---------------------------------------------
     path("api/v1/transport/vehicles", transport.vehicles),
     path("api/v1/transport/vehicles/<int:record_id>", transport.vehicle),

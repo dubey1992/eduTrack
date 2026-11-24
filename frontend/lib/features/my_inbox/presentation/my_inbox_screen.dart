@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../communication/data/models/message.dart';
 import '../application/my_inbox_notifier.dart';
+import '../../../core/widgets/notice_attachment_chips.dart';
 
 /// The School365ai app's inbox (docs/teacher-app.md, T4), opened from the
 /// bell: what the school sent this person, newest first. Opening a message
@@ -236,7 +237,16 @@ class _MessageTile extends ConsumerWidget {
                       style: TextStyle(color: colors.muted, height: 1.35),
                     ),
                     const SizedBox(height: 6),
-                    Text(message.category.label, style: TextStyle(fontSize: 12, color: theme.colorScheme.primary)),
+                    Row(
+                      children: [
+                        Text(message.category.label, style: TextStyle(fontSize: 12, color: theme.colorScheme.primary)),
+                        if (message.attachments.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.attach_file, size: 14, color: colors.muted),
+                          Text('${message.attachments.length}', style: TextStyle(fontSize: 12, color: colors.muted)),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -278,6 +288,10 @@ class _MessageSheet extends StatelessWidget {
               ],
               const SizedBox(height: 16),
               SelectableText(message.body, style: const TextStyle(fontSize: 16, height: 1.5)),
+              if (message.attachments.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                NoticeAttachmentChips(attachments: message.attachments),
+              ],
             ],
           ),
         ),

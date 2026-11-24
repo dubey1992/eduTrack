@@ -2,6 +2,7 @@ import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/communication/data/models/message.dart';
 import 'package:edutrack_app/features/my_inbox/data/my_inbox_repository.dart';
+import 'package:edutrack_app/core/models/notice_attachment.dart';
 
 /// The person's inbox, in memory. Marking read moves a message along the
 /// way the server does.
@@ -58,8 +59,10 @@ Message inboxMessage({
   bool read = false,
   MessageCategory category = MessageCategory.announcement,
   String? studentName,
+  List<NoticeAttachment> attachments = const [],
 }) {
   return Message(
+    attachments: attachments,
     id: id,
     schoolId: 1,
     event: 'announcement',
