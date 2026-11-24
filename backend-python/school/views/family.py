@@ -74,9 +74,11 @@ from .. import (
     family_learning,
     guardian_invites,
     modules,
+    notice_attachments,
     notice_replies,
 )
 from ..clock import SchoolClock
+from ..models import AnnouncementAttachment
 from ..enums import UserRole
 from ..errors import BusNotLive, ModuleDisabled, NotAFamilyAccount, ProgressReportNotReady
 from ..fees import receipt_pdf, statement_pdf
@@ -226,10 +228,15 @@ def notices(request) -> Response:
     paginator = LaravelPagination()
     page = paginator.paginate_queryset(found, request)
     children = list(FamilyAuthService.children_of(user))
+    # A notice's files (M9, 8.3), one query for the page.
+    files = notice_attachments.of_announcements(
+        (message.announcement_id for message in page if message.announcement_id), family=True
+    )
 
     def with_reply(message) -> dict:
         """A notice that asks parents carries its question and their answers (F5)."""
         item = family_notice_resource(message)
+        item["attachments"] = files.get(message.announcement_id, [])
         item["reply"] = (
             notice_replies.reply_block(message.announcement, children) if message.announcement_id else None
         )
@@ -239,6 +246,22 @@ def notices(request) -> Response:
     response.data["unread_count"] = MessageService.unread_count(user)
 
     return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def attachment(request, attachment_id: int):
+    """A file one of the parent's notices carries (M9, 8.3). Anything else
+    is the same 404."""
+    from .announcement_attachments import serve
+
+    user = family_reader(request)
+    found = get_object_or_404(AnnouncementAttachment.objects.select_related("announcement"), pk=attachment_id)
+
+    if found.announcement_id is None or not notice_attachments.can_read(user, found):
+        raise Http404
+
+    return serve(found)
 
 
 @api_view(["POST"])

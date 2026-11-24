@@ -14,6 +14,7 @@ import 'package:edutrack_app/features/family/data/models/family_guardian_invite.
 import 'package:edutrack_app/features/family/data/models/family_homework.dart';
 import 'package:edutrack_app/features/family/data/models/family_learning.dart';
 import 'package:edutrack_app/features/family/data/models/family_records.dart';
+import 'package:edutrack_app/core/models/notice_attachment.dart';
 
 const aarav = FamilyChild(id: 11, firstName: 'Aarav', lastName: 'Sharma', className: 'Class 6 A', rollNumber: '4');
 const diya = FamilyChild(id: 12, firstName: 'Diya', lastName: 'Sharma', className: 'Class 3 B', rollNumber: '9');
@@ -104,8 +105,10 @@ FamilyNotice familyNotice({
   String? title = 'Sports day',
   String category = 'announcement',
   NoticeReply? reply,
+  List<NoticeAttachment> attachments = const [],
 }) {
   return FamilyNotice(
+    attachments: attachments,
     id: id,
     category: category,
     title: title,

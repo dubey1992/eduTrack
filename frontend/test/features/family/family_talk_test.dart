@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/fake_family_repositories.dart';
 import 'family_app_test.dart';
 
+import 'package:edutrack_app/core/models/notice_attachment.dart';
+
 /// "Please call me" and replies to notices in the Family app
 /// (docs/parent-student-app.md, F5).
 void main() {
@@ -92,6 +94,31 @@ void main() {
         ),
       ],
     );
+
+    testWidgets("a notice's files are listed and open from it (M9, 8.3)", (tester) async {
+      final data = FakeFamilyRepository(
+        notices: [
+          familyNotice(
+            attachments: const [
+              NoticeAttachment(
+                id: 9,
+                name: 'trip-form.pdf',
+                contentType: 'application/pdf',
+                sizeBytes: 4096,
+                url: '/family/attachments/9',
+              ),
+            ],
+          ),
+        ],
+      );
+      await pumpFamilyApp(tester, data: data, goTo: '/notices');
+      expect(find.text('1 file'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('family-notice-1')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('notice-attachment-9')), findsOneWidget);
+    });
 
     testWidgets('is marked as needing an answer in the list', (tester) async {
       await pumpFamilyApp(tester, data: asking(), goTo: '/notices');

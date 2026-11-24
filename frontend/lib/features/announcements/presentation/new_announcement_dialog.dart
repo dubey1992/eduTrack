@@ -13,6 +13,9 @@ import '../application/announcement_page_notifier.dart';
 import '../data/models/announcement.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/searchable_dropdown.dart';
+import '../../../core/models/notice_attachment.dart';
+import '../../../core/utils/file_picker.dart';
+import '../data/announcement_repository.dart';
 
 /// The prototype's "New Announcement" modal: audience, channel, title and
 /// message, plus an optional expiry and a live count of who it reaches.
@@ -41,6 +44,10 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
   DateTime? _expiresAt;
   bool _publishing = false;
   String? _error;
+
+  /// Files already uploaded for this notice (M9, 8.3), in the order added.
+  final List<NoticeAttachment> _files = [];
+  bool _uploading = false;
 
   @override
   void dispose() {
@@ -72,6 +79,11 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
       return;
     }
 
+    if (_files.isNotEmpty && !_channels.contains(MessageChannel.inApp)) {
+      setState(() => _error = 'Files are seen in the app. Turn on In-app to send them.');
+      return;
+    }
+
     setState(() {
       _publishing = true;
       _error = null;
@@ -93,8 +105,10 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
             expiresAt: _expiresAt == null ? null : DateFormat('yyyy-MM-dd').format(_expiresAt!),
             replyQuestion: _asking ? _questionController.text.trim() : null,
             replyBy: _asking && _replyBy != null ? DateFormat('yyyy-MM-dd').format(_replyBy!) : null,
+            attachmentIds: [for (final file in _files) file.id],
           );
 
+      _files.clear();
       navigator.pop();
       messenger
         ..clearSnackBars()
@@ -112,6 +126,58 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
     } finally {
       if (mounted) setState(() => _publishing = false);
     }
+  }
+
+  Future<void> _attach() async {
+    if (_uploading || _files.length >= maxNoticeFiles) return;
+
+    final picker = ref.read(noticeFilePickerProvider);
+    final picked = picker == null ? null : await picker();
+    if (picked == null || !mounted) return;
+
+    final problem = noticeFileProblem(picked.name, picked.bytes.length);
+    if (problem != null) {
+      setState(() => _error = problem);
+      return;
+    }
+
+    setState(() {
+      _uploading = true;
+      _error = null;
+    });
+
+    try {
+      final uploaded = await ref
+          .read(announcementRepositoryProvider)
+          .uploadAttachment(schoolId: widget.schoolId, name: picked.name, bytes: picked.bytes);
+      if (mounted) setState(() => _files.add(uploaded));
+    } on Failure catch (failure) {
+      if (mounted) setState(() => _error = failure.validationErrors['file']?.first ?? failure.message);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  Future<void> _removeFile(NoticeAttachment file) async {
+    setState(() => _files.remove(file));
+    await _forget(file);
+  }
+
+  /// A file never sent is taken back; if that fails the server clears it
+  /// after a day anyway, so the person is not troubled with it.
+  Future<void> _forget(NoticeAttachment file) async {
+    try {
+      await ref.read(announcementRepositoryProvider).removeAttachment(file.id);
+    } on Failure catch (failure) {
+      debugPrint('Could not take back attachment ${file.id}: ${failure.code}');
+    }
+  }
+
+  void _cancel() {
+    for (final file in List.of(_files)) {
+      _forget(file);
+    }
+    Navigator.of(context).pop();
   }
 
   /// A question is asked only when the notice reaches parents and one was written.
@@ -320,6 +386,35 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
                       ),
                   ],
                 ),
+                if (ref.watch(noticeFilePickerProvider) != null || _files.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text('Files - PDF, JPEG or PNG, up to $maxNoticeFiles, 5 MB each. Seen in the app.', style: muted),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      for (final file in _files)
+                        InputChip(
+                          key: Key('announcement-file-${file.id}'),
+                          avatar: Icon(file.isImage ? Icons.image_outlined : Icons.picture_as_pdf_outlined, size: 18),
+                          label: Text('${file.name} · ${file.sizeLabel}'),
+                          onDeleted: _publishing ? null : () => _removeFile(file),
+                          deleteButtonTooltipMessage: 'Remove',
+                        ),
+                      if (_uploading)
+                        const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      else if (ref.watch(noticeFilePickerProvider) != null && _files.length < maxNoticeFiles)
+                        TextButton.icon(
+                          key: const Key('announcement-attach'),
+                          onPressed: _publishing ? null : _attach,
+                          icon: const Icon(Icons.attach_file),
+                          label: const Text('Attach a file'),
+                        ),
+                    ],
+                  ),
+                ],
                 if (_ready && _channels.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   _AudienceSummary(
@@ -341,8 +436,8 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _publishing ? null : () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(onPressed: _publishing ? null : _publish, child: const Text('Publish')),
+        TextButton(onPressed: _publishing ? null : _cancel, child: const Text('Cancel')),
+        FilledButton(onPressed: _publishing || _uploading ? null : _publish, child: const Text('Publish')),
       ],
     );
   }
@@ -383,6 +478,26 @@ class _AudienceSummary extends ConsumerWidget {
       },
     );
   }
+}
+
+/// Asks for one file to attach, or null where files cannot be picked - the
+/// phone apps for now (file_picker_stub.dart). Swappable in tests.
+final noticeFilePickerProvider = Provider<Future<PickedFile?> Function()?>(
+  (ref) => canPickFile ? () => pickFile(accept: 'application/pdf,image/jpeg,image/png') : null,
+);
+
+/// How many files a notice may carry (M9, 8.3, decided 2026-11-24).
+const maxNoticeFiles = 3;
+
+/// Why a chosen file cannot go with a notice, or null when it can. The
+/// server checks the bytes again; this only saves an upload that would fail.
+String? noticeFileProblem(String name, int size) {
+  final lower = name.toLowerCase();
+  if (!(lower.endsWith('.pdf') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png'))) {
+    return 'Attach a PDF, JPEG or PNG file.';
+  }
+  if (size > 5 * 1024 * 1024) return 'Each file must be 5 MB or smaller.';
+  return null;
 }
 
 /// "by SMS", "in-app", "by WhatsApp", "by email".

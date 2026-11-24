@@ -89,6 +89,7 @@ class AnnouncementPageNotifier extends AsyncNotifier<PagedList<Announcement>> {
     String? expiresAt,
     String? replyQuestion,
     String? replyBy,
+    List<int> attachmentIds = const [],
   }) async {
     final announcement = await ref
         .read(announcementRepositoryProvider)
@@ -102,6 +103,7 @@ class AnnouncementPageNotifier extends AsyncNotifier<PagedList<Announcement>> {
           expiresAt: expiresAt,
           replyQuestion: replyQuestion,
           replyBy: replyBy,
+          attachmentIds: attachmentIds,
         );
 
     _page = 1;

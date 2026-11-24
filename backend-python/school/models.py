@@ -2384,6 +2384,30 @@ class AttendanceWarning(models.Model):
         db_table = 'attendance_warnings'
 
 
+class AnnouncementAttachment(models.Model):
+    """A file a notice carries (docs/mobile-apps-review.md, M9, 8.3): PDF,
+    JPEG or PNG. Pending - no announcement yet - between its upload and the
+    publish that names it."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    announcement = models.ForeignKey(
+        Announcement, models.DO_NOTHING, blank=True, null=True, related_name='attachments'
+    )
+    uploaded_by = models.ForeignKey('User', models.DO_NOTHING, db_column='uploaded_by', related_name='+')
+    file_path = models.CharField(max_length=255)
+    original_name = models.CharField(max_length=150)
+    content_type = models.CharField(max_length=50)
+    size_bytes = models.PositiveIntegerField()
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'announcement_attachments'
+
+
 class GuardianInvite(models.Model):
     """A parent's request that the school add another guardian of their child
     (docs/mobile-apps-review.md, M8, 8.5). Pending until the office approves

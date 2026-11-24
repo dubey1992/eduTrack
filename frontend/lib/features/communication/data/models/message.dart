@@ -1,3 +1,5 @@
+import '../../../../core/models/notice_attachment.dart';
+
 /// The prototype's filter tabs on the Communication Center log.
 enum MessageCategory {
   attendance('attendance', 'Attendance'),
@@ -118,6 +120,7 @@ class Message {
     this.deliveryStatus,
     this.deliveryStatusLabel,
     this.deliveryError,
+    this.attachments = const [],
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -148,6 +151,7 @@ class Message {
       deliveryStatus: json['delivery_status'] as String?,
       deliveryStatusLabel: json['delivery_status_label'] as String?,
       deliveryError: json['delivery_error'] as String?,
+      attachments: NoticeAttachment.listFrom(json['attachments']),
     );
   }
 
@@ -189,6 +193,9 @@ class Message {
   final String? deliveryStatus;
   final String? deliveryStatusLabel;
   final String? deliveryError;
+
+  /// A notice's files (M9, 8.3); only an inbox copy carries them.
+  final List<NoticeAttachment> attachments;
 
   bool get wasNotDelivered => deliveryStatus == 'undelivered';
 

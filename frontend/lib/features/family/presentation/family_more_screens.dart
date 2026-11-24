@@ -17,6 +17,7 @@ import '../data/models/family_account.dart';
 import '../data/models/family_records.dart';
 import 'widgets/family_widgets.dart';
 import 'family_talk_screens.dart';
+import '../../../core/widgets/notice_attachment_chips.dart';
 
 /// Opens the phone's dialler, WhatsApp or mail app. Swappable in tests.
 typedef ExternalOpener = Future<bool> Function(Uri uri);
@@ -414,6 +415,16 @@ class _NoticeTile extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: muted),
                 ),
+                if (notice.attachments.isNotEmpty)
+                  Row(
+                    children: [
+                      Icon(Icons.attach_file, size: 14, color: muted),
+                      Text(
+                        notice.attachments.length == 1 ? '1 file' : '${notice.attachments.length} files',
+                        style: TextStyle(fontSize: 12, color: muted),
+                      ),
+                    ],
+                  ),
                 if (notice.reply?.awaitsAnswer ?? false) const AnswerNeededBadge(),
                 const SizedBox(height: 4),
                 Text(
@@ -458,6 +469,10 @@ class _NoticeTile extends ConsumerWidget {
               ),
               const SizedBox(height: 14),
               SelectableText(notice.body, style: const TextStyle(fontSize: 15, height: 1.45)),
+              if (notice.attachments.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                NoticeAttachmentChips(attachments: notice.attachments),
+              ],
               // A notice that asks: Yes or No for each child it is about (F5).
               if (notice.reply != null) NoticeReplyPanel(notice: notice),
             ],

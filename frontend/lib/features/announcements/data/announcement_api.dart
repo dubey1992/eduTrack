@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'models/announcement.dart';
+import '../../../core/models/notice_attachment.dart';
 
 final announcementApiProvider = Provider<AnnouncementApi>((ref) => AnnouncementApi(ref.watch(dioClientProvider)));
 
@@ -44,6 +45,7 @@ class AnnouncementApi {
     String? expiresAt,
     String? replyQuestion,
     String? replyBy,
+    List<int> attachmentIds = const [],
   }) async {
     final response = await _dio.post(
       '/announcements',
@@ -57,9 +59,25 @@ class AnnouncementApi {
         'expires_at': ?expiresAt,
         'reply_question': ?replyQuestion,
         'reply_by': ?replyBy,
+        if (attachmentIds.isNotEmpty) 'attachment_ids': attachmentIds,
       },
     );
     return Announcement.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// One file for a notice not yet published (M9, 8.3): one per request,
+  /// which the shared host copes with.
+  Future<NoticeAttachment> uploadAttachment({int? schoolId, required String name, required List<int> bytes}) async {
+    final response = await _dio.post(
+      '/announcement-attachments',
+      data: FormData.fromMap({'school_id': ?schoolId, 'file': MultipartFile.fromBytes(bytes, filename: name)}),
+    );
+    return NoticeAttachment.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Takes back a file not yet sent.
+  Future<void> removeAttachment(int attachmentId) async {
+    await _dio.delete('/announcement-attachments/$attachmentId');
   }
 
   Future<ReplySummary> replies(int announcementId) async {

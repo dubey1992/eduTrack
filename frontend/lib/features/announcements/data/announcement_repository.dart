@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/network/paginated_response.dart';
 import 'announcement_api.dart';
 import 'models/announcement.dart';
+import '../../../core/models/notice_attachment.dart';
 
 final announcementRepositoryProvider = Provider<AnnouncementRepository>(
   (ref) => AnnouncementRepository(ref.watch(announcementApiProvider)),
@@ -53,6 +54,7 @@ class AnnouncementRepository {
     String? expiresAt,
     String? replyQuestion,
     String? replyBy,
+    List<int> attachmentIds = const [],
   }) {
     return _guard(
       () => _api.publish(
@@ -65,9 +67,15 @@ class AnnouncementRepository {
         expiresAt: expiresAt,
         replyQuestion: replyQuestion,
         replyBy: replyBy,
+        attachmentIds: attachmentIds,
       ),
     );
   }
+
+  Future<NoticeAttachment> uploadAttachment({int? schoolId, required String name, required List<int> bytes}) =>
+      _guard(() => _api.uploadAttachment(schoolId: schoolId, name: name, bytes: bytes));
+
+  Future<void> removeAttachment(int attachmentId) => _guard(() => _api.removeAttachment(attachmentId));
 
   Future<ReplySummary> replies(int announcementId) => _guard(() => _api.replies(announcementId));
 

@@ -3,6 +3,8 @@
 /// school/family_inbox.py).
 library;
 
+import '../../../../core/models/notice_attachment.dart';
+
 /// What a day on the attendance calendar was.
 enum DayKind {
   present('present'),
@@ -185,6 +187,7 @@ class FamilyNotice {
     required this.createdAt,
     required this.read,
     this.reply,
+    this.attachments = const [],
   });
 
   factory FamilyNotice.fromJson(Map<String, dynamic> json) => FamilyNotice(
@@ -196,6 +199,7 @@ class FamilyNotice {
     createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
     read: json['read'] as bool,
     reply: NoticeReply.fromJson(json['reply'] as Map<String, dynamic>?),
+    attachments: NoticeAttachment.listFrom(json['attachments']),
   );
 
   final int id;
@@ -209,6 +213,9 @@ class FamilyNotice {
   /// A notice that asks the parent a Yes/No question (F5); null otherwise.
   final NoticeReply? reply;
 
+  /// The files the notice carries (M9, 8.3).
+  final List<NoticeAttachment> attachments;
+
   FamilyNotice withReply(NoticeReply value) => FamilyNotice(
     id: id,
     category: category,
@@ -218,6 +225,7 @@ class FamilyNotice {
     createdAt: createdAt,
     read: read,
     reply: value,
+    attachments: attachments,
   );
 
   FamilyNotice markedRead() => FamilyNotice(
@@ -229,6 +237,7 @@ class FamilyNotice {
     createdAt: createdAt,
     read: true,
     reply: reply,
+    attachments: attachments,
   );
 
   /// The kind of message in plain words, when it has no title of its own.

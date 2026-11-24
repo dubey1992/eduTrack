@@ -23,10 +23,11 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .. import notice_replies
+from .. import notice_attachments, notice_replies
 from ..clock import SchoolClock
 from ..enums import AnnouncementAudience, AnnouncementChannels, MessageChannel
 from ..errors import UnprocessableRequest
@@ -58,7 +59,7 @@ def collection(request) -> Response:
     )
 
     # How many in-app copies were opened, counted with the page, not per row.
-    found = found.annotate(
+    found = found.prefetch_related("attachments").annotate(
         in_app_read=Count("message", filter=Q(message__channel=MessageChannel.IN_APP, message__read_at__isnull=False))
     )
 
@@ -91,9 +92,34 @@ def publish(request) -> Response:
     form = PublishAnnouncementRequest(data=request.data, actor=actor, school_today=today)
     form.is_valid(raise_exception=True)
 
-    announcement = AnnouncementService.publish(form.validated_data, actor)
+    validated = {**form.validated_data, "attachment_ids": attachment_ids(request.data, actor, form)}
+    announcement = AnnouncementService.publish(validated, actor)
 
     return Response(announcement_resource(announcement), status=status.HTTP_201_CREATED)
+
+
+def attachment_ids(data, actor, form) -> list[int]:
+    """The files the notice carries (M9, 8.3): ids of this person's own
+    uploads, not yet published, at most three. Files are seen in the app, so
+    a notice that goes out by SMS or WhatsApp only cannot carry any."""
+    raw = data.get("attachment_ids")
+
+    if raw in (None, "", []):
+        return []
+
+    if not isinstance(raw, list) or not all(isinstance(value, int) and not isinstance(value, bool) for value in raw):
+        raise ValidationError({"attachment_ids": ["The attachments are not valid."]})
+
+    if len(raw) > notice_attachments.MAX_FILES:
+        raise ValidationError({"attachment_ids": [f"A notice can carry at most {notice_attachments.MAX_FILES} files."]})
+
+    if MessageChannel.IN_APP not in (AnnouncementChannels.parse(form.validated_data["channels"]) or []):
+        raise ValidationError({"attachment_ids": ["Files are seen in the app. Send the notice in-app to attach them."]})
+
+    if notice_attachments.pending_of(actor, form.validated_data["school_id"], raw) is None:
+        raise ValidationError({"attachment_ids": ["Add the files again - one of them is no longer waiting to be sent."]})
+
+    return list(dict.fromkeys(raw))
 
 
 def live(announcement_id: int):

@@ -1,4 +1,5 @@
 import 'package:edutrack_app/core/errors/failure.dart';
+import 'package:edutrack_app/core/models/notice_attachment.dart';
 import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/announcements/data/announcement_repository.dart';
 import 'package:edutrack_app/features/announcements/data/models/announcement.dart';
@@ -31,6 +32,29 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
   void _guard() {
     if (failWith != null) throw failWith!;
   }
+
+  /// Files uploaded, and taken back, in order (M9, 8.3).
+  final List<String> uploaded = [];
+  final List<int> removed = [];
+
+  /// When set, an upload is refused with it.
+  Failure? failUploadWith;
+
+  @override
+  Future<NoticeAttachment> uploadAttachment({int? schoolId, required String name, required List<int> bytes}) async {
+    if (failUploadWith != null) throw failUploadWith!;
+    uploaded.add(name);
+    return NoticeAttachment(
+      id: uploaded.length,
+      name: name,
+      contentType: name.endsWith('.pdf') ? 'application/pdf' : 'image/png',
+      sizeBytes: bytes.length,
+      url: '/announcement-attachments/${uploaded.length}',
+    );
+  }
+
+  @override
+  Future<void> removeAttachment(int attachmentId) async => removed.add(attachmentId);
 
   @override
   Future<PaginatedResponse<Announcement>> listPage({
@@ -77,10 +101,12 @@ class FakeAnnouncementRepository implements AnnouncementRepository {
     String? expiresAt,
     String? replyQuestion,
     String? replyBy,
+    List<int> attachmentIds = const [],
   }) async {
     _guard();
     lastCall = {
       'op': 'publish',
+      if (attachmentIds.isNotEmpty) 'attachment_ids': attachmentIds,
       'school_id': schoolId,
       'title': title,
       'body': body,

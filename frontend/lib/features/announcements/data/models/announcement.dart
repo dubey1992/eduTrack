@@ -1,4 +1,5 @@
 import '../../../communication/data/models/message.dart';
+import '../../../../core/models/notice_attachment.dart';
 
 /// The prototype's audience picker.
 enum AnnouncementAudience {
@@ -72,6 +73,7 @@ class Announcement {
     this.replyBy,
     this.replyYes = 0,
     this.replyNo = 0,
+    this.attachments = const [],
   });
 
   factory Announcement.fromJson(Map<String, dynamic> json) {
@@ -102,12 +104,16 @@ class Announcement {
       replyBy: json['reply_by'] as String?,
       replyYes: (json['reply_counts'] as Map<String, dynamic>?)?['yes'] as int? ?? 0,
       replyNo: (json['reply_counts'] as Map<String, dynamic>?)?['no'] as int? ?? 0,
+      attachments: NoticeAttachment.listFrom(json['attachments']),
     );
   }
 
   final int id;
   final int schoolId;
   final String? schoolName;
+
+  /// The files it carries (M9, 8.3).
+  final List<NoticeAttachment> attachments;
   final String title;
   final String body;
   final AnnouncementAudience audienceType;
