@@ -9,4 +9,6 @@
          cold start is one colour from the system splash to the app's.
          Only the launch window; once running, the app's own background. -->
     <color name="splash_background">#FF087E79</color>
+    <!-- The "Today" widget's title, in the same teal (M10). -->
+    <color name="widget_accent">#FF087E79</color>
 </resources>

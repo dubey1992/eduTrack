@@ -2,4 +2,5 @@
 <resources>
     <!-- The teacher app's name, over the driver's in src/main. -->
     <string name="app_name">School365ai</string>
+    <string name="today_widget_description">Your next period, the register and reports owed</string>
 </resources>

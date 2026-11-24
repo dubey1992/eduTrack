@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the launcher's widget gallery shows for the "Today" widget: the
+     real layout with a sample day, so it is not an empty white box. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/today_widget_background"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <TextView
+    android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/widget_accent"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:text="Today" />
+
+    <TextView style="@style/TodayWidgetLine" android:text="Now: P3 English · Class 8 A" />
+    <TextView style="@style/TodayWidgetLine" android:text="Register taken" />
+    <TextView style="@style/TodayWidgetLine" android:text="1 report owed" />
+    <TextView style="@style/TodayWidgetLine" android:text="Checked in at 8:45 AM" />
+
+    <TextView
+    android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="#FF6B7280"
+        android:textSize="11sp"
+        android:text="as of 10:40 AM" />
+</LinearLayout>

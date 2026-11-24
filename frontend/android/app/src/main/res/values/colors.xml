@@ -13,4 +13,6 @@
 <resources>
     <color name="window_background">#FFF7F9FC</color>
     <color name="ic_launcher_background">#FF0D2140</color>
+    <!-- The "Today" widget's title; each app sets its own (M10). -->
+    <color name="widget_accent">#FF0D2140</color>
 </resources>

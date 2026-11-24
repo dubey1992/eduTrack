@@ -241,6 +241,14 @@ the product owner before that phase starts.
 - **6.6 (rest) Photos on a teaching report** - up to 3, from the Staff app camera or photos, seen by the teacher, their HOD and the admins, never parents; the author adds and removes them until the report is reviewed. `POST /teaching-reports/{id}/photos`, `GET|DELETE /teaching-reports/{id}/photos/{photo}`. New table `teaching_report_photos`.
 - **Shipping:** decided - deploy the staff side (web, Staff and Bus apps); the Family app's attachment parts wait with the Family app.
 
+**M10 decided by the owner 2026-11-24, and built on main.** A "Today" home-screen widget in the Staff and Family apps (6.1). No server or database change: it reads the answers the apps already use - `/timetable/today` and `/staff-attendance/me` for staff, `/family/children/{id}/today` for parents.
+
+- **Fresh:** redrawn when the app opens or comes back to the front, when Today or check-in reloads (Staff) or another child is picked (Family), and every 30 minutes in the background while there is a network (`workmanager`; Android may stretch it). Every card says "as of 9:40 AM". A failed refresh leaves the last card up; a session the server ended shows "Sign in".
+- **Content:** Staff - the period now or next, the register, reports owed, checked in or not. Family - today's register, the bus as it last stood ("On the bus to school, 7:42 AM", never a live ETA), the next fee.
+- **Privacy:** with the app lock on, the widget shows only "School365ai - Tap to open" (a switch that cannot be read counts as on); signing out stops the job and leaves "Sign in to see your day".
+- **Native:** `TodayWidgetProvider` + `today_widget` layout in the shared Android code, registered only in the teacher and family manifests (the Bus app has none). New packages `home_widget` and `workmanager`; workmanager's `FOREGROUND_SERVICE_SHORT_SERVICE` permission is removed (the job is short). The Staff app's manifest already removes `RECEIVE_BOOT_COMPLETED`, so after a phone restart the background refresh resumes when the app is next opened.
+- **Shipping:** the Staff widget can go live with a new Staff APK; the Family widget waits with the Family app.
+
 **Decisions needed before their phase:**
 
 - **M7** - does an auto "Reached" also send the parents' "bus at stop" alert, or only the manual one? What delay choices does the driver get (10 / 15 / 30 minutes, or free text)?

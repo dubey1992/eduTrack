@@ -115,6 +115,19 @@ class AppLockController extends Notifier<AppLockState> {
 
   KeyValueStore get _store => ref.read(keyValueStoreProvider);
 
+  /// Whether the person turned the lock on, read straight from the phone -
+  /// for the home-screen widget's background job, which has no controller
+  /// (M10). A switch that cannot be read counts as on: the widget then hides
+  /// the details rather than risk showing them.
+  static Future<bool> isEnabledIn(KeyValueStore store) async {
+    try {
+      return await store.read(_enabledKey) == 'yes';
+    } on Exception catch (error) {
+      debugPrint('App lock: could not read the switch for the widget: $error');
+      return true;
+    }
+  }
+
   Future<void> _load() async {
     final enabled = await _read(_enabledKey);
     final offered = await _read(_offeredKey);

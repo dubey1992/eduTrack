@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- No updatePeriodMillis: the widget is redrawn when the app saves a new
+     card - on opening and from the half-hourly background job - never by
+     Android's own timer, which would draw the same saved card again. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/today_widget_description"
+    android:initialLayout="@layout/today_widget"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:previewLayout="@layout/today_widget_preview"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

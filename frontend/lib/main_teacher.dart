@@ -7,7 +7,12 @@ import 'core/security/app_lock_gate.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/application/auth_notifier.dart';
 import 'features/my_register/presentation/register_sender.dart';
+import 'features/check_in/application/check_in_notifier.dart';
+import 'features/home_widget/today_widget_background.dart';
+import 'features/home_widget/today_widget_refresh.dart';
+import 'features/home_widget/today_widget_sync.dart';
 import 'features/push/push_registrar.dart';
+import 'features/today/application/today_notifier.dart';
 
 /// The app a teacher installs (docs/teacher-app.md).
 ///
@@ -21,6 +26,9 @@ import 'features/push/push_registrar.dart';
 ///     flutter build apk --flavor teacher --target lib/main_teacher.dart
 void main() {
   Env.checkReleaseConfiguration();
+  WidgetsFlutterBinding.ensureInitialized();
+  // The home-screen widget's half-hourly refresh (M10).
+  initialiseTodayWidget();
   runApp(const ProviderScope(child: TeacherApp()));
 }
 
@@ -52,12 +60,24 @@ class TeacherApp extends ConsumerWidget {
             // The inbox opens over the frame; the rest are tabs.
             route == '/inbox' ? router.push(route) : router.go(route);
           },
-          child: AppLockGate(
-            signedIn: ref.watch(authNotifierProvider).value != null,
-            child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+          child: TodayWidgetSync(
+            app: staffWidgetApp,
+            signedIn: _signedIn(ref.watch(authNotifierProvider)),
+            // The widget follows Today and checking in as they reload.
+            onChange: (ref, refresh) {
+              ref.listen(todayProvider, (_, next) => next.hasValue ? refresh() : null);
+              ref.listen(checkInProvider, (_, next) => next.hasValue ? refresh() : null);
+            },
+            child: AppLockGate(
+              signedIn: ref.watch(authNotifierProvider).value != null,
+              child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+            ),
           ),
         ),
       ),
     );
   }
 }
+
+/// Null while the session is still being read back at start-up.
+bool? _signedIn(AsyncValue<Object?> session) => session.isLoading && !session.hasValue ? null : session.value != null;

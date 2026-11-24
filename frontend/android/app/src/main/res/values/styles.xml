@@ -15,4 +15,14 @@
     <style name="NormalTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
     </style>
+    <!-- One line of the "Today" home-screen widget (layout/today_widget). -->
+    <style name="TodayWidgetLine">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">#FF1F2937</item>
+        <item name="android:textSize">13sp</item>
+    </style>
 </resources>

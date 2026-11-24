@@ -7,4 +7,5 @@
       Play Console and not here (docs/driver-app.md, D1.1).
     -->
     <string name="app_name">School365ai Bus</string>
+    <string name="today_widget_description">Your day at school, at a glance</string>
 </resources>

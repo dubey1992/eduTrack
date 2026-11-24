@@ -36,6 +36,11 @@
         </intent>
     </queries>
 
+    <!-- workmanager's own, for long-running work in a foreground service.
+         The widget's half-hourly refresh (M10) is a short job and never
+         one of those, so the permission is not asked for. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SHORT_SERVICE" tools:node="remove"/>
+
     <application>
         <!-- Links from the school's WhatsApp messages open the app on the
              right screen (docs/mobile-apps-review.md, 6.5). Verified against
@@ -52,5 +57,13 @@
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             tools:node="remove"/>
+        <!-- The "Today" home-screen widget (M10, TodayWidgetProvider). Here
+             and in the other app's manifest only - the Bus app has none. -->
+        <receiver android:name=".TodayWidgetProvider" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/today_widget_info"/>
+        </receiver>
     </application>
 </manifest>

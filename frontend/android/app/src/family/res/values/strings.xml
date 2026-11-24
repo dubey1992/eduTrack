@@ -3,4 +3,5 @@
     <!-- The Family app's name, over the driver's in src/main
          (docs/parent-student-app.md, decision D9). -->
     <string name="app_name">School365ai Family</string>
+    <string name="today_widget_description">Your child’s day: attendance, the bus and fees</string>
 </resources>

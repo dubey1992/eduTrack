@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/env.dart';
+import 'core/home_widget/home_screen_widget.dart';
 import 'core/network/dio_client.dart';
 import 'core/routing/family_router.dart';
 import 'core/security/app_lock_gate.dart';
@@ -9,6 +10,9 @@ import 'core/theme/app_theme.dart';
 import 'features/family/application/family_session_notifier.dart';
 import 'features/family/presentation/family_frame.dart';
 import 'features/family/presentation/family_push_registrar.dart';
+import 'features/home_widget/today_widget_background.dart';
+import 'features/home_widget/today_widget_refresh.dart';
+import 'features/home_widget/today_widget_sync.dart';
 import 'features/maps/data/maps_config.dart';
 
 /// The app a parent installs: School365ai Family (docs/parent-student-app.md).
@@ -23,6 +27,9 @@ import 'features/maps/data/maps_config.dart';
 ///     flutter build apk --flavor family --target lib/main_family.dart
 void main() {
   Env.checkReleaseConfiguration();
+  WidgetsFlutterBinding.ensureInitialized();
+  // The home-screen widget's half-hourly refresh (M10).
+  initialiseTodayWidget();
   runApp(
     ProviderScope(
       overrides: [
@@ -55,11 +62,28 @@ class FamilyApp extends ConsumerWidget {
         onOpen: (route) => FamilyPlace.values.any((place) => place.path == route)
             ? ref.read(familyRouterProvider).go(route)
             : ref.read(familyRouterProvider).push(route),
-        child: AppLockGate(
-          signedIn: ref.watch(familySessionProvider).value != null,
-          child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+        child: TodayWidgetSync(
+          app: familyWidgetApp,
+          signedIn: _signedIn(ref.watch(familySessionProvider)),
+          // The widget is about the child last looked at; another child
+          // picked is a new card.
+          onChange: (ref, refresh) => ref.listen(selectedChildProvider, (_, _) => refresh()),
+          beforeRefresh: (ref) async {
+            final child = ref.read(selectedChildProvider);
+            if (child == null) return;
+            final widget = ref.read(homeScreenWidgetProvider);
+            await widget.remember(widgetChildIdKey, '${child.id}');
+            await widget.remember(widgetChildNameKey, child.firstName);
+          },
+          child: AppLockGate(
+            signedIn: ref.watch(familySessionProvider).value != null,
+            child: Overlay(initialEntries: [OverlayEntry(builder: (context) => child ?? const SizedBox.shrink())]),
+          ),
         ),
       ),
     );
   }
 }
+
+/// Null while the session is still being read back at start-up.
+bool? _signedIn(AsyncValue<Object?> session) => session.isLoading && !session.hasValue ? null : session.value != null;
