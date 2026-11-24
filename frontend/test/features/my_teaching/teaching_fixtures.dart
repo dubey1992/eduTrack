@@ -12,7 +12,9 @@ TeachingReport report({
   bool reviewed = false,
   String? homework,
   String? syllabusTopicName,
+  List<ReportPhoto> photos = const [],
 }) => TeachingReport(
+  photos: photos,
   id: id,
   schoolId: 1,
   timetableEntryId: 11,

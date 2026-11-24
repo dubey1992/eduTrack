@@ -2408,6 +2408,22 @@ class AnnouncementAttachment(models.Model):
         db_table = 'announcement_attachments'
 
 
+class TeachingReportPhoto(models.Model):
+    """A photo on a teaching report (docs/mobile-apps-review.md, M9, 6.6):
+    the board or the children's work. Staff only."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    daily_teaching_report = models.ForeignKey('DailyTeachingReport', models.DO_NOTHING, related_name='photos')
+    file_path = models.CharField(max_length=255)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'teaching_report_photos'
+
+
 class GuardianInvite(models.Model):
     """A parent's request that the school add another guardian of their child
     (docs/mobile-apps-review.md, M8, 8.5). Pending until the office approves

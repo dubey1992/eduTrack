@@ -22,6 +22,7 @@ class TeachingReport {
     this.reviewNote,
     this.returnedAt,
     this.returnedByName,
+    this.photos = const [],
   });
 
   factory TeachingReport.fromJson(Map<String, dynamic> json) {
@@ -46,6 +47,10 @@ class TeachingReport {
       reviewNote: json['review_note'] as String?,
       returnedAt: json['returned_at'] as String?,
       returnedByName: json['returned_by_name'] as String?,
+      photos: [
+        for (final photo in (json['photos'] as List<dynamic>?) ?? const [])
+          ReportPhoto.fromJson(photo as Map<String, dynamic>),
+      ],
     );
   }
 
@@ -79,10 +84,30 @@ class TeachingReport {
   final String? returnedAt;
   final String? returnedByName;
 
+  /// The board or the children's work, at most [maxReportPhotos] (M9, 6.6).
+  /// Staff only: parents never see them.
+  final List<ReportPhoto> photos;
+
   bool get isReviewed => reviewedBy != null;
 
   /// Sent back by the HOD and not yet sent again (docs/teacher-app.md, T7).
   bool get isReturned => !isReviewed && status == ReportStatus.returned;
+}
+
+/// How many photos a report may carry (M9, 6.6, decided 2026-11-24).
+const maxReportPhotos = 3;
+
+/// One photo on a report, read through the signed-in API.
+class ReportPhoto {
+  const ReportPhoto({required this.id, required this.url});
+
+  factory ReportPhoto.fromJson(Map<String, dynamic> json) =>
+      ReportPhoto(id: json['id'] as int, url: json['url'] as String);
+
+  final int id;
+
+  /// Relative to the API base.
+  final String url;
 }
 
 /// Where a report stands with the HOD.

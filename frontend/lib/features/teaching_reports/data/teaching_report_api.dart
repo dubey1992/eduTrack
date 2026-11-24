@@ -72,6 +72,20 @@ class TeachingReportApi {
     return TeachingReport.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Adds a photo to the teacher's own report (M9, 6.6).
+  Future<TeachingReport> addPhoto(int reportId, {required String name, required List<int> bytes}) async {
+    final response = await _dio.post(
+      '/teaching-reports/$reportId/photos',
+      data: FormData.fromMap({'photo': MultipartFile.fromBytes(bytes, filename: name)}),
+    );
+    return TeachingReport.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TeachingReport> removePhoto(int reportId, int photoId) async {
+    final response = await _dio.delete('/teaching-reports/$reportId/photos/$photoId');
+    return TeachingReport.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<TeachingReportSummary> summary({int? schoolId, required String date}) async {
     final response = await _dio.get(
       '/teaching-reports/summary',

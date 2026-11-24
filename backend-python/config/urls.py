@@ -279,6 +279,8 @@ urlpatterns = [
     path("api/v1/teaching-reports/<int:report_id>", teaching_reports.detail),
     path("api/v1/teaching-reports/<int:report_id>/review", teaching_reports.review),
     path("api/v1/teaching-reports/<int:report_id>/return", teaching_reports.send_back),
+    path("api/v1/teaching-reports/<int:report_id>/photos", teaching_reports.photos),
+    path("api/v1/teaching-reports/<int:report_id>/photos/<int:photo_id>", teaching_reports.photo),
     # -- syllabus ----------------------------------------------------------
     path("api/v1/syllabus-topics", syllabus.topics),
     path("api/v1/syllabus-topics/<int:topic_id>", syllabus.topic),
