@@ -7,6 +7,9 @@ import 'user_role.dart';
 /// access) are not modules a role is granted: their screens stay role-gated.
 abstract final class AppModules {
   static const students = 'students';
+
+  /// The parents' app; never a permission, only a switch the school turns on.
+  static const familyApp = 'family_app';
   static const staff = 'staff';
   static const academics = 'academics';
   static const assessments = 'assessments';

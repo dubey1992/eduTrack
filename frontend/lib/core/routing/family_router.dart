@@ -13,6 +13,7 @@ import '../../features/family/presentation/family_talk_screens.dart';
 import '../../features/family/presentation/family_fees_screen.dart';
 import '../../features/family/presentation/family_frame.dart';
 import '../../features/family/presentation/family_home_screen.dart';
+import '../../features/family/presentation/family_guardian_invite_screen.dart';
 import '../../features/family/presentation/family_learning_screens.dart';
 import '../../features/family/presentation/family_more_screens.dart';
 import '../../features/family/presentation/family_privacy_screen.dart';
@@ -48,6 +49,7 @@ const familyPaths = {
   '/timetable',
   '/syllabus',
   '/homework',
+  '/guardians/new',
 };
 
 /// The Family app screen a `school365ai.com/f/<screen>` link names - one of
@@ -96,6 +98,7 @@ final familyRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/timetable', builder: (context, state) => const FamilyTimetableScreen()),
       GoRoute(path: '/syllabus', builder: (context, state) => const FamilySyllabusScreen()),
       GoRoute(path: '/homework', builder: (context, state) => const FamilyHomeworkScreen()),
+      GoRoute(path: '/guardians/new', builder: (context, state) => const FamilyGuardianInviteScreen()),
       GoRoute(path: '/maintenance', builder: (context, state) => const MaintenanceScreen()),
     ],
     redirect: (context, state) {

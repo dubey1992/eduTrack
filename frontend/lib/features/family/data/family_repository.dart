@@ -14,6 +14,7 @@ import 'models/family_call_request.dart';
 import 'models/family_day.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
+import 'models/family_guardian_invite.dart';
 import 'models/family_homework.dart';
 import 'models/family_records.dart';
 
@@ -151,6 +152,15 @@ class FamilyRepository {
       _call(() => _api.replyToNotice(noticeId, studentId: studentId, answer: answer, note: note));
 
   Future<List<FamilyCallRequest>> callRequests(int childId) => _call(() => _api.callRequests(childId));
+
+  Future<List<FamilyGuardianInvite>> guardianInvites(int childId) => _call(() => _api.guardianInvites(childId));
+
+  Future<FamilyGuardianInvite> askForGuardian(
+    int childId, {
+    required String name,
+    required String mobile,
+    required String relationship,
+  }) => _call(() => _api.askForGuardian(childId, name: name, mobile: mobile, relationship: relationship));
 
   Future<FamilyCallRequest> askForCall(
     int childId, {

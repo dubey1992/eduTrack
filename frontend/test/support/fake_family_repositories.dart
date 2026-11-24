@@ -10,6 +10,7 @@ import 'package:edutrack_app/features/family/data/models/family_bus.dart';
 import 'package:edutrack_app/features/family/data/models/family_call_request.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
 import 'package:edutrack_app/features/family/data/models/family_fees.dart';
+import 'package:edutrack_app/features/family/data/models/family_guardian_invite.dart';
 import 'package:edutrack_app/features/family/data/models/family_homework.dart';
 import 'package:edutrack_app/features/family/data/models/family_learning.dart';
 import 'package:edutrack_app/features/family/data/models/family_records.dart';
@@ -620,6 +621,34 @@ class FakeFamilyRepository implements FamilyRepository {
 
   @override
   Future<List<SubjectSyllabus>> syllabus(int childId) async => familySyllabus;
+
+  /// This parent's requests for another guardian (M8, 8.5), and what each
+  /// ask sent.
+  List<FamilyGuardianInvite> guardianInviteList = [];
+  final List<({String name, String mobile, String relationship})> guardianAsks = [];
+  Failure? failGuardianAskWith;
+
+  @override
+  Future<List<FamilyGuardianInvite>> guardianInvites(int childId) async => guardianInviteList;
+
+  @override
+  Future<FamilyGuardianInvite> askForGuardian(
+    int childId, {
+    required String name,
+    required String mobile,
+    required String relationship,
+  }) async {
+    if (failGuardianAskWith != null) throw failGuardianAskWith!;
+    guardianAsks.add((name: name, mobile: mobile, relationship: relationship));
+    final made = FamilyGuardianInvite(
+      id: guardianInviteList.length + 1,
+      name: name,
+      relationship: relationship,
+      status: 'pending',
+    );
+    guardianInviteList = [made, ...guardianInviteList];
+    return made;
+  }
 
   /// The class's homework, newest day first (M8, 8.1).
   List<HomeworkDay> homeworkDays = familyHomework;

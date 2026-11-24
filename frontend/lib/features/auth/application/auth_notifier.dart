@@ -24,6 +24,7 @@ import '../../my_register/data/register_store.dart';
 import '../../push/device_repository.dart';
 import '../../my_teaching/application/staff_outbox.dart';
 import '../../my_teaching/data/report_notes.dart';
+import '../../guardian_invites/application/guardian_invites_notifier.dart';
 import '../../my_trip/application/trip_mark_queue.dart';
 import '../../my_trip/data/trip_voice.dart';
 import '../../classes/application/school_class_list_notifier.dart';
@@ -191,6 +192,7 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(schoolListNotifierProvider);
     // Which parents' notes the page was showing (Family app, F5).
     ref.invalidate(absenceNotesFilterProvider);
+    ref.invalidate(guardianInvitesFilterProvider);
     ref.invalidate(callRequestsOpenProvider);
     // One school's setup progress, and whether it already opened itself
     // this session (docs/onboarding.md, O4).

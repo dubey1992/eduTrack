@@ -77,6 +77,7 @@ import '../network/maintenance_notifier.dart';
 import '../../features/module_settings/presentation/module_settings_screen.dart';
 import '../../features/permissions/presentation/permissions_screen.dart';
 import '../../features/absence_notes/presentation/absence_notes_screen.dart';
+import '../../features/guardian_invites/presentation/guardian_invites_screen.dart';
 import '../../features/call_requests/call_requests.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/splash_screen.dart';
@@ -174,6 +175,7 @@ const appRoutePaths = {
   '/students',
   '/attendance',
   '/absence-notes',
+  '/guardian-requests',
   '/call-requests',
   '/staff-attendance',
   '/biometric-devices',
@@ -321,6 +323,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/students', builder: (context, state) => const StudentListScreen()),
           GoRoute(path: '/attendance', builder: (context, state) => const AttendanceScreen()),
           GoRoute(path: '/absence-notes', builder: (context, state) => const AbsenceNotesScreen()),
+          GoRoute(path: '/guardian-requests', builder: (context, state) => const GuardianInvitesScreen()),
           GoRoute(path: '/call-requests', builder: (context, state) => const CallRequestsScreen()),
           GoRoute(path: '/staff-attendance', builder: (context, state) => const StaffAttendanceScreen()),
           GoRoute(path: '/biometric-devices', builder: (context, state) => const DeviceListScreen()),

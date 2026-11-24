@@ -6,6 +6,7 @@ import '../data/models/family_bus.dart';
 import '../data/models/family_call_request.dart';
 import '../data/models/family_fees.dart';
 import '../data/models/family_learning.dart';
+import '../data/models/family_guardian_invite.dart';
 import '../data/models/family_homework.dart';
 
 /// One child's results for one term, keyed by (child, term id or null for
@@ -134,6 +135,12 @@ class FamilyBusNotifier extends AsyncNotifier<FamilyBus?> {
 /// One child's absence notes, newest first (F5).
 final familyAbsenceNotesProvider = FutureProvider.autoDispose.family<List<FamilyAbsenceNote>, int>(
   (ref, childId) => ref.read(familyRepositoryProvider).absenceNotes(childId),
+  retry: (retryCount, error) => null,
+);
+
+/// One child's requests for another guardian, newest first (M8, 8.5).
+final familyGuardianInvitesProvider = FutureProvider.autoDispose.family<List<FamilyGuardianInvite>, int>(
+  (ref, childId) => ref.read(familyRepositoryProvider).guardianInvites(childId),
   retry: (retryCount, error) => null,
 );
 

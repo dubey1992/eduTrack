@@ -21,6 +21,7 @@ class NavItem {
     this.module,
     this.requiredLevel = PermissionLevel.view,
     this.deniedRoles = const {},
+    this.alsoNeedsModule,
   });
 
   final String path;
@@ -50,6 +51,10 @@ class NavItem {
   /// refused to them by the API (TransportMasterPolicy).
   final Set<UserRole> deniedRoles;
 
+  /// A second module the screen depends on, which must be switched on too -
+  /// Guardian Requests come from the Family app (M8, 8.5).
+  final String? alsoNeedsModule;
+
   /// Whether [user] may see this entry and open its route.
   ///
   /// A module item needs its module switched on for the user's school, and
@@ -64,6 +69,8 @@ class NavItem {
     if (module == null) return allowedRoles.contains(user.role);
 
     if (!user.moduleOn(module)) return false;
+    final also = alsoNeedsModule;
+    if (also != null && !user.moduleOn(also)) return false;
 
     if (requiredLevel == PermissionLevel.none || !user.access.hasPermissions) {
       return allowedRoles.contains(user.role);
@@ -272,6 +279,17 @@ class AppNav {
         allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.teacher},
         pageTitle: 'Student Management',
         pageSubtitle: 'Admissions, profiles and class assignments',
+      ),
+      NavItem(
+        path: '/guardian-requests',
+        module: AppModules.students,
+        alsoNeedsModule: AppModules.familyApp,
+        requiredLevel: PermissionLevel.manage,
+        label: 'Guardian Requests',
+        icon: Icons.person_add_alt_1_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin},
+        pageTitle: 'Guardian Requests',
+        pageSubtitle: 'Parents asking to add another guardian',
       ),
       NavItem(
         path: '/staff',

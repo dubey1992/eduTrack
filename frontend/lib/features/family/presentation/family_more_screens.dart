@@ -47,6 +47,13 @@ class FamilyMoreScreen extends ConsumerWidget {
         onTap: () => context.push('/absence-notes'),
       ),
       _MoreRow(
+        key: const Key('family-more-guardian'),
+        icon: Icons.person_add_alt_1_rounded,
+        title: 'Add a guardian',
+        subtitle: 'Ask the school to add the other parent, or a relative',
+        onTap: () => context.push('/guardians/new'),
+      ),
+      _MoreRow(
         key: const Key('family-more-call'),
         icon: Icons.phone_callback_rounded,
         title: 'Ask the school to call you',

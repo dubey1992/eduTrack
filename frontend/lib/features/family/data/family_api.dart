@@ -10,6 +10,7 @@ import 'models/family_bus.dart';
 import 'models/family_call_request.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
+import 'models/family_guardian_invite.dart';
 import 'models/family_homework.dart';
 import 'models/family_records.dart';
 
@@ -209,6 +210,26 @@ class FamilyApi {
       data: {'student_id': studentId, 'answer': answer, 'note': ?note},
     );
     return NoticeReply.fromJson(response.data as Map<String, dynamic>)!;
+  }
+
+  /// This parent's requests for another guardian of the child (M8, 8.5).
+  Future<List<FamilyGuardianInvite>> guardianInvites(int childId) async {
+    final response = await _dio.get('/family/children/$childId/guardian-invites');
+    final json = response.data as Map<String, dynamic>;
+    return [for (final r in json['data'] as List<dynamic>) FamilyGuardianInvite.fromJson(r as Map<String, dynamic>)];
+  }
+
+  Future<FamilyGuardianInvite> askForGuardian(
+    int childId, {
+    required String name,
+    required String mobile,
+    required String relationship,
+  }) async {
+    final response = await _dio.post(
+      '/family/children/$childId/guardian-invites',
+      data: {'name': name, 'mobile': mobile, 'relationship': relationship},
+    );
+    return FamilyGuardianInvite.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<List<FamilyCallRequest>> callRequests(int childId) async {
