@@ -54,7 +54,10 @@ enum TripEventType {
   guardianCalled('guardian_called'),
 
   /// The crew asked the school for help from the road.
-  sos('sos');
+  sos('sos'),
+
+  /// The crew told the waiting parents the bus is running late (M7).
+  delayReported('delay_reported');
 
   const TripEventType(this.apiValue);
 
@@ -242,7 +245,8 @@ class TripEvent {
   /// The timeline line for this event.
   String get description => switch (type) {
     TripEventType.started => note ?? 'Trip started',
-    TripEventType.stopReached => 'Bus reached ${stopName ?? 'a stop'}',
+    TripEventType.stopReached =>
+      'Bus reached ${stopName ?? 'a stop'}${note == 'Reached automatically' ? ' (marked automatically)' : ''}',
     TripEventType.boarded => '${studentName ?? 'A student'} boarded${stopName == null ? '' : ' at $stopName'}',
     TripEventType.dropped => '${studentName ?? 'A student'} dropped off${stopName == null ? '' : ' at $stopName'}',
     TripEventType.absent => '${studentName ?? 'A student'} marked absent',
@@ -250,6 +254,7 @@ class TripEvent {
     TripEventType.cancelled => note ?? 'Trip cancelled',
     TripEventType.guardianCalled => "${recordedByName ?? 'Someone'} called ${studentName ?? 'a student'}'s guardian",
     TripEventType.sos => 'SOS from the bus - ${recordedByName ?? 'the crew'} asked the school for help',
+    TripEventType.delayReported => '${note ?? 'Running late'} - parents told',
   };
 }
 
@@ -290,6 +295,7 @@ class TransportTrip {
     this.schoolLatitude,
     this.schoolLongitude,
     this.path = const RoutePath.notComputed(),
+    this.autoReachM = 0,
   });
 
   factory TransportTrip.fromJson(Map<String, dynamic> json) {
@@ -327,6 +333,7 @@ class TransportTrip {
       schoolLatitude: json['school_latitude'] as String?,
       schoolLongitude: json['school_longitude'] as String?,
       path: RoutePath.fromJson(json['path']),
+      autoReachM: json['auto_reach_m'] as int? ?? 0,
     );
   }
 
@@ -373,6 +380,10 @@ class TransportTrip {
   /// The road the route follows - the same block the route detail carries,
   /// so a trip and its route can never draw two different roads.
   final RoutePath path;
+
+  /// How close the Driver app marks a stop Reached by itself, in metres; 0
+  /// is off (the school's Transport settings, M7).
+  final int autoReachM;
 
   bool get isInProgress => status == TripStatus.inProgress;
 
@@ -425,6 +436,7 @@ class TransportTrip {
       schoolLatitude: schoolLatitude,
       schoolLongitude: schoolLongitude,
       path: path,
+      autoReachM: autoReachM,
     );
   }
 }

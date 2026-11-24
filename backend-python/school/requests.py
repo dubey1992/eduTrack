@@ -6343,7 +6343,11 @@ def parse_instant(field_name: str, value):
 # "sos" rides the same queue as every other mark: an emergency on a road
 # with no signal is exactly when the phone must keep it and send it the
 # moment there is some (docs/driver-app.md, D5.2).
-SYNC_TYPES = ("stop_reached", "boarded", "dropped", "absent", "guardian_called", "sos", "end")
+SYNC_TYPES = ("stop_reached", "boarded", "dropped", "absent", "guardian_called", "sos", "delay", "end")
+
+# "Running late" offers these and nothing else (decided 2026-11-24, M7): no
+# typing while driving.
+DELAY_MINUTES = (10, 15, 30)
 CLIENT_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 MAX_SYNC_OPERATIONS = 200
 
@@ -6395,10 +6399,17 @@ class TripSyncRequest(serializers.Serializer):
                 problems.append(f"Mark {index}: student_id is required.")
                 continue
 
+            if kind == "delay" and op.get("minutes") not in DELAY_MINUTES:
+                problems.append(f"Mark {index}: minutes must be one of 10, 15 or 30.")
+                continue
+
             cleaned.append({
                 "client_id": client_id, "type": kind, "occurred_at": occurred,
                 "stop_id": op.get("stop_id") if needs_stop else None,
                 "student_id": op.get("student_id") if needs_student else None,
+                # A Reached the phone detected itself (M7, 1.3).
+                "auto": kind == "stop_reached" and op.get("auto") is True,
+                "minutes": op.get("minutes") if kind == "delay" else None,
             })
 
         ids = [op["client_id"] for op in cleaned]

@@ -110,6 +110,11 @@
         <intent>
             <action android:name="android.speech.RecognitionService"/>
         </intent>
+        <!-- The phone's text-to-speech engine, for the spoken next-stop
+             prompts on a running trip (flutter_tts, M7). -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

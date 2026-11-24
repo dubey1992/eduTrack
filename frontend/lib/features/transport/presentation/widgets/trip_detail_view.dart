@@ -162,6 +162,13 @@ class TripDetailView extends StatelessWidget {
                       text: event.description,
                       bold: true,
                     ),
+                    // "Running late" from the bus (M7): the office should
+                    // see what the parents were told.
+                    TripEventType.delayReported => _IconLine(
+                      icon: Icons.schedule,
+                      color: context.appColors.warning,
+                      text: event.description,
+                    ),
                     _ => Text(event.description),
                   },
                   subtitle: event.recordedByName == null ? null : Text('by ${event.recordedByName}', style: muted),

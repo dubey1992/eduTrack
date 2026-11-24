@@ -25,6 +25,7 @@ import '../../push/device_repository.dart';
 import '../../my_teaching/application/staff_outbox.dart';
 import '../../my_teaching/data/report_notes.dart';
 import '../../my_trip/application/trip_mark_queue.dart';
+import '../../my_trip/data/trip_voice.dart';
 import '../../classes/application/school_class_list_notifier.dart';
 import '../../communication/application/inbox_notifier.dart';
 import '../../communication/application/message_page_notifier.dart';
@@ -184,6 +185,9 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(staffOutboxProvider);
     // A set-password code held from a link is no business of the next session.
     ref.invalidate(resetCodeProvider);
+    // Spoken next-stop prompts on or off (M7): read again from the phone for
+    // whoever signs in next.
+    ref.invalidate(tripVoiceOnProvider);
     ref.invalidate(schoolListNotifierProvider);
     // Which parents' notes the page was showing (Family app, F5).
     ref.invalidate(absenceNotesFilterProvider);

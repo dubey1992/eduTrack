@@ -36,7 +36,8 @@ TransportTrip applyMark(TransportTrip trip, TripMark mark) {
     TripMarkType.absent => _moveRider(trip, mark.studentId, TripRiderStatus.absent),
     // Neither changes the trip: one is a phone call, the other is a call
     // for help. Both belong on the timeline and nowhere else.
-    TripMarkType.guardianCalled || TripMarkType.sos => trip,
+    // "Running late" goes to the parents and onto the timeline too.
+    TripMarkType.guardianCalled || TripMarkType.sos || TripMarkType.delay => trip,
     TripMarkType.end => _end(trip),
   };
 }

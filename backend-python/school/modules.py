@@ -228,6 +228,18 @@ MODULES: tuple[Module, ...] = (
                 "show_crew_phone_to_parents", "Show parents the bus attendant's mobile", "bool", False,
                 help="Off: parents see the school office's number only.",
             ),
+            # Read by the Driver app with the trip (M7, 1.3).
+            Setting(
+                "auto_reach_m", "Mark a stop Reached when the bus is this close (metres)", "int", 50,
+                help="The Driver app marks it by itself; the Reached button still works. 0 turns it off.",
+                min=0, max=200,
+            ),
+            # Read by TransportTripService.alert_at_stop (M7). Off by default:
+            # no school's message bill changes until it chooses.
+            Setting(
+                "at_stop_alert", "Tell parents when the bus reaches their stop", "bool", False,
+                help="Once per stop per trip, on the channels the school sends transport alerts on.",
+            ),
         ),
     ),
     Module("communication", "Communication", "Alerts, messages and the message log."),

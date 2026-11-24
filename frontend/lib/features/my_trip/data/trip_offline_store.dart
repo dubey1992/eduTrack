@@ -29,6 +29,7 @@ class TripOfflineStore {
   static const _routesKey = 'my_trip.routes';
   static const _tripIdsKey = 'my_trip.trip_ids';
   static const _shareLocationKey = 'my_trip.share_location';
+  static const _speakPromptsKey = 'my_trip.speak_prompts';
   static const _pendingStartsKey = 'my_trip.pending_starts';
   static const _realIdsKey = 'my_trip.real_ids';
 
@@ -86,6 +87,14 @@ class TripOfflineStore {
   }
 
   Future<void> saveShareLocation(bool share) => _store.write(_shareLocationKey, share.toString());
+
+  /// Whether the next-stop prompts are spoken (M7). Null until chosen.
+  Future<bool?> readSpeakPrompts() async {
+    final value = await _store.read(_speakPromptsKey);
+    return value == null ? null : value == 'true';
+  }
+
+  Future<void> saveSpeakPrompts(bool on) => _store.write(_speakPromptsKey, on.toString());
 
   /// Forgets everything - on sign-out, so the next person on this phone sees
   /// none of it.

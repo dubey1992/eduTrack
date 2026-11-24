@@ -16,6 +16,7 @@ import '../../data/offline_start.dart';
 import '../../data/map_navigator.dart';
 import '../../data/navigation_session.dart';
 import '../../data/rider_search.dart';
+import '../../data/trip_voice.dart';
 import '../navigate_screen.dart';
 import '../../data/models/not_sent_mark.dart';
 import 'bulk_mark_sheet.dart';
@@ -67,10 +68,68 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     return true;
   }
 
+  /// The trips whose next stop has been said aloud since the app opened, so
+  /// coming back to the sheet does not say it again (M7, 3.2).
+  static final Set<int> _announced = {};
+
+  /// Says the next stop the first time this trip is shown running, once
+  /// the trip has loaded.
+  void _announceOnce(TransportTrip trip) {
+    if (!trip.isInProgress || !_announced.add(trip.id)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _trip.announceNextStop();
+    });
+  }
+
   @override
   void dispose() {
     _tapCooldown?.cancel();
     super.dispose();
+  }
+
+  /// "Running late" (M7, 5.5): 10, 15 or 30 minutes, one tap each - no
+  /// typing on a moving bus.
+  Future<void> _late() async {
+    final minutes = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Running late?', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text(
+                'The parents still waiting on this route are told.',
+                style: TextStyle(color: context.appColors.muted),
+              ),
+              const SizedBox(height: 16),
+              for (final choice in TripDetailNotifier.delayChoices) ...[
+                SizedBox(
+                  height: 52,
+                  child: FilledButton.tonal(
+                    key: Key('trip-late-$choice'),
+                    onPressed: () => Navigator.of(context).pop(choice),
+                    child: Text('About $choice minutes late', style: const TextStyle(fontSize: 16)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+    if (minutes == null || !mounted) return;
+
+    await _trip.reportDelay(minutes);
+    if (!mounted) return;
+    _snackBars
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('Parents told: about $minutes minutes late.')));
   }
 
   Future<void> _callParent(TripRider rider) async {
@@ -150,6 +209,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
   Widget _buildTrip(BuildContext context, TripSnapshot snapshot, List<NotSentMark> notSent) {
     final trip = snapshot.trip;
     final running = trip.isInProgress;
+    _announceOnce(trip);
     final stops = [...trip.stops]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
     final nextStop = running ? stops.where((s) => !s.reached).firstOrNull : null;
     final stopIds = {for (final s in stops) s.id};
@@ -175,7 +235,7 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
         // scrolling to the foot of forty children to find SOS is the wrong
         // moment to be scrolling (docs/mobile-apps-review.md, 1.4).
         bottomNavigationBar: running
-            ? _TripActionBar(aboard: aboard, onSos: _trip.raiseSos, onEnd: () => _end(trip))
+            ? _TripActionBar(aboard: aboard, onSos: _trip.raiseSos, onEnd: () => _end(trip), onLate: _late)
             : null,
         body: Column(
           children: [
@@ -221,13 +281,17 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: widget.onBack,
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('My routes'),
-          ),
+        Row(
+          children: [
+            TextButton.icon(
+              onPressed: widget.onBack,
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('My routes'),
+            ),
+            const Spacer(),
+            // The spoken next-stop prompts (M7, 3.2), on until muted here.
+            if (running) const _VoiceToggle(),
+          ],
         ),
         _TripHeader(trip: trip),
         if (snapshot.fromCache)
@@ -423,12 +487,29 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
 }
 
 /// The two buttons a running trip always needs within reach.
+class _VoiceToggle extends ConsumerWidget {
+  const _VoiceToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(tripVoiceOnProvider);
+
+    return IconButton(
+      key: const Key('trip-voice'),
+      tooltip: on ? 'Mute the spoken prompts' : 'Speak the next stop',
+      icon: Icon(on ? Icons.volume_up_outlined : Icons.volume_off_outlined),
+      onPressed: () => ref.read(tripVoiceOnProvider.notifier).set(!on),
+    );
+  }
+}
+
 class _TripActionBar extends StatelessWidget {
-  const _TripActionBar({required this.aboard, required this.onSos, required this.onEnd});
+  const _TripActionBar({required this.aboard, required this.onSos, required this.onEnd, required this.onLate});
 
   final int aboard;
   final Future<void> Function() onSos;
   final VoidCallback onEnd;
+  final VoidCallback onLate;
 
   @override
   Widget build(BuildContext context) {
@@ -455,6 +536,17 @@ class _TripActionBar extends StatelessWidget {
                     style: TextStyle(color: context.appColors.muted),
                   ),
                 ),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton.icon(
+                  key: const Key('trip-late'),
+                  onPressed: onLate,
+                  icon: const Icon(Icons.schedule),
+                  label: const Text('Running late'),
+                ),
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(flex: 3, child: SosButton(onSos: onSos)),

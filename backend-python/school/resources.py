@@ -797,6 +797,9 @@ def transport_trip_resource(trip, riders_count=None, riders=None, events=None, s
 
     body["riders"] = [trip_rider_resource(rider, clock, marks.get(rider.student_id)) for rider in riders]
     body["events"] = [trip_event_resource(event, clock) for event in events]
+    # How close the Driver app marks a stop Reached by itself; 0 is off
+    # (Transport settings, M7).
+    body["auto_reach_m"] = modules.setting(trip.school_id, "transport", "auto_reach_m") or 0
     body["stops"] = [
         {
             "id": stop.id,

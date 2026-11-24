@@ -311,6 +311,12 @@ class MessageEvent(models.TextChoices):
     # The Family app only (docs/parent-student-app.md, F4): the bus is close
     # to the child's stop. Never an SMS - it is a nicety, not worth the cost.
     TRANSPORT_NEAR_STOP = "transport.near_stop", "Bus near the stop"
+    # M7 (docs/mobile-apps-review.md): the bus has reached the child's stop,
+    # tapped or detected. Off until the school turns it on in Transport
+    # settings; then on the school's transport channels.
+    TRANSPORT_AT_STOP = "transport.at_stop", "Bus at the stop"
+    # M7: the crew pressed "Running late" - 10, 15 or 30 minutes.
+    TRANSPORT_DELAY = "transport.delay", "Bus running late"
     # The one transport alert addressed to the school rather than a
     # guardian: a trip nobody ended, closed by the nightly job
     # (docs/driver-app.md).
@@ -425,6 +431,12 @@ DEFAULT_BODIES = {
     MessageEvent.TRANSPORT_NEAR_STOP: (
         "The {route_name} bus is about {distance} from {stop_name}. Please be ready at the stop."
     ),
+    MessageEvent.TRANSPORT_AT_STOP: (
+        "The {route_name} bus has reached {stop_name} at {time}. - {school_name}"
+    ),
+    MessageEvent.TRANSPORT_DELAY: (
+        "The {route_name} bus is running about {minutes} minutes late today. - {school_name}"
+    ),
     MessageEvent.LEAVE_APPROVED: (
         "Your {leave_type} leave from {start_date} to {end_date} has been approved."
     ),
@@ -508,6 +520,12 @@ TRANSPORT_NEAR_STOP_TOKENS = [
     "guardian_name",
 ]
 
+# The bus running late (M7): by how much, in minutes.
+TRANSPORT_DELAY_TOKENS = [
+    "student_name", "stop_name", "route_name", "vehicle_name", "minutes", "direction", "time", "date",
+    "school_name", "guardian_name",
+]
+
 CALL_REQUEST_TOKENS = [
     "staff_name", "student_name", "guardian_name", "mobile", "reason", "preferred_time", "school_name",
 ]
@@ -533,6 +551,7 @@ PER_EVENT_TOKENS = {
     MessageEvent.REPORTS_REMINDER: REMINDER_TOKENS,
     MessageEvent.TRANSPORT_ABSENT: TRANSPORT_ABSENT_TOKENS,
     MessageEvent.TRANSPORT_NEAR_STOP: TRANSPORT_NEAR_STOP_TOKENS,
+    MessageEvent.TRANSPORT_DELAY: TRANSPORT_DELAY_TOKENS,
     MessageEvent.ABSENCE_NOTE: ABSENCE_NOTE_TOKENS,
     MessageEvent.CALL_REQUEST: CALL_REQUEST_TOKENS,
     MessageEvent.TRIP_LEFT_OPEN: TRIP_LEFT_OPEN_TOKENS,
@@ -862,6 +881,9 @@ class TripEventType(models.TextChoices):
     # D5.2). It changes nothing about the trip - the bus keeps running, the
     # children stay marked - and exists to be seen quickly.
     SOS = "sos"
+    # The crew told the waiting parents the bus is running late
+    # (docs/mobile-apps-review.md, M7). The note says by how much.
+    DELAY_REPORTED = "delay_reported"
 
 
 class AbsenceNoteStatus(models.TextChoices):
