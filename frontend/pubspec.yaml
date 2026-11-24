@@ -82,6 +82,7 @@ dependencies:
   # (docs/mobile-apps-review.md, 6.7; the Family app uses it too).
   share_plus: ^13.3.1
   local_auth: ^3.0.2
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:

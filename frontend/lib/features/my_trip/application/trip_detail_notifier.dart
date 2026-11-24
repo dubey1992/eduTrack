@@ -4,7 +4,10 @@ import '../../transport/data/models/transport_trip.dart';
 import '../data/apply_marks.dart';
 import '../data/models/trip_mark.dart';
 import '../data/my_trip_repository.dart';
+import '../data/location_source.dart';
 import '../data/phone_dialer.dart';
+import '../data/trip_voice.dart';
+import 'auto_reach.dart';
 import 'trip_mark_queue.dart';
 
 /// A trip as last heard from the server - or from the phone's copy of that,
@@ -50,12 +53,49 @@ class TripDetailNotifier extends AsyncNotifier<TripSnapshot> {
     return trip == null ? null : applyMarks(trip, ref.read(tripMarkQueueProvider).marksFor(tripId));
   }
 
-  Future<void> reachStop(TripStop stop) async {
+  /// [auto]: the phone saw the bus at the stop and marked it itself (M7).
+  Future<void> reachStop(TripStop stop, {bool auto = false}) async {
     final trip = _shown;
     if (trip == null || !trip.isInProgress || stop.reached) return;
 
-    await _mark(TripMarkType.stopReached, 'Reached ${stop.name}', stopId: stop.id);
+    await _mark(TripMarkType.stopReached, 'Reached ${stop.name}', stopId: stop.id, auto: auto);
+    await announceNextStop();
   }
+
+  /// A position the phone took: when the bus is at the next stop, it is
+  /// marked Reached without a tap (docs/mobile-apps-review.md, M7, 1.3).
+  /// Returns the stop it marked, if any.
+  Future<TripStop?> autoReach(DevicePosition position) async {
+    final trip = _shown;
+    if (trip == null) return null;
+
+    final stop = stopReachedByItself(trip, position);
+    if (stop != null) await reachStop(stop, auto: true);
+    return stop;
+  }
+
+  /// Says where the bus goes next, unless the crew has muted the prompts
+  /// (M7, 3.2).
+  Future<void> announceNextStop() async {
+    final trip = _shown;
+    if (trip == null || !ref.read(tripVoiceOnProvider)) return;
+
+    final sentence = nextStopPrompt(trip);
+    if (sentence != null) await ref.read(tripVoiceProvider).say(sentence);
+  }
+
+  /// "Running late" to the parents still waiting (M7, 5.5): 10, 15 or 30
+  /// minutes. A mark like any other, so it waits on the phone without
+  /// signal.
+  Future<void> reportDelay(int minutes) async {
+    final trip = _shown;
+    if (trip == null || !trip.isInProgress || !delayChoices.contains(minutes)) return;
+
+    await _mark(TripMarkType.delay, 'Running $minutes minutes late', minutes: minutes);
+  }
+
+  /// What "Running late" offers, and nothing else (decided 2026-11-24).
+  static const delayChoices = [10, 15, 30];
 
   /// Marks [rider], held for [TripMarkQueue.undoWindow] so a wrong tap can
   /// be taken back. Returns the mark's id for [undoMark], or null when
@@ -114,8 +154,24 @@ class TripDetailNotifier extends AsyncNotifier<TripSnapshot> {
     await _mark(TripMarkType.end, 'End trip');
   }
 
-  Future<String> _mark(TripMarkType type, String label, {int? stopId, int? studentId, Duration? hold}) async {
-    final mark = TripMark.now(tripId: tripId, type: type, label: label, stopId: stopId, studentId: studentId);
+  Future<String> _mark(
+    TripMarkType type,
+    String label, {
+    int? stopId,
+    int? studentId,
+    Duration? hold,
+    bool auto = false,
+    int? minutes,
+  }) async {
+    final mark = TripMark.now(
+      tripId: tripId,
+      type: type,
+      label: label,
+      stopId: stopId,
+      studentId: studentId,
+      auto: auto,
+      minutes: minutes,
+    );
     await ref.read(tripMarkQueueProvider.notifier).enqueue(mark, hold: hold);
     return mark.clientId;
   }

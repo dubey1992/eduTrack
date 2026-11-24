@@ -12,6 +12,7 @@ import '../data/trip_service.dart';
 import '../data/trip_health_log.dart';
 import '../data/trip_offline_store.dart';
 import 'leftover_points.dart';
+import 'trip_detail_notifier.dart';
 
 class LocationSharingState {
   const LocationSharingState({this.enabled = false, this.starting = false, this.message});
@@ -191,7 +192,12 @@ class LocationSharingNotifier extends Notifier<LocationSharingState> {
   }
 
   /// A position the platform offered. Kept only if it says something new.
+  ///
+  /// Every one is first offered to the trip, which marks a stop Reached when
+  /// the bus is at it (M7, 1.3) - before the "has it moved?" filter, since a
+  /// bus standing at a stop is exactly the case that matters.
   Future<void> _offered(DevicePosition position) async {
+    if (ref.mounted) unawaited(ref.read(tripDetailProvider(tripId).notifier).autoReach(position));
     if (!_worthKeeping(position)) return;
 
     await _keep(position);

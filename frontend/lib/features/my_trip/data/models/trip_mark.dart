@@ -13,6 +13,10 @@ enum TripMarkType {
   /// like any other mark, because a road with no signal is exactly when it
   /// must be kept and sent later (docs/driver-app.md, D5.2).
   sos('sos'),
+
+  /// "Running late" - 10, 15 or 30 minutes - to the parents still waiting
+  /// (docs/mobile-apps-review.md, M7).
+  delay('delay'),
   end('end');
 
   const TripMarkType(this.apiValue);
@@ -34,6 +38,8 @@ class TripMark {
     required this.label,
     this.stopId,
     this.studentId,
+    this.auto = false,
+    this.minutes,
   });
 
   /// A new mark happening now.
@@ -43,6 +49,8 @@ class TripMark {
     required String label,
     int? stopId,
     int? studentId,
+    bool auto = false,
+    int? minutes,
   }) {
     return TripMark(
       clientId: newClientId(),
@@ -52,6 +60,8 @@ class TripMark {
       label: label,
       stopId: stopId,
       studentId: studentId,
+      auto: auto,
+      minutes: minutes,
     );
   }
 
@@ -64,6 +74,8 @@ class TripMark {
       label: json['label'] as String? ?? '',
       stopId: json['stop_id'] as int?,
       studentId: json['student_id'] as int?,
+      auto: json['auto'] as bool? ?? false,
+      minutes: json['minutes'] as int?,
     );
   }
 
@@ -80,6 +92,12 @@ class TripMark {
   final int? stopId;
   final int? studentId;
 
+  /// A Reached the phone marked by itself, the bus being at the stop (M7).
+  final bool auto;
+
+  /// How late, for a [TripMarkType.delay].
+  final int? minutes;
+
   /// How the phone keeps it.
   Map<String, dynamic> toJson() => {...toSyncJson(), 'trip_id': tripId, 'label': label};
 
@@ -90,6 +108,8 @@ class TripMark {
     'occurred_at': occurredAt,
     'stop_id': ?stopId,
     'student_id': ?studentId,
+    if (auto) 'auto': true,
+    'minutes': ?minutes,
   };
 
   static final _random = Random.secure();

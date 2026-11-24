@@ -11,6 +11,7 @@ import 'package:edutrack_app/features/my_trip/data/map_navigator.dart';
 import 'package:edutrack_app/features/my_trip/data/navigation_session.dart';
 import 'package:edutrack_app/features/my_trip/data/my_trip_api.dart';
 import 'package:edutrack_app/features/my_trip/data/trip_service.dart';
+import 'package:edutrack_app/features/my_trip/data/trip_voice.dart';
 import 'package:edutrack_app/features/my_trip/data/voice_search.dart';
 import 'package:edutrack_app/features/my_trip/data/phone_dialer.dart';
 import 'package:edutrack_app/features/transport/data/models/transport_trip.dart';
@@ -529,4 +530,12 @@ class FakeVoiceSearch implements VoiceSearch {
 
   @override
   Future<void> stop() async => stops++;
+}
+
+/// Says nothing aloud; keeps what it was asked to say (M7, spoken prompts).
+class FakeTripVoice implements TripVoice {
+  final List<String> said = [];
+
+  @override
+  Future<void> say(String sentence) async => said.add(sentence);
 }

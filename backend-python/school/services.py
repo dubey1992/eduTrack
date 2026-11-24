@@ -4027,17 +4027,99 @@ class TransportTripService:
             raise TripRule.not_in_progress()
 
     @classmethod
-    def reach_stop(cls, trip, stop, actor: User, occurred_at=None, client_id=None) -> None:
+    def reach_stop(cls, trip, stop, actor: User, occurred_at=None, client_id=None, auto: bool = False) -> None:
+        """[auto]: the Driver app saw the bus within the school's distance of
+        the stop and marked it itself (M7, 1.3) - the timeline says so."""
         cls.assert_in_progress(trip)
 
         with transaction.atomic():
             cls.assert_in_progress(cls.locked(trip))
 
+            first_time = not TransportTripEvent.objects.filter(
+                trip_id=trip.pk, type=TripEventType.STOP_REACHED, stop_id=stop.pk
+            ).exists()
+
             trip.current_stop_id = stop.pk
             trip.updated_at = timezone.now()
             trip.save(update_fields=["current_stop", "updated_at"])
 
-            cls.record(trip, TripEventType.STOP_REACHED, actor, stop=stop, at=occurred_at, client_id=client_id)
+            cls.record(trip, TripEventType.STOP_REACHED, actor, stop=stop, at=occurred_at, client_id=client_id,
+                       note="Reached automatically" if auto else None)
+
+        # Once per stop per trip, however it was marked - the office and the
+        # crew may both mark the same stop (M7).
+        if first_time:
+            cls.alert_at_stop(trip, stop, actor, occurred_at or timezone.now())
+
+    @staticmethod
+    def waiting_riders(trip, stop=None):
+        """The children whose parents are still waiting on this bus: on a
+        pickup, those not yet boarded (or marked absent); on a drop, those
+        still aboard. With [stop], only that stop's."""
+        status = TripRiderStatus.PENDING if trip.direction == TripDirection.PICKUP else TripRiderStatus.BOARDED
+        riders = TransportTripRider.objects.filter(trip_id=trip.pk, status=status).select_related("student")
+
+        return riders.filter(stop_id=stop.pk) if stop is not None else riders
+
+    @classmethod
+    def alert_at_stop(cls, trip, stop, actor: User, happened) -> int:
+        """"The bus has reached your stop" to the parents waiting there - only
+        where the school has turned it on (Transport settings, M7). Returns
+        how many children's parents were told."""
+        from . import modules
+
+        if not modules.setting(trip.school_id, "transport", "at_stop_alert"):
+            return 0
+
+        told = 0
+        for rider in cls.waiting_riders(trip, stop):
+            notifications.notify_guardian(
+                MessageEvent.TRANSPORT_AT_STOP,
+                rider.student,
+                {
+                    "time": SchoolClock.for_school(trip.school_id).format(happened, TIME),
+                    "stop_name": stop.name,
+                    "vehicle_name": trip.vehicle.name,
+                    "route_name": trip.route.name,
+                    "date": dates.us(trip.trip_date),
+                },
+                actor,
+            )
+            told += 1
+
+        return told
+
+    @classmethod
+    def report_delay(cls, trip, minutes: int, actor: User, at, client_id: str) -> int:
+        """The crew's "Running late" (M7, 5.5): on the trip's timeline for the
+        office, and to the parents still waiting on the route, on the
+        school's transport-alert channels. Returns how many children's
+        parents were told."""
+        cls.assert_in_progress(trip)
+        cls.record(trip, TripEventType.DELAY_REPORTED, actor, at=at, client_id=client_id,
+                   note=f"Running about {minutes} minutes late")
+
+        clock = SchoolClock.for_school(trip.school_id)
+        told = 0
+
+        for rider in cls.waiting_riders(trip):
+            notifications.notify_guardian(
+                MessageEvent.TRANSPORT_DELAY,
+                rider.student,
+                {
+                    "minutes": str(minutes),
+                    "time": clock.format(at, TIME),
+                    "stop_name": rider.stop_name,
+                    "vehicle_name": trip.vehicle.name,
+                    "route_name": trip.route.name,
+                    "direction": trip.direction,
+                    "date": dates.us(trip.trip_date),
+                },
+                actor,
+            )
+            told += 1
+
+        return told
 
     @classmethod
     def update_rider(cls, trip, student, status: str, actor: User, occurred_at=None, client_id=None) -> None:
@@ -7453,7 +7535,10 @@ class TripSyncService:
         service = TransportTripService
 
         if kind == "stop_reached":
-            service.reach_stop(trip, TransportStop.objects.get(pk=op["stop_id"]), actor, at, client_id)
+            service.reach_stop(trip, TransportStop.objects.get(pk=op["stop_id"]), actor, at, client_id,
+                               auto=op.get("auto", False))
+        elif kind == "delay":
+            service.report_delay(trip, op["minutes"], actor, at, client_id)
         elif kind in ("boarded", "dropped", "absent"):
             student = Student.objects.get(pk=op["student_id"])
             rider = TransportTripRider.objects.get(trip_id=trip.pk, student_id=student.pk)
