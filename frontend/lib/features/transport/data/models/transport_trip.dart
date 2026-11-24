@@ -122,6 +122,7 @@ class TripRider {
     this.droppedAtLabel,
     this.markedByName,
     this.markedAtLabel,
+    this.photoUrl,
   });
 
   factory TripRider.fromJson(Map<String, dynamic> json) {
@@ -142,6 +143,7 @@ class TripRider {
       droppedAtLabel: json['dropped_at_label'] as String?,
       markedByName: json['marked_by_name'] as String?,
       markedAtLabel: json['marked_at_label'] as String?,
+      photoUrl: json['photo_url'] as String?,
     );
   }
 
@@ -168,6 +170,10 @@ class TripRider {
   /// should not have to ask (docs/driver-app.md, D2).
   final String? markedByName;
   final String? markedAtLabel;
+
+  /// The child's photo, relative to the API base, or null for initials
+  /// (M9, 3.3): a face is quicker and safer than a name at a stop.
+  final String? photoUrl;
 
   TripRider copyWith({
     TripRiderStatus? status,
@@ -196,6 +202,7 @@ class TripRider {
       // tap already shows in the status.
       markedByName: markedByName,
       markedAtLabel: markedAtLabel,
+      photoUrl: photoUrl,
     );
   }
 }

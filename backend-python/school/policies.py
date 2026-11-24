@@ -1316,6 +1316,23 @@ class StudentPolicy:
         return cls._manages(actor, student)
 
     @classmethod
+    def view_photo(cls, actor: User, student: Student) -> bool:
+        """Seeing the student's photo: whoever may see the student, and also
+        the bus crew of a route the child rides (docs/mobile-apps-review.md,
+        M9, 3.3) - a face is safer than a name read out at a stop. Crew
+        reach only children assigned to their own routes, and only the
+        photo: not the student's record."""
+        if cls.view(actor, student):
+            return True
+
+        if not UserRole.is_crew(actor.role) or not in_scope(actor, student.school_id):
+            return False
+
+        return TransportRoute.objects.filter(
+            crew_routes(actor), studenttransportassignment__student_id=student.id
+        ).exists()
+
+    @classmethod
     def set_photo(cls, actor: User, student: Student) -> bool:
         """Adding, replacing or removing the student's photo
         (docs/student-photos.md, D3): whoever manages the student, and also

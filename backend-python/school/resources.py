@@ -838,6 +838,7 @@ def trip_rider_resource(rider, clock, mark=None) -> dict:
         "class_section_name": None if section is None else f"{section.school_class.name} {section.name}".strip(),
         "guardian_name": student.guardian_name,
         "guardian_mobile": student.guardian_mobile,
+        "photo_url": student_photos.photo_url(student),
         "stop_id": rider.stop_id,
         "stop_name": rider.stop_name,
         "stop_sequence_number": rider.stop_sequence_number,

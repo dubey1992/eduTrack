@@ -215,7 +215,7 @@ def photo(request, student_id: int):
 def photo_image(request, student: Student) -> HttpResponse:
     """The image itself. "Not yours to see" and "no photo" are the same 404,
     so nobody learns whether another school's student has a photo."""
-    if not StudentPolicy.view(request.user, student):
+    if not StudentPolicy.view_photo(request.user, student):
         raise Http404
 
     stored = photos.read(student.photo_path)
