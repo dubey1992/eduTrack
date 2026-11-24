@@ -14,8 +14,7 @@ void main() {
   // which a testWidgets body keeps off the network.
   final apps = {
     'Staff': (AppTheme.teacherLight, AppTheme.teacherDark, BrandColors.teal),
-    'Driver': (AppTheme.crewLight, AppTheme.crewDark, DriverBrand.navy),
-    'Family': (AppTheme.familyLight, AppTheme.familyDark, FamilyBrand.violet),
+    'Driver': (AppTheme.crewLight, AppTheme.crewDark, DriverBrand.navy),
   };
 
   for (final MapEntry(key: app, value: (lightOf, darkOf, accent)) in apps.entries) {
