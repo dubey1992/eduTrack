@@ -126,7 +126,12 @@ NoticeReply tripQuestion({bool? answer, bool open = true}) => NoticeReply(
 final term1 = SchoolTerm(id: 1, name: 'Term 1', start: DateTime(2026, 4, 1), end: DateTime(2026, 9, 30));
 final term2 = SchoolTerm(id: 2, name: 'Term 2', start: DateTime(2026, 10, 1), end: DateTime(2027, 1, 31));
 
-FamilyResults familyResults({bool showsAverage = false, bool reportAvailable = false, SchoolTerm? term}) {
+FamilyResults familyResults({
+  bool showsAverage = false,
+  bool reportAvailable = false,
+  SchoolTerm? term,
+  List<TestResult>? mathsTests,
+}) {
   return FamilyResults(
     terms: [term2, term1],
     term: term ?? term2,
@@ -137,34 +142,36 @@ FamilyResults familyResults({bool showsAverage = false, bool reportAvailable = f
         average: '90.00',
         grade: 'A',
         classAverage: showsAverage ? '71.50' : null,
-        tests: [
-          TestResult(
-            id: 31,
-            title: 'Fractions',
-            type: 'class_test',
-            date: DateTime(2026, 10, 20),
-            maxMarks: '20.00',
-            marksObtained: '18.00',
-            isAbsent: false,
-            percentage: '90.00',
-            grade: 'A',
-            remarks: null,
-            classAverage: showsAverage ? '70.00' : null,
-          ),
-          TestResult(
-            id: 32,
-            title: 'Decimals',
-            type: 'class_test',
-            date: DateTime(2026, 11, 3),
-            maxMarks: '20.00',
-            marksObtained: null,
-            isAbsent: true,
-            percentage: null,
-            grade: null,
-            remarks: null,
-            classAverage: null,
-          ),
-        ],
+        tests:
+            mathsTests ??
+            [
+              TestResult(
+                id: 31,
+                title: 'Fractions',
+                type: 'class_test',
+                date: DateTime(2026, 10, 20),
+                maxMarks: '20.00',
+                marksObtained: '18.00',
+                isAbsent: false,
+                percentage: '90.00',
+                grade: 'A',
+                remarks: null,
+                classAverage: showsAverage ? '70.00' : null,
+              ),
+              TestResult(
+                id: 32,
+                title: 'Decimals',
+                type: 'class_test',
+                date: DateTime(2026, 11, 3),
+                maxMarks: '20.00',
+                marksObtained: null,
+                isAbsent: true,
+                percentage: null,
+                grade: null,
+                remarks: null,
+                classAverage: null,
+              ),
+            ],
       ),
     ],
     remark: 'Aarav works hard and helps others.',

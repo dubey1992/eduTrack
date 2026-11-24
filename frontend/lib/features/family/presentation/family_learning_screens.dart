@@ -15,6 +15,7 @@ import '../data/models/family_learning.dart';
 import '../data/models/family_homework.dart';
 import '../../../core/utils/pdf_hand_off.dart';
 import 'widgets/family_widgets.dart';
+import 'widgets/marks_trend.dart';
 
 /// A learning screen's frame: a back arrow, its title, and whose it is.
 class _LearningScaffold extends ConsumerWidget {
@@ -281,6 +282,8 @@ class _SubjectCard extends StatelessWidget {
             ],
           ),
           children: [
+            // How the marks have moved, test by test (M8, 8.2).
+            MarksTrend(tests: subject.tests, weakBelow: weakBelow),
             for (final test in subject.tests) _TestRow(test: test, showsAverage: showsAverage, weakBelow: weakBelow),
           ],
         ),

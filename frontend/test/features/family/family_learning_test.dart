@@ -1,5 +1,6 @@
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/features/family/data/models/family_learning.dart';
+import 'package:edutrack_app/features/family/presentation/widgets/marks_trend.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -118,6 +119,53 @@ void main() {
       expect(find.text('14 of 22 topics covered'), findsOneWidget);
       expect(find.text('64%'), findsOneWidget);
       expect(find.text('Coming up: Light, Sound'), findsOneWidget);
+    });
+  });
+
+  group('Marks trend (M8)', () {
+    TestResult scored(int id, String percent, DateTime date, {bool absent = false}) => TestResult(
+      id: id,
+      title: 'Test $id',
+      type: 'test',
+      date: date,
+      maxMarks: '20.00',
+      marksObtained: absent ? null : '10.00',
+      isAbsent: absent,
+      percentage: absent ? null : percent,
+      grade: null,
+      remarks: null,
+      classAverage: null,
+    );
+
+    test('the scored tests in the order they were sat; absent is left out, not nought', () {
+      final points = MarksTrend.pointsOf([
+        scored(2, '80.00', DateTime(2026, 11, 3)),
+        scored(3, '0', DateTime(2026, 11, 10), absent: true),
+        scored(1, '55.50', DateTime(2026, 10, 20)),
+      ]);
+
+      expect(points, [55.5, 80.0]);
+    });
+
+    testWidgets('drawn under a subject with two scored tests or more', (tester) async {
+      final data = FakeFamilyRepository()
+        ..resultsFor = (_) => familyResults(
+          mathsTests: [scored(1, '60.00', DateTime(2026, 10, 20)), scored(2, '85.00', DateTime(2026, 11, 3))],
+        );
+      await pumpFamilyApp(tester, data: data, goTo: '/results');
+      await tester.tap(find.text('Mathematics'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('family-marks-trend')), findsOneWidget);
+      expect(find.text('60% to 85% over 2 tests'), findsOneWidget);
+    });
+
+    testWidgets('not for a single scored test', (tester) async {
+      await pumpFamilyApp(tester, goTo: '/results');
+      await tester.tap(find.text('Mathematics'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('family-marks-trend')), findsNothing);
     });
   });
 
