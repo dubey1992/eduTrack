@@ -393,8 +393,9 @@ class _StudentRow extends StatelessWidget {
     Widget button(AttendanceStatus status, String letter, Color colour) {
       final chosen = mark == status;
       return Expanded(
-        child: SizedBox(
-          height: 44,
+        child: ConstrainedBox(
+          // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+          constraints: const BoxConstraints(minHeight: 44),
           child: OutlinedButton(
             key: Key('register-${student.id}-${status.apiValue}'),
             onPressed: editable ? () => onMark(status) : null,
@@ -491,8 +492,9 @@ class _Actions extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: SizedBox(
-              height: 48,
+            child: ConstrainedBox(
+              // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+              constraints: const BoxConstraints(minHeight: 48),
               child: FilledButton(
                 key: const Key('register-submit'),
                 onPressed: busy || !sheet.complete ? null : onSubmit,
@@ -504,9 +506,9 @@ class _Actions extends StatelessWidget {
           ),
         ],
       ),
-      RegisterMode.correcting => SizedBox(
-        width: double.infinity,
-        height: 48,
+      RegisterMode.correcting => ConstrainedBox(
+        // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+        constraints: const BoxConstraints(minHeight: 48, minWidth: double.infinity),
         child: FilledButton(
           key: const Key('register-save-correction'),
           onPressed: busy ? null : onSaveCorrection,

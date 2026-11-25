@@ -449,8 +449,9 @@ class _FileReportScreenState extends ConsumerState<FileReportScreen> {
                     decoration: InputDecoration(labelText: l10n.staffRemarksOptional),
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    height: 48,
+                  ConstrainedBox(
+                    // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+                    constraints: const BoxConstraints(minHeight: 48),
                     child: FilledButton(
                       key: const Key('report-submit'),
                       onPressed: _sending ? null : _submit,

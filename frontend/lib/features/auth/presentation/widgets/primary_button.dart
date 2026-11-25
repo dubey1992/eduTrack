@@ -19,9 +19,9 @@ class PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AuthPalette.of(context);
 
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
+    return ConstrainedBox(
+      // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+      constraints: const BoxConstraints(minHeight: 50, minWidth: double.infinity),
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(

@@ -229,9 +229,16 @@ class _TripTile extends StatelessWidget {
           Row(
             children: [
               Expanded(
+                flex: 3,
                 child: Text(direction.labelIn(l10n), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               ),
-              StatusBadge(label: badge, tone: tone),
+              const SizedBox(width: 8),
+              // May wrap in Hindi at large text rather than push the row off
+              // the screen (M11, 3.4).
+              Flexible(
+                flex: 2,
+                child: StatusBadge(label: badge, tone: tone),
+              ),
             ],
           ),
           if (trip != null && trip.status != TripStatus.inProgress) ...[

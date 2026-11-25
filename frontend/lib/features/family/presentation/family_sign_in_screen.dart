@@ -221,8 +221,9 @@ class _FamilySignInScreenState extends ConsumerState<FamilySignInScreen> {
             _ProblemBanner(message: _problem == sessionEndedMessage ? context.l10n.staffSessionEnded : _problem!),
           ],
           const SizedBox(height: 20),
-          SizedBox(
-            height: 52,
+          ConstrainedBox(
+            // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+            constraints: const BoxConstraints(minHeight: 52),
             child: FilledButton(
               key: const Key('family-sign-in'),
               onPressed: _submitting ? null : _submit,

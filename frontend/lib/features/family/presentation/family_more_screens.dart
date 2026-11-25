@@ -321,10 +321,14 @@ class FamilyNoticesScreen extends ConsumerWidget {
         title: Text(context.l10n.familyNotices),
         actions: [
           if (unread > 0)
-            TextButton(
+            // An icon with its words as the tooltip, which a screen reader
+            // speaks: the words did not fit the bar in Hindi at large text
+            // (M11, 3.4).
+            IconButton(
               key: const Key('family-read-all'),
+              tooltip: context.l10n.familyMarkAllRead,
               onPressed: () => _readAll(context, ref),
-              child: Text(context.l10n.familyMarkAllRead),
+              icon: const Icon(Icons.done_all_rounded),
             ),
         ],
       ),

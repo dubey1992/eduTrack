@@ -193,9 +193,9 @@ class TeacherPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
+    return ConstrainedBox(
+      // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+      constraints: const BoxConstraints(minHeight: 52, minWidth: double.infinity),
       child: FilledButton(
         onPressed: busy ? null : onPressed,
         style: FilledButton.styleFrom(

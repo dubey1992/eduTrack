@@ -99,9 +99,9 @@ class TeacherWelcomeScreen extends StatelessWidget {
                               body: l10n.staffWelcomeCalendarBody,
                             ),
                             const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 52,
+                            ConstrainedBox(
+                              // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+                              constraints: const BoxConstraints(minHeight: 52, minWidth: double.infinity),
                               child: FilledButton(
                                 key: const Key('welcome-sign-in'),
                                 onPressed: () => context.go('/login'),

@@ -271,17 +271,22 @@ class _SubjectCard extends StatelessWidget {
             ].join(' · '),
             style: TextStyle(color: muted, fontSize: 13),
           ),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                subject.average == null ? '-' : '${readableNumber(subject.average)}%',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: colour),
-              ),
-              if (subject.grade != null)
-                Text(context.l10n.familyGrade(subject.grade!), style: TextStyle(color: muted, fontSize: 12)),
-            ],
+          // Shrinks to the row's height at very large text instead of
+          // spilling out of it (M11, 3.4).
+          trailing: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  subject.average == null ? '-' : '${readableNumber(subject.average)}%',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: colour),
+                ),
+                if (subject.grade != null)
+                  Text(context.l10n.familyGrade(subject.grade!), style: TextStyle(color: muted, fontSize: 12)),
+              ],
+            ),
           ),
           children: [
             // How the marks have moved, test by test (M8, 8.2).

@@ -391,8 +391,9 @@ class _SheetState extends ConsumerState<_Sheet> {
                           Row(
                             children: [
                               Expanded(
-                                child: SizedBox(
-                                  height: 48,
+                                child: ConstrainedBox(
+                                  // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+                                  constraints: const BoxConstraints(minHeight: 48),
                                   child: FilledButton(
                                     key: const Key('marks-save'),
                                     onPressed: _busy || !dirty || _anyTypingError(sheet) ? null : () => _save(sheet),
@@ -407,8 +408,9 @@ class _SheetState extends ConsumerState<_Sheet> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              SizedBox(
-                                height: 48,
+                              ConstrainedBox(
+                                // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+                                constraints: const BoxConstraints(minHeight: 48),
                                 child: OutlinedButton(
                                   key: const Key('marks-publish'),
                                   // Saved first, and everyone marked: the server

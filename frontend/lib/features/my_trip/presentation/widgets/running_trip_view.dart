@@ -107,8 +107,9 @@ class _RunningTripViewState extends ConsumerState<RunningTripView> {
               Text(context.l10n.busRunningLateHelp, style: TextStyle(color: context.appColors.muted)),
               const SizedBox(height: 16),
               for (final choice in TripDetailNotifier.delayChoices) ...[
-                SizedBox(
-                  height: 52,
+                ConstrainedBox(
+                  // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+                  constraints: const BoxConstraints(minHeight: 52),
                   child: FilledButton.tonal(
                     key: Key('trip-late-$choice'),
                     onPressed: () => Navigator.of(context).pop(choice),
@@ -540,7 +541,8 @@ class _TripActionBar extends StatelessWidget {
                 ),
               SizedBox(
                 width: double.infinity,
-                height: 44,
+                // 48, Android's smallest comfortable target (M11, 3.4).
+                height: 48,
                 child: OutlinedButton.icon(
                   key: const Key('trip-late'),
                   onPressed: onLate,
@@ -555,8 +557,9 @@ class _TripActionBar extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     flex: 2,
-                    child: SizedBox(
-                      height: 56,
+                    child: ConstrainedBox(
+                      // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+                      constraints: const BoxConstraints(minHeight: 56),
                       child: FilledButton.icon(
                         key: const Key('end-trip'),
                         onPressed: aboard > 0 ? null : onEnd,
@@ -685,8 +688,9 @@ class _StopHeader extends StatelessWidget {
           if (stop.reached)
             StatusBadge(label: context.l10n.busReached, tone: BadgeTone.success)
           else if (isNext)
-            SizedBox(
-              height: 48,
+            ConstrainedBox(
+              // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+              constraints: const BoxConstraints(minHeight: 48),
               child: FilledButton.icon(
                 key: Key('reach-stop-${stop.id}'),
                 onPressed: onReached,

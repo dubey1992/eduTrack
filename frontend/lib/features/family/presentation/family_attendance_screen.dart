@@ -123,10 +123,14 @@ class _FamilyAttendanceScreenState extends ConsumerState<FamilyAttendanceScreen>
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
-                        TextButton(
-                          key: const Key('family-see-notes'),
-                          onPressed: () => context.push('/absence-notes'),
-                          child: Text(context.l10n.familyNotesSent),
+                        // May shrink and wrap: Hindi and large text both
+                        // run longer than the English (M11, 3.4).
+                        Flexible(
+                          child: TextButton(
+                            key: const Key('family-see-notes'),
+                            onPressed: () => context.push('/absence-notes'),
+                            child: Text(context.l10n.familyNotesSent, textAlign: TextAlign.center),
+                          ),
                         ),
                       ],
                     ),

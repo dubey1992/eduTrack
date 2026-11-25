@@ -229,8 +229,9 @@ class _SharePdfState extends ConsumerState<_SharePdf> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
+    return ConstrainedBox(
+      // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+      constraints: const BoxConstraints(minHeight: 48),
       child: FilledButton.icon(
         key: const Key('my-payslip-share'),
         onPressed: _busy ? null : _share,
@@ -294,8 +295,9 @@ class _EmailMeState extends ConsumerState<_EmailMe> {
           ),
           const SizedBox(height: 10),
         ],
-        SizedBox(
-          height: 48,
+        ConstrainedBox(
+          // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+          constraints: const BoxConstraints(minHeight: 48),
           child: OutlinedButton.icon(
             key: const Key('my-payslip-email'),
             onPressed: _busy ? null : _send,

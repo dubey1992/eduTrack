@@ -236,9 +236,9 @@ class _Card extends StatelessWidget {
             ],
             if (day.canCheckIn || day.canCheckOut) ...[
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
+              ConstrainedBox(
+                // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+                constraints: const BoxConstraints(minHeight: 48, minWidth: double.infinity),
                 child: day.canCheckIn
                     ? FilledButton.icon(
                         key: const Key('check-in-button'),

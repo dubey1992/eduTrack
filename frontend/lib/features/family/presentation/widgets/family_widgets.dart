@@ -303,16 +303,20 @@ class _HowWorkedOutState extends State<HowWorkedOut> {
         InkWell(
           onTap: () => setState(() => _open = !_open),
           borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
+          // At least 48 high, a comfortable target for a thumb; the words
+          // wrap at large text rather than running off the screen (M11, 3.4).
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.info_outline_rounded, size: 16, color: muted),
                 const SizedBox(width: 6),
-                Text(
-                  context.l10n.familyHowWorkedOut,
-                  style: TextStyle(fontSize: 13, color: muted, decoration: TextDecoration.underline),
+                Flexible(
+                  child: Text(
+                    context.l10n.familyHowWorkedOut,
+                    style: TextStyle(fontSize: 13, color: muted, decoration: TextDecoration.underline),
+                  ),
                 ),
               ],
             ),

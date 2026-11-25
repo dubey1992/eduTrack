@@ -136,8 +136,9 @@ class _Fallback extends StatelessWidget {
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 24),
-            SizedBox(
-              height: 56,
+            ConstrainedBox(
+              // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+              constraints: const BoxConstraints(minHeight: 56),
               child: FilledButton.icon(
                 key: const Key('nav-hand-off'),
                 onPressed: onHandOff,

@@ -147,8 +147,9 @@ class _MarkButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
+    return ConstrainedBox(
+      // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+      constraints: const BoxConstraints(minHeight: 52),
       child: FilledButton.tonal(
         onPressed: onPressed,
         style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)),

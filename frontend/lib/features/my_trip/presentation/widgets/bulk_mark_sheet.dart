@@ -90,8 +90,9 @@ class _BulkMarkSheetState extends State<_BulkMarkSheet> {
             ),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                height: 56,
+              child: ConstrainedBox(
+                // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+                constraints: const BoxConstraints(minHeight: 56),
                 child: FilledButton(
                   key: const Key('bulk-mark-confirm'),
                   onPressed: chosen.isEmpty ? null : () => Navigator.of(context).pop(chosen),

@@ -236,8 +236,9 @@ class _ReviewActionState extends ConsumerState<_ReviewAction> {
             ),
             const SizedBox(height: 8),
           ],
-          SizedBox(
-            height: 48,
+          ConstrainedBox(
+            // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+            constraints: const BoxConstraints(minHeight: 48),
             child: FilledButton.icon(
               key: const Key('report-review'),
               onPressed: _busy ? null : _review,
@@ -249,8 +250,9 @@ class _ReviewActionState extends ConsumerState<_ReviewAction> {
           ),
           if (!report.isReturned) ...[
             const SizedBox(height: 8),
-            SizedBox(
-              height: 48,
+            ConstrainedBox(
+              // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+              constraints: const BoxConstraints(minHeight: 48),
               child: OutlinedButton.icon(
                 key: const Key('report-send-back'),
                 onPressed: _busy ? null : _sendBack,
@@ -321,8 +323,9 @@ class _ChangeAction extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: SizedBox(
-        height: 48,
+      child: ConstrainedBox(
+        // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+        constraints: const BoxConstraints(minHeight: 48),
         child: FilledButton.icon(
           key: const Key('report-change'),
           onPressed: () =>

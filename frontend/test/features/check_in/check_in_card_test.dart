@@ -41,6 +41,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('at large text the button grows instead of cutting its label (M11, 3.4)', (tester) async {
+    await show(tester, FakeCheckInRepository());
+    final normal = tester.getSize(find.byKey(const Key('check-in-button'))).height;
+
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpAndSettle();
+
+    expect(normal, 48);
+    expect(tester.getSize(find.byKey(const Key('check-in-button'))).height, greaterThan(48));
+  });
+
   testWidgets('before arriving it asks for a check-in', (tester) async {
     await show(tester, FakeCheckInRepository());
 

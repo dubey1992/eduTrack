@@ -20,6 +20,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_family_repositories.dart';
 
+import 'package:edutrack_app/core/l10n/l10n.dart';
+
 /// The whole Family app on a phone-sized screen, on fakes. Starts signed in
 /// unless [auth] says otherwise.
 Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyApp(
@@ -31,6 +33,7 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
   CalendarHandOff? onCalendar,
   PhotoPicker? onPickPhoto,
   bool opens = true,
+  Locale? locale,
 }) async {
   tester.view.physicalSize = const Size(420, 900);
   tester.view.devicePixelRatio = 1;
@@ -64,8 +67,14 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
     UncontrolledProviderScope(
       container: container,
       child: Consumer(
-        builder: (context, ref, _) =>
-            MaterialApp.router(theme: AppTheme.familyLight(), routerConfig: ref.watch(familyRouterProvider)),
+        builder: (context, ref, _) => MaterialApp.router(
+          theme: AppTheme.familyLight(),
+          routerConfig: ref.watch(familyRouterProvider),
+          // English unless a test asks for another language (M11).
+          locale: locale,
+          localizationsDelegates: locale == null ? null : AppLocalizations.localizationsDelegates,
+          supportedLocales: locale == null ? const [Locale('en')] : AppLocalizations.supportedLocales,
+        ),
       ),
     ),
   );

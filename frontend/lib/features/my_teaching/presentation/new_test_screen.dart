@@ -317,8 +317,9 @@ class _FormState extends ConsumerState<_Form> {
               style: TextStyle(color: colors.muted, fontSize: 13),
             ),
           const SizedBox(height: 16),
-          SizedBox(
-            height: 48,
+          ConstrainedBox(
+            // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+            constraints: const BoxConstraints(minHeight: 48),
             child: FilledButton(
               key: const Key('new-test-submit'),
               onPressed: _sending ? null : _submit,

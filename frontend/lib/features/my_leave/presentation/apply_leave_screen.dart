@@ -139,6 +139,9 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                   DropdownButtonFormField<LeaveType>(
                     key: const Key('apply-leave-type'),
                     initialValue: _type,
+                    // The whole width, so a long leave type fits at large
+                    // text (M11, 3.4).
+                    isExpanded: true,
                     decoration: InputDecoration(labelText: l10n.staffLeaveType),
                     items: [
                       for (final type in LeaveType.values)
@@ -187,8 +190,9 @@ class _ApplyLeaveScreenState extends ConsumerState<ApplyLeaveScreen> {
                     style: TextStyle(fontSize: 13, color: colors.muted, height: 1.35),
                   ),
                   const SizedBox(height: 20),
-                  SizedBox(
-                    height: 52,
+                  ConstrainedBox(
+                    // A minimum, not a fixed height: the label grows with large text (M11, 3.4).
+                    constraints: const BoxConstraints(minHeight: 52),
                     child: FilledButton(
                       key: const Key('apply-leave-submit'),
                       onPressed: _isSubmitting ? null : _submit,

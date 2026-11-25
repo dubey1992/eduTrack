@@ -132,12 +132,16 @@ class _ReportCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
+                    flex: 3,
                     child: Text(
                       report.subjectName ?? context.l10n.staffReport,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  ReviewBadge(report: report),
+                  const SizedBox(width: 8),
+                  // May wrap at large text rather than push the row off
+                  // the screen (M11, 3.4).
+                  Flexible(flex: 2, child: ReviewBadge(report: report)),
                 ],
               ),
               const SizedBox(height: 2),

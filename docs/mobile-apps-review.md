@@ -255,7 +255,7 @@ the product owner before that phase starts.
 - **Hindi:** drafted to `docs/hindi-glossary.md` - **needs a native speaker's review before release** (one open question there: masculine vs neutral wording about a child).
 - **Left English on purpose:** server-written text; weekday/month names inside dates (dates keep their US order); the Bus app's spoken next-stop prompt (needs a Hindi voice); phone-settings paths in the battery help.
 - **Home-screen widget:** its cards follow the same language choice.
-- **Still to do in M11:** 3.4 - large text and screen readers across the three apps.
+- **3.4 large text and screen readers (L4, built):** `frontend/test/a11y/` checks every Family screen, the Staff app's screens for a teacher, an HOD and an accountant, and the Bus app's routes and running trip - in English and Hindi, at normal and double text size, scrolled to the bottom: nothing overflows, every tappable thing has a label for a screen reader, every target is at least 48 x 48 (about 250 checks, all passing). What they found was fixed: overflowing rows (Family results, fees, attendance, notices; Staff leave form, teaching list; Bus route card), small targets (Running late, How is this worked out?), and on a real phone at double text, buttons whose fixed height cut their labels - 24 of them now have a minimum height and grow. Contrast was checked in the Bus and Family apps and passed. Dates keep their US order (decided earlier), so the review's "local date format" point is not taken.
 
 **Decisions needed before their phase:**
 
