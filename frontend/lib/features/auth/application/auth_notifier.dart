@@ -58,6 +58,7 @@ import '../../transport/application/vehicle_page_notifier.dart';
 import '../../users/application/user_list_notifier.dart';
 import '../../absence_notes/application/absence_notes_notifier.dart';
 import '../../call_requests/call_requests.dart';
+import '../../ptm/application/ptm_providers.dart';
 import '../data/auth_repository.dart';
 import 'reset_code_notifier.dart';
 import '../data/models/authenticated_user.dart';
@@ -194,6 +195,8 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
     ref.invalidate(absenceNotesFilterProvider);
     ref.invalidate(guardianInvitesFilterProvider);
     ref.invalidate(callRequestsOpenProvider);
+    // Ahead or past on the parent-teacher meetings list (M12, 8.4).
+    ref.invalidate(ptmShowPastProvider);
     // One school's setup progress, and whether it already opened itself
     // this session (docs/onboarding.md, O4).
     ref.invalidate(setupGuideNotifierProvider);

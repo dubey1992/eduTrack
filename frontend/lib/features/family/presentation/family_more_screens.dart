@@ -66,6 +66,13 @@ class FamilyMoreScreen extends ConsumerWidget {
         subtitle: l10n.familyAskToCallSub,
         onTap: () => context.push('/call-requests'),
       ),
+      _MoreRow(
+        key: const Key('family-more-meetings'),
+        icon: Icons.groups_2_rounded,
+        title: l10n.familyMeetings,
+        subtitle: l10n.familyMeetingsSub,
+        onTap: () => context.push('/meetings'),
+      ),
       if (features.results)
         _MoreRow(
           key: const Key('family-more-results'),

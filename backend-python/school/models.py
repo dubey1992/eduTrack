@@ -2448,3 +2448,113 @@ class GuardianInvite(models.Model):
     class Meta:
         managed = False
         db_table = 'guardian_invites'
+
+
+class PtmMeeting(models.Model):
+    """A parent-teacher meeting day (docs/mobile-apps-review.md, M12, 8.4)."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    title = models.CharField(max_length=120)
+    meeting_date = models.DateField()
+    note = models.CharField(max_length=300, blank=True, null=True)
+    status = models.CharField(max_length=20, default='scheduled')
+    created_by = models.ForeignKey('User', models.DO_NOTHING, db_column='created_by', blank=True, null=True,
+                                   related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'ptm_meetings'
+
+
+class PtmMeetingSection(models.Model):
+    """A class taking part in a meeting day; when its slots first opened."""
+
+    id = models.BigAutoField(primary_key=True)
+    ptm_meeting = models.ForeignKey('PtmMeeting', models.CASCADE, related_name='sections')
+    class_section = models.ForeignKey('ClassSection', models.DO_NOTHING, related_name='+')
+    slots_opened_at = UtcDateTimeField(blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'ptm_meeting_sections'
+        unique_together = (('ptm_meeting', 'class_section'),)
+
+
+class PtmSlot(models.Model):
+    """One meeting time with a class's teacher, in the school's own wall-clock time."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    ptm_meeting = models.ForeignKey('PtmMeeting', models.CASCADE, related_name='slots')
+    class_section = models.ForeignKey('ClassSection', models.DO_NOTHING, related_name='+')
+    teacher_user = models.ForeignKey('User', models.DO_NOTHING, blank=True, null=True, related_name='+')
+    starts_at = models.TimeField()
+    ends_at = models.TimeField()
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'ptm_slots'
+        unique_together = (('ptm_meeting', 'class_section', 'starts_at'),)
+
+
+class PtmBooking(models.Model):
+    """A parent's booking of one slot for one child."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    ptm_meeting = models.ForeignKey('PtmMeeting', models.CASCADE, related_name='bookings')
+    ptm_slot = models.OneToOneField('PtmSlot', models.CASCADE, related_name='booking')
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='+')
+    booked_by = models.ForeignKey('User', models.DO_NOTHING, db_column='booked_by', related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'ptm_bookings'
+        unique_together = (('ptm_meeting', 'student'),)
+
+
+class GalleryEvent(models.Model):
+    """An event with photos for the Family app (docs/mobile-apps-review.md,
+    M12, 8.6): the whole school's when class_section is empty."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    class_section = models.ForeignKey('ClassSection', models.DO_NOTHING, blank=True, null=True, related_name='+')
+    title = models.CharField(max_length=120)
+    event_date = models.DateField()
+    description = models.CharField(max_length=500, blank=True, null=True)
+    posted_by = models.ForeignKey('User', models.DO_NOTHING, db_column='posted_by', blank=True, null=True,
+                                  related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'gallery_events'
+
+
+class GalleryPhoto(models.Model):
+    """One photo of an event, with its small copy for the grid."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    gallery_event = models.ForeignKey('GalleryEvent', models.CASCADE, related_name='photos')
+    file_path = models.CharField(max_length=255)
+    thumb_path = models.CharField(max_length=255)
+    uploaded_by = models.ForeignKey('User', models.DO_NOTHING, db_column='uploaded_by', blank=True, null=True,
+                                    related_name='+')
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'gallery_photos'

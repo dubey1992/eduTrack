@@ -32,6 +32,8 @@ import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/today/presentation/week_screen.dart';
 import '../../features/today/presentation/staff_home_screen.dart';
 import '../../features/today/presentation/today_screen.dart';
+import '../../features/ptm/presentation/ptm_meetings_screen.dart';
+import '../../features/ptm/presentation/ptm_slots_screen.dart';
 import '../l10n/l10n.dart';
 import '../models/user_role.dart';
 import '../network/maintenance_notifier.dart';
@@ -63,6 +65,7 @@ const teacherPaths = {
   '/profile',
   '/week',
   '/call-requests',
+  '/meetings',
   '/find-student',
   '/fees',
 };
@@ -83,6 +86,9 @@ final _teachingPaths = [
   RegExp(r'^/teaching/syllabus/\d+/\d+$'),
   RegExp(r'^/teaching/tests/\d+$'),
 ];
+
+/// One class's times in a parent-teacher meeting, `/meetings/<id>/classes/<section id>`.
+final _meetingClassPath = RegExp(r'^/meetings/\d+/classes/\d+$');
 
 /// Those who teach a timetable: their home is Today, with periods and
 /// registers. An HOD teaches too, and gets a Department tab in T7.
@@ -241,6 +247,24 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
           body: const CallRequestsScreen(compact: true),
         ),
       ),
+      // Parent-teacher meetings, over the frame, from Today (M12, 8.4).
+      GoRoute(
+        path: '/meetings',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(context.l10n.ptmMeetings)),
+          body: const PtmMeetingsScreen(compact: true),
+        ),
+      ),
+      GoRoute(
+        path: '/meetings/:id/classes/:sectionId',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(context.l10n.ptmMeetings)),
+          body: PtmSlotsScreen(
+            meetingId: int.parse(state.pathParameters['id']!),
+            sectionId: int.parse(state.pathParameters['sectionId']!),
+          ),
+        ),
+      ),
       // The teacher's own week, over the frame, from Today (7.5).
       GoRoute(path: '/week', builder: (context, state) => const WeekScreen()),
       GoRoute(
@@ -286,7 +310,8 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
           _payslipPath.hasMatch(location) ||
           _feeStatementPath.hasMatch(location) ||
           _registerPath.hasMatch(location) ||
-          _teachingPaths.any((path) => path.hasMatch(location));
+          _teachingPaths.any((path) => path.hasMatch(location)) ||
+          _meetingClassPath.hasMatch(location);
       return known ? null : '/today';
     },
   );

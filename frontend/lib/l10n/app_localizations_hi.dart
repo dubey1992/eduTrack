@@ -2132,6 +2132,314 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyOpen => 'खोलें';
 
   @override
+  String get familyMeetings => 'अभिभावक-शिक्षक बैठक';
+
+  @override
+  String get familyMeetingsSub => 'कक्षा शिक्षक से मिलने का समय बुक करें';
+
+  @override
+  String get familyNoMeetings => 'आगे कोई बैठक नहीं';
+
+  @override
+  String get familyNoMeetingsMessage => 'जब स्कूल इस कक्षा की अभिभावक-शिक्षक बैठक तय करेगा, वह यहाँ दिखेगी।';
+
+  @override
+  String familyMeetingWith(String date, String teacher) {
+    return '$date · $teacher के साथ';
+  }
+
+  @override
+  String get familyTheClassTeacherLower => 'कक्षा शिक्षक';
+
+  @override
+  String familyYourTime(String time) {
+    return 'आपका समय: $time';
+  }
+
+  @override
+  String get familyMeetingTimesNotOpen => 'शिक्षक ने अभी समय नहीं खोले हैं। खुलते ही आपको संदेश मिलेगा।';
+
+  @override
+  String get familyMeetingAllTaken => 'सभी समय बुक हो चुके हैं। कृपया स्कूल ऑफ़िस से पूछें।';
+
+  @override
+  String get familyMeetingClosed => 'बुकिंग बंद हो चुकी है। कुछ बदलना हो तो कृपया स्कूल को कॉल करें।';
+
+  @override
+  String get familyPickATime => 'समय चुनें';
+
+  @override
+  String get familyPickAnotherTime => 'या किसी दूसरे समय पर बदलें';
+
+  @override
+  String familyBookTimeQ(String time) {
+    return '$time बुक करें?';
+  }
+
+  @override
+  String familyMoveTimeQ(String time) {
+    return '$time पर बदलें?';
+  }
+
+  @override
+  String familyBookTimeBody(String date, String teacher, String child) {
+    return '$date, $teacher के साथ, $child के बारे में।';
+  }
+
+  @override
+  String get familyBook => 'बुक करें';
+
+  @override
+  String get familyMove => 'बदलें';
+
+  @override
+  String familyBookedFor(String time) {
+    return '$time के लिए बुक हो गया';
+  }
+
+  @override
+  String get familyCancelBooking => 'बुकिंग रद्द करें';
+
+  @override
+  String get familyCancelBookingQ => 'यह बुकिंग रद्द करें?';
+
+  @override
+  String familyCancelBookingBody(String time) {
+    return 'आपका $time का समय किसी दूसरे अभिभावक के लिए खाली हो जाएगा।';
+  }
+
+  @override
+  String get familyKeepIt => 'रहने दें';
+
+  @override
+  String get familyBookingCancelled => 'बुकिंग रद्द हो गई';
+
+  @override
+  String familySlotTakenLabel(String time) {
+    return '$time, बुक हो चुका';
+  }
+
+  @override
+  String familySlotYoursLabel(String time) {
+    return '$time, आपका समय';
+  }
+
+  @override
+  String get ptmMeetings => 'अभिभावक-शिक्षक बैठकें';
+
+  @override
+  String get ptmAhead => 'आगामी';
+
+  @override
+  String get ptmPast => 'पिछली';
+
+  @override
+  String get ptmNewMeeting => 'नई बैठक';
+
+  @override
+  String get ptmEditMeeting => 'बैठक बदलें';
+
+  @override
+  String get ptmIntroOffice =>
+      'बैठक का दिन बनाएँ और कक्षाएँ चुनें। फिर हर कक्षा शिक्षक समय खोलेंगे और अभिभावक फ़ैमिली ऐप में बुक करेंगे।';
+
+  @override
+  String get ptmIntroTeacher =>
+      'अपनी कक्षा के लिए समय खोलें। अभिभावक फ़ैमिली ऐप में बुक करेंगे और आप देखेंगे कि कौन आ रहा है।';
+
+  @override
+  String get ptmNoMeetingsAhead => 'आगे कोई बैठक नहीं।';
+
+  @override
+  String get ptmNoPastMeetings => 'कोई पिछली बैठक नहीं।';
+
+  @override
+  String get ptmCancelled => 'रद्द';
+
+  @override
+  String get ptmBookingClosed => 'बुकिंग बंद';
+
+  @override
+  String get ptmNoClassTeacher => 'कोई कक्षा शिक्षक नहीं';
+
+  @override
+  String get ptmNoTimesYet => 'अभी कोई समय नहीं खुला';
+
+  @override
+  String ptmBookedOf(int booked, int total) {
+    return '$total में से $booked बुक';
+  }
+
+  @override
+  String get ptmEdit => 'बदलें';
+
+  @override
+  String get ptmCancelMeeting => 'बैठक रद्द करें';
+
+  @override
+  String ptmCancelMeetingQ(String title) {
+    return '$title रद्द करें?';
+  }
+
+  @override
+  String get ptmCancelMeetingBody =>
+      'जिन अभिभावकों ने बुक किया है उन्हें फ़ैमिली ऐप में बताया जाएगा। इसे वापस नहीं किया जा सकता।';
+
+  @override
+  String get ptmKeepMeeting => 'रहने दें';
+
+  @override
+  String get ptmMeetingCancelled => 'बैठक रद्द हो गई';
+
+  @override
+  String get ptmMeetingCreated => 'बैठक बन गई';
+
+  @override
+  String get ptmSaved => 'सहेजा गया';
+
+  @override
+  String get ptmTitleLabel => 'नाम';
+
+  @override
+  String get ptmTitleHint => 'जैसे: पहले सत्र की अभिभावक-शिक्षक बैठक';
+
+  @override
+  String get ptmTitleRequired => 'बैठक का नाम लिखें।';
+
+  @override
+  String get ptmDateLabel => 'तारीख़';
+
+  @override
+  String get ptmPickDate => 'तारीख़ चुनें';
+
+  @override
+  String get ptmDateRequired => 'तारीख़ चुनें।';
+
+  @override
+  String get ptmNoteLabel => 'अभिभावकों के लिए नोट (वैकल्पिक)';
+
+  @override
+  String get ptmNoteHelp => 'फ़ैमिली ऐप में दिखेगा, जैसे क्या साथ लाना है।';
+
+  @override
+  String get ptmClassesTakingPart => 'भाग लेने वाली कक्षाएँ';
+
+  @override
+  String get ptmSelectAll => 'सभी चुनें';
+
+  @override
+  String get ptmClearAll => 'सभी हटाएँ';
+
+  @override
+  String get ptmChooseSchoolFirst => 'पहले स्कूल चुनें।';
+
+  @override
+  String get ptmNoClassesYet => 'अभी कोई कक्षा नहीं बनाई गई है।';
+
+  @override
+  String get ptmClassesRequired => 'कम से कम एक कक्षा चुनें।';
+
+  @override
+  String get ptmCreate => 'बनाएँ';
+
+  @override
+  String get ptmSave => 'सहेजें';
+
+  @override
+  String get ptmMeetingWasCancelled => 'यह बैठक रद्द कर दी गई थी।';
+
+  @override
+  String get ptmNoTimesOpened => 'अभी कोई समय नहीं खोला गया।';
+
+  @override
+  String get ptmOpenTimes => 'समय खोलें';
+
+  @override
+  String get ptmOpenTimesHelp =>
+      'इस अवधि को स्लॉट में बाँटा जाएगा। जो समय पहले से खुले समय से टकराता है, वह छोड़ दिया जाएगा।';
+
+  @override
+  String ptmFromTime(String time) {
+    return '$time से';
+  }
+
+  @override
+  String ptmToTime(String time) {
+    return '$time तक';
+  }
+
+  @override
+  String get ptmSlotLength => 'हर स्लॉट';
+
+  @override
+  String ptmMinutes(int minutes) {
+    return '$minutes मिनट';
+  }
+
+  @override
+  String get ptmOpenTimesButton => 'ये समय खोलें';
+
+  @override
+  String get ptmEndAfterStart => 'समाप्ति का समय शुरुआत के बाद होना चाहिए।';
+
+  @override
+  String ptmTimesOpened(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count समय खोले गए',
+      one: '1 समय खोला गया',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ptmNoNewTimes => 'ये समय पहले से खुले हैं।';
+
+  @override
+  String get ptmFree => 'खाली';
+
+  @override
+  String ptmBookedBy(String child, String parent) {
+    return '$child · $parent';
+  }
+
+  @override
+  String ptmCallParent(String mobile) {
+    return '$mobile पर कॉल करें';
+  }
+
+  @override
+  String get ptmRemoveTime => 'यह समय हटाएँ';
+
+  @override
+  String ptmRemoveTimeQ(String time) {
+    return '$time हटाएँ?';
+  }
+
+  @override
+  String get ptmRemoveFreeBody => 'इसे किसी ने बुक नहीं किया है।';
+
+  @override
+  String ptmRemoveBookedBody(String parent) {
+    return '$parent ने यह समय बुक किया है। उन्हें बताया जाएगा कि यह हटा दिया गया है और दूसरा समय बुक करने को कहा जाएगा।';
+  }
+
+  @override
+  String get ptmRemove => 'हटाएँ';
+
+  @override
+  String get ptmTimeRemoved => 'समय हटा दिया गया';
+
+  @override
+  String ptmTodayCard(String title, String date) {
+    return '$title, $date को';
+  }
+
+  @override
+  String get ptmTodayCardSub => 'समय खोलें और देखें किसने बुक किया';
+
+  @override
   String get staffNavHome => 'होम';
 
   @override
@@ -4717,6 +5025,90 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get staffMarkPresentAnyway => 'फिर भी उपस्थित दर्ज करें';
+
+  @override
+  String get staffMarksSpeak => 'अंक बोलकर भरें';
+
+  @override
+  String get staffMarksFromPhoto => 'फ़ोटो से अंक पढ़ें';
+
+  @override
+  String get staffMarksListening => 'सुन रहे हैं। \"रोल 12, 45\" बोलें, या रोल के क्रम में अंक बोलें।';
+
+  @override
+  String get staffMarksStopListening => 'रोकें';
+
+  @override
+  String get staffMarksReadingPhoto => 'फ़ोटो पढ़ी जा रही है...';
+
+  @override
+  String get staffMarksCannotListen => 'यह फ़ोन नहीं सुन रहा। माइक्रोफ़ोन की अनुमति दें, या अंक टाइप करें।';
+
+  @override
+  String get staffMarksNothingHeard => 'कोई अंक सुनाई नहीं दिया। फिर से कोशिश करें, थोड़ा धीरे बोलें।';
+
+  @override
+  String get staffMarksCannotReadPhoto => 'फ़ोटो पढ़ी नहीं जा सकी। फिर से कोशिश करें, या अंक टाइप करें।';
+
+  @override
+  String get staffMarksNothingInPhoto => 'फ़ोटो में कोई अंक नहीं मिला। अच्छी रोशनी में साफ़ फ़ोटो लें।';
+
+  @override
+  String get staffMarksTakePhoto => 'फ़ोटो लें';
+
+  @override
+  String get staffMarksChoosePhoto => 'फ़ोटो चुनें';
+
+  @override
+  String get staffMarksReviewTitle => 'पढ़े गए अंक जाँचें';
+
+  @override
+  String get staffMarksReviewHint =>
+      'पुष्टि करने तक शीट में कुछ नहीं जाएगा। खाली छोड़े गए छात्रों के अंक जैसे हैं वैसे रहेंगे।';
+
+  @override
+  String get staffMarksReviewConfirm => 'पुष्टि करें';
+
+  @override
+  String get staffMarksReviewCancel => 'रद्द करें';
+
+  @override
+  String get staffMarksNotRead => 'पढ़ा नहीं गया - जैसा है वैसा रहेगा';
+
+  @override
+  String staffMarksCouldNotRead(String text) {
+    return '\"$text\" पढ़ा नहीं जा सका';
+  }
+
+  @override
+  String get staffMarksNoMarkRead => 'कोई अंक नहीं पढ़ा गया';
+
+  @override
+  String get staffMarksNotPlaced => 'शीट में नहीं डाले गए';
+
+  @override
+  String staffMarksIssueUnknownRoll(String roll) {
+    return 'रोल $roll इस शीट में नहीं है';
+  }
+
+  @override
+  String get staffMarksIssueExtra => 'छात्रों से ज़्यादा अंक';
+
+  @override
+  String staffMarksIssueReadTwice(String roll) {
+    return 'रोल $roll दो बार पढ़ा गया; आख़िरी वाला रखा गया';
+  }
+
+  @override
+  String get staffMarksIssueUnreadable => 'यह पढ़ा नहीं जा सका';
+
+  @override
+  String staffMarksFilled(int count) {
+    return '$count अंक शीट में डाले गए। जाँचें, फिर सेव करें।';
+  }
+
+  @override
+  String get staffMarksDismiss => 'बंद करें';
 
   @override
   String get widgetToday => 'आज';

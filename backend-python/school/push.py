@@ -68,6 +68,7 @@ EVENT_ROUTES = {
     MessageEvent.REGISTER_REMINDER: "/today",
     MessageEvent.CHECK_IN_REMINDER: "/today",
     MessageEvent.REPORTS_REMINDER: "/today",
+    MessageEvent.PTM_TEACHER_REMINDER: "/meetings",
 }
 
 
@@ -154,7 +155,12 @@ FAMILY_ROUTES = {
 }
 
 # A Family-app message whose screen is not its category's (M8, 8.1).
-FAMILY_EVENT_ROUTES = {MessageEvent.HOMEWORK_FOR_FAMILY: "/homework"}
+FAMILY_EVENT_ROUTES = {
+    MessageEvent.HOMEWORK_FOR_FAMILY: "/homework",
+    MessageEvent.PTM_SLOTS_OPEN: "/meetings",
+    MessageEvent.PTM_REMINDER: "/meetings",
+    MessageEvent.PTM_BOOKING_CANCELLED: "/meetings",
+}
 
 # Where a tapped notification opens in the School365ai Bus app: the trip,
 # its one screen that matters (docs/mobile-apps-review.md, M0). Nothing is

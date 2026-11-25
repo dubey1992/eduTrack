@@ -9,6 +9,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/l10n/failure_text.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/photo_picker.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_value_view.dart';
 import '../../../core/widgets/status_badge.dart';
@@ -16,7 +17,10 @@ import '../../assessments/application/assessment_sheet_notifier.dart';
 import '../../assessments/data/assessment_repository.dart';
 import '../../assessments/data/models/assessment.dart';
 import '../../assessments/data/models/assessment_sheet.dart';
+import '../application/marks_input_notifier.dart';
+import '../application/marks_reading.dart';
 import '../application/my_teaching_providers.dart';
+import 'marks_review_dialog.dart';
 
 /// Entering a class test's marks on the phone (docs/teacher-app.md, T5).
 ///
@@ -24,6 +28,10 @@ import '../application/my_teaching_providers.dart';
 /// switch, Next on the keyboard moving down the class. The whole sheet is
 /// saved in one go, as on the web - a half-saved sheet is worse than an
 /// unsaved one. Published, it is read-only with the grades.
+///
+/// Marks can also be spoken or read from a photo of the marks list (M12,
+/// 1.7): what is read is shown for checking first, and only what the teacher
+/// confirms is typed into the boxes - saving is still this sheet's Save.
 class MarksEntryScreen extends ConsumerWidget {
   const MarksEntryScreen({super.key, required this.assessmentId});
 
@@ -256,6 +264,78 @@ class _SheetState extends ConsumerState<_Sheet> {
     }
   }
 
+  /// Listens for marks, then shows what was heard for checking.
+  Future<void> _speak(AssessmentSheet sheet) async {
+    FocusScope.of(context).unfocus();
+    final reading = await ref.read(marksInputProvider.notifier).dictate(sheet);
+    if (reading != null && mounted) await _review(sheet, reading);
+  }
+
+  /// Asks camera or photos, reads the photo, then shows what was read.
+  Future<void> _photo(AssessmentSheet sheet) async {
+    FocusScope.of(context).unfocus();
+    final l10n = context.l10n;
+    final source = await showModalBottomSheet<PhotoSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: const Key('marks-photo-camera'),
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(l10n.staffMarksTakePhoto),
+              onTap: () => Navigator.of(context).pop(PhotoSource.camera),
+            ),
+            ListTile(
+              key: const Key('marks-photo-gallery'),
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(l10n.staffMarksChoosePhoto),
+              onTap: () => Navigator.of(context).pop(PhotoSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    final reading = await ref.read(marksInputProvider.notifier).readPhoto(sheet, source);
+    if (reading != null && mounted) await _review(sheet, reading);
+  }
+
+  /// The review step: nothing changes unless the teacher confirms, and then
+  /// only the students given a mark or Absent there.
+  Future<void> _review(AssessmentSheet sheet, MarksReading reading) async {
+    final confirmed = await showMarksReview(context, sheet: sheet, reading: reading);
+    if (confirmed == null || confirmed.isEmpty || !mounted) return;
+
+    final l10n = context.l10n;
+    setState(() {
+      for (final MapEntry(key: studentId, value: mark) in confirmed.entries) {
+        final box = _boxes[studentId];
+        if (box == null) continue;
+        _rowErrors.remove(studentId);
+        if (mark.isAbsent) {
+          box.clear();
+          _notifier.setAbsent(studentId, true);
+        } else {
+          box.text = mark.marks!;
+          _notifier.setMark(studentId, mark.marks!);
+        }
+      }
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const Key('marks-filled'),
+          content: Text(l10n.staffMarksFilled(confirmed.length)),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 84),
+        ),
+      );
+  }
+
   Future<bool> _leave() async {
     final l10n = context.l10n;
     final go = await showDialog<bool>(
@@ -285,6 +365,11 @@ class _SheetState extends ConsumerState<_Sheet> {
     final dirty = _notifier.isDirty;
     final colors = context.appColors;
     final l10n = context.l10n;
+    final input = ref.watch(marksInputProvider);
+    final offerInput = editable && sheet.entries.isNotEmpty;
+    final canSpeak = offerInput && (ref.watch(marksVoiceAvailableProvider).value ?? false);
+    final canPhoto = offerInput && ref.watch(marksPhotoAvailableProvider);
+    final inputIdle = !_busy && !input.isBusy;
 
     return PopScope(
       canPop: !dirty || !editable,
@@ -308,6 +393,22 @@ class _SheetState extends ConsumerState<_Sheet> {
               ),
             ],
           ),
+          actions: [
+            if (canSpeak)
+              IconButton(
+                key: const Key('marks-speak'),
+                tooltip: l10n.staffMarksSpeak,
+                icon: const Icon(Icons.mic_none),
+                onPressed: inputIdle ? () => _speak(sheet) : null,
+              ),
+            if (canPhoto)
+              IconButton(
+                key: const Key('marks-photo'),
+                tooltip: l10n.staffMarksFromPhoto,
+                icon: const Icon(Icons.document_scanner_outlined),
+                onPressed: inputIdle ? () => _photo(sheet) : null,
+              ),
+          ],
         ),
         body: SafeArea(
           child: Center(
@@ -323,6 +424,8 @@ class _SheetState extends ConsumerState<_Sheet> {
                       background: colors.successContainer,
                       foreground: colors.onSuccessContainer,
                     ),
+                  if (input.isBusy) _InputBanner(state: input),
+                  if (input.problem != null) _InputProblem(problem: input.problem!),
                   if (_problem != null)
                     _Banner(
                       key: const Key('marks-problem'),
@@ -489,6 +592,104 @@ class _Banner extends StatelessWidget {
   );
 }
 
+/// Listening, or reading the photo.
+class _InputBanner extends ConsumerWidget {
+  const _InputBanner({required this.state});
+
+  final MarksInputState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.appColors;
+    final l10n = context.l10n;
+    final listening = state.status == MarksInputStatus.listening;
+
+    return Container(
+      key: Key(listening ? 'marks-listening' : 'marks-reading-photo'),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(color: colors.infoContainer, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        children: [
+          Icon(listening ? Icons.mic : Icons.document_scanner_outlined, color: colors.onInfoContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  listening ? l10n.staffMarksListening : l10n.staffMarksReadingPhoto,
+                  style: TextStyle(color: colors.onInfoContainer, height: 1.35),
+                ),
+                if (state.heard.isNotEmpty)
+                  Text(
+                    state.heard,
+                    key: const Key('marks-heard'),
+                    style: TextStyle(color: colors.onInfoContainer, fontWeight: FontWeight.w700),
+                  ),
+              ],
+            ),
+          ),
+          if (listening)
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: TextButton(
+                key: const Key('marks-stop-listening'),
+                onPressed: () => ref.read(marksInputProvider.notifier).stopListening(),
+                child: Text(l10n.staffMarksStopListening),
+              ),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Why voice or the photo gave nothing, until dismissed or tried again.
+class _InputProblem extends ConsumerWidget {
+  const _InputProblem({required this.problem});
+
+  final MarksInputProblem problem;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.appColors;
+    final l10n = context.l10n;
+
+    return Container(
+      key: const Key('marks-input-problem'),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.only(left: 12),
+      decoration: BoxDecoration(color: colors.warningContainer, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(switch (problem) {
+              MarksInputProblem.cannotListen => l10n.staffMarksCannotListen,
+              MarksInputProblem.nothingHeard => l10n.staffMarksNothingHeard,
+              MarksInputProblem.cannotReadPhoto => l10n.staffMarksCannotReadPhoto,
+              MarksInputProblem.nothingInPhoto => l10n.staffMarksNothingInPhoto,
+            }, style: TextStyle(color: colors.onWarningContainer, height: 1.35)),
+          ),
+          IconButton(
+            key: const Key('marks-input-problem-dismiss'),
+            tooltip: l10n.staffMarksDismiss,
+            icon: Icon(Icons.close, color: colors.onWarningContainer),
+            onPressed: () => ref.read(marksInputProvider.notifier).clearProblem(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EditableRow extends StatelessWidget {
   const _EditableRow({
     required this.entry,
@@ -558,15 +759,18 @@ class _EditableRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            Column(
-              children: [
-                Switch(
-                  key: Key('marks-absent-${entry.studentId}'),
-                  value: entry.isAbsent,
-                  onChanged: enabled ? onAbsent : null,
-                ),
-                Text(l10n.staffAbsent, style: TextStyle(fontSize: 11, color: colors.muted)),
-              ],
+            // One node for a screen reader: "Absent, switch" (M11, 3.4).
+            MergeSemantics(
+              child: Column(
+                children: [
+                  Switch(
+                    key: Key('marks-absent-${entry.studentId}'),
+                    value: entry.isAbsent,
+                    onChanged: enabled ? onAbsent : null,
+                  ),
+                  Text(l10n.staffAbsent, style: TextStyle(fontSize: 11, color: colors.muted)),
+                ],
+              ),
             ),
           ],
         ),

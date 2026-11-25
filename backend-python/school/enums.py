@@ -351,6 +351,12 @@ class MessageEvent(models.TextChoices):
     REGISTER_REMINDER = "teaching.register_reminder", "Register not taken"
     CHECK_IN_REMINDER = "teaching.check_in_reminder", "Not checked in"
     REPORTS_REMINDER = "teaching.reports_reminder", "Teaching reports still owed"
+    # M12 (docs/mobile-apps-review.md, 8.4): parent-teacher meetings. Teaching
+    # events, so never an SMS: the Family app for parents, the inbox for staff.
+    PTM_SLOTS_OPEN = "teaching.ptm_slots_open", "Meeting slots open"
+    PTM_REMINDER = "teaching.ptm_reminder", "Meeting tomorrow"
+    PTM_BOOKING_CANCELLED = "teaching.ptm_booking_cancelled", "Meeting booking cancelled"
+    PTM_TEACHER_REMINDER = "teaching.ptm_teacher_reminder", "Your meetings tomorrow"
 
     @classmethod
     def category(cls, event: str) -> str:
@@ -481,6 +487,18 @@ DEFAULT_BODIES = {
     MessageEvent.REPORT_RETURNED: (
         "{reviewer_name} sent back your report for {subject_name}, {class_name}, period {period} on {date}: {note}"
     ),
+    MessageEvent.PTM_SLOTS_OPEN: (
+        "{title} is on {date}. Book a time to meet {teacher_name} about {student_name} in the app."
+    ),
+    MessageEvent.PTM_REMINDER: (
+        "Reminder: {title} tomorrow, {date}, at {time} with {teacher_name} about {student_name}."
+    ),
+    MessageEvent.PTM_BOOKING_CANCELLED: (
+        "Your {time} meeting on {date} about {student_name} was cancelled by the school: {reason}"
+    ),
+    MessageEvent.PTM_TEACHER_REMINDER: (
+        "{title} tomorrow, {date}: {count} booked to meet you, from {time}."
+    ),
     MessageEvent.REGISTER_REMINDER: "Today's register for {classes} is not taken yet.",
     MessageEvent.CHECK_IN_REMINDER: "You have not checked in today. Check in when you reach school.",
     MessageEvent.REPORTS_REMINDER: "You have {reports} to file for today.",
@@ -564,8 +582,16 @@ TRIP_SOS_TOKENS = [
 # The reminders say how many, and nothing a school could not word itself.
 REMINDER_TOKENS = ["staff_name", "count", "classes", "reports", "date", "school_name"]
 
+# Parent-teacher meetings (M12, 8.4).
+PTM_FAMILY_TOKENS = ["student_name", "title", "date", "time", "teacher_name", "reason", "school_name", "guardian_name"]
+PTM_TEACHER_TOKENS = ["staff_name", "title", "date", "time", "count", "school_name"]
+
 PER_EVENT_TOKENS = {
     MessageEvent.REGISTER_REMINDER: REMINDER_TOKENS,
+    MessageEvent.PTM_SLOTS_OPEN: PTM_FAMILY_TOKENS,
+    MessageEvent.PTM_REMINDER: PTM_FAMILY_TOKENS,
+    MessageEvent.PTM_BOOKING_CANCELLED: PTM_FAMILY_TOKENS,
+    MessageEvent.PTM_TEACHER_REMINDER: PTM_TEACHER_TOKENS,
     MessageEvent.CHECK_IN_REMINDER: REMINDER_TOKENS,
     MessageEvent.REPORTS_REMINDER: REMINDER_TOKENS,
     MessageEvent.TRANSPORT_ABSENT: TRANSPORT_ABSENT_TOKENS,

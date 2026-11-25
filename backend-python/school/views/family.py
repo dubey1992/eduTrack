@@ -48,6 +48,18 @@ Talking to the school (F5):
 - POST family/children/{id}/call-requests - {recipient, reason, preferred_time?}
 - POST family/notices/{id}/reply - {student_id, answer, note?}: Yes or No to a
   notice that asks, for one of their children it is about
+
+Parent-teacher meetings (M12, 8.4):
+- GET    family/children/{id}/meetings - meetings ahead for the child's class,
+  with its slots (free or taken, never by whom) and their own booking
+- PUT    family/children/{id}/meetings/{meeting_id}/booking - {slot_id}: book,
+  or move an earlier booking; until the end of the day before
+- DELETE family/children/{id}/meetings/{meeting_id}/booking - cancel it
+
+Events and photos (M12, 8.6):
+- GET family/gallery - the school's events and the children's classes', with
+  at least one photo, newest first (paginated)
+- GET family/gallery-photos/{id}[?size=thumb] - one picture of an event they see
 """
 
 from __future__ import annotations
@@ -67,6 +79,7 @@ from .. import (
     attendance_warnings,
     call_requests,
     family_bus,
+    gallery,
     family_day,
     family_fees,
     family_homework,
@@ -76,9 +89,10 @@ from .. import (
     modules,
     notice_attachments,
     notice_replies,
+    ptm,
 )
 from ..clock import SchoolClock
-from ..models import AnnouncementAttachment
+from ..models import AnnouncementAttachment, GalleryPhoto
 from ..enums import UserRole
 from ..errors import BusNotLive, ModuleDisabled, NotAFamilyAccount, ProgressReportNotReady
 from ..fees import receipt_pdf, statement_pdf
@@ -642,3 +656,70 @@ def child_admit_card_pdf(request, child_id: int, exam_id: int):
     document = card_pdf.render([card], school=exam.school, year_id=exam.academic_year_id)
 
     return pdf_response(document, card_pdf.file_name(exam.name, child.admission_number or child.id))
+
+
+# -- Parent-teacher meetings (M12, 8.4) ---------------------------------------------
+
+
+class BookingRequest(serializers.Serializer):
+    slot_id = serializers.IntegerField()
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def child_meetings(request, child_id: int) -> Response:
+    user = family_reader(request)
+    child = child_of(user, child_id)
+
+    return Response({"data": [ptm.family_meeting_resource(m, child) for m in ptm.meetings_for_child(child)]})
+
+
+@api_view(["PUT", "DELETE"])
+@permission_classes([IsAuthenticated])
+def child_meeting_booking(request, child_id: int, meeting_id: int) -> Response:
+    user = family_reader(request)
+    child = child_of(user, child_id)
+    meeting = get_object_or_404(ptm.meetings_for_child(child), pk=meeting_id)
+
+    if request.method == "DELETE":
+        ptm.cancel_booking(child, user, meeting, request=request)
+    else:
+        form = BookingRequest(data=request.data)
+        form.is_valid(raise_exception=True)
+        ptm.book(child, user, meeting, form.validated_data["slot_id"], request=request)
+
+    return Response(ptm.family_meeting_resource(meeting, child))
+
+
+# -- Events and photos (M12, 8.6) -----------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def gallery_events(request) -> Response:
+    user = family_reader(request)
+    rows = (
+        gallery.events_for_children(FamilyAuthService.children_of(user))
+        .select_related("class_section__school_class")
+        .prefetch_related("photos")
+        .order_by("-event_date", "-id")
+    )
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(rows, request)
+
+    return paginator.get_paginated_response(
+        [gallery.event_resource(event, base="/family/gallery-photos") for event in page]
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def gallery_photo(request, photo_id: int):
+    """One picture of an event the parent sees; anything else is the same 404."""
+    from .gallery import serve
+
+    user = family_reader(request)
+    visible = gallery.events_for_children(FamilyAuthService.children_of(user))
+    photo = get_object_or_404(GalleryPhoto.objects.filter(gallery_event__in=visible), pk=photo_id)
+
+    return serve(photo, request.query_params.get("size") == "thumb")

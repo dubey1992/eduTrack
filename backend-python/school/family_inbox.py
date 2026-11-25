@@ -47,7 +47,13 @@ SWITCHES = {
 ALWAYS = (MessageCategory.EMERGENCY,)
 # Events with a switch of their own, whatever their category: homework is
 # about teaching, which otherwise never reaches a guardian (M8, 8.1).
-EVENT_SWITCHES = {MessageEvent.HOMEWORK_FOR_FAMILY: "homework"}
+EVENT_SWITCHES = {
+    MessageEvent.HOMEWORK_FOR_FAMILY: "homework",
+    # Parent-teacher meetings (M12, 8.4): a message from the school, so Notices.
+    MessageEvent.PTM_SLOTS_OPEN: "notices",
+    MessageEvent.PTM_REMINDER: "notices",
+    MessageEvent.PTM_BOOKING_CANCELLED: "notices",
+}
 SETTINGS = ("attendance", "transport", "fee", "result", "notices", "homework")
 
 

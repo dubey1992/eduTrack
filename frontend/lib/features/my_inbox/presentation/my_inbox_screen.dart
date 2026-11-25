@@ -45,11 +45,21 @@ class MyInboxScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(context.l10n.staffMessages),
         actions: [
-          TextButton(
-            key: const Key('inbox-read-all'),
-            onPressed: hasUnread ? () => _markAllRead(context, ref) : null,
-            child: Text(context.l10n.staffMarkAllRead),
-          ),
+          // With large text the words no longer fit beside the title, so the
+          // same action becomes an icon with the words as its label (M11, 3.4).
+          if (MediaQuery.textScalerOf(context).scale(10) > 13)
+            IconButton(
+              key: const Key('inbox-read-all'),
+              tooltip: context.l10n.staffMarkAllRead,
+              onPressed: hasUnread ? () => _markAllRead(context, ref) : null,
+              icon: const Icon(Icons.done_all_rounded),
+            )
+          else
+            TextButton(
+              key: const Key('inbox-read-all'),
+              onPressed: hasUnread ? () => _markAllRead(context, ref) : null,
+              child: Text(context.l10n.staffMarkAllRead),
+            ),
         ],
       ),
       body: SafeArea(
@@ -249,9 +259,12 @@ class _MessageTile extends ConsumerWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Text(
-                          messageCategoryLabel(context.l10n, message.category),
-                          style: TextStyle(fontSize: 12, color: theme.colorScheme.primary),
+                        Flexible(
+                          child: Text(
+                            messageCategoryLabel(context.l10n, message.category),
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: theme.colorScheme.primary),
+                          ),
                         ),
                         if (message.attachments.isNotEmpty) ...[
                           const SizedBox(width: 8),

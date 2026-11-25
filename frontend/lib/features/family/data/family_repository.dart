@@ -11,6 +11,7 @@ import 'models/family_admit_card.dart';
 import 'models/family_absence_note.dart';
 import 'models/family_bus.dart';
 import 'models/family_call_request.dart';
+import 'models/family_meeting.dart';
 import 'models/family_day.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
@@ -168,4 +169,12 @@ class FamilyRepository {
     required String reason,
     String? preferredTime,
   }) => _call(() => _api.askForCall(childId, toOffice: toOffice, reason: reason, preferredTime: preferredTime));
+
+  Future<List<FamilyMeeting>> meetings(int childId) => _call(() => _api.meetings(childId));
+
+  Future<FamilyMeeting> bookMeeting(int childId, int meetingId, int slotId) =>
+      _call(() => _api.bookMeeting(childId, meetingId, slotId));
+
+  Future<FamilyMeeting> cancelMeeting(int childId, int meetingId) =>
+      _call(() => _api.cancelMeeting(childId, meetingId));
 }

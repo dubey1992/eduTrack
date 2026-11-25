@@ -2142,6 +2142,313 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyOpen => 'Open';
 
   @override
+  String get familyMeetings => 'Parent-teacher meetings';
+
+  @override
+  String get familyMeetingsSub => 'Book a time with the class teacher';
+
+  @override
+  String get familyNoMeetings => 'No meetings ahead';
+
+  @override
+  String get familyNoMeetingsMessage =>
+      'When the school plans a parent-teacher meeting for this class, it will show here.';
+
+  @override
+  String familyMeetingWith(String date, String teacher) {
+    return '$date · with $teacher';
+  }
+
+  @override
+  String get familyTheClassTeacherLower => 'the class teacher';
+
+  @override
+  String familyYourTime(String time) {
+    return 'Your time: $time';
+  }
+
+  @override
+  String get familyMeetingTimesNotOpen => 'The teacher has not opened times yet. You will get a message when they do.';
+
+  @override
+  String get familyMeetingAllTaken => 'All times are taken. Please ask the school office.';
+
+  @override
+  String get familyMeetingClosed => 'Booking has closed. To change anything, please call the school.';
+
+  @override
+  String get familyPickATime => 'Pick a time';
+
+  @override
+  String get familyPickAnotherTime => 'Or move to another time';
+
+  @override
+  String familyBookTimeQ(String time) {
+    return 'Book $time?';
+  }
+
+  @override
+  String familyMoveTimeQ(String time) {
+    return 'Move to $time?';
+  }
+
+  @override
+  String familyBookTimeBody(String date, String teacher, String child) {
+    return '$date, with $teacher, about $child.';
+  }
+
+  @override
+  String get familyBook => 'Book';
+
+  @override
+  String get familyMove => 'Move';
+
+  @override
+  String familyBookedFor(String time) {
+    return 'Booked for $time';
+  }
+
+  @override
+  String get familyCancelBooking => 'Cancel booking';
+
+  @override
+  String get familyCancelBookingQ => 'Cancel this booking?';
+
+  @override
+  String familyCancelBookingBody(String time) {
+    return 'Your $time time will be free for another parent.';
+  }
+
+  @override
+  String get familyKeepIt => 'Keep it';
+
+  @override
+  String get familyBookingCancelled => 'Booking cancelled';
+
+  @override
+  String familySlotTakenLabel(String time) {
+    return '$time, taken';
+  }
+
+  @override
+  String familySlotYoursLabel(String time) {
+    return '$time, your time';
+  }
+
+  @override
+  String get ptmMeetings => 'Parent-teacher meetings';
+
+  @override
+  String get ptmAhead => 'Ahead';
+
+  @override
+  String get ptmPast => 'Past';
+
+  @override
+  String get ptmNewMeeting => 'New meeting';
+
+  @override
+  String get ptmEditMeeting => 'Change meeting';
+
+  @override
+  String get ptmIntroOffice =>
+      'Create a meeting day and pick the classes. Each class teacher then opens times, and parents book them in the Family app.';
+
+  @override
+  String get ptmIntroTeacher =>
+      'Open times for your class. Parents book them in the Family app, and you see who is coming.';
+
+  @override
+  String get ptmNoMeetingsAhead => 'No meetings ahead.';
+
+  @override
+  String get ptmNoPastMeetings => 'No past meetings.';
+
+  @override
+  String get ptmCancelled => 'Cancelled';
+
+  @override
+  String get ptmBookingClosed => 'Booking closed';
+
+  @override
+  String get ptmNoClassTeacher => 'No class teacher';
+
+  @override
+  String get ptmNoTimesYet => 'no times opened yet';
+
+  @override
+  String ptmBookedOf(int booked, int total) {
+    return '$booked of $total booked';
+  }
+
+  @override
+  String get ptmEdit => 'Change';
+
+  @override
+  String get ptmCancelMeeting => 'Cancel meeting';
+
+  @override
+  String ptmCancelMeetingQ(String title) {
+    return 'Cancel $title?';
+  }
+
+  @override
+  String get ptmCancelMeetingBody => 'Parents who booked will be told in the Family app. This cannot be undone.';
+
+  @override
+  String get ptmKeepMeeting => 'Keep it';
+
+  @override
+  String get ptmMeetingCancelled => 'Meeting cancelled';
+
+  @override
+  String get ptmMeetingCreated => 'Meeting created';
+
+  @override
+  String get ptmSaved => 'Saved';
+
+  @override
+  String get ptmTitleLabel => 'Name';
+
+  @override
+  String get ptmTitleHint => 'e.g. Term 1 parent-teacher meeting';
+
+  @override
+  String get ptmTitleRequired => 'Give the meeting a name.';
+
+  @override
+  String get ptmDateLabel => 'Date';
+
+  @override
+  String get ptmPickDate => 'Pick a date';
+
+  @override
+  String get ptmDateRequired => 'Pick the date.';
+
+  @override
+  String get ptmNoteLabel => 'Note to parents (optional)';
+
+  @override
+  String get ptmNoteHelp => 'Shown in the Family app, e.g. what to bring.';
+
+  @override
+  String get ptmClassesTakingPart => 'Classes taking part';
+
+  @override
+  String get ptmSelectAll => 'Select all';
+
+  @override
+  String get ptmClearAll => 'Clear all';
+
+  @override
+  String get ptmChooseSchoolFirst => 'Choose the school first.';
+
+  @override
+  String get ptmNoClassesYet => 'No classes have been set up yet.';
+
+  @override
+  String get ptmClassesRequired => 'Choose at least one class.';
+
+  @override
+  String get ptmCreate => 'Create';
+
+  @override
+  String get ptmSave => 'Save';
+
+  @override
+  String get ptmMeetingWasCancelled => 'This meeting was cancelled.';
+
+  @override
+  String get ptmNoTimesOpened => 'No times opened yet.';
+
+  @override
+  String get ptmOpenTimes => 'Open times';
+
+  @override
+  String get ptmOpenTimesHelp => 'The range is cut into slots. A time that overlaps one already open is skipped.';
+
+  @override
+  String ptmFromTime(String time) {
+    return 'From $time';
+  }
+
+  @override
+  String ptmToTime(String time) {
+    return 'To $time';
+  }
+
+  @override
+  String get ptmSlotLength => 'Each slot';
+
+  @override
+  String ptmMinutes(int minutes) {
+    return '$minutes minutes';
+  }
+
+  @override
+  String get ptmOpenTimesButton => 'Open these times';
+
+  @override
+  String get ptmEndAfterStart => 'The end time must be after the start time.';
+
+  @override
+  String ptmTimesOpened(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count times opened',
+      one: '1 time opened',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ptmNoNewTimes => 'Those times are already open.';
+
+  @override
+  String get ptmFree => 'Free';
+
+  @override
+  String ptmBookedBy(String child, String parent) {
+    return '$child · $parent';
+  }
+
+  @override
+  String ptmCallParent(String mobile) {
+    return 'Call $mobile';
+  }
+
+  @override
+  String get ptmRemoveTime => 'Remove this time';
+
+  @override
+  String ptmRemoveTimeQ(String time) {
+    return 'Remove $time?';
+  }
+
+  @override
+  String get ptmRemoveFreeBody => 'Nobody has booked it.';
+
+  @override
+  String ptmRemoveBookedBody(String parent) {
+    return '$parent booked this time. They will be told it was removed and asked to book another.';
+  }
+
+  @override
+  String get ptmRemove => 'Remove';
+
+  @override
+  String get ptmTimeRemoved => 'Time removed';
+
+  @override
+  String ptmTodayCard(String title, String date) {
+    return '$title on $date';
+  }
+
+  @override
+  String get ptmTodayCardSub => 'Open times and see who booked';
+
+  @override
   String get staffNavHome => 'Home';
 
   @override
@@ -4779,6 +5086,96 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get staffMarkPresentAnyway => 'Mark present anyway';
+
+  @override
+  String get staffMarksSpeak => 'Speak the marks';
+
+  @override
+  String get staffMarksFromPhoto => 'Read marks from a photo';
+
+  @override
+  String get staffMarksListening => 'Listening. Say \"roll 12, 45\", or the marks in roll order.';
+
+  @override
+  String get staffMarksStopListening => 'Stop';
+
+  @override
+  String get staffMarksReadingPhoto => 'Reading the photo...';
+
+  @override
+  String get staffMarksCannotListen => 'This phone will not listen. Allow the microphone, or type the marks.';
+
+  @override
+  String get staffMarksNothingHeard => 'No marks were heard. Try again, a little slower.';
+
+  @override
+  String get staffMarksCannotReadPhoto => 'The photo could not be read. Try again, or type the marks.';
+
+  @override
+  String get staffMarksNothingInPhoto => 'No marks were found in the photo. Try a clearer photo in good light.';
+
+  @override
+  String get staffMarksTakePhoto => 'Take a photo';
+
+  @override
+  String get staffMarksChoosePhoto => 'Choose a photo';
+
+  @override
+  String get staffMarksReviewTitle => 'Check the marks read';
+
+  @override
+  String get staffMarksReviewHint =>
+      'Nothing goes on the sheet until you confirm. Students left blank stay as they are.';
+
+  @override
+  String get staffMarksReviewConfirm => 'Confirm';
+
+  @override
+  String get staffMarksReviewCancel => 'Cancel';
+
+  @override
+  String get staffMarksNotRead => 'Not read - stays as it is';
+
+  @override
+  String staffMarksCouldNotRead(String text) {
+    return 'Could not read \"$text\"';
+  }
+
+  @override
+  String get staffMarksNoMarkRead => 'No mark read';
+
+  @override
+  String get staffMarksNotPlaced => 'Not put on the sheet';
+
+  @override
+  String staffMarksIssueUnknownRoll(String roll) {
+    return 'Roll $roll is not on this sheet';
+  }
+
+  @override
+  String get staffMarksIssueExtra => 'More marks than students';
+
+  @override
+  String staffMarksIssueReadTwice(String roll) {
+    return 'Roll $roll was read twice; the last one is kept';
+  }
+
+  @override
+  String get staffMarksIssueUnreadable => 'Could not read this';
+
+  @override
+  String staffMarksFilled(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count marks put on the sheet. Check them, then save.',
+      one: '1 mark put on the sheet. Check it, then save.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get staffMarksDismiss => 'Dismiss';
 
   @override
   String get widgetToday => 'Today';

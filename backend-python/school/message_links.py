@@ -32,7 +32,12 @@ FAMILY_SCREENS = {
 
 
 # A message whose screen is not its category's (M8, 8.1).
-FAMILY_EVENT_SCREENS = {MessageEvent.HOMEWORK_FOR_FAMILY: "homework"}
+FAMILY_EVENT_SCREENS = {
+    MessageEvent.HOMEWORK_FOR_FAMILY: "homework",
+    MessageEvent.PTM_SLOTS_OPEN: "meetings",
+    MessageEvent.PTM_REMINDER: "meetings",
+    MessageEvent.PTM_BOOKING_CANCELLED: "meetings",
+}
 
 
 def family_link(event: str) -> str:

@@ -1905,5 +1905,159 @@
   "familyOpen": "Open",
   "@familyOpen": {
     "description": "Snackbar action: opens the screen a push message is about."
+  },
+  "familyMeetings": "Parent-teacher meetings",
+  "@familyMeetings": {
+    "description": "Family app: the meetings screen's title and its row on More (M12, 8.4)."
+  },
+  "familyMeetingsSub": "Book a time with the class teacher",
+  "@familyMeetingsSub": {
+    "description": "Subtitle of the meetings row on More."
+  },
+  "familyNoMeetings": "No meetings ahead",
+  "@familyNoMeetings": {
+    "description": "Empty meetings screen title."
+  },
+  "familyNoMeetingsMessage": "When the school plans a parent-teacher meeting for this class, it will show here.",
+  "@familyNoMeetingsMessage": {
+    "description": "Empty meetings screen message."
+  },
+  "familyMeetingWith": "{date} · with {teacher}",
+  "@familyMeetingWith": {
+    "description": "A meeting's date and who the parent meets.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "teacher": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTheClassTeacherLower": "the class teacher",
+  "@familyTheClassTeacherLower": {
+    "description": "Stands in for the teacher's name when none is set, mid-sentence."
+  },
+  "familyYourTime": "Your time: {time}",
+  "@familyYourTime": {
+    "description": "The parent's booked meeting time, e.g. 9:20 AM - 9:30 AM.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyMeetingTimesNotOpen": "The teacher has not opened times yet. You will get a message when they do.",
+  "@familyMeetingTimesNotOpen": {
+    "description": "A meeting with no slots yet."
+  },
+  "familyMeetingAllTaken": "All times are taken. Please ask the school office.",
+  "@familyMeetingAllTaken": {
+    "description": "Every slot is booked by others."
+  },
+  "familyMeetingClosed": "Booking has closed. To change anything, please call the school.",
+  "@familyMeetingClosed": {
+    "description": "Booking closes at the end of the day before the meeting."
+  },
+  "familyPickATime": "Pick a time",
+  "@familyPickATime": {
+    "description": "Above the free slots when nothing is booked."
+  },
+  "familyPickAnotherTime": "Or move to another time",
+  "@familyPickAnotherTime": {
+    "description": "Above the slots when the parent already has a booking."
+  },
+  "familyBookTimeQ": "Book {time}?",
+  "@familyBookTimeQ": {
+    "description": "Confirm dialog title for booking a slot.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyMoveTimeQ": "Move to {time}?",
+  "@familyMoveTimeQ": {
+    "description": "Confirm dialog title for moving a booking.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyBookTimeBody": "{date}, with {teacher}, about {child}.",
+  "@familyBookTimeBody": {
+    "description": "Confirm dialog body for a booking.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "teacher": {
+        "type": "String"
+      },
+      "child": {
+        "type": "String"
+      }
+    }
+  },
+  "familyBook": "Book",
+  "@familyBook": {
+    "description": "Button: book the slot."
+  },
+  "familyMove": "Move",
+  "@familyMove": {
+    "description": "Button: move the booking to this slot."
+  },
+  "familyBookedFor": "Booked for {time}",
+  "@familyBookedFor": {
+    "description": "Snackbar after booking.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyCancelBooking": "Cancel booking",
+  "@familyCancelBooking": {
+    "description": "Button: cancel the parent's meeting booking."
+  },
+  "familyCancelBookingQ": "Cancel this booking?",
+  "@familyCancelBookingQ": {
+    "description": "Confirm dialog title."
+  },
+  "familyCancelBookingBody": "Your {time} time will be free for another parent.",
+  "@familyCancelBookingBody": {
+    "description": "Confirm dialog body.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familyKeepIt": "Keep it",
+  "@familyKeepIt": {
+    "description": "Dialog button: keep the booking."
+  },
+  "familyBookingCancelled": "Booking cancelled",
+  "@familyBookingCancelled": {
+    "description": "Snackbar after cancelling."
+  },
+  "familySlotTakenLabel": "{time}, taken",
+  "@familySlotTakenLabel": {
+    "description": "Screen-reader label of a slot someone else booked.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "familySlotYoursLabel": "{time}, your time",
+  "@familySlotYoursLabel": {
+    "description": "Screen-reader label of the parent's own slot.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
   }
 }

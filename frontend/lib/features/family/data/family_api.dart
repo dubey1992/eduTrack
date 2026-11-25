@@ -8,6 +8,7 @@ import 'models/family_admit_card.dart';
 import 'models/family_absence_note.dart';
 import 'models/family_bus.dart';
 import 'models/family_call_request.dart';
+import 'models/family_meeting.dart';
 import 'models/family_fees.dart';
 import 'models/family_learning.dart';
 import 'models/family_guardian_invite.dart';
@@ -249,5 +250,21 @@ class FamilyApi {
       data: {'recipient': toOffice ? 'office' : 'class_teacher', 'reason': reason, 'preferred_time': ?preferredTime},
     );
     return FamilyCallRequest.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<FamilyMeeting>> meetings(int childId) async {
+    final response = await _dio.get('/family/children/$childId/meetings');
+    final json = response.data as Map<String, dynamic>;
+    return [for (final m in json['data'] as List<dynamic>) FamilyMeeting.fromJson(m as Map<String, dynamic>)];
+  }
+
+  Future<FamilyMeeting> bookMeeting(int childId, int meetingId, int slotId) async {
+    final response = await _dio.put('/family/children/$childId/meetings/$meetingId/booking', data: {'slot_id': slotId});
+    return FamilyMeeting.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<FamilyMeeting> cancelMeeting(int childId, int meetingId) async {
+    final response = await _dio.delete('/family/children/$childId/meetings/$meetingId/booking');
+    return FamilyMeeting.fromJson(response.data as Map<String, dynamic>);
   }
 }

@@ -3756,5 +3756,125 @@
   "staffMarkPresentAnyway": "Mark present anyway",
   "@staffMarkPresentAnyway": {
     "description": "Button."
+  },
+  "staffMarksSpeak": "Speak the marks",
+  "@staffMarksSpeak": {
+    "description": "Icon button tooltip on the marks sheet: dictate marks."
+  },
+  "staffMarksFromPhoto": "Read marks from a photo",
+  "@staffMarksFromPhoto": {
+    "description": "Icon button tooltip on the marks sheet: read a photo of the marks list."
+  },
+  "staffMarksListening": "Listening. Say \"roll 12, 45\", or the marks in roll order.",
+  "@staffMarksListening": {
+    "description": "Shown while the phone listens for marks."
+  },
+  "staffMarksStopListening": "Stop",
+  "@staffMarksStopListening": {
+    "description": "Button: stop listening for marks."
+  },
+  "staffMarksReadingPhoto": "Reading the photo...",
+  "@staffMarksReadingPhoto": {
+    "description": "Shown while the photo is read."
+  },
+  "staffMarksCannotListen": "This phone will not listen. Allow the microphone, or type the marks.",
+  "@staffMarksCannotListen": {
+    "description": "Problem."
+  },
+  "staffMarksNothingHeard": "No marks were heard. Try again, a little slower.",
+  "@staffMarksNothingHeard": {
+    "description": "Problem."
+  },
+  "staffMarksCannotReadPhoto": "The photo could not be read. Try again, or type the marks.",
+  "@staffMarksCannotReadPhoto": {
+    "description": "Problem."
+  },
+  "staffMarksNothingInPhoto": "No marks were found in the photo. Try a clearer photo in good light.",
+  "@staffMarksNothingInPhoto": {
+    "description": "Problem."
+  },
+  "staffMarksTakePhoto": "Take a photo",
+  "@staffMarksTakePhoto": {
+    "description": "Choice: camera."
+  },
+  "staffMarksChoosePhoto": "Choose a photo",
+  "@staffMarksChoosePhoto": {
+    "description": "Choice: the phone's photos."
+  },
+  "staffMarksReviewTitle": "Check the marks read",
+  "@staffMarksReviewTitle": {
+    "description": "Review dialog title."
+  },
+  "staffMarksReviewHint": "Nothing goes on the sheet until you confirm. Students left blank stay as they are.",
+  "@staffMarksReviewHint": {
+    "description": "Review dialog hint."
+  },
+  "staffMarksReviewConfirm": "Confirm",
+  "@staffMarksReviewConfirm": {
+    "description": "Review dialog button: put the marks on the sheet."
+  },
+  "staffMarksReviewCancel": "Cancel",
+  "@staffMarksReviewCancel": {
+    "description": "Review dialog button: change nothing."
+  },
+  "staffMarksNotRead": "Not read - stays as it is",
+  "@staffMarksNotRead": {
+    "description": "Review row with nothing read."
+  },
+  "staffMarksCouldNotRead": "Could not read \"{text}\"",
+  "@staffMarksCouldNotRead": {
+    "description": "Review row: what was seen is not a mark.",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "staffMarksNoMarkRead": "No mark read",
+  "@staffMarksNoMarkRead": {
+    "description": "Review row: the roll was read with no mark after it."
+  },
+  "staffMarksNotPlaced": "Not put on the sheet",
+  "@staffMarksNotPlaced": {
+    "description": "Review section heading."
+  },
+  "staffMarksIssueUnknownRoll": "Roll {roll} is not on this sheet",
+  "@staffMarksIssueUnknownRoll": {
+    "description": "Review issue.",
+    "placeholders": {
+      "roll": {
+        "type": "String"
+      }
+    }
+  },
+  "staffMarksIssueExtra": "More marks than students",
+  "@staffMarksIssueExtra": {
+    "description": "Review issue."
+  },
+  "staffMarksIssueReadTwice": "Roll {roll} was read twice; the last one is kept",
+  "@staffMarksIssueReadTwice": {
+    "description": "Review issue; trailing value is the earlier one.",
+    "placeholders": {
+      "roll": {
+        "type": "String"
+      }
+    }
+  },
+  "staffMarksIssueUnreadable": "Could not read this",
+  "@staffMarksIssueUnreadable": {
+    "description": "Review issue."
+  },
+  "staffMarksFilled": "{count, plural, =1{1 mark put on the sheet. Check it, then save.} other{{count} marks put on the sheet. Check them, then save.}}",
+  "@staffMarksFilled": {
+    "description": "Confirmation after the review.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "staffMarksDismiss": "Dismiss",
+  "@staffMarksDismiss": {
+    "description": "Tooltip: close a message."
   }
 }

@@ -3704,6 +3704,522 @@ abstract class AppLocalizations {
   /// **'Open'**
   String get familyOpen;
 
+  /// Family app: the meetings screen's title and its row on More (M12, 8.4).
+  ///
+  /// In en, this message translates to:
+  /// **'Parent-teacher meetings'**
+  String get familyMeetings;
+
+  /// Subtitle of the meetings row on More.
+  ///
+  /// In en, this message translates to:
+  /// **'Book a time with the class teacher'**
+  String get familyMeetingsSub;
+
+  /// Empty meetings screen title.
+  ///
+  /// In en, this message translates to:
+  /// **'No meetings ahead'**
+  String get familyNoMeetings;
+
+  /// Empty meetings screen message.
+  ///
+  /// In en, this message translates to:
+  /// **'When the school plans a parent-teacher meeting for this class, it will show here.'**
+  String get familyNoMeetingsMessage;
+
+  /// A meeting's date and who the parent meets.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · with {teacher}'**
+  String familyMeetingWith(String date, String teacher);
+
+  /// Stands in for the teacher's name when none is set, mid-sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'the class teacher'**
+  String get familyTheClassTeacherLower;
+
+  /// The parent's booked meeting time, e.g. 9:20 AM - 9:30 AM.
+  ///
+  /// In en, this message translates to:
+  /// **'Your time: {time}'**
+  String familyYourTime(String time);
+
+  /// A meeting with no slots yet.
+  ///
+  /// In en, this message translates to:
+  /// **'The teacher has not opened times yet. You will get a message when they do.'**
+  String get familyMeetingTimesNotOpen;
+
+  /// Every slot is booked by others.
+  ///
+  /// In en, this message translates to:
+  /// **'All times are taken. Please ask the school office.'**
+  String get familyMeetingAllTaken;
+
+  /// Booking closes at the end of the day before the meeting.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking has closed. To change anything, please call the school.'**
+  String get familyMeetingClosed;
+
+  /// Above the free slots when nothing is booked.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a time'**
+  String get familyPickATime;
+
+  /// Above the slots when the parent already has a booking.
+  ///
+  /// In en, this message translates to:
+  /// **'Or move to another time'**
+  String get familyPickAnotherTime;
+
+  /// Confirm dialog title for booking a slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Book {time}?'**
+  String familyBookTimeQ(String time);
+
+  /// Confirm dialog title for moving a booking.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to {time}?'**
+  String familyMoveTimeQ(String time);
+
+  /// Confirm dialog body for a booking.
+  ///
+  /// In en, this message translates to:
+  /// **'{date}, with {teacher}, about {child}.'**
+  String familyBookTimeBody(String date, String teacher, String child);
+
+  /// Button: book the slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Book'**
+  String get familyBook;
+
+  /// Button: move the booking to this slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get familyMove;
+
+  /// Snackbar after booking.
+  ///
+  /// In en, this message translates to:
+  /// **'Booked for {time}'**
+  String familyBookedFor(String time);
+
+  /// Button: cancel the parent's meeting booking.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel booking'**
+  String get familyCancelBooking;
+
+  /// Confirm dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this booking?'**
+  String get familyCancelBookingQ;
+
+  /// Confirm dialog body.
+  ///
+  /// In en, this message translates to:
+  /// **'Your {time} time will be free for another parent.'**
+  String familyCancelBookingBody(String time);
+
+  /// Dialog button: keep the booking.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get familyKeepIt;
+
+  /// Snackbar after cancelling.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking cancelled'**
+  String get familyBookingCancelled;
+
+  /// Screen-reader label of a slot someone else booked.
+  ///
+  /// In en, this message translates to:
+  /// **'{time}, taken'**
+  String familySlotTakenLabel(String time);
+
+  /// Screen-reader label of the parent's own slot.
+  ///
+  /// In en, this message translates to:
+  /// **'{time}, your time'**
+  String familySlotYoursLabel(String time);
+
+  /// Staff/web: the meetings screen's heading (M12, 8.4).
+  ///
+  /// In en, this message translates to:
+  /// **'Parent-teacher meetings'**
+  String get ptmMeetings;
+
+  /// Filter: meetings still to come.
+  ///
+  /// In en, this message translates to:
+  /// **'Ahead'**
+  String get ptmAhead;
+
+  /// Filter: meetings already held.
+  ///
+  /// In en, this message translates to:
+  /// **'Past'**
+  String get ptmPast;
+
+  /// Button and dialog title: create a meeting day.
+  ///
+  /// In en, this message translates to:
+  /// **'New meeting'**
+  String get ptmNewMeeting;
+
+  /// Dialog title: edit a meeting day.
+  ///
+  /// In en, this message translates to:
+  /// **'Change meeting'**
+  String get ptmEditMeeting;
+
+  /// Intro line for the school office.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a meeting day and pick the classes. Each class teacher then opens times, and parents book them in the Family app.'**
+  String get ptmIntroOffice;
+
+  /// Intro line for a class teacher.
+  ///
+  /// In en, this message translates to:
+  /// **'Open times for your class. Parents book them in the Family app, and you see who is coming.'**
+  String get ptmIntroTeacher;
+
+  /// Empty list.
+  ///
+  /// In en, this message translates to:
+  /// **'No meetings ahead.'**
+  String get ptmNoMeetingsAhead;
+
+  /// Empty list of past meetings.
+  ///
+  /// In en, this message translates to:
+  /// **'No past meetings.'**
+  String get ptmNoPastMeetings;
+
+  /// Badge: the meeting was cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get ptmCancelled;
+
+  /// Badge: parents can no longer book (the meeting is today).
+  ///
+  /// In en, this message translates to:
+  /// **'Booking closed'**
+  String get ptmBookingClosed;
+
+  /// A class taking part has no class teacher set.
+  ///
+  /// In en, this message translates to:
+  /// **'No class teacher'**
+  String get ptmNoClassTeacher;
+
+  /// A class whose teacher has opened no slots, after the teacher's name.
+  ///
+  /// In en, this message translates to:
+  /// **'no times opened yet'**
+  String get ptmNoTimesYet;
+
+  /// How many of a class's slots are booked.
+  ///
+  /// In en, this message translates to:
+  /// **'{booked} of {total} booked'**
+  String ptmBookedOf(int booked, int total);
+
+  /// Button: edit the meeting.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get ptmEdit;
+
+  /// Button: cancel the whole meeting day.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel meeting'**
+  String get ptmCancelMeeting;
+
+  /// Confirm dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel {title}?'**
+  String ptmCancelMeetingQ(String title);
+
+  /// Confirm dialog body.
+  ///
+  /// In en, this message translates to:
+  /// **'Parents who booked will be told in the Family app. This cannot be undone.'**
+  String get ptmCancelMeetingBody;
+
+  /// Dialog button: do not cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get ptmKeepMeeting;
+
+  /// Snackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Meeting cancelled'**
+  String get ptmMeetingCancelled;
+
+  /// Snackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Meeting created'**
+  String get ptmMeetingCreated;
+
+  /// Snackbar after changing a meeting.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get ptmSaved;
+
+  /// Form field: the meeting's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get ptmTitleLabel;
+
+  /// Hint for the meeting's name.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Term 1 parent-teacher meeting'**
+  String get ptmTitleHint;
+
+  /// Validation.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the meeting a name.'**
+  String get ptmTitleRequired;
+
+  /// Form field: the meeting's date.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get ptmDateLabel;
+
+  /// Empty date field.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a date'**
+  String get ptmPickDate;
+
+  /// Validation.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the date.'**
+  String get ptmDateRequired;
+
+  /// Form field.
+  ///
+  /// In en, this message translates to:
+  /// **'Note to parents (optional)'**
+  String get ptmNoteLabel;
+
+  /// Helper under the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown in the Family app, e.g. what to bring.'**
+  String get ptmNoteHelp;
+
+  /// Form section.
+  ///
+  /// In en, this message translates to:
+  /// **'Classes taking part'**
+  String get ptmClassesTakingPart;
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get ptmSelectAll;
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get ptmClearAll;
+
+  /// Classes list before a school is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the school first.'**
+  String get ptmChooseSchoolFirst;
+
+  /// No classes to pick.
+  ///
+  /// In en, this message translates to:
+  /// **'No classes have been set up yet.'**
+  String get ptmNoClassesYet;
+
+  /// Validation.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose at least one class.'**
+  String get ptmClassesRequired;
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get ptmCreate;
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get ptmSave;
+
+  /// On the slots screen of a cancelled meeting.
+  ///
+  /// In en, this message translates to:
+  /// **'This meeting was cancelled.'**
+  String get ptmMeetingWasCancelled;
+
+  /// Empty slots list.
+  ///
+  /// In en, this message translates to:
+  /// **'No times opened yet.'**
+  String get ptmNoTimesOpened;
+
+  /// Card title: open slots for the class.
+  ///
+  /// In en, this message translates to:
+  /// **'Open times'**
+  String get ptmOpenTimes;
+
+  /// Help under Open times.
+  ///
+  /// In en, this message translates to:
+  /// **'The range is cut into slots. A time that overlaps one already open is skipped.'**
+  String get ptmOpenTimesHelp;
+
+  /// Button: pick the start time.
+  ///
+  /// In en, this message translates to:
+  /// **'From {time}'**
+  String ptmFromTime(String time);
+
+  /// Button: pick the end time.
+  ///
+  /// In en, this message translates to:
+  /// **'To {time}'**
+  String ptmToTime(String time);
+
+  /// Dropdown: slot length.
+  ///
+  /// In en, this message translates to:
+  /// **'Each slot'**
+  String get ptmSlotLength;
+
+  /// A slot length.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} minutes'**
+  String ptmMinutes(int minutes);
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Open these times'**
+  String get ptmOpenTimesButton;
+
+  /// Validation.
+  ///
+  /// In en, this message translates to:
+  /// **'The end time must be after the start time.'**
+  String get ptmEndAfterStart;
+
+  /// Snackbar after opening slots.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 time opened} other{{count} times opened}}'**
+  String ptmTimesOpened(int count);
+
+  /// Snackbar when nothing new was opened.
+  ///
+  /// In en, this message translates to:
+  /// **'Those times are already open.'**
+  String get ptmNoNewTimes;
+
+  /// A slot nobody has booked.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get ptmFree;
+
+  /// Who booked a slot: the child and the parent.
+  ///
+  /// In en, this message translates to:
+  /// **'{child} · {parent}'**
+  String ptmBookedBy(String child, String parent);
+
+  /// Tooltip on the call button.
+  ///
+  /// In en, this message translates to:
+  /// **'Call {mobile}'**
+  String ptmCallParent(String mobile);
+
+  /// Tooltip on the delete button.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this time'**
+  String get ptmRemoveTime;
+
+  /// Confirm dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {time}?'**
+  String ptmRemoveTimeQ(String time);
+
+  /// Confirm dialog body for a free slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody has booked it.'**
+  String get ptmRemoveFreeBody;
+
+  /// Confirm dialog body for a booked slot.
+  ///
+  /// In en, this message translates to:
+  /// **'{parent} booked this time. They will be told it was removed and asked to book another.'**
+  String ptmRemoveBookedBody(String parent);
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get ptmRemove;
+
+  /// Snackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Time removed'**
+  String get ptmTimeRemoved;
+
+  /// Staff app Today card: an upcoming meeting.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} on {date}'**
+  String ptmTodayCard(String title, String date);
+
+  /// Staff app Today card subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open times and see who booked'**
+  String get ptmTodayCardSub;
+
   /// Bottom bar tab: the staff member's home screen.
   ///
   /// In en, this message translates to:
@@ -8161,6 +8677,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mark present anyway'**
   String get staffMarkPresentAnyway;
+
+  /// Icon button tooltip on the marks sheet: dictate marks.
+  ///
+  /// In en, this message translates to:
+  /// **'Speak the marks'**
+  String get staffMarksSpeak;
+
+  /// Icon button tooltip on the marks sheet: read a photo of the marks list.
+  ///
+  /// In en, this message translates to:
+  /// **'Read marks from a photo'**
+  String get staffMarksFromPhoto;
+
+  /// Shown while the phone listens for marks.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening. Say \"roll 12, 45\", or the marks in roll order.'**
+  String get staffMarksListening;
+
+  /// Button: stop listening for marks.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get staffMarksStopListening;
+
+  /// Shown while the photo is read.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the photo...'**
+  String get staffMarksReadingPhoto;
+
+  /// Problem.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone will not listen. Allow the microphone, or type the marks.'**
+  String get staffMarksCannotListen;
+
+  /// Problem.
+  ///
+  /// In en, this message translates to:
+  /// **'No marks were heard. Try again, a little slower.'**
+  String get staffMarksNothingHeard;
+
+  /// Problem.
+  ///
+  /// In en, this message translates to:
+  /// **'The photo could not be read. Try again, or type the marks.'**
+  String get staffMarksCannotReadPhoto;
+
+  /// Problem.
+  ///
+  /// In en, this message translates to:
+  /// **'No marks were found in the photo. Try a clearer photo in good light.'**
+  String get staffMarksNothingInPhoto;
+
+  /// Choice: camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get staffMarksTakePhoto;
+
+  /// Choice: the phone's photos.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a photo'**
+  String get staffMarksChoosePhoto;
+
+  /// Review dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the marks read'**
+  String get staffMarksReviewTitle;
+
+  /// Review dialog hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing goes on the sheet until you confirm. Students left blank stay as they are.'**
+  String get staffMarksReviewHint;
+
+  /// Review dialog button: put the marks on the sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get staffMarksReviewConfirm;
+
+  /// Review dialog button: change nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get staffMarksReviewCancel;
+
+  /// Review row with nothing read.
+  ///
+  /// In en, this message translates to:
+  /// **'Not read - stays as it is'**
+  String get staffMarksNotRead;
+
+  /// Review row: what was seen is not a mark.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read \"{text}\"'**
+  String staffMarksCouldNotRead(String text);
+
+  /// Review row: the roll was read with no mark after it.
+  ///
+  /// In en, this message translates to:
+  /// **'No mark read'**
+  String get staffMarksNoMarkRead;
+
+  /// Review section heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Not put on the sheet'**
+  String get staffMarksNotPlaced;
+
+  /// Review issue.
+  ///
+  /// In en, this message translates to:
+  /// **'Roll {roll} is not on this sheet'**
+  String staffMarksIssueUnknownRoll(String roll);
+
+  /// Review issue.
+  ///
+  /// In en, this message translates to:
+  /// **'More marks than students'**
+  String get staffMarksIssueExtra;
+
+  /// Review issue; trailing value is the earlier one.
+  ///
+  /// In en, this message translates to:
+  /// **'Roll {roll} was read twice; the last one is kept'**
+  String staffMarksIssueReadTwice(String roll);
+
+  /// Review issue.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read this'**
+  String get staffMarksIssueUnreadable;
+
+  /// Confirmation after the review.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 mark put on the sheet. Check it, then save.} other{{count} marks put on the sheet. Check them, then save.}}'**
+  String staffMarksFilled(int count);
+
+  /// Tooltip: close a message.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get staffMarksDismiss;
 
   /// Title of the Staff app's home-screen widget.
   ///

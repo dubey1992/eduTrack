@@ -8,6 +8,7 @@ import 'package:edutrack_app/features/family/data/models/family_account.dart';
 import 'package:edutrack_app/features/family/data/models/family_absence_note.dart';
 import 'package:edutrack_app/features/family/data/models/family_bus.dart';
 import 'package:edutrack_app/features/family/data/models/family_call_request.dart';
+import 'package:edutrack_app/features/family/data/models/family_meeting.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
 import 'package:edutrack_app/features/family/data/models/family_fees.dart';
 import 'package:edutrack_app/features/family/data/models/family_guardian_invite.dart';
@@ -430,6 +431,46 @@ class FakeFamilyRepository implements FamilyRepository {
   final List<({bool toOffice, String reason, String? time})> callsAsked = [];
   final List<({int noticeId, int studentId, bool answer, String? note})> replies = [];
   Failure? failReplyWith;
+
+  /// Parent-teacher meetings (M12, 8.4): one meeting with three slots, the
+  /// middle one taken by another family.
+  List<FamilyMeeting> meetingsValue = [sampleMeeting()];
+  Failure? failBookingWith;
+  final List<({int meetingId, int slotId})> booked = [];
+  final List<int> cancelled = [];
+
+  static FamilyMeeting sampleMeeting({int? mySlotId, bool open = true}) {
+    FamilyMeetingSlot slot(int id, String start, String end, {bool free = true}) =>
+        FamilyMeetingSlot(id: id, startsAt: start, endsAt: end, free: free && id != mySlotId, mine: id == mySlotId);
+    final slots = [slot(1, '09:00', '09:10'), slot(2, '09:10', '09:20', free: false), slot(3, '09:20', '09:30')];
+    return FamilyMeeting(
+      id: 7,
+      title: 'Term 1 PTM',
+      date: DateTime(2026, 12, 5),
+      dateLabel: '12/05/2026',
+      note: 'Please bring the report card.',
+      teacherName: 'Neha Iyer',
+      bookingOpen: open,
+      mySlot: slots.where((s) => s.mine).firstOrNull,
+      slots: slots,
+    );
+  }
+
+  @override
+  Future<List<FamilyMeeting>> meetings(int childId) async => meetingsValue;
+
+  @override
+  Future<FamilyMeeting> bookMeeting(int childId, int meetingId, int slotId) async {
+    if (failBookingWith != null) throw failBookingWith!;
+    booked.add((meetingId: meetingId, slotId: slotId));
+    return sampleMeeting(mySlotId: slotId);
+  }
+
+  @override
+  Future<FamilyMeeting> cancelMeeting(int childId, int meetingId) async {
+    cancelled.add(meetingId);
+    return sampleMeeting();
+  }
 
   @override
   Future<List<FamilyCallRequest>> callRequests(int childId) async => callRequestsValue;

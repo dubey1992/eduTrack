@@ -1,0 +1,310 @@
+{
+  "ptmMeetings": "Parent-teacher meetings",
+  "@ptmMeetings": {
+    "description": "Staff/web: the meetings screen's heading (M12, 8.4)."
+  },
+  "ptmAhead": "Ahead",
+  "@ptmAhead": {
+    "description": "Filter: meetings still to come."
+  },
+  "ptmPast": "Past",
+  "@ptmPast": {
+    "description": "Filter: meetings already held."
+  },
+  "ptmNewMeeting": "New meeting",
+  "@ptmNewMeeting": {
+    "description": "Button and dialog title: create a meeting day."
+  },
+  "ptmEditMeeting": "Change meeting",
+  "@ptmEditMeeting": {
+    "description": "Dialog title: edit a meeting day."
+  },
+  "ptmIntroOffice": "Create a meeting day and pick the classes. Each class teacher then opens times, and parents book them in the Family app.",
+  "@ptmIntroOffice": {
+    "description": "Intro line for the school office."
+  },
+  "ptmIntroTeacher": "Open times for your class. Parents book them in the Family app, and you see who is coming.",
+  "@ptmIntroTeacher": {
+    "description": "Intro line for a class teacher."
+  },
+  "ptmNoMeetingsAhead": "No meetings ahead.",
+  "@ptmNoMeetingsAhead": {
+    "description": "Empty list."
+  },
+  "ptmNoPastMeetings": "No past meetings.",
+  "@ptmNoPastMeetings": {
+    "description": "Empty list of past meetings."
+  },
+  "ptmCancelled": "Cancelled",
+  "@ptmCancelled": {
+    "description": "Badge: the meeting was cancelled."
+  },
+  "ptmBookingClosed": "Booking closed",
+  "@ptmBookingClosed": {
+    "description": "Badge: parents can no longer book (the meeting is today)."
+  },
+  "ptmNoClassTeacher": "No class teacher",
+  "@ptmNoClassTeacher": {
+    "description": "A class taking part has no class teacher set."
+  },
+  "ptmNoTimesYet": "no times opened yet",
+  "@ptmNoTimesYet": {
+    "description": "A class whose teacher has opened no slots, after the teacher's name."
+  },
+  "ptmBookedOf": "{booked} of {total} booked",
+  "@ptmBookedOf": {
+    "description": "How many of a class's slots are booked.",
+    "placeholders": {
+      "booked": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "ptmEdit": "Change",
+  "@ptmEdit": {
+    "description": "Button: edit the meeting."
+  },
+  "ptmCancelMeeting": "Cancel meeting",
+  "@ptmCancelMeeting": {
+    "description": "Button: cancel the whole meeting day."
+  },
+  "ptmCancelMeetingQ": "Cancel {title}?",
+  "@ptmCancelMeetingQ": {
+    "description": "Confirm dialog title.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "ptmCancelMeetingBody": "Parents who booked will be told in the Family app. This cannot be undone.",
+  "@ptmCancelMeetingBody": {
+    "description": "Confirm dialog body."
+  },
+  "ptmKeepMeeting": "Keep it",
+  "@ptmKeepMeeting": {
+    "description": "Dialog button: do not cancel."
+  },
+  "ptmMeetingCancelled": "Meeting cancelled",
+  "@ptmMeetingCancelled": {
+    "description": "Snackbar."
+  },
+  "ptmMeetingCreated": "Meeting created",
+  "@ptmMeetingCreated": {
+    "description": "Snackbar."
+  },
+  "ptmSaved": "Saved",
+  "@ptmSaved": {
+    "description": "Snackbar after changing a meeting."
+  },
+  "ptmTitleLabel": "Name",
+  "@ptmTitleLabel": {
+    "description": "Form field: the meeting's name."
+  },
+  "ptmTitleHint": "e.g. Term 1 parent-teacher meeting",
+  "@ptmTitleHint": {
+    "description": "Hint for the meeting's name."
+  },
+  "ptmTitleRequired": "Give the meeting a name.",
+  "@ptmTitleRequired": {
+    "description": "Validation."
+  },
+  "ptmDateLabel": "Date",
+  "@ptmDateLabel": {
+    "description": "Form field: the meeting's date."
+  },
+  "ptmPickDate": "Pick a date",
+  "@ptmPickDate": {
+    "description": "Empty date field."
+  },
+  "ptmDateRequired": "Pick the date.",
+  "@ptmDateRequired": {
+    "description": "Validation."
+  },
+  "ptmNoteLabel": "Note to parents (optional)",
+  "@ptmNoteLabel": {
+    "description": "Form field."
+  },
+  "ptmNoteHelp": "Shown in the Family app, e.g. what to bring.",
+  "@ptmNoteHelp": {
+    "description": "Helper under the note."
+  },
+  "ptmClassesTakingPart": "Classes taking part",
+  "@ptmClassesTakingPart": {
+    "description": "Form section."
+  },
+  "ptmSelectAll": "Select all",
+  "@ptmSelectAll": {
+    "description": "Button."
+  },
+  "ptmClearAll": "Clear all",
+  "@ptmClearAll": {
+    "description": "Button."
+  },
+  "ptmChooseSchoolFirst": "Choose the school first.",
+  "@ptmChooseSchoolFirst": {
+    "description": "Classes list before a school is chosen."
+  },
+  "ptmNoClassesYet": "No classes have been set up yet.",
+  "@ptmNoClassesYet": {
+    "description": "No classes to pick."
+  },
+  "ptmClassesRequired": "Choose at least one class.",
+  "@ptmClassesRequired": {
+    "description": "Validation."
+  },
+  "ptmCreate": "Create",
+  "@ptmCreate": {
+    "description": "Button."
+  },
+  "ptmSave": "Save",
+  "@ptmSave": {
+    "description": "Button."
+  },
+  "ptmMeetingWasCancelled": "This meeting was cancelled.",
+  "@ptmMeetingWasCancelled": {
+    "description": "On the slots screen of a cancelled meeting."
+  },
+  "ptmNoTimesOpened": "No times opened yet.",
+  "@ptmNoTimesOpened": {
+    "description": "Empty slots list."
+  },
+  "ptmOpenTimes": "Open times",
+  "@ptmOpenTimes": {
+    "description": "Card title: open slots for the class."
+  },
+  "ptmOpenTimesHelp": "The range is cut into slots. A time that overlaps one already open is skipped.",
+  "@ptmOpenTimesHelp": {
+    "description": "Help under Open times."
+  },
+  "ptmFromTime": "From {time}",
+  "@ptmFromTime": {
+    "description": "Button: pick the start time.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "ptmToTime": "To {time}",
+  "@ptmToTime": {
+    "description": "Button: pick the end time.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "ptmSlotLength": "Each slot",
+  "@ptmSlotLength": {
+    "description": "Dropdown: slot length."
+  },
+  "ptmMinutes": "{minutes} minutes",
+  "@ptmMinutes": {
+    "description": "A slot length.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "ptmOpenTimesButton": "Open these times",
+  "@ptmOpenTimesButton": {
+    "description": "Button."
+  },
+  "ptmEndAfterStart": "The end time must be after the start time.",
+  "@ptmEndAfterStart": {
+    "description": "Validation."
+  },
+  "ptmTimesOpened": "{count, plural, =1{1 time opened} other{{count} times opened}}",
+  "@ptmTimesOpened": {
+    "description": "Snackbar after opening slots.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ptmNoNewTimes": "Those times are already open.",
+  "@ptmNoNewTimes": {
+    "description": "Snackbar when nothing new was opened."
+  },
+  "ptmFree": "Free",
+  "@ptmFree": {
+    "description": "A slot nobody has booked."
+  },
+  "ptmBookedBy": "{child} · {parent}",
+  "@ptmBookedBy": {
+    "description": "Who booked a slot: the child and the parent.",
+    "placeholders": {
+      "child": {
+        "type": "String"
+      },
+      "parent": {
+        "type": "String"
+      }
+    }
+  },
+  "ptmCallParent": "Call {mobile}",
+  "@ptmCallParent": {
+    "description": "Tooltip on the call button.",
+    "placeholders": {
+      "mobile": {
+        "type": "String"
+      }
+    }
+  },
+  "ptmRemoveTime": "Remove this time",
+  "@ptmRemoveTime": {
+    "description": "Tooltip on the delete button."
+  },
+  "ptmRemoveTimeQ": "Remove {time}?",
+  "@ptmRemoveTimeQ": {
+    "description": "Confirm dialog title.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "ptmRemoveFreeBody": "Nobody has booked it.",
+  "@ptmRemoveFreeBody": {
+    "description": "Confirm dialog body for a free slot."
+  },
+  "ptmRemoveBookedBody": "{parent} booked this time. They will be told it was removed and asked to book another.",
+  "@ptmRemoveBookedBody": {
+    "description": "Confirm dialog body for a booked slot.",
+    "placeholders": {
+      "parent": {
+        "type": "String"
+      }
+    }
+  },
+  "ptmRemove": "Remove",
+  "@ptmRemove": {
+    "description": "Button."
+  },
+  "ptmTimeRemoved": "Time removed",
+  "@ptmTimeRemoved": {
+    "description": "Snackbar."
+  },
+  "ptmTodayCard": "{title} on {date}",
+  "@ptmTodayCard": {
+    "description": "Staff app Today card: an upcoming meeting.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "ptmTodayCardSub": "Open times and see who booked",
+  "@ptmTodayCardSub": {
+    "description": "Staff app Today card subtitle."
+  }
+}

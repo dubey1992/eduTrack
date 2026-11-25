@@ -34,6 +34,8 @@ from school import (
     guardian_invites,
     notice_attachments,
     teaching_report_photos,
+    ptm,
+    gallery,
     notice_replies,
     platform_messaging,
     promotion,
@@ -89,7 +91,8 @@ WRITES = ("objects.create(", ".save(", ".delete()", "update_or_create(", "get_or
 # one slice invisible to this test for exactly that reason.
 SWEPT = (
     services, promotion, check_in, platform_messaging, family_accounts, absence_notes, call_requests,
-    notice_replies, guardian_invites, notice_attachments, teaching_report_photos,
+    notice_replies, guardian_invites, notice_attachments, teaching_report_photos, ptm,
+    gallery,
 )
 
 

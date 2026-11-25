@@ -16,6 +16,7 @@ import '../../auth/application/auth_notifier.dart';
 import '../../check_in/application/check_in_notifier.dart';
 import '../../check_in/presentation/check_in_card.dart';
 import '../../my_register/application/register_queue.dart';
+import '../../ptm/application/ptm_providers.dart';
 import '../application/today_notifier.dart';
 import '../data/models/teacher_day.dart';
 import 'staff_words.dart';
@@ -92,6 +93,7 @@ class _DayView extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           const _CallRequestsCard(),
+          const _MeetingCard(),
           _SectionTitle(
             day.periods.isEmpty
                 ? context.l10n.staffYourPeriods
@@ -408,6 +410,35 @@ class _QuickLinks extends ConsumerWidget {
 /// "2 parents asked you to call" - only while somebody is waiting
 /// (docs/mobile-apps-review.md, 7.3). Nothing at all otherwise, and nothing
 /// when the count cannot be read: Today is not the place for that error.
+/// The next parent-teacher meeting a class of this teacher takes part in
+/// (M12, 8.4). Nothing when there is none, or it cannot be read.
+class _MeetingCard extends ConsumerWidget {
+  const _MeetingCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final meeting = ref.watch(ptmNextMeetingProvider).value;
+    if (meeting == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        key: const Key('today-meeting'),
+        child: ListTile(
+          leading: const Icon(Icons.groups_2_outlined),
+          title: Text(context.l10n.ptmTodayCard(meeting.title, formatDate(meeting.date))),
+          subtitle: Text(context.l10n.ptmTodayCardSub),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () async {
+            await context.push('/meetings');
+            ref.invalidate(ptmNextMeetingProvider);
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class _CallRequestsCard extends ConsumerWidget {
   const _CallRequestsCard();
 

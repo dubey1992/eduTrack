@@ -79,6 +79,8 @@ import '../../features/permissions/presentation/permissions_screen.dart';
 import '../../features/absence_notes/presentation/absence_notes_screen.dart';
 import '../../features/guardian_invites/presentation/guardian_invites_screen.dart';
 import '../../features/call_requests/call_requests.dart';
+import '../../features/ptm/presentation/ptm_meetings_screen.dart';
+import '../../features/ptm/presentation/ptm_slots_screen.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/splash_screen.dart';
 import 'app_nav.dart';
@@ -134,7 +136,12 @@ String landingPathFor(AuthenticatedUser user) => user.role.isCrew ? '/my-trip' :
 /// missing from both is treated as a mistyped address, and a *private* route
 /// missing from both sends a signed-out visitor to a 404 instead of the
 /// login screen they came for.
-final _appRoutePatterns = [RegExp(r'^/schools/\d+$'), RegExp(r'^/examinations/\d+$'), _websitePage];
+final _appRoutePatterns = [
+  RegExp(r'^/schools/\d+$'),
+  RegExp(r'^/examinations/\d+$'),
+  RegExp(r'^/meetings/\d+/classes/\d+$'),
+  _websitePage,
+];
 
 /// Whether this address is a route of this app at all - mistyped or not,
 /// signed in or not.
@@ -177,6 +184,7 @@ const appRoutePaths = {
   '/absence-notes',
   '/guardian-requests',
   '/call-requests',
+  '/meetings',
   '/staff-attendance',
   '/biometric-devices',
   '/leaves',
@@ -325,6 +333,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/absence-notes', builder: (context, state) => const AbsenceNotesScreen()),
           GoRoute(path: '/guardian-requests', builder: (context, state) => const GuardianInvitesScreen()),
           GoRoute(path: '/call-requests', builder: (context, state) => const CallRequestsScreen()),
+          GoRoute(path: '/meetings', builder: (context, state) => const PtmMeetingsScreen()),
+          GoRoute(
+            path: '/meetings/:id/classes/:sectionId',
+            builder: (context, state) => PtmSlotsScreen(
+              meetingId: int.parse(state.pathParameters['id']!),
+              sectionId: int.parse(state.pathParameters['sectionId']!),
+            ),
+          ),
           GoRoute(path: '/staff-attendance', builder: (context, state) => const StaffAttendanceScreen()),
           GoRoute(path: '/biometric-devices', builder: (context, state) => const DeviceListScreen()),
           GoRoute(path: '/leaves', builder: (context, state) => const StaffLeaveScreen()),

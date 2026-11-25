@@ -90,6 +90,11 @@ dependencies:
   flutter_tts: ^4.2.5
   home_widget: ^0.10.0
   workmanager: ^0.10.10
+  # Reading a photo of a marks list on the Staff app's marks sheet
+  # (docs/mobile-apps-review.md, M12, 1.7). Google ML Kit's on-device text
+  # recognition: offline, no key or account, Latin script only (about 4 MB).
+  # Flutter has no OCR of its own. Android only here; the web hides the button.
+  google_mlkit_text_recognition: ^1.0.3
 
 dev_dependencies:
   flutter_test:

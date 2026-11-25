@@ -715,6 +715,16 @@ class AppNav {
         pageSubtitle: 'Parents asking the school to call them',
       ),
       NavItem(
+        path: '/meetings',
+        // Like Call Requests, no module of its own: the API scopes it - the
+        // school's meetings for its admins, a class teacher's own classes.
+        label: 'Parent Meetings',
+        icon: Icons.groups_2_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
+        pageTitle: 'Parent-Teacher Meetings',
+        pageSubtitle: 'Meeting days, times and who booked',
+      ),
+      NavItem(
         path: '/communication',
         module: AppModules.communication,
         requiredLevel: PermissionLevel.manage,
@@ -883,7 +893,11 @@ class AppNav {
 
   /// A page about one record answers to its list's entry - its title, its
   /// area, and its access rule: /examinations/12 is under Examinations.
-  static String _listOf(String path) => RegExp(r'^/examinations/\d+$').hasMatch(path) ? '/examinations' : path;
+  static String _listOf(String path) {
+    if (RegExp(r'^/examinations/\d+$').hasMatch(path)) return '/examinations';
+    if (RegExp(r'^/meetings/\d+/classes/\d+$').hasMatch(path)) return '/meetings';
+    return path;
+  }
 
   /// Pages every signed-in user has, reached from the header rather than the
   /// sidebar. They carry a title for the topbar but no [NavItem], so the

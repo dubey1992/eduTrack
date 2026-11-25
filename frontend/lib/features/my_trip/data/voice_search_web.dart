@@ -1,6 +1,6 @@
 import 'voice_search.dart';
 
-VoiceSearch createVoiceSearch() => const NoVoiceSearch();
+VoiceSearch createVoiceSearch({Duration? listenFor, Duration? pauseFor}) => const NoVoiceSearch();
 
 /// The web portal has no bus to be on and no microphone button to show; the
 /// text search is all of it there.
