@@ -123,16 +123,21 @@ There are no ads.
 | **Personal info** - name, email, phone number | Collected (the school creates the account). App functionality, account management. |
 | **App activity** - in-app actions | Collected: registers, reports, marks, leave requests the user enters. App functionality. |
 | **Device or other IDs** | Collected once push is on: the Firebase notification token. App functionality (notifications). Removed at sign-out. |
-| Photos, audio, contacts, files, health, financial info, browsing | Not collected. |
+| **Photos and videos** - photos | Collected since M9/M12, not shared: a photo the teacher chooses for a teaching report (staff only) or for a school event shown to parents in the Family app. App functionality. Optional, user-initiated (the phone's own camera or photo picker); re-encoded on the server, which drops location and camera details. |
+| **Audio** - voice or sound recordings | Our reading: **not collected** (updated 2026-11-25, M12). The microphone is used only while the teacher taps it on a marks sheet; Android's own speech recognition (usually Google's) turns it into text, the app sends no audio anywhere and keeps no recording - only the marks the teacher confirms, which are already "App activity". The privacy policy says this in full. Check Google's current guidance on system speech recognisers when filling the form; if in doubt, declare Audio as collected, optional, app functionality, not shared - over-declaring is safe, under-declaring is not. |
+| Marks read from a photo of a marks list | Not collected as photos: read on the phone by Google ML Kit (on-device), the photo is neither sent nor kept. |
+| Contacts, files, health, financial info, browsing | Not collected. |
 | Ads, analytics, tracking SDKs | None. |
 
 **Permissions in the built app** (read from the release APK with `aapt dump
 permissions`): internet and network state; fine and coarse location
 (foreground only, at the Check in / Check out tap); notifications, with
-Firebase messaging's own receive, wake-lock and Google-services entries. The
-Driver app's background location, foreground service, microphone, Bluetooth
-and storage permissions are all removed in
-`android/app/src/teacher/AndroidManifest.xml`.
+Firebase messaging's own receive, wake-lock and Google-services entries;
+and, since M12 (2026-11-25), the **microphone** (`RECORD_AUDIO`), asked for
+only when a teacher first taps it on a marks sheet. The Driver app's
+background location, foreground service, Bluetooth and storage permissions
+are all removed in `android/app/src/teacher/AndroidManifest.xml`. No camera
+permission: photos come through the phone's own camera app and photo picker.
 
 Two gaps were found and fixed while preparing this: the staff app's manifest
 still **removed** the notification permission (carried over from T0), which
