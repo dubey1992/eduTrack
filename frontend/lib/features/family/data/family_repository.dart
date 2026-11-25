@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/paginated_response.dart';
+import '../../gallery/data/gallery_models.dart';
 import 'family_api.dart';
 import 'family_saved_copies.dart';
 import 'family_today_cache.dart';
@@ -177,4 +179,6 @@ class FamilyRepository {
 
   Future<FamilyMeeting> cancelMeeting(int childId, int meetingId) =>
       _call(() => _api.cancelMeeting(childId, meetingId));
+
+  Future<PaginatedResponse<GalleryEvent>> gallery({int page = 1}) => _call(() => _api.gallery(page: page));
 }

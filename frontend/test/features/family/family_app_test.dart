@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:edutrack_app/features/family/data/models/family_account.dart';
 import 'package:edutrack_app/core/errors/failure.dart';
 import 'package:edutrack_app/core/routing/family_router.dart';
@@ -14,6 +16,7 @@ import 'package:edutrack_app/features/maps/data/maps_config.dart';
 import 'package:edutrack_app/core/utils/photo_picker.dart';
 import 'package:edutrack_app/features/family/application/family_notifiers.dart';
 import 'package:edutrack_app/features/family/presentation/family_more_screens.dart';
+import 'package:edutrack_app/core/widgets/signed_in_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +24,80 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/fake_family_repositories.dart';
 
 import 'package:edutrack_app/core/l10n/l10n.dart';
+
+/// A valid one-pixel PNG, for pictures read through the session.
+final onePixelPng = Uint8List.fromList(const [
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+  0x00,
+  0x00,
+  0x00,
+  0x0D,
+  0x49,
+  0x48,
+  0x44,
+  0x52,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x08,
+  0x06,
+  0x00,
+  0x00,
+  0x00,
+  0x1F,
+  0x15,
+  0xC4,
+  0x89,
+  0x00,
+  0x00,
+  0x00,
+  0x0D,
+  0x49,
+  0x44,
+  0x41,
+  0x54,
+  0x78,
+  0x9C,
+  0x63,
+  0xF8,
+  0xCF,
+  0xC0,
+  0xF0,
+  0x1F,
+  0x00,
+  0x05,
+  0x00,
+  0x01,
+  0xFF,
+  0x89,
+  0x99,
+  0x3D,
+  0x1D,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x49,
+  0x45,
+  0x4E,
+  0x44,
+  0xAE,
+  0x42,
+  0x60,
+  0x82,
+]);
 
 /// The whole Family app on a phone-sized screen, on fakes. Starts signed in
 /// unless [auth] says otherwise.
@@ -55,6 +132,8 @@ Future<(FakeFamilyRepository, FakeFamilyAuthRepository, List<Uri>)> pumpFamilyAp
       // A fixed day for the forms' date pickers (Monday 9 Nov 2026).
       familyTodayDateProvider.overrideWithValue(DateTime(2026, 11, 9)),
       if (onPickPhoto != null) photoPickerProvider.overrideWithValue(onPickPhoto),
+      // Event photos (M12, 8.6): a one-pixel picture, never the network.
+      signedInImageProvider.overrideWith((ref, url) async => onePixelPng),
       externalOpenerProvider.overrideWithValue((uri) async {
         opened.add(uri);
         return opens;

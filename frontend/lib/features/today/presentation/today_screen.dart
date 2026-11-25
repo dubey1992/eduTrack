@@ -396,6 +396,12 @@ class _QuickLinks extends ConsumerWidget {
               label: Text(context.l10n.staffStudents),
             ),
           TextButton.icon(
+            key: const Key('today-open-gallery'),
+            onPressed: () => context.push('/gallery'),
+            icon: const Icon(Icons.photo_library_outlined),
+            label: Text(context.l10n.galleryHeading),
+          ),
+          TextButton.icon(
             key: const Key('today-open-week'),
             onPressed: () => context.push('/week'),
             icon: const Icon(Icons.calendar_view_week_outlined),

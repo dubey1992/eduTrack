@@ -380,7 +380,9 @@ void main() {
     );
     await pump(tester, today);
 
-    await tester.fling(find.byKey(const Key('today-list')), const Offset(0, 400), 1000);
+    // Pulled from near the top of the list, where a person pulls to refresh.
+    final top = tester.getTopLeft(find.byKey(const Key('today-list'))) + const Offset(200, 20);
+    await tester.flingFrom(top, const Offset(0, 400), 1000);
     await tester.pumpAndSettle();
 
     expect(today.calls, 2);

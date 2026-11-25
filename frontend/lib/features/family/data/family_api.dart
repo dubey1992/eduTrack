@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/paginated_response.dart';
+import '../../gallery/data/gallery_models.dart';
 import '../application/family_offline.dart';
 import 'family_saved_copies.dart';
 import 'models/family_admit_card.dart';
@@ -266,5 +268,11 @@ class FamilyApi {
   Future<FamilyMeeting> cancelMeeting(int childId, int meetingId) async {
     final response = await _dio.delete('/family/children/$childId/meetings/$meetingId/booking');
     return FamilyMeeting.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Events with photos the parent sees, newest first (M12, 8.6).
+  Future<PaginatedResponse<GalleryEvent>> gallery({int page = 1}) async {
+    final response = await _dio.get('/family/gallery', queryParameters: {'page': page});
+    return PaginatedResponse.fromJson(response.data as Map<String, dynamic>, GalleryEvent.fromJson);
   }
 }

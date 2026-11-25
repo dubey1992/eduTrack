@@ -725,6 +725,16 @@ class AppNav {
         pageSubtitle: 'Meeting days, times and who booked',
       ),
       NavItem(
+        path: '/gallery',
+        // The API scopes it: admins post to the school or a class, a class
+        // teacher to their own class (M12, 8.6).
+        label: 'Events & Photos',
+        icon: Icons.photo_library_outlined,
+        allowedRoles: {UserRole.superAdmin, UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.hod, UserRole.teacher},
+        pageTitle: 'Events & Photos',
+        pageSubtitle: 'Photos for parents in the Family app',
+      ),
+      NavItem(
         path: '/communication',
         module: AppModules.communication,
         requiredLevel: PermissionLevel.manage,
@@ -896,6 +906,7 @@ class AppNav {
   static String _listOf(String path) {
     if (RegExp(r'^/examinations/\d+$').hasMatch(path)) return '/examinations';
     if (RegExp(r'^/meetings/\d+/classes/\d+$').hasMatch(path)) return '/meetings';
+    if (RegExp(r'^/gallery/\d+$').hasMatch(path)) return '/gallery';
     return path;
   }
 

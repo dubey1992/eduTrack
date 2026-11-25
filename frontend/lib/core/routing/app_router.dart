@@ -79,6 +79,7 @@ import '../../features/permissions/presentation/permissions_screen.dart';
 import '../../features/absence_notes/presentation/absence_notes_screen.dart';
 import '../../features/guardian_invites/presentation/guardian_invites_screen.dart';
 import '../../features/call_requests/call_requests.dart';
+import '../../features/gallery/presentation/gallery_screens.dart';
 import '../../features/ptm/presentation/ptm_meetings_screen.dart';
 import '../../features/ptm/presentation/ptm_slots_screen.dart';
 import '../widgets/app_shell.dart';
@@ -140,6 +141,7 @@ final _appRoutePatterns = [
   RegExp(r'^/schools/\d+$'),
   RegExp(r'^/examinations/\d+$'),
   RegExp(r'^/meetings/\d+/classes/\d+$'),
+  RegExp(r'^/gallery/\d+$'),
   _websitePage,
 ];
 
@@ -185,6 +187,7 @@ const appRoutePaths = {
   '/guardian-requests',
   '/call-requests',
   '/meetings',
+  '/gallery',
   '/staff-attendance',
   '/biometric-devices',
   '/leaves',
@@ -334,6 +337,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/guardian-requests', builder: (context, state) => const GuardianInvitesScreen()),
           GoRoute(path: '/call-requests', builder: (context, state) => const CallRequestsScreen()),
           GoRoute(path: '/meetings', builder: (context, state) => const PtmMeetingsScreen()),
+          GoRoute(path: '/gallery', builder: (context, state) => const GalleryEventsScreen()),
+          GoRoute(
+            path: '/gallery/:id',
+            builder: (context, state) => GalleryEventScreen(eventId: int.parse(state.pathParameters['id']!)),
+          ),
           GoRoute(
             path: '/meetings/:id/classes/:sectionId',
             builder: (context, state) => PtmSlotsScreen(

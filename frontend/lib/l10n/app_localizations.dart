@@ -62,7 +62,8 @@ import 'app_localizations_hi.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -70,7 +71,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -82,15 +84,19 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('en'), Locale('hi')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('hi'),
+  ];
 
   /// Bottom bar tab: the trip screen.
   ///
@@ -3854,6 +3860,294 @@ abstract class AppLocalizations {
   /// **'{time}, your time'**
   String familySlotYoursLabel(String time);
 
+  /// Staff/web: the gallery screen's heading (M12, 8.6).
+  ///
+  /// In en, this message translates to:
+  /// **'Events & photos'**
+  String get galleryHeading;
+
+  /// Intro line on the gallery screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos for parents in the Family app: the whole school\'s events, or one class\'s.'**
+  String get galleryIntro;
+
+  /// Empty gallery list.
+  ///
+  /// In en, this message translates to:
+  /// **'No events posted yet.'**
+  String get galleryNoEvents;
+
+  /// Button and dialog title: post an event.
+  ///
+  /// In en, this message translates to:
+  /// **'New event'**
+  String get galleryNewEvent;
+
+  /// Dialog title: edit an event.
+  ///
+  /// In en, this message translates to:
+  /// **'Change event'**
+  String get galleryChangeEvent;
+
+  /// Snackbar after posting an event.
+  ///
+  /// In en, this message translates to:
+  /// **'Event posted. Now add its photos.'**
+  String get galleryPosted;
+
+  /// Snackbar after changing an event.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get gallerySaved;
+
+  /// Form field: the event's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get galleryTitleLabel;
+
+  /// Hint for the event's name.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Annual Day'**
+  String get galleryTitleHint;
+
+  /// Validation.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the event a name.'**
+  String get galleryTitleRequired;
+
+  /// Form field: the event's date.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get galleryDateLabel;
+
+  /// Form field: the event's audience.
+  ///
+  /// In en, this message translates to:
+  /// **'Who sees it'**
+  String get galleryWhoSees;
+
+  /// Audience: everyone.
+  ///
+  /// In en, this message translates to:
+  /// **'Parents of the whole school'**
+  String get galleryWholeSchool;
+
+  /// Audience: one class.
+  ///
+  /// In en, this message translates to:
+  /// **'Parents of {className}'**
+  String galleryParentsOf(String className);
+
+  /// Validation for a teacher.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your class.'**
+  String get galleryChooseClass;
+
+  /// Helper when a teacher has no class.
+  ///
+  /// In en, this message translates to:
+  /// **'You can post to a class you are the class teacher of. You have none yet.'**
+  String get galleryNoClassOfYours;
+
+  /// Form field: description.
+  ///
+  /// In en, this message translates to:
+  /// **'A few words (optional)'**
+  String get galleryDescriptionLabel;
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Post'**
+  String get galleryPost;
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get gallerySave;
+
+  /// How many photos an event has.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{no photos} =1{1 photo} other{{count} photos}}'**
+  String galleryPhotoCount(int count);
+
+  /// Under an event with no photos.
+  ///
+  /// In en, this message translates to:
+  /// **'Parents see it once it has a photo.'**
+  String get galleryNoPhotosYetParents;
+
+  /// Empty event.
+  ///
+  /// In en, this message translates to:
+  /// **'No photos yet.'**
+  String get galleryNoPhotosYet;
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo'**
+  String get galleryAddPhoto;
+
+  /// Button while a photo uploads.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading…'**
+  String get galleryUploading;
+
+  /// Photo source: the camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get galleryTakePhoto;
+
+  /// Photo source: the phone's photos.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from photos'**
+  String get galleryChoosePhoto;
+
+  /// Snackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo added'**
+  String get galleryPhotoAdded;
+
+  /// How full an event is.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {max} photos'**
+  String galleryPhotosOf(int count, int max);
+
+  /// An event at its photo limit.
+  ///
+  /// In en, this message translates to:
+  /// **'This event has the most photos it can hold ({max}).'**
+  String galleryFull(int max);
+
+  /// Button: edit the event.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get galleryChange;
+
+  /// Button: delete the event.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get galleryDelete;
+
+  /// Confirm dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {title}?'**
+  String galleryDeleteEventQ(String title);
+
+  /// Confirm dialog body.
+  ///
+  /// In en, this message translates to:
+  /// **'The event and all its photos are removed for everyone. This cannot be undone.'**
+  String get galleryDeleteEventBody;
+
+  /// Snackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Event deleted'**
+  String get galleryEventDeleted;
+
+  /// Tooltip on the remove button.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this photo'**
+  String get galleryRemovePhoto;
+
+  /// Confirm dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this photo?'**
+  String get galleryRemovePhotoQ;
+
+  /// Confirm dialog body.
+  ///
+  /// In en, this message translates to:
+  /// **'Parents will no longer see it.'**
+  String get galleryRemovePhotoBody;
+
+  /// Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get galleryRemove;
+
+  /// Snackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo removed'**
+  String get galleryPhotoRemoved;
+
+  /// Screen-reader label of a photo in the grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo {number} of {total}'**
+  String galleryPhotoLabel(int number, int total);
+
+  /// Family app: the gallery screen's title and its row on More.
+  ///
+  /// In en, this message translates to:
+  /// **'Events & photos'**
+  String get familyGallery;
+
+  /// Subtitle of the gallery row on More.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos from school events'**
+  String get familyGallerySub;
+
+  /// Empty gallery title.
+  ///
+  /// In en, this message translates to:
+  /// **'No photos yet'**
+  String get familyNoGallery;
+
+  /// Empty gallery message.
+  ///
+  /// In en, this message translates to:
+  /// **'When the school shares photos of an event, they will show here.'**
+  String get familyNoGalleryMessage;
+
+  /// An event for the whole school.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole school'**
+  String get familyGalleryWholeSchool;
+
+  /// How many photos an event has.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 photo} other{{count} photos}}'**
+  String familyGalleryPhotos(int count);
+
+  /// Button: next page.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older events'**
+  String get familyGalleryOlder;
+
+  /// An event that was removed.
+  ///
+  /// In en, this message translates to:
+  /// **'This event is no longer shared.'**
+  String get familyGalleryGone;
+
   /// Staff/web: the meetings screen's heading (M12, 8.4).
   ///
   /// In en, this message translates to:
@@ -6558,7 +6852,11 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{subject}, {classSection}, period {number}'**
-  String staffOutboxReportLabel(String subject, String classSection, int number);
+  String staffOutboxReportLabel(
+    String subject,
+    String classSection,
+    int number,
+  );
 
   /// Confirmation without signal.
   ///
@@ -8346,7 +8644,12 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{amount} received from {name} on {date} by {mode}.'**
-  String staffReceivedFrom(String amount, String name, String date, String mode);
+  String staffReceivedFrom(
+    String amount,
+    String name,
+    String date,
+    String mode,
+  );
 
   /// Row.
   ///
@@ -8880,7 +9183,12 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Next: P{number} {subject} · {section} at {time}'**
-  String widgetNextPeriod(int number, String subject, String section, String time);
+  String widgetNextPeriod(
+    int number,
+    String subject,
+    String section,
+    String time,
+  );
 
   /// A teacher with no periods today.
   ///
@@ -9057,7 +9365,8 @@ abstract class AppLocalizations {
   String widgetFeesDue(String amount, String date);
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -9066,7 +9375,8 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'hi'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'hi'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;

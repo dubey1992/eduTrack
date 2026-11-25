@@ -32,6 +32,7 @@ import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/today/presentation/week_screen.dart';
 import '../../features/today/presentation/staff_home_screen.dart';
 import '../../features/today/presentation/today_screen.dart';
+import '../../features/gallery/presentation/gallery_screens.dart';
 import '../../features/ptm/presentation/ptm_meetings_screen.dart';
 import '../../features/ptm/presentation/ptm_slots_screen.dart';
 import '../l10n/l10n.dart';
@@ -66,6 +67,7 @@ const teacherPaths = {
   '/week',
   '/call-requests',
   '/meetings',
+  '/gallery',
   '/find-student',
   '/fees',
 };
@@ -89,6 +91,9 @@ final _teachingPaths = [
 
 /// One class's times in a parent-teacher meeting, `/meetings/<id>/classes/<section id>`.
 final _meetingClassPath = RegExp(r'^/meetings/\d+/classes/\d+$');
+
+/// One event's photos, `/gallery/<id>`.
+final _galleryEventPath = RegExp(r'^/gallery/\d+$');
 
 /// Those who teach a timetable: their home is Today, with periods and
 /// registers. An HOD teaches too, and gets a Department tab in T7.
@@ -265,6 +270,21 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
+      // Events and photos for parents, over the frame, from Today (M12, 8.6).
+      GoRoute(
+        path: '/gallery',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(context.l10n.galleryHeading)),
+          body: const GalleryEventsScreen(compact: true),
+        ),
+      ),
+      GoRoute(
+        path: '/gallery/:id',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(context.l10n.galleryHeading)),
+          body: GalleryEventScreen(eventId: int.parse(state.pathParameters['id']!)),
+        ),
+      ),
       // The teacher's own week, over the frame, from Today (7.5).
       GoRoute(path: '/week', builder: (context, state) => const WeekScreen()),
       GoRoute(
@@ -311,7 +331,8 @@ final teacherRouterProvider = Provider<GoRouter>((ref) {
           _feeStatementPath.hasMatch(location) ||
           _registerPath.hasMatch(location) ||
           _teachingPaths.any((path) => path.hasMatch(location)) ||
-          _meetingClassPath.hasMatch(location);
+          _meetingClassPath.hasMatch(location) ||
+          _galleryEventPath.hasMatch(location);
       return known ? null : '/today';
     },
   );

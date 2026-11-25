@@ -3220,6 +3220,239 @@
       }
     }
   },
+  "galleryHeading": "Events & photos",
+  "@galleryHeading": {
+    "description": "Staff/web: the gallery screen's heading (M12, 8.6)."
+  },
+  "galleryIntro": "Photos for parents in the Family app: the whole school's events, or one class's.",
+  "@galleryIntro": {
+    "description": "Intro line on the gallery screen."
+  },
+  "galleryNoEvents": "No events posted yet.",
+  "@galleryNoEvents": {
+    "description": "Empty gallery list."
+  },
+  "galleryNewEvent": "New event",
+  "@galleryNewEvent": {
+    "description": "Button and dialog title: post an event."
+  },
+  "galleryChangeEvent": "Change event",
+  "@galleryChangeEvent": {
+    "description": "Dialog title: edit an event."
+  },
+  "galleryPosted": "Event posted. Now add its photos.",
+  "@galleryPosted": {
+    "description": "Snackbar after posting an event."
+  },
+  "gallerySaved": "Saved",
+  "@gallerySaved": {
+    "description": "Snackbar after changing an event."
+  },
+  "galleryTitleLabel": "Name",
+  "@galleryTitleLabel": {
+    "description": "Form field: the event's name."
+  },
+  "galleryTitleHint": "e.g. Annual Day",
+  "@galleryTitleHint": {
+    "description": "Hint for the event's name."
+  },
+  "galleryTitleRequired": "Give the event a name.",
+  "@galleryTitleRequired": {
+    "description": "Validation."
+  },
+  "galleryDateLabel": "Date",
+  "@galleryDateLabel": {
+    "description": "Form field: the event's date."
+  },
+  "galleryWhoSees": "Who sees it",
+  "@galleryWhoSees": {
+    "description": "Form field: the event's audience."
+  },
+  "galleryWholeSchool": "Parents of the whole school",
+  "@galleryWholeSchool": {
+    "description": "Audience: everyone."
+  },
+  "galleryParentsOf": "Parents of {className}",
+  "@galleryParentsOf": {
+    "description": "Audience: one class.",
+    "placeholders": {
+      "className": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryChooseClass": "Choose your class.",
+  "@galleryChooseClass": {
+    "description": "Validation for a teacher."
+  },
+  "galleryNoClassOfYours": "You can post to a class you are the class teacher of. You have none yet.",
+  "@galleryNoClassOfYours": {
+    "description": "Helper when a teacher has no class."
+  },
+  "galleryDescriptionLabel": "A few words (optional)",
+  "@galleryDescriptionLabel": {
+    "description": "Form field: description."
+  },
+  "galleryPost": "Post",
+  "@galleryPost": {
+    "description": "Button."
+  },
+  "gallerySave": "Save",
+  "@gallerySave": {
+    "description": "Button."
+  },
+  "galleryPhotoCount": "{count, plural, =0{no photos} =1{1 photo} other{{count} photos}}",
+  "@galleryPhotoCount": {
+    "description": "How many photos an event has.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "galleryNoPhotosYetParents": "Parents see it once it has a photo.",
+  "@galleryNoPhotosYetParents": {
+    "description": "Under an event with no photos."
+  },
+  "galleryNoPhotosYet": "No photos yet.",
+  "@galleryNoPhotosYet": {
+    "description": "Empty event."
+  },
+  "galleryAddPhoto": "Add a photo",
+  "@galleryAddPhoto": {
+    "description": "Button."
+  },
+  "galleryUploading": "Uploading…",
+  "@galleryUploading": {
+    "description": "Button while a photo uploads."
+  },
+  "galleryTakePhoto": "Take a photo",
+  "@galleryTakePhoto": {
+    "description": "Photo source: the camera."
+  },
+  "galleryChoosePhoto": "Choose from photos",
+  "@galleryChoosePhoto": {
+    "description": "Photo source: the phone's photos."
+  },
+  "galleryPhotoAdded": "Photo added",
+  "@galleryPhotoAdded": {
+    "description": "Snackbar."
+  },
+  "galleryPhotosOf": "{count} of {max} photos",
+  "@galleryPhotosOf": {
+    "description": "How full an event is.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "galleryFull": "This event has the most photos it can hold ({max}).",
+  "@galleryFull": {
+    "description": "An event at its photo limit.",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "galleryChange": "Change",
+  "@galleryChange": {
+    "description": "Button: edit the event."
+  },
+  "galleryDelete": "Delete",
+  "@galleryDelete": {
+    "description": "Button: delete the event."
+  },
+  "galleryDeleteEventQ": "Delete {title}?",
+  "@galleryDeleteEventQ": {
+    "description": "Confirm dialog title.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryDeleteEventBody": "The event and all its photos are removed for everyone. This cannot be undone.",
+  "@galleryDeleteEventBody": {
+    "description": "Confirm dialog body."
+  },
+  "galleryEventDeleted": "Event deleted",
+  "@galleryEventDeleted": {
+    "description": "Snackbar."
+  },
+  "galleryRemovePhoto": "Remove this photo",
+  "@galleryRemovePhoto": {
+    "description": "Tooltip on the remove button."
+  },
+  "galleryRemovePhotoQ": "Remove this photo?",
+  "@galleryRemovePhotoQ": {
+    "description": "Confirm dialog title."
+  },
+  "galleryRemovePhotoBody": "Parents will no longer see it.",
+  "@galleryRemovePhotoBody": {
+    "description": "Confirm dialog body."
+  },
+  "galleryRemove": "Remove",
+  "@galleryRemove": {
+    "description": "Button."
+  },
+  "galleryPhotoRemoved": "Photo removed",
+  "@galleryPhotoRemoved": {
+    "description": "Snackbar."
+  },
+  "galleryPhotoLabel": "Photo {number} of {total}",
+  "@galleryPhotoLabel": {
+    "description": "Screen-reader label of a photo in the grid.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "familyGallery": "Events & photos",
+  "@familyGallery": {
+    "description": "Family app: the gallery screen's title and its row on More."
+  },
+  "familyGallerySub": "Photos from school events",
+  "@familyGallerySub": {
+    "description": "Subtitle of the gallery row on More."
+  },
+  "familyNoGallery": "No photos yet",
+  "@familyNoGallery": {
+    "description": "Empty gallery title."
+  },
+  "familyNoGalleryMessage": "When the school shares photos of an event, they will show here.",
+  "@familyNoGalleryMessage": {
+    "description": "Empty gallery message."
+  },
+  "familyGalleryWholeSchool": "Whole school",
+  "@familyGalleryWholeSchool": {
+    "description": "An event for the whole school."
+  },
+  "familyGalleryPhotos": "{count, plural, =1{1 photo} other{{count} photos}}",
+  "@familyGalleryPhotos": {
+    "description": "How many photos an event has.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "familyGalleryOlder": "Show older events",
+  "@familyGalleryOlder": {
+    "description": "Button: next page."
+  },
+  "familyGalleryGone": "This event is no longer shared.",
+  "@familyGalleryGone": {
+    "description": "An event that was removed."
+  },
   "ptmMeetings": "Parent-teacher meetings",
   "@ptmMeetings": {
     "description": "Staff/web: the meetings screen's heading (M12, 8.4)."

@@ -9,6 +9,8 @@ import 'package:edutrack_app/features/family/data/models/family_absence_note.dar
 import 'package:edutrack_app/features/family/data/models/family_bus.dart';
 import 'package:edutrack_app/features/family/data/models/family_call_request.dart';
 import 'package:edutrack_app/features/family/data/models/family_meeting.dart';
+import 'package:edutrack_app/features/gallery/data/gallery_models.dart';
+import 'package:edutrack_app/core/network/paginated_response.dart';
 import 'package:edutrack_app/features/family/data/models/family_day.dart';
 import 'package:edutrack_app/features/family/data/models/family_fees.dart';
 import 'package:edutrack_app/features/family/data/models/family_guardian_invite.dart';
@@ -431,6 +433,33 @@ class FakeFamilyRepository implements FamilyRepository {
   final List<({bool toOffice, String reason, String? time})> callsAsked = [];
   final List<({int noticeId, int studentId, bool answer, String? note})> replies = [];
   Failure? failReplyWith;
+
+  /// Events and photos (M12, 8.6): one event with two photos; [olderGallery]
+  /// is page 2.
+  List<GalleryEvent> galleryValue = [
+    GalleryEvent(
+      id: 5,
+      schoolId: 1,
+      title: 'Annual Day',
+      date: DateTime(2026, 11, 20),
+      dateLabel: '11/20/2026',
+      description: 'Our 25th year on stage.',
+      photos: const [
+        GalleryPhoto(id: 51, url: '/family/gallery-photos/51', thumbUrl: '/family/gallery-photos/51?size=thumb'),
+        GalleryPhoto(id: 52, url: '/family/gallery-photos/52', thumbUrl: '/family/gallery-photos/52?size=thumb'),
+      ],
+    ),
+  ];
+  List<GalleryEvent> olderGallery = [];
+  final List<int> galleryPagesRead = [];
+
+  @override
+  Future<PaginatedResponse<GalleryEvent>> gallery({int page = 1}) async {
+    galleryPagesRead.add(page);
+    final items = page == 1 ? galleryValue : olderGallery;
+    final last = olderGallery.isEmpty ? 1 : 2;
+    return PaginatedResponse(items: items, currentPage: page, lastPage: last, total: 0, perPage: 15);
+  }
 
   /// Parent-teacher meetings (M12, 8.4): one meeting with three slots, the
   /// middle one taken by another family.
