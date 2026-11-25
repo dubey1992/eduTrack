@@ -85,6 +85,8 @@ class _PhotoViewerState extends State<PhotoViewer> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        // The app themes colour titles themselves; on black it must be white.
+        titleTextStyle: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white),
         title: Text('${widget.title == null ? '' : '${widget.title}  '}${_index + 1}/${widget.urls.length}'),
       ),
       body: PageView.builder(

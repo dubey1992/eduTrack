@@ -257,7 +257,13 @@ class _SlotChip extends StatelessWidget {
           style: slot.free || slot.mine ? null : const TextStyle(decoration: TextDecoration.lineThrough),
         ),
         selected: slot.mine,
-        onSelected: slot.free && onPick != null ? (_) => onPick!(slot) : null,
+        // The parent's own time stays enabled so it reads as chosen, not
+        // greyed out like a taken one; tapping it does nothing.
+        onSelected: onPick == null || !(slot.free || slot.mine)
+            ? null
+            : (_) {
+                if (slot.free) onPick!(slot);
+              },
         materialTapTargetSize: MaterialTapTargetSize.padded,
       ),
     );
