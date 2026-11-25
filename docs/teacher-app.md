@@ -604,7 +604,10 @@ name stays **School365ai** (decided 2026-10-25), not "School365ai Teacher".
   check-in position compared and discarded (only the distance kept), the
   register kept on the phone without signal, the notification address,
   Firebase as a service provider, no microphone or camera - and the
-  children and choices paragraphs widened to both apps.
+  children and choices paragraphs widened to both apps. *Updated
+  2026-11-25:* photos the teacher chooses (M9 reports, M12 events), marks
+  read from a photo on the phone, and the microphone while reading marks
+  out (M12) - "no microphone or camera" no longer holds.
 - **Gaps fixed:** the notification permission was being removed from the
   staff app (push would never have shown on Android 13+), and the
   Navigation SDK's storage permission was reaching it.

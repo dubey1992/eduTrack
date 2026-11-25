@@ -129,7 +129,7 @@ class TheBuiltInPagesByDefault(TestCase):
         page = self.client.get(public("privacy")).data["page"]
 
         self.assertEqual("Privacy Policy", page["title"])
-        self.assertEqual("2026-10-26T00:00:00+00:00", page["published_at"])
+        self.assertEqual("2026-11-25T00:00:00+00:00", page["published_at"])
         self.assertIn("Bus positions are deleted after 30 days.", page["body"])
 
     def test_the_terms_are_not_live_until_somebody_fills_them_in(self):
@@ -376,7 +376,7 @@ class SavingAndPublishing(TestCase):
         page = APIClient().get(public("privacy")).data["page"]
         self.assertEqual("Privacy Policy", page["title"])
         self.assertEqual(site_pages.PRIVACY_BODY, page["body"])
-        self.assertEqual("2026-10-26T00:00:00+00:00", page["published_at"])
+        self.assertEqual("2026-11-25T00:00:00+00:00", page["published_at"])
 
     def test_publishing_puts_the_draft_live_at_once(self):
         """Cached for an hour - and publishing clears it."""
@@ -389,7 +389,7 @@ class SavingAndPublishing(TestCase):
         self.assertFalse(response.data["has_unpublished_changes"])
         page = APIClient().get(public("privacy")).data["page"]
         self.assertEqual({"Privacy", "A new policy."}, {page["title"], page["body"]})
-        self.assertNotEqual("2026-10-26T00:00:00+00:00", page["published_at"])
+        self.assertNotEqual("2026-11-25T00:00:00+00:00", page["published_at"])
 
     def test_publishing_makes_the_terms_live(self):
         self.assertEqual(404, APIClient().get(public("terms")).status_code)
@@ -636,7 +636,7 @@ class ThePrivacyPolicyKeepsItsPromises(TestCase):
 
     def test_the_shipped_text_keeps_them(self):
         self.check(site_pages.PRIVACY_BODY)
-        self.assertEqual("2026-10-26T00:00:00+00:00", site_pages.built_in("privacy").published_at.isoformat())
+        self.assertEqual("2026-11-25T00:00:00+00:00", site_pages.built_in("privacy").published_at.isoformat())
 
     def test_the_public_page_keeps_them_with_no_row(self):
         self.assertFalse(SitePage.objects.exists())
@@ -644,7 +644,7 @@ class ThePrivacyPolicyKeepsItsPromises(TestCase):
         page = APIClient().get(public("privacy")).data["page"]
 
         self.check(page["body"])
-        self.assertEqual("2026-10-26T00:00:00+00:00", page["published_at"])
+        self.assertEqual("2026-11-25T00:00:00+00:00", page["published_at"])
 
 
 class TheRules(SimpleTestCase):

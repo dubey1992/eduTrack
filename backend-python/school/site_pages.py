@@ -217,7 +217,10 @@ The school is the owner of the information in its account. We hold and process t
 - **What you record as part of your work.** The class register, teaching reports, marks and syllabus progress you enter, and your own leave requests - the same records as on the school's website.
 - **A register taken without signal.** Kept on the phone until there is signal, then sent and removed. The phone also keeps the names and roll numbers of your classes, so a register can be opened without signal - never anybody's marks.
 - **Notifications.** Where your school uses notifications, the phone's notification address is registered to your account when you sign in and removed when you sign out. Nothing else about the phone is recorded.
-- **No microphone, no camera, no contacts.** The School365ai app does not ask for them.
+- **Photos you choose to add.** A photo you add to a teaching report, which only staff at your school see, or to a school event your school shares with parents. The app opens the phone's own camera or photo picker and receives only the photo you chose. Each photo is re-saved on our side, which drops the location and camera details a phone stores inside a picture.
+- **Marks read from a photo of a marks list.** When you photograph a list of marks on a marks sheet, the phone reads the numbers itself, using Google ML Kit on the phone. The photo is not sent anywhere or kept. Only the marks you check and confirm are saved.
+- **The microphone, only while you read marks out.** When you tap the microphone on a marks sheet, the app listens until you stop or pause, and the phone's own speech recognition turns what you say into numbers. That recognition is part of Android and may send the audio to Google to do it. The app keeps no recording, only the marks you check and confirm. It never listens at any other time.
+- **No contacts.** The School365ai app does not ask for them.
 
 ## How long it is kept
 
@@ -237,6 +240,7 @@ We do not sell information, and we do not use it for advertising. The app carrie
 - **Google Fonts.** The apps load their typeface from Google's font service, which sees the request and the device's IP address, as any web request does.
 - **Messaging and email providers.** Where a school switches on SMS, WhatsApp or email alerts, the message and the recipient's number or address are handed to the provider the school has configured, so that it can be delivered.
 - **Google Firebase Cloud Messaging.** Where a school uses notifications, Firebase delivers them to staff phones. It receives the phone's notification address and the text of the notification.
+- **The phone's speech recognition.** When a teacher reads marks out in the School365ai app, the phone's speech recognition service, usually Google's, turns the audio into text. Reading marks from a photo uses Google ML Kit, which runs on the phone and sends nothing.
 - **Hosting.** The service and its database run on the hosting the school's operator has arranged.
 
 ## Children
@@ -251,7 +255,7 @@ Access needs an account, and on the bus it needs the registered phone as well as
 
 A crew member can switch location sharing off at any time from the trip screen. The trip, and marking children on and off, keeps working; the school simply will not see where the bus is.
 
-In the School365ai app, location is asked only when you tap Check in or Check out, and notifications can be switched off in the phone's settings at any time. The app keeps working, and messages still arrive in its inbox.
+In the School365ai app, location is asked only when you tap Check in or Check out, and notifications can be switched off in the phone's settings at any time. The app keeps working, and messages still arrive in its inbox. The microphone is asked for only the first time you tap it on a marks sheet. You can refuse, or withdraw it later in the phone's settings, and type the marks instead.
 
 To see, correct or delete what is held about you, ask your school. If your school needs our help to do it, they can ask us.
 
@@ -380,7 +384,8 @@ BUILT_INS: tuple[BuiltIn, ...] = (
     BuiltIn("about", "About Us", ABOUT_BODY, live_by_default=True),
     BuiltIn(
         "privacy", "Privacy Policy", PRIVACY_BODY, live_by_default=True,
-        published_at=dt.datetime(2026, 10, 26, tzinfo=dt.timezone.utc),
+        # Updated 2026-11-25: the Staff app's photos (M9) and microphone (M12).
+        published_at=dt.datetime(2026, 11, 25, tzinfo=dt.timezone.utc),
     ),
     BuiltIn("terms", "Terms of Use", TERMS_BODY, live_by_default=False),
     BuiltIn("contact", "Contact Us", CONTACT_BODY, live_by_default=True),
