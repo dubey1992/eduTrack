@@ -4,8 +4,9 @@
   Its job is subtraction. The main manifest is the driver app's and asks for
   what a bus needs: location, a foreground service to keep reporting with
   the screen off, notifications for that service, a microphone for the trip
-  sheet's search. A teacher's app needs only foreground location (check-in)
-  and notifications (push), and a school reading the permission list on
+  sheet's search. A teacher's app needs foreground location (check-in),
+  notifications (push) and, since M12, the microphone (marks read out on the
+  marks sheet), and a school reading the permission list on
   Play should see nothing else - so the rest is removed here, along with the
   service and the plugin manifests' own copies, which tools:node="remove"
   takes out of the merged result too.
@@ -23,7 +24,10 @@
          notifications (docs/teacher-app.md, T6). Removing this permission,
          as T0 did, would silently drop every one on Android 13 and later -
          the app asks for it after sign-in, and only when push is set up. -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+    <!-- The microphone stays since M12 (docs/mobile-apps-review.md, 1.7):
+         a teacher may read marks out on the marks sheet. Asked for only when
+         they tap the microphone; removing it here, as before, made the
+         button say the phone cannot listen on every phone. -->
     <!-- And what the bus's plugins bring in on their own: the Navigation
          SDK's Bluetooth and Wi-Fi state, the foreground service's start on
          boot, its vibration. A teacher's phone does none of it. -->

@@ -258,6 +258,12 @@ class MarksParser {
       return;
     }
 
+    // Words after the last number: a heading such as "Class 3 B - Spelling
+    // test", not a row - on a list the mark comes after the name. Seen on a
+    // phone 2026-11-25, where the 3 was taken as the first child's mark.
+    final lastValueAt = tokens.lastIndexWhere((token) => token is _Value);
+    if (hasName && lastValueAt >= 0 && tokens.skip(lastValueAt + 1).any((token) => token is _Word)) return;
+
     if (values.isEmpty) {
       // A mark that could not be read still takes its student's place, so
       // the marks below it do not slide up onto the wrong children.

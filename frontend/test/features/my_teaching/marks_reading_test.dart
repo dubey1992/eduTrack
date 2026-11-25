@@ -217,6 +217,25 @@ void main() {
       expect(reading.issues, isEmpty);
     });
 
+    test('a heading with a number in its middle is not a mark (seen on a phone)', () {
+      // The emulator run on 2026-11-25: the 3 of "Class 3 B" went to the
+      // first child and every mark slid down one.
+      final noRolls = MarksParser([
+        student(201, roll: '', marks: null),
+        student(202, roll: '', marks: null),
+      ]);
+      final reading = noRolls.fromPhoto([
+        line('Class 3 B - Spelling test', 0),
+        line('Max 50', 40),
+        line('Meera Iyer', 120, left: 20),
+        line('42', 121, left: 300),
+        line('Rohan Das', 170, left: 20),
+        line('37', 171, left: 300),
+      ]);
+      expect(marks(reading), {201: '42', 202: '37'});
+      expect(reading.issues, isEmpty);
+    });
+
     test('"18/20" is an 18', () {
       expect(marks(parser.fromPhoto([line('1 Aarav 18/20', 0)])), {101: '18'});
     });
