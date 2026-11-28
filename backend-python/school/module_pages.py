@@ -528,6 +528,14 @@ With the internet down, the office and teachers carry on:
 
 A count in the bar shows how much is waiting on that computer.
 
+## Look up students and staff
+
+On a school computer that the person marks as trusted when they sign in, School365ai keeps a copy of the records they can already see: students with their class and guardian's number, staff, and the fees each student still owes. With the line down, the student and staff lists open from that copy, searchable, each saying how up to date it is. The copy belongs to the person who signed in, and it is wiped when they sign out. Schools can switch copies off altogether.
+
+## Keep the fee counter open
+
+The accountant or school admin can keep taking **cash and cheques** against what a student owes. The family gets a provisional receipt straight away, numbered for that computer, and the school's numbered receipt is made when the connection returns. If the same fee was paid some other way in the meantime, the payment is never counted twice: it waits under **Offline Payments**, where the office keeps it on the student's account or records the money as handed back.
+
 ## It sends itself when the line is back
 
 There is nothing to remember. The moment the computer is back online, everything saved is sent, oldest first. The school's own rules still apply when it arrives: a register for a day the school was closed, or one another teacher already took, is not accepted - and it is listed with the reason, never quietly lost.
@@ -538,18 +546,18 @@ The School365ai staff app takes the register, teaching reports and marks with no
 
 ## What waits for the connection
 
-Some work needs the school's server and waits until it can be reached: taking fee payments, changing a register already submitted, reports and PDFs, setting up classes and timetables, and sending SMS or WhatsApp messages.
+Some work needs the school's server and waits until it can be reached: fee payments by UPI, card or bank transfer, changing a register already submitted, reports and PDFs, setting up classes and timetables, and sending SMS or WhatsApp messages.
 
 ## Frequently asked questions
 
 ### Does School365ai work without internet?
-Yes, for the day's work. On a computer where it has been used before, the web app opens offline; registers, marks, teaching reports, the staff register, leave applications and notices are saved on the computer and sent automatically when the connection returns.
+Yes, for the day's work. On a computer where it has been used before, the web app opens offline; registers, marks, teaching reports, the staff register, leave applications and notices are saved on the computer and sent automatically when the connection returns. On a trusted school computer, student and staff lists and fees owed can be looked up too.
 
 ### Is anything lost if the internet stops halfway through?
 No. Work is saved on the computer as soon as it is submitted, and stays there until the school's server has it. If the server cannot accept something, it is listed with the reason instead of being dropped.
 
 ### Can fees be collected offline?
-Not yet. Fee payments need a connection to the school's server today, so receipts are always numbered correctly."""
+Yes, in cash or by cheque. The family gets a provisional receipt at once, and the school's numbered receipt is made when the connection is back, so receipt numbers never clash. A fee paid twice in the meantime is held for the office to settle, never counted twice."""
 
 # In the order the homepage shows them: what a school asks about first.
 MODULES: tuple[ModulePage, ...] = (

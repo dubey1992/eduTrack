@@ -238,7 +238,8 @@ HOME_FAQ = (
     ("Does School365ai work without internet?",
      "Yes, for the day's work. On a computer where it has been used before, the web app opens with the "
      "internet down; registers, marks, teaching reports, leave applications and notices are saved on the "
-     "computer and sent by themselves when the connection is back. The Android apps work without signal too."),
+     "computer and sent by themselves when the connection is back. The fee counter keeps taking cash and "
+     "cheques with a provisional receipt, and the Android apps work without signal too."),
     ("Can our school start now?",
      "School365ai is welcoming schools through its early-access programme. Request a demo or join early "
      "access, and we will tell you how to get started."),
