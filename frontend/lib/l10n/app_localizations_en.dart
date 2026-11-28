@@ -38,8 +38,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busSplashSlow => 'Still trying to reach your school.';
 
   @override
-  String get busSplashCheckSignal =>
-      'Check that this phone has signal, then try again.';
+  String get busSplashCheckSignal => 'Check that this phone has signal, then try again.';
 
   @override
   String get busTryAgain => 'Try again';
@@ -62,8 +61,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busLandingTickTitle => 'Tick each child on and off';
 
   @override
-  String get busLandingTickBody =>
-      'Boarded, dropped or absent. The school sees it, and the parents are told.';
+  String get busLandingTickBody => 'Boarded, dropped or absent. The school sees it, and the parents are told.';
 
   @override
   String get busLandingOfflineTitle => 'Works without signal';
@@ -86,8 +84,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busLandingNeedSetUp => 'Before you start you need';
 
   @override
-  String get busLandingNeedSignInBody =>
-      'Your mobile number and the 4-digit passcode you chose on this phone.';
+  String get busLandingNeedSignInBody => 'Your mobile number and the 4-digit passcode you chose on this phone.';
 
   @override
   String get busLandingNeedSetUpBody =>
@@ -114,8 +111,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter your mobile number, the 8-digit setup code from your school office, and choose a 4-digit passcode.';
 
   @override
-  String get busSignInHelp =>
-      'Enter your mobile number and your 4-digit passcode.';
+  String get busSignInHelp => 'Enter your mobile number and your 4-digit passcode.';
 
   @override
   String get busMobileLabel => 'Mobile';
@@ -124,8 +120,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busSetupCodeLabel => 'Setup code';
 
   @override
-  String get busSetupCodeInvalid =>
-      'Enter the 8-digit setup code from your office';
+  String get busSetupCodeInvalid => 'Enter the 8-digit setup code from your office';
 
   @override
   String get busNewPasscodeLabel => 'New passcode';
@@ -152,26 +147,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busUsePasscode => 'Already set up? Sign in with your passcode';
 
   @override
-  String get busUseSetupCode =>
-      'Have a new setup code? Register this phone again';
+  String get busUseSetupCode => 'Have a new setup code? Register this phone again';
 
   @override
   String get busUseEmail => 'Sign in with email instead';
 
   @override
-  String get busBatteryWarning =>
-      'This phone may stop sending the bus\'s position when the screen is off.';
+  String get busBatteryWarning => 'This phone may stop sending the bus\'s position when the screen is off.';
 
   @override
   String get busBatteryHowToFix => 'How to fix it';
 
   @override
-  String get busNoRoutes =>
-      'No route is assigned to you yet. Ask your school office to add you to a route.';
+  String get busNoRoutes => 'No route is assigned to you yet. Ask your school office to add you to a route.';
 
   @override
-  String get busRoutesFromPhone =>
-      'No signal - showing your routes as last saved on this phone.';
+  String get busRoutesFromPhone => 'No signal - showing your routes as last saved on this phone.';
 
   @override
   String get busTripCheck => 'Trip check';
@@ -191,23 +182,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String busStopsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count stops',
-      one: '1 stop',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count stops', one: '1 stop');
     return '$_temp0';
   }
 
   @override
   String busStudentsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count students',
-      one: '1 student',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count students', one: '1 student');
     return '$_temp0';
   }
 
@@ -222,12 +203,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get busLicenceToday =>
-      'Your driving licence expires today. Tell your school office.';
+  String get busLicenceToday => 'Your driving licence expires today. Tell your school office.';
 
   @override
-  String get busLicenceTomorrow =>
-      'Your driving licence expires tomorrow. Tell your school office.';
+  String get busLicenceTomorrow => 'Your driving licence expires tomorrow. Tell your school office.';
 
   @override
   String busLicenceInDays(int days, String date) {
@@ -253,8 +232,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busDrop => 'Drop';
 
   @override
-  String get busDropWaits =>
-      'Starts after the pickup. The drop takes home the children the pickup brought in.';
+  String get busDropWaits => 'Starts after the pickup. The drop takes home the children the pickup brought in.';
 
   @override
   String get busStartPickup => 'Start pickup';
@@ -275,8 +253,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busRunningLateQuestion => 'Running late?';
 
   @override
-  String get busRunningLateHelp =>
-      'The parents still waiting on this route are told.';
+  String get busRunningLateHelp => 'The parents still waiting on this route are told.';
 
   @override
   String busLateMinutes(int minutes) {
@@ -298,17 +275,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busEndTripQuestion => 'End this trip?';
 
   @override
-  String get busEndAllMarked =>
-      'Every child has been marked. The trip will be recorded as completed.';
+  String get busEndAllMarked => 'Every child has been marked. The trip will be recorded as completed.';
 
   @override
   String busEndUnmarked(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count children have',
-      one: '1 child has',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count children have', one: '1 child has');
     return '$_temp0 not been marked and will be recorded as absent.';
   }
 
@@ -329,8 +300,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Started on this phone with no signal. The school sees this trip when signal returns.';
 
   @override
-  String get busTripFromPhone =>
-      'No signal - showing the trip as last saved on this phone.';
+  String get busTripFromPhone => 'No signal - showing the trip as last saved on this phone.';
 
   @override
   String busSearchNoMatch(String query) {
@@ -415,8 +385,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get busUndoTooLate =>
-      'Already sent to the school, so it stands. Ask the office to correct it.';
+  String get busUndoTooLate => 'Already sent to the school, so it stands. Ask the office to correct it.';
 
   @override
   String get busVoiceMute => 'Mute the spoken prompts';
@@ -426,12 +395,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String busStillOnBoard(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count children are',
-      one: '1 child is',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count children are', one: '1 child is');
     return '$_temp0 still on board. Drop them off before ending the trip.';
   }
 
@@ -481,30 +445,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busLocAsking => 'Asking for your location...';
 
   @override
-  String get busLocOn =>
-      'The school can see where the bus is while this screen is open.';
+  String get busLocOn => 'The school can see where the bus is while this screen is open.';
 
   @override
   String get busLocOff => 'Off - the school cannot see where the bus is.';
 
   @override
-  String get busLocDenied =>
-      'Location permission was not given, so your location is not being shared.';
+  String get busLocDenied => 'Location permission was not given, so your location is not being shared.';
 
   @override
   String get busLocBlocked =>
       'Location is blocked for this app. Allow it in the phone settings to share your location.';
 
   @override
-  String get busLocServiceOff =>
-      'Location is turned off on this phone. Turn it on to share your location.';
+  String get busLocServiceOff => 'Location is turned off on this phone. Turn it on to share your location.';
 
   @override
   String get busLocUnsupported => 'This device cannot share its location.';
 
   @override
-  String get busLocTripEnded =>
-      'The trip is no longer running, so location sharing has stopped.';
+  String get busLocTripEnded => 'The trip is no longer running, so location sharing has stopped.';
 
   @override
   String get busNotSent => 'Not sent';
@@ -521,8 +481,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busDismiss => 'Dismiss';
 
   @override
-  String get busMicFailed =>
-      'The microphone could not be used. Check the app\'s permission, or type the name.';
+  String get busMicFailed => 'The microphone could not be used. Check the app\'s permission, or type the name.';
 
   @override
   String get busSearchListening => 'Listening… say the child\'s name';
@@ -566,8 +525,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busSosSent => 'SOS sent. Your school has been told where you are.';
 
   @override
-  String get busSosSemantics =>
-      'SOS. Hold for two seconds to ask your school for help.';
+  String get busSosSemantics => 'SOS. Hold for two seconds to ask your school for help.';
 
   @override
   String get busSosHolding => 'Keep holding...';
@@ -577,34 +535,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String busMarksSending(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count marks',
-      one: '1 mark',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count marks', one: '1 mark');
     return 'Sending $_temp0...';
   }
 
   @override
   String busMarksOffline(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count marks',
-      one: '1 mark',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count marks', one: '1 mark');
     return 'Offline - $_temp0 waiting to send';
   }
 
   @override
   String busMarksWaiting(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count marks',
-      one: '1 mark',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count marks', one: '1 mark');
     return '$_temp0 waiting to send';
   }
 
@@ -616,8 +559,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Guidance inside this app needs Google\'s terms, which you did not accept. You can still use Google Maps.';
 
   @override
-  String get busNavNoRoute =>
-      'No route to this stop could be worked out. Check your signal, or try Google Maps.';
+  String get busNavNoRoute => 'No route to this stop could be worked out. Check your signal, or try Google Maps.';
 
   @override
   String get busNavUnavailable =>
@@ -630,12 +572,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busBatteryTitle => 'Keep the bus on the map';
 
   @override
-  String get busBatteryDone =>
-      'Done. This phone will keep reporting with the screen off.';
+  String get busBatteryDone => 'Done. This phone will keep reporting with the screen off.';
 
   @override
-  String get busBatteryNotChanged =>
-      'Not changed. The steps below do the same thing by hand.';
+  String get busBatteryNotChanged => 'Not changed. The steps below do the same thing by hand.';
 
   @override
   String get busBatteryWhy => 'Why the school sometimes loses the bus';
@@ -651,15 +591,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busBatteryStep1Done => 'Already allowed on this phone.';
 
   @override
-  String get busBatteryStep1Body =>
-      'This is the setting Android itself controls, and the button below opens it.';
+  String get busBatteryStep1Body => 'This is the setting Android itself controls, and the button below opens it.';
 
   @override
   String get busBatteryAllow => 'Allow';
 
   @override
-  String get busBatteryStep2Title =>
-      'Turn off your phone maker\'s battery saver for this app';
+  String get busBatteryStep2Title => 'Turn off your phone maker\'s battery saver for this app';
 
   @override
   String get busBatteryStep2Body =>
@@ -673,8 +611,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busMakeXiaomi => 'Xiaomi, Redmi or POCO';
 
   @override
-  String get busMakeXiaomi1 =>
-      'Settings > Apps > Manage apps > School365ai Driver > Battery saver > No restrictions.';
+  String get busMakeXiaomi1 => 'Settings > Apps > Manage apps > School365ai Driver > Battery saver > No restrictions.';
 
   @override
   String get busMakeXiaomi2 => 'On the same screen, turn on Autostart.';
@@ -687,12 +624,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busMakeOppo => 'Oppo, Realme or OnePlus';
 
   @override
-  String get busMakeOppo1 =>
-      'Settings > Battery > Power saving > App battery usage (or App battery management).';
+  String get busMakeOppo1 => 'Settings > Battery > Power saving > App battery usage (or App battery management).';
 
   @override
-  String get busMakeOppo2 =>
-      'Find School365ai Driver and choose Allow background activity, or Don\'t optimise.';
+  String get busMakeOppo2 => 'Find School365ai Driver and choose Allow background activity, or Don\'t optimise.';
 
   @override
   String get busMakeOppo3 => 'Turn on Allow auto launch for this app.';
@@ -705,15 +640,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Settings > Battery > Background power consumption management > School365ai Driver > Allow high background power consumption.';
 
   @override
-  String get busMakeVivo2 =>
-      'Settings > Apps > Autostart, and turn it on for this app.';
+  String get busMakeVivo2 => 'Settings > Apps > Autostart, and turn it on for this app.';
 
   @override
   String get busMakeSamsung => 'Samsung';
 
   @override
-  String get busMakeSamsung1 =>
-      'Settings > Apps > School365ai Driver > Battery > Unrestricted.';
+  String get busMakeSamsung1 => 'Settings > Apps > School365ai Driver > Battery > Unrestricted.';
 
   @override
   String get busMakeSamsung2 =>
@@ -727,8 +660,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Settings > Apps > School365ai Driver > Battery, and choose the least restricted option offered.';
 
   @override
-  String get busMakeOther2 =>
-      'If there is an Autostart or Auto launch setting, turn it on.';
+  String get busMakeOther2 => 'If there is an Autostart or Auto launch setting, turn it on.';
 
   @override
   String get busTripLogUnreadable => 'The trip log could not be read.';
@@ -753,8 +685,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get busBatteryChecking => 'Checking battery settings...';
 
   @override
-  String get busBatteryOwnSetting =>
-      'Some phones have their own setting as well - see the phone\'s battery steps.';
+  String get busBatteryOwnSetting => 'Some phones have their own setting as well - see the phone\'s battery steps.';
 
   @override
   String get busSteps => 'Steps';
@@ -789,8 +720,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get busNoGapVerdict =>
-      'No long gaps: the phone kept sharing the whole way.';
+  String get busNoGapVerdict => 'No long gaps: the phone kept sharing the whole way.';
 
   @override
   String busSharingStopped(String reason) {
@@ -819,12 +749,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
-  String get errorNoConnection =>
-      'Could not reach the server. Check your connection and try again.';
+  String get errorNoConnection => 'Could not reach the server. Check your connection and try again.';
 
   @override
-  String get errorTimeout =>
-      'The server is taking longer than usual to answer. Try again in a moment.';
+  String get errorTimeout => 'The server is taking longer than usual to answer. Try again in a moment.';
 
   @override
   String get errorUnknown => 'Something went wrong. Please try again.';
@@ -833,16 +761,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get coreLogOutTitle => 'Log out?';
 
   @override
-  String get coreLogOutMessage =>
-      'You will need to sign in again to get back to your school.';
+  String get coreLogOutMessage => 'You will need to sign in again to get back to your school.';
 
   @override
   String coreLogOutUnsent(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other:
-          '$count marks have not been sent yet. Sign out anyway? They will be lost.',
+      other: '$count marks have not been sent yet. Sign out anyway? They will be lost.',
       one: '1 mark has not been sent yet. Sign out anyway? They will be lost.',
     );
     return '$_temp0';
@@ -858,8 +784,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get coreLockedTitle => 'School365ai is locked';
 
   @override
-  String get coreLockedHint =>
-      'Use your fingerprint, face or phone\'s screen lock to open it.';
+  String get coreLockedHint => 'Use your fingerprint, face or phone\'s screen lock to open it.';
 
   @override
   String get coreNotUnlocked => 'Not unlocked. Try again.';
@@ -899,8 +824,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get corePasscodeRepeated =>
-      'Choose a passcode that is not one digit repeated.';
+  String get corePasscodeRepeated => 'Choose a passcode that is not one digit repeated.';
 
   @override
   String corePasscodeRun(String example) {
@@ -950,8 +874,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyPayModeOnlineTransfer => 'Online transfer';
 
   @override
-  String get familyInviteApproved =>
-      'Approved - the school will give them a set-up letter';
+  String get familyInviteApproved => 'Approved - the school will give them a set-up letter';
 
   @override
   String get familyInviteDeclined => 'Declined by the school';
@@ -1126,8 +1049,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyAttendanceToday => 'Attendance today';
 
   @override
-  String get familyTeacherMarksMorning =>
-      'The class teacher marks it in the morning.';
+  String get familyTeacherMarksMorning => 'The class teacher marks it in the morning.';
 
   @override
   String familyNote(String text) {
@@ -1303,8 +1225,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyNotOnBus => 'Not on a school bus';
 
   @override
-  String get familyNotOnBusMessage =>
-      'If your child should be, the school office can add them to a route.';
+  String get familyNotOnBusMessage => 'If your child should be, the school office can add them to a route.';
 
   @override
   String get familyBusOnWayToSchool => 'The bus is on its way to school';
@@ -1331,8 +1252,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyNotStartedYet => 'Not started yet';
 
   @override
-  String get familyTripWasCancelled =>
-      'This trip was cancelled. The school will be in touch.';
+  String get familyTripWasCancelled => 'This trip was cancelled. The school will be in touch.';
 
   @override
   String familyNotOnTripList(String name) {
@@ -1393,8 +1313,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get familyBusFollowDuringTrip =>
-      'You can follow it during their trip - on the way to school or home.';
+  String get familyBusFollowDuringTrip => 'You can follow it during their trip - on the way to school or home.';
 
   @override
   String get familyWhereIsBus => 'Where is the bus?';
@@ -1443,18 +1362,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String familyMinutes(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count minutes',
-      one: '1 minute',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count minutes', one: '1 minute');
     return '$_temp0';
   }
 
   @override
-  String get familyWaitingForBusLocation =>
-      'Waiting for the bus to share where it is.';
+  String get familyWaitingForBusLocation => 'Waiting for the bus to share where it is.';
 
   @override
   String familyLastSeenAgo(String time) {
@@ -1462,15 +1375,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get familyOfflineLastUpdate =>
-      'No connection - showing the last update.';
+  String get familyOfflineLastUpdate => 'No connection - showing the last update.';
 
   @override
   String get familyNoFeesYet => 'No fees set yet';
 
   @override
-  String get familyNoFeesYetMessage =>
-      'When the school sets this year\'s fees, they appear here.';
+  String get familyNoFeesYetMessage => 'When the school sets this year\'s fees, they appear here.';
 
   @override
   String get familyInstalments => 'Instalments';
@@ -1515,8 +1426,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Left to pay is this year\'s fees, less any discount, less what the school has recorded as paid, less any instalment the school has waived. Overdue is the part of it from instalments whose due date has passed.';
 
   @override
-  String get familyUpiOpened =>
-      'Once you have paid, the school records it and the receipt appears here.';
+  String get familyUpiOpened => 'Once you have paid, the school records it and the receipt appears here.';
 
   @override
   String get familyUpiNotOpened =>
@@ -1531,8 +1441,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyHowToPay => 'How to pay';
 
   @override
-  String get familyPaySchoolDirectly =>
-      'Pay the school directly. This app shows your fees; it does not take payments.';
+  String get familyPaySchoolDirectly => 'Pay the school directly. This app shows your fees; it does not take payments.';
 
   @override
   String familyPayWithUpi(String amount) {
@@ -1597,8 +1506,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyNoTermsYet => 'No terms yet';
 
   @override
-  String get familyNoTermsYetMessage =>
-      'Results appear here once the school sets up its terms.';
+  String get familyNoTermsYetMessage => 'Results appear here once the school sets up its terms.';
 
   @override
   String get familyFromClassTeacher => 'From the class teacher';
@@ -1607,8 +1515,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyNoResultsThisTerm => 'No results yet this term';
 
   @override
-  String get familyNoResultsThisTermMessage =>
-      'A test appears here once the teacher publishes its marks.';
+  String get familyNoResultsThisTermMessage => 'A test appears here once the teacher publishes its marks.';
 
   @override
   String get familyWhyResults =>
@@ -1635,12 +1542,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String familyTestsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count tests',
-      one: '1 test',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count tests', one: '1 test');
     return '$_temp0';
   }
 
@@ -1666,8 +1568,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyNoTimetableYet => 'No timetable yet';
 
   @override
-  String get familyNoTimetableYetMessage =>
-      'The class\'s timetable appears here once the school sets it.';
+  String get familyNoTimetableYetMessage => 'The class\'s timetable appears here once the school sets it.';
 
   @override
   String familyDayToday(String day) {
@@ -1724,8 +1625,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyNoSyllabusYet => 'No syllabus yet';
 
   @override
-  String get familyNoSyllabusYetMessage =>
-      'What the class will cover appears here once the school adds it.';
+  String get familyNoSyllabusYetMessage => 'What the class will cover appears here once the school adds it.';
 
   @override
   String get familyHomework => 'Homework';
@@ -1734,8 +1634,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyNoHomework => 'No homework in the last two weeks';
 
   @override
-  String get familyNoHomeworkMessage =>
-      'When a teacher sets homework for the class, it appears here that day.';
+  String get familyNoHomeworkMessage => 'When a teacher sets homework for the class, it appears here that day.';
 
   @override
   String familyTodayDash(String date) {
@@ -1765,15 +1664,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyAddGuardian => 'Add a guardian';
 
   @override
-  String get familyAddGuardianSub =>
-      'Ask the school to add the other parent, or a relative';
+  String get familyAddGuardianSub => 'Ask the school to add the other parent, or a relative';
 
   @override
   String get familyAskToCall => 'Ask the school to call you';
 
   @override
-  String get familyAskToCallSub =>
-      'The class teacher or the office rings you back';
+  String get familyAskToCallSub => 'The class teacher or the office rings you back';
 
   @override
   String get familyAdmitCards => 'Admit cards';
@@ -1809,33 +1706,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyYourPrivacy => 'Your privacy';
 
   @override
-  String get familyYourPrivacySub =>
-      'Who sees your number, and the bus on the map';
+  String get familyYourPrivacySub => 'Who sees your number, and the bus on the map';
 
   @override
   String get familySignOut => 'Sign out';
 
   @override
-  String get familySignOutSub =>
-      'This phone stays set up; sign in again with your passcode';
+  String get familySignOutSub => 'This phone stays set up; sign in again with your passcode';
 
   @override
   String get familySignOutQuestion => 'Sign out?';
 
   @override
-  String get familySignOutMessage =>
-      'You will need your passcode to sign in again.';
+  String get familySignOutMessage => 'You will need your passcode to sign in again.';
 
   @override
-  String get familyCouldNotOpen =>
-      'This phone could not open that. Please try another way.';
+  String get familyCouldNotOpen => 'This phone could not open that. Please try another way.';
 
   @override
   String get familyContactSchool => 'Contact the school';
 
   @override
-  String get familyNoContactDetails =>
-      'The school has not added its contact details yet.';
+  String get familyNoContactDetails => 'The school has not added its contact details yet.';
 
   @override
   String get familyEmail => 'Email';
@@ -1847,17 +1739,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyNoNoticesYet => 'No notices yet';
 
   @override
-  String get familyNoNoticesYetMessage =>
-      'Messages from the school will appear here.';
+  String get familyNoNoticesYetMessage => 'Messages from the school will appear here.';
 
   @override
   String familyFilesCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count files',
-      one: '1 file',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count files', one: '1 file');
     return '$_temp0';
   }
 
@@ -1865,8 +1751,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyHolidaysCalendarName => 'School holidays';
 
   @override
-  String get familyCalendarShareFailed =>
-      'The calendar file could not be shared.';
+  String get familyCalendarShareFailed => 'The calendar file could not be shared.';
 
   @override
   String get familyThisMonth => 'This month';
@@ -1904,15 +1789,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familySwitchResultsSub => 'When a test result is published';
 
   @override
-  String get familySwitchNoticesSub =>
-      'Announcements and messages from the school';
+  String get familySwitchNoticesSub => 'Announcements and messages from the school';
 
   @override
   String get familySwitchHomeworkSub => 'Each evening, the day\'s homework';
 
   @override
-  String get familyEmergencyAlwaysComes =>
-      'Emergency messages from the school always come through.';
+  String get familyEmergencyAlwaysComes => 'Emergency messages from the school always come through.';
 
   @override
   String get familySaved => 'Saved.';
@@ -2069,8 +1952,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyWhyAway => 'Why will they be away?';
 
   @override
-  String get familyWhyAwayHint =>
-      'e.g. Fever since last night - the doctor has advised two days\' rest.';
+  String get familyWhyAwayHint => 'e.g. Fever since last night - the doctor has advised two days\' rest.';
 
   @override
   String familyReasonTooShort(int min) {
@@ -2081,8 +1963,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familySendToSchool => 'Send to the school';
 
   @override
-  String get familyAddDoctorNote =>
-      'Add a photo of a doctor\'s note (optional)';
+  String get familyAddDoctorNote => 'Add a photo of a doctor\'s note (optional)';
 
   @override
   String get familyRemove => 'Remove';
@@ -2115,8 +1996,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use the letter from your child\'s school: your mobile number, the 8-digit setup code, and a 6-digit passcode you choose.';
 
   @override
-  String get familySignInHelp =>
-      'Sign in with your mobile number and your 6-digit passcode.';
+  String get familySignInHelp => 'Sign in with your mobile number and your 6-digit passcode.';
 
   @override
   String get familyMobileNumber => 'Mobile number';
@@ -2125,8 +2005,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familySetupCodeLabel => 'Setup code from the letter';
 
   @override
-  String get familySetupCodeInvalid =>
-      'Enter the 8-digit setup code from the school\'s letter.';
+  String get familySetupCodeInvalid => 'Enter the 8-digit setup code from the school\'s letter.';
 
   @override
   String get familyChoosePasscode => 'Choose a passcode';
@@ -2150,15 +2029,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familySignIn => 'Sign in';
 
   @override
-  String get familyUseSetupCode =>
-      'New phone, or a new letter? Use the setup code';
+  String get familyUseSetupCode => 'New phone, or a new letter? Use the setup code';
 
   @override
   String get familyAlreadySetUp => 'Already set up on this phone? Sign in';
 
   @override
-  String get familyNoLetter =>
-      'No letter? Ask your child\'s school office for the Family app setup code.';
+  String get familyNoLetter => 'No letter? Ask your child\'s school office for the Family app setup code.';
 
   @override
   String get familyNoAdmitCards => 'No admit cards yet';
@@ -2192,8 +2069,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get familyGuardianSent =>
-      'Sent. The school will look at your request.';
+  String get familyGuardianSent => 'Sent. The school will look at your request.';
 
   @override
   String familyGuardianExplain(String name) {
@@ -2227,20 +2103,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyPrivacyNumberOffice => 'The school office.';
 
   @override
-  String get familyPrivacyNumberTeachers =>
-      'Your child\'s own class teachers - not teachers of other classes.';
+  String get familyPrivacyNumberTeachers => 'Your child\'s own class teachers - not teachers of other classes.';
 
   @override
-  String get familyPrivacyNumberFees =>
-      'Staff who take fees, so they can call about a payment.';
+  String get familyPrivacyNumberFees => 'Staff who take fees, so they can call about a payment.';
 
   @override
   String get familyPrivacyNumberBus =>
       'If your child takes the school bus: the transport office, and the bus crew on your child\'s route, so they can call you from the road.';
 
   @override
-  String get familyPrivacyNumberOthers =>
-      'The school decides whether any other staff may see it.';
+  String get familyPrivacyNumberOthers => 'The school decides whether any other staff may see it.';
 
   @override
   String get familyPrivacyBusTitle => 'The bus on the map';
@@ -2254,15 +2127,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'You can follow it only while your child\'s own trip is running - until they are dropped off or marked as not on the bus.';
 
   @override
-  String get familyPrivacyBusNoPhoneLocation =>
-      'This app never asks for your phone\'s location.';
+  String get familyPrivacyBusNoPhoneLocation => 'This app never asks for your phone\'s location.';
 
   @override
   String get familyPrivacyMessagesTitle => 'What comes to this app';
 
   @override
-  String get familyPrivacyMessagesLine =>
-      'You choose which kinds of message the school sends to this app.';
+  String get familyPrivacyMessagesLine => 'You choose which kinds of message the school sends to this app.';
 
   @override
   String get familyChooseNotifications => 'Choose notifications';
@@ -2297,16 +2168,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get familyMeetingTimesNotOpen =>
-      'The teacher has not opened times yet. You will get a message when they do.';
+  String get familyMeetingTimesNotOpen => 'The teacher has not opened times yet. You will get a message when they do.';
 
   @override
-  String get familyMeetingAllTaken =>
-      'All times are taken. Please ask the school office.';
+  String get familyMeetingAllTaken => 'All times are taken. Please ask the school office.';
 
   @override
-  String get familyMeetingClosed =>
-      'Booking has closed. To change anything, please call the school.';
+  String get familyMeetingClosed => 'Booking has closed. To change anything, please call the school.';
 
   @override
   String get familyPickATime => 'Pick a time';
@@ -2371,8 +2239,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get galleryHeading => 'Events & photos';
 
   @override
-  String get galleryIntro =>
-      'Photos for parents in the Family app: the whole school\'s events, or one class\'s.';
+  String get galleryIntro => 'Photos for parents in the Family app: the whole school\'s events, or one class\'s.';
 
   @override
   String get galleryNoEvents => 'No events posted yet.';
@@ -2416,8 +2283,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get galleryChooseClass => 'Choose your class.';
 
   @override
-  String get galleryNoClassOfYours =>
-      'You can post to a class you are the class teacher of. You have none yet.';
+  String get galleryNoClassOfYours => 'You can post to a class you are the class teacher of. You have none yet.';
 
   @override
   String get galleryDescriptionLabel => 'A few words (optional)';
@@ -2483,8 +2349,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get galleryDeleteEventBody =>
-      'The event and all its photos are removed for everyone. This cannot be undone.';
+  String get galleryDeleteEventBody => 'The event and all its photos are removed for everyone. This cannot be undone.';
 
   @override
   String get galleryEventDeleted => 'Event deleted';
@@ -2519,20 +2384,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyNoGallery => 'No photos yet';
 
   @override
-  String get familyNoGalleryMessage =>
-      'When the school shares photos of an event, they will show here.';
+  String get familyNoGalleryMessage => 'When the school shares photos of an event, they will show here.';
 
   @override
   String get familyGalleryWholeSchool => 'Whole school';
 
   @override
   String familyGalleryPhotos(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count photos',
-      one: '1 photo',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count photos', one: '1 photo');
     return '$_temp0';
   }
 
@@ -2600,8 +2459,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get ptmCancelMeetingBody =>
-      'Parents who booked will be told in the Family app. This cannot be undone.';
+  String get ptmCancelMeetingBody => 'Parents who booked will be told in the Family app. This cannot be undone.';
 
   @override
   String get ptmKeepMeeting => 'Keep it';
@@ -2673,8 +2531,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ptmOpenTimes => 'Open times';
 
   @override
-  String get ptmOpenTimesHelp =>
-      'The range is cut into slots. A time that overlaps one already open is skipped.';
+  String get ptmOpenTimesHelp => 'The range is cut into slots. A time that overlaps one already open is skipped.';
 
   @override
   String ptmFromTime(String time) {
@@ -2822,8 +2679,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffNewPassword => 'New password';
 
   @override
-  String get staffNewPasswordHint =>
-      'At least 8 characters, with a letter and a number.';
+  String get staffNewPasswordHint => 'At least 8 characters, with a letter and a number.';
 
   @override
   String get staffConfirmNewPassword => 'Confirm new password';
@@ -2858,8 +2714,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter your school email and we will send you a link to choose a new password.';
 
   @override
-  String get staffCheckEmailSubtitle =>
-      'A link to choose a new password is on its way.';
+  String get staffCheckEmailSubtitle => 'A link to choose a new password is on its way.';
 
   @override
   String staffResetSentBody(String email) {
@@ -2867,8 +2722,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffResetSentNext =>
-      'Choose your new password from the link, then come back here and sign in with it.';
+  String get staffResetSentNext => 'Choose your new password from the link, then come back here and sign in with it.';
 
   @override
   String get staffBackToSignIn => 'Back to sign in';
@@ -2889,8 +2743,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffWelcomeBack => 'Welcome back';
 
   @override
-  String get staffSignInSubtitle =>
-      'Sign in with your school email and password.';
+  String get staffSignInSubtitle => 'Sign in with your school email and password.';
 
   @override
   String get staffSessionEnded => 'Your session has ended. Sign in again.';
@@ -2931,15 +2784,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffWelcomeCheckInTitle => 'Check in at school';
 
   @override
-  String get staffWelcomeCheckInBody =>
-      'Mark your arrival and departure from your phone, at school.';
+  String get staffWelcomeCheckInBody => 'Mark your arrival and departure from your phone, at school.';
 
   @override
   String get staffWelcomeTodayTitle => 'Today at a glance';
 
   @override
-  String get staffWelcomeTodayBody =>
-      'For teachers: your periods in order, with the one under way marked.';
+  String get staffWelcomeTodayBody => 'For teachers: your periods in order, with the one under way marked.';
 
   @override
   String get staffWelcomeRegisterTitle => 'Register and reports';
@@ -2952,8 +2803,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffWelcomeCalendarTitle => 'Your school\'s calendar';
 
   @override
-  String get staffWelcomeCalendarBody =>
-      'Holidays, half days and your approved leave, without asking the office.';
+  String get staffWelcomeCalendarBody => 'Holidays, half days and your approved leave, without asking the office.';
 
   @override
   String get staffWelcomeNewHere =>
@@ -2966,8 +2816,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffTryAgain => 'Try again';
 
   @override
-  String get staffSplashSlow =>
-      'Still trying to reach your school. Check that this phone is online.';
+  String get staffSplashSlow => 'Still trying to reach your school. Check that this phone is online.';
 
   @override
   String get staffSplashLoading => 'Getting your day ready…';
@@ -3076,8 +2925,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffClosedBody =>
-      'The school is closed, so there is no register to take and no report to write.';
+  String get staffClosedBody => 'The school is closed, so there is no register to take and no report to write.';
 
   @override
   String get staffOnLeaveToday => 'You are on leave today';
@@ -3092,12 +2940,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String staffOwedRegisters(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count registers',
-      one: '1 register',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count registers', one: '1 register');
     return '$_temp0';
   }
 
@@ -3182,8 +3025,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffReportOwedTapFile => 'Report owed - tap to file';
 
   @override
-  String get staffNoPeriodsToday =>
-      'You have no periods on the timetable today.';
+  String get staffNoPeriodsToday => 'You have no periods on the timetable today.';
 
   @override
   String get staffLeaveThisWeek => 'Leave this week';
@@ -3197,8 +3039,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffFindAStudent => 'Find a student';
 
   @override
-  String get staffWhereLeaveAndPay =>
-      'Your leave and payslips are in the Leave and Pay tabs below.';
+  String get staffWhereLeaveAndPay => 'Your leave and payslips are in the Leave and Pay tabs below.';
 
   @override
   String get staffWhereLeave => 'Your leave is in the Leave tab below.';
@@ -3207,27 +3048,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffWherePay => 'Your payslips are in the Pay tab below.';
 
   @override
-  String get staffWhereMessages =>
-      'The school\'s messages are under the bell at the top.';
+  String get staffWhereMessages => 'The school\'s messages are under the bell at the top.';
 
   @override
-  String get staffClosedNoCheckIn =>
-      'The school is closed, so there is nothing to check in to.';
+  String get staffClosedNoCheckIn => 'The school is closed, so there is nothing to check in to.';
 
   @override
-  String get staffOnLeaveNoCheckIn =>
-      'Nothing to check in to while you are away.';
+  String get staffOnLeaveNoCheckIn => 'Nothing to check in to while you are away.';
 
   @override
   String get staffMarkedInOffice => 'Attendance is marked in the office';
 
   @override
-  String get staffMarkedInOfficeBody =>
-      'Your school records staff attendance itself rather than from the app.';
+  String get staffMarkedInOfficeBody => 'Your school records staff attendance itself rather than from the app.';
 
   @override
-  String get staffNoPeriodsYet =>
-      'You have no periods on the timetable yet. The office sets it up.';
+  String get staffNoPeriodsYet => 'You have no periods on the timetable yet. The office sets it up.';
 
   @override
   String staffDayToday(String day) {
@@ -3236,12 +3072,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String staffDayPeriods(String day, int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count periods',
-      one: '1 period',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count periods', one: '1 period');
     return '$day: $_temp0';
   }
 
@@ -3304,8 +3135,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffCheckIn => 'Check in';
 
   @override
-  String get staffOpenSettingsForLocation =>
-      'Open your phone\'s settings and allow location for School365ai.';
+  String get staffOpenSettingsForLocation => 'Open your phone\'s settings and allow location for School365ai.';
 
   @override
   String get staffFindingLocation => 'Finding your location…';
@@ -3322,15 +3152,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffMarkedAbsent => 'Marked absent today';
 
   @override
-  String get staffMarkedAbsentBody =>
-      'The office marked you absent. Check in when you arrive and it is corrected.';
+  String get staffMarkedAbsentBody => 'The office marked you absent. Check in when you arrive and it is corrected.';
 
   @override
   String get staffHalfDayLeaveToday => 'Half-day leave today';
 
   @override
-  String get staffHalfDayLeaveBody =>
-      'Check in for the half you work, and the day is recorded as a half day.';
+  String get staffHalfDayLeaveBody => 'Check in for the half you work, and the day is recorded as a half day.';
 
   @override
   String get staffCheckInToStart => 'Check in to start your day';
@@ -3363,8 +3191,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'No connection, so nothing was recorded. Check in again when your phone is online - the time saved is when it reaches the school.';
 
   @override
-  String get staffLocationServiceOff =>
-      'Your phone\'s location is switched off. Turn it on, then check in again.';
+  String get staffLocationServiceOff => 'Your phone\'s location is switched off. Turn it on, then check in again.';
 
   @override
   String get staffLocationDeniedForever =>
@@ -3375,12 +3202,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Checking in needs your location once, to confirm you are at school. Allow it and try again.';
 
   @override
-  String get staffLocationUnsupported =>
-      'This device cannot tell where it is, so it cannot check you in.';
+  String get staffLocationUnsupported => 'This device cannot tell where it is, so it cannot check you in.';
 
   @override
-  String get staffLocationNotFound =>
-      'Your location could not be found. Try again in a moment.';
+  String get staffLocationNotFound => 'Your location could not be found. Try again in a moment.';
 
   @override
   String get staffTurnOnLocation => 'Turn on location';
@@ -3395,8 +3220,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffNoStaffRecord => 'Check-in is not set up for your account';
 
   @override
-  String get staffNoStaffRecordBody =>
-      'Your account has no staff record at this school. Ask the office to add one.';
+  String get staffNoStaffRecordBody => 'Your account has no staff record at this school. Ask the office to add one.';
 
   @override
   String get staffCategoryAttendance => 'Attendance';
@@ -3449,8 +3273,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffNoMessagesYet => 'No messages yet.';
 
   @override
-  String get staffInboxEmptyHint =>
-      'Announcements and notices from your school arrive here.';
+  String get staffInboxEmptyHint => 'Announcements and notices from your school arrive here.';
 
   @override
   String get staffShowOlderMessages => 'Show older messages';
@@ -3494,8 +3317,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffApplyForLeaveHint =>
-      'Tap Apply for leave to ask for a day off.';
+  String get staffApplyForLeaveHint => 'Tap Apply for leave to ask for a day off.';
 
   @override
   String get staffShowOlderRequests => 'Show older requests';
@@ -3561,8 +3383,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffLeaveAutoApproved => 'Leave approved automatically.';
 
   @override
-  String get staffLeaveRequested =>
-      'Leave requested. You will see here when it is decided.';
+  String get staffLeaveRequested => 'Leave requested. You will see here when it is decided.';
 
   @override
   String get staffLeaveType => 'Leave type';
@@ -3587,8 +3408,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Half-day leave: you check in for the half you work, and the day counts as a half day.';
 
   @override
-  String get staffWeekendsNotCounted =>
-      'Weekends and holidays inside the dates are not counted as leave.';
+  String get staffWeekendsNotCounted => 'Weekends and holidays inside the dates are not counted as leave.';
 
   @override
   String get staffSendRequest => 'Send request';
@@ -3615,15 +3435,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffMyPay => 'My pay';
 
   @override
-  String get staffMyPaySubtitle =>
-      'Your payslips, once the month is finalized.';
+  String get staffMyPaySubtitle => 'Your payslips, once the month is finalized.';
 
   @override
   String get staffNoPayslipsYet => 'No payslips yet.';
 
   @override
-  String get staffNoPayslipsHint =>
-      'A payslip appears here once the school finalizes the month.';
+  String get staffNoPayslipsHint => 'A payslip appears here once the school finalizes the month.';
 
   @override
   String get staffShowEarlierMonths => 'Show earlier months';
@@ -3720,8 +3538,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffReviewEmptyBody =>
-      'Reports your department files appear here until you review them.';
+  String get staffReviewEmptyBody => 'Reports your department files appear here until you review them.';
 
   @override
   String get staffShowMore => 'Show more';
@@ -3742,7 +3559,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String staffDeptPeriodIntro(String period) {
     String _temp0 = intl.Intl.selectLogic(period, {
       'week': 'Your department this week: each person\'s days in, absent and on leave, out of the school days so far.',
-      'month': 'Your department this month: each person\'s days in, absent and on leave, out of the school days so far.',
+      'month':
+          'Your department this month: each person\'s days in, absent and on leave, out of the school days so far.',
       'other': 'Your department: each person\'s days in, absent and on leave, out of the school days so far.',
     });
     return '$_temp0';
@@ -3760,8 +3578,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffNobodyInDept => 'Nobody in your department yet.';
 
   @override
-  String get staffOfficeAddsStaff =>
-      'The school office adds staff to departments on the website.';
+  String get staffOfficeAddsStaff => 'The school office adds staff to departments on the website.';
 
   @override
   String get staffFigPresent => 'present';
@@ -3825,15 +3642,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffPresentLate => 'Present · late';
 
   @override
-  String get staffDeptLeaveIntro =>
-      'Leave your department has asked for, waiting for your decision.';
+  String get staffDeptLeaveIntro => 'Leave your department has asked for, waiting for your decision.';
 
   @override
   String get staffNothingToDecide => 'Nothing to decide.';
 
   @override
-  String get staffNothingToDecideBody =>
-      'New requests from your department appear here.';
+  String get staffNothingToDecideBody => 'New requests from your department appear here.';
 
   @override
   String get staffApproveLeaveQ => 'Approve this leave?';
@@ -3910,8 +3725,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffRegisterSubmitted => 'Register submitted.';
 
   @override
-  String get staffRegisterSavedNoSignal =>
-      'No signal: the register is saved on this phone and sent when there is.';
+  String get staffRegisterSavedNoSignal => 'No signal: the register is saved on this phone and sent when there is.';
 
   @override
   String get staffRegisterCorrected => 'Register corrected.';
@@ -3926,8 +3740,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffClosedNoRegister =>
-      'The school is closed, so there is no register to take.';
+  String get staffClosedNoRegister => 'The school is closed, so there is no register to take.';
 
   @override
   String get staffNoStudentsInClass => 'No students in this class';
@@ -3964,8 +3777,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffParentsAreTold =>
-      'Parents of absent children are told, as your school has set it up.';
+  String get staffParentsAreTold => 'Parents of absent children are told, as your school has set it up.';
 
   @override
   String staffRegisterRefused(String reason) {
@@ -4010,8 +3822,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffNoteDoesNotMark =>
-      'A note doesn\'t mark the register - mark it as usual.';
+  String get staffNoteDoesNotMark => 'A note doesn\'t mark the register - mark it as usual.';
 
   @override
   String get staffMarkAsSeen => 'Mark as seen';
@@ -4042,8 +3853,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffEmptyReportsBody =>
-      'Once a period has begun, tap it on Today to say what was taught.';
+  String get staffEmptyReportsBody => 'Once a period has begun, tap it on Today to say what was taught.';
 
   @override
   String get staffShowOlderReports => 'Show older reports';
@@ -4061,12 +3871,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffAwaitingReview => 'Awaiting review';
 
   @override
-  String get staffSyllabusIntro =>
-      'Each class and subject you teach this year. Tap one to tick off topics.';
+  String get staffSyllabusIntro => 'Each class and subject you teach this year. Tap one to tick off topics.';
 
   @override
-  String get staffNoClassesThisYear =>
-      'No classes on your timetable this year.';
+  String get staffNoClassesThisYear => 'No classes on your timetable this year.';
 
   @override
   String get staffNoClassesThisYearBody =>
@@ -4115,8 +3923,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffEmptyTestsBody =>
-      'Tap New test to set one for a class you teach.';
+  String get staffEmptyTestsBody => 'Tap New test to set one for a class you teach.';
 
   @override
   String get staffShowOlderTests => 'Show older tests';
@@ -4141,8 +3948,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffNoTopicsInSyllabus => 'No topics in this syllabus yet.';
 
   @override
-  String get staffNoTopicsInSyllabusBody =>
-      'Your HOD or school office sets out the topics on the website.';
+  String get staffNoTopicsInSyllabusBody => 'Your HOD or school office sets out the topics on the website.';
 
   @override
   String staffTopicsDone(int done, int total, String percent) {
@@ -4174,17 +3980,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String staffOutboxReportLabel(
-    String subject,
-    String classSection,
-    int number,
-  ) {
+  String staffOutboxReportLabel(String subject, String classSection, int number) {
     return '$subject, $classSection, period $number';
   }
 
   @override
-  String get staffReportKeptForLater =>
-      'No signal: the report is saved on this phone and sent when there is.';
+  String get staffReportKeptForLater => 'No signal: the report is saved on this phone and sent when there is.';
 
   @override
   String staffReportAlreadyFiled(String date) {
@@ -4192,16 +3993,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffNothingSentNoSignal =>
-      'No connection. Nothing was sent - try again when you have signal.';
+  String get staffNothingSentNoSignal => 'No connection. Nothing was sent - try again when you have signal.';
 
   @override
   String get staffPeriodNoLongerYours =>
       'This period is no longer yours on the timetable, so it cannot be reported from here.';
 
   @override
-  String get staffReportNoLongerReturned =>
-      'This report is no longer waiting for changes - it may have been reviewed.';
+  String get staffReportNoLongerReturned => 'This report is no longer waiting for changes - it may have been reviewed.';
 
   @override
   String get staffCheckInFirst =>
@@ -4228,8 +4027,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffWhatWasTaught => 'What was taught';
 
   @override
-  String get staffWhatWasTaughtHint =>
-      'e.g. Fractions: adding unlike denominators';
+  String get staffWhatWasTaughtHint => 'e.g. Fractions: adding unlike denominators';
 
   @override
   String get staffSayWhatWasTaught => 'Say what was taught in this period.';
@@ -4254,8 +4052,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffSyllabusTopicOptional => 'Syllabus topic (optional)';
 
   @override
-  String get staffSyllabusTopicHelper =>
-      'Picking one ticks it off for this class';
+  String get staffSyllabusTopicHelper => 'Picking one ticks it off for this class';
 
   @override
   String get staffNotASyllabusTopic => 'Not a syllabus topic';
@@ -4266,12 +4063,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffTemplatesHint =>
-      'Kept on this phone. Tap one to fill in the report.';
+  String get staffTemplatesHint => 'Kept on this phone. Tap one to fill in the report.';
 
   @override
-  String get staffTemplatesEmpty =>
-      'None yet. Type a report you write often, then save it here.';
+  String get staffTemplatesEmpty => 'None yet. Type a report you write often, then save it here.';
 
   @override
   String staffHomeworkLine(String homework) {
@@ -4285,8 +4080,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffSaveAsTemplate => 'Save what is typed as a template';
 
   @override
-  String get staffTypeToSaveTemplate =>
-      'Type what was taught to save a template';
+  String get staffTypeToSaveTemplate => 'Type what was taught to save a template';
 
   @override
   String get staffYourHod => 'your HOD';
@@ -4319,31 +4113,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffSentBackToTeacher => 'Sent back to the teacher.';
 
   @override
-  String get staffAlreadyReviewed =>
-      'Somebody has already reviewed this report.';
+  String get staffAlreadyReviewed => 'Somebody has already reviewed this report.';
 
   @override
-  String get staffAlreadyBackWithTeacher =>
-      'This report is already back with its teacher.';
+  String get staffAlreadyBackWithTeacher => 'This report is already back with its teacher.';
 
   @override
-  String get staffNotYoursToSendBack =>
-      'This report is not from your department, so it is not yours to send back.';
+  String get staffNotYoursToSendBack => 'This report is not from your department, so it is not yours to send back.';
 
   @override
-  String get staffNotSentBackNoSignal =>
-      'No connection. It was not sent back - try again when you have signal.';
+  String get staffNotSentBackNoSignal => 'No connection. It was not sent back - try again when you have signal.';
 
   @override
   String get staffReportReviewedDone => 'Report reviewed.';
 
   @override
-  String get staffNotYoursToReview =>
-      'This report is not from your department, so it is not yours to review.';
+  String get staffNotYoursToReview => 'This report is not from your department, so it is not yours to review.';
 
   @override
-  String get staffNotReviewedNoSignal =>
-      'No connection. It was not reviewed - try again when you have signal.';
+  String get staffNotReviewedNoSignal => 'No connection. It was not reviewed - try again when you have signal.';
 
   @override
   String get staffTheTeacher => 'the teacher';
@@ -4382,8 +4170,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffWhatShouldChange => 'What should change';
 
   @override
-  String get staffWhatShouldChangeHint =>
-      'e.g. Please add what the class practised.';
+  String get staffWhatShouldChangeHint => 'e.g. Please add what the class practised.';
 
   @override
   String get staffSendBack => 'Send back';
@@ -4410,8 +4197,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffPhotoRemoved => 'Photo removed.';
 
   @override
-  String get staffNoConnectionTryLater =>
-      'No connection. Try again when you have signal.';
+  String get staffNoConnectionTryLater => 'No connection. Try again when you have signal.';
 
   @override
   String get staffPhotos => 'Photos';
@@ -4471,8 +4257,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffTestSet => 'Test set. Enter the marks.';
 
   @override
-  String get staffNothingSavedNoSignal =>
-      'No connection. Nothing was saved - try again when you have signal.';
+  String get staffNothingSavedNoSignal => 'No connection. Nothing was saved - try again when you have signal.';
 
   @override
   String get staffClassAndSubject => 'Class and subject';
@@ -4533,12 +4318,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'No signal: these marks are saved on this phone and sent when there is. Publish once they are in.';
 
   @override
-  String get staffTestAlreadyPublished =>
-      'This test has been published, so its marks cannot change here.';
+  String get staffTestAlreadyPublished => 'This test has been published, so its marks cannot change here.';
 
   @override
-  String get staffSomeMarksRefused =>
-      'Some marks were not accepted. See the highlighted students.';
+  String get staffSomeMarksRefused => 'Some marks were not accepted. See the highlighted students.';
 
   @override
   String staffOutboxMarksLabel(String title) {
@@ -4568,15 +4351,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffResultsPublished => 'Results published.';
 
   @override
-  String get staffNothingPublishedNoSignal =>
-      'No connection. Nothing was published - try again when you have signal.';
+  String get staffNothingPublishedNoSignal => 'No connection. Nothing was published - try again when you have signal.';
 
   @override
   String get staffLeaveWithoutSavingQ => 'Leave without saving?';
 
   @override
-  String get staffLeaveWithoutSavingBody =>
-      'The marks you typed since the last save will be lost.';
+  String get staffLeaveWithoutSavingBody => 'The marks you typed since the last save will be lost.';
 
   @override
   String get staffKeepEntering => 'Keep entering';
@@ -4596,8 +4377,7 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other:
-          '$count marks are not numbers or are out of range. Fix them to save.',
+      other: '$count marks are not numbers or are out of range. Fix them to save.',
       one: '1 mark is not a number or is out of range. Fix it to save.',
     );
     return '$_temp0';
@@ -4642,8 +4422,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffPhotoTooBig => 'The photo must be 2 MB or smaller.';
 
   @override
-  String get staffPhotoUnreadable =>
-      'The photo could not be read. Try another file.';
+  String get staffPhotoUnreadable => 'The photo could not be read. Try another file.';
 
   @override
   String get staffPhotoUpdated => 'Photo updated.';
@@ -4692,22 +4471,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffMobile => 'Mobile';
 
   @override
-  String get staffMobileLockedHelper =>
-      'You sign in with this number. Ask your school office to change it.';
+  String get staffMobileLockedHelper => 'You sign in with this number. Ask your school office to change it.';
 
   @override
   String get staffHomeAddress => 'Home address';
 
   @override
-  String get staffHomeAddressTooLong =>
-      'Home address must be 500 characters or fewer';
+  String get staffHomeAddressTooLong => 'Home address must be 500 characters or fewer';
 
   @override
   String get staffSave => 'Save';
 
   @override
-  String get staffEmailChanged =>
-      'Email changed. Other devices have been signed out.';
+  String get staffEmailChanged => 'Email changed. Other devices have been signed out.';
 
   @override
   String get staffSignInEmail => 'Sign-in email';
@@ -4738,8 +4514,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffSchool => 'School';
 
   @override
-  String get staffKeptByAdmins =>
-      'These are kept by your school\'s administrators.';
+  String get staffKeptByAdmins => 'These are kept by your school\'s administrators.';
 
   @override
   String get staffSecurity => 'Security';
@@ -4771,8 +4546,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffChangePasswordTitle => 'Change Password';
 
   @override
-  String get staffChooseNewPassword =>
-      'Choose a new password for your account.';
+  String get staffChooseNewPassword => 'Choose a new password for your account.';
 
   @override
   String staffSignedOutOf(String device) {
@@ -4801,8 +4575,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffSessionLifetime =>
-      'A device is signed out after 7 days without use, and 30 days after signing in.';
+  String get staffSessionLifetime => 'A device is signed out after 7 days without use, and 30 days after signing in.';
 
   @override
   String staffLastUsed(String when) {
@@ -4936,8 +4709,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffMarkAsCalled => 'Mark as called';
 
   @override
-  String get staffMarkedAsCalled =>
-      'Marked as called. The parent can see that.';
+  String get staffMarkedAsCalled => 'Marked as called. The parent can see that.';
 
   @override
   String staffCalledPersonQ(String name) {
@@ -4957,12 +4729,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffFeesOverdue => 'Overdue';
 
   @override
-  String get staffFeesFindStudent =>
-      'Find a student by name or admission number';
+  String get staffFeesFindStudent => 'Find a student by name or admission number';
 
   @override
-  String get staffFeesCollectHint =>
-      'Find the student paying. Their statement opens, with Record payment.';
+  String get staffFeesCollectHint => 'Find the student paying. Their statement opens, with Record payment.';
 
   @override
   String staffFeesNoMatch(String query) {
@@ -5164,20 +4934,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffCancelReceipt => 'Cancel receipt';
 
   @override
-  String get staffReceiptDownloadFailed =>
-      'The receipt could not be downloaded. Try again.';
+  String get staffReceiptDownloadFailed => 'The receipt could not be downloaded. Try again.';
 
   @override
-  String get staffStatementDownloadFailed =>
-      'The statement could not be downloaded. Try again.';
+  String get staffStatementDownloadFailed => 'The statement could not be downloaded. Try again.';
 
   @override
-  String get staffReceiptEmailed =>
-      'The receipt is on its way to the guardian.';
+  String get staffReceiptEmailed => 'The receipt is on its way to the guardian.';
 
   @override
-  String get staffReceiptEmailFailed =>
-      'The receipt could not be emailed. Try again.';
+  String get staffReceiptEmailFailed => 'The receipt could not be emailed. Try again.';
 
   @override
   String staffReceiptCancelled(String number) {
@@ -5185,8 +4951,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get staffReceiptCancelFailed =>
-      'The receipt could not be cancelled. Try again.';
+  String get staffReceiptCancelFailed => 'The receipt could not be cancelled. Try again.';
 
   @override
   String staffCancelReceiptQ(String number) {
@@ -5207,8 +4972,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffKeepReceipt => 'Keep receipt';
 
   @override
-  String get staffTickInstallment =>
-      'Tick at least one installment, with an amount above zero.';
+  String get staffTickInstallment => 'Tick at least one installment, with an amount above zero.';
 
   @override
   String get staffEnterAmountAboveZero => 'Enter an amount above zero.';
@@ -5247,8 +5011,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffChooseInstallments => 'Choose the installments it pays';
 
   @override
-  String get staffChooseInstallmentsOff =>
-      'Off: it goes to what is owed, oldest first.';
+  String get staffChooseInstallmentsOff => 'Off: it goes to what is owed, oldest first.';
 
   @override
   String get staffNoteOptional => 'Note (optional)';
@@ -5289,12 +5052,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String staffReceivedFrom(
-    String amount,
-    String name,
-    String date,
-    String mode,
-  ) {
+  String staffReceivedFrom(String amount, String name, String date, String mode) {
     return '$amount received from $name on $date by $mode.';
   }
 
@@ -5311,8 +5069,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffStillOwed => 'Still owed';
 
   @override
-  String get staffReceiptBeingEmailed =>
-      'The receipt is being emailed to the guardian.';
+  String get staffReceiptBeingEmailed => 'The receipt is being emailed to the guardian.';
 
   @override
   String get staffDownloadPdf => 'Download PDF';
@@ -5351,8 +5108,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffDiscountEnded => 'Discount ended.';
 
   @override
-  String get staffDiscountEndFailed =>
-      'The discount could not be ended. Try again.';
+  String get staffDiscountEndFailed => 'The discount could not be ended. Try again.';
 
   @override
   String staffDiscountAdded(int count) {
@@ -5396,8 +5152,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffOffEach => 'Off each installment.';
 
   @override
-  String get staffOffEachNotOnce =>
-      'Off each installment, not once for the year.';
+  String get staffOffEachNotOnce => 'Off each installment, not once for the year.';
 
   @override
   String get staffEnterValueAboveZero => 'Enter a value above zero.';
@@ -5406,8 +5161,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffPercentMax => 'A percentage cannot be more than 100.';
 
   @override
-  String get staffDiscountReasonHint =>
-      'e.g. Sibling discount, scholarship, staff child';
+  String get staffDiscountReasonHint => 'e.g. Sibling discount, scholarship, staff child';
 
   @override
   String get staffSayWhyDiscount => 'Say why the discount is given.';
@@ -5419,8 +5173,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffGiveAReason => 'Give a reason.';
 
   @override
-  String get staffInCredit =>
-      'In credit - it pays the next fees charged, oldest first.';
+  String get staffInCredit => 'In credit - it pays the next fees charged, oldest first.';
 
   @override
   String get staffHistory => 'History';
@@ -5507,8 +5260,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffMarksFromPhoto => 'Read marks from a photo';
 
   @override
-  String get staffMarksListening =>
-      'Listening. Say \"roll 12, 45\", or the marks in roll order.';
+  String get staffMarksListening => 'Listening. Say \"roll 12, 45\", or the marks in roll order.';
 
   @override
   String get staffMarksStopListening => 'Stop';
@@ -5517,20 +5269,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffMarksReadingPhoto => 'Reading the photo...';
 
   @override
-  String get staffMarksCannotListen =>
-      'This phone will not listen. Allow the microphone, or type the marks.';
+  String get staffMarksCannotListen => 'This phone will not listen. Allow the microphone, or type the marks.';
 
   @override
-  String get staffMarksNothingHeard =>
-      'No marks were heard. Try again, a little slower.';
+  String get staffMarksNothingHeard => 'No marks were heard. Try again, a little slower.';
 
   @override
-  String get staffMarksCannotReadPhoto =>
-      'The photo could not be read. Try again, or type the marks.';
+  String get staffMarksCannotReadPhoto => 'The photo could not be read. Try again, or type the marks.';
 
   @override
-  String get staffMarksNothingInPhoto =>
-      'No marks were found in the photo. Try a clearer photo in good light.';
+  String get staffMarksNothingInPhoto => 'No marks were found in the photo. Try a clearer photo in good light.';
 
   @override
   String get staffMarksTakePhoto => 'Take a photo';
@@ -5626,12 +5374,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String widgetNextPeriod(
-    int number,
-    String subject,
-    String section,
-    String time,
-  ) {
+  String widgetNextPeriod(int number, String subject, String section, String time) {
     return 'Next: P$number $subject · $section at $time';
   }
 

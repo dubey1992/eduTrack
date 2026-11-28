@@ -58,6 +58,13 @@ def main():
         result = subprocess.run("flutter gen-l10n", shell=True, cwd=os.path.join(HERE, ".."), capture_output=True, text=True)
         if result.returncode != 0:
             sys.exit(result.stdout + result.stderr)
+        # gen-l10n writes at its own width; CI checks `dart format -l 120`,
+        # so the generated Dart is formatted here or every merge fails CI.
+        result = subprocess.run(
+            "dart format -l 120 lib/l10n", shell=True, cwd=os.path.join(HERE, ".."), capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            sys.exit(result.stdout + result.stderr)
         print(f"{len([k for k in english if not k.startswith('@')])} strings; {len(missing)} not yet in Hindi")
     finally:
         os.close(fd)

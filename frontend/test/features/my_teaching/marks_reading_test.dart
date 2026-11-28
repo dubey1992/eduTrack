@@ -220,10 +220,7 @@ void main() {
     test('a heading with a number in its middle is not a mark (seen on a phone)', () {
       // The emulator run on 2026-11-25: the 3 of "Class 3 B" went to the
       // first child and every mark slid down one.
-      final noRolls = MarksParser([
-        student(201, roll: '', marks: null),
-        student(202, roll: '', marks: null),
-      ]);
+      final noRolls = MarksParser([student(201, roll: '', marks: null), student(202, roll: '', marks: null)]);
       final reading = noRolls.fromPhoto([
         line('Class 3 B - Spelling test', 0),
         line('Max 50', 40),

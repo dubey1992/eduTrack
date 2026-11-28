@@ -38,8 +38,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busSplashSlow => 'अभी भी स्कूल से जुड़ने की कोशिश हो रही है।';
 
   @override
-  String get busSplashCheckSignal =>
-      'देखें कि फ़ोन में सिग्नल है, फिर से कोशिश करें।';
+  String get busSplashCheckSignal => 'देखें कि फ़ोन में सिग्नल है, फिर से कोशिश करें।';
 
   @override
   String get busTryAgain => 'फिर से कोशिश करें';
@@ -55,15 +54,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busLandingStartTitle => 'ट्रिप शुरू करें';
 
   @override
-  String get busLandingStartBody =>
-      'ऐप खोलते ही आज के रूट दिखते हैं। एक टैप से पिकअप या ड्रॉप शुरू करें।';
+  String get busLandingStartBody => 'ऐप खोलते ही आज के रूट दिखते हैं। एक टैप से पिकअप या ड्रॉप शुरू करें।';
 
   @override
   String get busLandingTickTitle => 'हर बच्चे को चढ़ते-उतरते टिक करें';
 
   @override
-  String get busLandingTickBody =>
-      'बस में बैठा, उतरा या अनुपस्थित। स्कूल को दिखता है, और अभिभावकों को बताया जाता है।';
+  String get busLandingTickBody => 'बस में बैठा, उतरा या अनुपस्थित। स्कूल को दिखता है, और अभिभावकों को बताया जाता है।';
 
   @override
   String get busLandingOfflineTitle => 'बिना सिग्नल भी चलता है';
@@ -76,8 +73,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busLandingCallTitle => 'बच्चे के अभिभावक को कॉल करें';
 
   @override
-  String get busLandingCallBody =>
-      'एक बटन से डायलर खुलता है। नंबर आपको नहीं दिखता, और कॉल लॉग में दर्ज होती है।';
+  String get busLandingCallBody => 'एक बटन से डायलर खुलता है। नंबर आपको नहीं दिखता, और कॉल लॉग में दर्ज होती है।';
 
   @override
   String get busLandingNeedSignIn => 'साइन इन के लिए आपको चाहिए';
@@ -86,8 +82,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busLandingNeedSetUp => 'शुरू करने से पहले आपको चाहिए';
 
   @override
-  String get busLandingNeedSignInBody =>
-      'आपका मोबाइल नंबर और वह 4 अंकों का पासकोड जो आपने इस फ़ोन पर चुना था।';
+  String get busLandingNeedSignInBody => 'आपका मोबाइल नंबर और वह 4 अंकों का पासकोड जो आपने इस फ़ोन पर चुना था।';
 
   @override
   String get busLandingNeedSetUpBody =>
@@ -100,8 +95,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busLandingSetUp => 'यह फ़ोन सेट अप करें';
 
   @override
-  String get busLandingLostPhone =>
-      'फ़ोन खो गया या पासकोड भूल गए? स्कूल ऑफ़िस आपका अकाउंट खोलकर नया कोड दे सकता है।';
+  String get busLandingLostPhone => 'फ़ोन खो गया या पासकोड भूल गए? स्कूल ऑफ़िस आपका अकाउंट खोलकर नया कोड दे सकता है।';
 
   @override
   String get busRegisterTitle => 'यह फ़ोन रजिस्टर करें';
@@ -150,26 +144,22 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busUsePasscode => 'पहले से सेट अप है? पासकोड से साइन इन करें';
 
   @override
-  String get busUseSetupCode =>
-      'नया सेटअप कोड मिला है? फ़ोन फिर से रजिस्टर करें';
+  String get busUseSetupCode => 'नया सेटअप कोड मिला है? फ़ोन फिर से रजिस्टर करें';
 
   @override
   String get busUseEmail => 'ईमेल से साइन इन करें';
 
   @override
-  String get busBatteryWarning =>
-      'स्क्रीन बंद होने पर यह फ़ोन बस की लोकेशन भेजना बंद कर सकता है।';
+  String get busBatteryWarning => 'स्क्रीन बंद होने पर यह फ़ोन बस की लोकेशन भेजना बंद कर सकता है।';
 
   @override
   String get busBatteryHowToFix => 'इसे कैसे ठीक करें';
 
   @override
-  String get busNoRoutes =>
-      'अभी आपको कोई रूट नहीं दिया गया है। स्कूल ऑफ़िस से कहें कि आपको किसी रूट पर जोड़ें।';
+  String get busNoRoutes => 'अभी आपको कोई रूट नहीं दिया गया है। स्कूल ऑफ़िस से कहें कि आपको किसी रूट पर जोड़ें।';
 
   @override
-  String get busRoutesFromPhone =>
-      'सिग्नल नहीं है - फ़ोन में पिछली बार सेव हुए रूट दिख रहे हैं।';
+  String get busRoutesFromPhone => 'सिग्नल नहीं है - फ़ोन में पिछली बार सेव हुए रूट दिख रहे हैं।';
 
   @override
   String get busTripCheck => 'ट्रिप जाँच';
@@ -189,23 +179,13 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String busStopsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count स्टॉप',
-      one: '1 स्टॉप',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count स्टॉप', one: '1 स्टॉप');
     return '$_temp0';
   }
 
   @override
   String busStudentsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count छात्र',
-      one: '1 छात्र',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count छात्र', one: '1 छात्र');
     return '$_temp0';
   }
 
@@ -220,12 +200,10 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get busLicenceToday =>
-      'आपका ड्राइविंग लाइसेंस आज खत्म हो रहा है। स्कूल ऑफ़िस को बताएँ।';
+  String get busLicenceToday => 'आपका ड्राइविंग लाइसेंस आज खत्म हो रहा है। स्कूल ऑफ़िस को बताएँ।';
 
   @override
-  String get busLicenceTomorrow =>
-      'आपका ड्राइविंग लाइसेंस कल खत्म हो रहा है। स्कूल ऑफ़िस को बताएँ।';
+  String get busLicenceTomorrow => 'आपका ड्राइविंग लाइसेंस कल खत्म हो रहा है। स्कूल ऑफ़िस को बताएँ।';
 
   @override
   String busLicenceInDays(int days, String date) {
@@ -251,8 +229,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busDrop => 'ड्रॉप';
 
   @override
-  String get busDropWaits =>
-      'पिकअप के बाद शुरू होगी। ड्रॉप उन्हीं बच्चों को घर ले जाती है जिन्हें पिकअप लाई थी।';
+  String get busDropWaits => 'पिकअप के बाद शुरू होगी। ड्रॉप उन्हीं बच्चों को घर ले जाती है जिन्हें पिकअप लाई थी।';
 
   @override
   String get busStartPickup => 'पिकअप शुरू करें';
@@ -273,8 +250,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busRunningLateQuestion => 'देर हो रही है?';
 
   @override
-  String get busRunningLateHelp =>
-      'इस रूट पर जो अभिभावक अभी इंतज़ार में हैं, उन्हें बताया जाएगा।';
+  String get busRunningLateHelp => 'इस रूट पर जो अभिभावक अभी इंतज़ार में हैं, उन्हें बताया जाएगा।';
 
   @override
   String busLateMinutes(int minutes) {
@@ -296,17 +272,11 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busEndTripQuestion => 'यह ट्रिप खत्म करें?';
 
   @override
-  String get busEndAllMarked =>
-      'सभी बच्चे दर्ज हो गए हैं। ट्रिप पूरी के रूप में दर्ज होगी।';
+  String get busEndAllMarked => 'सभी बच्चे दर्ज हो गए हैं। ट्रिप पूरी के रूप में दर्ज होगी।';
 
   @override
   String busEndUnmarked(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count बच्चे',
-      one: '1 बच्चा',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count बच्चे', one: '1 बच्चा');
     return '$_temp0 दर्ज नहीं हुए हैं और अनुपस्थित माने जाएँगे।';
   }
 
@@ -323,12 +293,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busMyRoutes => 'मेरे रूट';
 
   @override
-  String get busStartedOnPhoneNoSignal =>
-      'बिना सिग्नल इस फ़ोन पर शुरू हुई। सिग्नल आने पर स्कूल को यह ट्रिप दिखेगी।';
+  String get busStartedOnPhoneNoSignal => 'बिना सिग्नल इस फ़ोन पर शुरू हुई। सिग्नल आने पर स्कूल को यह ट्रिप दिखेगी।';
 
   @override
-  String get busTripFromPhone =>
-      'सिग्नल नहीं है - फ़ोन में पिछली बार सेव हुई ट्रिप दिख रही है।';
+  String get busTripFromPhone => 'सिग्नल नहीं है - फ़ोन में पिछली बार सेव हुई ट्रिप दिख रही है।';
 
   @override
   String busSearchNoMatch(String query) {
@@ -413,8 +381,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get busUndoTooLate =>
-      'यह पहले ही स्कूल को भेजा जा चुका है, इसलिए बदला नहीं जा सकता। ऑफ़िस से ठीक करवाएँ।';
+  String get busUndoTooLate => 'यह पहले ही स्कूल को भेजा जा चुका है, इसलिए बदला नहीं जा सकता। ऑफ़िस से ठीक करवाएँ।';
 
   @override
   String get busVoiceMute => 'बोलकर बताना बंद करें';
@@ -424,12 +391,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String busStillOnBoard(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count बच्चे',
-      one: '1 बच्चा',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count बच्चे', one: '1 बच्चा');
     return '$_temp0 अभी बस में हैं। ट्रिप खत्म करने से पहले उन्हें उतारें।';
   }
 
@@ -479,37 +441,31 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busLocAsking => 'आपकी लोकेशन माँगी जा रही है...';
 
   @override
-  String get busLocOn =>
-      'जब तक यह स्क्रीन खुली है, स्कूल देख सकता है कि बस कहाँ है।';
+  String get busLocOn => 'जब तक यह स्क्रीन खुली है, स्कूल देख सकता है कि बस कहाँ है।';
 
   @override
   String get busLocOff => 'बंद - स्कूल नहीं देख सकता कि बस कहाँ है।';
 
   @override
-  String get busLocDenied =>
-      'लोकेशन की अनुमति नहीं मिली, इसलिए आपकी लोकेशन शेयर नहीं हो रही।';
+  String get busLocDenied => 'लोकेशन की अनुमति नहीं मिली, इसलिए आपकी लोकेशन शेयर नहीं हो रही।';
 
   @override
-  String get busLocBlocked =>
-      'इस ऐप के लिए लोकेशन बंद है। लोकेशन शेयर करने के लिए फ़ोन की सेटिंग्स में इसे चालू करें।';
+  String get busLocBlocked => 'इस ऐप के लिए लोकेशन बंद है। लोकेशन शेयर करने के लिए फ़ोन की सेटिंग्स में इसे चालू करें।';
 
   @override
-  String get busLocServiceOff =>
-      'इस फ़ोन में लोकेशन बंद है। लोकेशन शेयर करने के लिए इसे चालू करें।';
+  String get busLocServiceOff => 'इस फ़ोन में लोकेशन बंद है। लोकेशन शेयर करने के लिए इसे चालू करें।';
 
   @override
   String get busLocUnsupported => 'यह फ़ोन अपनी लोकेशन शेयर नहीं कर सकता।';
 
   @override
-  String get busLocTripEnded =>
-      'ट्रिप अब नहीं चल रही, इसलिए लोकेशन शेयर करना बंद हो गया।';
+  String get busLocTripEnded => 'ट्रिप अब नहीं चल रही, इसलिए लोकेशन शेयर करना बंद हो गया।';
 
   @override
   String get busNotSent => 'नहीं भेजा गया';
 
   @override
-  String get busNotSentHelpEnded =>
-      'स्कूल ने इन्हें दर्ज नहीं किया। स्कूल ऑफ़िस को बताएँ, वे ट्रिप ठीक कर सकते हैं।';
+  String get busNotSentHelpEnded => 'स्कूल ने इन्हें दर्ज नहीं किया। स्कूल ऑफ़िस को बताएँ, वे ट्रिप ठीक कर सकते हैं।';
 
   @override
   String get busNotSentHelpRunning =>
@@ -519,8 +475,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busDismiss => 'हटाएँ';
 
   @override
-  String get busMicFailed =>
-      'माइक्रोफ़ोन नहीं चल सका। ऐप की अनुमति देखें, या नाम टाइप करें।';
+  String get busMicFailed => 'माइक्रोफ़ोन नहीं चल सका। ऐप की अनुमति देखें, या नाम टाइप करें।';
 
   @override
   String get busSearchListening => 'सुन रहा है… बच्चे का नाम बोलें';
@@ -561,12 +516,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busNoNumber => 'कोई नंबर दर्ज नहीं';
 
   @override
-  String get busSosSent =>
-      'SOS भेज दिया। स्कूल को बता दिया गया है कि आप कहाँ हैं।';
+  String get busSosSent => 'SOS भेज दिया। स्कूल को बता दिया गया है कि आप कहाँ हैं।';
 
   @override
-  String get busSosSemantics =>
-      'SOS. स्कूल से मदद माँगने के लिए दो सेकंड दबाकर रखें।';
+  String get busSosSemantics => 'SOS. स्कूल से मदद माँगने के लिए दो सेकंड दबाकर रखें।';
 
   @override
   String get busSosHolding => 'दबाए रखें...';
@@ -576,34 +529,19 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String busMarksSending(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count निशान',
-      one: '1 निशान',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count निशान', one: '1 निशान');
     return '$_temp0 भेजे जा रहे हैं...';
   }
 
   @override
   String busMarksOffline(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count निशान',
-      one: '1 निशान',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count निशान', one: '1 निशान');
     return 'इंटरनेट नहीं है - $_temp0 भेजने बाकी';
   }
 
   @override
   String busMarksWaiting(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count निशान',
-      one: '1 निशान',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count निशान', one: '1 निशान');
     return '$_temp0 भेजने बाकी';
   }
 
@@ -615,8 +553,7 @@ class AppLocalizationsHi extends AppLocalizations {
       'इस ऐप में रास्ता दिखाने के लिए Google की शर्तें माननी होती हैं, जो आपने नहीं मानीं। आप Google Maps इस्तेमाल कर सकते हैं।';
 
   @override
-  String get busNavNoRoute =>
-      'इस स्टॉप तक रास्ता नहीं मिल सका। सिग्नल देखें, या Google Maps आज़माएँ।';
+  String get busNavNoRoute => 'इस स्टॉप तक रास्ता नहीं मिल सका। सिग्नल देखें, या Google Maps आज़माएँ।';
 
   @override
   String get busNavUnavailable =>
@@ -629,12 +566,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busBatteryTitle => 'बस को मैप पर बनाए रखें';
 
   @override
-  String get busBatteryDone =>
-      'हो गया। स्क्रीन बंद होने पर भी यह फ़ोन लोकेशन भेजता रहेगा।';
+  String get busBatteryDone => 'हो गया। स्क्रीन बंद होने पर भी यह फ़ोन लोकेशन भेजता रहेगा।';
 
   @override
-  String get busBatteryNotChanged =>
-      'नहीं बदला। नीचे दिए स्टेप से यही काम खुद करें।';
+  String get busBatteryNotChanged => 'नहीं बदला। नीचे दिए स्टेप से यही काम खुद करें।';
 
   @override
   String get busBatteryWhy => 'स्कूल को कभी-कभी बस क्यों नहीं दिखती';
@@ -650,48 +585,41 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busBatteryStep1Done => 'इस फ़ोन पर पहले से चालू है।';
 
   @override
-  String get busBatteryStep1Body =>
-      'यह Android की अपनी सेटिंग है, और नीचे का बटन इसे खोलता है।';
+  String get busBatteryStep1Body => 'यह Android की अपनी सेटिंग है, और नीचे का बटन इसे खोलता है।';
 
   @override
   String get busBatteryAllow => 'चालू करें';
 
   @override
-  String get busBatteryStep2Title =>
-      'इस ऐप के लिए फ़ोन कंपनी का बैटरी सेवर बंद करें';
+  String get busBatteryStep2Title => 'इस ऐप के लिए फ़ोन कंपनी का बैटरी सेवर बंद करें';
 
   @override
   String get busBatteryStep2Body =>
       'यह हर फ़ोन में अलग होता है, और कोई ऐप इसे आपके लिए नहीं बदल सकता। नीचे अपने फ़ोन की कंपनी चुनें।';
 
   @override
-  String get busBatteryNotSure =>
-      'अगर पता नहीं कि फ़ोन किस कंपनी का है, तो यह स्क्रीन स्कूल ऑफ़िस को दिखाएँ।';
+  String get busBatteryNotSure => 'अगर पता नहीं कि फ़ोन किस कंपनी का है, तो यह स्क्रीन स्कूल ऑफ़िस को दिखाएँ।';
 
   @override
   String get busMakeXiaomi => 'Xiaomi, Redmi या POCO';
 
   @override
-  String get busMakeXiaomi1 =>
-      'Settings > Apps > Manage apps > School365ai Driver > Battery saver > No restrictions.';
+  String get busMakeXiaomi1 => 'Settings > Apps > Manage apps > School365ai Driver > Battery saver > No restrictions.';
 
   @override
   String get busMakeXiaomi2 => 'इसी स्क्रीन पर Autostart चालू करें।';
 
   @override
-  String get busMakeXiaomi3 =>
-      'Recent apps खोलें, इस ऐप के कार्ड को नीचे खींचें और ताले पर टैप करें ताकि यह बंद न हो।';
+  String get busMakeXiaomi3 => 'Recent apps खोलें, इस ऐप के कार्ड को नीचे खींचें और ताले पर टैप करें ताकि यह बंद न हो।';
 
   @override
   String get busMakeOppo => 'Oppo, Realme या OnePlus';
 
   @override
-  String get busMakeOppo1 =>
-      'Settings > Battery > Power saving > App battery usage (या App battery management)।';
+  String get busMakeOppo1 => 'Settings > Battery > Power saving > App battery usage (या App battery management)।';
 
   @override
-  String get busMakeOppo2 =>
-      'School365ai Driver ढूँढें और Allow background activity या Don\'t optimise चुनें।';
+  String get busMakeOppo2 => 'School365ai Driver ढूँढें और Allow background activity या Don\'t optimise चुनें।';
 
   @override
   String get busMakeOppo3 => 'इस ऐप के लिए Allow auto launch चालू करें।';
@@ -704,15 +632,13 @@ class AppLocalizationsHi extends AppLocalizations {
       'Settings > Battery > Background power consumption management > School365ai Driver > Allow high background power consumption.';
 
   @override
-  String get busMakeVivo2 =>
-      'Settings > Apps > Autostart, और इस ऐप के लिए इसे चालू करें।';
+  String get busMakeVivo2 => 'Settings > Apps > Autostart, और इस ऐप के लिए इसे चालू करें।';
 
   @override
   String get busMakeSamsung => 'Samsung';
 
   @override
-  String get busMakeSamsung1 =>
-      'Settings > Apps > School365ai Driver > Battery > Unrestricted.';
+  String get busMakeSamsung1 => 'Settings > Apps > School365ai Driver > Battery > Unrestricted.';
 
   @override
   String get busMakeSamsung2 =>
@@ -722,12 +648,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busMakeOther => 'कोई और फ़ोन';
 
   @override
-  String get busMakeOther1 =>
-      'Settings > Apps > School365ai Driver > Battery, और सबसे कम रोक वाला विकल्प चुनें।';
+  String get busMakeOther1 => 'Settings > Apps > School365ai Driver > Battery, और सबसे कम रोक वाला विकल्प चुनें।';
 
   @override
-  String get busMakeOther2 =>
-      'अगर Autostart या Auto launch की सेटिंग है, तो उसे चालू करें।';
+  String get busMakeOther2 => 'अगर Autostart या Auto launch की सेटिंग है, तो उसे चालू करें।';
 
   @override
   String get busTripLogUnreadable => 'ट्रिप लॉग पढ़ा नहीं जा सका।';
@@ -752,8 +676,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get busBatteryChecking => 'बैटरी सेटिंग्स देखी जा रही हैं...';
 
   @override
-  String get busBatteryOwnSetting =>
-      'कुछ फ़ोन में अपनी अलग सेटिंग भी होती है - फ़ोन के बैटरी स्टेप देखें।';
+  String get busBatteryOwnSetting => 'कुछ फ़ोन में अपनी अलग सेटिंग भी होती है - फ़ोन के बैटरी स्टेप देखें।';
 
   @override
   String get busSteps => 'स्टेप';
@@ -788,8 +711,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get busNoGapVerdict =>
-      'कोई लंबा अंतर नहीं: फ़ोन पूरे रास्ते लोकेशन शेयर करता रहा।';
+  String get busNoGapVerdict => 'कोई लंबा अंतर नहीं: फ़ोन पूरे रास्ते लोकेशन शेयर करता रहा।';
 
   @override
   String busSharingStopped(String reason) {
@@ -818,12 +740,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get retry => 'फिर से कोशिश करें';
 
   @override
-  String get errorNoConnection =>
-      'सर्वर से संपर्क नहीं हो सका। अपना इंटरनेट देखें और फिर से कोशिश करें।';
+  String get errorNoConnection => 'सर्वर से संपर्क नहीं हो सका। अपना इंटरनेट देखें और फिर से कोशिश करें।';
 
   @override
-  String get errorTimeout =>
-      'सर्वर जवाब देने में सामान्य से ज़्यादा समय ले रहा है। थोड़ी देर में फिर से कोशिश करें।';
+  String get errorTimeout => 'सर्वर जवाब देने में सामान्य से ज़्यादा समय ले रहा है। थोड़ी देर में फिर से कोशिश करें।';
 
   @override
   String get errorUnknown => 'कुछ गड़बड़ हो गई। कृपया फिर से कोशिश करें।';
@@ -832,16 +752,14 @@ class AppLocalizationsHi extends AppLocalizations {
   String get coreLogOutTitle => 'साइन आउट करें?';
 
   @override
-  String get coreLogOutMessage =>
-      'अपने स्कूल में वापस आने के लिए आपको फिर से साइन इन करना होगा।';
+  String get coreLogOutMessage => 'अपने स्कूल में वापस आने के लिए आपको फिर से साइन इन करना होगा।';
 
   @override
   String coreLogOutUnsent(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other:
-          '$count निशान अभी भेजे नहीं गए हैं। फिर भी साइन आउट करें? ये मिट जाएँगे।',
+      other: '$count निशान अभी भेजे नहीं गए हैं। फिर भी साइन आउट करें? ये मिट जाएँगे।',
       one: '1 निशान अभी भेजा नहीं गया है। फिर भी साइन आउट करें? यह मिट जाएगा।',
     );
     return '$_temp0';
@@ -857,8 +775,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get coreLockedTitle => 'School365ai लॉक है';
 
   @override
-  String get coreLockedHint =>
-      'खोलने के लिए अपना फ़िंगरप्रिंट, चेहरा या फ़ोन का स्क्रीन लॉक इस्तेमाल करें।';
+  String get coreLockedHint => 'खोलने के लिए अपना फ़िंगरप्रिंट, चेहरा या फ़ोन का स्क्रीन लॉक इस्तेमाल करें।';
 
   @override
   String get coreNotUnlocked => 'अनलॉक नहीं हुआ। फिर से कोशिश करें।';
@@ -883,8 +800,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get coreAppLock => 'ऐप लॉक';
 
   @override
-  String get coreAppLockHint =>
-      'ऐप खुलने पर, और 5 मिनट बाहर रहने के बाद, फ़िंगरप्रिंट, चेहरा या स्क्रीन लॉक माँगें';
+  String get coreAppLockHint => 'ऐप खुलने पर, और 5 मिनट बाहर रहने के बाद, फ़िंगरप्रिंट, चेहरा या स्क्रीन लॉक माँगें';
 
   @override
   String get coreShowPassword => 'पासवर्ड दिखाएँ';
@@ -898,8 +814,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get corePasscodeRepeated =>
-      'ऐसा पासकोड चुनें जिसमें एक ही अंक बार-बार न हो।';
+  String get corePasscodeRepeated => 'ऐसा पासकोड चुनें जिसमें एक ही अंक बार-बार न हो।';
 
   @override
   String corePasscodeRun(String example) {
@@ -1328,8 +1243,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyNotStartedYet => 'अभी शुरू नहीं हुई';
 
   @override
-  String get familyTripWasCancelled =>
-      'यह ट्रिप रद्द हो गई है। स्कूल आपसे संपर्क करेगा।';
+  String get familyTripWasCancelled => 'यह ट्रिप रद्द हो गई है। स्कूल आपसे संपर्क करेगा।';
 
   @override
   String familyNotOnTripList(String name) {
@@ -1390,8 +1304,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get familyBusFollowDuringTrip =>
-      'आप बच्चे की ट्रिप के समय बस को देख सकते हैं - स्कूल जाते या घर आते समय।';
+  String get familyBusFollowDuringTrip => 'आप बच्चे की ट्रिप के समय बस को देख सकते हैं - स्कूल जाते या घर आते समय।';
 
   @override
   String get familyWhereIsBus => 'बस कहाँ है?';
@@ -1440,12 +1353,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String familyMinutes(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count मिनट',
-      one: '1 मिनट',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count मिनट', one: '1 मिनट');
     return '$_temp0';
   }
 
@@ -1458,15 +1366,13 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get familyOfflineLastUpdate =>
-      'इंटरनेट नहीं है - आखिरी जानकारी दिखा रहे हैं।';
+  String get familyOfflineLastUpdate => 'इंटरनेट नहीं है - आखिरी जानकारी दिखा रहे हैं।';
 
   @override
   String get familyNoFeesYet => 'अभी कोई फ़ीस तय नहीं हुई';
 
   @override
-  String get familyNoFeesYetMessage =>
-      'स्कूल इस साल की फ़ीस तय करेगा, तब वह यहाँ दिखेगी।';
+  String get familyNoFeesYetMessage => 'स्कूल इस साल की फ़ीस तय करेगा, तब वह यहाँ दिखेगी।';
 
   @override
   String get familyInstalments => 'किस्तें';
@@ -1511,8 +1417,7 @@ class AppLocalizationsHi extends AppLocalizations {
       'बाकी भुगतान = इस साल की फ़ीस, उसमें से छूट, स्कूल में दर्ज भुगतान, और स्कूल द्वारा माफ़ की गई किस्तें घटाकर। बकाया इसका वह हिस्सा है जिन किस्तों की देय तारीख निकल चुकी है।';
 
   @override
-  String get familyUpiOpened =>
-      'भुगतान के बाद स्कूल उसे दर्ज करेगा और रसीद यहाँ दिखेगी।';
+  String get familyUpiOpened => 'भुगतान के बाद स्कूल उसे दर्ज करेगा और रसीद यहाँ दिखेगी।';
 
   @override
   String get familyUpiNotOpened =>
@@ -1593,8 +1498,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyNoTermsYet => 'अभी कोई टर्म नहीं';
 
   @override
-  String get familyNoTermsYetMessage =>
-      'स्कूल के टर्म तय करने के बाद परिणाम यहाँ दिखेंगे।';
+  String get familyNoTermsYetMessage => 'स्कूल के टर्म तय करने के बाद परिणाम यहाँ दिखेंगे।';
 
   @override
   String get familyFromClassTeacher => 'कक्षा शिक्षक की ओर से';
@@ -1603,8 +1507,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyNoResultsThisTerm => 'इस टर्म में अभी कोई परिणाम नहीं';
 
   @override
-  String get familyNoResultsThisTermMessage =>
-      'शिक्षक के अंक जारी करने के बाद टेस्ट यहाँ दिखेगा।';
+  String get familyNoResultsThisTermMessage => 'शिक्षक के अंक जारी करने के बाद टेस्ट यहाँ दिखेगा।';
 
   @override
   String get familyWhyResults =>
@@ -1631,12 +1534,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String familyTestsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count टेस्ट',
-      one: '1 टेस्ट',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count टेस्ट', one: '1 टेस्ट');
     return '$_temp0';
   }
 
@@ -1662,8 +1560,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyNoTimetableYet => 'अभी कोई समय-सारणी नहीं';
 
   @override
-  String get familyNoTimetableYetMessage =>
-      'स्कूल के तय करने के बाद कक्षा की समय-सारणी यहाँ दिखेगी।';
+  String get familyNoTimetableYetMessage => 'स्कूल के तय करने के बाद कक्षा की समय-सारणी यहाँ दिखेगी।';
 
   @override
   String familyDayToday(String day) {
@@ -1720,8 +1617,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyNoSyllabusYet => 'अभी कोई पाठ्यक्रम नहीं';
 
   @override
-  String get familyNoSyllabusYetMessage =>
-      'स्कूल के जोड़ने के बाद कक्षा में क्या पढ़ाया जाएगा, यहाँ दिखेगा।';
+  String get familyNoSyllabusYetMessage => 'स्कूल के जोड़ने के बाद कक्षा में क्या पढ़ाया जाएगा, यहाँ दिखेगा।';
 
   @override
   String get familyHomework => 'होमवर्क';
@@ -1730,8 +1626,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyNoHomework => 'पिछले दो हफ़्तों में कोई होमवर्क नहीं';
 
   @override
-  String get familyNoHomeworkMessage =>
-      'शिक्षक जिस दिन कक्षा को होमवर्क देंगे, उसी दिन यहाँ दिखेगा।';
+  String get familyNoHomeworkMessage => 'शिक्षक जिस दिन कक्षा को होमवर्क देंगे, उसी दिन यहाँ दिखेगा।';
 
   @override
   String familyTodayDash(String date) {
@@ -1761,8 +1656,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyAddGuardian => 'अभिभावक जोड़ें';
 
   @override
-  String get familyAddGuardianSub =>
-      'स्कूल से दूसरे माता-पिता या किसी रिश्तेदार को जोड़ने के लिए कहें';
+  String get familyAddGuardianSub => 'स्कूल से दूसरे माता-पिता या किसी रिश्तेदार को जोड़ने के लिए कहें';
 
   @override
   String get familyAskToCall => 'स्कूल से कॉल करने को कहें';
@@ -1810,26 +1704,22 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familySignOut => 'साइन आउट करें';
 
   @override
-  String get familySignOutSub =>
-      'यह फ़ोन सेटअप रहेगा; अपने पासकोड से फिर साइन इन करें';
+  String get familySignOutSub => 'यह फ़ोन सेटअप रहेगा; अपने पासकोड से फिर साइन इन करें';
 
   @override
   String get familySignOutQuestion => 'साइन आउट करें?';
 
   @override
-  String get familySignOutMessage =>
-      'फिर से साइन इन करने के लिए आपको अपना पासकोड चाहिए होगा।';
+  String get familySignOutMessage => 'फिर से साइन इन करने के लिए आपको अपना पासकोड चाहिए होगा।';
 
   @override
-  String get familyCouldNotOpen =>
-      'यह फ़ोन इसे नहीं खोल सका। कृपया कोई और तरीका आज़माएँ।';
+  String get familyCouldNotOpen => 'यह फ़ोन इसे नहीं खोल सका। कृपया कोई और तरीका आज़माएँ।';
 
   @override
   String get familyContactSchool => 'स्कूल से संपर्क करें';
 
   @override
-  String get familyNoContactDetails =>
-      'स्कूल ने अभी अपनी संपर्क जानकारी नहीं जोड़ी है।';
+  String get familyNoContactDetails => 'स्कूल ने अभी अपनी संपर्क जानकारी नहीं जोड़ी है।';
 
   @override
   String get familyEmail => 'ईमेल';
@@ -1845,12 +1735,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String familyFilesCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count फ़ाइलें',
-      one: '1 फ़ाइल',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count फ़ाइलें', one: '1 फ़ाइल');
     return '$_temp0';
   }
 
@@ -1902,8 +1787,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familySwitchHomeworkSub => 'हर शाम, उस दिन का होमवर्क';
 
   @override
-  String get familyEmergencyAlwaysComes =>
-      'स्कूल के आपातकालीन संदेश हमेशा आएँगे।';
+  String get familyEmergencyAlwaysComes => 'स्कूल के आपातकालीन संदेश हमेशा आएँगे।';
 
   @override
   String get familySaved => 'सेव हो गया।';
@@ -1929,8 +1813,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyWhatAbout => 'किस बारे में बात करनी है?';
 
   @override
-  String get familyWhatAboutTooShort =>
-      'कृपया थोड़ा बताएँ कि बात किस बारे में है।';
+  String get familyWhatAboutTooShort => 'कृपया थोड़ा बताएँ कि बात किस बारे में है।';
 
   @override
   String get familyGoodTimeToCall => 'कॉल करने का सही समय (ज़रूरी नहीं)';
@@ -2061,8 +1944,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyWhyAway => 'स्कूल न आने का कारण क्या है?';
 
   @override
-  String get familyWhyAwayHint =>
-      'जैसे, कल रात से बुखार है - डॉक्टर ने दो दिन आराम करने को कहा है।';
+  String get familyWhyAwayHint => 'जैसे, कल रात से बुखार है - डॉक्टर ने दो दिन आराम करने को कहा है।';
 
   @override
   String familyReasonTooShort(int min) {
@@ -2073,15 +1955,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familySendToSchool => 'स्कूल को भेजें';
 
   @override
-  String get familyAddDoctorNote =>
-      'डॉक्टर के पर्चे की फ़ोटो जोड़ें (ज़रूरी नहीं)';
+  String get familyAddDoctorNote => 'डॉक्टर के पर्चे की फ़ोटो जोड़ें (ज़रूरी नहीं)';
 
   @override
   String get familyRemove => 'हटाएँ';
 
   @override
-  String get familyDeviceNotRegistered =>
-      'यह फ़ोन अभी रजिस्टर नहीं है। स्कूल के पत्र में दिया सेटअप कोड डालें।';
+  String get familyDeviceNotRegistered => 'यह फ़ोन अभी रजिस्टर नहीं है। स्कूल के पत्र में दिया सेटअप कोड डालें।';
 
   @override
   String get familyForgotPasscode => 'पासकोड भूल गए?';
@@ -2107,8 +1987,7 @@ class AppLocalizationsHi extends AppLocalizations {
       'अपने बच्चे के स्कूल के पत्र की मदद लें: आपका मोबाइल नंबर, 8 अंकों का सेटअप कोड, और आपका चुना हुआ 6 अंकों का पासकोड।';
 
   @override
-  String get familySignInHelp =>
-      'अपने मोबाइल नंबर और 6 अंकों के पासकोड से साइन इन करें।';
+  String get familySignInHelp => 'अपने मोबाइल नंबर और 6 अंकों के पासकोड से साइन इन करें।';
 
   @override
   String get familyMobileNumber => 'मोबाइल नंबर';
@@ -2117,8 +1996,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familySetupCodeLabel => 'पत्र में दिया सेटअप कोड';
 
   @override
-  String get familySetupCodeInvalid =>
-      'स्कूल के पत्र में दिया 8 अंकों का सेटअप कोड डालें।';
+  String get familySetupCodeInvalid => 'स्कूल के पत्र में दिया 8 अंकों का सेटअप कोड डालें।';
 
   @override
   String get familyChoosePasscode => 'पासकोड चुनें';
@@ -2148,15 +2026,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyAlreadySetUp => 'इस फ़ोन पर पहले से सेटअप है? साइन इन करें';
 
   @override
-  String get familyNoLetter =>
-      'पत्र नहीं मिला? अपने बच्चे के स्कूल ऑफ़िस से Family ऐप का सेटअप कोड माँगें।';
+  String get familyNoLetter => 'पत्र नहीं मिला? अपने बच्चे के स्कूल ऑफ़िस से Family ऐप का सेटअप कोड माँगें।';
 
   @override
   String get familyNoAdmitCards => 'अभी कोई एडमिट कार्ड नहीं';
 
   @override
-  String get familyNoAdmitCardsMessage =>
-      'जब स्कूल आपके बच्चे की परीक्षा जारी करेगा, उसका एडमिट कार्ड यहाँ दिखेगा।';
+  String get familyNoAdmitCardsMessage => 'जब स्कूल आपके बच्चे की परीक्षा जारी करेगा, उसका एडमिट कार्ड यहाँ दिखेगा।';
 
   @override
   String familyReportingTime(String time) {
@@ -2217,20 +2093,17 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyPrivacyNumberOffice => 'स्कूल ऑफ़िस।';
 
   @override
-  String get familyPrivacyNumberTeachers =>
-      'आपके बच्चे की कक्षा के शिक्षक - दूसरी कक्षाओं के शिक्षक नहीं।';
+  String get familyPrivacyNumberTeachers => 'आपके बच्चे की कक्षा के शिक्षक - दूसरी कक्षाओं के शिक्षक नहीं।';
 
   @override
-  String get familyPrivacyNumberFees =>
-      'फ़ीस लेने वाला स्टाफ़, ताकि वे भुगतान के बारे में कॉल कर सकें।';
+  String get familyPrivacyNumberFees => 'फ़ीस लेने वाला स्टाफ़, ताकि वे भुगतान के बारे में कॉल कर सकें।';
 
   @override
   String get familyPrivacyNumberBus =>
       'अगर आपका बच्चा स्कूल बस से आता-जाता है: ट्रांसपोर्ट ऑफ़िस, और आपके बच्चे के रूट का बस स्टाफ़, ताकि वे रास्ते से आपको कॉल कर सकें।';
 
   @override
-  String get familyPrivacyNumberOthers =>
-      'कोई और स्टाफ़ इसे देख सकता है या नहीं, यह स्कूल तय करता है।';
+  String get familyPrivacyNumberOthers => 'कोई और स्टाफ़ इसे देख सकता है या नहीं, यह स्कूल तय करता है।';
 
   @override
   String get familyPrivacyBusTitle => 'मैप पर बस';
@@ -2244,15 +2117,13 @@ class AppLocalizationsHi extends AppLocalizations {
       'आप बस को सिर्फ़ तब देख सकते हैं जब आपके बच्चे की अपनी ट्रिप चल रही हो - जब तक बच्चा उतर न जाए या बस में न होने के रूप में दर्ज न हो।';
 
   @override
-  String get familyPrivacyBusNoPhoneLocation =>
-      'यह ऐप कभी आपके फ़ोन की लोकेशन नहीं माँगता।';
+  String get familyPrivacyBusNoPhoneLocation => 'यह ऐप कभी आपके फ़ोन की लोकेशन नहीं माँगता।';
 
   @override
   String get familyPrivacyMessagesTitle => 'इस ऐप पर क्या आता है';
 
   @override
-  String get familyPrivacyMessagesLine =>
-      'स्कूल इस ऐप पर किस तरह के संदेश भेजे, यह आप चुनते हैं।';
+  String get familyPrivacyMessagesLine => 'स्कूल इस ऐप पर किस तरह के संदेश भेजे, यह आप चुनते हैं।';
 
   @override
   String get familyChooseNotifications => 'नोटिफ़िकेशन चुनें';
@@ -2270,8 +2141,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyNoMeetings => 'आगे कोई बैठक नहीं';
 
   @override
-  String get familyNoMeetingsMessage =>
-      'जब स्कूल इस कक्षा की अभिभावक-शिक्षक बैठक तय करेगा, वह यहाँ दिखेगी।';
+  String get familyNoMeetingsMessage => 'जब स्कूल इस कक्षा की अभिभावक-शिक्षक बैठक तय करेगा, वह यहाँ दिखेगी।';
 
   @override
   String familyMeetingWith(String date, String teacher) {
@@ -2287,16 +2157,13 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get familyMeetingTimesNotOpen =>
-      'शिक्षक ने अभी समय नहीं खोले हैं। खुलते ही आपको संदेश मिलेगा।';
+  String get familyMeetingTimesNotOpen => 'शिक्षक ने अभी समय नहीं खोले हैं। खुलते ही आपको संदेश मिलेगा।';
 
   @override
-  String get familyMeetingAllTaken =>
-      'सभी समय बुक हो चुके हैं। कृपया स्कूल ऑफ़िस से पूछें।';
+  String get familyMeetingAllTaken => 'सभी समय बुक हो चुके हैं। कृपया स्कूल ऑफ़िस से पूछें।';
 
   @override
-  String get familyMeetingClosed =>
-      'बुकिंग बंद हो चुकी है। कुछ बदलना हो तो कृपया स्कूल को कॉल करें।';
+  String get familyMeetingClosed => 'बुकिंग बंद हो चुकी है। कुछ बदलना हो तो कृपया स्कूल को कॉल करें।';
 
   @override
   String get familyPickATime => 'समय चुनें';
@@ -2361,8 +2228,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get galleryHeading => 'कार्यक्रम और फ़ोटो';
 
   @override
-  String get galleryIntro =>
-      'फ़ैमिली ऐप में अभिभावकों के लिए फ़ोटो: पूरे स्कूल के कार्यक्रम, या किसी एक कक्षा के।';
+  String get galleryIntro => 'फ़ैमिली ऐप में अभिभावकों के लिए फ़ोटो: पूरे स्कूल के कार्यक्रम, या किसी एक कक्षा के।';
 
   @override
   String get galleryNoEvents => 'अभी कोई कार्यक्रम पोस्ट नहीं हुआ।';
@@ -2431,8 +2297,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get galleryNoPhotosYetParents =>
-      'फ़ोटो जुड़ने पर ही अभिभावक इसे देखेंगे।';
+  String get galleryNoPhotosYetParents => 'फ़ोटो जुड़ने पर ही अभिभावक इसे देखेंगे।';
 
   @override
   String get galleryNoPhotosYet => 'अभी कोई फ़ोटो नहीं।';
@@ -2510,20 +2375,14 @@ class AppLocalizationsHi extends AppLocalizations {
   String get familyNoGallery => 'अभी कोई फ़ोटो नहीं';
 
   @override
-  String get familyNoGalleryMessage =>
-      'जब स्कूल किसी कार्यक्रम की फ़ोटो साझा करेगा, वे यहाँ दिखेंगी।';
+  String get familyNoGalleryMessage => 'जब स्कूल किसी कार्यक्रम की फ़ोटो साझा करेगा, वे यहाँ दिखेंगी।';
 
   @override
   String get familyGalleryWholeSchool => 'पूरा स्कूल';
 
   @override
   String familyGalleryPhotos(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count फ़ोटो',
-      one: '1 फ़ोटो',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count फ़ोटो', one: '1 फ़ोटो');
     return '$_temp0';
   }
 
@@ -2813,8 +2672,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffNewPassword => 'नया पासवर्ड';
 
   @override
-  String get staffNewPasswordHint =>
-      'कम से कम 8 अक्षर, जिनमें एक अक्षर और एक अंक हो।';
+  String get staffNewPasswordHint => 'कम से कम 8 अक्षर, जिनमें एक अक्षर और एक अंक हो।';
 
   @override
   String get staffConfirmNewPassword => 'नया पासवर्ड दोबारा डालें';
@@ -2845,12 +2703,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffCheckEmailTitle => 'अपना ईमेल देखें';
 
   @override
-  String get staffResetPasswordSubtitle =>
-      'अपना स्कूल ईमेल डालें, हम नया पासवर्ड चुनने का लिंक भेजेंगे।';
+  String get staffResetPasswordSubtitle => 'अपना स्कूल ईमेल डालें, हम नया पासवर्ड चुनने का लिंक भेजेंगे।';
 
   @override
-  String get staffCheckEmailSubtitle =>
-      'नया पासवर्ड चुनने का लिंक भेजा जा रहा है।';
+  String get staffCheckEmailSubtitle => 'नया पासवर्ड चुनने का लिंक भेजा जा रहा है।';
 
   @override
   String staffResetSentBody(String email) {
@@ -2858,8 +2714,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffResetSentNext =>
-      'लिंक से नया पासवर्ड चुनें, फिर यहाँ आकर उससे साइन इन करें।';
+  String get staffResetSentNext => 'लिंक से नया पासवर्ड चुनें, फिर यहाँ आकर उससे साइन इन करें।';
 
   @override
   String get staffBackToSignIn => 'साइन इन पर वापस';
@@ -2880,12 +2735,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffWelcomeBack => 'फिर से स्वागत है';
 
   @override
-  String get staffSignInSubtitle =>
-      'अपने स्कूल ईमेल और पासवर्ड से साइन इन करें।';
+  String get staffSignInSubtitle => 'अपने स्कूल ईमेल और पासवर्ड से साइन इन करें।';
 
   @override
-  String get staffSessionEnded =>
-      'आपका सेशन खत्म हो गया है। फिर से साइन इन करें।';
+  String get staffSessionEnded => 'आपका सेशन खत्म हो गया है। फिर से साइन इन करें।';
 
   @override
   String get staffPassword => 'पासवर्ड';
@@ -2923,15 +2776,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffWelcomeCheckInTitle => 'स्कूल में चेक इन करें';
 
   @override
-  String get staffWelcomeCheckInBody =>
-      'स्कूल में अपने फ़ोन से आने और जाने का समय दर्ज करें।';
+  String get staffWelcomeCheckInBody => 'स्कूल में अपने फ़ोन से आने और जाने का समय दर्ज करें।';
 
   @override
   String get staffWelcomeTodayTitle => 'आज का दिन एक नज़र में';
 
   @override
-  String get staffWelcomeTodayBody =>
-      'शिक्षकों के लिए: आपके पीरियड क्रम से, अभी चल रहा पीरियड चिह्नित।';
+  String get staffWelcomeTodayBody => 'शिक्षकों के लिए: आपके पीरियड क्रम से, अभी चल रहा पीरियड चिह्नित।';
 
   @override
   String get staffWelcomeRegisterTitle => 'हाज़िरी और रिपोर्ट';
@@ -2944,12 +2795,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffWelcomeCalendarTitle => 'आपके स्कूल का कैलेंडर';
 
   @override
-  String get staffWelcomeCalendarBody =>
-      'छुट्टियाँ, आधे दिन और आपकी मंज़ूर छुट्टी, ऑफ़िस से पूछे बिना।';
+  String get staffWelcomeCalendarBody => 'छुट्टियाँ, आधे दिन और आपकी मंज़ूर छुट्टी, ऑफ़िस से पूछे बिना।';
 
   @override
-  String get staffWelcomeNewHere =>
-      'नए हैं? स्कूल ऑफ़िस आपका अकाउंट बनाता है और पासवर्ड चुनने का लिंक ईमेल करता है।';
+  String get staffWelcomeNewHere => 'नए हैं? स्कूल ऑफ़िस आपका अकाउंट बनाता है और पासवर्ड चुनने का लिंक ईमेल करता है।';
 
   @override
   String get staffSplashTagline => 'आपके स्कूल का दिन, आपकी जेब में।';
@@ -2958,8 +2807,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffTryAgain => 'फिर से कोशिश करें';
 
   @override
-  String get staffSplashSlow =>
-      'अभी भी स्कूल से जुड़ने की कोशिश हो रही है। देखें कि फ़ोन में इंटरनेट चल रहा है।';
+  String get staffSplashSlow => 'अभी भी स्कूल से जुड़ने की कोशिश हो रही है। देखें कि फ़ोन में इंटरनेट चल रहा है।';
 
   @override
   String get staffSplashLoading => 'आपका दिन तैयार हो रहा है…';
@@ -3068,8 +2916,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffClosedBody =>
-      'स्कूल बंद है, इसलिए न हाज़िरी लेनी है और न रिपोर्ट लिखनी है।';
+  String get staffClosedBody => 'स्कूल बंद है, इसलिए न हाज़िरी लेनी है और न रिपोर्ट लिखनी है।';
 
   @override
   String get staffOnLeaveToday => 'आज आप छुट्टी पर हैं';
@@ -3159,8 +3006,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffReportFiled => 'रिपोर्ट जमा';
 
   @override
-  String get staffReportOwedTapFile =>
-      'रिपोर्ट बाकी - जमा करने के लिए टैप करें';
+  String get staffReportOwedTapFile => 'रिपोर्ट बाकी - जमा करने के लिए टैप करें';
 
   @override
   String get staffNoPeriodsToday => 'आज टाइमटेबल में आपका कोई पीरियड नहीं है।';
@@ -3177,8 +3023,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffFindAStudent => 'छात्र खोजें';
 
   @override
-  String get staffWhereLeaveAndPay =>
-      'आपकी छुट्टी और वेतन पर्चियाँ नीचे छुट्टी और वेतन टैब में हैं।';
+  String get staffWhereLeaveAndPay => 'आपकी छुट्टी और वेतन पर्चियाँ नीचे छुट्टी और वेतन टैब में हैं।';
 
   @override
   String get staffWhereLeave => 'आपकी छुट्टी नीचे छुट्टी टैब में है।';
@@ -3190,23 +3035,19 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffWhereMessages => 'स्कूल के संदेश ऊपर घंटी में हैं।';
 
   @override
-  String get staffClosedNoCheckIn =>
-      'स्कूल बंद है, इसलिए चेक इन करने की ज़रूरत नहीं है।';
+  String get staffClosedNoCheckIn => 'स्कूल बंद है, इसलिए चेक इन करने की ज़रूरत नहीं है।';
 
   @override
-  String get staffOnLeaveNoCheckIn =>
-      'छुट्टी के दौरान चेक इन करने की ज़रूरत नहीं है।';
+  String get staffOnLeaveNoCheckIn => 'छुट्टी के दौरान चेक इन करने की ज़रूरत नहीं है।';
 
   @override
   String get staffMarkedInOffice => 'हाज़िरी ऑफ़िस में दर्ज होती है';
 
   @override
-  String get staffMarkedInOfficeBody =>
-      'आपका स्कूल स्टाफ़ की हाज़िरी ऐप से नहीं, खुद दर्ज करता है।';
+  String get staffMarkedInOfficeBody => 'आपका स्कूल स्टाफ़ की हाज़िरी ऐप से नहीं, खुद दर्ज करता है।';
 
   @override
-  String get staffNoPeriodsYet =>
-      'टाइमटेबल में अभी आपका कोई पीरियड नहीं है। ऑफ़िस इसे बनाता है।';
+  String get staffNoPeriodsYet => 'टाइमटेबल में अभी आपका कोई पीरियड नहीं है। ऑफ़िस इसे बनाता है।';
 
   @override
   String staffDayToday(String day) {
@@ -3258,8 +3099,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffCheckOutNowQ => 'अभी चेक आउट करें?';
 
   @override
-  String get staffCheckOutAgainBody =>
-      'आपके जाने का समय अभी का हो जाएगा। आखिरी चेक आउट ही माना जाता है।';
+  String get staffCheckOutAgainBody => 'आपके जाने का समय अभी का हो जाएगा। आखिरी चेक आउट ही माना जाता है।';
 
   @override
   String get staffCheckOutBody => 'इससे आपके स्कूल से जाने का समय दर्ज होगा।';
@@ -3277,8 +3117,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffCheckIn => 'चेक इन';
 
   @override
-  String get staffOpenSettingsForLocation =>
-      'फ़ोन की सेटिंग्स खोलें और School365ai को लोकेशन की अनुमति दें।';
+  String get staffOpenSettingsForLocation => 'फ़ोन की सेटिंग्स खोलें और School365ai को लोकेशन की अनुमति दें।';
 
   @override
   String get staffFindingLocation => 'आपकी लोकेशन देखी जा रही है…';
@@ -3295,15 +3134,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffMarkedAbsent => 'आज अनुपस्थित दर्ज';
 
   @override
-  String get staffMarkedAbsentBody =>
-      'ऑफ़िस ने आपको अनुपस्थित दर्ज किया है। पहुँचने पर चेक इन करें, यह ठीक हो जाएगा।';
+  String get staffMarkedAbsentBody => 'ऑफ़िस ने आपको अनुपस्थित दर्ज किया है। पहुँचने पर चेक इन करें, यह ठीक हो जाएगा।';
 
   @override
   String get staffHalfDayLeaveToday => 'आज आधे दिन की छुट्टी';
 
   @override
-  String get staffHalfDayLeaveBody =>
-      'जिस आधे दिन आप काम करें उसके लिए चेक इन करें, दिन आधे दिन के रूप में दर्ज होगा।';
+  String get staffHalfDayLeaveBody => 'जिस आधे दिन आप काम करें उसके लिए चेक इन करें, दिन आधे दिन के रूप में दर्ज होगा।';
 
   @override
   String get staffCheckInToStart => 'दिन शुरू करने के लिए चेक इन करें';
@@ -3328,16 +3165,14 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffOfficeUpdatedDay =>
-      'ऑफ़िस ने रजिस्टर में आपका दिन बदला है। कुछ गलत लगे तो उनसे पूछें।';
+  String get staffOfficeUpdatedDay => 'ऑफ़िस ने रजिस्टर में आपका दिन बदला है। कुछ गलत लगे तो उनसे पूछें।';
 
   @override
   String get staffCheckInNoConnection =>
       'इंटरनेट नहीं है, इसलिए कुछ दर्ज नहीं हुआ। फ़ोन में इंटरनेट आने पर फिर से चेक इन करें - वही समय दर्ज होगा जब यह स्कूल तक पहुँचेगा।';
 
   @override
-  String get staffLocationServiceOff =>
-      'आपके फ़ोन की लोकेशन बंद है। इसे चालू करें, फिर से चेक इन करें।';
+  String get staffLocationServiceOff => 'आपके फ़ोन की लोकेशन बंद है। इसे चालू करें, फिर से चेक इन करें।';
 
   @override
   String get staffLocationDeniedForever =>
@@ -3348,12 +3183,10 @@ class AppLocalizationsHi extends AppLocalizations {
       'चेक इन के लिए एक बार आपकी लोकेशन चाहिए, यह देखने के लिए कि आप स्कूल में हैं। अनुमति दें और फिर से कोशिश करें।';
 
   @override
-  String get staffLocationUnsupported =>
-      'यह डिवाइस अपनी लोकेशन नहीं बता सकता, इसलिए चेक इन नहीं हो सकता।';
+  String get staffLocationUnsupported => 'यह डिवाइस अपनी लोकेशन नहीं बता सकता, इसलिए चेक इन नहीं हो सकता।';
 
   @override
-  String get staffLocationNotFound =>
-      'आपकी लोकेशन नहीं मिली। थोड़ी देर में फिर से कोशिश करें।';
+  String get staffLocationNotFound => 'आपकी लोकेशन नहीं मिली। थोड़ी देर में फिर से कोशिश करें।';
 
   @override
   String get staffTurnOnLocation => 'लोकेशन चालू करें';
@@ -3368,8 +3201,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffNoStaffRecord => 'आपके अकाउंट के लिए चेक इन सेट नहीं है';
 
   @override
-  String get staffNoStaffRecordBody =>
-      'इस स्कूल में आपके अकाउंट का स्टाफ़ रिकॉर्ड नहीं है। ऑफ़िस से जुड़वाएँ।';
+  String get staffNoStaffRecordBody => 'इस स्कूल में आपके अकाउंट का स्टाफ़ रिकॉर्ड नहीं है। ऑफ़िस से जुड़वाएँ।';
 
   @override
   String get staffCategoryAttendance => 'हाज़िरी';
@@ -3466,8 +3298,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffApplyForLeaveHint =>
-      'छुट्टी माँगने के लिए \'छुट्टी के लिए आवेदन करें\' पर टैप करें।';
+  String get staffApplyForLeaveHint => 'छुट्टी माँगने के लिए \'छुट्टी के लिए आवेदन करें\' पर टैप करें।';
 
   @override
   String get staffShowOlderRequests => 'पुराने आवेदन दिखाएँ';
@@ -3476,8 +3307,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffWithdrawRequestQ => 'यह आवेदन वापस लें?';
 
   @override
-  String get staffWithdrawRequestBody =>
-      'इस पर अब फ़ैसला नहीं होगा। आप इन्हीं दिनों के लिए फिर से आवेदन कर सकते हैं।';
+  String get staffWithdrawRequestBody => 'इस पर अब फ़ैसला नहीं होगा। आप इन्हीं दिनों के लिए फिर से आवेदन कर सकते हैं।';
 
   @override
   String get staffWithdraw => 'वापस लें';
@@ -3527,8 +3357,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffLeaveAutoApproved => 'छुट्टी अपने आप मंज़ूर हो गई।';
 
   @override
-  String get staffLeaveRequested =>
-      'छुट्टी का आवेदन भेज दिया गया। फ़ैसला होने पर यहाँ दिखेगा।';
+  String get staffLeaveRequested => 'छुट्टी का आवेदन भेज दिया गया। फ़ैसला होने पर यहाँ दिखेगा।';
 
   @override
   String get staffLeaveType => 'छुट्टी का प्रकार';
@@ -3553,8 +3382,7 @@ class AppLocalizationsHi extends AppLocalizations {
       'आधे दिन की छुट्टी: जिस आधे दिन आप काम करें उसके लिए चेक इन करें, दिन आधा गिना जाएगा।';
 
   @override
-  String get staffWeekendsNotCounted =>
-      'इन तारीखों के बीच के वीकेंड और छुट्टियाँ, छुट्टी में नहीं गिने जाते।';
+  String get staffWeekendsNotCounted => 'इन तारीखों के बीच के वीकेंड और छुट्टियाँ, छुट्टी में नहीं गिने जाते।';
 
   @override
   String get staffSendRequest => 'आवेदन भेजें';
@@ -3587,8 +3415,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffNoPayslipsYet => 'अभी कोई वेतन पर्ची नहीं।';
 
   @override
-  String get staffNoPayslipsHint =>
-      'स्कूल के महीना फ़ाइनल करने पर वेतन पर्ची यहाँ दिखेगी।';
+  String get staffNoPayslipsHint => 'स्कूल के महीना फ़ाइनल करने पर वेतन पर्ची यहाँ दिखेगी।';
 
   @override
   String get staffShowEarlierMonths => 'पिछले महीने दिखाएँ';
@@ -3685,8 +3512,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffReviewEmptyBody =>
-      'आपके विभाग की रिपोर्ट समीक्षा होने तक यहाँ दिखती हैं।';
+  String get staffReviewEmptyBody => 'आपके विभाग की रिपोर्ट समीक्षा होने तक यहाँ दिखती हैं।';
 
   @override
   String get staffShowMore => 'और दिखाएँ';
@@ -3700,14 +3526,15 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffATeacher => 'एक शिक्षक';
 
   @override
-  String get staffDeptTodayIntro =>
-      'आज आपका विभाग: कौन आया है और कब आया। जो रजिस्टर में नहीं है उसे दर्ज करें।';
+  String get staffDeptTodayIntro => 'आज आपका विभाग: कौन आया है और कब आया। जो रजिस्टर में नहीं है उसे दर्ज करें।';
 
   @override
   String staffDeptPeriodIntro(String period) {
     String _temp0 = intl.Intl.selectLogic(period, {
-      'week': 'इस हफ़्ते आपका विभाग: अब तक के स्कूल दिनों में हर व्यक्ति कितने दिन आया, अनुपस्थित रहा और छुट्टी पर रहा।',
-      'month': 'इस महीने आपका विभाग: अब तक के स्कूल दिनों में हर व्यक्ति कितने दिन आया, अनुपस्थित रहा और छुट्टी पर रहा।',
+      'week':
+          'इस हफ़्ते आपका विभाग: अब तक के स्कूल दिनों में हर व्यक्ति कितने दिन आया, अनुपस्थित रहा और छुट्टी पर रहा।',
+      'month':
+          'इस महीने आपका विभाग: अब तक के स्कूल दिनों में हर व्यक्ति कितने दिन आया, अनुपस्थित रहा और छुट्टी पर रहा।',
       'other': 'आपका विभाग: अब तक के स्कूल दिनों में हर व्यक्ति कितने दिन आया, अनुपस्थित रहा और छुट्टी पर रहा।',
     });
     return '$_temp0';
@@ -3725,8 +3552,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffNobodyInDept => 'आपके विभाग में अभी कोई नहीं है।';
 
   @override
-  String get staffOfficeAddsStaff =>
-      'स्कूल ऑफ़िस वेबसाइट पर विभागों में स्टाफ़ जोड़ता है।';
+  String get staffOfficeAddsStaff => 'स्कूल ऑफ़िस वेबसाइट पर विभागों में स्टाफ़ जोड़ता है।';
 
   @override
   String get staffFigPresent => 'उपस्थित';
@@ -3790,8 +3616,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffPresentLate => 'उपस्थित · देर से';
 
   @override
-  String get staffDeptLeaveIntro =>
-      'आपके विभाग की छुट्टी के आवेदन, जिन पर आपका फ़ैसला बाकी है।';
+  String get staffDeptLeaveIntro => 'आपके विभाग की छुट्टी के आवेदन, जिन पर आपका फ़ैसला बाकी है।';
 
   @override
   String get staffNothingToDecide => 'फ़ैसले के लिए कुछ नहीं।';
@@ -3874,8 +3699,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffRegisterSubmitted => 'हाज़िरी जमा हो गई।';
 
   @override
-  String get staffRegisterSavedNoSignal =>
-      'नेटवर्क नहीं है: हाज़िरी फ़ोन में सेव है, नेटवर्क आने पर भेजी जाएगी।';
+  String get staffRegisterSavedNoSignal => 'नेटवर्क नहीं है: हाज़िरी फ़ोन में सेव है, नेटवर्क आने पर भेजी जाएगी।';
 
   @override
   String get staffRegisterCorrected => 'हाज़िरी ठीक कर दी गई।';
@@ -3890,15 +3714,13 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffClosedNoRegister =>
-      'स्कूल बंद है, इसलिए हाज़िरी नहीं लेनी है।';
+  String get staffClosedNoRegister => 'स्कूल बंद है, इसलिए हाज़िरी नहीं लेनी है।';
 
   @override
   String get staffNoStudentsInClass => 'इस कक्षा में कोई छात्र नहीं';
 
   @override
-  String get staffNoStudentsInClassBody =>
-      'कक्षा की सूची में दर्ज करने के लिए कोई नहीं है। गलत लगे तो ऑफ़िस से पूछें।';
+  String get staffNoStudentsInClassBody => 'कक्षा की सूची में दर्ज करने के लिए कोई नहीं है। गलत लगे तो ऑफ़िस से पूछें।';
 
   @override
   String get staffRegisterByException =>
@@ -3928,8 +3750,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffParentsAreTold =>
-      'अनुपस्थित बच्चों के अभिभावकों को स्कूल की सेटिंग के अनुसार बताया जाता है।';
+  String get staffParentsAreTold => 'अनुपस्थित बच्चों के अभिभावकों को स्कूल की सेटिंग के अनुसार बताया जाता है।';
 
   @override
   String staffRegisterRefused(String reason) {
@@ -3966,8 +3787,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffParentsNote => 'अभिभावक का नोट';
 
   @override
-  String get staffNoteMarkedSeen =>
-      'देखा हुआ चिह्नित किया। अभिभावक यह देख सकते हैं।';
+  String get staffNoteMarkedSeen => 'देखा हुआ चिह्नित किया। अभिभावक यह देख सकते हैं।';
 
   @override
   String staffNoteAbout(String name) {
@@ -3975,8 +3795,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffNoteDoesNotMark =>
-      'नोट से हाज़िरी दर्ज नहीं होती - हमेशा की तरह दर्ज करें।';
+  String get staffNoteDoesNotMark => 'नोट से हाज़िरी दर्ज नहीं होती - हमेशा की तरह दर्ज करें।';
 
   @override
   String get staffMarkAsSeen => 'देखा हुआ चिह्नित करें';
@@ -4026,12 +3845,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffAwaitingReview => 'समीक्षा बाकी';
 
   @override
-  String get staffSyllabusIntro =>
-      'इस साल आप जो कक्षा और विषय पढ़ाते हैं। टॉपिक पर निशान लगाने के लिए टैप करें।';
+  String get staffSyllabusIntro => 'इस साल आप जो कक्षा और विषय पढ़ाते हैं। टॉपिक पर निशान लगाने के लिए टैप करें।';
 
   @override
-  String get staffNoClassesThisYear =>
-      'इस साल आपके टाइमटेबल में कोई कक्षा नहीं।';
+  String get staffNoClassesThisYear => 'इस साल आपके टाइमटेबल में कोई कक्षा नहीं।';
 
   @override
   String get staffNoClassesThisYearBody =>
@@ -4064,8 +3881,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffNewTest => 'नया टेस्ट';
 
   @override
-  String get staffMarksIntro =>
-      'आपकी कक्षाओं के टेस्ट। अंक भरने के लिए खोलें; सबके अंक भरने पर प्रकाशित करें।';
+  String get staffMarksIntro => 'आपकी कक्षाओं के टेस्ट। अंक भरने के लिए खोलें; सबके अंक भरने पर प्रकाशित करें।';
 
   @override
   String staffEmptyTests(String period) {
@@ -4080,8 +3896,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffEmptyTestsBody =>
-      'अपनी कक्षा के लिए टेस्ट बनाने को \'नया टेस्ट\' पर टैप करें।';
+  String get staffEmptyTestsBody => 'अपनी कक्षा के लिए टेस्ट बनाने को \'नया टेस्ट\' पर टैप करें।';
 
   @override
   String get staffShowOlderTests => 'पुराने टेस्ट दिखाएँ';
@@ -4106,8 +3921,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffNoTopicsInSyllabus => 'इस पाठ्यक्रम में अभी कोई टॉपिक नहीं।';
 
   @override
-  String get staffNoTopicsInSyllabusBody =>
-      'आपके HOD या स्कूल ऑफ़िस वेबसाइट पर टॉपिक तय करते हैं।';
+  String get staffNoTopicsInSyllabusBody => 'आपके HOD या स्कूल ऑफ़िस वेबसाइट पर टॉपिक तय करते हैं।';
 
   @override
   String staffTopicsDone(int done, int total, String percent) {
@@ -4139,17 +3953,12 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String staffOutboxReportLabel(
-    String subject,
-    String classSection,
-    int number,
-  ) {
+  String staffOutboxReportLabel(String subject, String classSection, int number) {
     return '$subject, $classSection, पीरियड $number';
   }
 
   @override
-  String get staffReportKeptForLater =>
-      'नेटवर्क नहीं है: रिपोर्ट फ़ोन में सेव है, नेटवर्क आने पर भेजी जाएगी।';
+  String get staffReportKeptForLater => 'नेटवर्क नहीं है: रिपोर्ट फ़ोन में सेव है, नेटवर्क आने पर भेजी जाएगी।';
 
   @override
   String staffReportAlreadyFiled(String date) {
@@ -4157,16 +3966,14 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffNothingSentNoSignal =>
-      'इंटरनेट नहीं है। कुछ नहीं भेजा गया - नेटवर्क आने पर फिर से कोशिश करें।';
+  String get staffNothingSentNoSignal => 'इंटरनेट नहीं है। कुछ नहीं भेजा गया - नेटवर्क आने पर फिर से कोशिश करें।';
 
   @override
   String get staffPeriodNoLongerYours =>
       'टाइमटेबल में यह पीरियड अब आपका नहीं है, इसलिए यहाँ से इसकी रिपोर्ट नहीं हो सकती।';
 
   @override
-  String get staffReportNoLongerReturned =>
-      'यह रिपोर्ट अब बदलाव के लिए नहीं है - शायद इसकी समीक्षा हो चुकी है।';
+  String get staffReportNoLongerReturned => 'यह रिपोर्ट अब बदलाव के लिए नहीं है - शायद इसकी समीक्षा हो चुकी है।';
 
   @override
   String get staffCheckInFirst =>
@@ -4193,8 +4000,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffWhatWasTaught => 'क्या पढ़ाया';
 
   @override
-  String get staffWhatWasTaughtHint =>
-      'जैसे भिन्न: अलग हर वाली भिन्नों को जोड़ना';
+  String get staffWhatWasTaughtHint => 'जैसे भिन्न: अलग हर वाली भिन्नों को जोड़ना';
 
   @override
   String get staffSayWhatWasTaught => 'बताएँ कि इस पीरियड में क्या पढ़ाया।';
@@ -4219,8 +4025,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffSyllabusTopicOptional => 'पाठ्यक्रम टॉपिक (वैकल्पिक)';
 
   @override
-  String get staffSyllabusTopicHelper =>
-      'चुनने पर यह इस कक्षा के लिए पूरा हो जाएगा';
+  String get staffSyllabusTopicHelper => 'चुनने पर यह इस कक्षा के लिए पूरा हो जाएगा';
 
   @override
   String get staffNotASyllabusTopic => 'पाठ्यक्रम का टॉपिक नहीं';
@@ -4231,12 +4036,10 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffTemplatesHint =>
-      'इस फ़ोन में सेव। रिपोर्ट भरने के लिए किसी पर टैप करें।';
+  String get staffTemplatesHint => 'इस फ़ोन में सेव। रिपोर्ट भरने के लिए किसी पर टैप करें।';
 
   @override
-  String get staffTemplatesEmpty =>
-      'अभी कोई नहीं। जो रिपोर्ट आप अक्सर लिखते हैं उसे लिखें, फिर यहाँ सेव करें।';
+  String get staffTemplatesEmpty => 'अभी कोई नहीं। जो रिपोर्ट आप अक्सर लिखते हैं उसे लिखें, फिर यहाँ सेव करें।';
 
   @override
   String staffHomeworkLine(String homework) {
@@ -4247,12 +4050,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffDeleteTemplate => 'यह टेम्पलेट हटाएँ';
 
   @override
-  String get staffSaveAsTemplate =>
-      'जो लिखा है उसे टेम्पलेट के रूप में सेव करें';
+  String get staffSaveAsTemplate => 'जो लिखा है उसे टेम्पलेट के रूप में सेव करें';
 
   @override
-  String get staffTypeToSaveTemplate =>
-      'टेम्पलेट सेव करने के लिए पहले लिखें कि क्या पढ़ाया';
+  String get staffTypeToSaveTemplate => 'टेम्पलेट सेव करने के लिए पहले लिखें कि क्या पढ़ाया';
 
   @override
   String get staffYourHod => 'आपके HOD';
@@ -4285,31 +4086,25 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffSentBackToTeacher => 'शिक्षक को वापस भेज दी गई।';
 
   @override
-  String get staffAlreadyReviewed =>
-      'इस रिपोर्ट की समीक्षा पहले ही हो चुकी है।';
+  String get staffAlreadyReviewed => 'इस रिपोर्ट की समीक्षा पहले ही हो चुकी है।';
 
   @override
-  String get staffAlreadyBackWithTeacher =>
-      'यह रिपोर्ट पहले ही शिक्षक के पास वापस है।';
+  String get staffAlreadyBackWithTeacher => 'यह रिपोर्ट पहले ही शिक्षक के पास वापस है।';
 
   @override
-  String get staffNotYoursToSendBack =>
-      'यह रिपोर्ट आपके विभाग की नहीं है, इसलिए आप इसे वापस नहीं भेज सकते।';
+  String get staffNotYoursToSendBack => 'यह रिपोर्ट आपके विभाग की नहीं है, इसलिए आप इसे वापस नहीं भेज सकते।';
 
   @override
-  String get staffNotSentBackNoSignal =>
-      'इंटरनेट नहीं है। वापस नहीं भेजी गई - नेटवर्क आने पर फिर से कोशिश करें।';
+  String get staffNotSentBackNoSignal => 'इंटरनेट नहीं है। वापस नहीं भेजी गई - नेटवर्क आने पर फिर से कोशिश करें।';
 
   @override
   String get staffReportReviewedDone => 'रिपोर्ट की समीक्षा हो गई।';
 
   @override
-  String get staffNotYoursToReview =>
-      'यह रिपोर्ट आपके विभाग की नहीं है, इसलिए आप इसकी समीक्षा नहीं कर सकते।';
+  String get staffNotYoursToReview => 'यह रिपोर्ट आपके विभाग की नहीं है, इसलिए आप इसकी समीक्षा नहीं कर सकते।';
 
   @override
-  String get staffNotReviewedNoSignal =>
-      'इंटरनेट नहीं है। समीक्षा नहीं हुई - नेटवर्क आने पर फिर से कोशिश करें।';
+  String get staffNotReviewedNoSignal => 'इंटरनेट नहीं है। समीक्षा नहीं हुई - नेटवर्क आने पर फिर से कोशिश करें।';
 
   @override
   String get staffTheTeacher => 'शिक्षक';
@@ -4348,8 +4143,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffWhatShouldChange => 'क्या बदलना है';
 
   @override
-  String get staffWhatShouldChangeHint =>
-      'जैसे कृपया जोड़ें कि कक्षा ने क्या अभ्यास किया।';
+  String get staffWhatShouldChangeHint => 'जैसे कृपया जोड़ें कि कक्षा ने क्या अभ्यास किया।';
 
   @override
   String get staffSendBack => 'वापस भेजें';
@@ -4376,8 +4170,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffPhotoRemoved => 'फ़ोटो हटा दी गई।';
 
   @override
-  String get staffNoConnectionTryLater =>
-      'इंटरनेट नहीं है। नेटवर्क आने पर फिर से कोशिश करें।';
+  String get staffNoConnectionTryLater => 'इंटरनेट नहीं है। नेटवर्क आने पर फिर से कोशिश करें।';
 
   @override
   String get staffPhotos => 'फ़ोटो';
@@ -4407,8 +4200,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffNoTermsYet => 'इस स्कूल वर्ष में अभी कोई टर्म नहीं है।';
 
   @override
-  String get staffNoTermsYetBody =>
-      'हर टेस्ट किसी टर्म का होता है। स्कूल ऑफ़िस से Academics में टर्म बनाने को कहें।';
+  String get staffNoTermsYetBody => 'हर टेस्ट किसी टर्म का होता है। स्कूल ऑफ़िस से Academics में टर्म बनाने को कहें।';
 
   @override
   String get staffOutOfHowMany => 'कितने अंकों में से?';
@@ -4437,8 +4229,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffTestSet => 'टेस्ट बन गया। अंक भरें।';
 
   @override
-  String get staffNothingSavedNoSignal =>
-      'इंटरनेट नहीं है। कुछ सेव नहीं हुआ - नेटवर्क आने पर फिर से कोशिश करें।';
+  String get staffNothingSavedNoSignal => 'इंटरनेट नहीं है। कुछ सेव नहीं हुआ - नेटवर्क आने पर फिर से कोशिश करें।';
 
   @override
   String get staffClassAndSubject => 'कक्षा और विषय';
@@ -4499,12 +4290,10 @@ class AppLocalizationsHi extends AppLocalizations {
       'नेटवर्क नहीं है: ये अंक फ़ोन में सेव हैं, नेटवर्क आने पर भेजे जाएँगे। पहुँचने के बाद प्रकाशित करें।';
 
   @override
-  String get staffTestAlreadyPublished =>
-      'यह टेस्ट प्रकाशित हो चुका है, इसलिए यहाँ इसके अंक नहीं बदल सकते।';
+  String get staffTestAlreadyPublished => 'यह टेस्ट प्रकाशित हो चुका है, इसलिए यहाँ इसके अंक नहीं बदल सकते।';
 
   @override
-  String get staffSomeMarksRefused =>
-      'कुछ अंक स्वीकार नहीं हुए। चिह्नित छात्रों को देखें।';
+  String get staffSomeMarksRefused => 'कुछ अंक स्वीकार नहीं हुए। चिह्नित छात्रों को देखें।';
 
   @override
   String staffOutboxMarksLabel(String title) {
@@ -4541,8 +4330,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffLeaveWithoutSavingQ => 'सेव किए बिना जाएँ?';
 
   @override
-  String get staffLeaveWithoutSavingBody =>
-      'पिछली बार सेव करने के बाद भरे गए अंक मिट जाएँगे।';
+  String get staffLeaveWithoutSavingBody => 'पिछली बार सेव करने के बाद भरे गए अंक मिट जाएँगे।';
 
   @override
   String get staffKeepEntering => 'भरते रहें';
@@ -4551,8 +4339,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffLeaveScreen => 'जाएँ';
 
   @override
-  String get staffMarksPublishedBanner =>
-      'प्रकाशित। यहाँ अंक फ़ाइनल हैं; आपके HOD या ऑफ़िस टेस्ट दोबारा खोल सकते हैं।';
+  String get staffMarksPublishedBanner => 'प्रकाशित। यहाँ अंक फ़ाइनल हैं; आपके HOD या ऑफ़िस टेस्ट दोबारा खोल सकते हैं।';
 
   @override
   String get staffNobodyToMark => 'इस कक्षा में अंक देने के लिए कोई नहीं।';
@@ -4601,8 +4388,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffPhotoTooBig => 'फ़ोटो 2 MB या उससे छोटी होनी चाहिए।';
 
   @override
-  String get staffPhotoUnreadable =>
-      'फ़ोटो पढ़ी नहीं जा सकी। कोई दूसरी फ़ाइल चुनें।';
+  String get staffPhotoUnreadable => 'फ़ोटो पढ़ी नहीं जा सकी। कोई दूसरी फ़ाइल चुनें।';
 
   @override
   String get staffPhotoUpdated => 'फ़ोटो बदल दी गई।';
@@ -4651,22 +4437,19 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffMobile => 'मोबाइल';
 
   @override
-  String get staffMobileLockedHelper =>
-      'आप इसी नंबर से साइन इन करते हैं। बदलने के लिए स्कूल ऑफ़िस से कहें।';
+  String get staffMobileLockedHelper => 'आप इसी नंबर से साइन इन करते हैं। बदलने के लिए स्कूल ऑफ़िस से कहें।';
 
   @override
   String get staffHomeAddress => 'घर का पता';
 
   @override
-  String get staffHomeAddressTooLong =>
-      'घर का पता 500 अक्षरों से ज़्यादा नहीं हो सकता';
+  String get staffHomeAddressTooLong => 'घर का पता 500 अक्षरों से ज़्यादा नहीं हो सकता';
 
   @override
   String get staffSave => 'सेव करें';
 
   @override
-  String get staffEmailChanged =>
-      'ईमेल बदल गया। दूसरे डिवाइस साइन आउट कर दिए गए हैं।';
+  String get staffEmailChanged => 'ईमेल बदल गया। दूसरे डिवाइस साइन आउट कर दिए गए हैं।';
 
   @override
   String get staffSignInEmail => 'साइन इन ईमेल';
@@ -4675,8 +4458,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffNoEmailOnRecord => 'कोई ईमेल दर्ज नहीं';
 
   @override
-  String get staffEmailKeptBySchool =>
-      'आप मोबाइल नंबर और पासकोड से साइन इन करते हैं। आपका ईमेल स्कूल ऑफ़िस रखता है।';
+  String get staffEmailKeptBySchool => 'आप मोबाइल नंबर और पासकोड से साइन इन करते हैं। आपका ईमेल स्कूल ऑफ़िस रखता है।';
 
   @override
   String get staffChangeEmail => 'ईमेल बदलें';
@@ -4740,8 +4522,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffSignOutOthersQ => 'बाकी सभी डिवाइस से साइन आउट करें?';
 
   @override
-  String get staffSignOutOthersBody =>
-      'इस अकाउंट में साइन इन हर दूसरे ब्राउज़र और फ़ोन को फिर से साइन इन करना होगा।';
+  String get staffSignOutOthersBody => 'इस अकाउंट में साइन इन हर दूसरे ब्राउज़र और फ़ोन को फिर से साइन इन करना होगा।';
 
   @override
   String get staffSignOutOthers => 'बाकी को साइन आउट करें';
@@ -4786,8 +4567,7 @@ class AppLocalizationsHi extends AppLocalizations {
       'अभी भी बंद है। हम जल्द ही लौटेंगे - ज़रूरी हो तो अपने स्कूल एडमिन से संपर्क करें।';
 
   @override
-  String get staffMaintenanceBackShortly =>
-      'हम जल्द ही लौटेंगे। ज़रूरी हो तो अपने स्कूल एडमिन से संपर्क करें।';
+  String get staffMaintenanceBackShortly => 'हम जल्द ही लौटेंगे। ज़रूरी हो तो अपने स्कूल एडमिन से संपर्क करें।';
 
   @override
   String get staffNameOrAdmission => 'नाम या एडमिशन नंबर';
@@ -4887,8 +4667,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffMarkAsCalled => 'कॉल हो गई चिह्नित करें';
 
   @override
-  String get staffMarkedAsCalled =>
-      'कॉल हो गई चिह्नित किया। अभिभावक यह देख सकते हैं।';
+  String get staffMarkedAsCalled => 'कॉल हो गई चिह्नित किया। अभिभावक यह देख सकते हैं।';
 
   @override
   String staffCalledPersonQ(String name) {
@@ -5102,19 +4881,16 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffCancelReceipt => 'रसीद रद्द करें';
 
   @override
-  String get staffReceiptDownloadFailed =>
-      'रसीद डाउनलोड नहीं हो सकी। फिर से कोशिश करें।';
+  String get staffReceiptDownloadFailed => 'रसीद डाउनलोड नहीं हो सकी। फिर से कोशिश करें।';
 
   @override
-  String get staffStatementDownloadFailed =>
-      'फ़ीस विवरण डाउनलोड नहीं हो सका। फिर से कोशिश करें।';
+  String get staffStatementDownloadFailed => 'फ़ीस विवरण डाउनलोड नहीं हो सका। फिर से कोशिश करें।';
 
   @override
   String get staffReceiptEmailed => 'रसीद अभिभावक को भेजी जा रही है।';
 
   @override
-  String get staffReceiptEmailFailed =>
-      'रसीद ईमेल नहीं हो सकी। फिर से कोशिश करें।';
+  String get staffReceiptEmailFailed => 'रसीद ईमेल नहीं हो सकी। फिर से कोशिश करें।';
 
   @override
   String staffReceiptCancelled(String number) {
@@ -5122,8 +4898,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffReceiptCancelFailed =>
-      'रसीद रद्द नहीं हो सकी। फिर से कोशिश करें।';
+  String get staffReceiptCancelFailed => 'रसीद रद्द नहीं हो सकी। फिर से कोशिश करें।';
 
   @override
   String staffCancelReceiptQ(String number) {
@@ -5144,8 +4919,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffKeepReceipt => 'रसीद रहने दें';
 
   @override
-  String get staffTickInstallment =>
-      'कम से कम एक किस्त चुनें, शून्य से ज़्यादा राशि के साथ।';
+  String get staffTickInstallment => 'कम से कम एक किस्त चुनें, शून्य से ज़्यादा राशि के साथ।';
 
   @override
   String get staffEnterAmountAboveZero => 'शून्य से ज़्यादा राशि डालें।';
@@ -5184,8 +4958,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffChooseInstallments => 'किन किस्तों में जाए, चुनें';
 
   @override
-  String get staffChooseInstallmentsOff =>
-      'बंद: सबसे पुरानी देय राशि में पहले जाएगा।';
+  String get staffChooseInstallmentsOff => 'बंद: सबसे पुरानी देय राशि में पहले जाएगा।';
 
   @override
   String get staffNoteOptional => 'नोट (वैकल्पिक)';
@@ -5226,12 +4999,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String staffReceivedFrom(
-    String amount,
-    String name,
-    String date,
-    String mode,
-  ) {
+  String staffReceivedFrom(String amount, String name, String date, String mode) {
     return '$name से $date को $mode से $amount मिले।';
   }
 
@@ -5287,8 +5055,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffDiscountEnded => 'छूट खत्म हो गई।';
 
   @override
-  String get staffDiscountEndFailed =>
-      'छूट खत्म नहीं हो सकी। फिर से कोशिश करें।';
+  String get staffDiscountEndFailed => 'छूट खत्म नहीं हो सकी। फिर से कोशिश करें।';
 
   @override
   String staffDiscountAdded(int count) {
@@ -5335,8 +5102,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffPercentMax => 'प्रतिशत 100 से ज़्यादा नहीं हो सकता।';
 
   @override
-  String get staffDiscountReasonHint =>
-      'जैसे भाई-बहन की छूट, छात्रवृत्ति, स्टाफ़ का बच्चा';
+  String get staffDiscountReasonHint => 'जैसे भाई-बहन की छूट, छात्रवृत्ति, स्टाफ़ का बच्चा';
 
   @override
   String get staffSayWhyDiscount => 'बताएँ कि छूट क्यों दी जा रही है।';
@@ -5348,8 +5114,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffGiveAReason => 'कारण बताएँ।';
 
   @override
-  String get staffInCredit =>
-      'क्रेडिट में - यह अगली लगने वाली फ़ीस में, सबसे पुरानी पहले, जाएगा।';
+  String get staffInCredit => 'क्रेडिट में - यह अगली लगने वाली फ़ीस में, सबसे पुरानी पहले, जाएगा।';
 
   @override
   String get staffHistory => 'इतिहास';
@@ -5363,8 +5128,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get staffNoCreditMoved =>
-      'इस खाते में अभी कोई क्रेडिट लेन-देन नहीं हुआ।';
+  String get staffNoCreditMoved => 'इस खाते में अभी कोई क्रेडिट लेन-देन नहीं हुआ।';
 
   @override
   String staffPageOf(int page, int pages) {
@@ -5437,8 +5201,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffMarksFromPhoto => 'फ़ोटो से अंक पढ़ें';
 
   @override
-  String get staffMarksListening =>
-      'सुन रहे हैं। \"रोल 12, 45\" बोलें, या रोल के क्रम में अंक बोलें।';
+  String get staffMarksListening => 'सुन रहे हैं। \"रोल 12, 45\" बोलें, या रोल के क्रम में अंक बोलें।';
 
   @override
   String get staffMarksStopListening => 'रोकें';
@@ -5447,20 +5210,16 @@ class AppLocalizationsHi extends AppLocalizations {
   String get staffMarksReadingPhoto => 'फ़ोटो पढ़ी जा रही है...';
 
   @override
-  String get staffMarksCannotListen =>
-      'यह फ़ोन नहीं सुन रहा। माइक्रोफ़ोन की अनुमति दें, या अंक टाइप करें।';
+  String get staffMarksCannotListen => 'यह फ़ोन नहीं सुन रहा। माइक्रोफ़ोन की अनुमति दें, या अंक टाइप करें।';
 
   @override
-  String get staffMarksNothingHeard =>
-      'कोई अंक सुनाई नहीं दिया। फिर से कोशिश करें, थोड़ा धीरे बोलें।';
+  String get staffMarksNothingHeard => 'कोई अंक सुनाई नहीं दिया। फिर से कोशिश करें, थोड़ा धीरे बोलें।';
 
   @override
-  String get staffMarksCannotReadPhoto =>
-      'फ़ोटो पढ़ी नहीं जा सकी। फिर से कोशिश करें, या अंक टाइप करें।';
+  String get staffMarksCannotReadPhoto => 'फ़ोटो पढ़ी नहीं जा सकी। फिर से कोशिश करें, या अंक टाइप करें।';
 
   @override
-  String get staffMarksNothingInPhoto =>
-      'फ़ोटो में कोई अंक नहीं मिला। अच्छी रोशनी में साफ़ फ़ोटो लें।';
+  String get staffMarksNothingInPhoto => 'फ़ोटो में कोई अंक नहीं मिला। अच्छी रोशनी में साफ़ फ़ोटो लें।';
 
   @override
   String get staffMarksTakePhoto => 'फ़ोटो लें';
@@ -5550,12 +5309,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String widgetNextPeriod(
-    int number,
-    String subject,
-    String section,
-    String time,
-  ) {
+  String widgetNextPeriod(int number, String subject, String section, String time) {
     return 'अगला: पीरियड $number $subject · $section, $time बजे';
   }
 
