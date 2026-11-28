@@ -120,3 +120,9 @@ class SnapshotTest(TestCase):
 
         self.assertEqual(403, self.as_user(driver).get(URL).status_code)
         self.assertEqual(401, APIClient().get(URL).status_code)
+
+    def test_asking_too_often_is_slowed_down(self):
+        client = self.as_user(self.teacher)
+        codes = [client.get(URL).status_code for _ in range(13)]
+
+        self.assertEqual([200] * 12 + [429], codes)

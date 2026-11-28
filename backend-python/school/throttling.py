@@ -251,3 +251,13 @@ class SendDocumentThrottle(PerAccountThrottle):
 
     scope = "send-document"
     rate = "120/hour"
+
+
+class OfflineSnapshotThrottle(PerAccountThrottle):
+    """The offline copy (docs/offline-web.md, O2): a whole school's students
+    and fee dues in one answer. A trusted computer asks at sign-in and every
+    half hour; anything much faster is a script copying the school's records,
+    not an office keeping its copy fresh."""
+
+    scope = "offline-snapshot"
+    rate = "12/hour"

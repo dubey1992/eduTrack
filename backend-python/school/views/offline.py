@@ -6,16 +6,18 @@
 
 from __future__ import annotations
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .. import offline_snapshot
 from ..policies import authorize
+from ..throttling import OfflineSnapshotThrottle
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([OfflineSnapshotThrottle])
 def snapshot(request) -> Response:
     actor = request.user
     authorize(actor.role in offline_snapshot.OFFICE_ROLES and actor.school_id is not None)
