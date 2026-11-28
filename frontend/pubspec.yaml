@@ -95,6 +95,11 @@ dependencies:
   # recognition: offline, no key or account, Latin script only (about 4 MB).
   # Flutter has no OCR of its own. Android only here; the web hides the button.
   google_mlkit_text_recognition: ^1.0.3
+  # The provisional receipt a fee counter hands over while the internet is
+  # down (docs/offline-web.md, O4): made on the computer, since the server's
+  # PDF cannot be reached. Flutter has no PDF writer; this is the established
+  # pure-Dart one (no platform code, works in the web build).
+  pdf: ^3.13.1
 
 dev_dependencies:
   flutter_test:

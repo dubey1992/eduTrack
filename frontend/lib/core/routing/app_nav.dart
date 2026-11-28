@@ -542,6 +542,19 @@ class AppNav {
         pageSubtitle: 'Every fee payment recorded, with its receipt',
       ),
       NavItem(
+        path: '/offline-payments',
+        module: AppModules.fees,
+        requiredLevel: PermissionLevel.manage,
+        deniedRoles: {UserRole.superAdmin},
+        label: 'Offline Payments',
+        icon: Icons.cloud_off_outlined,
+        // Fees taken while the internet was down (docs/offline-web.md, O4);
+        // settled by an Accountant or School Admin.
+        allowedRoles: {UserRole.groupAdmin, UserRole.schoolAdmin, UserRole.accountant},
+        pageTitle: 'Offline Payments',
+        pageSubtitle: 'Fees taken while the internet was down, and what became of each',
+      ),
+      NavItem(
         path: '/fee-discounts',
         module: AppModules.fees,
         requiredLevel: PermissionLevel.view,

@@ -22,7 +22,11 @@ enum OutboxKind {
 
   /// A notice written on the web: what POST announcements takes. Files are
   /// uploaded online only, so a notice saved offline carries none.
-  notice('notice');
+  notice('notice'),
+
+  /// Cash or a cheque taken at the fee counter on the web
+  /// (docs/offline-web.md, O4): what POST fees/offline-payments takes.
+  feePayment('fee_payment');
 
   const OutboxKind(this.apiValue);
 
@@ -94,6 +98,9 @@ class OutboxItem {
   static String reportKey(int timetableEntryId, String date) => 'report:$timetableEntryId@$date';
 
   static String marksKey(int assessmentId) => 'marks:$assessmentId';
+
+  /// One per payment: the computer's own id for it.
+  static String feePaymentKey(String clientId) => 'fee-payment:$clientId';
 
   static String staffRegisterKey(int? departmentId, String date) => 'staff-register:${departmentId ?? 'all'}@$date';
 

@@ -11,6 +11,7 @@ import '../../announcements/data/models/announcement.dart';
 import '../../assessments/data/assessment_repository.dart';
 import '../../assessments/data/models/assessment_sheet.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../offline_fees/data/offline_fees_repository.dart';
 import '../../staff_attendance/data/staff_attendance_repository.dart';
 import '../../staff_leave/data/models/leave_type.dart';
 import '../../staff_leave/data/staff_leave_repository.dart';
@@ -158,6 +159,10 @@ class StaffOutbox extends Notifier<List<OutboxItem>> {
           await _sendLeave(item);
         case OutboxKind.notice:
           await _sendNotice(item);
+        case OutboxKind.feePayment:
+          // Made into the receipt, or kept on the server to settle: either
+          // way it is there now, and nothing is left to send.
+          await ref.read(offlineFeesRepositoryProvider).send(item.payload);
       }
       await _settle(item);
     } on Failure catch (failure) {

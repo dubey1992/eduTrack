@@ -74,9 +74,13 @@ class _OfflineHeader extends StatelessWidget {
 
 /// Students, read from the computer's copy.
 class OfflineStudentsView extends StatefulWidget {
-  const OfflineStudentsView({super.key, required this.snapshot});
+  const OfflineStudentsView({super.key, required this.snapshot, this.onTakePayment});
 
   final OfflineSnapshot snapshot;
+
+  /// The fee counter's "Take a payment" (O4): offered on a student who owes
+  /// something, to those who may take fees. Null hides it.
+  final void Function(BuildContext context, OfflineStudent student)? onTakePayment;
 
   @override
   State<OfflineStudentsView> createState() => _OfflineStudentsViewState();
@@ -143,7 +147,22 @@ class _OfflineStudentsViewState extends State<OfflineStudentsView> {
                     trailing: snapshot.duesOf(s.id).isEmpty ? null : const Icon(Icons.payments_outlined),
                     onTap: () => showDialog<void>(
                       context: context,
-                      builder: (_) => OfflineStudentDialog(student: s, snapshot: snapshot),
+                      builder: (dialogContext) => OfflineStudentDialog(
+                        student: s,
+                        snapshot: snapshot,
+                        actions: [
+                          if (widget.onTakePayment != null && snapshot.duesOf(s.id).isNotEmpty)
+                            FilledButton.icon(
+                              key: const Key('offline-take-payment'),
+                              onPressed: () {
+                                Navigator.of(dialogContext).pop();
+                                widget.onTakePayment!(context, s);
+                              },
+                              icon: const Icon(Icons.payments_outlined),
+                              label: const Text('Take a payment'),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
               ],

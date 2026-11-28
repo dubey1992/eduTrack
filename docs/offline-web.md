@@ -1,6 +1,6 @@
 # Offline mode for the web app - plan (2026-11-28)
 
-**Status: O1 + O3 approved and built 2026-11-28 (6052f65). O2 + O4 approved 2026-11-28 with D2-D4 decided (below), being built.** Schools asked to keep using
+**Status: O1 + O3 approved and built 2026-11-28 (6052f65). O2 + O4 approved 2026-11-28 with D2-D4 decided (below); O2a live 2026-11-28 (b9f441b), O2b (db592ad), O4a (25dfbc5) and O4b built, not yet live.** Schools asked to keep using
 the web app when the school's internet goes down. This page says what can
 be made to work offline, what cannot, and what each step costs.
 
@@ -148,3 +148,20 @@ where the outages hurt.
 - **O2b (web):** the trusted-computer tick, the snapshot kept and refreshed while online (sign-in and every 30 minutes), wiped at sign-out; offline, Students, Staff and a student's fees show the copy with its "as of" time. Online screens unchanged.
 - **O4a (server):** table `offline_fee_payments` (client id for safe resending, provisional number, student, amount, mode, reference, the dues chosen, taken by and when, status receipted / to settle / refunded / credited, the receipt it became); `POST /fees/offline-payments` makes the real receipt when the chosen dues are still owed and the day is open, otherwise keeps it to settle with what was found; list and settle (refund or credit) for Accountant and School Admin.
 - **O4b (web):** collecting cash or cheque offline from the snapshot's dues, numbered `P-<counter>-<n>`, a provisional receipt PDF made on the computer (new package `pdf`), the payment in the outbox; the Payments to settle screen.
+
+### As built
+
+- Offline, **Students** and **Student Fees** open on the copy; an Accountant or School Admin gets **Take a payment** on a student who owes something. The slip is numbered `P-<code>-<n>`: a four-character code made once per computer and a count that only goes up, both kept through sign-outs so a number is never given twice.
+- What is still waiting to send comes off what the counter may take, so the same installment is never taken twice while offline.
+- On arrival a payment whose dues were paid meanwhile, or whose day's books are closed, is kept **to settle** with the reason. **Fees > Offline Payments** lists them; **Keep on account** makes the receipt now (paying what is owed, oldest first, the rest as credit; dated today if its own day is closed) and **Handed back** records the refund with how and why. Both are audited.
+
+### Security
+
+- **Nothing is kept unless asked:** the copy is fetched only after the person ticks "This is a school computer I trust" (off at every sign-in) and only where the school allows offline copies; switching it off at the school wipes every computer's copy at its next refresh.
+- **One person's copy:** kept under the person who ticked; anybody else signing in on the computer finds it wiped. Signing out, the server ending the session, and a copy over 7 days old wipe it too.
+- **No more than they can already see:** the snapshot is built from the same scoping as the online lists (teachers their own classes; staff and fees only for roles allowed them). A student carries name, admission and roll number, class, and guardian name and mobile; staff their mobile and email. No home addresses, documents or photos.
+- **Hard to scrape:** `GET offline/snapshot` is limited to 12 a hour per account and capped at 5,000 students.
+- **Offline payments are checked as online ones are:** the server re-validates everything with the receipt rules (student in the actor's school, amount, cheque number, date not in the future, the day's lock), and only fee managers may send; settling is Accountant / School Admin / Group Admin of that school only. A resend is recognised by the computer's client id, unique per school, so it cannot create a second receipt, and one school's id never touches another's.
+- **Payments are never lost at sign-out:** the outbox (not the records copy) survives a sign-out, and only the person who took a payment sends it.
+- **Service worker:** caches only the app's own files and fonts, never API answers; it has a kill switch (`ENABLED`) in `web/offline-sw.js`.
+

@@ -25,6 +25,8 @@ import '../../features/communication/presentation/inbox_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/demo_requests/presentation/demo_request_screen.dart';
 import '../../features/early_access/presentation/early_access_screen.dart';
+import '../../features/offline_fees/presentation/offline_fee_counter_view.dart';
+import '../../features/offline_fees/presentation/offline_payments_screen.dart';
 import '../../features/fees/presentation/fee_discounts_screen.dart';
 import '../../features/reports/application/report_link.dart';
 import '../../features/fees/presentation/fee_receipts_screen.dart';
@@ -212,6 +214,7 @@ const appRoutePaths = {
   '/student-fees',
   '/fee-receipts',
   '/fee-discounts',
+  '/offline-payments',
   '/my-payslips',
   '/audit-log',
   '/company-details',
@@ -344,7 +347,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/students',
             builder: (context, state) => OfflineAware(
               online: const StudentListScreen(),
-              offline: (snapshot) => OfflineStudentsView(snapshot: snapshot),
+              offline: (snapshot) => OfflineFeeCounterView(snapshot: snapshot),
             ),
           ),
           GoRoute(path: '/attendance', builder: (context, state) => const AttendanceScreen()),
@@ -408,9 +411,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/fee-discounts', builder: (context, state) => const FeeDiscountsScreen()),
           GoRoute(
             path: '/student-fees',
-            builder: (context, state) =>
-                StudentFeesScreen(studentId: int.tryParse(state.uri.queryParameters['student'] ?? '')),
+            builder: (context, state) => OfflineAware(
+              online: StudentFeesScreen(studentId: int.tryParse(state.uri.queryParameters['student'] ?? '')),
+              offline: (snapshot) => OfflineFeeCounterView(snapshot: snapshot),
+            ),
           ),
+          GoRoute(path: '/offline-payments', builder: (context, state) => const OfflinePaymentsScreen()),
           GoRoute(path: '/my-payslips', builder: (context, state) => const MyPayslipsScreen()),
           GoRoute(path: '/audit-log', builder: (context, state) => const AuditLogScreen()),
           GoRoute(path: '/company-details', builder: (context, state) => const CompanyDetailsScreen()),
