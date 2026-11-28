@@ -62,7 +62,18 @@ class Module:
 
 
 MODULES: tuple[Module, ...] = (
-    Module("students", "Students", "Student records and guardians.", switchable=False),
+    Module(
+        "students", "Students", "Student records and guardians.", switchable=False,
+        settings=(
+            # docs/offline-web.md, O2 (decided 2026-11-28): read by
+            # offline_snapshot.allowed() and sent to the app in /me.
+            Setting(
+                "offline_copies", "Keep records on trusted computers for offline use", "bool", True,
+                help="Lets the web app keep students, staff and fee dues on a computer its user marks as trusted "
+                "at sign-in, so the office can keep working when the internet is down. Wiped at sign-out.",
+            ),
+        ),
+    ),
     Module("staff", "Teachers & Staff", "Employment records and logins.", switchable=False),
     Module(
         "academics", "Academic Set-up",

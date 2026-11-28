@@ -1,6 +1,6 @@
 # Offline mode for the web app - plan (2026-11-28)
 
-**Status: plan only, nothing built or approved.** Schools asked to keep using
+**Status: O1 + O3 approved and built 2026-11-28 (6052f65). O2 + O4 approved 2026-11-28 with D2-D4 decided (below), being built.** Schools asked to keep using
 the web app when the school's internet goes down. This page says what can
 be made to work offline, what cannot, and what each step costs.
 
@@ -134,3 +134,17 @@ where the outages hurt.
 - **D3** - Fees offline (O4): build it, and if so, cash and cheque only?
 - **D4** - How old may an offline copy get before the app refuses to show
   it as current - one school day, or as long as the session lasts (7 days)?
+
+## Decided 2026-11-28 (O2 and O4)
+
+- **D2:** offline copies of records only on a computer ticked **"This is a school computer I trust"** at sign-in (off by default), wiped at sign-out; a school admin can switch offline copies off for the whole school.
+- **D4:** a copy of any age may be shown, always with its "as of" date (sessions end after 7 days unused anyway).
+- **D3:** fees offline: **cash and cheque** only.
+- **Settling:** Accountant and School Admin see **Payments to settle** and either refund or keep the money as the student's credit.
+
+### Slices
+
+- **O2a (server):** `GET /offline/snapshot` - one compact answer per role: students (teachers: their own classes), staff, classes, and for fee roles each student's open dues; the school setting `offline_copies` (Students module, on by default) and `/me` saying so.
+- **O2b (web):** the trusted-computer tick, the snapshot kept and refreshed while online (sign-in and every 30 minutes), wiped at sign-out; offline, Students, Staff and a student's fees show the copy with its "as of" time. Online screens unchanged.
+- **O4a (server):** table `offline_fee_payments` (client id for safe resending, provisional number, student, amount, mode, reference, the dues chosen, taken by and when, status receipted / to settle / refunded / credited, the receipt it became); `POST /fees/offline-payments` makes the real receipt when the chosen dues are still owed and the day is open, otherwise keeps it to settle with what was found; list and settle (refund or credit) for Accountant and School Admin.
+- **O4b (web):** collecting cash or cheque offline from the snapshot's dues, numbered `P-<counter>-<n>`, a provisional receipt PDF made on the computer (new package `pdf`), the payment in the outbox; the Payments to settle screen.

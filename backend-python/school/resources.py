@@ -1658,6 +1658,9 @@ def user_resource(user: User, viewer: User | None = None) -> dict:
         # to either takes effect the next time the app asks.
         "permissions": permissions.for_user(user),
         "modules": modules.enabled_map(user.school_id),
+        # Whether this school lets a trusted computer keep records for working
+        # offline (docs/offline-web.md, O2).
+        "offline_copies": bool(user.school_id) and bool(modules.setting(user.school_id, "students", "offline_copies")),
     }
 
     if "school" in user._state.fields_cache:

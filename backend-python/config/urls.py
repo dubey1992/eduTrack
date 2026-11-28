@@ -33,6 +33,7 @@ from school.views import (
     call_requests,
     ptm,
     gallery,
+    offline,
     attendance,
     attendants,
     audit_logs,
@@ -216,6 +217,8 @@ urlpatterns = [
     path("api/v1/ptm-meetings/<int:meeting_id>/cancel", ptm.cancel),
     path("api/v1/ptm-meetings/<int:meeting_id>/sections/<int:section_id>/slots", ptm.section_slots),
     path("api/v1/ptm-slots/<int:slot_id>", ptm.slot_detail),
+    # -- the web app offline (docs/offline-web.md, O2) ------------------------
+    path("api/v1/offline/snapshot", offline.snapshot),
     # -- events and photos (M12, 8.6) ----------------------------------------
     path("api/v1/gallery-events", gallery.collection),
     path("api/v1/gallery-events/<int:event_id>", gallery.detail),
