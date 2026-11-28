@@ -76,6 +76,23 @@ class SnapshotTest(TestCase):
         self.assertEqual("INR", data["school"]["currency_code"])
         self.assertIn("generated_at", data)
 
+    def test_a_class_from_last_year_says_so_so_two_never_read_the_same(self):
+        last = factories.AcademicYearFactory(
+            school=self.school, name="2025-26", start_date=dt.date(2025, 4, 1), end_date=dt.date(2026, 3, 31),
+            is_current=False,
+        )
+        old = factories.ClassSectionFactory(
+            school_class=factories.SchoolClassFactory(school=self.school, academic_year=last, name="Class 6", level=6),
+            name="A",
+        )
+        factories.StudentFactory(school=self.school, class_section=old, first_name="Ravi")
+
+        data = self.snapshot(self.admin)
+
+        self.assertEqual({"Class 6 A", "Class 6 B", "Class 6 A (2025-26)"}, {c["name"] for c in data["classes"]})
+        ravi = next(s for s in data["students"] if s["name"].startswith("Ravi"))
+        self.assertEqual("Class 6 A (2025-26)", ravi["class_name"])
+
     def test_only_what_is_still_owed_is_kept(self):
         data = self.snapshot(self.admin)
 

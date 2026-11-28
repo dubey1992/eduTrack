@@ -176,7 +176,7 @@ class _TakeOfflinePaymentDialogState extends ConsumerState<TakeOfflinePaymentDia
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('${due.feeHead} - ${due.label}'),
+                              Text(due.title),
                               Text(
                                 'Due ${formatIsoDate(due.dueDate)} · owes ${formatCurrency(_left[due.id]!, due.currencyCode)}',
                                 style: TextStyle(color: colors.muted, fontSize: 12),

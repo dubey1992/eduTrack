@@ -224,7 +224,7 @@ class OfflineStudentDialog extends StatelessWidget {
                     key: Key('offline-due-${due.id}'),
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    title: Text('${due.feeHead} - ${due.label}'),
+                    title: Text(due.title),
                     subtitle: Text('Due ${formatIsoDate(due.dueDate)} · ${due.academicYear}'),
                     trailing: Text(
                       formatCurrency(double.parse(due.balance), due.currencyCode),

@@ -104,7 +104,7 @@ Future<Uint8List> provisionalReceiptPdf(TakenPayment payment) {
               for (final part in payment.parts)
                 pw.TableRow(
                   children: [
-                    _cell('${part.due.feeHead} - ${part.due.label}\n${part.due.academicYear}'),
+                    _cell('${part.due.title}\n${part.due.academicYear}'),
                     _cell(formatIsoDate(part.due.dueDate)),
                     _cell(pdfMoney(part.amount, part.due.currencyCode), right: true),
                   ],

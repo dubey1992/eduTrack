@@ -192,6 +192,22 @@ void main() {
       container.dispose();
     });
 
+    testWidgets('a server failing is tried again, never turned into a refusal', (tester) async {
+      fees.failSendWith = const Failure(code: 'SERVER_ERROR', message: 'Something went wrong on our side.');
+      final container = await counter();
+
+      await take(container);
+      await tester.pump();
+      expect(container.read(staffOutboxProvider).single.refusal, isNull);
+
+      fees.failSendWith = null;
+      await tester.pump(StaffOutbox.retryDelays.first);
+
+      expect(fees.sent, hasLength(1));
+      expect(container.read(staffOutboxProvider), isEmpty);
+      container.dispose();
+    });
+
     testWidgets('what is waiting to send comes off what is left to take', (tester) async {
       fees.failSendWith = Failure.network();
       final container = await counter();

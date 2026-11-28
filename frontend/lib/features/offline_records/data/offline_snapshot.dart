@@ -207,4 +207,8 @@ class OfflineDue {
   /// "3500.00".
   final String balance;
   final bool isOverdue;
+
+  /// "Tuition - Term 2" - or the label alone when it already names the fee
+  /// ("Tuition Fee - Quarter 4"), so the head is never said twice.
+  String get title => label.toLowerCase().startsWith(feeHead.toLowerCase()) ? label : '$feeHead - $label';
 }

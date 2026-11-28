@@ -582,7 +582,7 @@ class OfflineFeePayment(models.Model):
     payment_mode = models.CharField(max_length=20)
     reference = models.CharField(max_length=100, blank=True, null=True)
     note = models.CharField(max_length=500, blank=True, null=True)
-    allocations = models.JSONField(blank=True, null=True)
+    allocations = LaravelJSONField(blank=True, null=True)
     taken_by = models.ForeignKey(
         'User', models.DO_NOTHING, db_column='taken_by', blank=True, null=True, related_name='+'
     )

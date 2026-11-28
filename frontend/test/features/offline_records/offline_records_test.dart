@@ -220,6 +220,17 @@ void main() {
     });
   });
 
+  test('a fee line never names its head twice', () {
+    OfflineDue due(String head, String label) => OfflineDue.fromJson({
+      ...((snapshotJson()['dues'] as Map)['1'] as List).first as Map<String, dynamic>,
+      'fee_head': head,
+      'label': label,
+    });
+
+    expect(due('Tuition', 'Term 2').title, 'Tuition - Term 2');
+    expect(due('Tuition Fee', 'Tuition Fee - Quarter 4 (Jan-Mar)').title, 'Tuition Fee - Quarter 4 (Jan-Mar)');
+  });
+
   group('the screens', () {
     final snapshot = OfflineSnapshot.fromJson(snapshotJson());
 

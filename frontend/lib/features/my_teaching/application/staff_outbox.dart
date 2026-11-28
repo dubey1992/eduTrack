@@ -166,7 +166,7 @@ class StaffOutbox extends Notifier<List<OutboxItem>> {
       }
       await _settle(item);
     } on Failure catch (failure) {
-      if (failure.code == 'NETWORK_ERROR') rethrow;
+      if (_tryAgainLater(failure)) rethrow;
       // Already there - sent once before the answer was lost, or filed from
       // another phone. Either way nothing is left to send.
       if (failure.code == 'TEACHING_REPORT_ALREADY_SUBMITTED') {
@@ -175,6 +175,16 @@ class StaffOutbox extends Notifier<List<OutboxItem>> {
       }
       await _settle(item, refusedBecause: failure.message);
     }
+  }
+
+  /// No connection, the server failing, or asked to slow down: nothing is
+  /// wrong with the work itself, so it waits and is tried again - never
+  /// turned into a refusal (a fee payment taken offline must not stall on a
+  /// server hiccup).
+  static bool _tryAgainLater(Failure failure) {
+    if (const {'NETWORK_ERROR', 'SERVER_ERROR', 'TOO_MANY_REQUESTS'}.contains(failure.code)) return true;
+    final status = failure.details['status'];
+    return status is int && (status >= 500 || status == 429);
   }
 
   Future<void> _sendReport(OutboxItem item) async {

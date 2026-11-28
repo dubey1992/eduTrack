@@ -64,6 +64,17 @@ def allowed(school_id: int | None) -> bool:
     return school_id is not None and bool(modules.setting(school_id, MODULE, SETTING))
 
 
+def class_name(section: ClassSection | None) -> str | None:
+    """"Class 1 A" - with its year when that is not the current one, so a
+    student not yet moved up never makes two chips read the same."""
+    if section is None or section.school_class is None:
+        return section_label(section)
+
+    year = section.school_class.academic_year
+    label = section_label(section)
+    return label if year.is_current else f"{label} ({year.name})"
+
+
 def build(actor) -> dict:
     from .services import StaffProfileService, StudentService
 
@@ -76,7 +87,7 @@ def build(actor) -> dict:
 
     students = list(
         StudentService.visible_to(actor, {"school_id": school_id, "status": StudentStatus.ACTIVE})
-        .select_related("class_section__school_class")
+        .select_related("class_section__school_class__academic_year")
         .order_by("class_section__school_class__level", "class_section__name", "roll_number", "first_name", "id")[
             :STUDENT_LIMIT
         ]
@@ -95,8 +106,8 @@ def build(actor) -> dict:
             "currency_code": school.currency_code,
         },
         "classes": [
-            {"id": section.id, "name": section_label(section)}
-            for section in ClassSection.objects.select_related("school_class")
+            {"id": section.id, "name": class_name(section)}
+            for section in ClassSection.objects.select_related("school_class__academic_year")
             .filter(pk__in=section_ids)
             .order_by("school_class__level", "school_class__name", "name")
         ],
@@ -107,7 +118,7 @@ def build(actor) -> dict:
                 "admission_number": s.admission_number,
                 "roll_number": s.roll_number,
                 "class_section_id": s.class_section_id,
-                "class_name": section_label(s.class_section),
+                "class_name": class_name(s.class_section),
                 "guardian_name": s.guardian_name,
                 "guardian_mobile": s.guardian_mobile,
             }
