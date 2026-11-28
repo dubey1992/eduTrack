@@ -158,6 +158,10 @@ The bus crew use the **School365ai Driver** app:
 - **Start the pickup or drop** and mark each child boarded, dropped or absent - with a voice search to find a child quickly on a full bus.
 - **Directions to the next stop** inside the app, or handed to Google Maps.
 - **Call a parent** from the trip sheet; the call is noted on the trip.
+- **The stop marks itself reached.** When the bus pulls up at its next stop, the app marks it reached - within a distance the school sets - and the button stays for a stop with no pin.
+- **The next stop, spoken.** After each stop the phone says where the bus goes next and how many children to pick up or drop, so the crew can keep their eyes on the road.
+- **Running late, in one tap.** The crew picks 10, 15 or 30 minutes and the parents still waiting for the bus are told.
+- **A face beside every name.** The crew see the photos of the children on their own routes, and nobody else's.
 - **SOS** - held for two seconds, it alerts the school's transport managers and admins with the crew member's number.
 - **No signal, no problem.** Marks are kept on the phone and sent when the bus is back in coverage.
 
@@ -167,7 +171,7 @@ While a trip runs, the driver's phone shares the bus's position. Transport manag
 
 ## Guardians are told
 
-When the school switches it on, guardians get an SMS, WhatsApp message or email when their child boards, when they are dropped off, and when they did not board.
+When the school switches it on, guardians get an SMS, WhatsApp message or email when their child boards, when they are dropped off, when they did not board, and when the crew says the bus is running late.
 
 ## Reports
 
@@ -198,6 +202,7 @@ TIMETABLE = """School365ai builds each class's weekly timetable, shows every tea
 
 - **One report per period taught,** filed from the web or the School365ai app.
 - **The syllabus ticks itself.** Choosing the topic taught marks it covered - one entry, not two.
+- **Photos of the board or the children's work,** up to three per report from the phone's camera, seen by the teacher, their head of department and the school's admins.
 - **Holidays are closed,** and the school can set how long teachers have to file.
 
 ## Syllabus tracking
@@ -229,7 +234,7 @@ PAYROLL = """School365ai runs a school's monthly payroll from each employee's sa
 - **A salary profile per employee:** monthly basic pay plus the school's own earnings and deductions, and bank details kept encrypted.
 - **One run a month,** from draft to finalised to paid, with adjustments on any single payslip before it is final.
 - **Pro-rated from attendance.** Half days, unpaid absences and a mid-month joining date are taken into account.
-- **PDF payslips,** emailed to staff and readable in the School365ai app.
+- **PDF payslips** in a standard or classic layout, emailed to staff and readable in the School365ai app.
 - **An Accountant role** for whoever keeps the books, and a payroll summary report.
 
 Payroll works in each school's own currency. Country-specific tax and statutory deductions are not calculated; they are entered as deductions where a school needs them.
@@ -308,6 +313,8 @@ Seventeen kinds of event can send a message on their own: attendance, a child bo
 - **Announcements** to everyone, teachers, parents, a class or a department, on any mix of channels, with an end date.
 - **Messages and emergency alerts** to one student's family, one member of staff, a class, a department, all parents, all staff or everyone.
 - **A preview before sending** shows how many people each channel will reach.
+- **Files with a notice** - up to three PDFs or pictures, 5 MB each. Staff open them in the School365ai app and on the web; SMS, WhatsApp and email carry the words.
+- **How many have opened it.** Under each notice, the number of in-app copies that have been read.
 
 ## Every message accounted for
 
@@ -369,6 +376,7 @@ RECORDS = """School365ai keeps a school's students, guardians, staff, classes an
 
 - **Student records:** admission and roll number, class and section, address, the guardian's name, mobile and email, and status.
 - **A class history** for every student, year by year.
+- **A photo for every student,** added one at a time or in bulk by admission number from a folder of pictures, shown in the lists and the staff app, and printed on admit cards and report cards.
 - **Staff records** with their own sign-in.
 - **Academic years, departments, subjects, classes and sections,** set up by the school.
 
@@ -413,8 +421,12 @@ For teachers, heads of department, office staff, accountants, transport managers
 - **Check in and out** at school by location - the home screen for staff who do not teach.
 - **Leave** - apply and follow its progress.
 - **Payslips,** with the PDF emailed on request.
-- **Inbox** for announcements and alerts.
-- **For heads of department:** reports to review or return, who is in today, and each teacher's month.
+- **Inbox** for announcements and alerts, with the files a notice carries.
+- **Find a student** by name or admission number, with the guardian one tap away.
+- **Fees on the phone** for whoever takes payments: collect a fee with its receipt, today's collection, and who is overdue.
+- **Photos on a teaching report,** from the camera or the phone's photos.
+- **App lock** with the phone's own fingerprint, face or screen lock.
+- **For heads of department:** reports to review or return, their department's leave to decide and its register to mark, who is in today, and each teacher's month.
 
 ## School365ai Driver, for the bus crew
 
@@ -423,6 +435,8 @@ Drivers and bus attendants sign in with their mobile number and a passcode, on a
 - **My Trip** - start the pickup or drop and mark each child boarded, dropped off or absent, with voice search to find a child quickly.
 - **Navigate** to the next stop, in the app or through Google Maps.
 - **Call a parent** from the trip sheet.
+- **Stops reached by themselves,** the next stop spoken aloud, and **Running late** to tell the parents still waiting.
+- **The children's photos** beside their names, for the routes the crew runs.
 - **SOS** to the school's transport managers and admins.
 - **Shares the bus's position** with the school while a trip runs, and works without signal.
 
@@ -434,8 +448,11 @@ The parents' app is on its way to Google Play. When it arrives, a parent signs i
 - **The bus** - today's trip as it happens, the bus on a live map, and an alert as it nears the stop.
 - **Fees** - what is due, receipts to download and how to pay the school.
 - **Results** - published test results, progress reports, the timetable and the syllabus.
-- **Notices** - the school's notices, with a reply where the school asks for one.
-- **Please call me** - ask the class teacher or the office for a call back.
+- **Notices** - the school's notices and the files they carry, with a reply where the school asks for one.
+- **Homework** - what each teacher set, day by day, and the marks trend for every subject.
+- **Parent-teacher meetings** - book a time with the class teacher, and move or cancel it until the day before.
+- **Events and photos** - the photos the school shares from its events and from the child's class.
+- **Please call me** - ask the class teacher or the office for a call back, and ask the school to add a second guardian.
 
 Until then, guardians hear from the school by SMS, WhatsApp and email.
 
@@ -473,7 +490,7 @@ EXAMS = """School365ai's exam software lets a school set up each examination - i
 - **For one student, or a whole section at once,** one card per page, as a PDF to print.
 - **Held back where the school decides:** withheld for a named student, with a reason only staff read, or - when the school chooses it for an exam - while fees are overdue, with a named student let through.
 
-The card has a box for the student's photo; School365ai does not allot seats or exam rooms. Parents will download their child's card in the School365ai Family app, coming soon - today the school prints the cards and hands them out.
+The card prints the student's photo where the school has uploaded one, and leaves a box for it where not. School365ai does not allot seats or exam rooms. Parents will download their child's card in the School365ai Family app, coming soon - today the school prints the cards and hands them out.
 
 ## Who can do what
 
@@ -508,11 +525,11 @@ MODULES: tuple[ModulePage, ...] = (
     ),
     ModulePage(
         "school-bus-tracking-software", "School Bus Tracking and Transport",
-        "Routes on a map, trips run from the driver's phone, and boarding alerts.", TRANSPORT,
+        "Routes on a map, trips run from the driver's phone, boarding and running-late alerts.", TRANSPORT,
     ),
     ModulePage(
         "school-communication-software", "Parent and Staff Communication",
-        "SMS, WhatsApp, email, inbox and push: alerts, announcements and notices.", COMMUNICATION,
+        "SMS, WhatsApp, email, inbox and push: alerts, and notices with files and read counts.", COMMUNICATION,
     ),
     ModulePage(
         "school-payroll-software", "Staff Payroll and Leave",
@@ -536,7 +553,7 @@ MODULES: tuple[ModulePage, ...] = (
     ),
     ModulePage(
         "student-information-system", "Student and Staff Records",
-        "Students, guardians, staff and classes, with CSV import and school groups.", RECORDS,
+        "Students with photos, guardians, staff and classes, with CSV import and school groups.", RECORDS,
     ),
     ModulePage(
         "school-staff-and-driver-apps", "The School365ai Staff, Driver and Family Apps",
