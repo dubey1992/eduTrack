@@ -564,6 +564,47 @@ class FeeReceiptAllocation(models.Model):
         unique_together = (('fee_receipt', 'student_fee_due'),)
 
 
+class OfflineFeePayment(models.Model):
+    """Fees taken at the counter while the internet was down
+    (docs/offline-web.md, O4): sent by the trusted computer when the line is
+    back, made into the real receipt when the dues are still owed and the
+    day is open, otherwise kept here to settle. Written only by
+    school/fees/offline_payments.py, never deleted."""
+
+    id = models.BigAutoField(primary_key=True)
+    school = models.ForeignKey('School', models.DO_NOTHING)
+    student = models.ForeignKey('Student', models.DO_NOTHING, related_name='+')
+    client_id = models.CharField(max_length=64)
+    provisional_number = models.CharField(max_length=40)
+    receipt_date = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency_code = models.CharField(max_length=3)
+    payment_mode = models.CharField(max_length=20)
+    reference = models.CharField(max_length=100, blank=True, null=True)
+    note = models.CharField(max_length=500, blank=True, null=True)
+    allocations = models.JSONField(blank=True, null=True)
+    taken_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='taken_by', blank=True, null=True, related_name='+'
+    )
+    taken_at = UtcDateTimeField(blank=True, null=True)
+    status = models.CharField(max_length=20, default='to_settle')
+    problem = models.CharField(max_length=1000, blank=True, null=True)
+    fee_receipt = models.ForeignKey('FeeReceipt', models.DO_NOTHING, blank=True, null=True, related_name='+')
+    settled_by = models.ForeignKey(
+        'User', models.DO_NOTHING, db_column='settled_by', blank=True, null=True, related_name='+'
+    )
+    settled_at = UtcDateTimeField(blank=True, null=True)
+    settle_note = models.CharField(max_length=500, blank=True, null=True)
+    refund_mode = models.CharField(max_length=20, blank=True, null=True)
+    refund_reference = models.CharField(max_length=100, blank=True, null=True)
+    created_at = UtcDateTimeField(blank=True, null=True)
+    updated_at = UtcDateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'offline_fee_payments'
+
+
 class StudentFeeCredit(models.Model):
     """One movement of a student's fee credit (docs/fees.md, F6): money paid
     that nothing is owed against yet. `amount` is signed - released,

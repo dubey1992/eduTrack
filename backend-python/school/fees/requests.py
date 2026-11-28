@@ -12,8 +12,10 @@ list under the installments table rather than beside a cell.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from decimal import Decimal
 
+from django.utils.dateparse import parse_datetime
 from rest_framework import serializers
 
 from ..clock import SchoolClock
@@ -1052,4 +1054,104 @@ class FeeConcessionListRequest:
             "school_id": params["school_id"],
             "student": student,
             "include_revoked": str(params["include_revoked"]).lower() in TRUTHY,
+        }
+
+
+# -- fees taken offline (docs/offline-web.md, O4) ------------------------------
+
+CLIENT_ID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
+PROVISIONAL_NUMBER = re.compile(r"^P-[A-Za-z0-9]{1,12}-[0-9]{1,9}$")
+OFFLINE_MODES = (FeePaymentMode.CASH, FeePaymentMode.CHEQUE)
+REFUND_MODES = (FeePaymentMode.CASH, FeePaymentMode.CHEQUE, FeePaymentMode.BANK_TRANSFER, FeePaymentMode.UPI)
+
+
+class OfflineFeePaymentRequest:
+    """`POST fees/offline-payments`: a payment the counter took while the
+    internet was down. Everything a receipt needs, checked as a receipt is,
+    plus the computer's own id and provisional number for it. Cash and
+    cheque only (D3). Whether the chosen dues are still owed is not checked
+    here - a payment that no longer fits is kept to settle, not refused."""
+
+    def __init__(self, data, actor) -> None:
+        self.raw = data if isinstance(data, dict) else {}
+        self.data = normalise(self.raw)
+        self.actor = actor
+
+    def validate(self) -> dict:
+        errors: dict[str, list[str]] = {}
+        data = self.data
+
+        client_id = data.get("client_id")
+        if not isinstance(client_id, str) or not CLIENT_ID.match(client_id):
+            errors.setdefault("client_id", []).append(selected_is_invalid("client_id"))
+
+        number = data.get("provisional_number")
+        if not isinstance(number, str) or not PROVISIONAL_NUMBER.match(number):
+            errors.setdefault("provisional_number", []).append(selected_is_invalid("provisional_number"))
+
+        taken_at = parse_datetime(data["taken_at"]) if isinstance(data.get("taken_at"), str) else None
+        if taken_at is None or taken_at.tzinfo is None:
+            errors.setdefault("taken_at", []).append(not_a_date("taken_at"))
+
+        if data.get("payment_mode") is not None and data.get("payment_mode") not in OFFLINE_MODES:
+            errors.setdefault("payment_mode", []).append("Only cash and cheques can be taken offline.")
+
+        try:
+            receipt = FeeReceiptRequest({**self.raw, "email_to_guardian": None}, self.actor).validate()
+        except serializers.ValidationError as failure:
+            for field, messages in failure.detail.items():
+                errors.setdefault(field, []).extend(str(message) for message in messages)
+            receipt = {}
+
+        raise_if(errors)
+
+        return {**receipt, "client_id": client_id, "provisional_number": number, "taken_at": taken_at}
+
+
+class SettleOfflineFeePaymentRequest:
+    """`POST fees/offline-payments/{id}/settle`: keep the money on the
+    student's account (a real receipt, paying what is owed and holding the
+    rest as credit), or record that it went back to the family."""
+
+    def __init__(self, data) -> None:
+        self.data = normalise(data) if isinstance(data, dict) else {}
+
+    def validate(self) -> dict:
+        errors: dict[str, list[str]] = {}
+        data = self.data
+        action = data.get("action")
+
+        if action not in ("credit", "refund"):
+            errors.setdefault("action", []).append(selected_is_invalid("action"))
+
+        reason = data.get("reason")
+        if reason is None:
+            if action == "refund":
+                errors.setdefault("reason", []).append(required("reason"))
+        elif not isinstance(reason, str):
+            errors.setdefault("reason", []).append(must_be_a_string("reason"))
+        elif len(reason.strip()) < REASON_MIN:
+            errors.setdefault("reason", []).append(too_short("reason", REASON_MIN))
+        elif len(reason) > REASON_MAX:
+            errors.setdefault("reason", []).append(too_long("reason", REASON_MAX))
+
+        mode = None
+        reference = None
+        if action == "refund":
+            mode = data.get("refund_mode")
+            if mode is None:
+                errors.setdefault("refund_mode", []).append(required("refund_mode"))
+            elif mode not in REFUND_MODES:
+                errors.setdefault("refund_mode", []).append(selected_is_invalid("refund_mode"))
+            reference = text("reference", data.get("reference"), errors, REFERENCE_MAX)
+            if mode == FeePaymentMode.CHEQUE and reference is None and "reference" not in errors:
+                errors.setdefault("reference", []).append("Enter the cheque number.")
+
+        raise_if(errors)
+
+        return {
+            "action": action,
+            "reason": reason.strip() if isinstance(reason, str) else None,
+            "refund_mode": mode,
+            "reference": reference,
         }

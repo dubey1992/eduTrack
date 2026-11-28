@@ -700,6 +700,15 @@ class FeeReceiptStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
+class OfflineFeePaymentStatus(models.TextChoices):
+    """A fee payment taken offline (docs/offline-web.md, O4)."""
+
+    RECEIPTED = "receipted", "Made into a receipt when it arrived"
+    TO_SETTLE = "to_settle", "Waiting for the office to settle"
+    CREDITED = "credited", "Settled: kept on the student's account"
+    REFUNDED = "refunded", "Settled: handed back to the family"
+
+
 class FeeCreditKind(models.TextChoices):
     """One movement of a student's fee credit (docs/fees.md, F6). The first
     three add to it; the last three take from it."""

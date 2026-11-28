@@ -29,6 +29,7 @@ from rest_framework.response import Response
 from ..fees import ledger, plan, receipt_pdf, statement_pdf
 from ..fees.concessions import ConcessionService, WaiverService
 from ..fees.credit import CreditService
+from ..fees.offline_payments import SETTLERS, OfflineFeePaymentService, offline_fee_payment_resource
 from ..fees.receipts import FeeReceiptService
 from ..fees.dues import today_for
 from ..fees.requests import (
@@ -41,7 +42,9 @@ from ..fees.requests import (
     FeeReceiptRequest,
     FeeStructureRequest,
     InstallmentPlanRequest,
+    OfflineFeePaymentRequest,
     RevokeFeeConcessionRequest,
+    SettleOfflineFeePaymentRequest,
     StoreFeeHeadRequest,
     UpdateFeeHeadRequest,
     WaiveFeeDueRequest,
@@ -63,7 +66,18 @@ from ..fees.resources import (
     statement_resource,
 )
 from ..fees.service import FeeHeadService, FeeStructureService
-from ..models import AcademicYear, FeeConcession, FeeHead, FeeReceipt, FeeStructure, School, Student, StudentFeeDue
+from ..enums import OfflineFeePaymentStatus
+from ..models import (
+    AcademicYear,
+    FeeConcession,
+    FeeHead,
+    FeeReceipt,
+    FeeStructure,
+    OfflineFeePayment,
+    School,
+    Student,
+    StudentFeeDue,
+)
 from ..pagination import LaravelPagination
 from ..policies import FeePolicy, authorize
 from ..scope import SchoolScope
@@ -661,3 +675,59 @@ def load_structure(structure_id: int) -> FeeStructure:
         FeeStructure.objects.select_related(*FeeStructureService.WITH).prefetch_related("installments"),
         pk=structure_id,
     )
+
+
+# -- fees taken offline (docs/offline-web.md, O4) ------------------------------
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def offline_payments(request) -> Response:
+    """POST: a payment the counter took offline, sent when the line is back -
+    made into the receipt, or kept to settle. 201 the first time, 200 when
+    this computer had sent it before. GET: the school's, newest first."""
+    actor = request.user
+
+    if request.method == "POST":
+        authorize(FeePolicy.manage_any(actor))
+
+        data = OfflineFeePaymentRequest(request.data, actor).validate()
+        authorize(FeePolicy.manage(actor, data["student"].school_id))
+
+        payment, created = OfflineFeePaymentService.record(data, actor, request)
+
+        return Response(
+            offline_fee_payment_resource(payment),
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    authorize(FeePolicy.view_any(actor))
+    school_id = single_school(actor, request.query_params.get("school_id"))
+    authorize(school_id is not None and FeePolicy.view(actor, school_id))
+
+    rows = OfflineFeePaymentService.query().filter(school_id=school_id)
+    wanted = request.query_params.get("status")
+
+    if wanted:
+        if wanted not in OfflineFeePaymentStatus.values:
+            raise_if({"status": [selected_is_invalid("status")]})
+        rows = rows.filter(status=wanted)
+
+    paginator = LaravelPagination()
+    page = paginator.paginate_queryset(rows.order_by("-taken_at", "-id"), request)
+
+    return paginator.get_paginated_response([offline_fee_payment_resource(row) for row in page])
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def offline_payment_settle(request, payment_id: int) -> Response:
+    """Keeps a payment that could not become a receipt on the student's
+    account, or records it handed back. An Accountant or School Admin."""
+    actor = request.user
+    found = get_object_or_404(OfflineFeePayment, pk=payment_id)
+    authorize(actor.role in SETTLERS and FeePolicy.manage(actor, found.school_id))
+
+    data = SettleOfflineFeePaymentRequest(request.data).validate()
+
+    return Response(offline_fee_payment_resource(OfflineFeePaymentService.settle(found, data, actor, request)))

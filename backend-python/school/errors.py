@@ -1097,3 +1097,11 @@ class ExaminationNotDraftable(ApiError):
 
     status_code = status.HTTP_409_CONFLICT
     error_code = "EXAMINATION_NOT_READY"
+
+
+class OfflinePaymentSettled(ApiError):
+    """A payment taken offline that was already made into a receipt or
+    settled (docs/offline-web.md, O4)."""
+
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "OFFLINE_PAYMENT_SETTLED"

@@ -350,6 +350,8 @@ urlpatterns = [
     # The fee books' date lock (docs/dashboard.md, D3).
     path("api/v1/fees/lock", fees.books_lock),
     # Step F3 "Collection & receipts".
+    path("api/v1/fees/offline-payments", fees.offline_payments),
+    path("api/v1/fees/offline-payments/<int:payment_id>/settle", fees.offline_payment_settle),
     path("api/v1/fees/receipts", fees.receipts),
     path("api/v1/fees/receipts/<int:receipt_id>", fees.receipt),
     path("api/v1/fees/receipts/<int:receipt_id>/pdf", fees.receipt_pdf_download),
