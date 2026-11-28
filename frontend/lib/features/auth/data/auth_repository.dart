@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/auth_token_storage.dart';
@@ -32,9 +33,23 @@ class AuthRepository {
     try {
       final (user, token) = await _api.login(email: email, password: password);
       await _tokenStorage.saveToken(token);
+      // The web app keeps the session for a start with no connection
+      // (docs/offline-web.md, O1) from the moment of signing in - the line
+      // may drop before the app is ever reopened online.
+      if (kIsWeb) await _keepSessionForOffline();
       return user;
     } on DioException catch (e) {
       throw failureFromDioException(e);
+    }
+  }
+
+  /// Never in the way of signing in: if it fails, the session is kept the
+  /// next time the app opens online instead.
+  Future<void> _keepSessionForOffline() async {
+    try {
+      await _attendantStorage?.saveSession(await _api.meJson());
+    } catch (error) {
+      debugPrint('The session could not be kept for offline use: $error');
     }
   }
 
@@ -67,7 +82,11 @@ class AuthRepository {
     try {
       final json = await _api.meJson();
       final user = AuthenticatedUser.fromJson(json);
-      if (user.role.isCrew) await _attendantStorage?.saveSession(json);
+      // Kept for a start with no signal: the bus crew's phone, and the web
+      // app on a school's computer when its internet is down
+      // (docs/offline-web.md, O1). Cleared at sign-out and when the server
+      // ends the session.
+      if (user.role.isCrew || kIsWeb) await _attendantStorage?.saveSession(json);
       return user;
     } on DioException catch (e) {
       // Only the server saying "this is not a session" ends one. A bus

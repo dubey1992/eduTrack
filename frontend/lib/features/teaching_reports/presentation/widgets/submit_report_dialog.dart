@@ -3,10 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/widgets/searchable_dropdown.dart';
 import '../../../../core/errors/failure.dart';
+import '../../../../core/network/connection_status.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../syllabus/data/models/syllabus_topic.dart';
 import '../../../syllabus/data/syllabus_topic_repository.dart';
 import '../../../timetable/data/models/timetable_entry.dart';
+import '../../../auth/application/auth_notifier.dart';
+import '../../../my_teaching/application/staff_outbox.dart';
+import '../../../my_teaching/data/outbox.dart';
 import '../../application/teaching_report_list_notifier.dart';
 
 /// Files today's report for one of the actor's own scheduled periods - the
@@ -66,10 +70,59 @@ class _SubmitReportDialogState extends ConsumerState<SubmitReportDialog> {
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
+      // No connection: kept on this computer and sent when the line is back
+      // (docs/offline-web.md, O3) - the Staff app's outbox, the same rules.
+      if (failure.code == 'NETWORK_ERROR' && ref.read(offlineWorkProvider) && await _keepForLater()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No connection - report saved on this computer. It will be sent when the connection is back.',
+              ),
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+        return;
+      }
       if (mounted) setState(() => _errorMessage = failure.message);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  /// Puts the report in the outbox; false when there is nobody signed in.
+  Future<bool> _keepForLater() async {
+    final me = ref.read(authNotifierProvider).value?.id;
+    if (me == null) return false;
+
+    String? text(TextEditingController controller) => controller.text.trim().isEmpty ? null : controller.text.trim();
+    final entry = widget.entry;
+    await ref
+        .read(staffOutboxProvider.notifier)
+        .add(
+          OutboxItem(
+            kind: OutboxKind.report,
+            key: OutboxItem.reportKey(entry.id, widget.reportDate),
+            userId: me,
+            label: [
+              'Teaching report',
+              ?entry.subjectName,
+              ?entry.classSectionName,
+              if (entry.periodNumber != null) 'period ${entry.periodNumber}',
+            ].join(', '),
+            payload: {
+              'timetable_entry_id': entry.id,
+              'report_date': widget.reportDate,
+              'topic_taught': _topicController.text.trim(),
+              'syllabus_topic_id': _syllabusTopicId,
+              'homework': text(_homeworkController),
+              'remarks': text(_remarksController),
+            },
+            savedAt: DateTime.now(),
+          ),
+        );
+    return true;
   }
 
   @override

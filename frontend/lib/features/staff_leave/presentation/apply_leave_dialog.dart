@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../my_teaching/application/staff_outbox.dart';
+import '../../my_teaching/data/outbox.dart';
 import '../application/staff_leave_list_notifier.dart';
 import '../data/models/leave_status.dart';
 import '../data/models/leave_type.dart';
@@ -100,6 +102,38 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
+      // No connection: kept on this computer and sent when the line is back
+      // (docs/offline-web.md, O3).
+      final start = DateFormat('yyyy-MM-dd').format(_startDate);
+      final end = DateFormat('yyyy-MM-dd').format(_endDate);
+      final kept =
+          failure.code == 'NETWORK_ERROR' &&
+          await ref
+              .read(staffOutboxProvider.notifier)
+              .keepFromWeb(
+                kind: OutboxKind.leave,
+                key: OutboxItem.uniqueKey('leave'),
+                label: 'Leave: ${_leaveType.label}, ${formatIsoDate(start)} to ${formatIsoDate(end)}',
+                payload: {
+                  'leave_type': _leaveType.apiValue,
+                  'start_date': start,
+                  'end_date': end,
+                  'reason': _reasonController.text.trim(),
+                },
+              );
+      if (kept) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No connection - leave request saved on this computer. It will be sent when the connection is back.',
+              ),
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+        return;
+      }
       if (mounted) setState(() => _errorMessage = failure.message);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

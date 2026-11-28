@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/network/connection_status.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/file_picker.dart';
 import '../../../core/utils/file_saver.dart';
@@ -10,6 +11,9 @@ import '../../../core/widgets/status_badge.dart';
 import '../../imports/data/import_repository.dart';
 import '../../imports/data/models/import_result.dart';
 import '../../imports/presentation/widgets/import_row_errors.dart';
+import '../../auth/application/auth_notifier.dart';
+import '../../my_teaching/application/staff_outbox.dart';
+import '../../my_teaching/data/outbox.dart';
 import '../application/assessment_list_notifier.dart';
 import '../application/assessment_sheet_notifier.dart';
 import '../data/models/assessment.dart';
@@ -280,6 +284,20 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
       }
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
+      // No connection: kept on this computer and sent when the line is back
+      // (docs/offline-web.md, O3) - the same outbox the Staff app uses.
+      if (failure.code == 'NETWORK_ERROR' && ref.read(offlineWorkProvider) && await _keepForLater()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No connection - marks saved on this computer. They will be sent when the connection is back.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
       if (mounted) {
         setState(() {
           _fieldErrors = failure.validationErrors;
@@ -289,6 +307,31 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  /// Puts the sheet in the outbox; false when there is nobody signed in to
+  /// send it as.
+  Future<bool> _keepForLater() async {
+    final sheet = ref.read(assessmentSheetProvider(widget.assessment.id)).value;
+    final me = ref.read(authNotifierProvider).value?.id;
+    if (sheet == null || me == null) return false;
+
+    await ref
+        .read(staffOutboxProvider.notifier)
+        .add(
+          OutboxItem(
+            kind: OutboxKind.marks,
+            key: OutboxItem.marksKey(widget.assessment.id),
+            userId: me,
+            label: 'Marks: ${widget.assessment.title}, ${widget.assessment.classSectionName}',
+            payload: {
+              'assessment_id': widget.assessment.id,
+              'marks': [for (final entry in sheet.entries) entry.toJson()],
+            },
+            savedAt: DateTime.now(),
+          ),
+        );
+    return true;
   }
 
   @override
@@ -318,6 +361,17 @@ class _MarksSheetDialogState extends ConsumerState<MarksSheetDialog> {
                 ),
                 const SizedBox(height: 4),
                 Text('${sheet.markedCount} of ${sheet.entries.length} marked'),
+                if (ref
+                    .watch(staffOutboxProvider)
+                    .any((i) => i.key == OutboxItem.marksKey(assessment.id) && i.refusal == null))
+                  Padding(
+                    key: const Key('marks-waiting-to-send'),
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Marks saved on this computer while offline are waiting to be sent.',
+                      style: TextStyle(color: context.appColors.warning),
+                    ),
+                  ),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
                   Text(_error!, style: TextStyle(color: context.appColors.danger)),

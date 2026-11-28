@@ -5,9 +5,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/network/connection_status.dart';
+import '../../announcements/data/announcement_repository.dart';
+import '../../announcements/data/models/announcement.dart';
 import '../../assessments/data/assessment_repository.dart';
 import '../../assessments/data/models/assessment_sheet.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../staff_attendance/data/staff_attendance_repository.dart';
+import '../../staff_leave/data/models/leave_type.dart';
+import '../../staff_leave/data/staff_leave_repository.dart';
 import '../../teaching_reports/data/teaching_report_repository.dart';
 import '../../today/application/today_notifier.dart';
 import '../data/outbox.dart';
@@ -63,6 +69,22 @@ class StaffOutbox extends Notifier<List<OutboxItem>> {
 
   /// Turned down by the server, for [key].
   OutboxItem? refusedFor(String key) => state.where((i) => i.key == key && i.refusal != null).firstOrNull;
+
+  /// Keeps work a web form could not send for want of a connection
+  /// (docs/offline-web.md, O3). False off the web or with nobody signed in -
+  /// the form then shows its error as before.
+  Future<bool> keepFromWeb({
+    required OutboxKind kind,
+    required String key,
+    required String label,
+    required Map<String, dynamic> payload,
+  }) async {
+    final me = _me;
+    if (!ref.read(offlineWorkProvider) || me == null) return false;
+
+    await add(OutboxItem(kind: kind, key: key, userId: me, label: label, payload: payload, savedAt: DateTime.now()));
+    return true;
+  }
 
   /// Keeps [item] - replacing anything older about the same thing - and
   /// starts sending.
@@ -130,6 +152,12 @@ class StaffOutbox extends Notifier<List<OutboxItem>> {
           await _sendReport(item);
         case OutboxKind.marks:
           await _sendMarks(item);
+        case OutboxKind.staffRegister:
+          await _sendStaffRegister(item);
+        case OutboxKind.leave:
+          await _sendLeave(item);
+        case OutboxKind.notice:
+          await _sendNotice(item);
       }
       await _settle(item);
     } on Failure catch (failure) {
@@ -180,6 +208,51 @@ class StaffOutbox extends Notifier<List<OutboxItem>> {
     ];
     await ref.read(assessmentRepositoryProvider).saveMarks(p['assessment_id'] as int, entries);
     if (ref.mounted) ref.invalidate(myTestsProvider);
+  }
+
+  // The web office's work saved with no connection (docs/offline-web.md, O3).
+
+  Future<void> _sendStaffRegister(OutboxItem item) async {
+    final p = item.payload;
+    await ref
+        .read(staffAttendanceRepositoryProvider)
+        .submit(
+          schoolId: p['school_id'] as int?,
+          departmentId: p['department_id'] as int?,
+          attendanceDate: p['attendance_date'] as String,
+          records: (p['records'] as List).cast<Map<String, dynamic>>(),
+          confirmLeave: p['confirm_leave'] as bool? ?? false,
+        );
+  }
+
+  Future<void> _sendLeave(OutboxItem item) async {
+    final p = item.payload;
+    await ref
+        .read(staffLeaveRepositoryProvider)
+        .apply(
+          leaveType: LeaveType.fromApiValue(p['leave_type'] as String),
+          startDate: p['start_date'] as String,
+          endDate: p['end_date'] as String,
+          reason: p['reason'] as String,
+        );
+  }
+
+  Future<void> _sendNotice(OutboxItem item) async {
+    final p = item.payload;
+    await ref
+        .read(announcementRepositoryProvider)
+        .publish(
+          schoolId: p['school_id'] as int?,
+          title: p['title'] as String,
+          body: p['body'] as String,
+          audienceType: AnnouncementAudience.fromApiValue(p['audience_type'] as String),
+          audienceId: p['audience_id'] as int?,
+          channels: p['channels'] as String,
+          expiresAt: p['expires_at'] as String?,
+          replyQuestion: p['reply_question'] as String?,
+          replyBy: p['reply_by'] as String?,
+          attachmentIds: [for (final id in (p['attachment_ids'] as List? ?? const [])) id as int],
+        );
   }
 
   Future<void> _settle(OutboxItem item, {String? refusedBecause}) async {

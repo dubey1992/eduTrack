@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/env.dart';
 import '../errors/failure.dart';
 import 'auth_token_storage.dart';
+import 'browser_connection.dart';
+import 'connection_status.dart';
+import 'offline_copies.dart';
 import 'maintenance_notifier.dart';
 import 'retry_interceptor.dart';
 import 'session_ended_notifier.dart';
@@ -38,7 +41,19 @@ final dioClientProvider = Provider<Dio>((ref) {
         }
         handler.next(options);
       },
+      onResponse: (response, handler) {
+        // Any answer means the server is reachable (docs/offline-web.md, O1).
+        ref.read(connectionStatusProvider.notifier).markOnline();
+        handler.next(response);
+      },
       onError: (error, handler) {
+        // No route to the server is "offline"; any answer, even an error,
+        // means the line is up (docs/offline-web.md, O1).
+        if (error.type == DioExceptionType.connectionError || error.type == DioExceptionType.connectionTimeout) {
+          ref.read(connectionStatusProvider.notifier).markOffline();
+        } else if (error.response != null) {
+          ref.read(connectionStatusProvider.notifier).markOnline();
+        }
         // A maintenance window is not this screen's failure, it is every
         // screen's. Recorded here, once, so the router can act on it rather
         // than each caller showing its own red box - see maintenanceProvider.
@@ -60,7 +75,13 @@ final dioClientProvider = Provider<Dio>((ref) {
   );
   // A read the busy host turned away is tried again before anybody sees an
   // error - see TransientRetryInterceptor.
-  dio.interceptors.add(TransientRetryInterceptor(dio));
+  dio.interceptors.add(TransientRetryInterceptor(dio, deviceOffline: () => !browserSaysOnline()));
+  // The web app's forms open offline from the last copy of what they need
+  // (docs/offline-web.md, O3). After the retries: a copy only once the
+  // server really cannot be reached.
+  dio.interceptors.add(
+    OfflineCopiesInterceptor(() => ref.read(offlineCopiesProvider), enabled: () => ref.read(offlineWorkProvider)),
+  );
 
   return dio;
 });

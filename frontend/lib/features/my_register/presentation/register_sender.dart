@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/connection_status.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../my_teaching/application/staff_outbox.dart';
 import '../application/register_queue.dart';
@@ -11,7 +14,8 @@ import '../application/register_queue.dart';
 /// most often returned.
 ///
 /// Wraps the teacher app once, above the router, so it outlives every
-/// screen.
+/// screen. The web app is wrapped the same way (docs/offline-web.md, O3),
+/// and both also send the moment the connection comes back.
 class RegisterSender extends ConsumerStatefulWidget {
   const RegisterSender({super.key, required this.child});
 
@@ -23,6 +27,7 @@ class RegisterSender extends ConsumerStatefulWidget {
 
 class _RegisterSenderState extends ConsumerState<RegisterSender> {
   late final AppLifecycleListener _lifecycle;
+  StreamSubscription<void>? _reconnected;
 
   @override
   void initState() {
@@ -33,11 +38,15 @@ class _RegisterSenderState extends ConsumerState<RegisterSender> {
     ref.listenManual(authNotifierProvider.select((auth) => auth.value?.id), (previous, next) {
       if (next != null && next != previous) _send();
     }, fireImmediately: true);
+    // The connection is back: the browser said so, or a call got through
+    // after one that could not (docs/offline-web.md, O3).
+    _reconnected = ref.read(connectionStatusProvider.notifier).onReconnected.listen((_) => _send());
   }
 
   @override
   void dispose() {
     _lifecycle.dispose();
+    _reconnected?.cancel();
     super.dispose();
   }
 

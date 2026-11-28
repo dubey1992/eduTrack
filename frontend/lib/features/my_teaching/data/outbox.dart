@@ -11,7 +11,18 @@ enum OutboxKind {
   report('report'),
 
   /// A class test's marks: the rows PUT /assessments/{id}/marks takes.
-  marks('marks');
+  marks('marks'),
+
+  /// The staff register for a day, marked in the office on the web
+  /// (docs/offline-web.md, O3): what POST staff-attendance takes.
+  staffRegister('staff_register'),
+
+  /// A leave application from the web: what POST staff-leaves takes.
+  leave('leave'),
+
+  /// A notice written on the web: what POST announcements takes. Files are
+  /// uploaded online only, so a notice saved offline carries none.
+  notice('notice');
 
   const OutboxKind(this.apiValue);
 
@@ -83,6 +94,11 @@ class OutboxItem {
   static String reportKey(int timetableEntryId, String date) => 'report:$timetableEntryId@$date';
 
   static String marksKey(int assessmentId) => 'marks:$assessmentId';
+
+  static String staffRegisterKey(int? departmentId, String date) => 'staff-register:${departmentId ?? 'all'}@$date';
+
+  /// Every application and notice is its own; a second never replaces the first.
+  static String uniqueKey(String kind) => '$kind:${DateTime.now().microsecondsSinceEpoch}';
 }
 
 final outboxStoreProvider = Provider<OutboxStore>((ref) => OutboxStore(ref.watch(keyValueStoreProvider)));

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../school_logo/application/school_logo_controller.dart';
 import '../../setup_guide/application/setup_guide_notifier.dart';
 import '../../analytics/application/analytics_notifier.dart';
+import '../../../core/network/offline_copies.dart';
 import '../../../core/network/session_ended_notifier.dart';
 import '../../academic_years/application/viewed_year.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
@@ -166,6 +167,12 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
       await ref.read(registerStoreProvider).clearRosters();
     } catch (error) {
       debugPrint('Saved class lists could not be cleared on sign-out: $error');
+    }
+    // The web app's offline copies of its forms (docs/offline-web.md, O3).
+    try {
+      await ref.read(offlineCopiesProvider).clear();
+    } catch (error) {
+      debugPrint('Offline copies could not be cleared on sign-out: $error');
     }
     // Report drafts and templates are the teacher's own words (1.6).
     try {

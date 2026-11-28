@@ -14,9 +14,21 @@ import 'package:dio/dio.dart';
 /// API's own JSON error. A 503 means maintenance and is left to the
 /// maintenance screen; every 4xx is an answer, not a blip.
 class TransientRetryInterceptor extends Interceptor {
-  TransientRetryInterceptor(this._dio, {this.delays = const [Duration(seconds: 1), Duration(seconds: 3)]});
+  TransientRetryInterceptor(
+    this._dio, {
+    this.delays = const [Duration(seconds: 1), Duration(seconds: 3)],
+    this.deviceOffline = _neverOffline,
+  });
 
   final Dio _dio;
+
+  /// True when the device itself has no network (the browser says so):
+  /// retrying cannot help then, and the offline copy should answer at once
+  /// (docs/offline-web.md, O3). A host that briefly refuses connections on a
+  /// working network is still retried, as before.
+  final bool Function() deviceOffline;
+
+  static bool _neverOffline() => false;
 
   /// How long to wait before each further try; its length is how many.
   final List<Duration> delays;
@@ -28,7 +40,8 @@ class TransientRetryInterceptor extends Interceptor {
     final options = err.requestOptions;
     final attempt = options.extra[_attemptKey] as int? ?? 0;
 
-    if (!isTransient(err) || attempt >= delays.length) {
+    final noNetwork = err.type == DioExceptionType.connectionError && deviceOffline();
+    if (!isTransient(err) || attempt >= delays.length || noNetwork) {
       handler.next(err);
       return;
     }

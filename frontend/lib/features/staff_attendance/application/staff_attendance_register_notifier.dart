@@ -1,5 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/date_format.dart';
+import '../../my_teaching/application/staff_outbox.dart';
+import '../../my_teaching/data/outbox.dart';
+
+import '../../../core/errors/failure.dart';
+
 import '../data/models/check_in_event.dart';
 import '../data/models/staff_attendance_register.dart';
 import '../data/models/staff_attendance_status.dart';
@@ -112,9 +118,12 @@ class StaffAttendanceRegisterNotifier extends AsyncNotifier<StaffAttendanceRegis
 
   /// [confirmLeave] marks present somebody who is on leave that day, once
   /// the office has been asked (the server answers STAFF_ON_LEAVE first).
-  Future<void> submitOrUpdate({bool confirmLeave = false}) async {
+  ///
+  /// True when there was no connection and the web app kept the register to
+  /// send later (docs/offline-web.md, O3); false once the server has it.
+  Future<bool> submitOrUpdate({bool confirmLeave = false}) async {
     final current = state.value;
-    if (current == null || !isComplete) return;
+    if (current == null || !isComplete) return false;
 
     final records = [
       for (final entry in current.staff)
@@ -128,22 +137,44 @@ class StaffAttendanceRegisterNotifier extends AsyncNotifier<StaffAttendanceRegis
     ];
 
     final repository = ref.read(staffAttendanceRepositoryProvider);
-    final result = current.submitted
-        ? await repository.update(
-            schoolId: params.schoolId,
-            departmentId: params.departmentId,
-            attendanceDate: current.attendanceDate,
-            records: records,
-            confirmLeave: confirmLeave,
-          )
-        : await repository.submit(
-            schoolId: params.schoolId,
-            departmentId: params.departmentId,
-            attendanceDate: current.attendanceDate,
-            records: records,
-            confirmLeave: confirmLeave,
+    try {
+      final result = current.submitted
+          ? await repository.update(
+              schoolId: params.schoolId,
+              departmentId: params.departmentId,
+              attendanceDate: current.attendanceDate,
+              records: records,
+              confirmLeave: confirmLeave,
+            )
+          : await repository.submit(
+              schoolId: params.schoolId,
+              departmentId: params.departmentId,
+              attendanceDate: current.attendanceDate,
+              records: records,
+              confirmLeave: confirmLeave,
+            );
+      state = AsyncData(result);
+      return false;
+    } on Failure catch (failure) {
+      // A new register is kept and sent when the line is back; changing one
+      // already submitted needs the server.
+      if (failure.code != 'NETWORK_ERROR' || current.submitted) rethrow;
+      final kept = await ref
+          .read(staffOutboxProvider.notifier)
+          .keepFromWeb(
+            kind: OutboxKind.staffRegister,
+            key: OutboxItem.staffRegisterKey(params.departmentId, current.attendanceDate),
+            label: 'Staff register, ${formatIsoDate(current.attendanceDate)}',
+            payload: {
+              'school_id': params.schoolId,
+              'department_id': params.departmentId,
+              'attendance_date': current.attendanceDate,
+              'records': records,
+              'confirm_leave': confirmLeave,
+            },
           );
-
-    state = AsyncData(result);
+      if (!kept) rethrow;
+      return true;
+    }
   }
 }

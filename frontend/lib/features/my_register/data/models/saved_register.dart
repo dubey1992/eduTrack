@@ -12,6 +12,7 @@ class SavedRegister {
     required this.date,
     required this.marks,
     required this.savedAt,
+    this.remarks = const {},
   });
 
   factory SavedRegister.fromJson(Map<String, dynamic> json) => SavedRegister(
@@ -25,6 +26,11 @@ class SavedRegister {
         int.parse(entry.key): AttendanceStatus.fromApiValue(entry.value as String),
     },
     savedAt: DateTime.parse(json['saved_at'] as String),
+    // Absent from registers saved before the web app could save one offline.
+    remarks: {
+      for (final entry in ((json['remarks'] as Map<String, dynamic>?) ?? const {}).entries)
+        int.parse(entry.key): entry.value as String,
+    },
   );
 
   /// The phone's own name for this submission.
@@ -45,6 +51,10 @@ class SavedRegister {
   final Map<int, AttendanceStatus> marks;
   final DateTime savedAt;
 
+  /// Student id to a remark, where one was written (the web register has a
+  /// remarks box; the phone's does not).
+  final Map<int, String> remarks;
+
   Map<String, dynamic> toJson() => {
     'client_id': clientId,
     'user_id': userId,
@@ -53,11 +63,17 @@ class SavedRegister {
     'date': date,
     'marks': {for (final entry in marks.entries) '${entry.key}': entry.value.apiValue},
     'saved_at': savedAt.toIso8601String(),
+    if (remarks.isNotEmpty) 'remarks': {for (final entry in remarks.entries) '${entry.key}': entry.value},
   };
 
   /// What `POST attendance` takes.
   List<Map<String, dynamic>> get records => [
-    for (final entry in marks.entries) {'student_id': entry.key, 'status': entry.value.apiValue},
+    for (final entry in marks.entries)
+      {
+        'student_id': entry.key,
+        'status': entry.value.apiValue,
+        if (remarks[entry.key] != null) 'remarks': remarks[entry.key],
+      },
   ];
 
   bool isFor(int sectionId, String day) => classSectionId == sectionId && date == day;

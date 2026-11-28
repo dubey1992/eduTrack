@@ -10,6 +10,7 @@ import '../../features/school_logo/presentation/logo_prompt.dart';
 import '../../features/school_logo/presentation/school_logo_image.dart';
 import '../routing/app_nav.dart';
 import 'account_menu.dart';
+import 'offline_bar.dart';
 import 'responsive.dart';
 import 'sidebar_nav.dart';
 import 'user_avatar.dart';
@@ -65,7 +66,12 @@ class _AppShellState extends ConsumerState<AppShell> {
             ),
           ],
         ),
-        body: child,
+        body: Column(
+          children: [
+            const OfflineBar(),
+            Expanded(child: child),
+          ],
+        ),
       ),
       desktop: (context) => Scaffold(
         body: Row(
@@ -79,6 +85,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                 children: [
                   _Topbar(heading: heading, area: area),
                   const Divider(height: 1),
+                  // Offline, and what waits to be sent (docs/offline-web.md).
+                  const OfflineBar(),
                   Expanded(child: child),
                 ],
               ),

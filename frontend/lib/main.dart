@@ -5,6 +5,7 @@ import 'core/config/env.dart';
 import 'core/errors/startup_focus_error.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/my_register/presentation/register_sender.dart';
 
 void main() {
   Env.checkReleaseConfiguration();
@@ -36,8 +37,12 @@ class EduTrackApp extends ConsumerWidget {
       // (and its Overlay) that the app builds internally - so a plain
       // SelectionArea here throws "No Overlay widget found". Giving it its
       // own Overlay first is the documented workaround for that ordering.
-      builder: (context, child) => Overlay(
-        initialEntries: [OverlayEntry(builder: (context) => SelectionArea(child: child ?? const SizedBox.shrink()))],
+      // Work saved on this computer while offline is sent on sign-in and
+      // as soon as the connection is back (docs/offline-web.md, O3).
+      builder: (context, child) => RegisterSender(
+        child: Overlay(
+          initialEntries: [OverlayEntry(builder: (context) => SelectionArea(child: child ?? const SizedBox.shrink()))],
+        ),
       ),
     );
   }

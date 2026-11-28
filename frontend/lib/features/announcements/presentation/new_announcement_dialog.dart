@@ -9,6 +9,8 @@ import '../../auth/application/school_clock_provider.dart';
 import '../../classes/application/class_section_picker_provider.dart';
 import '../../communication/data/models/message.dart';
 import '../../departments/application/department_picker_provider.dart';
+import '../../my_teaching/application/staff_outbox.dart';
+import '../../my_teaching/data/outbox.dart';
 import '../application/announcement_page_notifier.dart';
 import '../data/models/announcement.dart';
 import '../../../core/utils/date_format.dart';
@@ -131,7 +133,45 @@ class _NewAnnouncementDialogState extends ConsumerState<NewAnnouncementDialog> {
         );
     } catch (error) {
       final failure = error is Failure ? error : Failure.unknown(error.toString());
-      setState(() => _error = failure.message);
+      // No connection: the notice is kept on this computer and goes out when
+      // the line is back - never before (docs/offline-web.md, O3). Files
+      // already uploaded wait on the server and go with it.
+      final kept =
+          failure.code == 'NETWORK_ERROR' &&
+          await ref
+              .read(staffOutboxProvider.notifier)
+              .keepFromWeb(
+                kind: OutboxKind.notice,
+                key: OutboxItem.uniqueKey('notice'),
+                label: 'Notice: ${_titleController.text.trim()}',
+                payload: {
+                  'school_id': _schoolId,
+                  'title': _titleController.text.trim(),
+                  'body': _bodyController.text.trim(),
+                  'audience_type': _audience.apiValue,
+                  'audience_id': _audience.needsTarget ? _target : null,
+                  'channels': MessageChannel.joined(_channels),
+                  'expires_at': _expiresAt == null ? null : DateFormat('yyyy-MM-dd').format(_expiresAt!),
+                  'reply_question': _asking ? _questionController.text.trim() : null,
+                  'reply_by': _asking && _replyBy != null ? DateFormat('yyyy-MM-dd').format(_replyBy!) : null,
+                  'attachment_ids': [for (final file in _files) file.id],
+                },
+              );
+      if (kept) {
+        _files.clear();
+        navigator.pop();
+        messenger
+          ..clearSnackBars()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No connection - the notice is saved on this computer. It will be sent when the connection is back.',
+              ),
+            ),
+          );
+        return;
+      }
+      if (mounted) setState(() => _error = failure.message);
     } finally {
       if (mounted) setState(() => _publishing = false);
     }

@@ -12,6 +12,8 @@ import '../../academic_years/data/models/academic_year.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../auth/application/school_clock_provider.dart';
 import '../../classes/application/class_section_picker_provider.dart';
+import '../../my_register/application/register_queue.dart';
+import '../../../core/network/connection_status.dart';
 import '../application/attendance_register_notifier.dart';
 import '../data/models/attendance_register.dart';
 import '../data/models/attendance_status.dart';
@@ -34,6 +36,7 @@ class AttendanceScreen extends ConsumerStatefulWidget {
 class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   int? _schoolId;
   int? _classSectionId;
+  String? _classLabel;
 
   /// Null until the user picks a day; the school's today stands in until
   /// then. Resolved on build rather than in initState, because the session
@@ -125,7 +128,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         schoolId: _schoolId,
                         year: _year,
                         selected: _classSectionId,
-                        onChanged: (value) => setState(() => _classSectionId = value),
+                        onChanged: (value, label) => setState(() {
+                          _classSectionId = value;
+                          _classLabel = label;
+                        }),
                       ),
                     ),
                   OutlinedButton.icon(
@@ -151,6 +157,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             _RegisterView(
               key: ValueKey('$_classSectionId-$_formattedDate'),
               params: AttendanceRegisterParams(classSectionId: _classSectionId!, date: _formattedDate),
+              classLabel: _classLabel,
             ),
         ],
       ),
@@ -166,7 +173,9 @@ class _ClassSectionPicker extends ConsumerWidget {
   /// A year other than the current one lists that year's sections.
   final AcademicYear? year;
   final int? selected;
-  final ValueChanged<int?> onChanged;
+
+  /// The class picked, and its name.
+  final void Function(int? id, String? label) onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -190,7 +199,7 @@ class _ClassSectionPicker extends ConsumerWidget {
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Class'),
           items: [for (final option in visible) DropdownMenuItem(value: option.id, child: Text(option.label))],
-          onChanged: onChanged,
+          onChanged: (id) => onChanged(id, visible.where((o) => o.id == id).firstOrNull?.label),
         );
       },
     );
@@ -198,13 +207,24 @@ class _ClassSectionPicker extends ConsumerWidget {
 }
 
 class _RegisterView extends ConsumerWidget {
-  const _RegisterView({super.key, required this.params});
+  const _RegisterView({super.key, required this.params, this.classLabel});
 
   final AttendanceRegisterParams params;
+  final String? classLabel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final registerState = ref.watch(attendanceRegisterProvider(params));
+    // A register saved offline has been sent, or turned down: read it again
+    // so the page shows what the server now has (docs/offline-web.md, O3).
+    if (ref.watch(offlineWorkProvider)) {
+      ref.listen(
+        registerQueueProvider.select((queue) => queue.waitingFor(params.classSectionId, params.date) != null),
+        (wasWaiting, waiting) {
+          if (wasWaiting == true && !waiting) ref.invalidate(attendanceRegisterProvider(params));
+        },
+      );
+    }
     final notifier = ref.read(attendanceRegisterProvider(params).notifier);
     final canMark = ref.watch(authNotifierProvider).value?.canManage(AppModules.attendance) ?? false;
 
@@ -244,6 +264,14 @@ class _RegisterView extends ConsumerWidget {
                     backgroundColor: context.appColors.dangerContainer,
                     labelStyle: TextStyle(color: context.appColors.onDangerContainer),
                   )
+                else if (register.waitingToSend)
+                  Chip(
+                    key: const Key('register-waiting'),
+                    avatar: Icon(Icons.cloud_upload_outlined, size: 18, color: context.appColors.onWarningContainer),
+                    label: const Text('Saved on this computer - sends when the connection is back'),
+                    backgroundColor: context.appColors.warningContainer,
+                    labelStyle: TextStyle(color: context.appColors.onWarningContainer),
+                  )
                 else
                   Chip(
                     label: Text(register.submitted ? 'Submitted' : 'Not yet submitted'),
@@ -266,12 +294,16 @@ class _RegisterView extends ConsumerWidget {
                         onPressed: isComplete
                             ? () async {
                                 try {
-                                  await notifier.submitOrUpdate();
+                                  final outcome = await notifier.submitOrUpdate(classLabel: classLabel);
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          register.submitted ? 'Attendance updated.' : 'Attendance submitted.',
+                                          outcome == RegisterSendOutcome.savedOffline
+                                              ? 'No connection - attendance saved on this computer. It will be sent when the connection is back.'
+                                              : register.submitted
+                                              ? 'Attendance updated.'
+                                              : 'Attendance submitted.',
                                         ),
                                       ),
                                     );
@@ -291,6 +323,15 @@ class _RegisterView extends ConsumerWidget {
                   ),
               ],
             ),
+            if (register.fromSavedList) ...[
+              const SizedBox(height: 8),
+              Text(
+                'No connection - this is the class list saved on this computer. Whether the day was already taken, '
+                'or is a holiday, is checked when the register is sent.',
+                key: const Key('register-from-saved-list'),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
             if (holiday != null) ...[
               const SizedBox(height: 8),
               Text(

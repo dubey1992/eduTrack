@@ -62,6 +62,8 @@ class AttendanceRegister {
     required this.submitted,
     required this.students,
     this.holiday,
+    this.fromSavedList = false,
+    this.waitingToSend = false,
   });
 
   factory AttendanceRegister.fromJson(Map<String, dynamic> json) {
@@ -79,4 +81,12 @@ class AttendanceRegister {
   final bool submitted;
   final List<AttendanceRosterEntry> students;
   final HolidaySummary? holiday;
+
+  /// Opened with no connection, from the class list kept on this computer
+  /// (docs/offline-web.md, O3): whether the day was already taken, or is a
+  /// holiday, is not known until the server is reached again.
+  final bool fromSavedList;
+
+  /// Saved on this computer and not yet accepted by the server.
+  final bool waitingToSend;
 }

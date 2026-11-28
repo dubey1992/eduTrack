@@ -22,11 +22,20 @@ Future<bool> saveStaffRegister(
 
   while (true) {
     try {
-      await notifier.submitOrUpdate(confirmLeave: confirmLeave);
+      final keptOffline = await notifier.submitOrUpdate(confirmLeave: confirmLeave);
       if (context.mounted) {
         final l10n = context.l10n;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(submitted ? l10n.staffAttendanceUpdated : l10n.staffAttendanceSubmitted)),
+          SnackBar(
+            content: Text(
+              keptOffline
+                  // The web office only (docs/offline-web.md, O3), so English.
+                  ? 'No connection - the staff register is saved on this computer. It will be sent when the connection is back.'
+                  : submitted
+                  ? l10n.staffAttendanceUpdated
+                  : l10n.staffAttendanceSubmitted,
+            ),
+          ),
         );
       }
       return true;
