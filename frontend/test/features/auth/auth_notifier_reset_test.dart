@@ -25,7 +25,12 @@ void main() {
     //                               and expensive to raster again
     // The Family app's session is its own, not the staff sign-in's: it is
     // reset by FamilySessionNotifier's own sign-out.
+    //   offlineRecordsProvider      listens to the session and empties
+    //                               itself when nobody is signed in;
+    //                               invalidating it from here would be
+    //                               circular (docs/offline-web.md, O2)
     const exempt = {
+      'offlineRecordsProvider',
       'authNotifierProvider',
       'timezoneListProvider',
       'marketingContentProvider',

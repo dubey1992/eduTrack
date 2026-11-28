@@ -1,3 +1,5 @@
+import '../../../core/network/connection_status.dart';
+import '../../offline_records/application/offline_records_notifier.dart';
 import '../../../core/network/session_ended_notifier.dart';
 
 import 'package:flutter/material.dart';
@@ -37,6 +39,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   bool _rememberMe = false;
+
+  /// Off by default, every sign-in (docs/offline-web.md, D2).
+  bool _trustedComputer = false;
 
   @override
   void initState() {
@@ -86,7 +91,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     await ref.read(authNotifierProvider.notifier).login(email: email, password: _passwordController.text);
 
     // Signed in: the browser may now offer to save the password.
-    if (ref.read(authNotifierProvider).value != null) TextInput.finishAutofillContext();
+    if (ref.read(authNotifierProvider).value != null) {
+      TextInput.finishAutofillContext();
+      // Keep records for offline work only on a computer the person trusts.
+      await ref.read(offlineRecordsProvider.notifier).setTrusted(_trustedComputer);
+    }
 
     final tokenStorage = ref.read(authTokenStorageProvider);
     if (_rememberMe) {
@@ -120,6 +129,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       onToggleObscurePassword: () => setState(() => _obscurePassword = !_obscurePassword),
       rememberMe: _rememberMe,
       onRememberMeChanged: (value) => setState(() => _rememberMe = value),
+      trustedComputer: ref.watch(offlineWorkProvider) ? _trustedComputer : null,
+      onTrustedComputerChanged: (value) => setState(() => _trustedComputer = value),
       isSubmitting: _isSubmitting,
       onSubmit: _submit,
       onForgotPassword: () => context.push('/forgot-password'),

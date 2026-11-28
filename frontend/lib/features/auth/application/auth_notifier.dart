@@ -5,6 +5,7 @@ import '../../school_logo/application/school_logo_controller.dart';
 import '../../setup_guide/application/setup_guide_notifier.dart';
 import '../../analytics/application/analytics_notifier.dart';
 import '../../../core/network/offline_copies.dart';
+import '../../offline_records/data/offline_records_store.dart';
 import '../../../core/network/session_ended_notifier.dart';
 import '../../academic_years/application/viewed_year.dart';
 import '../../academic_years/application/academic_year_list_notifier.dart';
@@ -167,6 +168,14 @@ class AuthNotifier extends AsyncNotifier<AuthenticatedUser?> {
       await ref.read(registerStoreProvider).clearRosters();
     } catch (error) {
       debugPrint('Saved class lists could not be cleared on sign-out: $error');
+    }
+    // The trusted computer's copy of records (docs/offline-web.md, O2).
+    try {
+      // The store itself: the notifier listens to this one, and empties
+      // itself when the person is gone.
+      await ref.read(offlineRecordsStoreProvider).clear();
+    } catch (error) {
+      debugPrint('The offline copy of records could not be cleared on sign-out: $error');
     }
     // The web app's offline copies of its forms (docs/offline-web.md, O3).
     try {

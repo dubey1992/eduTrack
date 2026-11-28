@@ -24,6 +24,8 @@ class LoginCard extends StatelessWidget {
     required this.isSubmitting,
     required this.onSubmit,
     required this.onForgotPassword,
+    this.trustedComputer,
+    this.onTrustedComputerChanged,
     this.onAttendantSignIn,
   });
 
@@ -37,6 +39,11 @@ class LoginCard extends StatelessWidget {
   final bool isSubmitting;
   final VoidCallback onSubmit;
   final VoidCallback onForgotPassword;
+
+  /// "This is a school computer I trust" (docs/offline-web.md, O2): shown
+  /// only when given - the web app's sign-in, never the phone apps'.
+  final bool? trustedComputer;
+  final ValueChanged<bool>? onTrustedComputerChanged;
 
   /// Opens the bus attendant's mobile + passcode sign-in. The email form
   /// above refuses an attendant, so they need a way to theirs from here.
@@ -145,6 +152,44 @@ class LoginCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (trustedComputer != null && onTrustedComputerChanged != null)
+                InkWell(
+                  key: const Key('login-trusted-computer'),
+                  onTap: () => onTrustedComputerChanged!(!trustedComputer!),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: trustedComputer,
+                        onChanged: (value) => onTrustedComputerChanged!(value ?? false),
+                        activeColor: palette.primary,
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text.rich(
+                            TextSpan(
+                              text: 'This is a school computer I trust',
+                              style: TextStyle(fontSize: 14, color: palette.text),
+                              children: [
+                                TextSpan(
+                                  text:
+                                      '\nKeeps records here so the office can work offline. '
+                                      'Leave unticked on a shared or borrowed computer.',
+                                  style: TextStyle(fontSize: 12, color: palette.subtle),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 8),
               PrimaryButton(label: 'Sign In', isLoading: isSubmitting, onPressed: onSubmit),
               const SizedBox(height: 22),

@@ -13,6 +13,7 @@ class AuthenticatedUser {
     this.schoolId,
     this.isSubAdmin = false,
     this.mustChangePassword = false,
+    this.offlineCopies = false,
     this.managesBranches = false,
     this.access = const ModuleAccess.unspecified(),
     this.photoUrl,
@@ -44,6 +45,7 @@ class AuthenticatedUser {
       schoolId: json['school_id'] as int?,
       isSubAdmin: json['is_sub_admin'] as bool? ?? false,
       mustChangePassword: json['must_change_password'] as bool? ?? false,
+      offlineCopies: json['offline_copies'] as bool? ?? false,
       managesBranches: json['manages_branches'] as bool? ?? false,
       access: ModuleAccess.fromJson(json),
       photoUrl: json['photo_url'] as String?,
@@ -107,6 +109,10 @@ class AuthenticatedUser {
   /// generated password. The router keeps them on the change-password
   /// screen until they pick one of their own.
   final bool mustChangePassword;
+
+  /// Whether the school lets a trusted computer keep records for working
+  /// offline (docs/offline-web.md, O2) - the Students setting offline_copies.
+  final bool offlineCopies;
 
   /// True when this account answers for more than one school - an admin of a
   /// school that belongs to a group. Sent by the server, because the role

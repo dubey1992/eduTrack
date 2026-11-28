@@ -80,6 +80,7 @@ import '../../features/absence_notes/presentation/absence_notes_screen.dart';
 import '../../features/guardian_invites/presentation/guardian_invites_screen.dart';
 import '../../features/call_requests/call_requests.dart';
 import '../../features/gallery/presentation/gallery_screens.dart';
+import '../../features/offline_records/presentation/offline_records_views.dart';
 import '../../features/ptm/presentation/ptm_meetings_screen.dart';
 import '../../features/ptm/presentation/ptm_slots_screen.dart';
 import '../widgets/app_shell.dart';
@@ -330,8 +331,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/promotion', builder: (context, state) => const PromotionScreen()),
           GoRoute(path: '/classes', builder: (context, state) => const ClassListScreen()),
           GoRoute(path: '/timetable', builder: (context, state) => const TimetableScreen()),
-          GoRoute(path: '/staff', builder: (context, state) => const StaffListScreen()),
-          GoRoute(path: '/students', builder: (context, state) => const StudentListScreen()),
+          // Offline, a trusted computer shows its copy (docs/offline-web.md, O2).
+          GoRoute(
+            path: '/staff',
+            builder: (context, state) => OfflineAware(
+              online: const StaffListScreen(),
+              offline: (snapshot) =>
+                  snapshot.staff == null ? const StaffListScreen() : OfflineStaffView(snapshot: snapshot),
+            ),
+          ),
+          GoRoute(
+            path: '/students',
+            builder: (context, state) => OfflineAware(
+              online: const StudentListScreen(),
+              offline: (snapshot) => OfflineStudentsView(snapshot: snapshot),
+            ),
+          ),
           GoRoute(path: '/attendance', builder: (context, state) => const AttendanceScreen()),
           GoRoute(path: '/absence-notes', builder: (context, state) => const AbsenceNotesScreen()),
           GoRoute(path: '/guardian-requests', builder: (context, state) => const GuardianInvitesScreen()),

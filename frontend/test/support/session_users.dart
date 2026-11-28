@@ -16,6 +16,7 @@ AuthenticatedUser sessionUser(
   Map<String, PermissionLevel>? permissions,
   Map<String, bool> modules = const {},
   bool managesBranches = false,
+  bool offlineCopies = false,
 }) {
   return AuthenticatedUser(
     id: id,
@@ -23,6 +24,7 @@ AuthenticatedUser sessionUser(
     email: email,
     role: role,
     managesBranches: managesBranches,
+    offlineCopies: offlineCopies,
     access: ModuleAccess(permissions: permissions, modules: modules),
   );
 }

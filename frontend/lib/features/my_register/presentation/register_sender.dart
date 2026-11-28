@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/connection_status.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../offline_records/application/offline_records_notifier.dart';
 import '../../my_teaching/application/staff_outbox.dart';
 import '../application/register_queue.dart';
 
@@ -41,6 +42,9 @@ class _RegisterSenderState extends ConsumerState<RegisterSender> {
     // The connection is back: the browser said so, or a call got through
     // after one that could not (docs/offline-web.md, O3).
     _reconnected = ref.read(connectionStatusProvider.notifier).onReconnected.listen((_) => _send());
+    // The trusted computer's copy of records loads and refreshes from sign-in
+    // on, not only once a records screen is opened (docs/offline-web.md, O2).
+    ref.listenManual(offlineRecordsProvider, (_, _) {});
   }
 
   @override
