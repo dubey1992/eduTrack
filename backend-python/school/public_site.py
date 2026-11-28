@@ -525,6 +525,9 @@ def render_home(words: Words, live: set[str], modules: list[PublicPage], posts=(
             ),
             "exam_href": "/school-exam-management-software" if "school-exam-management-software" in live
             else "#features",
+            # The offline band's own page (docs/offline-web.md).
+            "offline_href": "/school-software-that-works-offline" if "school-software-that-works-offline" in live
+            else "#features",
             "hero": {
                 "eyebrow": words.text("hero.eyebrow"),
                 "headline": words.text("hero.headline"),

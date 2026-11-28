@@ -25,8 +25,8 @@ const marketingDefaults = <String, String>{
   'hero.eyebrow': 'One connected school platform',
   'hero.headline': 'A brighter way\nto run your school.',
   'hero.body':
-      'Attendance, fees, exam date sheets, admit cards, report cards and the school bus, together - so your '
-      'team spends less time on administration and more time with students.',
+      'Attendance, fees, exam date sheets, admit cards, report cards and the school bus, together - and it '
+      'keeps working when the school\'s internet drops.',
   'hero.primaryButton': 'Join Early Access →',
   'hero.demoButton': 'Request a Demo',
   'hero.secondaryButton': 'Watch Video',

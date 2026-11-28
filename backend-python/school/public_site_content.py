@@ -24,6 +24,8 @@ def _icon(*paths: str) -> str:
 
 
 ICONS = {
+    # A cloud with a line through it: working with the connection down.
+    "offline": _icon("M2 2l20 20", "M8.5 5.6A6 6 0 0 1 17.6 9H18a4 4 0 0 1 2.8 6.8", "M6 8a6 6 0 0 0-1 11h13"),
     "attendance": _icon("M9 11l3 3 8-8", "M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"),
     "fees": _icon("M4 6h16v12H4z", "M4 10h16", "M8 15h3"),
     "bus": _icon("M5 17V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v11", "M5 12h14", "M7 20v-3", "M17 20v-3", "M8 15h.01", "M16 15h.01"),
@@ -60,6 +62,7 @@ MODULE_ICONS = {
     "student-information-system": ("records", ""),
     "school-staff-and-driver-apps": ("phone", "tone-gold"),
     "school-exam-management-software": ("exam", "tone-lilac"),
+    "school-software-that-works-offline": ("offline", "tone-gold"),
 }
 
 
@@ -79,6 +82,7 @@ SHORT_NAMES = {
     "school-reports-and-analytics": "Reports",
     "student-information-system": "Records",
     "school-staff-and-driver-apps": "Mobile Apps",
+    "school-software-that-works-offline": "Works Offline",
 }
 
 
@@ -122,6 +126,8 @@ FEATURE_GROUPS = (
      ("school-communication-software",)),
     ("Reports and the apps", "The school's figures, and the Android apps.",
      ("school-reports-and-analytics", "school-staff-and-driver-apps")),
+    ("Working offline", "When the school's internet goes down, the day carries on.",
+     ("school-software-that-works-offline",)),
 )
 
 
@@ -229,6 +235,10 @@ HOME_FAQ = (
     ("How is an admit card different from a report card?",
      "An admit card is for exam day: the student, the centre, the reporting time and the papers they sit. A "
      "report card comes after: the marks, the grades and the result, in the school's own grading system."),
+    ("Does School365ai work without internet?",
+     "Yes, for the day's work. On a computer where it has been used before, the web app opens with the "
+     "internet down; registers, marks, teaching reports, leave applications and notices are saved on the "
+     "computer and sent by themselves when the connection is back. The Android apps work without signal too."),
     ("Can our school start now?",
      "School365ai is welcoming schools through its early-access programme. Request a demo or join early "
      "access, and we will tell you how to get started."),

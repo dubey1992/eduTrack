@@ -509,11 +509,57 @@ Publish the change and the cards print it as a new version. The earlier version 
 ### Can an admit card be held for unpaid fees?
 Only if the school switches that on for an exam. A student with overdue fees then gets no card until the fees are paid, or until the school lets them through by name."""
 
+OFFLINE = """School365ai keeps working when a school's internet goes down. The web app opens on the office computer without a connection, the day's work is saved on the computer, and everything is sent by itself the moment the connection is back.
+
+## The line drops - the app still opens
+
+Once the web app has been used on a computer, it opens there with no internet at all, already signed in. A bar across the top says the school is offline, so nobody wonders why a page is quiet.
+
+## Keep working, it is saved on the computer
+
+With the internet down, the office and teachers carry on:
+
+- **The class register** - for the classes already opened on that computer. The class list is kept for the next time the line drops.
+- **Marks** on a class test's marks sheet.
+- **Daily teaching reports.**
+- **The staff register** for a day already opened.
+- **Leave applications.**
+- **Notices** - written now, sent to families and staff when the connection returns, never before.
+
+A count in the bar shows how much is waiting on that computer.
+
+## It sends itself when the line is back
+
+There is nothing to remember. The moment the computer is back online, everything saved is sent, oldest first. The school's own rules still apply when it arrives: a register for a day the school was closed, or one another teacher already took, is not accepted - and it is listed with the reason, never quietly lost.
+
+## On the phone too
+
+The School365ai staff app takes the register, teaching reports and marks with no signal, and the School365ai Driver app keeps marking children on and off the bus in a dead zone. Both send when the phone is back in coverage.
+
+## What waits for the connection
+
+Some work needs the school's server and waits until it can be reached: taking fee payments, changing a register already submitted, reports and PDFs, setting up classes and timetables, and sending SMS or WhatsApp messages.
+
+## Frequently asked questions
+
+### Does School365ai work without internet?
+Yes, for the day's work. On a computer where it has been used before, the web app opens offline; registers, marks, teaching reports, the staff register, leave applications and notices are saved on the computer and sent automatically when the connection returns.
+
+### Is anything lost if the internet stops halfway through?
+No. Work is saved on the computer as soon as it is submitted, and stays there until the school's server has it. If the server cannot accept something, it is listed with the reason instead of being dropped.
+
+### Can fees be collected offline?
+Not yet. Fee payments need a connection to the school's server today, so receipts are always numbered correctly."""
+
 # In the order the homepage shows them: what a school asks about first.
 MODULES: tuple[ModulePage, ...] = (
     ModulePage(
         "school-attendance-software", "School Attendance Software",
         "Daily class registers on web and phone, with absence alerts to guardians.", ATTENDANCE,
+    ),
+    ModulePage(
+        "school-software-that-works-offline", "School Software That Works Offline",
+        "Keeps working when the internet drops, and sends everything when it is back.", OFFLINE,
     ),
     ModulePage(
         "school-fee-management-software", "School Fee Management Software",
