@@ -9,3 +9,6 @@ output-class: AppLocalizations
 # AppLocalizations.of() may be null - the web office has no delegate yet,
 # nor do most widget tests; context.l10n falls back to English then.
 nullable-getter: true
+# Formatted as it is written, at the project's width (analysis_options.yaml):
+# `flutter pub get` regenerates these files, and CI's format check runs after.
+format: true

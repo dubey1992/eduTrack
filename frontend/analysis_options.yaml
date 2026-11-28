@@ -9,6 +9,12 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+# The project's line width, the same as CI's `dart format --line-length=120`,
+# so code generated during `flutter pub get` (the translations) comes out
+# formatted to match.
+formatter:
+  page_width: 120
+
 analyzer:
   exclude:
     - build/**
